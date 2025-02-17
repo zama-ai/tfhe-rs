@@ -8,10 +8,11 @@ mod trim;
 
 pub use crate::high_level_api::backward_compatibility::strings::FheAsciiStringVersions;
 use crate::high_level_api::details::MaybeCloned;
+use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt, Tagged};
 use crate::strings::ciphertext::FheString;
-use crate::{ClientKey, Tag};
+use crate::{ClientKey, HlExpandable, Tag};
 pub use no_pattern::{FheStringIsEmpty, FheStringLen};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
@@ -273,5 +274,50 @@ impl FheTryEncrypt<&String, ClientKey> for FheAsciiString {
 impl FheDecrypt<String> for FheAsciiString {
     fn decrypt(&self, key: &ClientKey) -> String {
         crate::strings::ClientKey::new(&key.key.key).decrypt_ascii(&self.inner.on_cpu())
+    }
+}
+
+impl Expandable for FheAsciiString {
+    fn from_expanded_blocks(
+        blocks: Vec<crate::shortint::Ciphertext>,
+        kind: crate::integer::ciphertext::DataKind,
+    ) -> crate::Result<Self> {
+        FheString::from_expanded_blocks(blocks, kind)
+            .map(|cpu_string| Self::new(cpu_string, Tag::default()))
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable
+    for FheAsciiString
+{
+    fn from_expanded_blocks(
+        blocks: crate::integer::gpu::ciphertext::CudaRadixCiphertext,
+        kind: DataKind,
+    ) -> crate::Result<Self> {
+        Err(crate::error!("GPU does not supports strings yet"))
+    }
+}
+
+impl HlExpandable for FheAsciiString {}
+
+impl crate::HlCompressible for FheAsciiString {
+    fn compress_into(
+        self,
+        messages: &mut Vec<(
+            crate::high_level_api::compressed_ciphertext_list::ToBeCompressed,
+            DataKind,
+        )>,
+    ) {
+        match self.inner {
+            AsciiDevice::Cpu(fhe_string) => {
+                let mut blocks = vec![];
+                let data_kind = fhe_string.compress_into(&mut blocks);
+                messages.push((
+                    crate::high_level_api::compressed_ciphertext_list::ToBeCompressed::Cpu(blocks),
+                    data_kind,
+                ));
+            }
+        }
     }
 }

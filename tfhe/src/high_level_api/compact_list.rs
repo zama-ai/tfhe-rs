@@ -24,6 +24,9 @@ pub use zk::ProvenCompactCiphertextList;
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::{CompactPublicKey, Tag};
 
+#[cfg(feature = "strings")]
+use super::ClearString;
+
 impl crate::FheTypes {
     pub(crate) fn from_data_kind(
         data_kind: DataKind,
@@ -481,6 +484,32 @@ impl CompactCiphertextListBuilder {
     }
 }
 
+#[cfg(feature = "strings")]
+impl CompactCiphertextListBuilder {
+    pub fn push_string(&mut self, string: &ClearString) -> &mut Self {
+        self.push(string)
+    }
+
+    pub fn push_string_with_padding(
+        &mut self,
+        clear_string: &ClearString,
+        padding_count: u32,
+    ) -> &mut Self {
+        self.inner
+            .push_string_with_padding(clear_string, padding_count);
+        self
+    }
+
+    pub fn push_string_with_fixed_size(
+        &mut self,
+        clear_string: &ClearString,
+        size: u32,
+    ) -> &mut Self {
+        self.inner.push_string_with_fixed_size(clear_string, size);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -688,6 +717,68 @@ mod tests {
             assert_eq!(d, 3);
 
             assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
+        }
+    }
+
+    #[cfg(feature = "strings")]
+    #[test]
+    fn test_compact_list_with_string_and_casting() {
+        use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        use crate::FheAsciiString;
+
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V0_11_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        let string1 = ClearString::new("The quick brown fox".to_string());
+        let string2 = ClearString::new("jumps over the lazy dog".to_string());
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .push(true)
+            .push(&string1)
+            .push_string_with_fixed_size(&string2, 55)
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand_with_key(&sk).unwrap();
+
+        {
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheBool = expander.get(1).unwrap().unwrap();
+            let c: FheAsciiString = expander.get(2).unwrap().unwrap();
+            let d: FheAsciiString = expander.get(3).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: bool = b.decrypt(&ck);
+            assert!(b);
+            let c = c.decrypt(&ck);
+            assert_eq!(&c, string1.str());
+            let d = d.decrypt(&ck);
+            assert_eq!(&d, string2.str());
+
+            assert!(expander.get::<FheBool>(4).unwrap().is_none());
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheInt64>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheAsciiString>(0).is_err());
         }
     }
 }
