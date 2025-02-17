@@ -900,6 +900,11 @@ mod tests {
                 let a: crate::FheAsciiString = compressed_list.get(0).unwrap().unwrap();
                 let b: crate::FheAsciiString = compressed_list.get(1).unwrap().unwrap();
 
+                assert_eq!(
+                    compressed_list.get_kind_of(0),
+                    Some(crate::FheTypes::AsciiString)
+                );
+
                 let a = a.decrypt(ck);
                 assert_eq!(&a, "Hello, World");
                 let b = b.decrypt(ck);

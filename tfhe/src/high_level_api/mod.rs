@@ -174,4 +174,5 @@ pub enum FheTypes {
     Int128 = 27,
     Int160 = 28,
     Int256 = 29,
+    AsciiString = 30,
 }

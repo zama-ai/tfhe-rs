@@ -78,7 +78,7 @@ impl crate::FheTypes {
                 }
             }
             DataKind::Boolean => Self::Bool,
-            DataKind::String { .. } => return None,
+            DataKind::String { .. } => Self::AsciiString,
         })
     }
 }
@@ -770,6 +770,11 @@ mod tests {
             let b: FheBool = expander.get(1).unwrap().unwrap();
             let c: FheAsciiString = expander.get(2).unwrap().unwrap();
             let d: FheAsciiString = expander.get(3).unwrap().unwrap();
+
+            assert_eq!(expander.get_kind_of(0), Some(crate::FheTypes::Uint32));
+            assert_eq!(expander.get_kind_of(1), Some(crate::FheTypes::Bool));
+            assert_eq!(expander.get_kind_of(2), Some(crate::FheTypes::AsciiString));
+            assert_eq!(expander.get_kind_of(3), Some(crate::FheTypes::AsciiString));
 
             let a: u32 = a.decrypt(&ck);
             assert_eq!(a, 17);
