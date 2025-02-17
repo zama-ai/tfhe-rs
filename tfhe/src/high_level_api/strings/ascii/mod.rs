@@ -287,6 +287,8 @@ impl Expandable for FheAsciiString {
     }
 }
 
+impl crate::HlCompactable for &crate::ClearString {}
+
 #[cfg(feature = "gpu")]
 impl crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable
     for FheAsciiString
