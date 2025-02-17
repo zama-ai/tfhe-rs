@@ -124,3 +124,80 @@ The process follows this steps:
 >* review team is located in Paris timezone, pipeline launch will most likely happen during office hours
 >* direct changes to CI related files are not allowed for external contributors
 >* run `make pcc` to fix any build errors before pushing commits
+
+# Data versioning
+Data serialized with TFHE-rs should be backward compatible. This is done with the [tfhe-versionable](https://crates.io/crates/tfhe-versionable) crate.
+If you modify a type that derives `Versionize` in a way that is not backward compatible, you should add an upgrade to that type.
+
+For example, these changes are data breaking:
+- Adding a field to a struct,
+- changing the order of the fields within a struct or the variants within an enum,
+- renaming a field of a struct or a variant of an enum,
+- changing the type of a field in a struct or a variant in an enum.
+
+On the contrary, these changes are *not* data breaking:
+- Renaming a type (though if it implements the `Named' trait, it can be),
+- adding a variant to the end of an enum
+
+Here is a quick example of how to do this.
+Suppose you want to add a new i32 field to a type named `MyType`.
+
+For example, you want to change this:
+```rust
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(MyTypeVersions)]
+struct MyType {
+  val: u64,
+}
+```
+into this:
+```rust
+#[derive(Serialize, Deserialize, Versionize)]
+#[versionize(MyTypeVersions)]
+struct MyType {
+  val: u64,
+  other_val: i32
+}
+```
+
+1. Navigate to the definition of the dispatch enum of this type. This is the type inside the `#[versionize(MyTypeVersions)]` macro attribute. In general, this type has the same name as the base type with a `Versions' suffix. You should find something like
+
+```rust
+#[derive(VersionsDispatch)]
+enum MyTypeVersions {
+  V0(MyTypeV0),
+  V1(MyType)
+}
+```
+
+2. Add a new variant to the enum to preserve the previous version of the type. You can simply copy and paste the previous definition of the type and add a version suffix:
+
+```rust
+#[derive(Version)]
+struct MyTypeV1 {
+  val: u64,
+}
+
+#[derive(VersionsDispatch)]
+enum MyTypeVersions {
+  V0(MyTypeV0),
+  V1(MyTypeV1),
+  V2(MyType) // Here this points to your modified type
+}
+```
+
+3. Implement the `Upgrade` trait to define how we should go from the previous version to the current version:
+```rust
+impl Upgrade<MyType> for MyTypeV1 {
+  type Error = Infallible;
+
+   fn upgrade(self) -> Result<MyType, Self::Error> {
+       Ok(MyType {
+           val: self.val,
+           other_val: 0
+        })
+   }
+}
+```
+
+4. fix the upgrade target of the previous version. In this example, `impl Upgrade<MyType> for MyTypeV0 {` should simply be changed to `impl Upgrade<MyTypeV1> for MyTypeV0 {`
