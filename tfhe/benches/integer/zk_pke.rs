@@ -337,7 +337,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             "{bench_name}::throughput::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
                         bench_id_verify_and_expand = format!(
-                            "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
+                            "{bench_name}_and_expand::throughput::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
                         println!("Generating proven ciphertexts list ({zk_load})... ");
