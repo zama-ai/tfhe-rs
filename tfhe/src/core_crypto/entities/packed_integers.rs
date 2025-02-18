@@ -105,56 +105,10 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
             let end_block_inclusive = (end - 1) / Scalar::BITS;
 
             if start_block == end_block_inclusive {
-                // Lowest bits are on the right
-                //
-                // Target mapping:
-                //                                   Scalar::BITS
-                //                                |---------------|
-                //
-                // packed_coeffs: | start_block+1 |  start_block  |
-                // container    :             |  i+1  |   i   |  i-1  |
-                //
-                //                                    |-------|
-                //                                   log_modulus
-                //
-                //                                            |---|
-                //                                       start_remainder
-                //
-                // In container[i] we want the bits of packed_coeffs[start_block] starting from
-                // index start_remainder
-                //
-                // container[i] = lowest_bits of single_part
-                //
                 let single_part = self.packed_coeffs[start_block] >> start_remainder;
 
                 single_part & mask
             } else {
-                // Lowest bits are on the right
-                //
-                // Target mapping:
-                //                                   Scalar::BITS
-                //                                 |---------------|
-                //
-                // packed_coeffs:  | start_block+1 |  start_block  |
-                // container    :      |  i+1  |   i   |  i-1  |
-                //
-                //                             |-------|
-                //                            log_modulus
-                //
-                //                                     |-----------|
-                //                                    start_remainder
-                //
-                //                                 |---|
-                //                     Scalar::BITS - start_remainder
-                //
-                // In the lowest bits of container[i] we want the highest bits of
-                // packed_coeffs[start_block] starting from index start_remainder
-                //
-                // In the next bits, we want the lowest bits of packed_coeffs[start_block + 1]
-                // left shifted to avoid overlapping
-                //
-                // container[i] = lowest_bits of (first_part|second_part)
-                //
                 assert_eq!(end_block_inclusive, start_block + 1);
 
                 let first_part = self.packed_coeffs[start_block] >> start_remainder;

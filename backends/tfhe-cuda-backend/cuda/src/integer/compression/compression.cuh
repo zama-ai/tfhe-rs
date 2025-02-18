@@ -12,13 +12,14 @@
 #include "polynomial/functions.cuh"
 #include "utils/kernel_dimensions.cuh"
 
+// This kernel follows the naming used in the rust implementation
 template <typename Torus>
 __global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
                      uint32_t num_glwes, uint32_t in_len, uint32_t out_len) {
   auto tid = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (tid < num_glwes * out_len) {
-    auto NBITS = sizeof(Torus) * 8;
+    const auto NBITS = sizeof(Torus) * 8;
     auto glwe_index = tid / out_len;
     auto i = tid % out_len;
     auto chunk_array_in = array_in + glwe_index * in_len;
@@ -50,7 +51,7 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
     PANIC("Cuda error: Input and output must be different");
 
   cuda_set_device(gpu_index);
-  auto NBITS = sizeof(Torus) * 8;
+  const auto NBITS = sizeof(Torus) * 8;
   auto compression_params = mem_ptr->compression_params;
   auto log_modulus = mem_ptr->storage_log_modulus;
 
@@ -139,24 +140,26 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    num_radix_blocks, mem_ptr);
 }
 
+// This kernel follows the naming used in the rust implementation
+    // except for output_len, which relates to initial_len
 template <typename Torus>
-__global__ void extract(Torus *glwe_array_out, Torus const *array_in,
-                        uint32_t index, uint32_t log_modulus,
-                        uint32_t input_len, uint32_t initial_out_len) {
-  auto NBITS = sizeof(Torus) * 8;
+__global__ void extract(Torus *glwe_array_out, const Torus *array_in,
+                        const uint32_t index, const uint32_t log_modulus,
+                        const uint32_t input_len, const uint32_t output_len) {
+  const auto NBITS = sizeof(Torus) * 8;
 
   auto i = threadIdx.x + blockIdx.x * blockDim.x;
   auto chunk_array_in = array_in + index * input_len;
-  if (i < initial_out_len) {
+  if (i < output_len) {
     // Unpack
-    Torus mask = ((Torus)1 << log_modulus) - 1;
-    auto start = i * log_modulus;
-    auto end = (i + 1) * log_modulus;
+    auto mask = (static_cast<Torus>(1) << log_modulus) - 1;
+    const auto start = i * log_modulus;
+    const auto end = (i + 1) * log_modulus;
 
     auto start_block = start / NBITS;
     auto start_remainder = start % NBITS;
 
-    auto end_block_inclusive = (end - 1) / NBITS;
+    const auto end_block_inclusive = (end - 1) / NBITS;
 
     Torus unpacked_i;
     if (start_block == end_block_inclusive) {
@@ -185,30 +188,44 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
     PANIC("Cuda error: Input and output must be different");
 
   cuda_set_device(gpu_index);
-  auto NBITS = sizeof(Torus) * 8;
   auto compression_params = mem_ptr->compression_params;
+    auto num_glwes = (mem_ptr->body_count + compression_params.polynomial_size - 1) / compression_params.polynomial_size;
+    printf("glwe_index: %u / %u\n", glwe_index, num_glwes);
+  const auto NBITS = sizeof(Torus) * 8;
+  printf("CUDA NBITS: %u\n", NBITS);
   auto log_modulus = mem_ptr->storage_log_modulus;
-
-  uint32_t body_count =
-      std::min(mem_ptr->body_count, compression_params.polynomial_size);
-  // num_glwes = 1 in this case
-  auto uncompressed_len =
-      compression_params.glwe_dimension * compression_params.polynomial_size +
-      body_count;
+  printf("CUDA log_modulus: %u\n", log_modulus);
 
   auto glwe_ciphertext_size = (compression_params.glwe_dimension + 1) *
                               compression_params.polynomial_size;
+  printf("CUDA glwe_ciphertext_size: %u\n", glwe_ciphertext_size);
+
+  auto glwe_mask_size =
+          compression_params.glwe_dimension * compression_params.polynomial_size;
+  printf("CUDA glwe_mask_size: %u\n", glwe_mask_size);
+
+  uint32_t num_lwes = (glwe_index == num_glwes - 1) ? (mem_ptr->body_count % compression_params.polynomial_size) : compression_params.polynomial_size;
+  printf("CUDA body_count: %u\n", num_lwes);
+
+  // num_glwes = 1 in this case
+  auto uncompressed_len =
+          glwe_ciphertext_size;
+  printf("CUDA uncompressed_len: %u\n", uncompressed_len);
+
   auto number_bits_to_unpack = uncompressed_len * log_modulus;
+  printf("CUDA number_bits_to_unpack: %u\n", number_bits_to_unpack);
+
   // number_bits_to_unpack.div_ceil(Scalar::BITS)
   auto compressed_len = (number_bits_to_unpack + NBITS - 1) / NBITS;
+  printf("CUDA compressed_len: %u\n", compressed_len);
 
   // We assure the tail of the glwe is zeroed
   auto zeroed_slice = glwe_array_out + uncompressed_len;
   cuda_memset_async(zeroed_slice, 0,
-                    (compression_params.polynomial_size - body_count) *
+                    (compression_params.polynomial_size - num_lwes) *
                         sizeof(Torus),
                     stream, gpu_index);
-
+// cuda_memset_async(glwe_array_out, 0, glwe_ciphertext_size * sizeof(Torus), stream, gpu_index);
   // Kernel settings
   int num_blocks = 0, num_threads = 0;
   getNumBlocksAndThreads(uncompressed_len, 128, num_blocks, num_threads);
