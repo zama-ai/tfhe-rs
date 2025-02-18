@@ -61,6 +61,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/compute/set-the-server-key.md",
         compute_set_the_server_key
     );
+    doctest!(
+        "../docs/fhe-computation/compute/parameters.md",
+        compute_parameters
+    );
 
     // DATA HANDLING
     doctest!(

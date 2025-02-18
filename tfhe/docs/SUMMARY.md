@@ -33,6 +33,7 @@
   * [Server key](fhe-computation/compute/set-the-server-key.md)
   * [Encryption](fhe-computation/compute/encrypt-data.md)
   * [Decryption](fhe-computation/compute/decrypt-data.md)
+  * [Parameters](fhe-computation/compute/parameters.md)
 * [Data handling](fhe-computation/data-handling/README.md)
   * [Compressing ciphertexts/keys](fhe-computation/data-handling/compress.md)
   * [Serialization/deserialization](fhe-computation/data-handling/serialization.md)
