@@ -1,0 +1,2735 @@
+<ENTRY>
+{
+ "thisFile": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin.link_summary",
+ "connectId": "",
+ "serverToken": "",
+ "timestamp": "0"
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Sun Feb 16 20:57:24 2025",
+ "timestampMillis": "1739735844745",
+ "buildStep": {
+  "cmdId": "ea1aacc6-bb49-48d2-9cdf-a063197f99c9",
+  "name": "v++",
+  "logFile": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/link.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2024.1/bin/unwrapped/lnx64.o/v++  --vivado.prop \"run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\" --advanced.misc \"report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\" -l -g -t hw --platform xilinx_u55c_gen3x16_xdma_3_202210_1 --save-temps --temp_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin -o /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin --config /projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg --vivado.prop run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc --kernel_frequency 0:300 /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_1in3.xo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_2in3.xo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_3in3.xo ",
+  "args": [
+   "-l",
+   "-g",
+   "-t",
+   "hw",
+   "--platform",
+   "xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "--save-temps",
+   "--temp_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin",
+   "-o",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin",
+   "--config",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg",
+   "--vivado.prop",
+   "run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc",
+   "--kernel_frequency",
+   "0:300",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_3in3.xo"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/cfg/hpu_msplit_3parts.cfg",
+    "content": "# General configuration knobs\n# equivalent of --platform knob\n# platform=\n# equivalent of --log_dir knob\n# logdir=\n# equivalent of --report_dir knob\n# report_dir=\n# equivalent of --target knob\n#target=hw\n\n# Enable debug mode\ndebug=1\nsave-temps=1\n\n# Enable link mode\n# link=1\n\n# Vivado properties\n[vivado]\nparam=project.writeIntermediateCheckpoints=1\nprop=run.impl_1.{STEPS.OPT_DESIGN.ARGS.MORE OPTIONS}={-hier_fanout_limit 1024}\nprop=run.impl_1.STEPS.PLACE_DESIGN.ARGS.DIRECTIVE=AltSpreadLogic_high\nprop=run.impl_1.STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE=AlternateCLBRouting\n\n\n[connectivity]\n# Number of CU per xo\nnk=hpu_msplit_3parts_1in3:1\nnk=hpu_msplit_3parts_2in3:1\nnk=hpu_msplit_3parts_3in3:1\n\n# SLR assignement\nslr=hpu_msplit_3parts_1in3_1:SLR0\nslr=hpu_msplit_3parts_2in3_1:SLR1\nslr=hpu_msplit_3parts_3in3_1:SLR2\n\n# Axi4 memory connection\nsp=hpu_msplit_3parts_1in3_1.m_axi_trc:HBM[0]\n# Note that if the following is modified, do not forget to change the ucore config\nsp=hpu_msplit_3parts_1in3_1.m_axi_ucore:HBM[1]\n\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_0:HBM[10]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_1:HBM[11]\nsp=hpu_msplit_3parts_1in3_1.m_axi_glwe_0:HBM[12]\n\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_0:HBM[2]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_1:HBM[3]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_2:HBM[4]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_3:HBM[5]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_4:HBM[6]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_5:HBM[7]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_6:HBM[8]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_7:HBM[9]\n\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_0:HBM[24]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_1:HBM[25]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_2:HBM[26]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_3:HBM[27]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_4:HBM[28]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_5:HBM[29]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_6:HBM[30]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_7:HBM[31]\n\n\n# AXI stream\n# part1 -\u003e part2\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_bsk_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmsxt_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmsxt_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_d\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_d1:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_d1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_side:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_side\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_batch:hpu_msplit_3parts_2in3_1.axis_p1_p2_batch\n\n# part2 -\u003e part1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_bsk_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_side\n\n# part2 -\u003e part3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d0:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d1:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d2:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d2\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d3:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_bsk_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_batch:hpu_msplit_3parts_3in3_1.axis_p2_p3_batch\n# part3 -\u003e part2\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d0\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d1\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d2:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d2\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d3:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d3\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_bsk_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_side:hpu_msplit_3parts_2in3_1.axis_p3_p2_side\n"
+   }
+  ],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:57:24 2025",
+ "timestampMillis": "1739735844745",
+ "status": {
+  "cmdId": "ea1aacc6-bb49-48d2-9cdf-a063197f99c9",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_FlowMetaData",
+ "dateTimestamp": "Sun Feb 16 20:57:29 2025",
+ "timestampMillis": "1739735849135",
+ "buildSummary": {
+  "hardwarePlatform": "xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm",
+  "hardwareDsa": "",
+  "platformDirectory": "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1",
+  "runtime": "OpenCL",
+  "systemConfig": "Linux",
+  "flow": "BF_LINK",
+  "target": "TT_HW",
+  "binaryContainer": {
+   "base": {
+    "type": "BT_UKNOWN",
+    "name": "hpu_msplit_3parts",
+    "file": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin",
+    "reports": [],
+    "uuid": ""
+   },
+   "kernels": []
+  },
+  "kernels": [
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_1in3",
+     "file": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_1in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   },
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_2in3",
+     "file": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_2in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   },
+   {
+    "base": {
+     "type": "KERNEL",
+     "name": "hpu_msplit_3parts_3in3",
+     "file": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_3in3.xo",
+     "reports": [],
+     "uuid": ""
+    },
+    "sources": [],
+    "psSources": [],
+    "cuNames": [
+     "hpu_msplit_3parts_3in3_1"
+    ],
+    "type": "RTL",
+    "frequency": 0,
+    "freqUnits": ""
+   }
+  ],
+  "toolVersion": "Vitis V++ Compiler Release 2024.1. SW Build 5074859 on 2024-05-20-23:21:20"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Sun Feb 16 20:57:29 2025",
+ "timestampMillis": "1739735849251",
+ "buildStep": {
+  "cmdId": "7c69a106-2cd4-4665-84ac-22416f3cf492",
+  "name": "system_link",
+  "logFile": "",
+  "commandLine": "system_link --xo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_1in3.xo --xo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_2in3.xo --xo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_3in3.xo -keep --config /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini --xpfm /opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm --target hw --output_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int --temp_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/sys_link",
+  "args": [
+   "--xo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_1in3.xo",
+   "--xo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_2in3.xo",
+   "--xo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts_3in3.xo",
+   "-keep",
+   "--config",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini",
+   "--xpfm",
+   "/opt/xilinx/platforms/xilinx_u55c_gen3x16_xdma_3_202210_1/xilinx_u55c_gen3x16_xdma_3_202210_1.xpfm",
+   "--target",
+   "hw",
+   "--output_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int",
+   "--temp_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/sys_link"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/syslinkConfig.ini",
+    "content": "nk=hpu_msplit_3parts_1in3:1\nnk=hpu_msplit_3parts_2in3:1\nnk=hpu_msplit_3parts_3in3:1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_bsk_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmsxt_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmsxt_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_c:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_c\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_ldg_d:hpu_msplit_3parts_2in3_1.axis_p1_p2_ldg_d\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_d0:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_d0\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmfeed_d1:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmfeed_d1\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_mmacc_side:hpu_msplit_3parts_2in3_1.axis_p1_p2_mmacc_side\nsc=hpu_msplit_3parts_1in3_1.axis_p1_p2_batch:hpu_msplit_3parts_2in3_1.axis_p1_p2_batch\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_bsk_c:hpu_msplit_3parts_1in3_1.axis_p2_p1_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmsxt_d0:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmsxt_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p1_mmacc_side:hpu_msplit_3parts_1in3_1.axis_p2_p1_mmacc_side\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d0:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d0\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d1:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d1\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d2:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d2\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_d3:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_d3\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_proc_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_proc_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_bsk_c:hpu_msplit_3parts_3in3_1.axis_p2_p3_bsk_c\nsc=hpu_msplit_3parts_2in3_1.axis_p2_p3_batch:hpu_msplit_3parts_3in3_1.axis_p2_p3_batch\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d0:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d0\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d1:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d1\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d2:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d2\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_d3:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_d3\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_proc_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_proc_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_bsk_c:hpu_msplit_3parts_2in3_1.axis_p3_p2_bsk_c\nsc=hpu_msplit_3parts_3in3_1.axis_p3_p2_side:hpu_msplit_3parts_2in3_1.axis_p3_p2_side\nsp=hpu_msplit_3parts_1in3_1.m_axi_trc:HBM[0]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ucore:HBM[1]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_0:HBM[10]\nsp=hpu_msplit_3parts_1in3_1.m_axi_pem_1:HBM[11]\nsp=hpu_msplit_3parts_1in3_1.m_axi_glwe_0:HBM[12]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_0:HBM[2]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_1:HBM[3]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_2:HBM[4]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_3:HBM[5]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_4:HBM[6]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_5:HBM[7]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_6:HBM[8]\nsp=hpu_msplit_3parts_3in3_1.m_axi_bsk_7:HBM[9]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_0:HBM[24]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_1:HBM[25]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_2:HBM[26]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_3:HBM[27]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_4:HBM[28]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_5:HBM[29]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_6:HBM[30]\nsp=hpu_msplit_3parts_1in3_1.m_axi_ksk_7:HBM[31]\nslr=hpu_msplit_3parts_1in3_1:SLR0\nslr=hpu_msplit_3parts_2in3_1:SLR1\nslr=hpu_msplit_3parts_3in3_1:SLR2\n\n"
+   }
+  ],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:57:29 2025",
+ "timestampMillis": "1739735849251",
+ "status": {
+  "cmdId": "7c69a106-2cd4-4665-84ac-22416f3cf492",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:57:51 2025",
+ "timestampMillis": "1739735871978",
+ "status": {
+  "cmdId": "7c69a106-2cd4-4665-84ac-22416f3cf492",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Sun Feb 16 20:57:51 2025",
+ "timestampMillis": "1739735871981",
+ "buildStep": {
+  "cmdId": "a9b5bb9b-3fb4-4259-a03f-c9947bd2b309",
+  "name": "cf2sw",
+  "logFile": "",
+  "commandLine": "cf2sw -sdsl /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat -rtd /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw.rtd -nofilter /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw_full.rtd -xclbin /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml -o /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.1.xml",
+  "args": [
+   "-sdsl",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat",
+   "-rtd",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw.rtd",
+   "-nofilter",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/cf2sw_full.rtd",
+   "-xclbin",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml",
+   "-o",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.1.xml"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:57:51 2025",
+ "timestampMillis": "1739735871981",
+ "status": {
+  "cmdId": "a9b5bb9b-3fb4-4259-a03f-c9947bd2b309",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883475",
+ "status": {
+  "cmdId": "a9b5bb9b-3fb4-4259-a03f-c9947bd2b309",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883478",
+ "buildStep": {
+  "cmdId": "90962996-6b4b-44e9-a3ed-9ac186f30811",
+  "name": "rtd2_system_diagram",
+  "logFile": "",
+  "commandLine": "rtd2SystemDiagram",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883478",
+ "status": {
+  "cmdId": "90962996-6b4b-44e9-a3ed-9ac186f30811",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883658",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModel.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883659",
+ "status": {
+  "cmdId": "90962996-6b4b-44e9-a3ed-9ac186f30811",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883660",
+ "buildStep": {
+  "cmdId": "b7547b52-fa4c-4f31-aaeb-c1f856bd8dd1",
+  "name": "vpl",
+  "logFile": "",
+  "commandLine": "vpl -t hw -f xilinx_u55c_gen3x16_xdma_3_202210_1 -s -g --kernel_frequency 0:300 --remote_ip_cache /projects/baroux/Fpga/fpga_u55c_syn/xrt/.ipcache --output_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int --log_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/logs/link --report_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link --config /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini -k /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat --webtalk_flag Vitis --temp_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link --no-info --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0 --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0 --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0 --messageDb /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl",
+  "args": [
+   "-t",
+   "hw",
+   "-f",
+   "xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "-s",
+   "-g",
+   "--kernel_frequency",
+   "0:300",
+   "--remote_ip_cache",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/.ipcache",
+   "--output_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int",
+   "--log_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/logs/link",
+   "--report_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link",
+   "--config",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini",
+   "-k",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat",
+   "--webtalk_flag",
+   "Vitis",
+   "--temp_dir",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link",
+   "--no-info",
+   "--iprepo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0",
+   "--iprepo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0",
+   "--iprepo",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0",
+   "--messageDb",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl"
+  ],
+  "iniFiles": [
+   {
+    "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini",
+    "content": "[advanced]\nmisc=report=type report_timing_summary name impl_report_timing_summary_route_design_summary steps {route_design} runs {impl_1} options {-max_paths 10}\nmisc=report=type report_timing_summary name impl_report_timing_summary_post_route_phys_opt_design_summary steps {post_route_phys_opt_design} runs {impl_1} options {-max_paths 10}\nparam=compiler.enablePerformanceTrace=1\nparam=hw_emu.enableDebugWaveform=1\nparam=hw_emu.enableProfiling=1\nparam=compiler.vppCurrentWorkingDir=/projects/baroux/Fpga/fpga_u55c_syn/xrt\nmisc=BinaryName=hpu_msplit_3parts\n\n[connectivity]\nnk=hpu_msplit_3parts_1in3:1:hpu_msplit_3parts_1in3_1\nnk=hpu_msplit_3parts_2in3:1:hpu_msplit_3parts_2in3_1\nnk=hpu_msplit_3parts_3in3:1:hpu_msplit_3parts_3in3_1\n\n[vivado]\nprop=run.__KERNEL__.{STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS}={-directive sdx_optimization_effort_high}\nparam=project.writeIntermediateCheckpoints=1\nprop=run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=/projects/baroux/Fpga/fpga_u55c_syn/xrt/kernel/xilinx_u55c_gen3x16_xdma_3_202210_1/constraints/hpu_msplit_3parts_impl_opt_design_pre.xdc\nprop=run.impl_1.{STEPS.OPT_DESIGN.ARGS.MORE OPTIONS}={-hier_fanout_limit 1024}\nprop=run.impl_1.STEPS.PLACE_DESIGN.ARGS.DIRECTIVE=AltSpreadLogic_high\nprop=run.impl_1.STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE=AlternateCLBRouting\n\n"
+   }
+  ],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:03 2025",
+ "timestampMillis": "1739735883660",
+ "status": {
+  "cmdId": "b7547b52-fa4c-4f31-aaeb-c1f856bd8dd1",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Sun Feb 16 20:58:04 2025",
+ "timestampMillis": "1739735884753",
+ "buildStep": {
+  "cmdId": "45bf5e54-cb0c-4773-adc6-e0988399ad61",
+  "name": "vpl",
+  "logFile": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/link.steps.log",
+  "commandLine": "/opt/xilinx/Vitis/2024.1/bin/unwrapped/lnx64.o/vpl -t hw -f xilinx_u55c_gen3x16_xdma_3_202210_1 -s -g --kernel_frequency 0:300 --remote_ip_cache /projects/baroux/Fpga/fpga_u55c_syn/xrt/.ipcache --output_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int --log_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/logs/link --report_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link --config /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/vplConfig.ini -k /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_info.dat --webtalk_flag Vitis --temp_dir /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link --no-info --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_3in3_1_0 --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_2in3_1_0 --iprepo /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xo/ip_repo/zama_ai_RTLKernel_hpu_msplit_3parts_1in3_1_0 --messageDb /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/run_link/vpl.pb /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/dr.bd.tcl ",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/run_link"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:04 2025",
+ "timestampMillis": "1739735884753",
+ "status": {
+  "cmdId": "45bf5e54-cb0c-4773-adc6-e0988399ad61",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_VivadoProject",
+ "dateTimestamp": "Sun Feb 16 20:58:08 2025",
+ "timestampMillis": "1739735888364",
+ "vivadoProject": {
+  "openDir": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl",
+  "openScript": "openprj.tcl",
+  "relativeProject": "prj/prj.xpr"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Sun Feb 16 20:58:08 2025",
+ "timestampMillis": "1739735888364",
+ "buildStep": {
+  "cmdId": "be14611a-9a04-4a98-ae09-8cf87fd49030",
+  "name": "vivado",
+  "logFile": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/vivado.log",
+  "commandLine": "vivado -log vivado.log -applog -m64 -messageDb vivado.pb -mode batch -source vpl.tcl -notrace",
+  "args": [
+   "-log",
+   "vivado.log",
+   "-applog",
+   " -m64",
+   "-messageDb",
+   "vivado.pb",
+   "-mode",
+   "batch",
+   "-source",
+   "vpl.tcl",
+   "-notrace"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/run_link"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 20:58:08 2025",
+ "timestampMillis": "1739735888365",
+ "status": {
+  "cmdId": "be14611a-9a04-4a98-ae09-8cf87fd49030",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Sun Feb 16 21:00:54 2025",
+ "timestampMillis": "1739736054446",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary_pre_synthesis.txt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "VITIS_DESIGN_FLOW",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Sun Feb 16 21:25:40 2025",
+ "timestampMillis": "1739737540276",
+ "buildStep": {
+  "cmdId": "a1ba1b1c-668f-4c10-aff8-dc1c842240d1",
+  "name": "vivado.impl",
+  "logFile": "",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 21:25:40 2025",
+ "timestampMillis": "1739737540276",
+ "status": {
+  "cmdId": "a1ba1b1c-668f-4c10-aff8-dc1c842240d1",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_CmdStep",
+ "dateTimestamp": "Sun Feb 16 21:25:40 2025",
+ "timestampMillis": "1739737540278",
+ "buildStep": {
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b",
+  "name": "vivado.impl.impl_1",
+  "logFile": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1/runme.log",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Sun Feb 16 21:25:40 2025",
+ "timestampMillis": "1739737540279",
+ "status": {
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:03:17 2025",
+ "timestampMillis": "1739754197504",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1/system_diagram.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:09:26 2025",
+ "timestampMillis": "1739754566292",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_service.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "KERNEL_SERVICE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:09:26 2025",
+ "timestampMillis": "1739754566294",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/kernel_service.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "KERNEL_SERVICE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:17:00 2025",
+ "timestampMillis": "1739755020496",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/vivado/vpl/prj/prj.runs/impl_1/dr_timing_summary.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY_FAIL",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174674",
+ "status": {
+  "cmdId": "be14611a-9a04-4a98-ae09-8cf87fd49030",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174754",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_placed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_SLR_UTIL_PLACED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174754",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174755",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174755",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_routed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174755",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_routed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_SLR_UTIL_ROUTED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174756",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_placed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174756",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_placed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174756",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_synthed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174757",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_placed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SLR_UTIL_PLACED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174757",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_synthed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174757",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_slr_util_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SLR_UTIL_ROUTED",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174758",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_routed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_ROUTE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174758",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_synthed.pb",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174758",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_full_util_placed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174759",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_synthed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "KERNEL_UTILIZATION_SYNTHESIS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174759",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_kernel_util_placed.xutil",
+  "name": "",
+  "fileType": "XUTIL",
+  "reportType": "KERNEL_UTILIZATION_PLACEMENT",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174840",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_7cf0_bsip_0_synth_1_bd_7cf0_bsip_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174840",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_7cf0_bs_switch_1_0_synth_1_bd_7cf0_bs_switch_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174841",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_097b_user_debug_bridge_0_synth_1_bd_097b_user_debug_bridge_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174841",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_slice7_25_0_synth_1_bd_85ad_slice7_25_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174841",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_ulp_cmp_0_synth_1_ulp_ulp_cmp_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174842",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_ii_level0_wire_0_synth_1_ulp_ii_level0_wire_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174842",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hmss_0_0_synth_1_ulp_hmss_0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174842",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_axi_vip_data_0_synth_1_ulp_axi_vip_data_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174843",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_ulp_ucs_0_synth_1_ulp_ulp_ucs_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174843",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_ctrl_slr0_0_synth_1_ulp_proc_sys_reset_ctrl_slr0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174843",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_ctrl_slr1_0_synth_1_ulp_proc_sys_reset_ctrl_slr1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174844",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_ctrl_slr2_0_synth_1_ulp_proc_sys_reset_ctrl_slr2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174844",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel_slr0_0_synth_1_ulp_proc_sys_reset_kernel_slr0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174844",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel_slr1_0_synth_1_ulp_proc_sys_reset_kernel_slr1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174845",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel_slr2_0_synth_1_ulp_proc_sys_reset_kernel_slr2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174845",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel2_slr0_0_synth_1_ulp_proc_sys_reset_kernel2_slr0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174845",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel2_slr1_0_synth_1_ulp_proc_sys_reset_kernel2_slr1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174845",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_kernel2_slr2_0_synth_1_ulp_proc_sys_reset_kernel2_slr2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174846",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_freerun_slr0_0_synth_1_ulp_proc_sys_reset_freerun_slr0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174846",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_freerun_slr1_0_synth_1_ulp_proc_sys_reset_freerun_slr1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174846",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_proc_sys_reset_freerun_slr2_0_synth_1_ulp_proc_sys_reset_freerun_slr2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174846",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_regslice_control_userpf_0_synth_1_ulp_regslice_control_userpf_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174847",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_regslice_control_userpf_1_synth_1_ulp_regslice_control_userpf_1_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174847",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_axi_gpio_null_2_synth_1_ulp_axi_gpio_null_2_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174847",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_axi_vip_ctrl_userpf_2_synth_1_ulp_axi_vip_ctrl_userpf_2_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174854",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_regslice_control_userpf_2_synth_1_ulp_regslice_control_userpf_2_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174855",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_psreset_kernel_00_0_synth_1_bd_22c0_psreset_kernel_00_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174856",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_auto_cc_0_synth_1_bd_22c0_auto_cc_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174856",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_frequency_counter_aclk_kernel_01_0_synth_1_bd_22c0_frequency_counter_aclk_kernel_01_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174856",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_fanout_aresetn_kernel_01_slr2_3_0_synth_1_bd_22c0_fanout_aresetn_kernel_01_slr2_3_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174857",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_psreset_aclk_freerun_0_synth_1_bd_22c0_psreset_aclk_freerun_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174857",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_58f6_lut_buffer_0_synth_1_bd_58f6_lut_buffer_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174857",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_1in3_1_0_synth_1_ulp_hpu_msplit_3parts_1in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174857",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clkwiz_aclk_kernel_01_0_synth_1_bd_22c0_clkwiz_aclk_kernel_01_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174858",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_psreset_kernel_01_0_synth_1_bd_22c0_psreset_kernel_01_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174858",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_fanout_aresetn_kernel_00_slr2_4_0_synth_1_bd_22c0_fanout_aresetn_kernel_00_slr2_4_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174858",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clkwiz_aclk_kernel_00_0_synth_1_bd_22c0_clkwiz_aclk_kernel_00_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174859",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_aclk_kernel_01_adapt_0_synth_1_bd_22c0_aclk_kernel_01_adapt_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174859",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect5_12_0_synth_1_bd_85ad_interconnect5_12_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174859",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clock_throttling_aclk_kernel_00_0_synth_1_bd_22c0_clock_throttling_aclk_kernel_00_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174860",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_7cf0_axi_jtag_0_synth_1_bd_7cf0_axi_jtag_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174860",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_097b_build_info_0_synth_1_bd_097b_build_info_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174860",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_097b_user_debug_hub_0_synth_1_bd_097b_user_debug_hub_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174861",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect3_8_0_synth_1_bd_85ad_interconnect3_8_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174861",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_3in3_1_0_synth_1_ulp_hpu_msplit_3parts_3in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174861",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_hpu_msplit_3parts_2in3_1_0_synth_1_ulp_hpu_msplit_3parts_2in3_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174861",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_frequency_counter_aclk_hbm_0_synth_1_bd_22c0_frequency_counter_aclk_hbm_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174862",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_58f6_xsdbm_0_synth_1_bd_58f6_xsdbm_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174862",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clock_throttling_aclk_kernel_01_0_synth_1_bd_22c0_clock_throttling_aclk_kernel_01_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174862",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_aclk_kernel_00_cont_adapt_0_synth_1_bd_22c0_aclk_kernel_00_cont_adapt_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174862",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_frequency_counter_aclk_0_synth_1_bd_22c0_frequency_counter_aclk_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174863",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect16_4_0_synth_1_bd_85ad_interconnect16_4_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174863",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_xbar_1_synth_1_bd_22c0_xbar_1_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174864",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_auto_cc_1_synth_1_ulp_auto_cc_1_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174864",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_s00_regslice_19_synth_1_ulp_s00_regslice_19_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174864",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_fanout_aresetn_hbm_0_synth_1_bd_22c0_fanout_aresetn_hbm_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174865",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_psreset_hbm_0_synth_1_bd_22c0_psreset_hbm_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174865",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clkwiz_hbm_0_synth_1_bd_22c0_clkwiz_hbm_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174865",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clock_throttling_avg_0_synth_1_bd_22c0_clock_throttling_avg_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174865",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_gapping_demand_toggle_0_synth_1_bd_22c0_gapping_demand_toggle_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174866",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_gapping_demand_update_0_synth_1_bd_22c0_gapping_demand_update_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174866",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_fanout_aresetn_ctrl_slr0_2_0_synth_1_bd_22c0_fanout_aresetn_ctrl_slr0_2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174866",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_build_info_0_synth_1_bd_22c0_build_info_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174866",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_gpio_gapping_demand_0_synth_1_bd_22c0_gpio_gapping_demand_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174867",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_fanout_aresetn_pcie_slr0_3_0_synth_1_bd_22c0_fanout_aresetn_pcie_slr0_3_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174867",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clock_shutdown_latch_0_synth_1_bd_22c0_clock_shutdown_latch_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174867",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_clk_hbm_adapt_0_synth_1_bd_22c0_clk_hbm_adapt_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174868",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_xbar_0_synth_1_bd_22c0_xbar_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174868",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_22c0_gpio_ucs_control_status_0_synth_1_bd_22c0_gpio_ucs_control_status_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174869",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_xbar_4_synth_1_ulp_xbar_4_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174869",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_slice15_3_0_synth_1_bd_85ad_slice15_3_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174869",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect12_30_0_synth_1_bd_85ad_interconnect12_30_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174870",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect4_9_0_synth_1_bd_85ad_interconnect4_9_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174870",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_auto_cc_3_synth_1_ulp_auto_cc_3_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174870",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_xbar_5_synth_1_ulp_xbar_5_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174870",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_m00_regslice_5_synth_1_ulp_m00_regslice_5_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174871",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_s00_regslice_20_synth_1_ulp_s00_regslice_20_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174871",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect9_27_0_synth_1_bd_85ad_interconnect9_27_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174871",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect21_11_0_synth_1_bd_85ad_interconnect21_11_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174871",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect15_3_0_synth_1_bd_85ad_interconnect15_3_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174872",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_init_reduce_0_synth_1_bd_85ad_init_reduce_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174872",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect8_26_0_synth_1_bd_85ad_interconnect8_26_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174872",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect6_24_0_synth_1_bd_85ad_interconnect6_24_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174873",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect11_29_0_synth_1_bd_85ad_interconnect11_29_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174873",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect18_6_0_synth_1_bd_85ad_interconnect18_6_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174873",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_xbar_3_synth_1_ulp_xbar_3_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174873",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_hbm_inst_0_synth_1_bd_85ad_hbm_inst_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174874",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/ulp_m01_regslice_4_synth_1_ulp_m01_regslice_4_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174874",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect10_28_0_synth_1_bd_85ad_interconnect10_28_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174874",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect14_2_0_synth_1_bd_85ad_interconnect14_2_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174875",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect20_10_0_synth_1_bd_85ad_interconnect20_10_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174875",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect17_5_0_synth_1_bd_85ad_interconnect17_5_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174875",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect0_13_0_synth_1_bd_85ad_interconnect0_13_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174876",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect13_31_0_synth_1_bd_85ad_interconnect13_31_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174876",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect7_25_0_synth_1_bd_85ad_interconnect7_25_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174876",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect19_7_0_synth_1_bd_85ad_interconnect19_7_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174877",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect2_1_0_synth_1_bd_85ad_interconnect2_1_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174877",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_vip_S13_0_synth_1_bd_85ad_vip_S13_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174878",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_interconnect1_0_0_synth_1_bd_85ad_interconnect1_0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174878",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_axi_apb_bridge_inst_0_synth_1_bd_85ad_axi_apb_bridge_inst_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174878",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_hbm_reset_sync_SLR0_0_synth_1_bd_85ad_hbm_reset_sync_SLR0_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174879",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/syn/bd_85ad_util_vector_logic_0_synth_1_bd_85ad_util_vector_logic_0_utilization_synth.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_UTILIZATION",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174879",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_system_diagram.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174903",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY",
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174925",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpx",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY",
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174925",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/imp/impl_1_hw_bb_locked_timing_summary_routed.rpv",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_REPORT_TIMING_SUMMARY_CONCISE",
+  "cmdId": "9f2859fc-0560-460f-ac73-2a5b31e1835b"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:14 2025",
+ "timestampMillis": "1739756174943",
+ "status": {
+  "cmdId": "45bf5e54-cb0c-4773-adc6-e0988399ad61",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175001",
+ "status": {
+  "cmdId": "b7547b52-fa4c-4f31-aaeb-c1f856bd8dd1",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175006",
+ "buildStep": {
+  "cmdId": "82d764c4-ca4b-40c4-8dd2-41d4126254ae",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "rtdgen",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175006",
+ "status": {
+  "cmdId": "82d764c4-ca4b-40c4-8dd2-41d4126254ae",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175010",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "XCLBIN_INFO",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175011",
+ "buildStep": {
+  "cmdId": "685f204f-213f-4e25-8626-ac144482fe39",
+  "name": "cf2sw",
+  "logFile": "",
+  "commandLine": "cf2sw -a /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/address_map.xml -sdsl /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat -xclbin /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml -rtd /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd -o /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml",
+  "args": [
+   "-a",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/address_map.xml",
+   "-sdsl",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/sdsl.dat",
+   "-xclbin",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/xclbin_orig.xml",
+   "-rtd",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "-o",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:15 2025",
+ "timestampMillis": "1739756175011",
+ "status": {
+  "cmdId": "685f204f-213f-4e25-8626-ac144482fe39",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185555",
+ "status": {
+  "cmdId": "685f204f-213f-4e25-8626-ac144482fe39",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185558",
+ "buildStep": {
+  "cmdId": "f7bc1090-2da6-4d0e-8028-4facd730fdb0",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "writeSystemDiagram",
+  "args": [
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185558",
+ "status": {
+  "cmdId": "f7bc1090-2da6-4d0e-8028-4facd730fdb0",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185570",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json",
+  "name": "",
+  "fileType": "JSON",
+  "reportType": "SYSTEM_DIAGRAM_PLUS",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185571",
+ "status": {
+  "cmdId": "f7bc1090-2da6-4d0e-8028-4facd730fdb0",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185571",
+ "buildStep": {
+  "cmdId": "322a6c1b-a100-42aa-be46-f0317dfd1245",
+  "name": "rtdgen",
+  "logFile": "",
+  "commandLine": "writeAutomationSummary",
+  "args": [
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary.txt"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185571",
+ "status": {
+  "cmdId": "322a6c1b-a100-42aa-be46-f0317dfd1245",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185572",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/automation_summary.txt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "VITIS_DESIGN_FLOW",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185572",
+ "status": {
+  "cmdId": "322a6c1b-a100-42aa-be46-f0317dfd1245",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185573",
+ "status": {
+  "cmdId": "82d764c4-ca4b-40c4-8dd2-41d4126254ae",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185574",
+ "buildStep": {
+  "cmdId": "d4b5e66d-52fd-4a72-be48-267d51966539",
+  "name": "xclbinutil",
+  "logFile": "",
+  "commandLine": "xclbinutil --add-section BITSTREAM:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/partial.bit --force --target hw --key-value SYS:dfx_enable:true --add-section :JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd --append-section :JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/appendSection.rtd --add-section CLOCK_FREQ_TOPOLOGY:JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd --add-section BUILD_METADATA:JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_build.rtd --add-section EMBEDDED_METADATA:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml --add-section SYSTEM_METADATA:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json --key-value SYS:PlatformVBNV:xilinx_u55c_gen3x16_xdma_3_202210_1 --output /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin",
+  "args": [
+   "--add-section",
+   "BITSTREAM:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/partial.bit",
+   "--force",
+   "--target",
+   "hw",
+   "--key-value",
+   "SYS:dfx_enable:true",
+   "--add-section",
+   ":JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.rtd",
+   "--append-section",
+   ":JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/appendSection.rtd",
+   "--add-section",
+   "CLOCK_FREQ_TOPOLOGY:JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_xml.rtd",
+   "--add-section",
+   "BUILD_METADATA:JSON:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts_build.rtd",
+   "--add-section",
+   "EMBEDDED_METADATA:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/hpu_msplit_3parts.xml",
+   "--add-section",
+   "SYSTEM_METADATA:RAW:/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/link/int/systemDiagramModelSlrBaseAddress.json",
+   "--key-value",
+   "SYS:PlatformVBNV:xilinx_u55c_gen3x16_xdma_3_202210_1",
+   "--output",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185574",
+ "status": {
+  "cmdId": "d4b5e66d-52fd-4a72-be48-267d51966539",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185941",
+ "status": {
+  "cmdId": "d4b5e66d-52fd-4a72-be48-267d51966539",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185943",
+ "buildStep": {
+  "cmdId": "c0fd85f3-ff66-43e4-b0be-3db7ac30379a",
+  "name": "xclbinutilinfo",
+  "logFile": "",
+  "commandLine": "xclbinutil --quiet --force --info /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin.info --input /projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin",
+  "args": [
+   "--quiet",
+   "--force",
+   "--info",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin.info",
+   "--input",
+   "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/hpu_msplit_3parts.xclbin"
+  ],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:25 2025",
+ "timestampMillis": "1739756185943",
+ "status": {
+  "cmdId": "c0fd85f3-ff66-43e4-b0be-3db7ac30379a",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186648",
+ "status": {
+  "cmdId": "c0fd85f3-ff66-43e4-b0be-3db7ac30379a",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_SubCmdStep",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186649",
+ "buildStep": {
+  "cmdId": "f31bcaad-05b0-4fa2-ba7b-823bbaf9e957",
+  "name": "generate_sc_driver",
+  "logFile": "",
+  "commandLine": "",
+  "args": [],
+  "iniFiles": [],
+  "cwd": "/projects/baroux/Fpga/fpga_u55c_syn/xrt"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186650",
+ "status": {
+  "cmdId": "f31bcaad-05b0-4fa2-ba7b-823bbaf9e957",
+  "state": "CS_RUNNING"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186650",
+ "status": {
+  "cmdId": "f31bcaad-05b0-4fa2-ba7b-823bbaf9e957",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186658",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/system_estimate_hpu_msplit_3parts.xtxt",
+  "name": "",
+  "fileType": "TEXT",
+  "reportType": "GLOBAL_SYSTEM_ESTIMATE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186677",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/logs/optraceViewer.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "OPERATION_TRACE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Status",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186678",
+ "status": {
+  "cmdId": "ea1aacc6-bb49-48d2-9cdf-a063197f99c9",
+  "state": "CS_PASSED"
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186758",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/reports/link/v++_link_hpu_msplit_3parts_guidance.html",
+  "name": "",
+  "fileType": "HTML",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>
+<ENTRY>
+{
+ "type": "ET_Report",
+ "dateTimestamp": "Mon Feb 17 02:36:26 2025",
+ "timestampMillis": "1739756186759",
+ "report": {
+  "path": "/projects/baroux/Fpga/fpga_u55c_syn/xrt/output/hw/_tmp_vitis_xclbin/v++_link_hpu_msplit_3parts_guidance.pb3",
+  "name": "",
+  "fileType": "BINARY_PROTOBUF",
+  "reportType": "GLOBAL_RULECHECK_GUIDANCE",
+  "cmdId": ""
+ }
+}
+</ENTRY>

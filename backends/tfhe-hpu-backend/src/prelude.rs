@@ -4,19 +4,24 @@ pub use super::entities::*;
 /// Export Hw_hpu for asm definition
 pub use super::asm as hpu_asm;
 
+/// Export hw_regmap.
+/// Prevent version mismatch between user code and backend
+pub use hw_regmap as hpu_regmap;
+
 /// Load Hw-interface stuff
 /// Warn: Enabling this feature required xrt for build and run
 pub use super::interface::{
-    page_align, BoardConfig, FFIMode, HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ACKQ_EMPTY,
+    page_align, BoardConfig, FFIMode, HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ShellString,
+    ACKQ_EMPTY,
 };
 
 #[cfg(feature = "io-dump")]
 /// Expose io_dump init function
 pub use super::interface::io_dump::set_hpu_io_dump;
 
-#[cfg(not(feature = "hw-xrt"))]
+#[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
 /// Expose simulation interface
 pub use super::ffi::{
     sim::ipc::{IpcSim, MemoryAck, MemoryReq, MemorySim, RegisterAck, RegisterReq, RegisterSim},
-    SyncMode,
+    MemKind, SyncMode,
 };

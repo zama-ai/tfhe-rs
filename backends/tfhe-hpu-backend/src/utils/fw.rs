@@ -9,7 +9,7 @@ use tfhe_hpu_backend::fw::{self, Fw, FwParameters};
 
 /// Define CLI arguments
 use clap::Parser;
-use tfhe_hpu_backend::prelude::HpuParameters;
+use tfhe_hpu_backend::prelude::{HpuParameters, ShellString};
 #[derive(clap::Parser, Debug, Clone)]
 #[clap(long_about = "Translate IOp or Stream of IOps in DOps stream")]
 pub struct Args {
@@ -19,9 +19,9 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.toml"
+        default_value = "${HPU_MOCKUP_DIR}/params/tfhers_64b_fast.toml"
     )]
-    pub params: String,
+    pub params: ShellString,
 
     /// Supported nu
     /// Number of linear operation supported
@@ -40,20 +40,20 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "backends/tfhe-hpu-backend/config/kogge_cfg.toml"
+        default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
     )]
-    kogge_cfg: String,
+    kogge_cfg: ShellString,
 
     /// Use ipip configuration
-    #[clap(long, value_parser, default_value = false)]
+    #[clap(long, value_parser, default_value_t = false)]
     use_ipip: bool,
 
     /// Try to fill the batch fifo
-    #[clap(long, value_parser, default_value = false)]
+    #[clap(long, value_parser, default_value_t = false)]
     fill_batch_fifo: bool,
 
     /// Use the minimum batch size for a PE
-    #[clap(long, value_parser, default_value = false)]
+    #[clap(long, value_parser, default_value_t = false)]
     min_batch_size: bool,
 
     /// Integer bit width
@@ -107,7 +107,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     // Load parameters from configuration file ------------------------------------
     let params = {
-        let mut rtl_params = HpuParameters::from_toml(&args.params);
+        let mut rtl_params = HpuParameters::from_toml(&args.params.expand());
 
         // Override some parameters if required
         if let Some(register) = args.register.as_ref() {
@@ -132,7 +132,7 @@ fn main() -> Result<(), anyhow::Error> {
         use_ipip: args.use_ipip,
         fill_batch_fifo: args.fill_batch_fifo,
         min_batch_size: args.min_batch_size,
-        kogge_cfg: args.kogge_cfg.clone(),
+        kogge_cfg: args.kogge_cfg.expand(),
         pe_cfg,
     };
     println!("Fw parameters after override with CLI: {fw_params:?}");

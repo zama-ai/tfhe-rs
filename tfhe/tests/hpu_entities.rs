@@ -23,7 +23,10 @@ fn hpu_key_loopback() {
     .unwrap();
 
     let hpu_device = {
-        let config = HpuConfig::from_toml("backends/tfhe-hpu-backend/config/hpu_config.toml");
+        let config_file = ShellString::new(
+            "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+        );
+        let config = HpuConfig::from_toml(&config_file.expand());
         HpuDevice::new(config)
     };
 

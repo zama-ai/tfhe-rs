@@ -1,52 +1,23 @@
-use ipc_channel::ipc;
 use std::collections::HashMap;
 
+use super::MemChunk;
+
 #[allow(unused)]
-pub const HBM_BANK_NB: usize = 32;
+pub const HBM_BANK_NB: usize = 64;
 #[allow(unused)]
 const HBM_BANK_SIZE_B: usize = 512 * 1024 * 1024;
 #[allow(unused)]
-const HBM_PAGE_SIZE_B: usize = 4096;
+const MEM_PAGE_SIZE_B: usize = 4096;
 
-pub const HBM_BSK_PC_MAX: usize = 8;
-pub const HBM_KSK_PC_MAX: usize = 8;
-pub const HBM_CT_PC_MAX: usize = 2;
+pub const HBM_BSK_PC_MAX: usize = 16;
+pub const HBM_KSK_PC_MAX: usize = 16;
 
 // WARN: XRT currently not suppor allocation greater than 16MiB
 const HBM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
 
-pub struct HbmChunk {
-    // Properties
-    pub(crate) paddr: u64,
-    pub(crate) size_b: usize,
-
-    // Data
-    pub(crate) data: Vec<u8>,
-}
-
-impl HbmChunk {
-    pub fn new(paddr: u64, size_b: usize) -> Self {
-        Self {
-            paddr,
-            size_b,
-            data: vec![0; size_b],
-        }
-    }
-
-    /// Generate Shm for syncing data through Ipc
-    pub fn ipc_wrap(&self) -> ipc::IpcSharedMemory {
-        ipc::IpcSharedMemory::from_bytes(self.data.as_slice())
-    }
-
-    /// Update internal data from Ipc shm
-    pub fn ipc_update(&mut self, ipc_data: ipc::IpcSharedMemory) {
-        self.data.copy_from_slice(&ipc_data);
-    }
-}
-
 pub(crate) struct HbmBank {
     pc_id: usize,
-    chunk: HashMap<u64, HbmChunk>,
+    chunk: HashMap<u64, MemChunk>,
 }
 
 impl HbmBank {
@@ -70,31 +41,31 @@ impl HbmBank {
         // Compute next paddr
         let paddr = if let Some(key) = self.chunk.keys().max() {
             let chunk = &self.chunk[key];
-            if (chunk.size_b % HBM_PAGE_SIZE_B) != 0 {
-                chunk.paddr + (((chunk.size_b / HBM_PAGE_SIZE_B) + 1) * HBM_PAGE_SIZE_B) as u64
+            if (chunk.size_b % MEM_PAGE_SIZE_B) != 0 {
+                chunk.paddr + (((chunk.size_b / MEM_PAGE_SIZE_B) + 1) * MEM_PAGE_SIZE_B) as u64
             } else {
-                chunk.paddr + ((chunk.size_b / HBM_PAGE_SIZE_B) * HBM_PAGE_SIZE_B) as u64
+                chunk.paddr + ((chunk.size_b / MEM_PAGE_SIZE_B) * MEM_PAGE_SIZE_B) as u64
             }
         } else {
             0
         };
 
         // allocate chunk and register it in hashmap
-        let chunk = HbmChunk::new(paddr, size_b);
+        let chunk = MemChunk::new(paddr, size_b);
         self.chunk.insert(paddr, chunk);
 
         paddr
     }
 
-    pub(crate) fn get_chunk(&self, addr: u64) -> &HbmChunk {
+    pub(crate) fn get_chunk(&self, addr: u64) -> &MemChunk {
         self.chunk.get(&addr).unwrap()
     }
 
-    pub(crate) fn get_mut_chunk(&mut self, addr: u64) -> &mut HbmChunk {
+    pub(crate) fn get_mut_chunk(&mut self, addr: u64) -> &mut MemChunk {
         self.chunk.get_mut(&addr).unwrap()
     }
 
-    pub(crate) fn rm_chunk(&mut self, addr: u64) -> Option<HbmChunk> {
+    pub(crate) fn rm_chunk(&mut self, addr: u64) -> Option<MemChunk> {
         self.chunk.remove(&addr)
     }
 

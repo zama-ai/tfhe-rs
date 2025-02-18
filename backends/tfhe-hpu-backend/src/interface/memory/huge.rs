@@ -14,7 +14,7 @@ const MEM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
 
 #[derive(Debug)]
 pub struct HugeMemoryProperties {
-    pub hbm_cut: Vec<usize>,
+    pub mem_cut: Vec<ffi::MemKind>,
     pub cut_coefs: usize,
 }
 
@@ -51,11 +51,11 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
             usize::div_ceil(props.cut_coefs * std::mem::size_of::<T>(), MEM_CHUNK_SIZE_B);
 
         let mut cut_mem = Vec::new();
-        for hbm_pc in props.hbm_cut.into_iter() {
+        for mem_kind in props.mem_cut.into_iter() {
             let mut cut_mz = Vec::new();
             for _chunk in 0..all_chunks {
                 let chunk_props = ffi::MemZoneProperties {
-                    hbm_pc,
+                    mem_kind: mem_kind.clone(),
                     size_b: MEM_CHUNK_SIZE_B,
                 };
                 let mz = ffi_hw.alloc(chunk_props);

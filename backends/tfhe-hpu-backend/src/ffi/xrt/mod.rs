@@ -82,8 +82,14 @@ impl From<SyncMode> for SyncModeCxx {
 /// Provide conversion between global MemZoneProperties and Cxx version
 impl From<MemZoneProperties> for MemZonePropertiesCxx {
     fn from(value: MemZoneProperties) -> Self {
+        let hbm_pc = match value.mem_kind {
+            MemKind::Ddr { .. } => {
+                panic!("XRT don't support DDR allocation. Only Hbm is available on board")
+            }
+            MemKind::Hbm { pc } => pc,
+        };
         Self {
-            hbm_pc: value.hbm_pc,
+            hbm_pc,
             size_b: value.size_b,
         }
     }

@@ -32,7 +32,7 @@ impl HpuHw {
 
         // Send request
         let cmd = MemoryReq::Allocate {
-            hbm_pc: props.hbm_pc,
+            mem_kind: props.mem_kind.clone(),
             size_b: props.size_b,
         };
         tracing::trace!("Req => {cmd:x?}");
@@ -57,7 +57,7 @@ impl HpuHw {
 
         // Send request
         let cmd = MemoryReq::Release {
-            hbm_pc: zone.hbm_pc,
+            mem_kind: zone.mem_kind.clone(),
             addr: zone.addr,
         };
         tracing::trace!("Req => {cmd:x?}");
@@ -155,7 +155,7 @@ impl HpuHw {
 
 pub struct MemZone {
     // Link properties
-    hbm_pc: usize,
+    mem_kind: ffi::MemKind,
     addr: u64,
     ipc: MemoryFfiWrapped,
 
@@ -166,7 +166,7 @@ pub struct MemZone {
 impl MemZone {
     pub fn new(props: MemZoneProperties, addr: u64, ipc: MemoryFfiWrapped) -> Self {
         Self {
-            hbm_pc: props.hbm_pc,
+            mem_kind: props.mem_kind,
             addr,
             ipc,
             data: vec![0; props.size_b],
@@ -196,7 +196,7 @@ impl MemZone {
 
     pub fn sync(&mut self, mode: ffi::SyncMode) {
         let Self {
-            hbm_pc,
+            mem_kind,
             addr,
             ipc,
             data,
@@ -211,7 +211,7 @@ impl MemZone {
                 let ipc_lock = ipc.0.lock().unwrap();
 
                 let req = MemoryReq::Sync {
-                    hbm_pc: *hbm_pc,
+                    mem_kind: mem_kind.clone(),
                     addr: *addr,
                     mode,
                     data: Some(hw_data),
@@ -238,7 +238,7 @@ impl MemZone {
                 let ipc_lock = ipc.0.lock().unwrap();
 
                 let req = MemoryReq::Sync {
-                    hbm_pc: *hbm_pc,
+                    mem_kind: mem_kind.clone(),
                     addr: *addr,
                     mode,
                     data: None,

@@ -88,6 +88,21 @@ bitflags! {
     }
 }
 
+impl std::fmt::Display for InstructionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let kind = match *self {
+            Self::None => "None",
+            Self::MemLd => "MemLd",
+            Self::MemSt => "MemSt",
+            Self::Arith => "Arith",
+            Self::Pbs => "Pbs",
+            Self::Sync => "Sync",
+            _ => "MultiKind",
+        };
+        write!(f, "{kind}")
+    }
+}
+
 impl From<&asm::DOp> for InstructionKind {
     fn from(value: &asm::DOp) -> Self {
         match value {
