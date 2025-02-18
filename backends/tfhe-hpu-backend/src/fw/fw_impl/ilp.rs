@@ -178,7 +178,7 @@ pub fn iop_sub_kogge(prog: &mut Program) {
             .zip(imm)
             .map(|(x, i)| &i - &x)
             .collect::<Vec<_>>();
-        let one = VarCell::from(prog.new_imm(1));
+        let one = Carry::fresh(VarCell::from(prog.new_imm(1)));
 
         // Do a + ~b + 1 with the kogge stone adder
         cached_kogge_add(prog, a, b_bw_inv, Some(one), dst)
@@ -800,25 +800,78 @@ lazy_static! {
 #[derive(Hash, PartialEq, Eq, Clone)]
 struct Range(usize, usize);
 
+#[derive(Clone, Debug)]
+struct Carry {
+    var: VarCell,
+    cpos: usize,
+    fresh: VarCell,
+}
+
+impl Carry {
+    fn fresh(var: VarCell) -> Carry {
+        Carry {
+            var: var.clone(),
+            cpos: 1,
+            fresh: var,
+        }
+    }
+
+    fn clone_on(&self, prog: &Program) -> Carry {
+        Carry {
+            var: self.var.clone_on(prog),
+            cpos: self.cpos,
+            fresh: self.fresh.clone_on(prog),
+        }
+    }
+}
+
+enum ReduceType {
+    Simple(Pbs),
+    Inc(Pbs),
+}
+
+impl ReduceType {
+    fn apply(&self, var: &VarCell) -> VarCell {
+        match self {
+            ReduceType::Simple(pbs) => var.pbs(pbs).into_iter().next().unwrap(),
+            ReduceType::Inc(pbs) => &var.pbs(pbs).into_iter().next().unwrap() + 1,
+        }
+    }
+}
+
 struct KoggeTree {
-    cache: HashMap<Range, VarCell>,
+    cache: HashMap<Range, Carry>,
     tfhe_params: asm::DigitParameters,
-    pbs: Pbs,
+    reduce_map: HashMap<usize, ReduceType>,
 }
 
 impl KoggeTree {
-    fn new(prg: &mut Program, inputs: Vec<VarCell>) -> KoggeTree {
+    fn new(prg: &mut Program, inputs: Vec<Carry>) -> KoggeTree {
         let mut cache = HashMap::new();
         inputs.into_iter().enumerate().for_each(|(i, v)| {
             cache.insert(Range(i, i), v);
         });
         let props = prg.params();
         let tfhe_params: asm::DigitParameters = props.clone().into();
-        let pbs = asm::Pbs::GenPropMerge(asm::dop::PbsGenPropMerge::default());
+        let mut reduce_map = HashMap::new();
+        reduce_map.insert(
+            2,
+            ReduceType::Simple(asm::Pbs::ReduceCarry2(asm::dop::PbsReduceCarry2::default())),
+        );
+        reduce_map.insert(
+            3,
+            ReduceType::Simple(asm::Pbs::ReduceCarry3(asm::dop::PbsReduceCarry3::default())),
+        );
+        reduce_map.insert(
+            tfhe_params.total_width(),
+            ReduceType::Inc(asm::Pbs::ReduceCarryPad(
+                asm::dop::PbsReduceCarryPad::default(),
+            )),
+        );
         KoggeTree {
             cache,
             tfhe_params,
-            pbs,
+            reduce_map,
         }
     }
 
@@ -836,19 +889,33 @@ impl KoggeTree {
 
     fn insert_subtree(&mut self, index: &Range) {
         if !self.cache.contains_key(index) {
-            let (lhs, rhs) = self.get_subindex(index);
-            self.insert_subtree(&lhs);
-            self.insert_subtree(&rhs);
+            let (lsb, msb) = self.get_subindex(index);
+            self.insert_subtree(&lsb);
+            self.insert_subtree(&msb);
 
-            let (lhs, rhs) = (self.cache.get(&lhs).unwrap(), self.cache.get(&rhs).unwrap());
+            let (lsb, msb) = (self.cache.get(&lsb).unwrap(), self.cache.get(&msb).unwrap());
+            let merge = {
+                let cpos_trial = lsb.cpos + msb.cpos;
+                let (lsb, msb, cpos, msb_shift) = if cpos_trial > self.tfhe_params.total_width() {
+                    if msb.cpos + 1 > self.tfhe_params.total_width() {
+                        (&lsb.fresh, &msb.fresh, 2, 2)
+                    } else {
+                        (&lsb.fresh, &msb.var, msb.cpos + 1, 2)
+                    }
+                } else {
+                    (&lsb.var, &msb.var, cpos_trial, 1 << lsb.cpos)
+                };
 
-            let mac = rhs.mac(self.tfhe_params.msg_range(), lhs);
-            let pbs = mac.pbs(&self.pbs).into_iter().next().unwrap();
-            self.cache.insert((*index).clone(), pbs);
+                let var = lsb.mac(msb_shift, msb);
+                let fresh = self.reduce_map[&cpos].apply(&var);
+                Carry { var, cpos, fresh }
+            };
+
+            self.cache.insert((*index).clone(), merge);
         }
     }
 
-    fn get_subtree(&mut self, index: &Range) -> &VarCell {
+    fn get_subtree(&mut self, index: &Range) -> &Carry {
         self.insert_subtree(index);
         self.cache.get(index).unwrap()
     }
@@ -864,12 +931,18 @@ fn propagate_carry(
     prog: &mut Program,
     dst: &mut [VarCell],
     carrysave: &[VarCell],
-    cin: &Option<VarCell>,
-) -> VarCell {
+    cin: &Option<Carry>,
+) -> Carry {
     let tfhe_params: asm::DigitParameters = prog.params().clone().into();
 
     let pbs_genprop = asm::Pbs::ManyGenProp(asm::dop::PbsManyGenProp::default());
     let pbs_genprop_add = asm::Pbs::GenPropAdd(asm::dop::PbsGenPropAdd::default());
+
+    // Make sure the TFHE parameters are enough to run this
+    assert!(
+        tfhe_params.total_width() >= 3,
+        "Cannot run Kogge stone with a total message width less than 3"
+    );
 
     // Split the result into message and propagate/generate information using a
     // manyLUT
@@ -877,17 +950,15 @@ fn propagate_carry(
         .iter()
         .map(|v| {
             let mut res = v.pbs(&pbs_genprop).into_iter();
-            (res.next().unwrap(), res.next().unwrap())
+            (res.next().unwrap(), Carry::fresh(res.next().unwrap()))
         })
         .unzip();
 
     // Add the carry in as the first carry if any
     carry.insert(
         0,
-        cin.clone().unwrap_or_else(|| {
-            let new = prog.var_from(None);
-            &VarCell::from(new.clone()) - &VarCell::from(new)
-        }),
+        cin.clone()
+            .unwrap_or_else(|| Carry::fresh(VarCell::from(prog.new_imm(0)))),
     );
 
     // Build a list of terminal outputs
@@ -895,7 +966,7 @@ fn propagate_carry(
 
     for i in 0..msg.len() {
         let subtree = carry_tree.get_subtree(&Range(0, i));
-        let mac = subtree.mac(tfhe_params.msg_range(), &msg[i]);
+        let mac = msg[i].mac(tfhe_params.msg_range(), &subtree.fresh);
         let pbs = mac.pbs(&pbs_genprop_add).into_iter().next().unwrap();
         dst[i] <<= &pbs;
     }
@@ -909,7 +980,7 @@ fn kogge_adder(
     prog: &mut Program,
     a: Vec<VarCell>,
     b: Vec<VarCell>,
-    mut cin: Option<VarCell>,
+    mut cin: Option<Carry>,
     mut dst: Vec<VarCell>,
     par_w: usize,
 ) -> Rtl {
@@ -935,7 +1006,7 @@ fn cached_kogge_add(
     prog: &mut Program,
     a: Vec<VarCell>,
     b: Vec<VarCell>,
-    cin: Option<VarCell>,
+    cin: Option<Carry>,
     dst: Vec<metavar::MetaVarCell>,
 ) -> Rtl {
     let kogge_cfg_ptr = KoggeBlockCfgPtr::from(prog.params().kogge_cfg.as_str());
