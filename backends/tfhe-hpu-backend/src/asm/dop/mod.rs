@@ -90,6 +90,10 @@ impl DigitParameters {
     pub fn nu(&self) -> usize {
         (self.carry_mask() + self.msg_mask()) / self.msg_mask()
     }
+
+    pub fn total_width(&self) -> usize {
+        self.msg_w + self.carry_w
+    }
 }
 
 /// Base trait to depict an Pbs function
@@ -281,34 +285,53 @@ pbs!(
     },
     @1 =>{
         |params: &DigitParameters, val| {
-               ((val & params.carry_mask()) >> (params.msg_w)) |                // Generate
-               (((val & params.msg_mask()) == params.msg_mask()) as usize) << 1 // Propagate
+               ((val & params.carry_mask()) >> (params.msg_w)) << 1|       // Generate
+               (((val & params.msg_mask()) == params.msg_mask()) as usize) // Propagate
            };
         |_params: &DigitParameters, _deg| 3;
     }
 ]],
-["GenPropMerge" => 19 [ // merges two generate/propagate pairs
+["ReduceCarry2" => 19 [ // Reduces a carry propagation add to two bits from an
+                        // input in which the carry is in the second bit.
     @0 =>{
-        |params: &DigitParameters, val | {
-           let lhs =  val & params.msg_mask();
-           let rhs = (val & params.carry_mask()) >> params.msg_w;
-           let (lhs_prop, lhs_gen) = (((lhs & 2) >> 1), lhs & 1);
-           let (rhs_prop, rhs_gen) = (((rhs & 2) >> 1), rhs & 1);
-           let (gen, prop) = (
-               (rhs_gen | rhs_prop & lhs_gen),
-               (rhs_prop & lhs_prop),
-           );
-           (prop << 1) | gen
+        |_params: &DigitParameters, val | {
+            let carry = val >> 2;
+            let prop = (val & 3 == 3) as usize;
+            (carry << 1) | prop
        };
         |_params: &DigitParameters, _deg| 3;
     }
 ]],
-["GenPropAdd" => 20 [ // Adds a generate/propagate pair with a message modulus message
+["ReduceCarry3" => 20 [ // Reduces a carry propagation add to two bits from an
+                        // input in which the carry is in the third bit.
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            let carry = val >> 3;
+            let prop = (val & 7 == 7) as usize;
+            (carry << 1) | prop
+       };
+        |_params: &DigitParameters, _deg| 3;
+    }
+]],
+["ReduceCarryPad" => 21 [ // Reduces a carry propagation add to two bits from an
+                          // input in which the carry is in the padding bit.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            if val == params.data_mask() {
+                0
+            } else {
+                params.raw_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.raw_mask();
+    }
+]],
+["GenPropAdd" => 22 [ // Adds a generate/propagate pair with a message modulus message
     @0 =>{
         |params: &DigitParameters, val | {
            let lhs =  val & params.msg_mask();
            let rhs = (val & params.carry_mask()) >> params.msg_w;
-           let rhs_gen = rhs & 1;
+           let rhs_gen = rhs >> 1;
            (lhs + rhs_gen) & params.msg_mask()
        };
         |params: &DigitParameters, _deg| params.msg_mask();
@@ -316,7 +339,7 @@ pbs!(
 ]],
 
 // Below Pbs are defined for Test only
-["TestMany2" => 21 [
+["TestMany2" => 23 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();
@@ -326,7 +349,7 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     },
 ]],
-["TestMany4" => 22 [
+["TestMany4" => 24 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();
@@ -344,7 +367,7 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     },
 ]],
-["TestMany8" => 23 [
+["TestMany8" => 25 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();

@@ -218,9 +218,9 @@ impl VarCell {
         var
     }
 
-    pub fn mac(&self, cnst: usize, other: &VarCell) -> VarCell {
+    pub fn mac(&self, cnst: usize, coeff: &VarCell) -> VarCell {
         let var = VarCell::new();
-        let new_op = MacOp::new_op(cnst, self, other);
+        let new_op = MacOp::new_op(cnst, coeff, self);
         var.set_driver(Some((new_op.clone(), 0)));
         var
     }
@@ -323,7 +323,7 @@ where
     }
 
     // This blanket implementation handles the typical case where an operation
-    // has many sourcs and only a single destination
+    // has two sources and only a single destination
     fn alloc1_prog(&mut self, prog: &mut Program) -> OpLock1 {
         if let Some(dst) = self.dst()[0].as_ref() {
             let a = self.src()[0].copy_meta().unwrap();
@@ -366,6 +366,13 @@ struct OpLock1 {
 }
 
 #[derive(Clone, Debug, Default)]
+struct AddsData {
+    cnst: usize,
+    rd_lock: Option<Vec<RegLockPtr>>,
+    wr_lock: Option<RegLockPtr>,
+}
+
+#[derive(Clone, Debug, Default)]
 struct MacData {
     lock: OpLock1,
     mult: usize,
@@ -379,11 +386,52 @@ struct PbsData {
     wr_lock: Option<Vec<RegLockPtr>>,
 }
 
+rtl_op!("ADDS", Arith, AddsData);
 rtl_op!("ADD", Arith, OpLock1);
 rtl_op!("SUB", Arith, OpLock1);
 rtl_op!("MAC", Arith, MacData);
 rtl_op!("PBS", Pbs, PbsData);
 rtl_op!("ST", MemSt, Option<RegLockPtr>);
+
+impl ProgManager for AddsOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data = if let Some(dst) = self.dst()[0].as_ref() {
+            let mut a = self.src()[0].copy_meta().unwrap();
+            let mut d = prog.new_var();
+            dst.set_meta(d.clone());
+
+            a.reg_alloc_mv();
+            if !(a.is_in(PosKind::IMM)) {
+                d.reg_alloc_mv();
+            }
+
+            AddsData {
+                cnst: self.data.cnst,
+                rd_lock: Some(vec![a.reg_lock()]),
+                wr_lock: Some(d.reg_lock()),
+            }
+        } else {
+            AddsData::default()
+        }
+    }
+
+    fn add_prog(&mut self, prog: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let b = prog.new_imm(self.data.cnst);
+            let d = d.copy_meta().unwrap();
+            d.add_raw(&a, &b, false);
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.wr_lock = None;
+    }
+}
 
 impl ProgManager for AddOp {
     fn alloc_prog(&mut self, prog: &mut Program) {
@@ -395,7 +443,7 @@ impl ProgManager for AddOp {
             let a = self.src[0].copy_meta().unwrap();
             let b = self.src[1].copy_meta().unwrap();
             let d = d.copy_meta().unwrap();
-            d.add_raw(&a, &b);
+            d.add_raw(&a, &b, false);
         }
     }
 
@@ -588,6 +636,23 @@ impl ProgManager for StOp {
     fn free_wr(&mut self) {}
 }
 
+impl AddsOp {
+    fn new_op(var: &VarCell, cnst: usize) -> OperationCell {
+        let op = AddsOp {
+            src: vec![var.clone()],
+            dst: vec![None],
+            uid: new_uid(),
+            load_stats: None,
+            data: AddsData {
+                cnst,
+                rd_lock: None,
+                wr_lock: None,
+            },
+        };
+        OperationCell(Rc::new(RefCell::new(Operation::ADDS(op))))
+    }
+}
+
 impl AddOp {
     fn new_op(lhs: &VarCell, rhs: &VarCell) -> OperationCell {
         let op = AddOp {
@@ -615,9 +680,9 @@ impl SubOp {
 }
 
 impl MacOp {
-    fn new_op(mult: usize, lhs: &VarCell, rhs: &VarCell) -> OperationCell {
+    fn new_op(mult: usize, coeff: &VarCell, acc: &VarCell) -> OperationCell {
         let op = MacOp {
-            src: vec![lhs.clone(), rhs.clone()],
+            src: vec![coeff.clone(), acc.clone()],
             dst: vec![None],
             uid: new_uid(),
             load_stats: None,
@@ -661,6 +726,7 @@ impl StOp {
     }
 }
 
+impl SetFlush for AddsOp {}
 impl SetFlush for AddOp {}
 impl SetFlush for SubOp {}
 impl SetFlush for MacOp {}
@@ -676,6 +742,7 @@ impl SetFlush for StOp {}
 #[strum_discriminants(name(OperationNames))]
 #[strum_discriminants(derive(EnumString, Display))]
 pub enum Operation {
+    ADDS(AddsOp),
     ADD(AddOp),
     SUB(SubOp),
     MAC(MacOp),
@@ -911,6 +978,17 @@ impl std::ops::Add for &VarCell {
     fn add(self, other: &VarCell) -> VarCell {
         let var = VarCell::new();
         let new_op = AddOp::new_op(self, other);
+        var.set_driver(Some((new_op.clone(), 0)));
+        var
+    }
+}
+
+impl std::ops::Add<usize> for &VarCell {
+    type Output = VarCell;
+
+    fn add(self, other: usize) -> VarCell {
+        let var = VarCell::new();
+        let new_op = AddsOp::new_op(self, other);
         var.set_driver(Some((new_op.clone(), 0)));
         var
     }
