@@ -45,8 +45,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
+    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
+                      blockIdx.x * gridDim.z * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -61,22 +61,22 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
   double2 *block_join_buffer =
-      &join_buffer[blockIdx.z * level_count * (glwe_dimension + 1) *
+      &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
                    params::degree / 2];
 
   Torus *global_accumulator_slice =
-      &global_accumulator[(blockIdx.y + blockIdx.z * (glwe_dimension + 1)) *
+      &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
                           params::degree];
 
   const double2 *keybundle =
-      &keybundle_array[blockIdx.z * keybundle_size_per_input];
+      &keybundle_array[blockIdx.x * keybundle_size_per_input];
 
   if (lwe_offset == 0) {
     // Put "b" in [0, 2N[
@@ -106,12 +106,12 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     // accumulator_rotated decomposed at level 0, 1 at 1, etc.)
     GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
                                            accumulator_rotated);
-    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
     NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe_in_fourier_domain<grid_group, params>(
+    mul_ggsw_glwe_in_fourier_domain_tbc<grid_group, params>(
         accumulator_fft, block_join_buffer, keybundle, i, grid);
     NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
@@ -121,10 +121,10 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
   auto accumulator = accumulator_rotated;
 
-  if (blockIdx.x == 0) {
+  if (blockIdx.z == 0) {
     if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
       auto block_lwe_array_out =
-          &lwe_array_out[lwe_output_indexes[blockIdx.z] *
+          &lwe_array_out[lwe_output_indexes[blockIdx.x] *
                              (glwe_dimension * polynomial_size + 1) +
                          blockIdx.y * polynomial_size];
 
@@ -139,9 +139,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
           for (int i = 1; i < num_many_lut; i++) {
             auto next_lwe_array_out =
                 lwe_array_out +
-                (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+                (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
             auto next_block_lwe_array_out =
-                &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                         (glwe_dimension * polynomial_size + 1) +
                                     blockIdx.y * polynomial_size];
 
@@ -159,9 +159,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
             auto next_lwe_array_out =
                 lwe_array_out +
-                (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+                (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
             auto next_block_lwe_array_out =
-                &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+                &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                         (glwe_dimension * polynomial_size + 1) +
                                     blockIdx.y * polynomial_size];
 
@@ -349,7 +349,7 @@ __host__ void execute_cg_external_product_loop(
   kernel_args[20] = &num_many_lut;
   kernel_args[21] = &lut_stride;
 
-  dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
+  dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < partial_dm) {

@@ -169,8 +169,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
+    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
+                      blockIdx.x * gridDim.z * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -183,19 +183,19 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     accumulator_fft = (double2 *)sharedmem;
 
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
   Torus *global_slice =
-      &global_accumulator[(blockIdx.y + blockIdx.z * (glwe_dimension + 1)) *
+      &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
                           params::degree];
 
   double2 *global_fft_slice =
-      &global_accumulator_fft[(blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
-                               blockIdx.z * level_count *
+      &global_accumulator_fft[(blockIdx.y + blockIdx.z * (glwe_dimension + 1) +
+                               blockIdx.x * level_count *
                                    (glwe_dimension + 1)) *
                               (polynomial_size / 2)];
 
@@ -232,7 +232,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // decomposition, for the mask and the body (so block 0 will have the
   // accumulator decomposed at level 0, 1 at 1, etc.)
   GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
-  gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+  gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
 
   // We are using the same memory space for accumulator_fft and
   // accumulator_rotated, so we need to synchronize here to make sure they
@@ -560,7 +560,7 @@ execute_step_one(cudaStream_t stream, uint32_t gpu_index,
   auto global_accumulator = buffer->global_accumulator;
   auto global_accumulator_fft = buffer->global_join_buffer;
 
-  dim3 grid_accumulate_step_one(level_count, glwe_dimension + 1, num_samples);
+  dim3 grid_accumulate_step_one(num_samples, glwe_dimension + 1, level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   if (max_shared_memory < partial_sm_accumulate_step_one)
