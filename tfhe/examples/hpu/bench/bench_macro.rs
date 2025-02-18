@@ -72,6 +72,10 @@ pub struct Args {
     /// JsonLine output file
     #[clap(long, value_parser, default_value = "output/hpu_bench.jsonl")]
     pub out_jsonl: String,
+
+    /// Encripts trivially. Mostly for debug
+    #[clap(long, value_parser)]
+    pub trivial: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -174,8 +178,11 @@ macro_rules! impl_hpu_bench {
                 };
 
                 // Encrypt on cpu side
-                let a_fhe = $fhe_type::encrypt(a, &cks);
-                let b_fhe = $fhe_type::encrypt(b, &cks);
+                let (a_fhe, b_fhe) = if args.trivial {
+                    ($fhe_type::encrypt_trivial(a), $fhe_type::encrypt_trivial(b))
+                } else {
+                    ($fhe_type::encrypt(a, &cks), $fhe_type::encrypt(b, &cks))
+                };
 
                 // Copy value in Hpu world
                 let a_hpu = a_fhe.clone_on(&hpu_device);
