@@ -42,9 +42,7 @@ pub mod shortint_utils {
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     #[cfg(feature = "gpu")]
     use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
-    use tfhe::shortint::parameters::{
-        ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
+    use tfhe::shortint::parameters::{ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64};
     use tfhe::shortint::{
         ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
     };
@@ -76,7 +74,7 @@ pub mod shortint_utils {
             } else {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
-                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
