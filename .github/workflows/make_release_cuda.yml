@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-          persist-credentials: 'false'
+          persist-credentials: "false"
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Install latest stable
@@ -123,11 +123,34 @@ jobs:
           - os: ubuntu-22.04
             cuda: "12.2"
             gcc: 9
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
         with:
           toolchain: stable
+
+      - name: Export CUDA variables
+        if: ${{ !cancelled() }}
+        run: |
+          echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          {
+            echo "CUDA_PATH=$CUDA_PATH";
+            echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
+            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+          } >> "${GITHUB_ENV}"
+
+      # Specify the correct host compilers
+      - name: Export gcc and g++ variables
+        if: ${{ !cancelled() }}
+        run: |
+          {
+            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
+            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "HOME=/home/ubuntu";
+          } >> "${GITHUB_ENV}"
 
       - name: Publish crate.io package
         env:
@@ -163,7 +186,7 @@ jobs:
   teardown-instance:
     name: Teardown instance (publish-release)
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, publish-cuda-release ]
+    needs: [setup-instance, publish-cuda-release]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
