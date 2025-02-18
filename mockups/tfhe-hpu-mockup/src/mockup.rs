@@ -23,18 +23,18 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+        default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
     )]
-    pub config: String,
+    pub config: ShellString,
 
     /// Hpu rtl parameters
     /// Enable to retrieved the associated tfhe-rs parameters and other Rtl parameters
     #[clap(
         long,
         value_parser,
-        default_value = "mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.toml"
+        default_value = "${HPU_MOCKUP_DIR}/params/tfhers_64b_fast.toml"
     )]
-    pub params: String,
+    pub params: ShellString,
 
     // Override params --------------------------------------------------
     // Quick way to override parameters through ClI instead of editing the
@@ -141,9 +141,9 @@ fn main() {
     }
 
     // Load parameters from configuration file ------------------------------------
-    let config = HpuConfig::from_toml(&args.config);
+    let config = HpuConfig::from_toml(&args.config.expand());
     let params = {
-        let mut rtl_params = HpuParameters::from_toml(&args.params);
+        let mut rtl_params = HpuParameters::from_toml(&args.params.expand());
 
         // Override some parameters if required
         if let Some(register) = args.register.as_ref() {

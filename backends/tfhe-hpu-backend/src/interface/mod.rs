@@ -13,7 +13,7 @@ use thiserror::Error;
 
 // Publicly export some types
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
-pub use config::{BoardConfig, FFIMode, HpuConfig};
+pub use config::{BoardConfig, FFIMode, HpuConfig, ShellString};
 pub use device::HpuDevice;
 pub use memory::page_align;
 pub use variable::HpuVarWrapped;
