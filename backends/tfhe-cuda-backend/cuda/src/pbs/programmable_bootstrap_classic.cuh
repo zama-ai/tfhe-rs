@@ -40,8 +40,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if constexpr (SMD == FULLSM) {
     selected_memory = sharedmem;
   } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
+    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
+                      blockIdx.x * gridDim.z * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -56,19 +56,19 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
   Torus *global_slice =
       global_accumulator +
-      (blockIdx.y + blockIdx.z * (glwe_dimension + 1)) * params::degree;
+      (blockIdx.y + blockIdx.x * (glwe_dimension + 1)) * params::degree;
 
   double2 *global_fft_slice =
-      global_join_buffer + (blockIdx.y + blockIdx.x * (glwe_dimension + 1) +
-                            blockIdx.z * level_count * (glwe_dimension + 1)) *
+      global_join_buffer + (blockIdx.y + blockIdx.z * (glwe_dimension + 1) +
+                            blockIdx.x * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2);
 
   if (lwe_iteration == 0) {
@@ -116,7 +116,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // decomposition, for the mask and the body (so block 0 will have the
   // accumulator decomposed at level 0, 1 at 1, etc.)
   GadgetMatrix<Torus, params> gadget_acc(base_log, level_count, accumulator);
-  gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+  gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
 
   // We are using the same memory space for accumulator_fft and
   // accumulator_rotated, so we need to synchronize here to make sure they
@@ -375,7 +375,7 @@ __host__ void execute_step_one(
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
-  dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
+  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_one<Torus, params, NOSM>
