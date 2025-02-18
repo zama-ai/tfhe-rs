@@ -23,7 +23,9 @@ pub fn main() {
         .init();
 
     // Instanciate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::from_config("backends/tfhe-hpu-backend/config/hpu_config.toml");
+    let config_name =
+        ShellString("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string());
+    let hpu_device = HpuDevice::from_config(&config_name.expand());
 
     // Extract pbs_configuration from Hpu and generate top-level config
     let pbs_params = tfhe::shortint::PBSParameters::PBS(hpu_device.params().into());

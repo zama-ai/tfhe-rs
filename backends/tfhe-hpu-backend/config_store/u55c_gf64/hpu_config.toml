@@ -1,0 +1,71 @@
+ 
+[fpga]
+  regmap=["${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core.toml"]
+  polling_us=10
+[fpga.ffi.Xrt]
+  id= 0
+  kernel= "hpu_msplit_3parts_1in3"
+  xclbin="${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_msplit_3parts.xclbin"
+
+[rtl]
+  bpip_used = true
+  bpip_timeout = 100_000
+
+[board]
+  ct_mem = 4096
+  ct_pc = [
+    {Hbm= {pc=10}},
+    {Hbm= {pc=11}},
+  ]
+  heap_size = 3584
+
+  lut_mem = 256
+  lut_pc = {Hbm={pc=12}}
+
+  fw_size= 65536
+  fw_pc = {Hbm={pc=1}}
+
+  bsk_pc = [
+    {Hbm={pc=2}},
+    {Hbm={pc=3}},
+    {Hbm={pc=4}},
+    {Hbm={pc=5}},
+    {Hbm={pc=6}},
+    {Hbm={pc=7}},
+    {Hbm={pc=8}},
+    {Hbm={pc=9}}
+  ]
+
+  ksk_pc = [
+    {Hbm={pc=24}},
+    {Hbm={pc=25}},
+    {Hbm={pc=26}},
+    {Hbm={pc=27}},
+    {Hbm={pc=28}},
+    {Hbm={pc=29}},
+    {Hbm={pc=30}},
+    {Hbm={pc=31}}
+  ]
+
+  trace_pc = {Hbm={pc=0}}
+
+[firmware]
+  integer_w=[16]
+  # Set to true for the firmware scheduler to try to fill the PE batch FIFO
+  # first even at the expense of missing dependencies
+  fill_batch_fifo = true
+  min_batch_size = true
+  kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
+  custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
+  custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
+  custom_iop.'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_2.asm"
+  custom_iop.'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_3.asm"
+  custom_iop.'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_8.asm"
+  custom_iop.'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_9.asm"
+  custom_iop.'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_16.asm"
+  custom_iop.'IOP[17]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_17.asm"
+  custom_iop.'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_18.asm"
+  custom_iop.'IOP[19]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_19.asm"
+  custom_iop.'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_20.asm"
+  custom_iop.'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_21.asm"
+

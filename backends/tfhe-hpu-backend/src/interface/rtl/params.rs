@@ -354,6 +354,51 @@ pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     ciphertext_width: 64,
 };
 
+pub const MSG2_CARRY2_GAUSSIAN: HpuPBSParameters = HpuPBSParameters {
+    lwe_dimension: 834,
+    glwe_dimension: 1,
+    polynomial_size: 2048,
+    lwe_modular_std_dev: 3.553_990_235_944_282_5e-6_f64,
+    glwe_modular_std_dev: 2.845267479601915e-15_f64,
+    pbs_base_log: 23,
+    pbs_level: 1,
+    ks_base_log: 3,
+    ks_level: 5,
+    message_width: 2,
+    carry_width: 2,
+    ciphertext_width: 64,
+};
+
+pub const MSG2_CARRY2_TUNIFORM: HpuPBSParameters = HpuPBSParameters {
+    lwe_dimension: 887,
+    glwe_dimension: 1,
+    polynomial_size: 2048,
+    lwe_modular_std_dev: 3.553_990_235_944_282_5e-6_f64,
+    glwe_modular_std_dev: 2.845267479601915e-15_f64,
+    pbs_base_log: 22,
+    pbs_level: 1,
+    ks_base_log: 3,
+    ks_level: 5,
+    message_width: 2,
+    carry_width: 2,
+    ciphertext_width: 64,
+};
+
+pub const MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA : HpuPBSParameters = HpuPBSParameters {
+    lwe_dimension: 804,
+    glwe_dimension: 1,
+    polynomial_size: 2048,
+    lwe_modular_std_dev: 5.963_599_673_924_788e-6_f64,
+    glwe_modular_std_dev: 2.8452674713391114e-15_f64,
+    pbs_base_log: 23,
+    pbs_level: 1,
+    ks_base_log: 2,
+    ks_level: 8,
+    message_width: 2,
+    carry_width: 2,
+    ciphertext_width: 64,
+};
+
 impl FromRtl for HpuPBSParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let pbs_app = regmap
@@ -364,14 +409,14 @@ impl FromRtl for HpuPBSParameters {
 
         // Check register encoding
         let field_code = pbs_app_val & (!0xFF_u32);
-        #[cfg(not(feature = "hw-xrt"))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
         {
             if (field_code == 0) && (pbs_app_val == SIMULATION_CODE) {
                 tracing::warn!("Run an simulation backend with custom SIMU parameters set");
                 return ffi_hw.get_pbs_parameters();
             }
         }
-        #[cfg(feature = "hw-xrt")]
+        #[cfg(any(feature = "hw-xrt", feature = "hw-aved"))]
         {
             assert_eq!(
                 field_code, APPLICATION_NAME_OFS,
@@ -390,6 +435,9 @@ impl FromRtl for HpuPBSParameters {
             3 => MSG2_CARRY2_64B,
             4 => MSG2_CARRY2_44B,
             9 => MSG2_CARRY2_64B_FAKE,
+            10 => MSG2_CARRY2_GAUSSIAN,
+            11 => MSG2_CARRY2_TUNIFORM,
+            12 => MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA,
             _ => panic!("Unknown TfheAppName encoding"),
         }
     }

@@ -45,7 +45,7 @@ pub enum Command {
     #[clap(about = "Flush ackq")]
     Flush,
 
-    #[clap(about = "Memory Zone read (XRT)")]
+    #[clap(about = "Memory Zone read (Hbm)")]
     MzRead {
         /// Hbm pc
         #[arg(long, value_parser=maybe_hex::<usize>)]
@@ -55,7 +55,7 @@ pub enum Command {
         size: usize,
     },
 
-    #[clap(about = "Memory Zone write (Xrt)")]
+    #[clap(about = "Memory Zone write (Hbm)")]
     MzWrite {
         /// Hbm pc
         #[arg(long, value_parser=maybe_hex::<usize>)]
@@ -86,9 +86,9 @@ struct CliArgs {
     #[arg(
         short,
         long,
-        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+        default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
     )]
-    config: String,
+    pub config: ShellString,
 
     #[command(subcommand)]
     cmd: Command,
@@ -111,11 +111,23 @@ fn main() {
         .init();
 
     // Load fpga configuration from file
-    let config = HpuConfig::from_toml(&args.config);
+    let config = HpuConfig::from_toml(&args.config.expand());
 
     // Instanciate bare-minimum abstraction around XRT -----------------------
     let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
-    let regmap = hw_regmap::FlatRegmap::from_file(&config.fpga.regmap);
+    let regmap = {
+        let regmap_expanded = config
+            .fpga
+            .regmap
+            .iter()
+            .map(|f| f.expand())
+            .collect::<Vec<_>>();
+        let regmap_str = regmap_expanded
+            .iter()
+            .map(|f| f.as_str())
+            .collect::<Vec<_>>();
+        hw_regmap::FlatRegmap::from_file(&regmap_str)
+    };
 
     // Handle user command --------------------------------------------------
     match args.cmd {
@@ -199,22 +211,29 @@ fn main() {
             }
         }
         Command::Flush => loop {
-            let ackq_addr = (*regmap
-                .register()
-                .get("WorkAck::ackq")
-                .expect("Unknow register, check regmap definition")
-                .offset()) as u64;
-            let ack_code = hpu_hw.read_reg(ackq_addr);
-            println!("Flush ackq -> {ack_code:0>8x}");
-            if ack_code == ACKQ_EMPTY {
-                break;
+            #[cfg(feature = "hw-aved")]
+            {
+                // TODO add ack flush to prevent error with previous stall execution
+            }
+            #[cfg(not(feature = "hw-aved"))]
+            {
+                let ackq_addr = (*regmap
+                    .register()
+                    .get("WorkAck::ackq")
+                    .expect("Unknow register, check regmap definition")
+                    .offset()) as u64;
+                let ack_code = hpu_hw.read_reg(ackq_addr);
+                println!("Flush ackq -> {ack_code:0>8x}");
+                if ack_code == ACKQ_EMPTY {
+                    break;
+                }
             }
         },
         Command::MzRead { pc, size } => {
             let mut bfr = vec![0xff_u8; size];
 
             let cut_props = ffi::MemZoneProperties {
-                hbm_pc: pc,
+                mem_kind: ffi::MemKind::Hbm { pc },
                 size_b: size,
             };
             let mut mz = hpu_hw.alloc(cut_props);
@@ -233,7 +252,7 @@ fn main() {
         Command::MzWrite { pc, size, pattern } => {
             let bfr = vec![pattern; size];
             let cut_props = ffi::MemZoneProperties {
-                hbm_pc: pc,
+                mem_kind: ffi::MemKind::Hbm { pc },
                 size_b: size,
             };
             let mut mz = hpu_hw.alloc(cut_props);

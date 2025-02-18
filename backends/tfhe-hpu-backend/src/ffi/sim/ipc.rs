@@ -3,12 +3,13 @@
 use ipc_channel::ipc::{self, IpcOneShotServer, IpcReceiver, IpcSender};
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
 use crate::entities::HpuPBSParameters;
-use crate::ffi::SyncMode;
+use crate::ffi::{self, SyncMode};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IpcError {}
@@ -62,17 +63,17 @@ pub(crate) fn register_channel() -> (RegisterFfi, RegisterSim) {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MemoryReq {
     Allocate {
-        hbm_pc: usize,
+        mem_kind: ffi::MemKind,
         size_b: usize,
     },
     Sync {
-        hbm_pc: usize,
+        mem_kind: ffi::MemKind,
         addr: u64,
         mode: SyncMode,
         data: Option<ipc::IpcSharedMemory>,
     },
     Release {
-        hbm_pc: usize,
+        mem_kind: ffi::MemKind,
         addr: u64,
     },
 }
@@ -175,9 +176,12 @@ impl IpcSim {
     pub fn new_bind_on(ipc_name: &str) -> IpcSim {
         // Create one shot channel
         let (oneshot_server, oneshot_name) = IpcOneShotServer::new().unwrap();
-        println!("-> {oneshot_name}");
-
         // Register it into {ipc_name} file
+        // Create folder if needed
+        let path = Path::new(ipc_name);
+        if let Some(dir_p) = path.parent() {
+            std::fs::create_dir_all(dir_p).unwrap();
+        }
         // Open file
         let mut wr_f = OpenOptions::new()
             .create(true)
@@ -187,7 +191,9 @@ impl IpcSim {
             .unwrap();
         write!(wr_f, "{oneshot_name}").unwrap();
 
+        tracing::info!("Mockup waiting on IPC `{oneshot_name}`");
         let (_, ipc_sim): (_, IpcSim) = oneshot_server.accept().unwrap();
+
         ipc_sim
     }
 }
