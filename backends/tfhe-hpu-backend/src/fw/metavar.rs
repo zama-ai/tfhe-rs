@@ -610,7 +610,10 @@ impl MetaVarCell {
             "Add src must be of kind Reg|Mem|IMM MetaVar"
         );
         assert!(
-            mul_factor <= (1 << rhs_0.0.borrow().prog.params().carry_w),
+            mul_factor
+                <= (1
+                    << (rhs_0.0.borrow().prog.params().carry_w
+                        + rhs_0.0.borrow().prog.params().msg_w)),
             "mul_factor must be <= carry_mask to prevent overflow"
         );
 
@@ -853,7 +856,7 @@ impl ShlAssign for MetaVarCell {
 
 /// Implement raw addition and derive Add/AddAsign from it
 impl MetaVarCell {
-    pub(super) fn add_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell) {
+    pub(super) fn add_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell, upd_degree: bool) {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -883,7 +886,9 @@ impl MetaVarCell {
                 let asm = asm::dop::DOpAdd::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
 
                 rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (false, true) => {
                 // Ct x Imm
@@ -903,7 +908,9 @@ impl MetaVarCell {
 
                 let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
                 rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (true, false) => {
                 // Imm x Ct
@@ -924,7 +931,9 @@ impl MetaVarCell {
 
                 let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
                 rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (true, true) => {
                 // Imm x Imm -> Check if this could be a compiled time constant
@@ -933,7 +942,9 @@ impl MetaVarCell {
                         // Compile time constant
                         let imm = cst_a + cst_b;
                         self.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
-                        self.updt_degree(imm as usize);
+                        if upd_degree {
+                            self.updt_degree(imm as usize);
+                        }
                     }
                     (ImmId::Var { .. }, _) => {
                         // Move templated constant in register and recurse
@@ -946,7 +957,7 @@ impl MetaVarCell {
                         };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
-                        self.add_raw(&reg_0, rhs_1)
+                        self.add_raw(&reg_0, rhs_1, upd_degree)
                     }
                     (_, ImmId::Var { .. }) => {
                         // Move templated constant in register and recurse
@@ -959,7 +970,7 @@ impl MetaVarCell {
                         };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
-                        self.add_raw(rhs_0, &reg_1)
+                        self.add_raw(rhs_0, &reg_1, upd_degree)
                     }
                 }
             }
@@ -986,14 +997,14 @@ impl Add for &MetaVarCell {
             var
         };
 
-        MetaVarCell::add_raw(&dst, self, rhs);
+        MetaVarCell::add_raw(&dst, self, rhs, true);
         dst
     }
 }
 
 impl AddAssign for MetaVarCell {
     fn add_assign(&mut self, rhs: Self) {
-        Self::add_raw(self, self, &rhs);
+        Self::add_raw(self, self, &rhs, true);
     }
 }
 
