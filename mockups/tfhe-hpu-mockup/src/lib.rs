@@ -25,7 +25,7 @@ use ipc::Ipc;
 mod modules;
 pub use modules::isc;
 pub use modules::params::{MockupOptions, MockupParameters};
-use modules::{HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
+use modules::{DdrMem, HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 
 use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
 use tfhe::tfhe_hpu_backend::prelude::*;
@@ -40,6 +40,7 @@ pub struct HpuSim {
 
     /// On-board memory
     hbm_bank: [HbmBank; HBM_BANK_NB],
+    ddr: DdrMem,
     /// On-chip regfile
     regfile: Vec<HpuLweCiphertextOwned<u64>>,
     /// Program counter
@@ -81,16 +82,27 @@ impl HpuSim {
         // Allocate communication channels
         let ipc = {
             let name = match config.fpga.ffi {
-                FFIMode::Sim { ref ipc_name } => ipc_name.to_string(),
+                FFIMode::Sim { ref ipc_name } => ipc_name.expand(),
                 _ => panic!("Unsupported config type with ffi::sim"),
             };
             Ipc::new(&name)
         };
         // Allocate register map emulation
-        let regmap = RegisterMap::new(params.rtl_params.clone(), &config.fpga.regmap);
+        let regmap_expanded = config
+            .fpga
+            .regmap
+            .iter()
+            .map(|f| f.expand())
+            .collect::<Vec<_>>();
+        let regmap_str = regmap_expanded
+            .iter()
+            .map(|f| f.as_str())
+            .collect::<Vec<_>>();
+        let regmap = RegisterMap::new(params.rtl_params.clone(), &regmap_str);
 
         // Allocate on-board memory emulation
         let hbm_bank: [HbmBank; HBM_BANK_NB] = from_fn(HbmBank::new);
+        let ddr = DdrMem::new();
 
         // Allocate inner regfile and lock abstraction
         let regfile = (0..params.rtl_params.regf_params.reg_nb)
@@ -116,6 +128,7 @@ impl HpuSim {
             ipc,
             regmap,
             hbm_bank,
+            ddr,
             regfile,
             pc: 0,
             ucore,
@@ -173,22 +186,32 @@ impl HpuSim {
             // Flush memory requests
             while let Some(req) = self.ipc.memory_req() {
                 match req {
-                    MemoryReq::Allocate { hbm_pc, size_b } => {
-                        let addr = self.hbm_bank[hbm_pc].alloc(size_b);
+                    MemoryReq::Allocate { mem_kind, size_b } => {
+                        let addr = match mem_kind {
+                            MemKind::Ddr { offset } => {
+                                self.ddr.alloc_at(offset as u64, size_b);
+                                offset as u64
+                            }
+                            MemKind::Hbm { pc } => self.hbm_bank[pc].alloc(size_b),
+                        };
                         self.ipc.memory_ack(MemoryAck::Allocate { addr });
                     }
                     MemoryReq::Sync {
-                        hbm_pc,
+                        mem_kind,
                         addr,
                         mode,
                         data,
                     } => match mode {
                         SyncMode::Host2Device => {
                             let sw_data = data.expect("No data received on Host2Device sync");
-                            self.hbm_bank[hbm_pc]
-                                .get_mut_chunk(addr)
-                                .ipc_update(sw_data);
-
+                            match mem_kind {
+                                MemKind::Ddr { .. } => {
+                                    self.ddr.get_mut_chunk(addr).ipc_update(sw_data)
+                                }
+                                MemKind::Hbm { pc } => {
+                                    self.hbm_bank[pc].get_mut_chunk(addr).ipc_update(sw_data)
+                                }
+                            }
                             // Generate ack
                             self.ipc.memory_ack(MemoryAck::Sync { data: None });
                         }
@@ -196,7 +219,10 @@ impl HpuSim {
                             assert!(data.is_none(), "Received data on Device2Host sync");
 
                             // Read data
-                            let hw_data = self.hbm_bank[hbm_pc].get_chunk(addr).ipc_wrap();
+                            let hw_data = match mem_kind {
+                                MemKind::Ddr { .. } => self.ddr.get_mut_chunk(addr).ipc_wrap(),
+                                MemKind::Hbm { pc } => self.hbm_bank[pc].get_chunk(addr).ipc_wrap(),
+                            };
 
                             // Generate ack
                             self.ipc.memory_ack(MemoryAck::Sync {
@@ -204,8 +230,15 @@ impl HpuSim {
                             });
                         }
                     },
-                    MemoryReq::Release { hbm_pc, addr } => {
-                        self.hbm_bank[hbm_pc].rm_chunk(addr);
+                    MemoryReq::Release { mem_kind, addr } => {
+                        match mem_kind {
+                            MemKind::Ddr { .. } => {
+                                let _ = self.ddr.rm_chunk(addr);
+                            }
+                            MemKind::Hbm { pc } => {
+                                let _ = self.hbm_bank[pc].rm_chunk(addr);
+                            }
+                        };
                         self.ipc.memory_ack(MemoryAck::Release);
                     }
                 }
@@ -213,7 +246,9 @@ impl HpuSim {
 
             // Issue IOp requests to isc
             while let Some(iop) = self.iop_req.pop_front() {
-                let (dops, dops_patched) = self.ucore.translate(self.hbm_bank.as_slice(), &iop);
+                let (dops, dops_patched) =
+                    self.ucore
+                        .translate(&self.ddr, self.hbm_bank.as_slice(), &iop);
 
                 // Write required input material if needed
                 if let Some(dump_path) = self.options.dump_out.as_ref() {
@@ -311,22 +346,30 @@ impl HpuSim {
                     .ct_pc
                     .iter()
                     .enumerate()
-                    .map(|(id, pc)| {
+                    .map(|(id, mem_kind)| {
                         let ldst_ofst = {
                             let (msb, lsb) = self.regmap.addr_offset().ldst[id];
                             ((msb as u64) << 32) + lsb as u64
                         };
-                        self.hbm_bank[*pc].get_chunk(ldst_ofst + ct_ofst as u64)
+                        match mem_kind {
+                            MemKind::Ddr { .. } => {
+                                self.ddr.get_chunk(ldst_ofst + ct_ofst as u64).data()
+                            }
+                            MemKind::Hbm { pc } => self.hbm_bank[*pc]
+                                .get_chunk(ldst_ofst + ct_ofst as u64)
+                                .data(),
+                        }
+                        // self.hbm_bank[*pc].get_chunk(ldst_ofst + ct_ofst as u64)
                     })
                     .collect::<Vec<_>>();
 
                 let hw_slice = dst.as_mut_view().into_container();
-                std::iter::zip(hw_slice, ct_chunk).for_each(|(hpu, hbm)| {
-                    // NB: hbm chunk are extended to enforce page align buffer
-                    // -> To prevent error during copy, with shrink the hbm buffer to the
+                std::iter::zip(hw_slice, ct_chunk).for_each(|(hpu, mem)| {
+                    // NB: Chunk are extended to enforce page align buffer
+                    // -> To prevent error during copy, with shrink the mem buffer to the
                     // real   size before-hand
                     let size_b = std::mem::size_of_val(hpu);
-                    let hbm_u64 = bytemuck::cast_slice::<u8, u64>(&hbm.data.as_slice()[0..size_b]);
+                    let hbm_u64 = bytemuck::cast_slice::<u8, u64>(&mem[0..size_b]);
                     hpu.clone_from_slice(hbm_u64);
                 });
             }
@@ -354,16 +397,21 @@ impl HpuSim {
                             let (msb, lsb) = self.regmap.addr_offset().ldst[id];
                             ((msb as u64) << 32) + lsb as u64
                         };
-                        let ct_chunk = self.hbm_bank[self.config.board.ct_pc[id]]
-                            .get_mut_chunk(ldst_ofst + ct_ofst as u64);
-
+                        let ct_chunk_mut_view = match self.config.board.ct_pc[id] {
+                            MemKind::Ddr { .. } => self
+                                .ddr
+                                .get_mut_chunk(ldst_ofst + ct_ofst as u64)
+                                .data_mut(),
+                            MemKind::Hbm { pc } => self.hbm_bank[pc]
+                                .get_mut_chunk(ldst_ofst + ct_ofst as u64)
+                                .data_mut(),
+                        };
                         // NB: hbm chunk are extended to enforce page align buffer
                         // -> Shrinked it to slice size to prevent error during copy
                         let size_b = std::mem::size_of_val(hpu);
 
-                        let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
-                            &mut ct_chunk.data.as_mut_slice()[0..size_b],
-                        );
+                        let ct_chunk_u64 =
+                            bytemuck::cast_slice_mut::<u8, u64>(&mut ct_chunk_mut_view[0..size_b]);
                         ct_chunk_u64.copy_from_slice(hpu);
                     });
             }
@@ -632,8 +680,13 @@ impl HpuSim {
                 let hw_slice = bsk.as_mut_view().into_container();
                 std::iter::zip(hw_slice, self.config.board.bsk_pc.iter())
                     .enumerate()
-                    .for_each(|(id, (hpu, pc))| {
-                        let bank = &self.hbm_bank[*pc];
+                    .for_each(|(id, (hpu, mem_kind))| {
+                        let bank = match mem_kind {
+                            MemKind::Ddr { .. } => panic!(
+                                "Error: Key could not be allocated in Dddr for performance reasons"
+                            ),
+                            MemKind::Hbm { pc } => &self.hbm_bank[*pc],
+                        };
                         let ofst = {
                             let (msb, lsb) = self.regmap.addr_offset().bsk[id];
                             ((msb as usize) << 32) + lsb as usize
@@ -650,8 +703,13 @@ impl HpuSim {
                 let hw_slice = ksk.as_mut_view().into_container();
                 std::iter::zip(hw_slice, self.config.board.ksk_pc.iter())
                     .enumerate()
-                    .for_each(|(id, (hpu, pc))| {
-                        let bank = &self.hbm_bank[*pc];
+                    .for_each(|(id, (hpu, mem_kind))| {
+                        let bank = match mem_kind {
+                            MemKind::Ddr { .. } => panic!(
+                                "Error: Key could not be allocated in Dddr for performance reasons"
+                            ),
+                            MemKind::Hbm { pc } => &self.hbm_bank[*pc],
+                        };
                         let ofst = {
                             let (msb, lsb) = self.regmap.addr_offset().ksk[id];
                             ((msb as usize) << 32) + lsb as usize

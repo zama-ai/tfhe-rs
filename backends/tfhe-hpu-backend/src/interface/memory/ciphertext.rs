@@ -26,11 +26,11 @@ impl std::fmt::Debug for CiphertextSlot {
 impl CiphertextSlot {
     fn alloc(ffi_hw: &mut ffi::HpuHw, id: SlotId, props: &CiphertextMemoryProperties) -> Self {
         let mz = props
-            .hbm_cut
+            .mem_cut
             .iter()
-            .map(|hbm_pc| {
+            .map(|kind| {
                 let cut_props = ffi::MemZoneProperties {
-                    hbm_pc: *hbm_pc,
+                    mem_kind: kind.clone(),
                     size_b: props.cut_size_b,
                 };
                 ffi_hw.alloc(cut_props)
@@ -46,7 +46,7 @@ impl CiphertextSlot {
 
 #[derive(Debug, Clone)]
 pub struct CiphertextMemoryProperties {
-    pub hbm_cut: Vec<usize>,
+    pub mem_cut: Vec<ffi::MemKind>,
     pub cut_size_b: usize,
     pub slot_nb: usize,
 }
@@ -105,12 +105,12 @@ impl CiphertextMemory {
             })
             .collect::<VecDeque<_>>();
 
-        let mut paddr = Vec::with_capacity(props.hbm_cut.len());
+        let mut paddr = Vec::with_capacity(props.mem_cut.len());
         if !pool.is_empty() {
             // Sanity check
             // Slot must be contiguous in each cut
 
-            for cut_nb in 0..props.hbm_cut.len() {
+            for cut_nb in 0..props.mem_cut.len() {
                 let base_addr = pool[0].mz[cut_nb].paddr();
                 paddr.push(base_addr);
 
@@ -125,7 +125,7 @@ impl CiphertextMemory {
             }
 
             // Extract LdSt_addr_pc register addr
-            let ldst_addr_pc = (0..props.hbm_cut.len())
+            let ldst_addr_pc = (0..props.mem_cut.len())
                 .map(|idx| {
                     let lsb_name = format!("LdSt::addr_pc{idx}_lsb");
                     let msb_name = format!("LdSt::addr_pc{idx}_msb");

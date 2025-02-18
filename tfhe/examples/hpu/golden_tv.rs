@@ -29,9 +29,9 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "backends/tfhe-hpu-backend/config/hpu_config.toml"
+        default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
     )]
-    pub config: String,
+    pub config: ShellString,
 
     // Exec configuration ----------------------------------------------------
     /// Select integer-width from a set of available one.
@@ -105,7 +105,7 @@ pub fn main() {
 
     // Instanciate HpuDevice --------------------------------------------------
     let hpu_device = {
-        let mut config = HpuConfig::from_toml(&args.config);
+        let mut config = HpuConfig::from_toml(&args.config.expand());
         config.firmware.integer_w = vec![args.integer_width];
         HpuDevice::new(config)
     };
