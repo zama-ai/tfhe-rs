@@ -62,8 +62,8 @@ __global__ void device_programmable_bootstrap_tbc(
     if (support_dsm)
       selected_memory += sizeof(Torus) * polynomial_size;
   } else {
-    int block_index = blockIdx.x + blockIdx.y * gridDim.x +
-                      blockIdx.z * gridDim.x * gridDim.y;
+    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
+                      blockIdx.x * gridDim.z * gridDim.y;
     selected_memory = &device_mem[block_index * device_memory_size_per_block];
   }
 
@@ -83,14 +83,14 @@ __global__ void device_programmable_bootstrap_tbc(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.z] * (lwe_dimension + 1)];
+      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.z] * params::degree *
+      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
   double2 *block_join_buffer =
-      &join_buffer[blockIdx.z * level_count * (glwe_dimension + 1) *
+      &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
                    params::degree / 2];
   // Since the space is L1 cache is small, we use the same memory location for
   // the rotated accumulator and the fft accumulator, since we know that the
@@ -132,7 +132,7 @@ __global__ void device_programmable_bootstrap_tbc(
     // accumulator decomposed at level 0, 1 at 1, etc.)
     GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
                                            accumulator_rotated);
-    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.x);
+    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
     NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();
 
@@ -147,11 +147,11 @@ __global__ void device_programmable_bootstrap_tbc(
   }
 
   auto block_lwe_array_out =
-      &lwe_array_out[lwe_output_indexes[blockIdx.z] *
+      &lwe_array_out[lwe_output_indexes[blockIdx.x] *
                          (glwe_dimension * polynomial_size + 1) +
                      blockIdx.y * polynomial_size];
 
-  if (blockIdx.x == 0) {
+  if (blockIdx.z == 0) {
     if (blockIdx.y < glwe_dimension) {
       // Perform a sample extract. At this point, all blocks have the result,
       // but we do the computation at block 0 to avoid waiting for extra blocks,
@@ -162,9 +162,9 @@ __global__ void device_programmable_bootstrap_tbc(
         for (int i = 1; i < num_many_lut; i++) {
           auto next_lwe_array_out =
               lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
           auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
@@ -180,9 +180,9 @@ __global__ void device_programmable_bootstrap_tbc(
 
           auto next_lwe_array_out =
               lwe_array_out +
-              (i * gridDim.z * (glwe_dimension * polynomial_size + 1));
+              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
           auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.z] *
+              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
                                       (glwe_dimension * polynomial_size + 1) +
                                   blockIdx.y * polynomial_size];
 
@@ -292,7 +292,7 @@ __host__ void host_programmable_bootstrap_tbc(
   double2 *buffer_fft = buffer->global_join_buffer;
 
   int thds = polynomial_size / params::opt;
-  dim3 grid(level_count, glwe_dimension + 1, input_lwe_ciphertext_count);
+  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   cudaLaunchConfig_t config = {0};
   // The grid dimension is not affected by cluster launch, and is still
@@ -303,9 +303,9 @@ __host__ void host_programmable_bootstrap_tbc(
 
   cudaLaunchAttribute attribute[1];
   attribute[0].id = cudaLaunchAttributeClusterDimension;
-  attribute[0].val.clusterDim.x = level_count; // Cluster size in X-dimension
+  attribute[0].val.clusterDim.x = 1;
   attribute[0].val.clusterDim.y = (glwe_dimension + 1);
-  attribute[0].val.clusterDim.z = 1;
+  attribute[0].val.clusterDim.z = level_count; // Cluster size in Z-dimension
   config.attrs = attribute;
   config.numAttrs = 1;
   config.stream = stream;
@@ -424,7 +424,7 @@ __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
 
   int cluster_size;
 
-  dim3 grid_accumulate(level_count, glwe_dimension + 1, num_samples);
+  dim3 grid_accumulate(num_samples, glwe_dimension + 1, level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
   cudaLaunchConfig_t config = {0};
