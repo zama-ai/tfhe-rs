@@ -1,5 +1,3 @@
-# This is a sample example of register-map definition
-
 module_name="hpu_regif_core"
 description="Hpu top-level register interface. Used by the host to retrieved RTL information, configure it and issue commands."
 word_size_b = 32
@@ -116,7 +114,7 @@ offset= 0x10
   owner="Parameter"
   read_access="Read"
   write_access="None"
-  field.depth  = { size_b=8, offset_b=0 , default={Param="ISC_DEPTH"}, description="Depth of isc lookahead buffer."}
+  field.depth = { size_b=8, offset_b=0 , default={Param="ISC_DEPTH"}, description="#Slot in ISC lookahead buffer."}
   field.min_iop_size  = { size_b=8, offset_b=8 , default={Param="MIN_IOP_SIZE"}, description="#DOp per IOp to prevent sync_id overflow."}
 
 [section.Info.register.PEInfo]
@@ -177,7 +175,7 @@ offset= 0x10
 [section.LdSt]
 description="Define some properties of CT buffers in board-memory"
 [section.LdSt.register.addr]
-  description="Ciphertext buffer addr"
+  description="Ciphertext buffer addr for PC#"
   owner="User"
   read_access="Read"
   write_access="Write"
@@ -204,7 +202,7 @@ duplicate=["_Bsk", "_Ksk"]
   owner="User"
   read_access="Read"
   write_access="Write"
-  duplicate=["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb", "_pc2_lsb", "_pc2_msb", "_pc3_lsb", "_pc3_msb", "_pc4_lsb", "_pc4_msb", "_pc5_lsb", "_pc5_msb", "_pc6_lsb", "_pc6_msb", "_pc7_lsb", "_pc7_msb"]
+  duplicate=["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb", "_pc2_lsb", "_pc2_msb", "_pc3_lsb", "_pc3_msb", "_pc4_lsb", "_pc4_msb", "_pc5_lsb", "_pc5_msb", "_pc6_lsb", "_pc6_msb", "_pc7_lsb", "_pc7_msb", "_pc8_lsb", "_pc8_msb", "_pc9_lsb", "_pc9_msb", "_pc10_lsb", "_pc10_msb", "_pc11_lsb", "_pc11_msb", "_pc12_lsb", "_pc12_msb", "_pc13_lsb", "_pc13_msb", "_pc14_lsb", "_pc14_msb", "_pc15_lsb", "_pc15_msb"]
 
 [section.Keys.register.avail]
   description="Key available bit"
@@ -373,6 +371,20 @@ offset= 0x1000
   owner="Kernel"
   read_access="Read"
   write_access="WriteNotify"
+
+[section.Runtime.register.pep_load_ksk_rcp_dur]
+  description="PEP load KSK slot reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_pc0","_pc1","_pc2","_pc3","_pc4","_pc5","_pc6","_pc7","_pc8","_pc9","_pc10","_pc11","_pc12","_pc13","_pc14","_pc15"]
+
+[section.Runtime.register.pep_load_bsk_rcp_dur]
+  description="PEP load BSK slot reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_pc0","_pc1","_pc2","_pc3","_pc4","_pc5","_pc6","_pc7","_pc8","_pc9","_pc10","_pc11","_pc12","_pc13","_pc14","_pc15"]
 
 [section.Runtime.register.pep_mmacc_sxt_rcp_dur]
   description="PEP MMACC SXT reception duration (Could be reset by user)"

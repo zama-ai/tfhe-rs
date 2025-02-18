@@ -17,14 +17,23 @@ pub struct DOpRpt(pub HashMap<InstructionKind, usize>);
 
 impl std::fmt::Display for DOpRpt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Instructions execution report sorted by kind:")?;
-        // Order alphabetically by key and print one by line
-        let mut keys = self.0.keys().collect::<Vec<_>>();
-        keys.sort();
-        for k in keys {
-            writeln!(f, "{k:?} => {}", self.0.get(k).unwrap())?;
-        }
-        Ok(())
+        let key_val = {
+            // Order alphabetically by key
+            let mut keys = self.0.keys().collect::<Vec<_>>();
+            keys.sort();
+
+            keys.iter()
+                .map(|k| {
+                    format!(
+                        "{k}: {}",
+                        self.0
+                            .get(k)
+                            .unwrap_or_else(|| panic!("Error: Key {k} not available in DOpRpt"))
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        write!(f, "InstructionKind {{{}}}", key_val.join(", "))
     }
 }
 
@@ -78,7 +87,7 @@ impl std::fmt::Display for PeStoreRpt {
         let mut keys = self.0.keys().collect::<Vec<_>>();
         keys.sort();
         for k in keys {
-            writeln!(f, "{k:?} => {}", self.0.get(k).unwrap())?;
+            writeln!(f, "\t {k:?} => {}", self.0.get(k).unwrap())?;
         }
         Ok(())
     }

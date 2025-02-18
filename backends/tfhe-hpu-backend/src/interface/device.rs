@@ -87,6 +87,9 @@ impl HpuDevice {
 
         // Init Fw Lut and Translation table
         self.fw_init();
+
+        // Init HW trace offset
+        self.trace_init();
     }
 }
 /// Bootstrapping Key handling
@@ -136,6 +139,10 @@ impl HpuDevice {
     pub fn fw_init(&self) {
         let mut backend = self.backend.lock().unwrap();
         backend.fw_init(&self.config);
+    }
+    pub fn trace_init(&self) {
+        let mut backend = self.backend.lock().unwrap();
+        backend.trace_init();
     }
 }
 
