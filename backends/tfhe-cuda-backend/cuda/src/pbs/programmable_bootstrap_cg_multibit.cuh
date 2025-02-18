@@ -111,7 +111,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
     synchronize_threads_in_block();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe_in_fourier_domain_tbc<grid_group, params>(
+    mul_ggsw_glwe_in_fourier_domain<grid_group, params>(
         accumulator_fft, block_join_buffer, keybundle, i, grid);
     NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
     synchronize_threads_in_block();

@@ -26,7 +26,7 @@ get_join_buffer_element(int level_id, int glwe_id, G &group,
  * Both operands should be at fourier domain
  *
  * This function assumes:
- *  - Thread blocks at dimension x relates to the decomposition level.
+ *  - Thread blocks at dimension z relates to the decomposition level.
  *  - Thread blocks at dimension y relates to the glwe dimension.
  *  - polynomial_size / params::opt threads are available per block
  */
@@ -36,55 +36,6 @@ mul_ggsw_glwe_in_fourier_domain(double2 *fft, double2 *join_buffer,
                                 const double2 *__restrict__ bootstrapping_key,
                                 int iteration, G &group,
                                 bool support_dsm = false) {
-  const uint32_t polynomial_size = params::degree;
-  const uint32_t glwe_dimension = gridDim.y - 1;
-  const uint32_t level_count = gridDim.x;
-
-  // The first product is used to initialize level_join_buffer
-  auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
-
-  // Continues multiplying fft by every polynomial in that particular bsk level
-  // Each y-block accumulates in a different polynomial at each iteration
-  auto bsk_slice = get_ith_mask_kth_block(
-      bootstrapping_key, iteration, blockIdx.y, blockIdx.x, polynomial_size,
-      glwe_dimension, level_count);
-  for (int j = 0; j < glwe_dimension + 1; j++) {
-    int idx = (j + this_block_rank) % (glwe_dimension + 1);
-
-    auto bsk_poly = bsk_slice + idx * polynomial_size / 2;
-    auto buffer_slice = get_join_buffer_element<G>(blockIdx.x, idx, group,
-                                                   join_buffer, polynomial_size,
-                                                   glwe_dimension, support_dsm);
-
-    polynomial_product_accumulate_in_fourier_domain<params, double2>(
-        buffer_slice, fft, bsk_poly, j == 0);
-    group.sync();
-  }
-
-  // -----------------------------------------------------------------
-  // All blocks are synchronized here; after this sync, level_join_buffer has
-  // the values needed from every other block
-
-  // accumulate rest of the products into fft buffer
-  for (int l = 0; l < level_count; l++) {
-    auto cur_src_acc = get_join_buffer_element<G>(l, blockIdx.y, group,
-                                                  join_buffer, polynomial_size,
-                                                  glwe_dimension, support_dsm);
-
-    polynomial_accumulate_in_fourier_domain<params>(fft, cur_src_acc, l == 0);
-  }
-
-  synchronize_threads_in_block();
-}
-// This is a temporary function to have a working version of the tbc-PBS
-// with large integers.
-// TO DO: we should erase this function when the other flavors of the PBS also
-// work with the number of samples in the first block dimension.
-template <typename G, class params>
-__device__ void mul_ggsw_glwe_in_fourier_domain_tbc(
-    double2 *fft, double2 *join_buffer,
-    const double2 *__restrict__ bootstrapping_key, int iteration, G &group,
-    bool support_dsm = false) {
   const uint32_t polynomial_size = params::degree;
   const uint32_t glwe_dimension = gridDim.y - 1;
   const uint32_t level_count = gridDim.z;
