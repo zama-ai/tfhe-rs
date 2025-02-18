@@ -124,6 +124,11 @@ jobs:
             cuda: "12.2"
             gcc: 9
     steps:
+      - name: Install latest stable
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203
+        with:
+          toolchain: stable
+
       - name: Publish crate.io package
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
