@@ -78,6 +78,10 @@ jobs:
     name: Publish Release
     needs: [package] # for comparing hashes
     runs-on: ubuntu-latest
+    # For provenance of npmjs publish
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
