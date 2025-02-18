@@ -1,4 +1,4 @@
-use super::HbmBank;
+use super::{DdrMem, HbmBank};
 use tfhe::tfhe_hpu_backend::prelude::*;
 
 pub struct UCore {
@@ -16,26 +16,28 @@ impl UCore {
     /// Read DOp stream from Fw memory and patch Templated LD/ST with concrete one
     pub fn translate(
         &self,
+        ddr: &DdrMem,
         hbm_bank: &[HbmBank],
         iop: &hpu_asm::IOp,
     ) -> (Vec<hpu_asm::DOp>, Vec<hpu_asm::DOp>) {
-        let dops = self.load_fw(hbm_bank, iop);
+        let dops = self.load_fw(ddr, hbm_bank, iop);
         let dops_patched = self.patch_fw(iop, &dops);
         (dops, dops_patched)
     }
 
     /// Read DOp stream from Firmware memory
-    fn load_fw(&self, hbm_bank: &[HbmBank], iop: &hpu_asm::IOp) -> Vec<hpu_asm::DOp> {
+    fn load_fw(&self, ddr: &DdrMem, hbm_bank: &[HbmBank], iop: &hpu_asm::IOp) -> Vec<hpu_asm::DOp> {
         let iopcode = iop.opcode();
 
         // Bypass fw_ofst register value
         // Expect to have only one memzone in fw bank allocated in 0
         // NB: Fw memory bank is linked to ucore and there is no associated offset register
         // -> Stick with Offset 0
-        let fw_bank = &hbm_bank[self.config.fw_pc];
-        let fw_chunk = fw_bank.get_chunk(0);
-        let fw_view = &fw_chunk.data;
-        let fw_view_u32 = bytemuck::cast_slice::<u8, u32>(fw_view.as_slice());
+        let fw_view = match self.config.fw_pc {
+            MemKind::Ddr { offset } => ddr.get_chunk(offset as u64).data(),
+            MemKind::Hbm { pc } => hbm_bank[pc].get_chunk(0).data(),
+        };
+        let fw_view_u32 = bytemuck::cast_slice::<u8, u32>(fw_view);
 
         // WARN: fw ofst are in byte addr and we addr the fw array as 32b word
         let dop_ofst = fw_view_u32[iopcode.0 as usize] as usize / std::mem::size_of::<u32>();
@@ -53,7 +55,7 @@ impl UCore {
     /// Rtl ucore emulation
     /// Map a Raw DOp stream to the given IOp operands
     /// I.e. it replace Templated MemId with concrete one
-    fn patch_fw(&self, iop: &hpu_asm::IOp, dops: &Vec<hpu_asm::DOp>) -> Vec<hpu_asm::DOp> {
+    fn patch_fw(&self, iop: &hpu_asm::IOp, dops: &[hpu_asm::DOp]) -> Vec<hpu_asm::DOp> {
         let mut dops_patch = dops
             .iter()
             .map(|dop| {

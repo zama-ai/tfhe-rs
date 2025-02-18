@@ -13,7 +13,6 @@ isc-order-check = []
 tfhe = { path= "../../tfhe", features = ["hpu", "hpu-debug"] }
 
 ipc-channel = "0.18.3"
-hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", rev="c0ba18d0"}
 
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
@@ -26,7 +25,6 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 serde_json = "1.0"
 rand = "0.8.5"
-ron = "0.8"
 serde = { version = "1", features = ["derive"] }
 bitflags = "2.6.0"
 

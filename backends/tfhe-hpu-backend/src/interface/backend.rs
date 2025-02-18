@@ -37,6 +37,9 @@ pub struct HpuBackend {
     // Used a dedicaed manager to handle lifetime of used slot
     pub(crate) ct_mem: memory::CiphertextMemory,
 
+    // HW Trace cut
+    trace_mem: memory::HugeMemory<u32>,
+
     // Work management
     // Keep track of issued IOp and associated variables
     cmd_q: VecDeque<cmd::HpuCmd>,
@@ -87,27 +90,40 @@ unsafe impl Sync for HpuBackendWrapped {}
 impl HpuBackend {
     pub fn new(config: &config::HpuConfig) -> Self {
         let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
-        let regmap = config
+        let regmap_expanded = config
             .fpga
             .regmap
             .iter()
+            .map(|f| f.expand())
+            .collect::<Vec<_>>();
+        let regmap_str = regmap_expanded
+            .iter()
             .map(|f| f.as_str())
             .collect::<Vec<_>>();
-        let regmap = hw_regmap::FlatRegmap::from_file(&regmap);
-
+        let regmap = hw_regmap::FlatRegmap::from_file(&regmap_str);
         let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+
+        // Init on-board memory
+        hpu_hw.init_mem(config, &params);
 
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
-        let ackq_addr = (*regmap
-            .register()
-            .get("WorkAck::ackq")
-            .expect("Unknow register, check regmap definition")
-            .offset()) as u64;
-        loop {
-            let ack_code = hpu_hw.read_reg(ackq_addr);
-            if ack_code == ACKQ_EMPTY {
-                break;
+        #[cfg(feature = "hw-aved")]
+        {
+            // TODO add ack flush to prevent error with previous stall execution
+        }
+        #[cfg(not(feature = "hw-aved"))]
+        {
+            let ackq_addr = (*regmap
+                .register()
+                .get("WorkAck::ackq")
+                .expect("Unknow register, check regmap definition")
+                .offset()) as u64;
+            loop {
+                let ack_code = hpu_hw.read_reg(ackq_addr);
+                if ack_code == ACKQ_EMPTY {
+                    break;
+                }
             }
         }
 
@@ -167,14 +183,14 @@ impl HpuBackend {
             let bsk_size = hpu_lwe_bootstrap_key_size(&params);
 
             let cut_coefs = bsk_size.div_ceil(*bsk_pc);
-            let hbm_cut = config
+            let mem_cut = config
                 .board
                 .bsk_pc
                 .clone()
                 .into_iter()
                 .take(*bsk_pc)
                 .collect::<Vec<_>>();
-            memory::HugeMemoryProperties { hbm_cut, cut_coefs }
+            memory::HugeMemoryProperties { mem_cut, cut_coefs }
         };
         let bsk_key = memory::HugeMemory::alloc(&mut hpu_hw, bsk_props);
 
@@ -184,7 +200,7 @@ impl HpuBackend {
             let ksk_size = hpu_lwe_keyswitch_key_size(&params);
 
             let cut_coefs = ksk_size.div_ceil(*ksk_pc);
-            let hbm_cut = config
+            let mem_cut = config
                 .board
                 .ksk_pc
                 .clone()
@@ -192,20 +208,20 @@ impl HpuBackend {
                 .take(*ksk_pc)
                 .collect::<Vec<_>>();
 
-            memory::HugeMemoryProperties { hbm_cut, cut_coefs }
+            memory::HugeMemoryProperties { mem_cut, cut_coefs }
         };
         let ksk_key = memory::HugeMemory::alloc(&mut hpu_hw, ksk_props);
 
         // Allocate memory for GlweLut
         let lut_props = memory::HugeMemoryProperties {
-            hbm_cut: vec![config.board.lut_pc],
+            mem_cut: vec![config.board.lut_pc.clone()],
             cut_coefs: config.board.lut_mem * params.pbs_params.polynomial_size,
         };
         let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
 
         // Allocate memory for Fw translation table
         let fw_props = memory::HugeMemoryProperties {
-            hbm_cut: vec![config.board.fw_pc],
+            mem_cut: vec![config.board.fw_pc.clone()],
             cut_coefs: config.board.fw_size, // NB: here `size` is used as raw size (!= slot nb)
         };
         let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
@@ -220,7 +236,7 @@ impl HpuBackend {
                 * std::mem::size_of::<u64>(),
         );
         let ct_props = memory::CiphertextMemoryProperties {
-            hbm_cut: config.board.ct_pc.clone(),
+            mem_cut: config.board.ct_pc.clone(),
             // NB: Xrt only support page align memory allocation. Thus we round cut coefs to
             // match the next 4k page boundary
             cut_size_b,
@@ -228,6 +244,13 @@ impl HpuBackend {
         };
         debug!("Ct_mem properties -> {:?}", ct_props);
         let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
+
+        // load trace ptr from config (size does not matter so putting 256)
+        let trace_props = memory::HugeMemoryProperties {
+            mem_cut: vec![config.board.trace_pc.clone()],
+            cut_coefs: 256,
+        };
+        let trace_mem = memory::HugeMemory::alloc(&mut hpu_hw, trace_props);
 
         // Construct channel for mt API
         // Keep track of the sender for clone it later on
@@ -244,6 +267,7 @@ impl HpuBackend {
             lut_mem,
             fw_mem,
             ct_mem,
+            trace_mem,
             cmd_q: VecDeque::new(),
             cmd_rx,
             cmd_tx,
@@ -332,7 +356,7 @@ impl HpuBackend {
             bsk_key.write_cut_at(id, 0, bsk_cut);
             #[cfg(feature = "io-dump")]
             io_dump::dump(
-                &bsk_cut,
+                bsk_cut,
                 params,
                 io_dump::DumpKind::Bsk,
                 io_dump::DumpId::Key(id),
@@ -449,7 +473,7 @@ impl HpuBackend {
             ksk_key.write_cut_at(id, 0, ksk_cut);
             #[cfg(feature = "io-dump")]
             io_dump::dump(
-                &ksk_cut,
+                ksk_cut,
                 params,
                 io_dump::DumpKind::Ksk,
                 io_dump::DumpId::Key(id),
@@ -518,7 +542,7 @@ impl HpuBackend {
             lut_mem.write_cut_at(0, ofst, hpu_lut.as_view().into_container());
             #[cfg(feature = "io-dump")]
             io_dump::dump(
-                &hpu_lut.as_ref(),
+                hpu_lut.as_ref(),
                 params,
                 io_dump::DumpKind::Glwe,
                 io_dump::DumpId::Lut(lut_gid),
@@ -548,6 +572,40 @@ impl HpuBackend {
     }
 }
 
+/// HW trace initialisation
+impl HpuBackend {
+    #[tracing::instrument(level = "debug", skip(self), ret)]
+    pub(crate) fn trace_init(&mut self) {
+        let Self {
+            ref mut hpu_hw,
+            regmap,
+            trace_mem,
+            ..
+        } = self;
+
+        // Configure Hpu register accordingly
+        // Extract register from regmap
+        let reg_lsb = regmap
+            .register()
+            .get("Trace::addr_lsb")
+            .expect("Unknow register, check regmap definition");
+        let reg_msb = regmap
+            .register()
+            .get("Trace::addr_msb")
+            .expect("Unknow register, check regmap definition");
+
+        let trace_addr = trace_mem.cut_paddr()[0];
+        hpu_hw.write_reg(
+            *reg_msb.offset() as u64,
+            ((trace_addr >> u32::BITS) & (u32::MAX) as u64) as u32,
+        );
+        hpu_hw.write_reg(
+            *reg_lsb.offset() as u64,
+            (trace_addr & (u32::MAX as u64)) as u32,
+        );
+    }
+}
+
 /// Handle Fw Lut and translation table init
 impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
@@ -567,7 +625,7 @@ impl HpuBackend {
             nu: 5,
             integer_w: config.firmware.integer_w[0],
             use_ipip: !config.rtl.bpip_used,
-            kogge_cfg: config.firmware.kogge_cfg.clone(),
+            kogge_cfg: config.firmware.kogge_cfg.expand(),
             fill_batch_fifo: config.firmware.fill_batch_fifo,
             min_batch_size: config.firmware.min_batch_size,
             pe_cfg,
@@ -588,10 +646,11 @@ impl HpuBackend {
         // Load custom IOp from file
 
         for (name, asm_file) in config.firmware.custom_iop.iter() {
-            let iop = asm::AsmIOpcode::from_str(name).expect("Invalid Custom Iop name");
+            let iop = asm::AsmIOpcode::from_str(name)
+                .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
             let opcode = iop.opcode();
-            let prog =
-                asm::Program::<asm::DOp>::read_asm(asm_file).expect("Invalid custom_iop file");
+            let prog = asm::Program::<asm::DOp>::read_asm(&asm_file.expand())
+                .unwrap_or_else(|_| panic!("Invalid custom_iop file {}", asm_file.expand()));
             id_fw.push((opcode.0 as usize, prog.tr_table()));
         }
 
@@ -667,8 +726,15 @@ impl HpuBackend {
 
         // Write them in workq entry
         // NB: No queue full check was done ...
-        for w in op_words.iter() {
-            hpu_hw.write_reg(*workq_addr, *w);
+        #[cfg(feature = "hw-aved")]
+        {
+            hpu_hw.iop_push(op_words.as_slice());
+        }
+        #[cfg(not(feature = "hw-aved"))]
+        {
+            for w in op_words.iter() {
+                hpu_hw.write_reg(*workq_addr, *w);
+            }
         }
 
         // 3. Update dst state to OpPending
@@ -711,19 +777,42 @@ impl HpuBackend {
             rtl::runtime::InfoPePbs::from_rtl(hpu_hw, regmap)
         );
 
-        let ack_code = hpu_hw.read_reg(*ackq_addr);
-        if ack_code != ACKQ_EMPTY {
-            let ack_cmd = cmd_q.pop_front().unwrap();
-            // TODO check that ack_code match with expected op msb
-            tracing::debug!("Received ack {:x} for IOp  {}", ack_code, ack_cmd.op);
-            // update dst state and drop srcs ref
-            ack_cmd
-                .dst
-                .iter()
-                .for_each(|dst| dst.inner.lock().unwrap().operation_done());
-            Ok(true)
-        } else {
-            Ok(false)
+        #[cfg(feature = "hw-aved")]
+        {
+            let ack_nb = hpu_hw.iop_ack_rd();
+            if ack_nb == 0 {
+                Ok(false)
+            } else {
+                tracing::debug!("Received ack {ack_nb} IOp ack",);
+                for _ack in 0..ack_nb {
+                    let ack_cmd = cmd_q.pop_front().unwrap();
+                    // TODO check that ack_code match with expected op msb
+                    tracing::debug!("Received ack for IOp  {}", ack_cmd.op);
+                    // update dst state and drop srcs ref
+                    ack_cmd
+                        .dst
+                        .iter()
+                        .for_each(|dst| dst.inner.lock().unwrap().operation_done());
+                }
+                Ok(true)
+            }
+        }
+        #[cfg(not(feature = "hw-aved"))]
+        {
+            let ack_code = hpu_hw.read_reg(*ackq_addr);
+            if ack_code != ACKQ_EMPTY {
+                let ack_cmd = cmd_q.pop_front().unwrap();
+                // TODO check that ack_code match with expected op msb
+                tracing::debug!("Received ack {:x} for IOp  {}", ack_code, ack_cmd.op);
+                // update dst state and drop srcs ref
+                ack_cmd
+                    .dst
+                    .iter()
+                    .for_each(|dst| dst.inner.lock().unwrap().operation_done());
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
     }
 }

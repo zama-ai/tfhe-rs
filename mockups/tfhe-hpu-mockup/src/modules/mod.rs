@@ -1,7 +1,7 @@
 //! Hpu Simulation model
 
-pub(crate) mod hbm;
-pub(crate) use hbm::{HbmBank, HBM_BANK_NB};
+pub(crate) mod memory;
+pub(crate) use memory::{DdrMem, HbmBank, HBM_BANK_NB};
 
 // mod regfile;
 pub(crate) mod regmap;
