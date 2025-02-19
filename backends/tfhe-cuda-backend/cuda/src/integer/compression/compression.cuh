@@ -189,8 +189,8 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   cuda_set_device(gpu_index);
   auto compression_params = mem_ptr->compression_params;
-    auto num_glwes = (mem_ptr->body_count + compression_params.polynomial_size - 1) / compression_params.polynomial_size;
-    printf("glwe_index: %u / %u\n", glwe_index, num_glwes);
+  auto num_glwes = (mem_ptr->body_count + compression_params.polynomial_size - 1) / compression_params.polynomial_size;
+  printf("glwe_index: %u / %u\n", glwe_index, num_glwes);
   const auto NBITS = sizeof(Torus) * 8;
   printf("CUDA NBITS: %u\n", NBITS);
   auto log_modulus = mem_ptr->storage_log_modulus;
@@ -218,14 +218,15 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   // number_bits_to_unpack.div_ceil(Scalar::BITS)
   auto compressed_len = (number_bits_to_unpack + NBITS - 1) / NBITS;
   printf("CUDA compressed_len: %u\n", compressed_len);
+  printf("CUDA polynomial_size: %u\n", compression_params.polynomial_size);
 
   // We assure the tail of the glwe is zeroed
-  auto zeroed_slice = glwe_array_out + uncompressed_len;
-  cuda_memset_async(zeroed_slice, 0,
-                    (compression_params.polynomial_size - num_lwes) *
-                        sizeof(Torus),
-                    stream, gpu_index);
-// cuda_memset_async(glwe_array_out, 0, glwe_ciphertext_size * sizeof(Torus), stream, gpu_index);
+  // auto zeroed_slice = glwe_array_out + uncompressed_len;
+  // cuda_memset_async(zeroed_slice, 0,
+  //                   (compression_params.polynomial_size - num_lwes) *
+  //                       sizeof(Torus),
+  //                   stream, gpu_index);
+cuda_memset_async(glwe_array_out, 0, glwe_ciphertext_size * sizeof(Torus), stream, gpu_index);
   // Kernel settings
   int num_blocks = 0, num_threads = 0;
   getNumBlocksAndThreads(uncompressed_len, 128, num_blocks, num_threads);
@@ -233,7 +234,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   dim3 threads(num_threads);
   extract<Torus><<<grid, threads, 0, stream>>>(
       glwe_array_out, array_in, glwe_index, log_modulus, compressed_len,
-      uncompressed_len);
+      (glwe_mask_size));
   check_cuda_error(cudaGetLastError());
 }
 
