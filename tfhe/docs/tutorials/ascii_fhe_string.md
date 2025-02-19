@@ -3,9 +3,8 @@
 This tutorial demonstrates how to build your own data type that represents an ASCII string in Fully Homomorphic Encryption (FHE) by implementing to\_lower and to\_upper functions.
 
 {% hint style="info" %}
-Since version 0.11, **TFHE-rs** has introduced the `strings` feature, which provides an easy to use FHE strings API. See the [fhe strings guide](../guides/strings.md) for more information.
+Since version 0.11, **TFHE-rs** has introduced the `strings` feature, which provides an easy to use FHE strings API. See the [fhe strings guide](../fhe-computation/types/strings.md) for more information.
 {% endhint %}
-
 
 An ASCII character is stored in 7 bits. In this tutorial, we use the `FheUint8` to store an encrypted ASCII:
 
@@ -159,9 +158,11 @@ fn main() {
 ```
 
 ## Using **TFHE-rs** strings feature
+
 This code can be greatly simplified by using the `strings` feature from **TFHE-rs**.
 
 First, add the feature in your `Cargo.toml`
+
 ```toml
 # Cargo.toml
 
@@ -170,6 +171,7 @@ tfhe = { version = "1.0.0", features = ["strings"] }
 ```
 
 The `FheAsciiString` type allows to simply do homomorphic case changing of encrypted strings (and much more!):
+
 ```rust
 use tfhe::prelude::*;
 use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString};
@@ -198,4 +200,4 @@ fn main() {
 }
 ```
 
-You can read more about this in the [FHE strings documentation](../guides/strings.md)
+You can read more about this in the [FHE strings documentation](../fhe-computation/types/strings.md)

@@ -7,6 +7,7 @@ This document explains the `serialization` and `deserialization` features that a
 When dealing with sensitive types, it's important to implement safe serialization and safe deserialization functions to prevent runtime errors and enhance security. **TFHE-rs** provide easy to use functions for this purpose, such as `safe_serialize`, `safe_deserialize` and `safe_deserialize_conformant`.
 
 Here is a basic example on how to use it:
+
 ```rust
 // main.rs
 
@@ -35,7 +36,7 @@ fn main() {
 The safe deserialization must take the output of a safe-serialization as input. During the process, the following validation occurs:
 
 * **Type match**: deserializing `type A` from a serialized `type B` raises an error indicating "On deserialization, expected type A, got type B".
-* **Version compatibility**: data serialized in previous versions of **TFHE-rs** are automatically upgraded to the latest version using the [data versioning](../guides/data\_versioning.md) feature.
+* **Version compatibility**: data serialized in previous versions of **TFHE-rs** are automatically upgraded to the latest version using the [data versioning](data_versioning.md) feature.
 * **Parameter compatibility**: deserializing an object of `type A` with one set of crypto parameters from an object of `type A` with another set of crypto parameters raises an error indicating "Deserialized object of type A not conformant with given parameter set"
   * If both parameter sets have the same LWE dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2.
   * This check can't distinguish ciphertexts/server keys from independent client keys with the same parameters.
@@ -120,8 +121,7 @@ fn main() {
 
 The safe serialization and deserialization use `bincode` internally.
 
-To selectively disable some of the features of the safe serialization, you can use `SerializationConfig`/`DeserializationConfig` builders.
-For example, it is possible to disable the data versioning:
+To selectively disable some of the features of the safe serialization, you can use `SerializationConfig`/`DeserializationConfig` builders. For example, it is possible to disable the data versioning:
 
 ```rust
 // main.rs
@@ -152,8 +152,7 @@ fn main() {
 
 **TFHE-rs** uses the [Serde](https://crates.io/crates/serde) framework and implements Serde's `Serialize` and `Deserialize` traits.
 
-This allows you to serialize into any [data format](https://serde.rs/#data-formats) supported by serde.
-However, this is a more bare bone approach as none of the checks described in the previous section will be performed for you.
+This allows you to serialize into any [data format](https://serde.rs/#data-formats) supported by serde. However, this is a more bare bone approach as none of the checks described in the previous section will be performed for you.
 
 In the following example, we use [bincode](https://crates.io/crates/bincode) for its binary format:
 
