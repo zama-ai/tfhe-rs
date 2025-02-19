@@ -15,7 +15,7 @@ use crate::integer::client_key::ClientKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
-use crate::shortint::{CarryModulus, MessageModulus, PBSParameters};
+use crate::shortint::{CarryModulus, MaxNoiseLevel, MessageModulus, PBSParameters};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
@@ -51,16 +51,14 @@ impl MaxDegree {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
-        let full_max_degree = message_modulus.0 * carry_modulus.0 - 1;
+        let full_max_degree = Self::from_msg_carry_modulus(message_modulus, carry_modulus).get();
 
         let carry_max_degree = carry_modulus.0 - 1;
 
         // We want to be have a margin to add a carry from another block
         Self::new(full_max_degree - carry_max_degree)
     }
-}
 
-impl MaxDegree {
     /// Compute the [`MaxDegree`] for an integer server key (compressed or uncompressed).
     /// This is tailored for [`CrtCiphertext`](`crate::integer::CrtCiphertext`) and not compatible
     /// for use with [`RadixCiphertext`](`crate::integer::RadixCiphertext`).
@@ -68,9 +66,27 @@ impl MaxDegree {
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
     ) -> Self {
-        let full_max_degree = message_modulus.0 * carry_modulus.0 - 1;
+        Self::from_msg_carry_modulus(message_modulus, carry_modulus)
+    }
+}
 
-        Self::new(full_max_degree)
+impl MaxNoiseLevel {
+    /// Compute the [`MaxNoiseLevel`] for an integer server key (compressed or uncompressed).
+    /// To allow carry propagation between shortint blocks in a
+    /// [`RadixCiphertext`](`crate::integer::RadixCiphertext`) (which includes adding the extracted
+    /// carry from one shortint block to the next block), this formula provisions space to add a
+    /// carry.
+    pub(crate) fn integer_radix_server_key(
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        let full_max_noise_level =
+            Self::from_msg_carry_modulus(message_modulus, carry_modulus).get();
+
+        let carry_max_noise_level = 1;
+
+        // We want to be have a margin to add a carry from another block
+        Self::new(full_max_noise_level - carry_max_noise_level)
     }
 }
 
