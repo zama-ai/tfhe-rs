@@ -5,66 +5,123 @@ mod test_cpu_doc {
     // README
     doctest!("../../README.md", readme);
 
-    // FUNDAMENTALS
-    doctest!("../docs/fundamentals/compress.md", fundamentals_compress);
-    doctest!("../docs/fundamentals/compute.md", fundamentals_compute);
+    // CONGFIGURATION
     doctest!(
-        "../docs/fundamentals/configure-and-generate-keys.md",
-        fundamentals_configure_and_generate_keys
-    );
-    doctest!("../docs/fundamentals/debug.md", fundamentals_debug);
-    doctest!(
-        "../docs/fundamentals/decrypt-data.md",
-        fundamentals_decrypt_data
+        "../docs/configuration/parallelized_pbs.md",
+        configuration_parallelized_pbs
     );
     doctest!(
-        "../docs/fundamentals/encrypt-data.md",
-        fundamentals_encrypt_data
-    );
-    doctest!(
-        "../docs/fundamentals/encrypted-prf.md",
-        fundamentals_encrypted_prf
-    );
-    doctest!(
-        "../docs/fundamentals/serialization.md",
-        fundamentals_serialization
-    );
-    doctest!(
-        "../docs/fundamentals/set-the-server-key.md",
-        fundamentals_set_the_server_key
+        "../docs/configuration/rust_configuration.md",
+        configuration_rust_configuration
     );
 
-    // GETTING STARTED
+    // FHE COMPUTATION
+
+    // ADVANCED FEATURES
     doctest!(
-        "../docs/getting_started/operations.md",
-        getting_started_operations
+        "../docs/fhe-computation/advanced-features/encrypted-prf.md",
+        advanced_features_encrypted_prf
     );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/overflow_operations.md",
+        advanced_features_overflow_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/public_key.md",
+        advanced_features_public_key
+    );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/rayon_crate.md",
+        advanced_features_rayon_crate
+    );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/trivial_ciphertext.md",
+        advanced_features_trivial_ciphertext
+    );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/zk-pok.md",
+        advanced_features_zk_pok
+    );
+
+    // COMPUTE
+    doctest!(
+        "../docs/fhe-computation/compute/configure-and-generate-keys.md",
+        compute_configure_and_generate_keys
+    );
+    doctest!(
+        "../docs/fhe-computation/compute/decrypt-data.md",
+        compute_decrypt_data
+    );
+    doctest!(
+        "../docs/fhe-computation/compute/encrypt-data.md",
+        compute_encrypt_data
+    );
+    doctest!("../docs/fhe-computation/compute/README.md", compute_readme);
+    doctest!(
+        "../docs/fhe-computation/compute/set-the-server-key.md",
+        compute_set_the_server_key
+    );
+
+    // DATA HANDLING
+    doctest!(
+        "../docs/fhe-computation/data-handling/compress.md",
+        data_handling_compress
+    );
+    doctest!(
+        "../docs/fhe-computation/data-handling/data_versioning.md",
+        data_handling_data_versioning
+    );
+    doctest!(
+        "../docs/fhe-computation/data-handling/serialization.md",
+        data_handling_serialization
+    );
+
+    // OPERATIONS
+    doctest!(
+        "../docs/fhe-computation/operations/arithmetic-operations.md",
+        operations_arithmetic_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/operations/bitwise-operations.md",
+        operations_bitwise_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/operations/casting-operations.md",
+        operations_casting_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/operations/comparison-operations.md",
+        operations_comparison_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/operations/min-max-operations.md",
+        operations_min_max_operations
+    );
+    doctest!(
+        "../docs/fhe-computation/operations/ternary-conditional-operations.md",
+        operations_ternary_conditional_operations
+    );
+
+    // TOOLING
+    doctest!("../docs/fhe-computation/tooling/debug.md", tooling_debug);
+    doctest!(
+        "../docs/fhe-computation/tooling/pbs-stats.md",
+        tooling_pbs_stats
+    );
+    doctest!(
+        "../docs/fhe-computation/tooling/trait_bounds.md",
+        tooling_trait_bounds
+    );
+
+    // TYPES
+    doctest!("../docs/fhe-computation/types/array.md", types_array);
+    doctest!("../docs/fhe-computation/types/strings.md", types_strings);
+
+    // GETTING STARTED
     doctest!(
         "../docs/getting_started/quick_start.md",
         getting_started_quick_start
     );
-
-    // GUIDES
-    doctest!("../docs/guides/array.md", array);
-    doctest!(
-        "../docs/guides/overflow_operations.md",
-        guides_overflow_operations
-    );
-    doctest!(
-        "../docs/guides/parallelized_pbs.md",
-        guides_parallelized_pbs
-    );
-    doctest!("../docs/guides/pbs-stats.md", guides_pbs_stats);
-    doctest!("../docs/guides/public_key.md", guides_public_key);
-    doctest!("../docs/guides/rayon_crate.md", guides_rayon_crate);
-    doctest!("../docs/guides/strings.md", guides_strings);
-    doctest!("../docs/guides/trait_bounds.md", guides_trait_bounds);
-    doctest!(
-        "../docs/guides/trivial_ciphertext.md",
-        guides_trivial_ciphertext
-    );
-    doctest!("../docs/guides/zk-pok.md", guides_zk_pok);
-    doctest!("../docs/guides/data_versioning.md", guides_data_versioning);
 
     // REFERENCES
 
@@ -146,5 +203,8 @@ mod test_cpu_doc {
 mod test_gpu_doc {
     use doc_comment::doctest;
 
-    doctest!("../docs/guides/run_on_gpu.md", guides_run_on_gpu);
+    doctest!(
+        "../docs/configuration/run_on_gpu.md",
+        configuration_run_on_gpu
+    );
 }

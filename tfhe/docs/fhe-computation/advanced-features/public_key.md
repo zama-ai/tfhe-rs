@@ -7,7 +7,7 @@ Public key encryption refers to the cryptographic paradigm where the encryption 
 * **Classical public key**: the first method involves the public key containing many encryptions of zero, as detailed in [Guide to Fully Homomorphic Encryption over the \[Discretized\] Torus, Appendix A.](https://eprint.iacr.org/2021/1402)
 * **Compact public key**: the second method is based on the paper [TFHE Public-Key Encryption Revisited](https://eprint.iacr.org/2023/603), allowing for significantly smaller key sizes compared to the first method.
 
-Public keys can also be [compressed](../fundamentals/compress.md) to reduce size.
+Public keys can also be [compressed](../data-handling/compress.md) to reduce size.
 
 ## Classical public key
 

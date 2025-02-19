@@ -74,25 +74,29 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 Performance can be improved by setting `lto="fat"` in `Cargo.toml`
+
 ```toml
 [profile.release]
 lto = "fat"
 ```
+
 and by building the code for the native CPU architecture and in release mode, e.g. by calling `RUSTFLAGS="-C target-cpu=native" cargo run --release`.
 
 {% hint style="info" %}
-You can choose a more costly proof with `ZkComputeLoad::Proof`, which has a faster verification time.  Alternatively, you can select `ZkComputeLoad::Verify` for a faster proof and slower verification.
+You can choose a more costly proof with `ZkComputeLoad::Proof`, which has a faster verification time. Alternatively, you can select `ZkComputeLoad::Verify` for a faster proof and slower verification.
 {% endhint %}
 
 ## Scheme version
+
 The ZK scheme used to generate and verify proofs is available in two versions:
 
-- ZKV1: This version is close to the original paper from [Libert](https://eprint.iacr.org/2023/800).
-- ZKV2: Differing from the paper, this version provides better performance for provers and verifiers.
+* ZKV1: This version is close to the original paper from [Libert](https://eprint.iacr.org/2023/800).
+* ZKV2: Differing from the paper, this version provides better performance for provers and verifiers.
 
 **TFHE-rs** selects automatically the scheme to use based on the encryption parameters during the CRS generation. With default parameters, ZKV2 is selected.
 
 The following example shows how to generate a CRS and proofs for ZKV1. Compared to the previous example, only the parameters are changed:
+
 ```rust
 use rand::prelude::*;
 use tfhe::prelude::*;
@@ -150,5 +154,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Benchmark 
-Please refer to the [Zero-knowledge proof benchmarks](../getting_started/benchmarks/zk_proof_benchmarks.md) for detailed performance benchmark results.
+## Benchmark
+
+Please refer to the [Zero-knowledge proof benchmarks](../../getting_started/benchmarks/zk_proof_benchmarks.md) for detailed performance benchmark results.

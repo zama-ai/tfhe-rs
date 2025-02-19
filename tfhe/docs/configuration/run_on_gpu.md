@@ -11,12 +11,11 @@ This guide explains how to update your existing program to leverage GPU accelera
 * [gcc](https://gcc.gnu.org/) >= 8.0 - check this [page](https://gist.github.com/ax3l/9489132) for more details about nvcc/gcc compatible versions
 * [cmake](https://cmake.org/) >= 3.24
 * libclang, to match Rust bingen [requirements](https://rust-lang.github.io/rust-bindgen/requirements.html) >= 9.0
-* Rust version - check this [page](rust\_configuration.md)
+* Rust version - check this [page](rust_configuration.md)
 
 ## Importing to your project
 
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
-
 
 ```toml
 tfhe = { version = "1.0.0", features = ["boolean", "shortint", "integer", "gpu"] }
@@ -31,7 +30,7 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 **TFHE-rs** GPU backend is supported on Linux (x86, aarch64).
 
 | OS      | x86         | aarch64       |
-|---------|-------------|---------------|
+| ------- | ----------- | ------------- |
 | Linux   | Supported   | Supported\*   |
 | macOS   | Unsupported | Unsupported\* |
 | Windows | Unsupported | Unsupported   |
@@ -40,7 +39,7 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 ### Configuring and creating keys.
 
-Comparing to the [CPU example](../getting\_started/quick\_start.md), GPU set up differs in the key creation, as detailed [here](run\_on\_gpu.md#Setting-the-keys)
+Comparing to the [CPU example](../getting_started/quick_start.md), GPU set up differs in the key creation, as detailed [here](run\_on\_gpu.md#setting-the-keys)
 
 Here is a full example (combining the client and server parts):
 
@@ -77,9 +76,7 @@ fn main() {
 }
 ```
 
-Beware that when the GPU feature is activated, when calling: `let config = ConfigBuilder::default().build();`,
-the cryptographic parameters differ from the CPU ones, used when the GPU feature is not activated.
-Indeed, TFHE-rs uses dedicated parameters for the GPU in order to achieve better performance.
+Beware that when the GPU feature is activated, when calling: `let config = ConfigBuilder::default().build();`, the cryptographic parameters differ from the CPU ones, used when the GPU feature is not activated. Indeed, TFHE-rs uses dedicated parameters for the GPU in order to achieve better performance.
 
 ### Setting the keys
 
@@ -103,7 +100,7 @@ On the client-side, the method to encrypt the data is exactly the same than the 
 
 The server first need to set up its keys with `set_server_key(gpu_key)`.
 
-Then, homomorphic computations are performed using the same approach as the [CPU operations](../getting\_started/operations.md).
+Then, homomorphic computations are performed using the same approach as the [CPU operations](../fhe-computation/operations/README.md).
 
 ```Rust
     //Server-side
@@ -131,7 +128,7 @@ Finally, the client decrypts the results using:
 The GPU backend includes the following operations for both signed and unsigned encrypted integers:
 
 | name                  | symbol         | `Enc`/`Enc`                | `Enc`/ `Int`               |
-|-----------------------|----------------|----------------------------|----------------------------|
+| --------------------- | -------------- | -------------------------- | -------------------------- |
 | Neg                   | `-`            | :heavy\_check\_mark:       | N/A                        |
 | Add                   | `+`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
 | Sub                   | `-`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
@@ -157,31 +154,32 @@ The GPU backend includes the following operations for both signed and unsigned e
 | Cast (from src type)  | `cast_from`    | :heavy\_multiplication\_x: | N/A                        |
 | Ternary operator      | `select`       | :heavy\_check\_mark:       | :heavy\_multiplication\_x: |
 
-
 {% hint style="info" %}
-All operations follow the same syntax than the one described in [here](../getting\_started/operations.md).
+All operations follow the same syntax than the one described in [here](../fhe-computation/operations/README.md).
 {% endhint %}
 
 ## Multi-GPU support
 
 TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in the code to execute on such platforms**. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
 
-## Benchmark 
+## Benchmark
+
 Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
 
 ## Warning
+
 When measuring GPU times on your own on Linux, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
 
 ## Compressing ciphertexts after some homomorphic computation on the GPU
 
-You can compress ciphertexts using the GPU, even after computations, just like on the [CPU](../fundamentals/compress.md#compression-ciphertexts-after-some-homomorphic-computation).
+You can compress ciphertexts using the GPU, even after computations, just like on the [CPU](../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation).
 
-The way to do it is very similar to how it's done on the CPU.
-The following example shows how to compress and decompress a list containing 4 messages:
-- One 32-bits integer
-- One 64-bit integer
-- One Boolean
-- One 2-bit integer
+The way to do it is very similar to how it's done on the CPU. The following example shows how to compress and decompress a list containing 4 messages:
+
+* One 32-bits integer
+* One 64-bit integer
+* One Boolean
+* One 2-bit integer
 
 ```rust
 use tfhe::prelude::*;
@@ -246,7 +244,8 @@ fn main() {
 
 ## Array types
 
-It is possible to use array types on GPU, just as [on CPU](array.md). Here is an example showing how to do it:
+It is possible to use array types on GPU, just as [on CPU](../fhe-computation/types/array.md). Here is an example showing how to do it:
+
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, ClearArray, ClientKey, CompressedServerKey};
 use tfhe::array::GpuFheUint32Array;

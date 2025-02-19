@@ -40,21 +40,3 @@ assert_eq!(
 );
 assert!(overflowed.decrypt(&client_key));
 ```
-
-The following tables show the current benchmarks result.
-
-Unsigned homomorphic integers:
-
-| Operation\Size             | FheUint8  | FheUint16 | FheUint32 | FheUint64 | FheUint128 | FheUint256 |
-| -------------------------- | --------- | --------- | --------- | --------- | ---------- | ---------- |
-| unsigned\_overflowing\_add | 63.67 ms  | 84.11 ms  | 107.95 ms | 120.8 ms  | 147.38 ms  | 191.28 ms  |
-| unsigned\_overflowing\_sub | 68.89 ms  | 81.83 ms  | 107.63 ms | 120.38 ms | 150.21 ms  | 190.39 ms  |
-| unsigned\_overflowing\_mul | 140.76 ms | 191.85 ms | 272.65 ms | 510.61 ms | 1.34 s     | 4.51 s     |
-
-Signed homomorphic integers:
-
-| Operation\Size           | FheInt8   | FheInt16  | FheInt32  | FheInt64  | FheInt128 | FheInt256 |
-| ------------------------ | --------- | --------- | --------- | --------- | --------- | --------- |
-| signed\_overflowing\_add | 76.54 ms  | 84.78 ms  | 104.23 ms | 134.38 ms | 162.99 ms | 202.56 ms |
-| signed\_overflowing\_sub | 82.46 ms  | 86.92 ms  | 104.41 ms | 132.21 ms | 168.06 ms | 201.17 ms |
-| signed\_overflowing\_mul | 277.91 ms | 365.67 ms | 571.22 ms | 1.21 s    | 3.57 s    | 12.84 s   |
