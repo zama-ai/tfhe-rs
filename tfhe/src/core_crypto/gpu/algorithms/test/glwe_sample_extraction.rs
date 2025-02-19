@@ -75,21 +75,22 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
         let input_cuda_glwe_list =
             CudaGlweCiphertextList::from_glwe_ciphertext_list(&glwe_list, &streams);
 
+        let lwe_per_glwe = 2;
         let mut output_cuda_lwe_ciphertext_list = CudaLweCiphertextList::new(
             equivalent_lwe_sk.lwe_dimension(),
-            LweCiphertextCount(msgs.len() * glwe_list.polynomial_size().0),
+            LweCiphertextCount(msgs.len() * lwe_per_glwe),
             ciphertext_modulus,
             &streams,
         );
 
-        let nths = (0..(msgs.len() * glwe_list.polynomial_size().0))
+        let nths = (0..(msgs.len() * lwe_per_glwe))
             .map(|x| MonomialDegree(x % glwe_list.polynomial_size().0))
             .collect_vec();
-
         cuda_extract_lwe_samples_from_glwe_ciphertext_list(
             &input_cuda_glwe_list,
             &mut output_cuda_lwe_ciphertext_list,
             nths.as_slice(),
+            lwe_per_glwe as u32,
             &streams,
         );
 
@@ -107,7 +108,7 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
             &mut output_plaintext_list,
         );
 
-        let mut decoded = vec![Scalar::ZERO; plaintext_list.plaintext_count().0];
+        let mut decoded = vec![Scalar::ZERO; msgs.len() * lwe_per_glwe];
 
         decoded
             .iter_mut()
@@ -116,7 +117,7 @@ fn glwe_encrypt_sample_extract_decrypt_custom_mod<Scalar: UnsignedTorus + Send +
 
         let mut count = msg_modulus;
         count = count.wrapping_sub(Scalar::ONE);
-        for result in decoded.chunks_exact(glwe_list.polynomial_size().0) {
+        for result in decoded.chunks_exact(lwe_per_glwe) {
             assert!(result.iter().all(|&x| x == count));
             count = count.wrapping_sub(Scalar::ONE);
         }
