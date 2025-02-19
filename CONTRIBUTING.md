@@ -1,13 +1,13 @@
-# Contributing to tfhe-rs
+# Contributing to TFHE-rs
 
-There are two ways to contribute to tfhe-rs:
+There are two ways to contribute to TFHE-rs:
 
 - You can open issues to report bugs, typos and suggest ideas.
 - You can become an official contributor, but you need to sign our Contributor License Agreement (CLA) on your first contribution. Our CLA-bot will guide you through the process when you will open a Pull Request on GitHub.
 
 ## 1. Setting up the project
 
-First, you need to [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the tfhe-rs repository and follow the installation steps described in the repository [README.md](https://github.com/zama-ai/tfhe-rs/blob/main/README.md)
+First, you need to [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the TFHE-rs repository and follow the installation steps described in the repository [README.md](https://github.com/zama-ai/tfhe-rs/blob/main/README.md)
 
 ## 2. Creating a new branch
 
@@ -27,12 +27,12 @@ git checkout -b feat/new_feature_X
 
 ### 3.1 Linting
 
-Each commit to tfhe-rs should conform to the standards of the project. In particular, every source code, docker or workflows files should be linted to prevent programmatic and stylistic errors.
+Each commit to TFHE-rs should conform to the standards of the project. In particular, every source code, docker or workflows files should be linted to prevent programmatic and stylistic errors.
 
 - Rust source code linters: `clippy`
 - typescript/javascript source code linters: `eslint`, `prettier`
 
-To apply automatic code formating run:
+To apply automatic code formatting run:
 
 ```
 make fmt
@@ -90,7 +90,7 @@ For example, if you made changes in `tfhe/src/integer/*`:
 
 Tfhe-rs follows conventional commit specification to have a consistent commit naming scheme and you are expected to follow it as well.
 
-This is a mandatory requirement for Semantic Versioning ([https://semver.org/](https://semver.org/)) used in tfhe-rs release process to define the version number and create automatically meaningful changelog.
+This is a mandatory requirement for Semantic Versioning ([https://semver.org/](https://semver.org/)) used in TFHE-rs release process to define the version number and create automatically meaningful changelog.
 
 Just a reminder that commit messages are checked automatically in the CI and are rejected if they don't follow the rules. To learn more about conventional commits, check [this page](https://www.conventionalcommits.org/en/v1.0.0/).
 
@@ -139,7 +139,7 @@ sequenceDiagram
 >* direct changes to CI related files are not allowed for external contributors
 >* run `make pcc` to fix any build errors before pushing commits
 
-# Data versioning
+## 8. Data versioning
 Data serialized with TFHE-rs should be backward compatible. This is done with the [tfhe-versionable](https://crates.io/crates/tfhe-versionable) crate.
 If you modify a type that derives `Versionize` in a way that is not backward compatible, you should add an upgrade to that type.
 
@@ -147,10 +147,10 @@ For example, these changes are data breaking:
 - Adding a field to a struct,
 - changing the order of the fields within a struct or the variants within an enum,
 - renaming a field of a struct or a variant of an enum,
-- changing the type of a field in a struct or a variant in an enum.
+- changing the type of field in a struct or a variant in an enum.
 
 On the contrary, these changes are *not* data breaking:
-- Renaming a type (though if it implements the `Named' trait, it can be),
+- Renaming a type (though if it implements the `Named` trait, it can be),
 - adding a variant to the end of an enum
 
 Here is a quick example of how to do this.
@@ -174,7 +174,7 @@ struct MyType {
 }
 ```
 
-1. Navigate to the definition of the dispatch enum of this type. This is the type inside the `#[versionize(MyTypeVersions)]` macro attribute. In general, this type has the same name as the base type with a `Versions' suffix. You should find something like
+1. Navigate to the definition of the dispatch enum of this type. This is the type inside the `#[versionize(MyTypeVersions)]` macro attribute. In general, this type has the same name as the base type with a `Versions` suffix. You should find something like
 
 ```rust
 #[derive(VersionsDispatch)]
