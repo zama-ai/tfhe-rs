@@ -29,10 +29,10 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
         Got {in_lwe_dim:?} for input and {out_lwe_dim:?} for output.",
     );
 
-    assert_eq!(
-        vec_nth.len(),
-        input_glwe_list.glwe_ciphertext_count().0 * input_glwe_list.polynomial_size().0,
-        "Mismatch between number of nths and number of GLWEs provided.",
+    assert!(vec_nth.len() <
+            input_glwe_list.glwe_ciphertext_count().0 * input_glwe_list.polynomial_size().0,
+        "The number of degrees to extract (length of the nths vector) must be less \
+        than the total number of slots in the GLWEs provided.",
     );
 
     assert_eq!(
