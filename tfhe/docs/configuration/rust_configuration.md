@@ -64,7 +64,7 @@ This crate provides 3 kinds of data types. Each kind is enabled by activating th
 
 ### AVX-512
 
-While the library generally selects automatically the best instruction sets available by the host, in the case of 'AVX-512', you have to choose it explicitly. This requires to use a [nightly toolchain](rust\_configuration.md#using-tfhe-rs-with-nightly-toolchain) with the feature `nightly-avx512`.
+While the library generally selects automatically the best instruction sets available by the host, in the case of 'AVX-512', you have to choose it explicitly. This requires to use a nightly toolchain with the feature `nightly-avx512`.
 
 ```shell
 cargo +nightly build --release --features=nightly-avx512

@@ -4,7 +4,7 @@ This document explains the basic steps of using the high-level API of **TFHE-rs.
 
 ## Setting up a Rust project
 
-If you already know how to set up a Rust project, feel free to go directly to the next [section](#using-tfhe-rs-and-its-apis).
+If you already know how to set up a Rust project, feel free to go directly to the next [section](quick_start.md#using-tfhe-rs-and-its-apis).
 
 First, install the Rust programming language tools. Visit https://rustup.rs/ and follow the instructions. For alternative installation methods, refer to the [official Rust installation page](https://rust-lang.github.io/rustup/installation/other.html).
 
@@ -79,11 +79,11 @@ If you are on a different platform please refer to the [installation documentati
 Now that the project has **TFHE-rs** as a dependency here are the detailed steps to use its high-level API:
 
 1. Import the **TFHE-rs** prelude with the following Rust code: `use tfhe::prelude::*;`
-2. Client-side: [configure and generate keys](../fundamentals/configure-and-generate-keys.md)
-3. Client-side: [encrypt data](../fundamentals/encrypt-data.md)
-4. Server-side: [set the server key](../fundamentals/set-the-server-key.md)
-5. Server-side: [compute over encrypted data](../fundamentals/compute.md)
-6. Client-side: [decrypt data](../fundamentals/decrypt-data.md)
+2. Client-side: [configure and generate keys](../fhe-computation/compute/configure-and-generate-keys.md)
+3. Client-side: [encrypt data](../fhe-computation/compute/encrypt-data.md)
+4. Server-side: [set the server key](../fhe-computation/compute/set-the-server-key.md)
+5. Server-side: [compute over encrypted data](../fhe-computation/compute/)
+6. Client-side: [decrypt data](../fhe-computation/compute/decrypt-data.md)
 
 This example demonstrates the basic workflow combining the client and server parts:
 
@@ -116,4 +116,4 @@ fn main() {
 }
 ```
 
-You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../guides/rust\_configuration.md)
+You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../configuration/rust_configuration.md)
