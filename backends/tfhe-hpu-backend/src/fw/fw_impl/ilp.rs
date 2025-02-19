@@ -178,7 +178,7 @@ pub fn iop_sub_kogge(prog: &mut Program) {
             .zip(imm)
             .map(|(x, i)| &i - &x)
             .collect::<Vec<_>>();
-        let one = Carry::fresh(VarCell::from(prog.new_imm(1)));
+        let one = Carry::fresh(VarCell::from(prog.new_imm(2)));
 
         // Do a + ~b + 1 with the kogge stone adder
         cached_kogge_add(prog, a, b_bw_inv, Some(one), dst)
