@@ -514,9 +514,17 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support division yet")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (q, r) = cuda_key.key.key.div_rem(
+                    &*self.ciphertext.on_gpu(streams),
+                    &*rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+                (
+                    FheInt::<Id>::new(q, cuda_key.tag.clone()),
+                    FheInt::<Id>::new(r, cuda_key.tag.clone()),
+                )
+            }),
         })
     }
 }
@@ -847,9 +855,14 @@ generic_integer_impl_operation!(
                     FheInt::new(inner_result, cpu_key.tag.clone())
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("Division '/' is not yet supported by Cuda devices")
-                }
+                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .key
+                            .div(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
+                    FheInt::new(inner_result, cuda_key.tag.clone())
+                }),
             })
         }
     },
@@ -893,9 +906,14 @@ generic_integer_impl_operation!(
                     FheInt::new(inner_result, cpu_key.tag.clone())
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    panic!("Remainder/Modulo '%' is not yet supported by Cuda devices")
-                }
+                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                    let inner_result =
+                        cuda_key
+                            .key
+                            .key
+                            .rem(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
+                    FheInt::new(inner_result, cuda_key.tag.clone())
+                }),
             })
         }
     },
