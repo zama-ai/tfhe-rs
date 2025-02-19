@@ -6,7 +6,7 @@ The `shortint` API now includes a global counter to track the number of Programm
 
 To know how many PBSes were executed, call `get_pbs_count`. To reset the PBS count, call `reset_pbs_count`. You can combine two functions to understand how many PBSes were executed in each part of your code.
 
-When combined with the [`debug mode`](../fundamentals/debug.md), this feature allows for quick estimations during iterations on the FHE code.
+When combined with the [`debug mode`](debug.md), this feature allows for quick estimations during iterations on the FHE code.
 
 Here is an example of how to use the PBS counter:
 

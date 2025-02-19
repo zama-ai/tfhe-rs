@@ -1,6 +1,6 @@
 # Parallelized PBS
 
-This document describes the implementation and benefits of parallelized [Programmable Bootstrapping](../getting\_started/security\_and\_cryptography.md) (PBS) in **TFHE-rs**, including code examples for using multi-bit PBS parameters and ensuring deterministic execution.
+This document describes the implementation and benefits of parallelized [Programmable Bootstrapping](../getting_started/security_and_cryptography.md) (PBS) in **TFHE-rs**, including code examples for using multi-bit PBS parameters and ensuring deterministic execution.
 
 ## Parallelized Programmable Bootstrapping
 
