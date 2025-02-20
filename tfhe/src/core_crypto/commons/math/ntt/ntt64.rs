@@ -67,6 +67,35 @@ impl Ntt64 {
     }
 }
 
+/// Handle modswitch and bit-align
+// This part of the code is duplicated within hpu/entities. Indeed, this ntt fix have lot of chance
+// to never reach main. And we don't want to have Hpu to depends on it
+impl Ntt64View<'_> {
+    /// This function switches modulus for a slice of coefficients
+    /// From: user domain (i.e. pow2 modulus)
+    /// To:   ntt domain  ( i.e. prime modulus)
+    /// Switching are done inplace
+    pub fn user2ntt_modswitch(&self, user_width: u32, data: &mut [u64]) {
+        let mod_p_u128 = self.plan.modulus() as u128;
+        data.iter_mut().for_each(|val| {
+            let val_u128: u128 = (*val).cast_into();
+            *val = ((val_u128 * mod_p_u128) + (1 << (user_width - 1)) >> user_width) as u64;
+        });
+    }
+
+    /// This function switches modulus for a slice of coefficients
+    /// From:   ntt domain  ( i.e. prime modulus)
+    /// To: user domain (i.e. pow2 modulus)
+    /// Switching are done inplace
+    pub fn ntt2user_modswitch(&self, user_width: u32, data: &mut [u64]) {
+        let mod_p_u128 = self.plan.modulus() as u128;
+        data.iter_mut().for_each(|val| {
+            let val_u128: u128 = (*val).cast_into();
+            *val = ((((val_u128) << user_width) | ((mod_p_u128) >> 1)) / mod_p_u128) as u64;
+        });
+    }
+}
+
 impl Ntt64View<'_> {
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(self.plan.ntt_size())
