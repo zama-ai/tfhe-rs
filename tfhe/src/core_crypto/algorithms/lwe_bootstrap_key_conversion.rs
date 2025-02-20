@@ -340,12 +340,25 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
-    for (input_poly, output_poly) in input_bsk
+    // Extract modswitch_requirement
+    let modswitch_requirement = ntt.modswitch_requirement(input_bsk.ciphertext_modulus());
+
+    // Allocate a buffer for bitshifth and modswitch
+    for (input_poly, mut output_poly) in input_bsk
         .as_polynomial_list()
         .iter()
         .zip(output_bsk.as_mut_polynomial_list().iter_mut())
     {
-        ntt.forward_normalized(output_poly, input_poly)
+        if let Some(input_modulus_width) = modswitch_requirement {
+            ntt.forward_from_power_of_two_modulus(
+                input_modulus_width,
+                output_poly.as_mut_view(),
+                input_poly,
+            );
+            ntt.plan.normalize(output_poly.as_mut());
+        } else {
+            ntt.forward_normalized(output_poly, input_poly);
+        }
     }
 }
 
@@ -353,7 +366,7 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,
 ) where
-    InputCont: Container<Element = u64>,
+    InputCont: Container<Element = u64> + std::marker::Sync,
     OutputCont: ContainerMut<Element = u64>,
 {
     assert_eq!(
@@ -397,6 +410,9 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
+    // Extract modswitch_requirement
+    let modswitch_requirement = ntt.modswitch_requirement(input_bsk.ciphertext_modulus());
+
     let num_threads = rayon::current_num_threads();
     let input_as_polynomial_list = input_bsk.as_polynomial_list();
     let mut output_as_polynomial_list = output_bsk.as_mut_polynomial_list();
@@ -409,10 +425,19 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         .par_chunks(chunk_size)
         .zip(output_as_polynomial_list.par_chunks_mut(chunk_size))
         .for_each(|(input_poly_chunk, mut output_poly_chunk)| {
-            for (input_poly, output_poly) in
+            for (input_poly, mut output_poly) in
                 input_poly_chunk.iter().zip(output_poly_chunk.iter_mut())
             {
-                ntt.forward_normalized(output_poly, input_poly)
+                if let Some(input_modulus_width) = modswitch_requirement {
+                    ntt.forward_from_power_of_two_modulus(
+                        input_modulus_width,
+                        output_poly.as_mut_view(),
+                        input_poly,
+                    );
+                    ntt.plan.normalize(output_poly.as_mut());
+                } else {
+                    ntt.forward_normalized(output_poly, input_poly);
+                }
             }
         });
 }
