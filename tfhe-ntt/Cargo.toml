@@ -20,6 +20,7 @@ pulp = { workspace = true }
 default = ["std"]
 std = ["pulp/std", "aligned-vec/std"]
 nightly = ["pulp/nightly"]
+gf64-ru64-8 = []
 
 [dev-dependencies]
 criterion = "0.5"
