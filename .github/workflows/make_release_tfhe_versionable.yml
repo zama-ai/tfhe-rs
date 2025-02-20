@@ -2,14 +2,13 @@ name: Publish tfhe-versionable release
 
 on:
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Dry-run"
-        type: boolean
-        default: true
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
   verify_tag:
@@ -19,6 +18,7 @@ jobs:
       READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package-derive:
+    name: Package tfhe-versionable-derive Release
     runs-on: ubuntu-latest
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
@@ -53,8 +53,8 @@ jobs:
       base64-subjects: ${{ needs.package-derive.outputs.hash }}
 
   publish_release-derive:
-    name: Publish tfhe-versionable Release
-    needs: [verify_tag, package-derive] # for comparing hashes
+    name: Publish tfhe-versionable-derive Release
+    needs: [ verify_tag, package-derive ] # for comparing hashes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -72,7 +72,7 @@ jobs:
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cargo publish -p tfhe-versionable-derive --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+          cargo publish -p tfhe-versionable-derive --token ${{ env.CRATES_TOKEN }}
       - name: Generate hash
         id: published_hash
         run: cd target/package && echo "pub_hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
@@ -82,24 +82,18 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
         env:
           SLACK_COLOR: failure
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "SLSA tfhe-versionable-derive - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "tfhe-versionable-derive release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   package:
+    name: Package tfhe-versionable Release
+    needs: publish_release-derive
     runs-on: ubuntu-latest
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
@@ -120,7 +114,7 @@ jobs:
         run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
 
   provenance:
-    needs: [package]
+    needs: package
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     permissions:
       # Needed to detect the GitHub Actions environment
@@ -135,7 +129,7 @@ jobs:
 
   publish_release:
     name: Publish tfhe-versionable Release
-    needs: [package] # for comparing hashes
+    needs: package # for comparing hashes
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -151,32 +145,21 @@ jobs:
         env:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          cargo publish -p tfhe-versionable --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
-
+          cargo publish -p tfhe-versionable --token ${{ env.CRATES_TOKEN }}
       - name: Generate hash
         id: published_hash
         run: cd target/package && echo "pub_hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
-
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
         env:
           SLACK_COLOR: failure
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "SLSA tfhe-versionable - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "tfhe-versionable release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
