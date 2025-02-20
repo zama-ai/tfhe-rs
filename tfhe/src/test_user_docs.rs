@@ -101,6 +101,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/operations/ternary-conditional-operations.md",
         operations_ternary_conditional_operations
     );
+    doctest!(
+        "../docs/fhe-computation/operations/string-operations.md",
+        operations_string_operations
+    );
 
     // TOOLING
     doctest!("../docs/fhe-computation/tooling/debug.md", tooling_debug);
