@@ -1,13 +1,24 @@
 # Contributing to TFHE-rs
 
-There are two ways to contribute to TFHE-rs:
+There are two ways to contribute to **TFHE-rs**:
 
 - You can open issues to report bugs, typos and suggest ideas.
 - You can become an official contributor, but you need to sign our Contributor License Agreement (CLA) on your first contribution. Our CLA-bot will guide you through the process when you will open a Pull Request on GitHub.
 
 ## 1. Setting up the project
 
-First, you need to [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the TFHE-rs repository and follow the installation steps described in the repository [README.md](https://github.com/zama-ai/tfhe-rs/blob/main/README.md)
+You need to [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) the **TFHE-rs** repository.
+
+> [!Note]
+> You need to use a Rust version >= 1.81 to compile **TFHE-rs**.
+
+> [!Note]
+> aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in **TFHE-rs**.
+
+> [!Important]
+> **Performance**: for optimal performance, it is highly recommended to run **TFHE-rs** code in release mode with cargo's `--release` flag.
+
+To get more details about the library, please refer to the [documentation](https://docs.zama.ai/tfhe-rs).
 
 ## 2. Creating a new branch
 
@@ -27,7 +38,7 @@ git checkout -b feat/new_feature_X
 
 ### 3.1 Linting
 
-Each commit to TFHE-rs should conform to the standards of the project. In particular, every source code, docker or workflows files should be linted to prevent programmatic and stylistic errors.
+Each commit to **TFHE-rs** should conform to the standards of the project. In particular, every source code, docker or workflows files should be linted to prevent programmatic and stylistic errors.
 
 - Rust source code linters: `clippy`
 - typescript/javascript source code linters: `eslint`, `prettier`
@@ -56,10 +67,11 @@ make pcc
 
 This command ensure that all the targets in the library are building correctly.
 Alternatively, you might want to run a faster version of this command using:
- 
+
 ```
 make fpcc
 ```
+
 If you're contributing to GPU code, you would want to run also:
 
 ```
@@ -82,15 +94,19 @@ To quickly test your changes locally:
  * add (or modify) a Cargo test filter to the corresponding `make` target in Makefile
  * run the target
 
+{% hint style="success" %}
+`make test_<something>` will print the underlying cargo command in STDOUT. Changes can be quickly tested by copy/paste the command and then modify it to suit your needs.
+{% endhint %}
+
 For example, if you made changes in `tfhe/src/integer/*`:
  * replace, in `test_integer` target, the filter `-- integer::` by `-- my_new_test`
  * run `make test_integer`
 
 ## 4. Committing
 
-Tfhe-rs follows conventional commit specification to have a consistent commit naming scheme and you are expected to follow it as well.
+**TFHE-rs** follows conventional commit specification to have a consistent commit naming scheme and you are expected to follow it as well.
 
-This is a mandatory requirement for Semantic Versioning ([https://semver.org/](https://semver.org/)) used in TFHE-rs release process to define the version number and create automatically meaningful changelog.
+This is a mandatory requirement for Semantic Versioning ([https://semver.org/](https://semver.org/)) used in **TFHE-rs** release process to define the version number and create automatically meaningful changelog.
 
 Just a reminder that commit messages are checked automatically in the CI and are rejected if they don't follow the rules. To learn more about conventional commits, check [this page](https://www.conventionalcommits.org/en/v1.0.0/).
 
@@ -113,34 +129,36 @@ title: Continuous Integration Process
 ---
 sequenceDiagram
     autonumber
-    
+
     participant Contributor
     participant GitHub
     participant Reviewer
     participant CI-pipeline
-    
+
     Contributor ->> GitHub: Open pull-request
-    GitHub -->> Contributor: Ask for CLA signing (once) 
+    GitHub -->> Contributor: Ask for CLA signing (once)
     loop
         Reviewer ->> GitHub: Review code
         Reviewer ->> CI-pipeline: Approve workflows (short-run)
         CI-pipeline -->> GitHub: Send checks results
         Contributor ->> GitHub: Make changes
     end
-    Reviewer ->> GitHub: Pull-request approval    
+    Reviewer ->> GitHub: Pull-request approval
     Reviewer ->> CI-pipeline: Approve workflows (long-run)
     CI-pipeline -->> GitHub: Send checks results
     Reviewer -->> GitHub: Merge if pipeline green
 ```
 
->Useful details
+> [!Note]
+>Useful details:
 >* pipeline is triggered by humans
 >* review team is located in Paris timezone, pipeline launch will most likely happen during office hours
 >* direct changes to CI related files are not allowed for external contributors
 >* run `make pcc` to fix any build errors before pushing commits
 
 ## 8. Data versioning
-Data serialized with TFHE-rs should be backward compatible. This is done with the [tfhe-versionable](https://crates.io/crates/tfhe-versionable) crate.
+
+Data serialized with **TFHE-rs** should be backward compatible. This is done with the [tfhe-versionable](https://crates.io/crates/tfhe-versionable) crate.
 If you modify a type that derives `Versionize` in a way that is not backward compatible, you should add an upgrade to that type.
 
 For example, these changes are data breaking:
