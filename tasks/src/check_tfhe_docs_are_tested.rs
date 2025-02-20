@@ -126,10 +126,18 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
     }
 
     let difference = doc_files.difference(&tested_files);
+    let files_that_may_not_exist = tested_files.difference(&doc_files);
+    let files_that_dont_exist: Vec<_> = files_that_may_not_exist
+        .into_iter()
+        .filter(|p| !p.exists())
+        .collect();
 
-    let debug_format = format!("missing file from user doc tests: {difference:#?}");
+    let debug_format = format!(
+        "missing file from user doc tests: {difference:#?}\n\
+        files that are tested but don't exist: {files_that_dont_exist:#?}"
+    );
 
-    if difference.count() != 0 {
+    if difference.count() != 0 || !files_that_dont_exist.is_empty() {
         return Err(Error::new(ErrorKind::NotFound, debug_format));
     }
 
