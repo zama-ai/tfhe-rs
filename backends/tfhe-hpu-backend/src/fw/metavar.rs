@@ -8,7 +8,7 @@ use super::*;
 
 use crate::asm::dop::DOp;
 use crate::asm::{self, DigitParameters, ImmId, PbsLut};
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, trace};
 
 use std::cell::RefCell;
 use std::ops::{Add, AddAssign, Mul, MulAssign, ShlAssign, Sub, SubAssign};
@@ -647,7 +647,10 @@ impl MetaVarCell {
             (false, true) => {
                 // (Ct * Const) + Imm
                 // -> dst must be in ALU
-                warn!("mac_raw anti-pattern. Expand on two DOps [Muls, Adds]");
+                // MAC anti-pattern, add comment in the generated stream
+                self.0.borrow().prog.borrow_mut().stmts.push_comment(
+                    "mac_raw anti-pattern. Expand on two DOps [Muls, Adds]".to_string(),
+                );
 
                 self.reg_alloc_mv();
                 let dst_rid = self.as_reg().unwrap();
