@@ -666,6 +666,12 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                 let mut out = out;
                 let mut ntt_poly = ntt_poly;
 
+                // Normalized
+                // NB: Hw fused normalization inside INtt twiddle instead of inside BSK
+                // -> Need by Hpu stimulus generation to bi bit-accurate
+                #[cfg(feature = "hpu")]
+                ntt.plan.normalize(ntt_poly.as_mut());
+
                 // Move back in std domain
                 ntt.plan.inv(ntt_poly.as_mut());
                 ntt2user_bitalign_modswitch(ntt_poly.as_mut(), req_ba, req_ms, ntt);

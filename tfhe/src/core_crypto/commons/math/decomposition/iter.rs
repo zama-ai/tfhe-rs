@@ -1,6 +1,7 @@
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
+use crate::core_crypto::commons::math::decomposition::SignedDecomposerNonNative;
 use crate::core_crypto::commons::math::decomposition::{
-    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposerNonNative,
+    DecompositionLevel, DecompositionTerm, DecompositionTermNonNative,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
