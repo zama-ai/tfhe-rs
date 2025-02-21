@@ -30,6 +30,7 @@ unsafe extern "C" {
         glwe_array_in: *const ffi::c_void,
         nth_array: *const u32,
         num_nths: u32,
+        lwe_per_glwe: u32,
         glwe_dimension: u32,
         polynomial_size: u32,
     );

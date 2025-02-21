@@ -13,6 +13,7 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
     input_glwe_list: &CudaGlweCiphertextList<Scalar>,
     output_lwe_list: &mut CudaLweCiphertextList<Scalar>,
     vec_nth: &[MonomialDegree],
+    lwe_per_glwe: u32,
     streams: &CudaStreams,
 ) where
     Scalar: UnsignedTorus,
@@ -29,9 +30,10 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
         Got {in_lwe_dim:?} for input and {out_lwe_dim:?} for output.",
     );
 
+    // lwe_per_glwe LWEs will be extracted per GLWE ciphertext, thus we need to have enough indexes
     assert_eq!(
         vec_nth.len(),
-        input_glwe_list.glwe_ciphertext_count().0 * input_glwe_list.polynomial_size().0,
+        input_glwe_list.glwe_ciphertext_count().0 * lwe_per_glwe as usize,
         "Mismatch between number of nths and number of GLWEs provided.",
     );
 
@@ -53,6 +55,7 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
             &input_glwe_list.0.d_vec,
             &d_nth_array,
             vec_nth.len() as u32,
+            lwe_per_glwe,
             input_glwe_list.glwe_dimension(),
             input_glwe_list.polynomial_size(),
         );
@@ -66,6 +69,7 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
     input_glwe_list: &CudaGlweCiphertextList<Scalar>,
     output_lwe_list: &mut CudaLweCiphertextList<Scalar>,
     vec_nth: &[MonomialDegree],
+    lwe_per_glwe: u32,
     streams: &CudaStreams,
 ) where
     Scalar: UnsignedTorus,
@@ -75,6 +79,7 @@ pub fn cuda_extract_lwe_samples_from_glwe_ciphertext_list<Scalar>(
             input_glwe_list,
             output_lwe_list,
             vec_nth,
+            lwe_per_glwe,
             streams,
         );
     }

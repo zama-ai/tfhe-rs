@@ -279,10 +279,10 @@ __host__ void host_integer_decompress(
     extracted_glwe = max_idx_and_glwe.second;
 
     auto num_lwes = last_idx + 1 - current_idx;
-    cuda_glwe_sample_extract_64(streams[0], gpu_indexes[0], extracted_lwe,
-                                extracted_glwe, d_indexes_array_chunk, num_lwes,
-                                compression_params.glwe_dimension,
-                                compression_params.polynomial_size);
+    cuda_glwe_sample_extract_64(
+        streams[0], gpu_indexes[0], extracted_lwe, extracted_glwe,
+        d_indexes_array_chunk, num_lwes, compression_params.polynomial_size,
+        compression_params.glwe_dimension, compression_params.polynomial_size);
     d_indexes_array_chunk += num_lwes;
     extracted_lwe += num_lwes * lwe_accumulator_size;
     current_idx = last_idx;
