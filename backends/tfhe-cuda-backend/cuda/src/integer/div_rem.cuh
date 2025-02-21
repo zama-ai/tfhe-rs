@@ -575,8 +575,8 @@ __host__ void host_unsigned_integer_div_rem_kb(
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
-    assert(first_trivial_block - 1 == cleaned_merged_interesting_remainder.len);
-    assert(first_trivial_block - 1 == new_remainder.len);
+    assert(first_trivial_block == cleaned_merged_interesting_remainder.len);
+    assert(first_trivial_block == new_remainder.len);
 
     remainder1.copy_from(cleaned_merged_interesting_remainder, 0,
                          first_trivial_block - 1, streams[0], gpu_indexes[0]);
