@@ -67,6 +67,9 @@ production-ready library for all the advanced features of TFHE.
 
 ## Getting started
 
+> [!Important]
+> **TFHE-rs** released its first stable version v1.0.0 in February 2025, stabilizing the high-level API for the x86 CPU backend.
+
 ### Cargo.toml configuration
 To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
 
@@ -75,10 +78,10 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 ```
 
 > [!Note]
-> Note: You need to use a Rust version >= 1.81 to compile TFHE-rs.
+> Note: You need to use Rust version >= 1.84 to compile TFHE-rs.
 
 > [!Note]
-> Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
+> Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
 
 <p align="right">
   <a href="#about" > ↑ Back to top </a> 
