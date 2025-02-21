@@ -12,29 +12,29 @@
 #include "polynomial/functions.cuh"
 #include "utils/kernel_dimensions.cuh"
 
+// This kernel follows the naming used in the rust implementation
 template <typename Torus>
 __global__ void pack(Torus *array_out, Torus *array_in, uint32_t log_modulus,
-                     uint32_t num_coeffs, uint32_t in_len, uint32_t out_len) {
-  auto nbits = sizeof(Torus) * 8;
+                     uint32_t num_glwes, uint32_t in_len, uint32_t out_len) {
   auto tid = threadIdx.x + blockIdx.x * blockDim.x;
 
-  auto glwe_index = tid / out_len;
-  auto i = tid % out_len;
-  auto chunk_array_in = array_in + glwe_index * in_len;
-  auto chunk_array_out = array_out + glwe_index * out_len;
+  if (tid < num_glwes * out_len) {
+    const auto NBITS = sizeof(Torus) * 8;
+    auto glwe_index = tid / out_len;
+    auto i = tid % out_len;
+    auto chunk_array_in = array_in + glwe_index * in_len;
+    auto chunk_array_out = array_out + glwe_index * out_len;
 
-  if (tid < num_coeffs) {
-
-    auto k = nbits * i / log_modulus;
+    auto k = NBITS * i / log_modulus;
     auto j = k;
 
-    auto start_shift = i * nbits - j * log_modulus;
+    auto start_shift = i * NBITS - j * log_modulus;
 
     auto value = chunk_array_in[j] >> start_shift;
     j++;
 
-    while (j * log_modulus < ((i + 1) * nbits) && j < in_len) {
-      auto shift = j * log_modulus - i * nbits;
+    while (j * log_modulus < ((i + 1) * NBITS) && j < in_len) {
+      auto shift = j * log_modulus - i * NBITS;
       value |= chunk_array_in[j] << shift;
       j++;
     }
@@ -51,30 +51,30 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
     PANIC("Cuda error: Input and output must be different");
 
   cuda_set_device(gpu_index);
+  const auto NBITS = sizeof(Torus) * 8;
   auto compression_params = mem_ptr->compression_params;
-
   auto log_modulus = mem_ptr->storage_log_modulus;
-  // [0..num_glwes-1) GLWEs
-  auto in_len = (compression_params.glwe_dimension + 1) *
-                compression_params.polynomial_size;
-  auto number_bits_to_pack = in_len * log_modulus;
-  auto nbits = sizeof(Torus) * 8;
-  // number_bits_to_pack.div_ceil(Scalar::BITS)
-  auto out_len = (number_bits_to_pack + nbits - 1) / nbits;
 
-  // Last GLWE
-  number_bits_to_pack = in_len * log_modulus;
-  auto last_out_len = (number_bits_to_pack + nbits - 1) / nbits;
+  auto glwe_ciphertext_size = (compression_params.glwe_dimension + 1) *
+                              compression_params.polynomial_size;
+  auto glwe_mask_size =
+      compression_params.glwe_dimension * compression_params.polynomial_size;
 
-  auto num_coeffs = (num_glwes - 1) * out_len + last_out_len;
+  auto uncompressed_len = num_glwes * glwe_mask_size + num_lwes;
+  auto number_bits_to_pack = uncompressed_len * log_modulus;
 
+  // equivalent to number_bits_to_pack.div_ceil(Scalar::BITS)
+  auto compressed_len = (number_bits_to_pack + NBITS - 1) / NBITS;
+
+  // Kernel settings
   int num_blocks = 0, num_threads = 0;
-  getNumBlocksAndThreads(num_coeffs, 1024, num_blocks, num_threads);
-
+  getNumBlocksAndThreads(num_glwes * compressed_len, 1024, num_blocks,
+                         num_threads);
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
   pack<Torus><<<grid, threads, 0, stream>>>(array_out, array_in, log_modulus,
-                                            num_coeffs, in_len, out_len);
+                                            num_glwes, uncompressed_len,
+                                            compressed_len);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -140,24 +140,26 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    num_radix_blocks, mem_ptr);
 }
 
+// This kernel follows the naming used in the rust implementation
+    // except for output_len, which relates to initial_len
 template <typename Torus>
-__global__ void extract(Torus *glwe_array_out, Torus const *array_in,
-                        uint32_t index, uint32_t log_modulus,
-                        uint32_t input_len, uint32_t initial_out_len) {
-  auto nbits = sizeof(Torus) * 8;
+__global__ void extract(Torus *glwe_array_out, const Torus *array_in,
+                        const uint32_t index, const uint32_t log_modulus,
+                        const uint32_t input_len, const uint32_t output_len) {
+  const auto NBITS = sizeof(Torus) * 8;
 
   auto i = threadIdx.x + blockIdx.x * blockDim.x;
   auto chunk_array_in = array_in + index * input_len;
-  if (i < initial_out_len) {
+  if (i < output_len) {
     // Unpack
-    Torus mask = ((Torus)1 << log_modulus) - 1;
-    auto start = i * log_modulus;
-    auto end = (i + 1) * log_modulus;
+    auto mask = (static_cast<Torus>(1) << log_modulus) - 1;
+    const auto start = i * log_modulus;
+    const auto end = (i + 1) * log_modulus;
 
-    auto start_block = start / nbits;
-    auto start_remainder = start % nbits;
+    auto start_block = start / NBITS;
+    auto start_remainder = start % NBITS;
 
-    auto end_block_inclusive = (end - 1) / nbits;
+    const auto end_block_inclusive = (end - 1) / NBITS;
 
     Torus unpacked_i;
     if (start_block == end_block_inclusive) {
@@ -166,13 +168,13 @@ __global__ void extract(Torus *glwe_array_out, Torus const *array_in,
     } else {
       auto first_part = chunk_array_in[start_block] >> start_remainder;
       auto second_part = chunk_array_in[start_block + 1]
-                         << (nbits - start_remainder);
+                         << (NBITS - start_remainder);
 
       unpacked_i = (first_part | second_part) & mask;
     }
 
     // Extract
-    glwe_array_out[i] = unpacked_i << (nbits - log_modulus);
+    glwe_array_out[i] = unpacked_i << (NBITS - log_modulus);
   }
 }
 
@@ -186,38 +188,53 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
     PANIC("Cuda error: Input and output must be different");
 
   cuda_set_device(gpu_index);
-
   auto compression_params = mem_ptr->compression_params;
-
+  auto num_glwes = (mem_ptr->body_count + compression_params.polynomial_size - 1) / compression_params.polynomial_size;
+  printf("glwe_index: %u / %u\n", glwe_index, num_glwes);
+  const auto NBITS = sizeof(Torus) * 8;
+  printf("CUDA NBITS: %u\n", NBITS);
   auto log_modulus = mem_ptr->storage_log_modulus;
+  printf("CUDA log_modulus: %u\n", log_modulus);
 
-  uint32_t body_count =
-      std::min(mem_ptr->body_count, compression_params.polynomial_size);
-  auto initial_out_len =
-      compression_params.glwe_dimension * compression_params.polynomial_size +
-      body_count;
+  auto glwe_ciphertext_size = (compression_params.glwe_dimension + 1) *
+                              compression_params.polynomial_size;
+  printf("CUDA glwe_ciphertext_size: %u\n", glwe_ciphertext_size);
 
-  auto compressed_glwe_accumulator_size =
-      (compression_params.glwe_dimension + 1) *
-      compression_params.polynomial_size;
-  auto number_bits_to_unpack = compressed_glwe_accumulator_size * log_modulus;
-  auto nbits = sizeof(Torus) * 8;
+  auto glwe_mask_size =
+          compression_params.glwe_dimension * compression_params.polynomial_size;
+  printf("CUDA glwe_mask_size: %u\n", glwe_mask_size);
+
+  uint32_t num_lwes = (glwe_index == num_glwes - 1) ? (mem_ptr->body_count % compression_params.polynomial_size) : compression_params.polynomial_size;
+  printf("CUDA body_count: %u\n", num_lwes);
+
+  // num_glwes = 1 in this case
+  auto uncompressed_len =
+          glwe_ciphertext_size;
+  printf("CUDA uncompressed_len: %u\n", uncompressed_len);
+
+  auto number_bits_to_unpack = uncompressed_len * log_modulus;
+  printf("CUDA number_bits_to_unpack: %u\n", number_bits_to_unpack);
+
   // number_bits_to_unpack.div_ceil(Scalar::BITS)
-  auto input_len = (number_bits_to_unpack + nbits - 1) / nbits;
+  auto compressed_len = (number_bits_to_unpack + NBITS - 1) / NBITS;
+  printf("CUDA compressed_len: %u\n", compressed_len);
+  printf("CUDA polynomial_size: %u\n", compression_params.polynomial_size);
 
   // We assure the tail of the glwe is zeroed
-  auto zeroed_slice = glwe_array_out + initial_out_len;
-  cuda_memset_async(zeroed_slice, 0,
-                    (compression_params.polynomial_size - body_count) *
-                        sizeof(Torus),
-                    stream, gpu_index);
+  // auto zeroed_slice = glwe_array_out + uncompressed_len;
+  // cuda_memset_async(zeroed_slice, 0,
+  //                   (compression_params.polynomial_size - num_lwes) *
+  //                       sizeof(Torus),
+  //                   stream, gpu_index);
+cuda_memset_async(glwe_array_out, 0, glwe_ciphertext_size * sizeof(Torus), stream, gpu_index);
+  // Kernel settings
   int num_blocks = 0, num_threads = 0;
-  getNumBlocksAndThreads(initial_out_len, 128, num_blocks, num_threads);
+  getNumBlocksAndThreads(uncompressed_len, 128, num_blocks, num_threads);
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
-  extract<Torus><<<grid, threads, 0, stream>>>(glwe_array_out, array_in,
-                                               glwe_index, log_modulus,
-                                               input_len, initial_out_len);
+  extract<Torus><<<grid, threads, 0, stream>>>(
+      glwe_array_out, array_in, glwe_index, log_modulus, compressed_len,
+      (glwe_mask_size));
   check_cuda_error(cudaGetLastError());
 }
 
