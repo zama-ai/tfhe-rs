@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="550.0" height="120" viewBox="0 0 550.0 120">
+    <!-- Header Row -->
+    <rect x="0" y="0" width="550.0" height="40" fill="black" />
+	<text x="10" y="24.0" fill="white" font-family="Arial" font-size="14">Operation \ Precision(bits)</text>
+	<text x="229.0" y="24.0" fill="white" font-family="Arial" font-size="14">2</text>
+	<text x="321.0" y="24.0" fill="white" font-family="Arial" font-size="14">4</text>
+	<text x="413.0" y="24.0" fill="white" font-family="Arial" font-size="14">6</text>
+	<text x="505.0" y="24.0" fill="white" font-family="Arial" font-size="14">8</text>
+
+    <!-- Data Rows -->
+    <rect x="0" y="40" width="550.0" height="40" fill="#fbbc04" />
+	<text x="10" y="64.0" fill="black" font-family="Arial" font-size="14">MB-PBS</text>
+	<rect x="182.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="209.0" y="64.0" fill="black" font-family="Arial" font-size="14">3.2 ms</text>
+	<rect x="274.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="297.0" y="64.0" fill="black" font-family="Arial" font-size="14">4.03 ms</text>
+	<rect x="366.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="389.0" y="64.0" fill="black" font-family="Arial" font-size="14">22.1 ms</text>
+	<rect x="458.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="64.0" fill="black" font-family="Arial" font-size="14">N/A</text>
+	<rect x="0" y="80" width="550.0" height="40" fill="#fbbc04" />
+	<text x="10" y="104.0" fill="black" font-family="Arial" font-size="14">KS - MB-PBS</text>
+	<rect x="182.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="205.0" y="104.0" fill="black" font-family="Arial" font-size="14">3.22 ms</text>
+	<rect x="274.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="297.0" y="104.0" fill="black" font-family="Arial" font-size="14">4.02 ms</text>
+	<rect x="366.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="389.0" y="104.0" fill="black" font-family="Arial" font-size="14">22.2 ms</text>
+	<rect x="458.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="104.0" fill="black" font-family="Arial" font-size="14">N/A</text>
+
+    <!-- Borders -->
+    <line x1="0" y1="0" x2="0" y2="120" stroke="white" />
+	<line x1="182.0" y1="0" x2="182.0" y2="120" stroke="white" />
+	<line x1="274.0" y1="0" x2="274.0" y2="120" stroke="white" />
+	<line x1="366.0" y1="0" x2="366.0" y2="120" stroke="white" />
+	<line x1="458.0" y1="0" x2="458.0" y2="120" stroke="white" />
+	<line x1="0" y1="0" x2="550.0" y2="0" stroke="white" />
+	<line x1="0" y1="40" x2="550.0" y2="40" stroke="white" />
+	<line x1="0" y1="80" x2="550.0" y2="80" stroke="white" />
+	<line x1="0" y1="120" x2="550.0" y2="120" stroke="white" />
+</svg>

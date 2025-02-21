@@ -37,3 +37,4 @@ package-lock.json
 
 # Dir used for backward compatibility test data
 tests/tfhe-backward-compat-data/
+ci/
