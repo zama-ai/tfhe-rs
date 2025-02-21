@@ -57,6 +57,7 @@ pub fn native_closest_representable<Scalar: UnsignedInteger>(
 /// returns 1 if the following if condition is true otherwise 0
 ///
 /// (val > B / 2) || ((val == B / 2) && (random == 1))
+#[cfg(any(not(feature = "hpu"), test))]
 #[inline(always)]
 fn balanced_rounding_condition_bit_trick<Scalar: UnsignedInteger>(
     val: Scalar,
@@ -154,32 +155,43 @@ where
 
     #[inline(always)]
     pub fn init_decomposer_state(&self, input: Scalar) -> Scalar {
-        // The closest number representable by the decomposition can be computed by performing
-        // the rounding at the appropriate bit.
+        // Default mode -> use balanced decomposition
+        #[cfg(not(feature = "hpu"))]
+        {
+            // The closest number representable by the decomposition can be computed by performing
+            // the rounding at the appropriate bit.
 
-        // We compute the number of least significant bits which can not be represented by the
-        // decomposition
-        // Example with level_count = 3, base_log = 4 and BITS == 64 -> 52
-        let rep_bit_count = self.level_count * self.base_log;
-        let non_rep_bit_count: usize = Scalar::BITS - rep_bit_count;
-        // Move the representable bits + 1 to the LSB, with our example :
-        //       |-----| 64 - (64 - 12 - 1) == 13 bits
-        // 0....0XX...XX
-        let mut res = input >> (non_rep_bit_count - 1);
-        // Fetch the first bit value as we need it for a balanced rounding
-        let rounding_bit = res & Scalar::ONE;
-        // Add one to do the rounding by adding the half interval
-        res += Scalar::ONE;
-        // Discard the LSB which was the one deciding in which direction we round
-        res >>= 1;
-        // Keep the low base_log * level bits
-        let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
-        res &= mod_mask;
-        // Control bit about whether we should balance the state
-        // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random == 1)
-        let need_balance = balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
-        // Balance depending on the control bit
-        res.wrapping_sub(need_balance << rep_bit_count)
+            // We compute the number of least significant bits which can not be represented by the
+            // decomposition
+            // Example with level_count = 3, base_log = 4 and BITS == 64 -> 52
+            let rep_bit_count = self.level_count * self.base_log;
+            let non_rep_bit_count: usize = Scalar::BITS - rep_bit_count;
+            // Move the representable bits + 1 to the LSB, with our example :
+            //       |-----| 64 - (64 - 12 - 1) == 13 bits
+            // 0....0XX...XX
+            let mut res = input >> (non_rep_bit_count - 1);
+            // Fetch the first bit value as we need it for a balanced rounding
+            let rounding_bit = res & Scalar::ONE;
+            // Add one to do the rounding by adding the half interval
+            res += Scalar::ONE;
+            // Discard the LSB which was the one deciding in which direction we round
+            res >>= 1;
+            // Keep the low base_log * level bits
+            let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
+            res &= mod_mask;
+            // Control bit about whether we should balance the state
+            // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random == 1)
+            let need_balance =
+                balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
+            // Balance depending on the control bit
+            res.wrapping_sub(need_balance << rep_bit_count)
+        }
+
+        // Hpu used unbalanced decomposition
+        #[cfg(feature = "hpu")]
+        {
+            self.closest_representable(input) >> (Scalar::BITS - (self.level_count * self.base_log))
+        }
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.

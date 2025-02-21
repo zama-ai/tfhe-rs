@@ -108,6 +108,12 @@ impl Ntt64View<'_> {
         let mut standard = standard;
         let ntt = ntt.as_mut();
         let standard = standard.as_mut();
+
+        // NB: Need by hpu stimulus generation to be bit-accurate with Hw
+        // In Hw normalization is fused with INtt twiddle and not in Bsk
+        #[cfg(feature = "hpu")]
+        self.plan.normalize(ntt);
+
         self.plan.inv(ntt);
 
         // autovectorize
