@@ -27,6 +27,7 @@
   * [Ternary conditional operations](fhe-computation/operations/ternary-conditional-operations.md)
   * [Casting operations](fhe-computation/operations/casting-operations.md)
   * [Boolean Operations](fhe-computation/operations/boolean-operations.md)
+  * [String Operations](fhe-computation/operations/string-operations.md)
 * [Core workflow](fhe-computation/compute/README.md)
   * [Configuration and key generation](fhe-computation/compute/configure-and-generate-keys.md)
   * [Server key](fhe-computation/compute/set-the-server-key.md)
