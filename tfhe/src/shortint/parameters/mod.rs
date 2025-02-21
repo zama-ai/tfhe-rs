@@ -67,7 +67,7 @@ pub use parameters_wopbs::*;
 /// # Note
 ///
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(MessageModulusVersions)]
 pub struct MessageModulus(pub u64);
 
@@ -84,7 +84,7 @@ impl MessageModulus {
 /// # Note
 ///
 /// The total plaintext modulus is given by $MessageModulus \times CarryModulus$
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
+#[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CarryModulusVersions)]
 pub struct CarryModulus(pub u64);
 

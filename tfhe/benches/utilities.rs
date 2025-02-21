@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::{env, fs};
 use tfhe::core_crypto::prelude::*;
 
@@ -455,9 +456,167 @@ pub mod integer_utils {
     }
 }
 
+const MULTI_BIT_THREADS_ARRAY: [((MessageModulus, CarryModulus, LweBskGroupingFactor), u64); 12] = [
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(2)),
+        5,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(2),
+        ),
+        5,
+    ),
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(3)),
+        7,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(3)),
+        9,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(3)),
+        10,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(3),
+        ),
+        10,
+    ),
+    (
+        (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(4)),
+        11,
+    ),
+    (
+        (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(4)),
+        13,
+    ),
+    (
+        (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(4)),
+        11,
+    ),
+    (
+        (
+            MessageModulus(16),
+            CarryModulus(16),
+            LweBskGroupingFactor(4),
+        ),
+        11,
+    ),
+];
+
+pub fn multi_bit_num_threads(
+    message_modulus: u64,
+    carry_modulus: u64,
+    grouping_factor: usize,
+) -> Option<u64> {
+    // TODO Implement an interpolation mechanism for X_Y parameters set
+    assert_eq!(
+        message_modulus, carry_modulus,
+        "different values for message and carry modulus is not supported"
+    );
+    assert!(
+        [2, 3, 4].contains(&(grouping_factor as i32)),
+        "only grouping factor 2, 3 and 4 are supported"
+    );
+    let thread_map: HashMap<(MessageModulus, CarryModulus, LweBskGroupingFactor), u64> =
+        HashMap::from_iter(MULTI_BIT_THREADS_ARRAY);
+    thread_map
+        .get(&(
+            MessageModulus(message_modulus),
+            CarryModulus(carry_modulus),
+            LweBskGroupingFactor(grouping_factor),
+        ))
+        .map(|x| *x)
+}
+
+pub static PARAMETERS_SET: OnceLock<ParametersSet> = OnceLock::new();
+
+pub enum ParametersSet {
+    Default,
+    All,
+}
+
+impl ParametersSet {
+    pub fn from_env() -> Result<Self, String> {
+        let raw_value = env::var("__TFHE_RS_PARAMS_SET").unwrap_or("default".to_string());
+        match raw_value.to_lowercase().as_str() {
+            "default" => Ok(ParametersSet::Default),
+            "all" => Ok(ParametersSet::All),
+            _ => Err(format!("parameters set '{raw_value}' is not supported")),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DesiredNoiseDistribution {
+    Gaussian,
+    TUniform,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum DesiredBackend {
+    Cpu,
+    Gpu,
+}
+
+impl DesiredBackend {
+    fn is_backend(&self, param_name: &str) -> bool {
+        match (self, param_name.to_lowercase().contains("gpu")) {
+            (DesiredBackend::Cpu, false) => true,
+            (DesiredBackend::Gpu, true) => true,
+            _ => false,
+        }
+    }
+}
+
+pub fn filter_parameters<'a, P: Copy + Into<PBSParameters>>(
+    params: &[(&'a P, &'a str)],
+    desired_noise_distribution: DesiredNoiseDistribution,
+    desired_backend: DesiredBackend,
+) -> Vec<(&'a P, &'a str)> {
+    params
+        .iter()
+        .filter_map(|(p, name)| {
+            let temp_param: PBSParameters = (**p).into();
+
+            match (
+                temp_param.lwe_noise_distribution(),
+                desired_noise_distribution,
+            ) {
+                // If it's one of the pairs, we continue the process.
+                (DynamicDistribution::Gaussian(_), DesiredNoiseDistribution::Gaussian)
+                | (DynamicDistribution::TUniform(_), DesiredNoiseDistribution::TUniform) => (),
+                _ => return None,
+            }
+
+            if !desired_backend.is_backend(&name) {
+                return None;
+            };
+
+            Some((*p, *name))
+        })
+        .collect()
+}
+
 #[allow(unused_imports)]
 #[cfg(feature = "integer")]
 pub use integer_utils::*;
+use tfhe::shortint::{CarryModulus, MessageModulus, PBSParameters};
 
 // Empty main to please clippy.
 #[allow(dead_code)]
