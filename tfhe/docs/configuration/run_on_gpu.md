@@ -164,7 +164,7 @@ TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in t
 
 ## Benchmark
 
-Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu_benchmarks.md) for detailed performance benchmark results.
+Please refer to the [GPU benchmarks](../getting_started/benchmarks/gpu/README.md) for detailed performance benchmark results.
 
 ## Warning
 

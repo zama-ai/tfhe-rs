@@ -34,7 +34,7 @@ fn main() {
 
 ## Impact of parameters on the operations
 
-As shown [here](../../../getting\_started/benchmarks/cpu\_benchmarks.md), the choice of the parameter set impacts the operations available and their efficiency.
+As shown [here](../../../getting_started/benchmarks/cpu/README.md), the choice of the parameter set impacts the operations available and their efficiency.
 
 ### Generic bi-variate functions.
 

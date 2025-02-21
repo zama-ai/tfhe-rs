@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540.0" height="520" viewBox="0 0 540.0 520">
+    <!-- Header Row -->
+    <rect x="0" y="0" width="540.0" height="40" fill="black" />
+	<text x="10" y="24.0" fill="white" font-family="Arial" font-size="14">Operation \ Size</text>
+	<text x="385.0" y="24.0" fill="white" font-family="Arial" font-size="14">CPU</text>
+	<text x="477.0" y="24.0" fill="white" font-family="Arial" font-size="14">GPU</text>
+
+    <!-- Data Rows -->
+    <rect x="0" y="40" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="64.0" fill="black" font-family="Arial" font-size="14">Negation (`-`)</text>
+	<rect x="356.0" y="40" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="64.0" fill="black" font-family="Arial" font-size="14">106 ms</text>
+	<rect x="448.0" y="40" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="64.0" fill="black" font-family="Arial" font-size="14">25.2 ms</text>
+	<rect x="0" y="80" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="104.0" fill="black" font-family="Arial" font-size="14">Add / Sub (`+`,`-`)</text>
+	<rect x="356.0" y="80" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="104.0" fill="black" font-family="Arial" font-size="14">105 ms</text>
+	<rect x="448.0" y="80" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="104.0" fill="black" font-family="Arial" font-size="14">25.2 ms</text>
+	<rect x="0" y="120" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="144.0" fill="black" font-family="Arial" font-size="14">Mul (`x`)</text>
+	<rect x="356.0" y="120" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="144.0" fill="black" font-family="Arial" font-size="14">401 ms</text>
+	<rect x="448.0" y="120" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="475.0" y="144.0" fill="black" font-family="Arial" font-size="14">237 ms</text>
+	<rect x="0" y="160" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="184.0" fill="black" font-family="Arial" font-size="14">Equal / Not Equal (`eq`, `ne`)</text>
+	<rect x="356.0" y="160" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="379.0" y="184.0" fill="black" font-family="Arial" font-size="14">81.2 ms</text>
+	<rect x="448.0" y="160" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="184.0" fill="black" font-family="Arial" font-size="14">17.7 ms</text>
+	<rect x="0" y="200" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="224.0" fill="black" font-family="Arial" font-size="14">Comparisons  (`ge`, `gt`, `le`, `lt`)</text>
+	<rect x="356.0" y="200" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="224.0" fill="black" font-family="Arial" font-size="14">102 ms</text>
+	<rect x="448.0" y="200" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="224.0" fill="black" font-family="Arial" font-size="14">26.2 ms</text>
+	<rect x="0" y="240" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="264.0" fill="black" font-family="Arial" font-size="14">Max / Min   (`max`,`min`)</text>
+	<rect x="356.0" y="240" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="264.0" fill="black" font-family="Arial" font-size="14">145 ms</text>
+	<rect x="448.0" y="240" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="264.0" fill="black" font-family="Arial" font-size="14">43.6 ms</text>
+	<rect x="0" y="280" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="304.0" fill="black" font-family="Arial" font-size="14">Bitwise operations (`&#38;`, `&#124;`, `^`)</text>
+	<rect x="356.0" y="280" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="379.0" y="304.0" fill="black" font-family="Arial" font-size="14">20.7 ms</text>
+	<rect x="448.0" y="280" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="304.0" fill="black" font-family="Arial" font-size="14">5.97 ms</text>
+	<rect x="0" y="320" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="344.0" fill="black" font-family="Arial" font-size="14">Div / Rem  (`/`, `%`)</text>
+	<rect x="356.0" y="320" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="344.0" fill="black" font-family="Arial" font-size="14">8.22 s</text>
+	<rect x="448.0" y="320" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="475.0" y="344.0" fill="black" font-family="Arial" font-size="14">2.05 s</text>
+	<rect x="0" y="360" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="384.0" fill="black" font-family="Arial" font-size="14">Left / Right Shifts (`&#60;&#60;`, `&#62;&#62;`)</text>
+	<rect x="356.0" y="360" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="384.0" fill="black" font-family="Arial" font-size="14">134 ms</text>
+	<rect x="448.0" y="360" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="384.0" fill="black" font-family="Arial" font-size="14">86.7 ms</text>
+	<rect x="0" y="400" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="424.0" fill="black" font-family="Arial" font-size="14">Left / Right Rotations (`left_rotate`, `right_rotate`)</text>
+	<rect x="356.0" y="400" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="424.0" fill="black" font-family="Arial" font-size="14">133 ms</text>
+	<rect x="448.0" y="400" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="424.0" fill="black" font-family="Arial" font-size="14">86.8 ms</text>
+	<rect x="0" y="440" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="464.0" fill="black" font-family="Arial" font-size="14">Leading / Trailing zeros/ones</text>
+	<rect x="356.0" y="440" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="464.0" fill="black" font-family="Arial" font-size="14">247 ms</text>
+	<rect x="448.0" y="440" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="464.0" fill="black" font-family="Arial" font-size="14">62.3 ms</text>
+	<rect x="0" y="480" width="540.0" height="40" fill="#fbbc04" />
+	<text x="10" y="504.0" fill="black" font-family="Arial" font-size="14">Log2</text>
+	<rect x="356.0" y="480" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="383.0" y="504.0" fill="black" font-family="Arial" font-size="14">267 ms</text>
+	<rect x="448.0" y="480" width="540.0" height="40" fill="#f3f3f3" />
+	<text x="471.0" y="504.0" fill="black" font-family="Arial" font-size="14">73.9 ms</text>
+
+    <!-- Borders -->
+    <line x1="0" y1="0" x2="0" y2="520" stroke="white" />
+	<line x1="356.0" y1="0" x2="356.0" y2="520" stroke="white" />
+	<line x1="448.0" y1="0" x2="448.0" y2="520" stroke="white" />
+	<line x1="0" y1="0" x2="540.0" y2="0" stroke="white" />
+	<line x1="0" y1="40" x2="540.0" y2="40" stroke="white" />
+	<line x1="0" y1="80" x2="540.0" y2="80" stroke="white" />
+	<line x1="0" y1="120" x2="540.0" y2="120" stroke="white" />
+	<line x1="0" y1="160" x2="540.0" y2="160" stroke="white" />
+	<line x1="0" y1="200" x2="540.0" y2="200" stroke="white" />
+	<line x1="0" y1="240" x2="540.0" y2="240" stroke="white" />
+	<line x1="0" y1="280" x2="540.0" y2="280" stroke="white" />
+	<line x1="0" y1="320" x2="540.0" y2="320" stroke="white" />
+	<line x1="0" y1="360" x2="540.0" y2="360" stroke="white" />
+	<line x1="0" y1="400" x2="540.0" y2="400" stroke="white" />
+	<line x1="0" y1="440" x2="540.0" y2="440" stroke="white" />
+	<line x1="0" y1="480" x2="540.0" y2="480" stroke="white" />
+	<line x1="0" y1="520" x2="540.0" y2="520" stroke="white" />
+</svg>
