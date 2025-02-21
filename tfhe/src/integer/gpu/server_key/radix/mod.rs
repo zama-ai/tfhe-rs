@@ -692,7 +692,7 @@ impl CudaServerKey {
             ciphertext_modulus,
         );
 
-        let trimmed_ct_info = ct.as_ref().info.after_trim_radix_blocks_lsb(num_blocks);
+        let trimmed_ct_info = ct.as_ref().info.after_trim_radix_blocks_lsb(new_num_blocks);
         T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
     }
 
@@ -775,8 +775,7 @@ impl CudaServerKey {
             LweCiphertextCount(new_num_blocks),
             ciphertext_modulus,
         );
-
-        let trimmed_ct_info = ct.as_ref().info.after_trim_radix_blocks_msb(num_blocks);
+        let trimmed_ct_info = ct.as_ref().info.after_trim_radix_blocks_msb(new_num_blocks);
         T::from(CudaRadixCiphertext::new(trimmed_ct_list, trimmed_ct_info))
     }
 
