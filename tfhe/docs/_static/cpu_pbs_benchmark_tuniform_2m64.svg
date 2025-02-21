@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="562.0" height="200" viewBox="0 0 562.0 200">
+    <!-- Header Row -->
+    <rect x="0" y="0" width="562.0" height="40" fill="black" />
+	<text x="10" y="24.0" fill="white" font-family="Arial" font-size="14">Operation \ Precision(bits)</text>
+	<text x="241.0" y="24.0" fill="white" font-family="Arial" font-size="14">2</text>
+	<text x="333.0" y="24.0" fill="white" font-family="Arial" font-size="14">4</text>
+	<text x="425.0" y="24.0" fill="white" font-family="Arial" font-size="14">6</text>
+	<text x="517.0" y="24.0" fill="white" font-family="Arial" font-size="14">8</text>
+
+    <!-- Data Rows -->
+    <rect x="0" y="40" width="562.0" height="40" fill="#fbbc04" />
+	<text x="10" y="64.0" fill="black" font-family="Arial" font-size="14">PBS</text>
+	<rect x="194.0" y="40" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="221.0" y="64.0" fill="black" font-family="Arial" font-size="14">8.9 ms</text>
+	<rect x="286.0" y="40" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="309.0" y="64.0" fill="black" font-family="Arial" font-size="14">11.8 ms</text>
+	<rect x="378.0" y="40" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="405.0" y="64.0" fill="black" font-family="Arial" font-size="14">102 ms</text>
+	<rect x="470.0" y="40" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="64.0" fill="black" font-family="Arial" font-size="14">649 ms</text>
+	<rect x="0" y="80" width="562.0" height="40" fill="#fbbc04" />
+	<text x="10" y="104.0" fill="black" font-family="Arial" font-size="14">MB-PBS</text>
+	<rect x="194.0" y="80" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="221.0" y="104.0" fill="black" font-family="Arial" font-size="14">4.4 ms</text>
+	<rect x="286.0" y="80" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="309.0" y="104.0" fill="black" font-family="Arial" font-size="14">4.43 ms</text>
+	<rect x="378.0" y="80" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="401.0" y="104.0" fill="black" font-family="Arial" font-size="14">27.5 ms</text>
+	<rect x="470.0" y="80" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="104.0" fill="black" font-family="Arial" font-size="14">248 ms</text>
+	<rect x="0" y="120" width="562.0" height="40" fill="#fbbc04" />
+	<text x="10" y="144.0" fill="black" font-family="Arial" font-size="14">KS-PBS</text>
+	<rect x="194.0" y="120" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="217.0" y="144.0" fill="black" font-family="Arial" font-size="14">11.0 ms</text>
+	<rect x="286.0" y="120" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="309.0" y="144.0" fill="black" font-family="Arial" font-size="14">14.9 ms</text>
+	<rect x="378.0" y="120" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="405.0" y="144.0" fill="black" font-family="Arial" font-size="14">118 ms</text>
+	<rect x="470.0" y="120" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="144.0" fill="black" font-family="Arial" font-size="14">873 ms</text>
+	<rect x="0" y="160" width="562.0" height="40" fill="#fbbc04" />
+	<text x="10" y="184.0" fill="black" font-family="Arial" font-size="14">KS-MB-PBS</text>
+	<rect x="194.0" y="160" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="217.0" y="184.0" fill="black" font-family="Arial" font-size="14">5.97 ms</text>
+	<rect x="286.0" y="160" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="309.0" y="184.0" fill="black" font-family="Arial" font-size="14">7.55 ms</text>
+	<rect x="378.0" y="160" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="401.0" y="184.0" fill="black" font-family="Arial" font-size="14">44.0 ms</text>
+	<rect x="470.0" y="160" width="562.0" height="40" fill="#f3f3f3" />
+	<text x="497.0" y="184.0" fill="black" font-family="Arial" font-size="14">453 ms</text>
+
+    <!-- Borders -->
+    <line x1="0" y1="0" x2="0" y2="200" stroke="white" />
+	<line x1="194.0" y1="0" x2="194.0" y2="200" stroke="white" />
+	<line x1="286.0" y1="0" x2="286.0" y2="200" stroke="white" />
+	<line x1="378.0" y1="0" x2="378.0" y2="200" stroke="white" />
+	<line x1="470.0" y1="0" x2="470.0" y2="200" stroke="white" />
+	<line x1="0" y1="0" x2="562.0" y2="0" stroke="white" />
+	<line x1="0" y1="40" x2="562.0" y2="40" stroke="white" />
+	<line x1="0" y1="80" x2="562.0" y2="80" stroke="white" />
+	<line x1="0" y1="120" x2="562.0" y2="120" stroke="white" />
+	<line x1="0" y1="160" x2="562.0" y2="160" stroke="white" />
+	<line x1="0" y1="200" x2="562.0" y2="200" stroke="white" />
+</svg>
