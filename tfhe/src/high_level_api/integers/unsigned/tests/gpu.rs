@@ -6,7 +6,7 @@ use crate::{set_server_key, ClientKey, ConfigBuilder};
 ///
 /// Crates a client key, with the given parameters or default params in None were given
 /// and sets the gpu server key for the current thread
-fn setup_gpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
+pub(crate) fn setup_gpu(params: Option<impl Into<PBSParameters>>) -> ClientKey {
     let config = params
         .map_or_else(ConfigBuilder::default, |p| {
             ConfigBuilder::with_custom_parameters(p.into())

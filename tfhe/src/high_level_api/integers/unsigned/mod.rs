@@ -22,4 +22,4 @@ mod ops;
 mod overflowing_ops;
 pub(crate) mod scalar_ops;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

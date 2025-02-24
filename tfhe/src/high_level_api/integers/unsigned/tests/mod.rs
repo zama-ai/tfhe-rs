@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 
 mod cpu;
 #[cfg(feature = "gpu")]
-mod gpu;
+pub(crate) mod gpu;
 
 fn test_case_uint8_quickstart(client_key: &ClientKey) {
     let clear_a = 27u8;
