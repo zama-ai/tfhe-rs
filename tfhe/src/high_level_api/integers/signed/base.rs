@@ -186,9 +186,13 @@ where
                 Self::new(ciphertext, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices does not support abs yet")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let result = cuda_key
+                    .key
+                    .key
+                    .abs(&*self.ciphertext.on_gpu(streams), streams);
+                Self::new(result, cuda_key.tag.clone())
+            }),
         })
     }
 
