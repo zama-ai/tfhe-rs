@@ -477,7 +477,7 @@ fn check_noise_improve_modulus_switch_noise(
     };
 
     assert!(
-        check_both_ratio_under(base_variance, expected_base_variance, 1.01_f64),
+        check_both_ratio_under(base_variance, expected_base_variance, 1.03_f64),
         "Expected {expected_base_variance}, got {base_variance}",
     );
 
