@@ -402,6 +402,88 @@ fn integer_unchecked_scalar_comparisons_edge(param: ClassicPBSParameters) {
     }
 }
 
+fn integer_unchecked_scalar_comparisons_edge_one_block(param: ClassicPBSParameters) {
+    let mut rng = rand::thread_rng();
+
+    let num_block = 1;
+
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let message_modulus = cks.parameters().message_modulus().0;
+
+    for _ in 0..4 {
+        let clear_a = rng.gen_range(0..message_modulus);
+        let clear_b = rng.gen_range(0..message_modulus);
+
+        let a = cks.encrypt_radix(clear_a, num_block);
+
+        // >=
+        {
+            let result = sks.unchecked_scalar_ge_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a >= clear_b);
+        }
+
+        // >
+        {
+            let result = sks.unchecked_scalar_gt_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a > clear_b);
+        }
+
+        // <=
+        {
+            let result = sks.unchecked_scalar_le_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a <= clear_b);
+        }
+
+        // <
+        {
+            let result = sks.unchecked_scalar_lt_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a < clear_b);
+        }
+
+        // ==
+        {
+            let result = sks.unchecked_scalar_eq_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a == clear_b);
+        }
+
+        // !=
+        {
+            let result = sks.unchecked_scalar_ne_parallelized(&a, clear_b);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a != clear_b);
+        }
+
+        // Here the goal is to test, the branching
+        // made in the scalar sign function
+        //
+        // We are forcing one of the two branches to work on empty slices
+        {
+            let result = sks.unchecked_scalar_lt_parallelized(&a, 0);
+            let decrypted = cks.decrypt_bool(&result);
+            assert!(!decrypted);
+
+            let result = sks.unchecked_scalar_lt_parallelized(&a, message_modulus);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a < message_modulus);
+
+            // == (as it does not share same code)
+            let result = sks.unchecked_scalar_eq_parallelized(&a, 0);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a == 0);
+
+            // != (as it does not share same code)
+            let result = sks.unchecked_scalar_ne_parallelized(&a, message_modulus);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a != message_modulus);
+        }
+    }
+}
+
 // Given a ciphertext that consists of empty blocks,
 // the function tests whether comparisons still hold.
 fn integer_comparisons_for_empty_blocks(param: ClassicPBSParameters) {
@@ -768,6 +850,14 @@ mod no_coverage {
     define_scalar_comparison_test_functions!(ge, U256);
 
     create_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
+        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+        // 2M128 is too slow for 4_4, it is estimated to be 2x slower
+        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+    });
+
+    create_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_block {
         V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,

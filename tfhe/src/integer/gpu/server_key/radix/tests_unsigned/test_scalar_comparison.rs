@@ -226,6 +226,106 @@ where
     }
 }
 
+fn integer_unchecked_scalar_comparisons_edge_one_block<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let p = param.into();
+    let num_block = 1;
+
+    let stream = CudaStreams::new_multi_gpu();
+
+    let (cks, sks) = gen_keys_gpu(p, &stream);
+    let message_modulus = cks.parameters().message_modulus().0;
+
+    let mut rng = rand::thread_rng();
+
+    for _ in 0..4 {
+        let clear_a = rng.gen_range(0..message_modulus);
+        let clear_b = rng.gen_range(0..message_modulus);
+
+        let a = cks.encrypt_radix(clear_a, num_block);
+        // Copy to the GPU
+        let d_a = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&a, &stream);
+
+        // >=
+        {
+            let d_result = sks.unchecked_scalar_ge(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a >= clear_b);
+        }
+
+        // >
+        {
+            let d_result = sks.unchecked_scalar_gt(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a > clear_b);
+        }
+
+        // <=
+        {
+            let d_result = sks.unchecked_scalar_le(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a <= clear_b);
+        }
+
+        // <
+        {
+            let d_result = sks.unchecked_scalar_lt(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a < clear_b);
+        }
+
+        // ==
+        {
+            let d_result = sks.unchecked_scalar_eq(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a == clear_b);
+        }
+
+        // !=
+        {
+            let d_result = sks.unchecked_scalar_ne(&d_a, clear_b, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a != clear_b);
+        }
+
+        // Here the goal is to test, the branching
+        // made in the scalar sign function
+        //
+        // We are forcing one of the two branches to work on empty slices
+        {
+            let d_result = sks.unchecked_scalar_lt(&d_a, 0, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert!(!decrypted);
+
+            let d_result = sks.unchecked_scalar_lt(&d_a, message_modulus, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a < message_modulus);
+
+            // == (as it does not share same code)
+            let d_result = sks.unchecked_scalar_eq(&d_a, 0, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a == 0);
+
+            // != (as it does not share same code)
+            let d_result = sks.unchecked_scalar_ne(&d_a, message_modulus, &stream);
+            let result = d_result.to_boolean_block(&stream);
+            let decrypted = cks.decrypt_bool(&result);
+            assert_eq!(decrypted, clear_a != message_modulus);
+        }
+    }
+}
+
 create_gpu_parameterized_test!(integer_unchecked_scalar_min_u256 {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
@@ -259,6 +359,12 @@ define_gpu_scalar_comparison_test_functions!(gt, U256);
 define_gpu_scalar_comparison_test_functions!(ge, U256);
 
 create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
+    // TODO GPU DRIFT UPDATE
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+});
+create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_block {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
