@@ -3,16 +3,46 @@ name: Cargo Test tfhe-ntt
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 env:
   CARGO_TERM_COLOR: always
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 
-jobs:
+jobs:  
+  should-run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      ntt_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.ntt_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@dcc7a0cba800f454d79fff4b993e8c3555bcc0a8
+        with:
+          files_yaml: |
+            ntt:
+              - tfhe/Cargo.toml
+              - Makefile
+              - tfhe-ntt/**
+              - '.github/workflows/cargo_test_ntt.yml'
+
   cargo-tests-ntt:
+    needs: should-run
+    if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -34,6 +64,8 @@ jobs:
         run: make test_ntt_no_std
 
   cargo-tests-ntt-nightly:
+    needs: should-run
+    if: needs.should-run.outputs.ntt_test == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -52,3 +84,28 @@ jobs:
 
       - name: Test no-std nightly
         run: make test_ntt_no_std_nightly
+
+  cargo-tests-ntt-successful:
+    needs: [ should-run, cargo-tests-ntt, cargo-tests-ntt-nightly ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tests do not need to run
+        if: needs.should-run.outputs.ntt_test == 'false'
+        run: |
+          echo "tfhe-ntt files haven't changed tests don't need to run"
+
+      - name: Check all tests success
+        if: needs.should-run.outputs.ntt_test == 'true' &&
+          needs.cargo-tests-ntt.result == 'success' &&
+          needs.cargo-tests-ntt-nightly.result == 'success'
+        run: |
+          echo "All tfhe-ntt tests passed"
+
+      - name: Check tests failure
+        if: needs.should-run.outputs.ntt_test == 'true' &&
+          (needs.cargo-tests-ntt.result != 'success' ||
+          needs.cargo-tests-ntt-nightly.result != 'success')
+        run: |
+          echo "Some tfhe-ntt tests failed"
+          exit 1
