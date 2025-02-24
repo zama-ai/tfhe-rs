@@ -553,7 +553,7 @@ impl CudaServerKey {
     ) where
         T: CudaIntegerRadixCiphertext,
     {
-        unsafe { self.rotate_left_async(ct, rotate, streams) };
+        unsafe { self.rotate_left_assign_async(ct, rotate, streams) };
         streams.synchronize();
     }
 }
