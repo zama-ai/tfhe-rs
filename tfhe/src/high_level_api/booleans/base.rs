@@ -245,9 +245,16 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                 FheInt::new(new_ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support signed integers")
-            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner = cuda_key.key.key.if_then_else(
+                    &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                    &*ct_then.ciphertext.on_gpu(streams),
+                    &*ct_else.ciphertext.on_gpu(streams),
+                    streams,
+                );
+
+                FheInt::new(inner, cuda_key.tag.clone())
+            }),
         })
     }
 }

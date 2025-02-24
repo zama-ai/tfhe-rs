@@ -1,8 +1,13 @@
 use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheIntId;
+use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::client_key::RecomposableSignedInteger;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};
 use crate::{ClientKey, CompressedPublicKey, FheInt, PublicKey};
 
@@ -101,14 +106,22 @@ where
     /// Trivial encryptions become real encrypted data once used in an operation
     /// that involves a real ciphertext
     fn try_encrypt_trivial(value: T) -> Result<Self, Self::Error> {
-        global_state::with_cpu_internal_keys(|sks| {
-            let ciphertext = sks
-                .pbs_key()
-                .create_trivial_radix::<T, crate::integer::SignedRadixCiphertext>(
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let ciphertext: crate::integer::SignedRadixCiphertext = key
+                    .pbs_key()
+                    .create_trivial_radix(value, Id::num_blocks(key.message_modulus()));
+                Ok(Self::new(ciphertext, key.tag.clone()))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner: CudaSignedRadixCiphertext = cuda_key.key.key.create_trivial_radix(
                     value,
-                    Id::num_blocks(sks.message_modulus()),
+                    Id::num_blocks(cuda_key.key.key.message_modulus),
+                    streams,
                 );
-            Ok(Self::new(ciphertext, sks.tag.clone()))
+                Ok(Self::new(inner, cuda_key.tag.clone()))
+            }),
         })
     }
 }

@@ -1,5 +1,36 @@
 #include "integer/scalar_comparison.cuh"
 
+#include <iostream>
+#include <utility> // for std::pair
+
+std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare) {
+  bool invert_operands;
+  bool invert_subtraction_result;
+
+  switch (compare) {
+  case COMPARISON_TYPE::LT:
+    invert_operands = false;
+    invert_subtraction_result = false;
+    break;
+  case COMPARISON_TYPE::LE:
+    invert_operands = true;
+    invert_subtraction_result = true;
+    break;
+  case COMPARISON_TYPE::GT:
+    invert_operands = true;
+    invert_subtraction_result = false;
+    break;
+  case COMPARISON_TYPE::GE:
+    invert_operands = false;
+    invert_subtraction_result = true;
+    break;
+  default:
+    PANIC("Cuda error: invalid comparison type")
+  }
+
+  return {invert_operands, invert_subtraction_result};
+}
+
 void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     void *lwe_array_out, void const *lwe_array_in, void const *scalar_blocks,
@@ -22,9 +53,9 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
   case GE:
   case LT:
   case LE:
-    if (lwe_ciphertext_count % 2 != 0)
+    if (lwe_ciphertext_count % 2 != 0 && lwe_ciphertext_count != 1)
       PANIC("Cuda error (scalar comparisons): the number of radix blocks has "
-            "to be even.")
+            "to be even or equal to 1.")
     host_integer_radix_scalar_difference_check_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         static_cast<uint64_t *>(lwe_array_out),

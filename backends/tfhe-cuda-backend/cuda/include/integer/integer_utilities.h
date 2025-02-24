@@ -4728,4 +4728,5 @@ void update_degrees_after_scalar_bitxor(uint64_t *output_degrees,
                                         uint64_t *clear_degrees,
                                         uint64_t *input_degrees,
                                         uint32_t num_clear_blocks);
+std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare);
 #endif // CUDA_INTEGER_UTILITIES_H
