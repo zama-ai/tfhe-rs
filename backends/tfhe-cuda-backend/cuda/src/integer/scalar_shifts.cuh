@@ -304,7 +304,7 @@ __host__ void legacy_host_integer_radix_arithmetic_scalar_shift_kb_inplace(
             lut_bivariate->params.message_modulus);
       }
       // Since our CPU threads will be working on different streams we shall
-      // assert the work in the main stream is completed
+      // Ensure the work in the main stream is completed
       for (uint j = 0; j < gpu_count; j++) {
         cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       }
@@ -419,7 +419,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
             lut_bivariate->params.message_modulus);
       }
       // Since our CPU threads will be working on different streams we shall
-      // assert the work in the main stream is completed
+      // Ensure the work in the main stream is completed
       for (uint j = 0; j < gpu_count; j++) {
         cuda_synchronize_stream(streams[j], gpu_indexes[j]);
       }

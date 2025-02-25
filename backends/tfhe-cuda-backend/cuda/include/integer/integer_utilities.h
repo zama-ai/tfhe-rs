@@ -6,7 +6,6 @@
 #include "integer/radix_ciphertext.h"
 #include "keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
-#include <cassert>
 #include <cmath>
 #include <functional>
 
@@ -295,7 +294,8 @@ template <typename Torus> struct int_radix_lut {
     std::memcpy(gpu_indexes, input_gpu_indexes, gpu_count * sizeof(uint32_t));
 
     // base lut object should have bigger or equal memory than current one
-    assert(num_radix_blocks <= base_lut_object->num_blocks);
+    if (num_radix_blocks > base_lut_object->num_blocks)
+      PANIC("Cuda error: lut does not have enough blocks")
     // pbs
     buffer = base_lut_object->buffer;
     // Keyswitch
@@ -477,7 +477,8 @@ template <typename Torus> struct int_radix_lut {
     auto lut = lut_vec[gpu_index];
     size_t lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
 
-    assert(lut != nullptr);
+    if (lut == nullptr)
+      PANIC("Cuda error: invalid lut pointer")
     return &lut[idx * lut_size];
   }
 

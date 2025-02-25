@@ -1,7 +1,6 @@
 #ifndef GPU_BOOTSTRAP_COMMON_CUH
 #define GPU_BOOTSTRAP_COMMON_CUH
 
-#include <cassert>
 #include <cstdint>
 #include <cstdio>
 

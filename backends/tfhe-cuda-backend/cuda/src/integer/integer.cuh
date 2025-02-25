@@ -1262,7 +1262,8 @@ uint64_t generate_many_lookup_table(
 
   size_t fn_counts = functions.size();
 
-  assert(fn_counts <= modulus_sup / 2);
+  if (fn_counts > modulus_sup / 2)
+    PANIC("Cuda error: invalid number of functions")
 
   // Space used for each sub lut
   uint32_t single_function_sub_lut_size = (modulus_sup / fn_counts) * box_size;
@@ -2749,7 +2750,8 @@ void legacy_host_single_borrow_propagate(
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
 
-  assert(mem->num_groups >= num_groups);
+  if (mem->num_groups < num_groups)
+    PANIC("Cuda error: inconsistency in num_groups")
   if (uses_input_borrow == 1) {
     legacy_host_unchecked_sub_with_correcting_term<Torus>(
         streams[0], gpu_indexes[0], lhsrhs_array, lhsrhs_array, input_borrow,
@@ -2875,7 +2877,8 @@ void host_single_borrow_propagate(
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
 
-  assert(mem->num_groups >= num_groups);
+  if (mem->num_groups < num_groups)
+    PANIC("Cuda error: inconsistency in num_groups")
   if (uses_input_borrow == 1) {
     host_unchecked_sub_with_correcting_term<Torus>(
         streams[0], gpu_indexes[0], lwe_array, lwe_array, input_borrow, 1,
