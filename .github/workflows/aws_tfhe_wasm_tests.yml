@@ -52,7 +52,7 @@ jobs:
     name: WASM tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:

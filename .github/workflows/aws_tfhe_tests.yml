@@ -169,7 +169,7 @@ jobs:
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     needs: [ should-run, setup-instance ]
     concurrency:
-      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.head_ref || github.ref }}
+      group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:

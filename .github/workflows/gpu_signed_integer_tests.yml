@@ -98,7 +98,7 @@ jobs:
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
-      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:

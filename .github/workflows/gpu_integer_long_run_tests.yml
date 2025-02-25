@@ -42,7 +42,7 @@ jobs:
     name: Long run GPU tests
     needs: [ setup-instance ]
     concurrency:
-      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}
+      group: ${{ github.workflow_ref }}_${{github.event_name}}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
