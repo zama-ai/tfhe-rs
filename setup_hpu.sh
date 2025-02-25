@@ -15,8 +15,14 @@ HPU_CONFIG="sim"
 # Default log verbosity
 RUST_LOG="info"
 
-# Default Pcie device -> srvzama
-AVED_PCIE_DEV=21
+# Setting PCI device variable: depends on the machine
+mapfile -t DEVICE< <(lspci -d 10ee:50b5)
+if [ ${#DEVICE[@]} != 1 ]; then
+    echo "[ERROR]: There is more than one device pcie, we only support one hpu for now"
+    return 1
+else
+    AVED_PCIE_DEV="${DEVICE[0]%%:*}"
+fi
 
 # Default Qdma init
 AVED_QDMA_INIT=false
@@ -122,6 +128,7 @@ if [[ "$HPU_CONFIG" == aved* ]]; then
             read -p "QDMA_PF init requested by user. This required sudo right, Are you sure to process [Y/n]" user_input
             if [[ "$user_input" == [Yy] ]]; then
                 echo "Continuing... You could be prompt for sudo password"
+                sudo modprobe -r qdma-pf &&  sudo modprobe qdma-pf
                 sudo bash -c "echo 100 > /sys/bus/pci/devices/0000\:${AVED_PCIE_DEV}\:00.1/qdma/qmax"
                 sudo dma-ctl qdma${AVED_PCIE_DEV}001 q add   idx 0 mode mm dir h2c
                 sudo dma-ctl qdma${AVED_PCIE_DEV}001 q add   idx 1 mode mm dir c2h
