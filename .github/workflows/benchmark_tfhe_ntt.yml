@@ -45,7 +45,7 @@ jobs:
     name: Execute NTT benchmarks in EC2
     needs: setup-ec2
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     steps:

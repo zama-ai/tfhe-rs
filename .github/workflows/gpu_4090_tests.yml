@@ -29,7 +29,7 @@ jobs:
       contains(github.event.label.name, '4090_test') ||
       (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs')
     concurrency:
-      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
 

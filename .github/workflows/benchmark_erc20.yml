@@ -43,7 +43,7 @@ jobs:
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
-      group: ${{ github.workflow }}_${{ github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     continue-on-error: true
     timeout-minutes: 720  # 12 hours

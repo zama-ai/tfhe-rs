@@ -118,7 +118,7 @@ jobs:
     if: needs.setup-instance.result != 'skipped'
     needs: [ prepare-matrix, setup-instance ]
     concurrency:
-      group: ${{ github.workflow }}_${{github.event_name}}_${{ github.ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+      group: ${{ github.workflow_ref }}_${{github.event_name}}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:

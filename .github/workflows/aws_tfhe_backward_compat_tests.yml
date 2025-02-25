@@ -51,7 +51,7 @@ jobs:
     name: Backward compatibility tests
     needs: [ setup-instance ]
     concurrency:
-      group: ${{ github.workflow }}_${{ github.head_ref || github.ref }}
+      group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
@@ -73,7 +73,7 @@ jobs:
       - name: Use specific data branch
         if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
         env:
-          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+          PR_BRANCH: ${{ github.ref_name }}
         run: |
           echo "BACKWARD_COMPAT_DATA_BRANCH=${PR_BRANCH}" >> "${GITHUB_ENV}"
 
