@@ -1,8 +1,11 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
-use criterion::{black_box, criterion_main, Criterion};
+use crate::utilities::{
+    filter_parameters, init_parameters_set, write_to_json, CryptoParametersRecord, DesiredBackend,
+    DesiredNoiseDistribution, OperatorType, ParametersSet, PARAMETERS_SET,
+};
+use criterion::{black_box, Criterion};
 use serde::Serialize;
 use tfhe::boolean::prelude::*;
 use tfhe::core_crypto::prelude::*;
@@ -10,7 +13,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::current_params::{
     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128, VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
 };
 #[cfg(not(feature = "gpu"))]
 use tfhe::shortint::parameters::current_params::{
@@ -29,9 +32,11 @@ use tfhe::shortint::parameters::{
 #[cfg(feature = "gpu")]
 use tfhe::shortint::parameters::{
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
 };
 use tfhe::shortint::prelude::*;
 use tfhe::shortint::{MultiBitPBSParameters, PBSParameters};
@@ -64,8 +69,10 @@ const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
 ];
 
 #[cfg(feature = "gpu")]
-const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 4] = [
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
@@ -80,28 +87,78 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 ];
 
 fn benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
-    let classic = SHORTINT_BENCH_PARAMS
-        .iter()
-        .map(|params| {
-            (
-                params.name(),
-                <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
-                    .to_owned()
-                    .into(),
+    let (classic, multi_bit) = match PARAMETERS_SET.get().unwrap() {
+        ParametersSet::Default => {
+            let classic = SHORTINT_BENCH_PARAMS
+                .iter()
+                .map(|params| {
+                    (
+                        params.name(),
+                        <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                            .to_owned()
+                            .into(),
+                    )
+                })
+                .collect::<Vec<(String, CryptoParametersRecord<u64>)>>();
+
+            let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
+                .iter()
+                .map(|params| {
+                    (
+                        params.name(),
+                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                            .to_owned()
+                            .into(),
+                    )
+                })
+                .collect();
+
+            (classic, multi_bit)
+        }
+        ParametersSet::All => {
+            let desired_noise = DesiredNoiseDistribution::Both;
+            let desired_backend = if cfg!(feature = "gpu") {
+                DesiredBackend::Gpu
+            } else {
+                DesiredBackend::Cpu
+            };
+
+            let classic = filter_parameters(
+                &VEC_ALL_CLASSIC_PBS_PARAMETERS,
+                desired_noise,
+                DesiredBackend::Cpu, // No parameters set are specific to GPU in this vector
             )
-        })
-        .collect::<Vec<(String, CryptoParametersRecord<u64>)>>();
-    let multi_bit = SHORTINT_MULTI_BIT_BENCH_PARAMS
-        .iter()
-        .map(|params| {
-            (
-                params.name(),
-                <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
-                    .to_owned()
-                    .into(),
+            .into_iter()
+            .map(|(params, name)| {
+                (
+                    name.to_string(),
+                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
+            .collect::<Vec<(String, CryptoParametersRecord<u64>)>>();
+
+            let multi_bit = filter_parameters(
+                &VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
+                desired_noise,
+                desired_backend,
             )
-        })
-        .collect();
+            .into_iter()
+            .map(|(params, name)| {
+                (
+                    name.to_string(),
+                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
+            .collect();
+
+            (classic, multi_bit)
+        }
+    };
+
     [classic, multi_bit].concat()
 }
 
@@ -526,6 +583,7 @@ mod cuda {
 
 #[cfg(feature = "gpu")]
 use cuda::cuda_keyswitch_group;
+use tfhe::shortint::parameters::v1_0::VEC_ALL_CLASSIC_PBS_PARAMETERS;
 
 pub fn keyswitch_group() {
     let mut criterion: Criterion<_> = (Criterion::default()
@@ -555,7 +613,24 @@ pub fn packing_keyswitch_group() {
     );
 }
 
-#[cfg(not(feature = "gpu"))]
-criterion_main!(keyswitch_group, packing_keyswitch_group);
 #[cfg(feature = "gpu")]
-criterion_main!(cuda_keyswitch_group);
+fn go_through_gpu_bench_groups() {
+    cuda_keyswitch_group();
+}
+
+#[cfg(not(feature = "gpu"))]
+fn go_through_cpu_bench_groups() {
+    keyswitch_group();
+    packing_keyswitch_group();
+}
+
+fn main() {
+    init_parameters_set();
+
+    #[cfg(feature = "gpu")]
+    go_through_gpu_bench_groups();
+    #[cfg(not(feature = "gpu"))]
+    go_through_cpu_bench_groups();
+
+    Criterion::default().configure_from_args().final_summary();
+}
