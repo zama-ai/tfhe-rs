@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - "l40 (n3-L40x1)"
+          - "2-l40 (n3-L40x2)"
           - "single-h100 (n3-H100x1)"
           - "2-h100 (n3-H100x2)"
           - "4-h100 (n3-H100x4)"
