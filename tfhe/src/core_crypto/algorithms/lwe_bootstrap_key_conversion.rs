@@ -212,6 +212,82 @@ pub fn convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, Outp
     output_bsk.fill_with_forward_fourier(input_bsk, fft);
 }
 
+pub fn par_convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, OutputCont>(
+    input_bsk: &LweBootstrapKey<InputCont>,
+    output_bsk: &mut Fourier128LweBootstrapKey<OutputCont>,
+) where
+    Scalar: UnsignedTorus,
+    InputCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = f64>,
+{
+    assert_eq!(
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+        "Mismatched PolynomialSize between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.polynomial_size(),
+        output_bsk.polynomial_size(),
+    );
+
+    assert_eq!(
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+        "Mismatched GlweSize"
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_base_log(),
+        output_bsk.decomposition_base_log(),
+        "Mismatched DecompositionBaseLog between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.glwe_size(),
+        output_bsk.glwe_size(),
+    );
+
+    assert_eq!(
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+        "Mismatched DecompositionLevelCount between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.decomposition_level_count(),
+        output_bsk.decomposition_level_count(),
+    );
+
+    assert_eq!(
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension between input_bsk {:?} and output_bsk {:?}",
+        input_bsk.input_lwe_dimension(),
+        output_bsk.input_lwe_dimension(),
+    );
+
+    let fft = Fft128::new(input_bsk.polynomial_size());
+    let fft = fft.as_view();
+
+    let fourier_poly_size = output_bsk.polynomial_size().to_fourier_polynomial_size();
+
+    let (data_re0, data_re1, data_im0, data_im1) = output_bsk.as_mut_view().data();
+
+    data_re0
+        .par_chunks_exact_mut(fourier_poly_size.0)
+        .zip(
+            data_re1.par_chunks_exact_mut(fourier_poly_size.0).zip(
+                data_im0
+                    .par_chunks_exact_mut(fourier_poly_size.0)
+                    .zip(data_im1.par_chunks_exact_mut(fourier_poly_size.0)),
+            ),
+        )
+        .zip(input_bsk.as_polynomial_list().par_iter())
+        .for_each(
+            |((fourier_re0, (fourier_re1, (fourier_im0, fourier_im1))), coef_poly)| {
+                fft.forward_as_torus(
+                    fourier_re0,
+                    fourier_re1,
+                    fourier_im0,
+                    fourier_im1,
+                    coef_poly.as_ref(),
+                );
+            },
+        );
+}
+
 /// Convert an [`LWE bootstrap key`](`LweBootstrapKey`) with standard coefficients to the NTT
 /// domain using a 64 bits NTT.
 ///

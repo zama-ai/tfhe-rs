@@ -143,3 +143,8 @@ pub(crate) enum InternalCompressedModulusSwitchedCiphertextVersions {
 pub enum CompressedCiphertextListVersions {
     V0(CompressedCiphertextList),
 }
+
+#[derive(VersionsDispatch)]
+pub enum SquashedNoiseCiphertextVersions {
+    V0(SquashedNoiseCiphertext),
+}
