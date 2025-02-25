@@ -66,10 +66,6 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install git-lfs
-        run: |
-          sudo apt update && sudo apt -y install git-lfs
-
       - name: Use specific data branch
         if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
         env:
