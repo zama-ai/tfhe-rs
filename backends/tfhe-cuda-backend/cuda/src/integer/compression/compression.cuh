@@ -54,27 +54,35 @@ __host__ void host_pack(cudaStream_t stream, uint32_t gpu_index,
   auto compression_params = mem_ptr->compression_params;
 
   auto log_modulus = mem_ptr->storage_log_modulus;
+  printf("pack num_lwes: %u\n", num_lwes);
+  printf("pack log_modulus: %u\n", log_modulus);
   // [0..num_glwes-1) GLWEs
-  auto in_len = (compression_params.glwe_dimension + 1) *
-                compression_params.polynomial_size;
+  auto in_len = num_glwes * compression_params.glwe_dimension *
+                compression_params.polynomial_size + num_lwes;
+  printf("pack compression_params.glwe_dimension: %u\n", compression_params.glwe_dimension);
+  printf("pack compression_params.polynomial_size: %u\n", compression_params.polynomial_size);
+  printf("pack in_len: %u\n", in_len);
+
   auto number_bits_to_pack = in_len * log_modulus;
+  printf("pack number_bits_to_pack: %u\n", number_bits_to_pack);
+
   auto nbits = sizeof(Torus) * 8;
+  printf("pack nbits: %lu\n", nbits);
+
   // number_bits_to_pack.div_ceil(Scalar::BITS)
   auto out_len = (number_bits_to_pack + nbits - 1) / nbits;
+  printf("pack out_len: %u\n", out_len);
 
   // Last GLWE
-  number_bits_to_pack = in_len * log_modulus;
-  auto last_out_len = (number_bits_to_pack + nbits - 1) / nbits;
-
-  auto num_coeffs = (num_glwes - 1) * out_len + last_out_len;
+  printf("pack num_glwes: %u\n", num_glwes);
 
   int num_blocks = 0, num_threads = 0;
-  getNumBlocksAndThreads(num_coeffs, 1024, num_blocks, num_threads);
+  getNumBlocksAndThreads(out_len, 1024, num_blocks, num_threads);
 
   dim3 grid(num_blocks);
   dim3 threads(num_threads);
   pack<Torus><<<grid, threads, 0, stream>>>(array_out, array_in, log_modulus,
-                                            num_coeffs, in_len, out_len);
+                                            out_len, in_len, out_len);
   check_cuda_error(cudaGetLastError());
 }
 
@@ -191,26 +199,40 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   auto log_modulus = mem_ptr->storage_log_modulus;
 
-  uint32_t body_count =
-      std::min(mem_ptr->body_count, compression_params.polynomial_size);
-  auto initial_out_len =
-      compression_params.glwe_dimension * compression_params.polynomial_size +
-      body_count;
+  uint32_t body_count = mem_ptr->body_count;
 
-  auto compressed_glwe_accumulator_size =
-      (compression_params.glwe_dimension + 1) *
-      compression_params.polynomial_size;
-  auto number_bits_to_unpack = compressed_glwe_accumulator_size * log_modulus;
+
+auto num_glwes = (body_count + compression_params.polynomial_size - 1) / compression_params.polynomial_size;
+printf("%u / %u\n", glwe_index, num_glwes);
+  printf("extract body_count: %u\n", body_count);
+
+  if (glwe_index == num_glwes-1)
+    body_count %= compression_params.polynomial_size;
+
+  auto initial_out_len =
+      (compression_params.glwe_dimension+1) * compression_params.polynomial_size;
+  printf("extract compression_params.glwe_dimension: %u\n", compression_params.glwe_dimension);
+  printf("extract compression_params.polynomial_size: %u\n", compression_params.polynomial_size);
+  printf("extract initial_out_len: %u\n", initial_out_len);
+
+  auto number_bits_to_unpack = initial_out_len * log_modulus;
+  printf("extract log_modulus: %u\n", log_modulus);
+  printf("extract number_bits_to_unpack: %u\n", number_bits_to_unpack);
+
   auto nbits = sizeof(Torus) * 8;
-  // number_bits_to_unpack.div_ceil(Scalar::BITS)
+  printf("extract nbits: %lu\n", nbits);
+
   auto input_len = (number_bits_to_unpack + nbits - 1) / nbits;
+  printf("extract input_len: %u\n", input_len);
 
   // We assure the tail of the glwe is zeroed
   auto zeroed_slice = glwe_array_out + initial_out_len;
-  cuda_memset_async(zeroed_slice, 0,
-                    (compression_params.polynomial_size - body_count) *
-                        sizeof(Torus),
-                    stream, gpu_index);
+  // cuda_memset_async(zeroed_slice, 0,
+  //                   (compression_params.polynomial_size - body_count) *
+  //                       sizeof(Torus),
+  //                   stream, gpu_index);
+  auto glwe_ciphertext_size = (compression_params.glwe_dimension + 1) * compression_params.polynomial_size;
+  cuda_memset_async(glwe_array_out, 0, glwe_ciphertext_size * sizeof(Torus), stream, gpu_index);
   int num_blocks = 0, num_threads = 0;
   getNumBlocksAndThreads(initial_out_len, 128, num_blocks, num_threads);
   dim3 grid(num_blocks);

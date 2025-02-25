@@ -362,20 +362,6 @@ impl CompressedCiphertextList {
             .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
             .collect_vec();
 
-        let glwe_ciphertext_count = self.packed_list.modulus_switched_glwe_ciphertext_list.len();
-        let glwe_size = self.packed_list.modulus_switched_glwe_ciphertext_list[0]
-            .glwe_dimension()
-            .to_glwe_size();
-        let polynomial_size =
-            self.packed_list.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
-
-        // FIXME: have a more precise memory handling, this is too long and should be "just" the
-        // original flat_cpu_data.len()
-        let unpacked_glwe_ciphertext_flat_len =
-            glwe_ciphertext_count * glwe_ciphertext_size(glwe_size, polynomial_size);
-
-        flat_cpu_data.resize(unpacked_glwe_ciphertext_flat_len, 0u64);
-
         let flat_gpu_data = unsafe {
             let v = CudaVec::from_cpu_async(flat_cpu_data.as_slice(), streams, 0);
             streams.synchronize();
