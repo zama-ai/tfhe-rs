@@ -57,7 +57,6 @@ host_sample_extract(cudaStream_t stream, uint32_t gpu_index,
                     uint32_t const *nth_array, uint32_t num_nths,
                     uint32_t lwe_per_glwe, uint32_t glwe_dimension) {
   cuda_set_device(gpu_index);
-
   dim3 grid(num_nths);
   dim3 thds(params::degree / params::opt);
   sample_extract<Torus, params><<<grid, thds, 0, stream>>>(
