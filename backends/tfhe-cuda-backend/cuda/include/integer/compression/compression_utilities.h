@@ -102,9 +102,7 @@ template <typename Torus> struct int_decompression {
       // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
       // space, we want to keep the original 2 bits value in the 4 bits space,
       // so we apply the identity and the encoding will rescale it for us.
-      auto decompression_rescale_f = [encryption_params](Torus x) -> Torus {
-        return x;
-      };
+      auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
 
       auto effective_compression_message_modulus =
           encryption_params.carry_modulus;
