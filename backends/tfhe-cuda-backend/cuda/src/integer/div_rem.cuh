@@ -93,7 +93,8 @@ template <typename Torus> struct lwe_ciphertext_list {
 
   // return block with `index`
   Torus *get_block(size_t index) {
-    assert(index < len);
+    if (index >= len)
+      PANIC("Cuda error: out of bound index")
     return &data[index * big_lwe_size];
   }
 
@@ -103,15 +104,17 @@ template <typename Torus> struct lwe_ciphertext_list {
   void pop() {
     if (len > 0)
       len--;
-    else
-      assert(len > 0);
+    else if (len <= 0)
+      PANIC("Cuda error: invalid length")
   }
 
   // insert ciphertext at index `ind`
   void insert(size_t ind, Torus *ciphertext_block, cudaStream_t stream,
               uint32_t gpu_index) {
-    assert(ind <= len);
-    assert(len < max_blocks);
+    if (ind > len)
+      PANIC("Cuda error: invalid index")
+    if (len >= max_blocks)
+      PANIC("Cuda error: invalid length")
 
     size_t insert_offset = ind * big_lwe_size;
 
@@ -129,7 +132,8 @@ template <typename Torus> struct lwe_ciphertext_list {
 
   // push ciphertext at the end of `data`
   void push(Torus *ciphertext_block, cudaStream_t stream, uint32_t gpu_index) {
-    assert(len < max_blocks);
+    if (len >= max_blocks)
+      PANIC("Cuda error: invalid length")
 
     size_t offset = len * big_lwe_size;
     cuda_memcpy_async_gpu_to_gpu(&data[offset], ciphertext_block,
@@ -140,7 +144,8 @@ template <typename Torus> struct lwe_ciphertext_list {
   // duplicate ciphertext into `number_of_blocks` ciphertexts
   void fill_with_same_ciphertext(Torus *ciphertext, size_t number_of_blocks,
                                  cudaStream_t stream, uint32_t gpu_index) {
-    assert(number_of_blocks <= max_blocks);
+    if (number_of_blocks > max_blocks)
+      PANIC("Cuda error: invalid number of blocks")
 
     for (size_t i = 0; i < number_of_blocks; i++) {
       Torus *dest = &data[i * big_lwe_size];
@@ -414,7 +419,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
         merged_interesting_remainder, 0, merged_interesting_remainder.len - 1,
         streams[0], gpu_indexes[0]);
 
-    assert(merged_interesting_remainder.len == interesting_divisor.len);
+    if (merged_interesting_remainder.len != interesting_divisor.len)
+      PANIC("Cuda error: merged interesting remainder and interesting divisor "
+            "should have the same number of blocks")
 
     // `new_remainder` is not initialized yet, so need to set length
     new_remainder.len = merged_interesting_remainder.len;
@@ -575,8 +582,12 @@ __host__ void host_unsigned_integer_div_rem_kb(
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
-    assert(first_trivial_block == cleaned_merged_interesting_remainder.len);
-    assert(first_trivial_block == new_remainder.len);
+    if (first_trivial_block != cleaned_merged_interesting_remainder.len)
+      PANIC("Cuda error: first_trivial_block should be equal to "
+            "clean_merged_interesting_remainder num blocks")
+    if (first_trivial_block != new_remainder.len)
+      PANIC("Cuda error: first_trivial_block should be equal to new_remainder "
+            "num blocks")
 
     remainder1.copy_from(cleaned_merged_interesting_remainder, 0,
                          first_trivial_block - 1, streams[0], gpu_indexes[0]);
@@ -584,7 +595,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
                          gpu_indexes[0]);
   }
 
-  assert(remainder1.len == remainder2.len);
+  if (remainder1.len != remainder2.len)
+    PANIC("Cuda error: remainder1 and remainder2 should have the same number "
+          "of blocks")
 
   // Clean the quotient and remainder
   // as even though they have no carries, they are not at nominal noise level

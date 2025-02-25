@@ -2,7 +2,6 @@
 #define CNCRT_FAST_KS_CUH
 
 #undef NDEBUG
-#include <assert.h>
 
 #include "device.h"
 #include "gadget.cuh"
