@@ -91,6 +91,7 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
+          make bench_ks_pbs_gpu
           make bench_pbs_gpu
           make bench_ks_gpu
 
