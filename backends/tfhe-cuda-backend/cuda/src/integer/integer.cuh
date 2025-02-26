@@ -557,10 +557,20 @@ __global__ void device_pack_bivariate_blocks_with_single_block(
 template <typename Torus>
 __host__ void host_pack_bivariate_blocks_with_single_block(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_indexes_out,
-    Torus const *lwe_array_1, Torus const *lwe_2, Torus const *lwe_indexes_in,
-    uint32_t lwe_dimension, uint32_t shift, uint32_t num_radix_blocks) {
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    Torus const *lwe_indexes_out, CudaRadixCiphertextFFI const *lwe_array_1,
+    CudaRadixCiphertextFFI const *lwe_2, Torus const *lwe_indexes_in,
+    uint32_t shift, uint32_t num_radix_blocks) {
 
+  if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
+      lwe_array_1->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input or output radix ciphertexts does not have enough "
+          "blocks")
+  if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
+      lwe_array_1->lwe_dimension != lwe_2->lwe_dimension)
+    PANIC("Cuda error: input and output radix ciphertexts must have the same "
+          "lwe dimension")
+  auto lwe_dimension = lwe_array_out->lwe_dimension;
   cuda_set_device(gpu_indexes[0]);
   // Left message is shifted
   int num_blocks = 0, num_threads = 0;
@@ -568,7 +578,8 @@ __host__ void host_pack_bivariate_blocks_with_single_block(
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   device_pack_bivariate_blocks_with_single_block<Torus>
       <<<num_blocks, num_threads, 0, streams[0]>>>(
-          lwe_array_out, lwe_indexes_out, lwe_array_1, lwe_2, lwe_indexes_in,
+          (Torus *)lwe_array_out->ptr, lwe_indexes_out,
+          (Torus *)lwe_array_1->ptr, (Torus *)lwe_2->ptr, lwe_indexes_in,
           lwe_dimension, shift, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }

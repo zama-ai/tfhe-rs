@@ -78,7 +78,6 @@ impl CudaServerKey {
     {
         let negated_scalar = scalar.twos_complement_negation();
         self.unchecked_scalar_add_assign_async(ct, negated_scalar, streams);
-        ct.as_mut().info = ct.as_ref().info.after_scalar_sub(scalar);
     }
 
     pub fn unchecked_scalar_sub_assign<Scalar, T>(

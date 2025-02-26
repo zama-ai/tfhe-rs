@@ -7,11 +7,20 @@
 template <typename Torus>
 __host__ void zero_out_if(cudaStream_t const *streams,
                           uint32_t const *gpu_indexes, uint32_t gpu_count,
-                          Torus *lwe_array_out, Torus const *lwe_array_input,
-                          Torus const *lwe_condition,
+                          CudaRadixCiphertextFFI *lwe_array_out,
+                          CudaRadixCiphertextFFI const *lwe_array_input,
+                          CudaRadixCiphertextFFI const *lwe_condition,
                           int_zero_out_if_buffer<Torus> *mem_ptr,
                           int_radix_lut<Torus> *predicate, void *const *bsks,
                           Torus *const *ksks, uint32_t num_radix_blocks) {
+  if (lwe_array_out->num_radix_blocks < num_radix_blocks ||
+      lwe_array_input->num_radix_blocks < num_radix_blocks)
+    PANIC("Cuda error: input or output radix ciphertexts does not have enough "
+          "blocks")
+  if (lwe_array_out->lwe_dimension != lwe_array_input->lwe_dimension ||
+      lwe_array_input->lwe_dimension != lwe_condition->lwe_dimension)
+    PANIC("Cuda error: input and output radix ciphertexts must have the same "
+          "lwe dimension")
   cuda_set_device(gpu_indexes[0]);
   auto params = mem_ptr->params;
 
@@ -21,12 +30,11 @@ __host__ void zero_out_if(cudaStream_t const *streams,
   host_pack_bivariate_blocks_with_single_block<Torus>(
       streams, gpu_indexes, gpu_count, tmp_lwe_array_input,
       predicate->lwe_indexes_in, lwe_array_input, lwe_condition,
-      predicate->lwe_indexes_in, params.big_lwe_dimension,
-      params.message_modulus, num_radix_blocks);
+      predicate->lwe_indexes_in, params.message_modulus, num_radix_blocks);
 
-  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
+  integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, tmp_lwe_array_input, bsks,
-      ksks, num_radix_blocks, predicate);
+      ksks, predicate, num_radix_blocks);
 }
 
 template <typename Torus>

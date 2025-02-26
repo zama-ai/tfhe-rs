@@ -171,6 +171,23 @@ impl CudaRadixCiphertext {
             })
             .collect()
     }
+    pub fn from_radix_ciphertext_vec<T: CudaIntegerRadixCiphertext>(
+        list: &[T],
+        streams: &CudaStreams,
+    ) -> Self {
+        let lwes = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
+            list.iter().map(|ciphertext| &ciphertext.as_ref().d_blocks),
+            streams,
+        );
+        let info = CudaRadixCiphertextInfo {
+            blocks: list
+                .iter()
+                .flat_map(|ciphertext| ciphertext.as_ref().info.blocks.iter())
+                .copied()
+                .collect::<Vec<CudaBlockInfo>>(),
+        };
+        Self::new(lwes, info)
+    }
 }
 
 impl CudaUnsignedRadixCiphertext {

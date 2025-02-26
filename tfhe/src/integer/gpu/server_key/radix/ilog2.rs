@@ -162,6 +162,22 @@ impl CudaServerKey {
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
+            for b in new_item.ciphertext.info.blocks.iter_mut() {
+                b.degree = leading_count_per_blocks
+                    .as_ref()
+                    .info
+                    .blocks
+                    .get(i)
+                    .unwrap()
+                    .degree;
+                b.noise_level = leading_count_per_blocks
+                    .as_ref()
+                    .info
+                    .blocks
+                    .get(i)
+                    .unwrap()
+                    .noise_level;
+            }
             cts.push(new_item);
         }
 
@@ -404,6 +420,22 @@ impl CudaServerKey {
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
+            for b in new_item.ciphertext.info.blocks.iter_mut() {
+                b.degree = leading_zeros_per_blocks
+                    .as_ref()
+                    .info
+                    .blocks
+                    .get(i)
+                    .unwrap()
+                    .degree;
+                b.noise_level = leading_zeros_per_blocks
+                    .as_ref()
+                    .info
+                    .blocks
+                    .get(i)
+                    .unwrap()
+                    .noise_level;
+            }
             cts.push(new_item);
         }
 
@@ -490,9 +522,7 @@ impl CudaServerKey {
 
         let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();
 
-        let mut result_cast = self.cast_to_unsigned_async(result, counter_num_blocks, streams);
-        result_cast.as_mut().info = ct.as_ref().info.after_ilog2();
-        result_cast
+        self.cast_to_unsigned_async(result, counter_num_blocks, streams)
     }
 
     /// Returns the number of trailing zeros in the binary representation of `ct`
