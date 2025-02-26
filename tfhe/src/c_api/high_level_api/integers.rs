@@ -19,8 +19,9 @@ use std::os::raw::c_int;
 macro_rules! define_all_cast_into_for_integer_type {
     ($from:ty) => {
         define_casting_operation!($from =>
-            FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint160, FheUint256,
-            FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128, FheInt160, FheInt256
+            FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint160, FheUint256,
+            FheUint512, FheUint1024, FheUint2048,
+            FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128, FheInt160, FheInt256,
         );
     };
 }
