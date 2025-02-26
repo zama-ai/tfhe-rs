@@ -84,7 +84,7 @@ tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
 > Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
 
 <p align="right">
-  <a href="#about" > ↑ Back to top </a> 
+  <a href="#about" > ↑ Back to top </a>
 </p>
 
 ### A simple example
@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-To run this code, use the following command: 
+To run this code, use the following command:
 <p align="center"> <code> cargo run --release </code> </p>
 
 > [!Note]
@@ -151,12 +151,12 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 *Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick_start)*
 
 <p align="right">
-  <a href="#about" > ↑ Back to top </a> 
+  <a href="#about" > ↑ Back to top </a>
 </p>
 
 
 
-## Resources 
+## Resources
 
 ### TFHE deep dive
 - [TFHE Deep Dive - Part I - Ciphertext types](https://www.zama.ai/post/tfhe-deep-dive-part-1)
@@ -179,7 +179,7 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 
 Full, comprehensive documentation is available here: [https://docs.zama.ai/tfhe-rs](https://docs.zama.ai/tfhe-rs).
 <p align="right">
-  <a href="#about" > ↑ Back to top </a> 
+  <a href="#about" > ↑ Back to top </a>
 </p>
 
 
@@ -197,9 +197,13 @@ When a new update is published in the Lattice Estimator, we update parameters ac
 
 ### Security model
 
-The default parameters for the TFHE-rs library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error = $2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [1]. 
+By default, the parameter sets used in the High-Level API with the x86 CPU backend have a failure probability $\le 2^{128}$ to securely work in the IND-CPA^D model using the algorithmic techniques provided in our code base [1].
+If you want to work within the IND-CPA security model, which is less strict than the IND-CPA-D model, the parameter sets can easily be changed and would have slightly better performance. More details can be found in the [TFHE-rs documentation](https://docs.zama.ai/tfhe-rs).
 
-[1] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
+The default parameters used in the High-Level API with the GPU backend are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at $p_{error} \le 2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [2].
+
+[1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
+[2] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
 
 #### Side-channel attacks
 
@@ -248,7 +252,7 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 >We are open to collaborating and advancing the FHE space with our partners. If you have specific needs, please email us at hello@zama.ai.
 
 <p align="right">
-  <a href="#about" > ↑ Back to top </a> 
+  <a href="#about" > ↑ Back to top </a>
 </p>
 
 
@@ -262,8 +266,8 @@ This software is distributed under the **BSD-3-Clause-Clear** license. Read [thi
 </picture>
 </a>
 
-🌟 If you find this project helpful or interesting, please consider giving it a star on GitHub! Your support helps to grow the community and motivates further development. 
+🌟 If you find this project helpful or interesting, please consider giving it a star on GitHub! Your support helps to grow the community and motivates further development.
 
 <p align="right">
-  <a href="#about" > ↑ Back to top </a> 
+  <a href="#about" > ↑ Back to top </a>
 </p>
