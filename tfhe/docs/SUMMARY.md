@@ -99,7 +99,7 @@
 
 ## Developers
 
-* [Contributing](dev/contributing.md)
+* [Contributing](../../CONTRIBUTING.md)
 * [Release note](https://github.com/zama-ai/tfhe-rs/releases)
 * [Feature request](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=feature_request\&projects=\&template=feature_request.md\&title=)
 * [Bug report](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage_required\&projects=\&template=bug_report.md\&title=)

@@ -63,7 +63,7 @@ Ask technical questions and discuss with the community. Our team of experts usua
 
 Collaborate with us to advance the FHE spaces and drive innovation together.
 
-* [Contribute to TFHE-rs](dev/contributing.md)
+* [Contribute to TFHE-rs](../../CONTRIBUTING.md)
 * [Check the latest release note](https://github.com/zama-ai/tfhe-rs/releases)
 * [Request a feature](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=feature_request\&projects=\&template=feature_request.md\&title=)
 * [Report a bug](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage_required\&projects=\&template=bug_report.md\&title=)
