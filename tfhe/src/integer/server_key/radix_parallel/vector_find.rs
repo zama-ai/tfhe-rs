@@ -1,5 +1,6 @@
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::block_decomposition::{BlockDecomposer, Decomposable, DecomposableInto};
+use crate::integer::server_key::num_blocks_to_represent_unsigned_value;
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, RadixCiphertext, ServerKey};
 use crate::prelude::CastInto;
 use crate::shortint::Ciphertext;
@@ -94,7 +95,7 @@ impl ServerKey {
             .1;
 
         let num_blocks_to_represent_values =
-            self.num_blocks_to_represent_unsigned_value(max_output_value);
+            num_blocks_to_represent_unsigned_value(max_output_value, self.message_modulus());
 
         let possible_results_to_be_aggregated = self.create_possible_results(
             num_blocks_to_represent_values,
@@ -203,7 +204,7 @@ impl ServerKey {
         if matches.0.is_empty() {
             return self.create_trivial_radix(
                 or_value,
-                self.num_blocks_to_represent_unsigned_value(or_value),
+                num_blocks_to_represent_unsigned_value(or_value, self.message_modulus()),
             );
         }
         let (result, selected) = self.unchecked_match_value_parallelized(ct, matches);
@@ -211,7 +212,7 @@ impl ServerKey {
         // The result must have as many block to represent either the result of the match or the
         // or_value
         let num_blocks_to_represent_or_value =
-            self.num_blocks_to_represent_unsigned_value(or_value);
+            num_blocks_to_represent_unsigned_value(or_value, self.message_modulus());
         let num_blocks = result.blocks.len().max(num_blocks_to_represent_or_value);
         let or_value = self.create_trivial_radix(or_value, num_blocks);
         let result = self.cast_to_unsigned(result, num_blocks);

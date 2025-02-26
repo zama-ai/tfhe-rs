@@ -9,7 +9,7 @@ use super::{
     nb_tests_for_params, random_non_zero_value, unsigned_modulus, CpuFunctionExecutor,
     ExpectedDegrees, ExpectedNoiseLevels, MAX_VEC_LEN, NB_CTXT,
 };
-use crate::integer::server_key::MatchValues;
+use crate::integer::server_key::{num_blocks_to_represent_unsigned_value, MatchValues};
 use crate::integer::tests::create_parameterized_test;
 use rand::prelude::*;
 
@@ -570,7 +570,8 @@ where
             sks.create_trivial_radix(rng.gen_range(0..modulus), NB_CTXT),
         ];
         let default_value = rng.gen_range(0..modulus);
-        let expected_len = sks.num_blocks_to_represent_unsigned_value(default_value);
+        let expected_len =
+            num_blocks_to_represent_unsigned_value(default_value, sks.message_modulus());
 
         for ct in inputs {
             let result = executor.execute((&ct, &empty_lut, default_value));
@@ -606,7 +607,7 @@ where
 
             assert_eq!(
                 result.blocks.len(),
-                sks.num_blocks_to_represent_unsigned_value(u64::MAX)
+                num_blocks_to_represent_unsigned_value(u64::MAX, sks.message_modulus())
             );
 
             assert_eq!(cks.decrypt::<u64>(&result), u64::MAX);

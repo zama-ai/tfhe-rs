@@ -7,6 +7,7 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRadixCiphertext};
 use crate::integer::gpu::server_key::radix::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::server_key::num_blocks_to_represent_unsigned_value;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::prelude::CastInto;
 use itertools::Itertools;
@@ -147,7 +148,7 @@ impl CudaServerKey {
             .1;
 
         let num_blocks_to_represent_values =
-            self.num_blocks_to_represent_unsigned_value(max_output_value);
+            num_blocks_to_represent_unsigned_value(max_output_value, self.message_modulus);
 
         let blocks_ct = self.convert_selectors_to_unsigned_radix_ciphertext(&selectors, streams);
 
@@ -277,7 +278,7 @@ impl CudaServerKey {
         if matches.get_values().is_empty() {
             let ct: CudaUnsignedRadixCiphertext = self.create_trivial_radix(
                 or_value,
-                self.num_blocks_to_represent_unsigned_value(or_value),
+                num_blocks_to_represent_unsigned_value(or_value, self.message_modulus),
                 streams,
             );
             return ct;
@@ -287,7 +288,7 @@ impl CudaServerKey {
         // The result must have as many block to represent either the result of the match or the
         // or_value
         let num_blocks_to_represent_or_value =
-            self.num_blocks_to_represent_unsigned_value(or_value);
+            num_blocks_to_represent_unsigned_value(or_value, self.message_modulus);
         let num_blocks = (result.as_ref().d_blocks.lwe_ciphertext_count().0)
             .max(num_blocks_to_represent_or_value);
         let or_value: CudaUnsignedRadixCiphertext =
