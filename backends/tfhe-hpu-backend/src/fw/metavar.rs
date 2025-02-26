@@ -107,7 +107,11 @@ struct MetaVar {
 /// Don't show ref to prog in Debug message
 impl std::fmt::Debug for MetaVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "MetaVar{{pos: {:?}, degree: {}}}", self.pos, self.degree)
+        write!(
+            f,
+            "MetaVar{{uid: {}, pos: {:?}, degree: {}}}",
+            self.uid, self.pos, self.degree
+        )
     }
 }
 
@@ -218,6 +222,8 @@ impl MetaVarCell {
     /// Allocate in register and moved MetaVar content if any
     /// In case of register eviction, this function handle the offloading in memory
     pub(super) fn reg_alloc_mv(&self) {
+        trace!(target: "MetaOp", "RegAlloc::{self:?}");
+
         // Early return if already in Reg or Imm like var
         if self.is_in(PosKind::REG) {
             // Update LRU and return
@@ -227,7 +233,7 @@ impl MetaVarCell {
                 .borrow_mut()
                 .reg_access(self.as_reg().unwrap());
             return;
-        } else if self.is_in(PosKind::IMM | PosKind::PBS) {
+        } else if self.is_cst() || self.is_in(PosKind::PBS) {
             return;
         }
 
@@ -237,6 +243,8 @@ impl MetaVarCell {
 
     // Forces allocation in register regid.
     pub(super) fn force_reg_alloc(&self, rid: asm::RegId) {
+        trace!(target: "MetaOp", "ForceRegAlloc::{self:?} <= {:?}", rid);
+
         // Early return if already in Reg or Imm like var
         if self.is_in(PosKind::REG) && self.as_reg().unwrap() == rid {
             // Update LRU and return
@@ -246,7 +254,7 @@ impl MetaVarCell {
                 .borrow_mut()
                 .reg_access(self.as_reg().unwrap());
             return;
-        } else if self.is_in(PosKind::IMM | PosKind::PBS) {
+        } else if self.is_cst() || self.is_in(PosKind::PBS) {
             return;
         }
 
@@ -285,6 +293,17 @@ impl MetaVarCell {
                 // Release associated heap slot and update reg cache
                 prog.heap_release(src);
                 prog.reg_access(rid);
+            }
+            PosKind::IMM => {
+                let imm = self.as_imm().unwrap();
+                let inner = self.0.borrow();
+                let mut prog = inner.prog.borrow_mut();
+                prog.stmts
+                    .push_stmt(asm::dop::DOpSub::new(rid, rid, rid).into());
+                prog.stmts
+                    .push_stmt(asm::dop::DOpAdds::new(rid, rid, imm).into());
+                prog.reg_access(rid);
+                trace!(target: "MetaOp", "ForceRegAlloc:: {:?} <= {:?}", rid, imm);
             }
             _ => {
                 panic!("{self:?} must have been filter before register alloc/eviction")
@@ -372,8 +391,14 @@ impl MetaVarCell {
         }
     }
 
+    /// Check if MetaVar is a compile time constant
+    pub fn is_cst(&self) -> bool {
+        matches!(self.0.borrow().pos, Some(VarPos::Imm(ImmId::Cst(_))))
+    }
+
     /// Update MetaVar position
     fn updt_pos(&self, pos: Option<VarPos>) {
+        trace!(target: "MetaOp", "UpdatePos::{self:?} => {:?}", pos);
         let mut inner = self.0.borrow_mut();
         inner.pos = pos;
     }
@@ -617,12 +642,13 @@ impl MetaVarCell {
             "mul_factor must be <= carry_mask to prevent overflow"
         );
 
-        // Check rhs operands type and position
-        // And move them in ALU if required
-        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
-        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
+        // Move variables to registers if needed
         rhs_0.reg_alloc_mv();
         rhs_1.reg_alloc_mv();
+
+        // Check rhs operands type and position
+        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
+        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
         match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
@@ -870,12 +896,13 @@ impl MetaVarCell {
             "Add src must be of kind Reg|Mem|IMM MetaVar"
         );
 
-        // Check rhs operands type and position
-        // And move them in ALU if required
-        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
-        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
+        // Move variables to registers if required
         rhs_0.reg_alloc_mv();
         rhs_1.reg_alloc_mv();
+
+        // Check rhs operands type and position
+        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
+        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
         match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
@@ -1013,7 +1040,7 @@ impl AddAssign for MetaVarCell {
 
 /// Implement raw substraction and derive Sub/SubAssign from it
 impl MetaVarCell {
-    pub(super) fn sub_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell) {
+    pub(super) fn sub_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell, upd_degree: bool) {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -1024,12 +1051,13 @@ impl MetaVarCell {
             "Sub src must be of kind Reg|Mem|IMM MetaVar"
         );
 
-        // Check rhs operands type and position
-        // And move them in ALU if required
-        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
-        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
+        // Move variables to registers if required
         rhs_0.reg_alloc_mv();
         rhs_1.reg_alloc_mv();
+
+        // Check rhs operands type and position
+        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
+        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
         match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
@@ -1042,7 +1070,9 @@ impl MetaVarCell {
 
                 let asm = asm::dop::DOpSub::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
                 rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (false, true) => {
                 // Ct x Imm
@@ -1067,7 +1097,9 @@ impl MetaVarCell {
                     .borrow_mut()
                     .stmts
                     .push_stmt(asm::dop::DOpSubs::new(dst_rid, rhs_rid, msg_cst).into());
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (true, false) => {
                 // Imm x Ct
@@ -1092,7 +1124,9 @@ impl MetaVarCell {
                     .borrow_mut()
                     .stmts
                     .push_stmt(asm::dop::DOpSsub::new(dst_rid, rhs_rid, msg_cst).into());
-                self.updt_degree(degree);
+                if upd_degree {
+                    self.updt_degree(degree);
+                }
             }
             (true, true) => {
                 // Imm x Imm -> Check if this could be a compiled time constant
@@ -1114,7 +1148,7 @@ impl MetaVarCell {
                         };
                         reg_0.reg_alloc_mv();
                         reg_0.mv_assign(rhs_0);
-                        self.sub_raw(&reg_0, rhs_1)
+                        self.sub_raw(&reg_0, rhs_1, upd_degree)
                     }
                     (_, ImmId::Var { .. }) => {
                         // Move templated constant in register and recurse
@@ -1127,7 +1161,7 @@ impl MetaVarCell {
                         };
                         reg_1.reg_alloc_mv();
                         reg_1.mv_assign(rhs_1);
-                        self.sub_raw(rhs_0, &reg_1)
+                        self.sub_raw(rhs_0, &reg_1, upd_degree)
                     }
                 }
             }
@@ -1154,14 +1188,14 @@ impl Sub for &MetaVarCell {
             var
         };
 
-        dst.sub_raw(self, rhs);
+        dst.sub_raw(self, rhs, true);
         dst
     }
 }
 
 impl SubAssign for MetaVarCell {
     fn sub_assign(&mut self, rhs: Self) {
-        self.sub_raw(self, &rhs);
+        self.sub_raw(self, &rhs, true);
     }
 }
 /// Implement raw substraction and derive Mul/MulAssign from it
@@ -1177,12 +1211,13 @@ impl MetaVarCell {
             "Mul src must be of kind Reg|Mem|IMM MetaVar"
         );
 
-        // Check rhs operands type and position
-        // And move them in ALU if required
-        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
-        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
+        // Move variables to registers if needed
         rhs_0.reg_alloc_mv();
         rhs_1.reg_alloc_mv();
+
+        // Check rhs operands type and position
+        let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
+        let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
         match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {

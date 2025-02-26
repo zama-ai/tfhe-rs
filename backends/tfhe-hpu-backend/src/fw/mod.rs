@@ -32,13 +32,29 @@ pub struct FwParameters {
     pub use_ipip: bool,
     pub kogge_cfg: String,
     pub pe_cfg: isc_sim::PeConfigStore,
-    pub fill_batch_fifo: bool,
-    pub min_batch_size: bool,
+    pub op_cfg: rtl::config::RtlCfg,
+    pub cur_op_cfg: rtl::config::OpCfg,
 }
 
 impl FwParameters {
     pub fn blk_w(&self) -> usize {
         self.integer_w.div_ceil(self.msg_w)
+    }
+
+    pub fn max_msg(&self) -> usize {
+        (1 << self.msg_w) - 1
+    }
+
+    pub fn max_val(&self) -> usize {
+        (1 << (self.msg_w + self.carry_w)) - 1
+    }
+
+    pub fn set_op(&mut self, opname: &str) {
+        self.cur_op_cfg = self.op_cfg.get(opname);
+    }
+
+    pub fn op_cfg(&self) -> rtl::config::OpCfg {
+        self.cur_op_cfg
     }
 }
 

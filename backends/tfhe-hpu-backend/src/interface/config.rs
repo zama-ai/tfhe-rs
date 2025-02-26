@@ -2,6 +2,7 @@
 //! Provide mechanism to load it from Toml-file
 
 use crate::ffi;
+use crate::fw::rtl::config::RtlCfg;
 use std::collections::HashMap;
 
 /// ShellString
@@ -123,12 +124,8 @@ pub struct FwConfig {
     /// IopName -> Iop asm file
     pub custom_iop: HashMap<String, ShellString>,
 
-    /// Whether to fill the batch fifo when scheduling or not
-    pub fill_batch_fifo: bool,
-
-    /// Uses the minimum batch size in the firmware generation
-    /// Only kogge add/sub uses this right now, but could be extended to others
-    pub min_batch_size: bool,
+    /// A per IOP configuration
+    pub op_cfg: RtlCfg,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

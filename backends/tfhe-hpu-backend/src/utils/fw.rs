@@ -5,7 +5,11 @@
 use std::path::Path;
 use tfhe_hpu_backend::asm;
 use tfhe_hpu_backend::fw::isc_sim::PeConfigStore;
-use tfhe_hpu_backend::fw::{self, Fw, FwParameters};
+use tfhe_hpu_backend::fw::{
+    self,
+    rtl::config::{OpCfg, RtlCfg},
+    Fw, FwParameters,
+};
 
 /// Define CLI arguments
 use clap::Parser;
@@ -130,9 +134,12 @@ fn main() -> Result<(), anyhow::Error> {
         nu: args.nu,
         integer_w: args.integer_width,
         use_ipip: args.use_ipip,
-        fill_batch_fifo: args.fill_batch_fifo,
-        min_batch_size: args.min_batch_size,
         kogge_cfg: args.kogge_cfg.expand(),
+        op_cfg: RtlCfg::from(OpCfg {
+            fill_batch_fifo: args.fill_batch_fifo,
+            min_batch_size: args.min_batch_size,
+        }),
+        cur_op_cfg: OpCfg::default(),
         pe_cfg,
     };
     println!("Fw parameters after override with CLI: {fw_params:?}");

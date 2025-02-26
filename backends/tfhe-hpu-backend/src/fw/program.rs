@@ -16,6 +16,8 @@ use super::FwParameters;
 
 use tracing::trace;
 
+use crate::fw::rtl::config::OpCfg;
+
 #[derive(Debug, Clone)]
 pub struct ProgramInner {
     uid: usize,
@@ -100,9 +102,8 @@ impl ProgramInner {
         let rid = aligned()
             .filter(|(reg, _)| {
                 let reg = reg.0;
-                (reg..reg + range).fold(true, |acc, reg| {
-                    acc & self
-                        .regs
+                (reg..reg + range).all(|reg| {
+                    self.regs
                         .peek(&asm::RegId(reg))
                         .is_some_and(|r| r.is_none())
                 })
@@ -113,9 +114,7 @@ impl ProgramInner {
             aligned()
                 .filter(|(reg, _)| {
                     let reg = reg.0;
-                    (reg + 1..reg + range).fold(true, |acc, reg| {
-                        acc & self.regs.peek(&asm::RegId(reg)).is_some()
-                    })
+                    (reg + 1..reg + range).all(|reg| self.regs.peek(&asm::RegId(reg)).is_some())
                 })
                 .map(|(i, _)| *i)
                 .next()
@@ -314,6 +313,14 @@ impl Program {
         self.inner.borrow().params.clone()
     }
 
+    pub fn op_cfg(&self) -> OpCfg {
+        self.inner.borrow().params.op_cfg()
+    }
+
+    pub fn set_op(&mut self, opname: &str) {
+        self.inner.borrow_mut().params.set_op(opname);
+    }
+
     pub fn push_comment(&mut self, comment: String) {
         self.inner.borrow_mut().stmts.push_comment(comment)
     }
@@ -387,7 +394,7 @@ impl Program {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum AtomicRegType {
     NewRange(usize),
     Existing(asm::RegId),
@@ -396,31 +403,6 @@ pub enum AtomicRegType {
 
 // Register utilities
 impl Program {
-    /// Bulk reserve
-    /// Evict value from cache in a bulk manner. This enable to prevent false dependency of bulk
-    /// opertions when cache is almost full Enforce that at least bulk_size register is `free`
-    pub(crate) fn reg_bulk_reserve(&self, bulk_size: usize) {
-        // Iter from Lru -> MRu and take bulk_size regs
-        let to_evict = self
-            .inner
-            .borrow()
-            .regs
-            .iter()
-            .rev()
-            .take(bulk_size)
-            .filter(|(_, var)| var.is_some())
-            .map(|(_, var)| var.as_ref().unwrap().clone())
-            .collect::<Vec<_>>();
-
-        // Evict metavar to heap and release
-        to_evict.into_iter().for_each(|var| {
-            // Evict in memory if needed
-            if let Ok(cell) = MetaVarCell::try_from(&var) {
-                cell.heap_alloc_mv(true);
-            }
-        });
-    }
-
     /// Removes the given register from use
     pub fn reg_pop(&self, rid: &asm::RegId) -> Option<MetaVarCellWeak> {
         self.inner.borrow_mut().regs.pop(rid).unwrap()
@@ -439,6 +421,13 @@ impl Program {
         // Clone the register cache to restore it at the end
         let backup = borrow.regs.clone();
 
+        // Remove first all already allocated ranges
+        ranges.iter().for_each(|r| {
+            if let AtomicRegType::Existing(rid) = r {
+                borrow.regs.pop(rid);
+            }
+        });
+
         let result: Option<Vec<_>> = ranges
             .iter()
             .map(|r| {
@@ -446,10 +435,7 @@ impl Program {
                     AtomicRegType::NewRange(r) => borrow.aligned_reg_range(*r).inspect(|rid| {
                         borrow.regs.pop(rid);
                     }),
-                    AtomicRegType::Existing(rid) => {
-                        borrow.regs.pop(rid);
-                        Some(*rid)
-                    }
+                    AtomicRegType::Existing(rid) => Some(*rid),
                     // To ignore
                     AtomicRegType::None => Some(asm::RegId::default()),
                 }
@@ -478,6 +464,18 @@ macro_rules! new_pbs {
     ) => {
         ::paste::paste! {
             $prog.var_from(Some(metavar::VarPos::Pbs(asm::dop::[<Pbs $pbs:camel>]::default().into())))
+        }
+    };
+}
+
+/// To get an asm PBS from its name
+#[macro_export]
+macro_rules! pbs_by_name {
+    (
+        $pbs: literal
+    ) => {
+        ::paste::paste! {
+            asm::Pbs::[<$pbs:camel>](asm::dop::[<Pbs $pbs:camel>]::default())
         }
     };
 }

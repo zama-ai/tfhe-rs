@@ -52,10 +52,6 @@
 
 [firmware]
   integer_w=[16]
-  # Set to true for the firmware scheduler to try to fill the PE batch FIFO
-  # first even at the expense of missing dependencies
-  fill_batch_fifo = true
-  min_batch_size = true
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
   custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
   custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
@@ -70,3 +66,14 @@
   custom_iop.'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_20.asm"
   custom_iop.'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_21.asm"
 
+[firmware.op_cfg.default]
+  fill_batch_fifo = true
+  min_batch_size = false
+
+[firmware.op_cfg.by_op.MUL]
+  fill_batch_fifo = false
+  min_batch_size = true
+
+[firmware.op_cfg.by_op.MULS]
+  fill_batch_fifo = false
+  min_batch_size = true
