@@ -194,9 +194,13 @@ When a new update is published in the Lattice Estimator, we update parameters ac
 
 ### Security model
 
-The default parameters for the TFHE-rs library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error = $2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [1]. 
+By default, the parameter sets used in the CPU backed have a failure probability $$\le 2^{128}$$ to securely work in the IND-CPA-D model using the algorithmic techniques provided in our code base [1].
+The parameter sets can easily be changed to be secure regarding the IND-CPA model. More details can be found in the [TFHE-rs documentation](https://docs.zama.ai/tfhe-rs).
 
-[1] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
+The default parameters for the GPU backend are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p_error $\le 2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [2]. 
+
+[1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
+[2] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
 
 #### Side-channel attacks
 

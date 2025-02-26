@@ -95,9 +95,17 @@ For example, when adding two ciphertexts, the sum could exceed the range of eith
 
 By default, the cryptographic parameters provided by **TFHE-rs** ensure at least 128 bits of security. The security has been evaluated using the latest versions of the Lattice Estimator ([repository](https://github.com/malb/lattice-estimator)) with `red_cost_model = reduction.RC.BDGL16`.
 
-The default parameters for the **TFHE-rs** library are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at p\_error = $$2^{-64}$$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model \[1].
+
+The default parameters for the **TFHE-rs** library are selected with a bootstrapping failure probability (or error probability) fixed at p\_error $$\le 2^{-128}$$ for the CPU backend, and p\_error $$\le 2^{-64}$$ for the GPU backend.
+A failure probability below $$2^{-128}$$ ensures that our implementation is resilient against attacks in the IND-CPA-D model [1]. In the case where only the IND-CPA model is considered, there is a possibility to choose parameters with a p\_error = $$2^{-64}$, see the dedicated [Parameters section](../fhe-computation/compute/parameters.md)
 
 \[1][ Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022.](https://eprint.iacr.org/2022/816.pdf)
+
+The parameter sets for the CPU backend with a p\_error $$\le 2^{-128}$$ are obtained using the drift mitigation technique described in [2].
+
+\[2][Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". ](https://eprint.iacr.org/2024/1718.pdf)
+
+
 
 ## Classical public key encryption.
 
