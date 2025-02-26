@@ -1,4 +1,5 @@
 use super::ServerKey;
+use crate::integer::server_key::num_bits_to_represent_unsigned_value;
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 
@@ -221,8 +222,7 @@ impl ServerKey {
             // But in the case of 1_X parameters, counting ones does not require to have
             // a LUT done on each block to count the number of ones, and to avoid having to do a
             // LUT to count zeros we prefer to change a bit the sum
-            let num_bits_needed =
-                self.num_bits_to_represent_unsigned_value(max_possible_bit_count) + 1;
+            let num_bits_needed = num_bits_to_represent_unsigned_value(max_possible_bit_count) + 1;
             let num_signed_blocks = num_bits_needed.div_ceil(num_bits_in_block as usize);
             assert!(num_signed_blocks >= num_unsigned_blocks);
 
