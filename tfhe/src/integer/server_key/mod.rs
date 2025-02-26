@@ -211,24 +211,13 @@ impl ServerKey {
         self.key.carry_modulus
     }
 
-    pub fn num_bits_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
-    where
-        Clear: UnsignedInteger,
-    {
-        if clear == Clear::MAX {
-            Clear::BITS
-        } else {
-            (clear + Clear::ONE).ceil_ilog2() as usize
-        }
-    }
-
     /// Returns how many blocks a radix ciphertext should have to
     /// be able to represent the given unsigned integer
     pub fn num_blocks_to_represent_unsigned_value<Clear>(&self, clear: Clear) -> usize
     where
         Clear: UnsignedInteger,
     {
-        let num_bits_to_represent_output_value = self.num_bits_to_represent_unsigned_value(clear);
+        let num_bits_to_represent_output_value = num_bits_to_represent_unsigned_value(clear);
         let num_bits_in_message = self.message_modulus().0.ilog2();
         num_bits_to_represent_output_value.div_ceil(num_bits_in_message as usize)
     }
@@ -294,6 +283,22 @@ impl CompressedServerKey {
     /// Construct a [`CompressedServerKey`] from its constituents.
     pub fn from_raw_parts(key: crate::shortint::CompressedServerKey) -> Self {
         Self { key }
+    }
+}
+
+pub fn num_bits_to_represent_unsigned_value<Clear>(clear: Clear) -> usize
+where
+    Clear: UnsignedInteger,
+{
+    if clear == Clear::MAX {
+        Clear::BITS
+    } else {
+        let bits = (clear + Clear::ONE).ceil_ilog2() as usize;
+        if bits == 0 {
+            1
+        } else {
+            bits
+        }
     }
 }
 
