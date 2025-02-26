@@ -26,7 +26,12 @@ macro_rules! impl_fw {
                     let mut prog = program::Program::new(params);
                     match IOpcode::from(iopcode) {
                         $(
-                          IOpcode($opcode) => $func(&mut prog),
+                          IOpcode($opcode) => {
+                              prog.set_op(iopcode.alias.as_ref()
+                                  .map(|a| a.name.as_str())
+                                  .unwrap_or("default"));
+                              $func(&mut prog)
+                          },
                         )*
                         _ => panic!("Fw {} doesn't support `{iopcode}`", $name),
                     }

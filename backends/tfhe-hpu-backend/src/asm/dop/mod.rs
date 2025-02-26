@@ -401,6 +401,16 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     },
 ]],
+["ManyCarryMsg" => 26 [ // Turns carry save into carry and message with manyLUT
+    @0 =>{
+        |params: &DigitParameters, val| { val & params.msg_mask()};
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val| { val >> params.msg_w };
+        |params: &DigitParameters, _deg| ((1 << (params.carry_w - 1)) - 1);
+    }
+]],
 );
 
 pub(crate) fn ceil_ilog2(value: &u8) -> u8 {
