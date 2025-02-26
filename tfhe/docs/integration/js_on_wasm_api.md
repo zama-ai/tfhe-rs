@@ -17,45 +17,56 @@ The core of the API remains the same, requiring only minor changes in the initia
 Example:
 
 ```javascript
-
 const {
-    init_panic_hook,
-    ShortintParametersName,
-    ShortintParameters,
-    TfheClientKey,
-    TfheCompactPublicKey,
-    TfheCompressedServerKey,
-    TfheConfigBuilder,
-    CompactFheUint32List
-} = require("./pkg/tfhe.js");
+  init_panic_hook,
+  ShortintParametersName,
+  ShortintParameters,
+  TfheClientKey,
+  TfheCompactPublicKey,
+  TfheCompressedServerKey,
+  TfheConfigBuilder,
+  CompactCiphertextList
+} = require("/path/to/built/pkg/tfhe.js");
+
+const assert = require("node:assert").strict;
 
 function fhe_uint32_example() {
-    // Makes it so that if a rust thread panics,
-    // the error message will be displayed in the console
-    init_panic_hook();
+  // Makes it so that if a rust thread panics,
+  // the error message will be displayed in the console
+  init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
-    let config = TfheConfigBuilder.default()
-        .build();
+  const U32_MAX = 4294967295;
 
-    let clientKey = TfheClientKey.generate(config);
-    let compressedServerKey = TfheCompressedServerKey.new(clientKey);
-    let publicKey = TfheCompactPublicKey.new(clientKey);
+  const block_params = new ShortintParameters(ShortintParametersName.V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
+  let config = TfheConfigBuilder.default()
+      .build();
 
-    let values = [0, 1, 2394, U32_MAX];
-    let compact_list = CompactFheUint32List.encrypt_with_compact_public_key(values, publicKey);
+  let clientKey = TfheClientKey.generate(config);
+  let compressedServerKey = TfheCompressedServerKey.new(clientKey);
+  let publicKey = TfheCompactPublicKey.new(clientKey);
 
-    let serialized_list = compact_list.serialize();
-    let deserialized_list = CompactFheUint32List.deserialize(serialized_list);
-    let encrypted_list = deserialized_list.expand();
-    assert.deepStrictEqual(encrypted_list.length, values.length);
+  let values = [0, 1, 2394, U32_MAX];
+  let builder = CompactCiphertextList.builder(publicKey); 
+  for (let i = 0; i < values.length; i++) {
+    builder.push_u32(values[i]);
+  }
 
-    for (let i = 0; i < values.length; i++)
-    {
-        let decrypted = encrypted_list[i].decrypt(clientKey);
-        assert.deepStrictEqual(decrypted, values[i]);
-    }
+  let compact_list = builder.build();
+
+  let serialized_list = compact_list.serialize();
+  let deserialized_list = CompactCiphertextList.deserialize(serialized_list);
+  let encrypted_list = deserialized_list.expand();
+  assert.deepStrictEqual(encrypted_list.len(), values.length);
+
+  for (let i = 0; i < values.length; i++)
+  {
+      let decrypted = encrypted_list.get_uint32(i).decrypt(clientKey);
+      assert.deepStrictEqual(decrypted, values[i]);
+  }
 }
+
+fhe_uint32_example();
+
 ```
 
 ## Web
