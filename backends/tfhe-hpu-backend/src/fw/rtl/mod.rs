@@ -3,23 +3,24 @@
 //! represented in a non acyclical graph. The resulting graph can then be used
 //! to dump a series of instructions that maximize the target resources.
 
+pub mod config;
 mod macros;
 
 use super::isc_sim;
 use super::isc_sim::{report::PeStoreRpt, InstructionKind, PeFlush, PeStore};
 use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
 use super::program::{AtomicRegType, Program};
-use crate::asm::{Pbs, PbsLut};
+use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
 use enum_dispatch::enum_dispatch;
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
-use tracing::trace;
+use tracing::{instrument, trace};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
 fn new_uid() -> usize {
@@ -194,8 +195,10 @@ impl VarCell {
     // Adds references from root to leaf, recursively
     pub fn load(&self) {
         if let Some((d, i)) = self.copy_driver() {
-            d.set_dst(i, self);
-            d.load();
+            if d.borrow().dst()[i].is_none() {
+                d.set_dst(i, self);
+                d.load();
+            }
         }
     }
 
@@ -216,6 +219,10 @@ impl VarCell {
             .enumerate()
             .for_each(|(i, v)| v.set_driver(Some((new_op.clone(), i))));
         var
+    }
+
+    pub fn single_pbs(&self, lut: &Pbs) -> VarCell {
+        self.pbs(lut).into_iter().next().unwrap()
     }
 
     pub fn mac(&self, cnst: usize, coeff: &VarCell) -> VarCell {
@@ -299,7 +306,11 @@ where
                     let meta = src.copy_meta().unwrap();
                     match meta.get_pos() {
                         PosKind::REG => AtomicRegType::Existing(meta.as_reg().unwrap()),
-                        PosKind::IMM | PosKind::PBS => AtomicRegType::None,
+                        PosKind::IMM => match meta.as_imm().unwrap() {
+                            ImmId::Cst(_) => AtomicRegType::None,
+                            ImmId::Var { .. } => AtomicRegType::NewRange(1),
+                        },
+                        PosKind::PBS => AtomicRegType::None,
                         PosKind::MEM => AtomicRegType::NewRange(1),
                         PosKind::EMPTY => AtomicRegType::NewRange(1),
                         // EMPTY variables are a specially case for
@@ -311,7 +322,7 @@ where
                 })
                 .collect();
 
-            if range.iter().any(|rng| *rng != AtomicRegType::None) {
+            if range.iter().any(|rng| !matches!(*rng, AtomicRegType::None)) {
                 range.push(AtomicRegType::NewRange(1));
             }
 
@@ -326,19 +337,28 @@ where
     // has two sources and only a single destination
     fn alloc1_prog(&mut self, prog: &mut Program) -> OpLock1 {
         if let Some(dst) = self.dst()[0].as_ref() {
-            let a = self.src()[0].copy_meta().unwrap();
-            let b = self.src()[1].copy_meta().unwrap();
+            let mut a = self.src()[0].copy_meta().unwrap();
+            let mut b = self.src()[1].copy_meta().unwrap();
             let mut d = prog.new_var();
             dst.set_meta(d.clone());
 
-            a.reg_alloc_mv();
-            b.reg_alloc_mv();
-            if !(a.is_in(PosKind::IMM) && b.is_in(PosKind::IMM)) {
+            let alock = {
+                a.reg_alloc_mv();
+                a.reg_lock()
+            };
+            let block = {
+                b.reg_alloc_mv();
+                b.reg_lock()
+            };
+
+            assert!((a.is_in(PosKind::REG) || a.is_cst()) && (b.is_in(PosKind::REG) || b.is_cst()));
+
+            if !(a.is_cst() && b.is_cst()) {
                 d.reg_alloc_mv();
             }
 
             OpLock1 {
-                rd_lock: Some([a, b].iter_mut().map(|m| m.reg_lock()).collect()),
+                rd_lock: Some(vec![alock, block]),
                 wr_lock: Some(d.reg_lock()),
             }
         } else {
@@ -389,6 +409,7 @@ struct PbsData {
 rtl_op!("ADDS", Arith, AddsData);
 rtl_op!("ADD", Arith, OpLock1);
 rtl_op!("SUB", Arith, OpLock1);
+rtl_op!("SUBS", Arith, AddsData);
 rtl_op!("MAC", Arith, MacData);
 rtl_op!("PBS", Pbs, PbsData);
 rtl_op!("ST", MemSt, Option<RegLockPtr>);
@@ -400,14 +421,17 @@ impl ProgManager for AddsOp {
             let mut d = prog.new_var();
             dst.set_meta(d.clone());
 
-            a.reg_alloc_mv();
-            if !(a.is_in(PosKind::IMM)) {
+            let alock = {
+                a.reg_alloc_mv();
+                a.reg_lock()
+            };
+            if !a.is_cst() {
                 d.reg_alloc_mv();
             }
 
             AddsData {
                 cnst: self.data.cnst,
-                rd_lock: Some(vec![a.reg_lock()]),
+                rd_lock: Some(vec![alock]),
                 wr_lock: Some(d.reg_lock()),
             }
         } else {
@@ -421,6 +445,49 @@ impl ProgManager for AddsOp {
             let b = prog.new_imm(self.data.cnst);
             let d = d.copy_meta().unwrap();
             d.add_raw(&a, &b, false);
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.wr_lock = None;
+    }
+}
+
+impl ProgManager for SubsOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data = if let Some(dst) = self.dst()[0].as_ref() {
+            let mut a = self.src()[0].copy_meta().unwrap();
+            let mut d = prog.new_var();
+            dst.set_meta(d.clone());
+
+            let alock = {
+                a.reg_alloc_mv();
+                a.reg_lock()
+            };
+            if !a.is_cst() {
+                d.reg_alloc_mv();
+            }
+
+            AddsData {
+                cnst: self.data.cnst,
+                rd_lock: Some(vec![alock]),
+                wr_lock: Some(d.reg_lock()),
+            }
+        } else {
+            AddsData::default()
+        }
+    }
+
+    fn add_prog(&mut self, prog: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let b = prog.new_imm(self.data.cnst);
+            let d = d.copy_meta().unwrap();
+            d.sub_raw(&a, &b, false);
         }
     }
 
@@ -466,7 +533,7 @@ impl ProgManager for SubOp {
             let a = self.src[0].copy_meta().unwrap();
             let b = self.src[1].copy_meta().unwrap();
             let d = d.copy_meta().unwrap();
-            d.sub_raw(&a, &b);
+            d.sub_raw(&a, &b, false);
         }
     }
 
@@ -653,6 +720,23 @@ impl AddsOp {
     }
 }
 
+impl SubsOp {
+    fn new_op(var: &VarCell, cnst: usize) -> OperationCell {
+        let op = SubsOp {
+            src: vec![var.clone()],
+            dst: vec![None],
+            uid: new_uid(),
+            load_stats: None,
+            data: AddsData {
+                cnst,
+                rd_lock: None,
+                wr_lock: None,
+            },
+        };
+        OperationCell(Rc::new(RefCell::new(Operation::SUBS(op))))
+    }
+}
+
 impl AddOp {
     fn new_op(lhs: &VarCell, rhs: &VarCell) -> OperationCell {
         let op = AddOp {
@@ -727,6 +811,7 @@ impl StOp {
 }
 
 impl SetFlush for AddsOp {}
+impl SetFlush for SubsOp {}
 impl SetFlush for AddOp {}
 impl SetFlush for SubOp {}
 impl SetFlush for MacOp {}
@@ -743,6 +828,7 @@ impl SetFlush for StOp {}
 #[strum_discriminants(derive(EnumString, Display))]
 pub enum Operation {
     ADDS(AddsOp),
+    SUBS(SubsOp),
     ADD(AddOp),
     SUB(SubOp),
     MAC(MacOp),
@@ -763,10 +849,7 @@ impl OperationCell {
         self.0.borrow()
     }
     fn is_ready(&self) -> bool {
-        self.borrow()
-            .src()
-            .iter()
-            .fold(true, |acc, x| acc & x.is_ready())
+        self.borrow().src().iter().all(|x| x.is_ready())
     }
     fn copy_dst(&self) -> Vec<Option<VarCell>> {
         self.0.borrow().dst().clone()
@@ -1005,6 +1088,17 @@ impl std::ops::Sub for &VarCell {
     }
 }
 
+impl std::ops::Sub<usize> for &VarCell {
+    type Output = VarCell;
+
+    fn sub(self, other: usize) -> VarCell {
+        let var = VarCell::new();
+        let new_op = SubsOp::new_op(self, other);
+        var.set_driver(Some((new_op.clone(), 0)));
+        var
+    }
+}
+
 impl std::ops::ShlAssign<&VarCell> for VarCell {
     fn shl_assign(&mut self, rhs: &VarCell) {
         let new_op = StOp::new_op(rhs);
@@ -1028,10 +1122,13 @@ struct Arch {
 // An interface to the target architecture
 // Responsible for simulating the architecture and inserting operations into the
 // program
+// TODO: The whole Arch could be a trait, so that this whole infrastructure
+// could be re-used in other contexts outside our HPU firmware generation
 impl Arch {
     // interface
     pub fn try_dispatch(&mut self, op: BinaryHeap<OperationCell>) -> BinaryHeap<OperationCell> {
         let ret = op
+            .into_sorted_vec()
             .into_iter()
             .filter_map(|mut op| {
                 if let Some(id) = {
@@ -1039,9 +1136,9 @@ impl Arch {
                         .then_some(true)
                         .and_then(|_| self.pe_store.try_push(op.kind()))
                 } {
-                    trace!(target: "rtl", "{:?} queued", op);
-
                     op.alloc_prog(self.program.as_mut());
+
+                    trace!(target: "rtl", "{:?} queued", op);
 
                     self.queued.entry(id).or_default().push(op);
                     None
@@ -1135,17 +1232,18 @@ impl Arch {
     }
 }
 
-impl From<&Program> for Arch {
+impl Arch {
     fn from(program: &Program) -> Self {
         let params = program.params();
+        let op_cfg = program.op_cfg();
         let mut pe_store = PeStore::from(params.pe_cfg.clone());
-        if params.fill_batch_fifo {
+        if op_cfg.fill_batch_fifo {
             pe_store.set_fifo_limit(params.total_pbs_nb);
         } else {
             pe_store.set_fifo_to_batch_limit();
         }
 
-        if params.min_batch_size {
+        if op_cfg.min_batch_size {
             pe_store.set_min_batch_limit();
         }
         Arch {
@@ -1186,33 +1284,48 @@ impl Rtl {
     }
 
     #[allow(clippy::mutable_key_type)]
+    #[instrument(level = "trace", target = "rtl")]
     fn find_roots(from: &mut [VarCell]) -> HashSet<OperationCell> {
-        let res: HashSet<OperationCell> = from
+        let mut not_ready: HashSet<OperationCell> = HashSet::new();
+        let mut ready: HashSet<OperationCell> = HashSet::new();
+        let mut to_check: VecDeque<OperationCell> = from
             .iter()
             .filter_map(|v| v.copy_driver().map(|(d, _)| d))
-            .flat_map(|d| {
-                if d.is_ready() {
-                    HashSet::from([d]).into_iter()
-                } else {
-                    Rtl::find_roots(&mut d.copy_src()).into_iter()
-                }
-            })
             .collect();
 
-        res.iter().for_each(|op| {
+        while !to_check.is_empty() {
+            let op = to_check.pop_front().unwrap();
+
+            if ready.contains(&op) || not_ready.contains(&op) {
+                continue;
+            }
+
+            if op.is_ready() {
+                ready.insert(op.clone());
+            } else {
+                not_ready.insert(op.clone());
+                to_check.extend(
+                    op.copy_src()
+                        .into_iter()
+                        .flat_map(|v| v.copy_driver().map(|(d, _)| d)),
+                );
+            }
+        }
+
+        ready.iter().for_each(|op| {
             op.set_load_stats(op.copy_load_stats());
         });
 
-        res
+        ready
     }
 
     pub fn raw_add(mut self, prog: &Program) -> (usize, Vec<MetaVarCell>) {
         self.load();
-        self.write_dot(0);
 
         let mut arch = Arch::from(prog);
         let mut todo: BinaryHeap<_> = Rtl::find_roots(&mut self.0).into_iter().collect();
 
+        self.write_dot(0);
         trace!(target: "rtl", "todo: {:?}", &todo);
 
         while (!todo.is_empty()) || arch.busy() {
