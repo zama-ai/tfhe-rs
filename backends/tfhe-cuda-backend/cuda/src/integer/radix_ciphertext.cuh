@@ -139,8 +139,8 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
   if (radix->num_radix_blocks < end_lwe_index - start_lwe_index)
     PANIC("Cuda error: input radix should have more blocks than the specified "
           "range")
-  if (start_lwe_index >= end_lwe_index)
-    PANIC("Cuda error: slice range should be non negative")
+  if (start_lwe_index > end_lwe_index)
+    PANIC("Cuda error: slice range should be positive")
 
   auto lwe_size = radix->lwe_dimension + 1;
   auto num_blocks_to_set = end_lwe_index - start_lwe_index;

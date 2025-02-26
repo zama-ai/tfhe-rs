@@ -116,7 +116,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_scalar_mul_integer_radix_kb_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
                     &d_bsk.d_vec,
@@ -132,7 +132,6 @@ impl CudaServerKey {
                     d_bsk.decomp_level_count,
                     self.key_switching_key.decomposition_base_log(),
                     self.key_switching_key.decomposition_level_count(),
-                    num_blocks as u32,
                     decomposed_scalar.len() as u32,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
@@ -141,7 +140,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_scalar_mul_integer_radix_kb_async(
                     streams,
-                    &mut ct.as_mut().d_blocks.0.d_vec,
+                    ct.as_mut(),
                     decomposed_scalar.as_slice(),
                     has_at_least_one_set.as_slice(),
                     &d_multibit_bsk.d_vec,
@@ -157,15 +156,12 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_level_count,
                     self.key_switching_key.decomposition_base_log(),
                     self.key_switching_key.decomposition_level_count(),
-                    num_blocks as u32,
                     decomposed_scalar.len() as u32,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
                 );
             }
         }
-
-        ct.as_mut().info = ct.as_ref().info.after_scalar_mul();
     }
 
     pub fn unchecked_scalar_mul_assign<Scalar, T>(

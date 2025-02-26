@@ -32,7 +32,7 @@ void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
   host_integer_radix_logical_scalar_shift_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array, shift,
       (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks));
+      (uint64_t **)(ksks), lwe_array->num_radix_blocks);
 }
 
 void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(

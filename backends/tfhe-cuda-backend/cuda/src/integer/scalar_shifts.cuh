@@ -119,9 +119,10 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    Torus *const *ksks, uint32_t num_blocks) {
 
-  auto num_blocks = lwe_array->num_radix_blocks;
+  if (lwe_array->num_radix_blocks < num_blocks)
+    PANIC("Cuda error: input does not have enough blocks")
   auto params = mem->params;
   auto message_modulus = params.message_modulus;
 
@@ -147,9 +148,8 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
                                           num_blocks);
 
     // create trivial assign for value = 0
-    if (rotations > 0)
-      set_zero_radix_ciphertext_slice_async<Torus>(
-          streams[0], gpu_indexes[0], &rotated_buffer, 0, rotations);
+    set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                                 &rotated_buffer, 0, rotations);
     copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                              lwe_array, 0, num_blocks,
                                              &rotated_buffer, 0, num_blocks);
@@ -183,11 +183,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     // rotate left as the blocks are from LSB to MSB
     // create trivial assign for value = 0
-    if (rotations > 0) {
-      set_zero_radix_ciphertext_slice_async<Torus>(
-          streams[0], gpu_indexes[0], &rotated_buffer, num_blocks - rotations,
-          num_blocks);
-    }
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], &rotated_buffer, num_blocks - rotations,
+        num_blocks);
     copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                              lwe_array, 0, num_blocks,
                                              &rotated_buffer, 0, num_blocks);

@@ -1,9 +1,9 @@
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
@@ -242,6 +242,7 @@ impl CudaServerKey {
             streams,
             0,
         );
+        result.as_mut().info = ciphertexts[0].as_ref().info.clone();
         if ciphertexts.len() == 1 {
             return;
         }
@@ -262,19 +263,14 @@ impl CudaServerKey {
 
         let radix_count_in_vec = ciphertexts.len();
 
-        let mut terms = CudaLweCiphertextList::from_vec_cuda_lwe_ciphertexts_list(
-            ciphertexts
-                .iter()
-                .map(|ciphertext| &ciphertext.as_ref().d_blocks),
-            streams,
-        );
+        let mut terms = CudaRadixCiphertext::from_radix_ciphertext_vec(ciphertexts, streams);
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async(
                     streams,
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &mut terms.0.d_vec,
+                    result.as_mut(),
+                    &mut terms,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -297,8 +293,8 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async(
                     streams,
-                    &mut result.as_mut().d_blocks.0.d_vec,
-                    &mut terms.0.d_vec,
+                    result.as_mut(),
+                    &mut terms,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,

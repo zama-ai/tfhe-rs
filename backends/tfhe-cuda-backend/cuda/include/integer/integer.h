@@ -132,10 +132,11 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
 
 void cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void const *radix_lwe_left, bool const is_bool_left,
-    void const *radix_lwe_right, bool const is_bool_right, void *const *bsks,
-    void *const *ksks, int8_t *mem_ptr, uint32_t polynomial_size,
-    uint32_t num_blocks);
+    CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
+    CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
+    void *const *bsks, void *const *ksks, int8_t *mem_ptr,
+    uint32_t polynomial_size, uint32_t num_blocks);
 
 void cleanup_cuda_integer_mult(void *const *streams,
                                uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -375,9 +376,9 @@ void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
 
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *radix_lwe_out, void *radix_lwe_vec, uint32_t num_radix_in_vec,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_blocks_in_radix);
+    CudaRadixCiphertextFFI *radix_lwe_out,
+    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks);
 
 void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -393,10 +394,10 @@ void scratch_cuda_integer_scalar_mul_kb_64(
 
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *lwe_array, uint64_t const *decomposed_scalar,
+    CudaRadixCiphertextFFI *lwe_array, uint64_t const *decomposed_scalar,
     uint64_t const *has_at_least_one_set, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks, uint32_t lwe_dimension, uint32_t polynomial_size,
-    uint32_t message_modulus, uint32_t num_blocks, uint32_t num_scalars);
+    void *const *ksks, uint32_t polynomial_size, uint32_t message_modulus,
+    uint32_t num_scalars);
 
 void cleanup_cuda_integer_radix_scalar_mul(void *const *streams,
                                            uint32_t const *gpu_indexes,

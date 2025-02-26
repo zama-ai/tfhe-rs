@@ -81,9 +81,9 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_mul_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    ct_left.as_mut(),
                     is_boolean_left,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    ct_right.as_ref(),
                     is_boolean_right,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -104,9 +104,9 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_mul_integer_radix_kb_assign_async(
                     streams,
-                    &mut ct_left.as_mut().d_blocks.0.d_vec,
+                    ct_left.as_mut(),
                     is_boolean_left,
-                    &ct_right.as_ref().d_blocks.0.d_vec,
+                    ct_right.as_ref(),
                     is_boolean_right,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -125,8 +125,6 @@ impl CudaServerKey {
                 );
             }
         }
-
-        ct_left.as_mut().info = ct_left.as_ref().info.after_mul();
     }
 
     pub fn unchecked_mul_assign<T: CudaIntegerRadixCiphertext>(
