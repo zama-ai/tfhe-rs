@@ -627,8 +627,8 @@ impl HpuBackend {
             integer_w: 0,
             use_ipip: !config.rtl.bpip_used,
             kogge_cfg: config.firmware.kogge_cfg.expand(),
-            fill_batch_fifo: config.firmware.fill_batch_fifo,
-            min_batch_size: config.firmware.min_batch_size,
+            op_cfg: config.firmware.op_cfg.clone(),
+            cur_op_cfg: config.firmware.op_cfg.default(),
             pe_cfg,
         };
 
