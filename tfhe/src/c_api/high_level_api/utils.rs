@@ -719,7 +719,7 @@ pub(crate) use impl_scalar_binary_assign_fn_on_type;
 
 // Defines the function to cast `from` a type _into_ the given list of type
 macro_rules! define_casting_operation(
-    ($from:ty => $($to:ty),*) => {
+    ($from:ty => $($to:ty),* $(,)?) => {
         $(
             ::paste::paste!{
                 #[no_mangle]
