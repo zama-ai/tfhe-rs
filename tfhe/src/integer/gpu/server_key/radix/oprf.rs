@@ -36,7 +36,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// # // TODO GPU DRIFT UPDATE
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let size = 4;
@@ -45,7 +45,7 @@ impl CudaServerKey {
     ///
     /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_unsigned_integer(Seed(0), size as u64, &streams);
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
@@ -128,7 +128,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// # // TODO GPU DRIFT UPDATE
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -137,7 +137,7 @@ impl CudaServerKey {
     ///
     /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let random_bits_count = 3;
     ///
@@ -231,7 +231,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// # // TODO GPU DRIFT UPDATE
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -240,7 +240,7 @@ impl CudaServerKey {
     ///
     /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let d_ct_res = sks.par_generate_oblivious_pseudo_random_signed_integer(Seed(0), size as u64, &streams);
     /// let ct_res = d_ct_res.to_signed_radix_ciphertext(&streams);
@@ -294,7 +294,7 @@ impl CudaServerKey {
     /// use tfhe::core_crypto::gpu::vec::GpuIndex;
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// # // TODO GPU DRIFT UPDATE
-    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// use tfhe::Seed;
     ///
     /// let gpu_index = 0;
@@ -303,7 +303,7 @@ impl CudaServerKey {
     ///
     /// # // TODO GPU DRIFT UPDATE
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, &streams);
+    /// let (cks, sks) = gen_keys_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, &streams);
     ///
     /// let random_bits_count = 3;
     ///
@@ -578,7 +578,7 @@ pub(crate) mod test {
     use crate::integer::{ClientKey, RadixCiphertext};
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
     // TODO GPU DRIFT UPDATE
-    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
@@ -594,7 +594,7 @@ pub(crate) mod test {
         let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
         // TODO GPU DRIFT UPDATE
         let (ck, gpu_sk) = gen_keys_gpu(
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             &streams,
         );
 
@@ -685,7 +685,7 @@ pub(crate) mod test {
         let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
         // TODO GPU DRIFT UPDATE
         let (ck, gpu_sk) = gen_keys_gpu(
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             &streams,
         );
 

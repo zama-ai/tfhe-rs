@@ -40,6 +40,7 @@ pub mod parameters_wopbs_only;
 pub mod v0_10;
 pub mod v0_11;
 pub mod v1_0;
+pub mod v1_1;
 
 // TODO, what do we do about this one ?
 pub use aliases::*;
