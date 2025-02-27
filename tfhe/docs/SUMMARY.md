@@ -4,7 +4,7 @@
 
 ## Get Started
 
-* [What is TFHE-rs?](getting_started/readme.md)
+* [What is TFHE-rs?](getting_started/README.md)
 * [Installation](getting_started/installation.md)
 * [Quick start](getting_started/quick_start.md)
 * [Benchmarks](getting_started/benchmarks/README.md)
