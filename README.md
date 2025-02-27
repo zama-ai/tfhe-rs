@@ -10,7 +10,7 @@
 <hr/>
 
 <p align="center">
-  <a href="https://docs.zama.ai/tfhe-rs"> 📒 Documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
+  <a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf"> 📃 Read Handbook</a> |<a href="https://docs.zama.ai/tfhe-rs"> 📒 Documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
 </p>
 
 
@@ -157,6 +157,9 @@ to run in release mode with cargo's `--release` flag to have the best performanc
 
 
 ## Resources
+
+### TFHE-rs Handbook
+A document containing scientific and technical details about algorithms implemented into the library is available here: [TFHE-rs: A (Practical) Handbook](https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf).
 
 ### TFHE deep dive
 - [TFHE Deep Dive - Part I - Ciphertext types](https://www.zama.ai/post/tfhe-deep-dive-part-1)
