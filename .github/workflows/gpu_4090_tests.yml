@@ -32,6 +32,7 @@ jobs:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: true
     runs-on: ["self-hosted", "4090-desktop"]
+    timeout-minutes: 1440 # 24 hours
 
     steps:
       - name: Checkout tfhe-rs
