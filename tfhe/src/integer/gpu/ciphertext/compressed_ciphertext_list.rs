@@ -523,7 +523,7 @@ mod tests {
     use crate::shortint::parameters::{
         // TODO GPU DRIFT UPDATE
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     };
     use crate::shortint::ShortintParameterSet;
@@ -690,7 +690,7 @@ mod tests {
         for params in [
             // TODO GPU DRIFT UPDATE
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
         ] {
             let (radix_cks, sks) =
                 gen_keys_radix_gpu::<ShortintParameterSet>(params, NUM_BLOCKS, &streams);
