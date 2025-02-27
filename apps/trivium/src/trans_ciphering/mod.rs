@@ -48,6 +48,8 @@ fn transcipher_from_1_1_stream(
 ) -> FheUint64 {
     assert_eq!(stream.len(), 64);
 
+    let id_lut = internal_server_key.generate_lookup_table(|x| x);
+
     let pairs = (0..32)
         .into_par_iter()
         .map(|i| {
@@ -57,10 +59,11 @@ fn transcipher_from_1_1_stream(
             let b0 = &stream[8 * byte_idx + 2 * pair_idx];
             let b1 = &stream[8 * byte_idx + 2 * pair_idx + 1];
 
-            casting_key.cast(
-                &internal_server_key
-                    .unchecked_add(b0, &internal_server_key.unchecked_scalar_mul(b1, 2)),
-            )
+            let mut combined = internal_server_key
+                .unchecked_add(b0, &internal_server_key.unchecked_scalar_mul(b1, 2));
+            internal_server_key.apply_lookup_table_assign(&mut combined, &id_lut);
+
+            casting_key.cast(&combined)
         })
         .collect::<Vec<_>>();
 

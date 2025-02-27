@@ -129,7 +129,12 @@ fn gen_multi_keys_test_add_with_overflow_ci_run_filter() {
     let c3 = sk1.unchecked_scalar_mul(&c1, 2);
     let c4 = sk1.unchecked_add(&c3, &c2);
 
-    let output_of_cast = ksk.cast(&c4);
+    // The optimized atomic pattern requires a ciphertext with NoiseLevel::NOMINAL, i.e. a
+    // ciphertext fresh out of a bootstrap
+    let id_lut = sk1.generate_lookup_table(|x| x);
+    let c5 = sk1.apply_lookup_table(&c4, &id_lut);
+
+    let output_of_cast = ksk.cast(&c5);
     let clear = ck2.decrypt(&output_of_cast);
     assert_eq!(clear, 3);
     let ct_carry = sk2.carry_extract(&output_of_cast);
