@@ -30,7 +30,6 @@ impl ClientKey {
             EncryptionKeyChoice::Big,
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
-
         let mut engine = ShortintEngine::new();
 
         let post_packing_ks_key = allocate_and_generate_new_binary_glwe_secret_key(

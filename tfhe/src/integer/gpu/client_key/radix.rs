@@ -23,6 +23,12 @@ impl RadixClientKey {
 
         let params = &private_compression_key.params;
 
+        // assert_eq!(
+        //     cks_params.encryption_key_choice,
+        //     EncryptionKeyChoice::Big,
+        //     "Compression is only compatible with ciphertext in post PBS dimension"
+        // );
+
         assert_eq!(
             self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
