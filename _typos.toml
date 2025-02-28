@@ -16,5 +16,6 @@ extend-ignore-identifiers-re = [
 
 [files]
 extend-exclude = [
-    "backends/tfhe-cuda-backend/cuda/src/fft128/twiddles.cu"
+    "backends/tfhe-cuda-backend/cuda/src/fft128/twiddles.cu",
+    "backends/tfhe-cuda-backend/cuda/src/fft/twiddles.cu",
 ]
