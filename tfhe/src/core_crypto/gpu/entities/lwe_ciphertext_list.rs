@@ -220,4 +220,19 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
     pub(crate) fn ciphertext_modulus(&self) -> CiphertextModulus<T> {
         self.0.ciphertext_modulus
     }
+
+    /// # Safety
+    ///
+    /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until stream is synchronised
+    pub unsafe fn set_to_zero_async(&mut self, streams: &CudaStreams) {
+        self.0.d_vec.memset_async(0u64, streams, 0);
+    }
+
+    pub fn set_to_zero(&mut self, streams: &CudaStreams) {
+        unsafe {
+            self.set_to_zero_async(streams);
+            streams.synchronize_one(0);
+        }
+    }
 }
