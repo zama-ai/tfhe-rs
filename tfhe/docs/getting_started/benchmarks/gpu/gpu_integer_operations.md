@@ -3,7 +3,7 @@
 This document details the GPU performance benchmarks of homomorphic operations on integers using **TFHE-rs**.
 
 {% hint style="info" %}
-All CPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
+All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
 {% endhint %}
 
 The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.
