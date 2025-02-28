@@ -5,7 +5,7 @@ This document details the GPU performance benchmarks of homomorphic operations u
 By their nature, homomorphic operations run slower than their cleartext equivalents.
 
 {% hint style="info" %}
-All CPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
+All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
 {% endhint %}
 
 * [Integer operations](gpu_integer_operations.md)
