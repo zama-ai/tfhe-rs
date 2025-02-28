@@ -175,16 +175,13 @@ impl<T: Numeric> CudaVec<T> {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronised
-    pub unsafe fn memset_async(&mut self, value: T, streams: &CudaStreams, stream_index: u32)
-    where
-        T: Into<u64>,
-    {
+    pub unsafe fn memset_async(&mut self, value: u64, streams: &CudaStreams, stream_index: u32) {
         let size = self.len() * std::mem::size_of::<T>();
         // We check that self is not empty to avoid invalid pointers
         if size > 0 {
             cuda_memset_async(
                 self.as_mut_c_ptr(stream_index),
-                value.into(),
+                value,
                 size as u64,
                 streams.ptr[stream_index as usize],
                 streams.gpu_indexes[stream_index as usize].0,
