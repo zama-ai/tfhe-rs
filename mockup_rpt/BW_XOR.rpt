@@ -1,0 +1,9 @@
+Report for IOp: BW_XOR   @[0]0x0  @[0]0x0  @[0]0x10
+TimeRpt { cycle: 1162606, duration: 3.875ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 16
+InstructionKind(MemSt) => 8
+InstructionKind(Arith) => 8
+InstructionKind(Pbs) => 8
+InstructionKind(Sync) => 1
+

@@ -1,0 +1,9 @@
+Report for IOp: MULS     @[0]0x80 @[0]0x0  14804710943290734282
+TimeRpt { cycle: 143459576, duration: 478.198ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 1339
+InstructionKind(MemSt) => 1363
+InstructionKind(Arith) => 1840
+InstructionKind(Pbs) => 1685
+InstructionKind(Sync) => 1
+

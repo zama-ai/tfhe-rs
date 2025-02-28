@@ -2,7 +2,7 @@ use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
-use std::ops::{BitOrAssign, Shl, Sub};
+use std::ops::{BitOrAssign, Not, Shl, Shr, Sub};
 
 // These work for signed number as rust uses 2-Complements
 // And Arithmetic shift for signed number (logical for unsigned)
@@ -14,8 +14,10 @@ pub trait Decomposable:
     + ShrAssign<u32>
     + Eq
     + CastFrom<u32>
+    + Shr<u32, Output = Self>
     + Shl<u32, Output = Self>
     + BitOrAssign<Self>
+    + Not<Output = Self>
 {
 }
 pub trait Recomposable:
@@ -86,13 +88,20 @@ impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticUnsignedBigInt<N> {}
 
+#[derive(Copy, Clone)]
+#[repr(u32)]
+pub enum PaddingBitValue {
+    Zero = 0,
+    One = 1,
+}
+
 #[derive(Clone)]
 pub struct BlockDecomposer<T> {
     data: T,
     bit_mask: T,
     num_bits_in_mask: u32,
     num_bits_valid: u32,
-    padding_bit: T,
+    padding_bit: Option<PaddingBitValue>,
     limit: Option<T>,
 }
 
@@ -100,19 +109,27 @@ impl<T> BlockDecomposer<T>
 where
     T: Decomposable,
 {
+    /// Creates a block decomposer that will stop when the value reaches zero
     pub fn with_early_stop_at_zero(value: T, bits_per_block: u32) -> Self {
-        Self::new_(value, bits_per_block, Some(T::ZERO), T::ZERO)
+        Self::new_(value, bits_per_block, Some(T::ZERO), None)
     }
 
-    pub fn with_padding_bit(value: T, bits_per_block: u32, padding_bit: T) -> Self {
-        Self::new_(value, bits_per_block, None, padding_bit)
+    /// Creates a block decomposer that will set the surplus bits to a specific value
+    /// when bits_per_block is not a multiple of T::BITS
+    pub fn with_padding_bit(value: T, bits_per_block: u32, padding_bit: PaddingBitValue) -> Self {
+        Self::new_(value, bits_per_block, None, Some(padding_bit))
     }
 
     pub fn new(value: T, bits_per_block: u32) -> Self {
-        Self::new_(value, bits_per_block, None, T::ZERO)
+        Self::new_(value, bits_per_block, None, None)
     }
 
-    fn new_(value: T, bits_per_block: u32, limit: Option<T>, padding_bit: T) -> Self {
+    fn new_(
+        value: T,
+        bits_per_block: u32,
+        limit: Option<T>,
+        padding_bit: Option<PaddingBitValue>,
+    ) -> Self {
         assert!(bits_per_block <= T::BITS as u32);
         let num_bits_valid = T::BITS as u32;
 
@@ -128,6 +145,31 @@ where
             limit,
             padding_bit,
         }
+    }
+
+    // We concretize the iterator type to allow usage of callbacks working on iterator for generic
+    // integer encryption
+    pub fn iter_as<V>(self) -> std::iter::Map<Self, fn(T) -> V>
+    where
+        V: Numeric,
+        T: CastInto<V>,
+    {
+        assert!(self.num_bits_in_mask <= V::BITS as u32);
+        self.map(CastInto::cast_into)
+    }
+
+    pub fn next_as<V>(&mut self) -> Option<V>
+    where
+        V: CastFrom<T>,
+    {
+        self.next().map(|masked| V::cast_from(masked))
+    }
+
+    pub fn checked_next_as<V>(&mut self) -> Option<V>
+    where
+        V: TryFrom<T>,
+    {
+        self.next().and_then(|masked| V::try_from(masked).ok())
     }
 }
 
@@ -159,11 +201,18 @@ where
 
         if self.num_bits_valid < self.num_bits_in_mask {
             // This will be the case when self.num_bits_in_mask is not a multiple
-            // of T::BITS.  We replace bits that
-            // do not come from the actual T but from the padding
-            // intoduced by the shift, to a specific value.
-            for i in self.num_bits_valid..self.num_bits_in_mask {
-                masked |= self.padding_bit << i;
+            // of T::BITS.
+            //
+            // We replace bits that do not come from the actual T but from the padding
+            // introduced by the shift, to a specific value, if one was provided.
+            if let Some(padding_bit) = self.padding_bit {
+                let padding_mask = (self.bit_mask >> self.num_bits_valid) << self.num_bits_valid;
+                masked = masked & !padding_mask;
+
+                let padding_bit = T::cast_from(padding_bit as u32);
+                for i in self.num_bits_valid..self.num_bits_in_mask {
+                    masked |= padding_bit << i;
+                }
             }
         }
 
@@ -181,36 +230,6 @@ where
         let max_remaining_iter = self.num_bits_valid / self.num_bits_in_mask;
         let min_remaining_iter = if max_remaining_iter == 0 { 0 } else { 1 };
         (min_remaining_iter, Some(max_remaining_iter as usize))
-    }
-}
-
-impl<T> BlockDecomposer<T>
-where
-    T: Decomposable,
-{
-    // We concretize the iterator type to allow usage of callbacks working on iterator for generic
-    // integer encryption
-    pub fn iter_as<V>(self) -> std::iter::Map<Self, fn(T) -> V>
-    where
-        V: Numeric,
-        T: CastInto<V>,
-    {
-        assert!(self.num_bits_in_mask <= V::BITS as u32);
-        self.map(CastInto::cast_into)
-    }
-
-    pub fn next_as<V>(&mut self) -> Option<V>
-    where
-        V: CastFrom<T>,
-    {
-        self.next().map(|masked| V::cast_from(masked))
-    }
-
-    pub fn checked_next_as<V>(&mut self) -> Option<V>
-    where
-        V: TryFrom<T>,
-    {
-        self.next().and_then(|masked| V::try_from(masked).ok())
     }
 }
 
@@ -307,6 +326,36 @@ mod tests {
             .iter_as::<u64>()
             .collect::<Vec<_>>();
         let expected_blocks = vec![3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(expected_blocks, blocks);
+    }
+
+    #[test]
+    fn test_bit_block_decomposer_3() {
+        let bits_per_block = 3;
+
+        let value = -1i8;
+        let blocks = BlockDecomposer::new(value, bits_per_block)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        // We expect the last block padded with 1s as a consequence of arithmetic shift
+        let expected_blocks = vec![7, 7, 7];
+        assert_eq!(expected_blocks, blocks);
+
+        let value = i8::MIN;
+        let blocks = BlockDecomposer::new(value, bits_per_block)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        // We expect the last block padded with 1s as a consequence of arithmetic shift
+        let expected_blocks = vec![0, 0, 6];
+        assert_eq!(expected_blocks, blocks);
+
+        let value = -1i8;
+        let blocks =
+            BlockDecomposer::with_padding_bit(value, bits_per_block, PaddingBitValue::Zero)
+                .iter_as::<u64>()
+                .collect::<Vec<_>>();
+        // We expect the last block padded with 0s as we force that
+        let expected_blocks = vec![7, 7, 3];
         assert_eq!(expected_blocks, blocks);
     }
 

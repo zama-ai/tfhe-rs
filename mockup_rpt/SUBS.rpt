@@ -1,0 +1,9 @@
+Report for IOp: SUBS     @[0]0x80 @[0]0x0  8892414291975159802
+TimeRpt { cycle: 19259576, duration: 64.198ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 32
+InstructionKind(MemSt) => 32
+InstructionKind(Arith) => 63
+InstructionKind(Pbs) => 63
+InstructionKind(Sync) => 1
+

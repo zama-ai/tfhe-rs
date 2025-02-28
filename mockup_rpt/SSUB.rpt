@@ -1,0 +1,9 @@
+Report for IOp: SSUB     @[0]0x40 @[0]0x0  13420243162228004795
+TimeRpt { cycle: 19259576, duration: 64.198ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 32
+InstructionKind(MemSt) => 32
+InstructionKind(Arith) => 95
+InstructionKind(Pbs) => 63
+InstructionKind(Sync) => 1
+

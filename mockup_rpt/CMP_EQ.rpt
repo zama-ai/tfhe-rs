@@ -1,0 +1,9 @@
+Report for IOp: CMP_EQ   @[0]0x40 @[0]0x0  @[0]0x20
+TimeRpt { cycle: 19159576, duration: 63.865ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 77
+InstructionKind(MemSt) => 71
+InstructionKind(Arith) => 80
+InstructionKind(Pbs) => 64
+InstructionKind(Sync) => 1
+

@@ -1,0 +1,9 @@
+Report for IOp: ADDS     @[0]0x40 @[0]0x0  12308247639879017423
+TimeRpt { cycle: 19259576, duration: 64.198ms }
+Instructions execution report sorted by kind:
+InstructionKind(MemLd) => 32
+InstructionKind(MemSt) => 32
+InstructionKind(Arith) => 63
+InstructionKind(Pbs) => 63
+InstructionKind(Sync) => 1
+
