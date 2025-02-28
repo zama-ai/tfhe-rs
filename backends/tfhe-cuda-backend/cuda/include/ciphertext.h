@@ -31,6 +31,12 @@ void cuda_improve_noise_modulus_switch_64(
     void const *lwe_array_in, void const *encrypted_zeros, uint32_t lwe_size,
     uint32_t num_lwes, uint32_t num_zeros, double input_variance,
     double r_sigma, double bound, uint32_t log_modulus);
+
+void cuda_modulus_switch_multi_bit_64(void *stream, uint32_t gpu_index,
+                                      void *lwe_array_out, void *lwe_array_in,
+                                      uint32_t size, uint32_t log_modulus,
+                                      uint32_t degree,
+                                      uint32_t grouping_factor);
 }
 
 #endif

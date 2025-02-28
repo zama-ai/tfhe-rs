@@ -26,3 +26,22 @@ pub fn modulus_switch_additive_variance_impl(
         + (1_f64 / 6.0) * modulus.powf(-2.0)
         + (1_f64 / 12.0) * new_modulus.powf(-2.0)
 }
+
+/// This formula is only valid when going from a larger to a smaller modulus
+pub fn modulus_switch_multi_bit_additive_variance(
+    input_lwe_dimension: LweDimension,
+    modulus: f64,
+    new_modulus: f64,
+    grouping_factor: f64,
+) -> Variance {
+    let multi_bit_factor = (2_f64 / grouping_factor) * (2_f64.powf(grouping_factor) - 1_f64)
+        / 2_f64.powf(grouping_factor);
+    Variance(
+        multi_bit_factor
+            * modulus_switch_additive_variance_impl(
+                input_lwe_dimension.0 as f64,
+                modulus,
+                new_modulus,
+            ),
+    )
+}

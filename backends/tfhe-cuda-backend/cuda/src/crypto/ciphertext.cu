@@ -97,3 +97,16 @@ void cuda_improve_noise_modulus_switch_64(
       static_cast<const uint64_t *>(encrypted_zeros), lwe_size, num_lwes,
       num_zeros, input_variance, r_sigma, bound, log_modulus);
 }
+
+void cuda_modulus_switch_multi_bit_64(void *stream, uint32_t gpu_index,
+                                      void *lwe_array_out, void *lwe_array_in,
+                                      uint32_t size, uint32_t log_modulus,
+                                      uint32_t degree,
+                                      uint32_t grouping_factor) {
+
+  host_modulus_switch_multi_bit<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint64_t *>(lwe_array_in), size, log_modulus, degree,
+      grouping_factor);
+}
