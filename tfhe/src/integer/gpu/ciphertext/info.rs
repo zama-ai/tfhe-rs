@@ -60,13 +60,10 @@ impl CudaRadixCiphertextInfo {
                                 // All bits of message set to one
         let pad_block = (1 << bits_in_message as u8) - 1;
 
-        let decomposer = BlockDecomposer::with_padding_bit(
-            neg_scalar,
-            bits_in_message,
-            T::cast_from(padding_bit),
-        )
-        .iter_as::<u8>()
-        .chain(std::iter::repeat(pad_block));
+        let decomposer =
+            BlockDecomposer::with_padding_bit(neg_scalar, bits_in_message, padding_bit)
+                .iter_as::<u8>()
+                .chain(std::iter::repeat(pad_block));
         Some(decomposer)
     }
 
