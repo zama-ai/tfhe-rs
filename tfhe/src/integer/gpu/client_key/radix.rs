@@ -28,6 +28,12 @@ impl RadixClientKey {
             panic!("Only the standard atomic pattern is supported on GPU")
         };
 
+        // assert_eq!(
+        //     cks_params.encryption_key_choice,
+        //     EncryptionKeyChoice::Big,
+        //     "Compression is only compatible with ciphertext in post PBS dimension"
+        // );
+
         assert_eq!(
             self.parameters().encryption_key_choice(),
             EncryptionKeyChoice::Big,
