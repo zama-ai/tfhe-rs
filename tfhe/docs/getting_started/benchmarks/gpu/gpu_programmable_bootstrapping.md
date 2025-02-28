@@ -3,7 +3,7 @@
 This document details the GPU performance benchmarks of programmable bootstrapping and keyswitch operations using **TFHE-rs**.
 
 {% hint style="info" %}
-All CPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm with a grouping factor set to 3.
+All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm with a grouping factor set to 3.
 {% endhint %}
 
 ## P-fail: $$2^{-40}$$
