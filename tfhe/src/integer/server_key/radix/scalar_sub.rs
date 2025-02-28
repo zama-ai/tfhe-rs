@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::Numeric;
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto, PaddingBitValue};
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
@@ -92,17 +92,12 @@ impl ServerKey {
         // The only case where these msb could become 0 after the addition
         // is if scalar == T::ZERO (=> !T::ZERO == T::MAX => T::MAX + 1 == overflow),
         // but this case has been handled earlier.
-        let padding_bit = 1u32; // To handle when bits is not a multiple of T::BITS
-                                // All bits of message set to one
         let pad_block = (1 << bits_in_message as u8) - 1;
 
-        let decomposer = BlockDecomposer::with_padding_bit(
-            neg_scalar,
-            bits_in_message,
-            Scalar::cast_from(padding_bit),
-        )
-        .iter_as::<u8>()
-        .chain(std::iter::repeat(pad_block));
+        let decomposer =
+            BlockDecomposer::with_padding_bit(neg_scalar, bits_in_message, PaddingBitValue::One)
+                .iter_as::<u8>()
+                .chain(std::iter::repeat(pad_block));
         Some(decomposer)
     }
 
