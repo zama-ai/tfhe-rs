@@ -50,6 +50,7 @@ use crate::core_crypto::entities::{
 };
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKeyOwned;
+use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
@@ -76,7 +77,7 @@ use crate::shortint::parameters::list_compression::{
 };
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
-    EncryptionKeyChoice, MessageModulus, ShortintParameterSet,
+    EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus, ShortintParameterSet,
 };
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::{apply_programmable_bootstrap, ShortintBootstrappingKey};
@@ -84,6 +85,52 @@ use crate::shortint::{
     Ciphertext, ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
 };
 use rayon::prelude::*;
+
+pub fn decrypt_multi_bit_lwe_ciphertext<Scalar, CtCont, KeyCont>(
+    lwe_secret_key: &LweSecretKey<KeyCont>,
+    lwe_dimension: LweDimension,
+    grouping_factor: LweBskGroupingFactor,
+    lwe_ciphertext: &LweCiphertext<CtCont>,
+    mod_switched_array: &[Scalar],
+) -> Scalar
+where
+    Scalar: CastInto<usize> + UnsignedInteger,
+    CtCont: Container<Element = Scalar>,
+    KeyCont: Container<Element = Scalar>,
+{
+    let mut result = *lwe_ciphertext.get_body().data;
+
+    for loop_idx in 0..(lwe_dimension.0 / grouping_factor.0) {
+        let mask_start_idx = loop_idx * grouping_factor.0;
+        let mask_stop_idx = mask_start_idx + grouping_factor.0;
+
+        let lwe_key_bits = &lwe_secret_key.as_ref()[mask_start_idx..mask_stop_idx];
+
+        let num_elem = (1 << grouping_factor.0) - 1 as usize;
+        let mod_switched_array_slice =
+            &mod_switched_array[loop_idx * num_elem..(loop_idx + 1) * num_elem];
+
+        let selector = {
+            let mut selector = 0usize;
+            for bit in lwe_key_bits.iter() {
+                let bit: usize = (*bit).cast_into();
+                selector <<= 1;
+                selector |= bit;
+            }
+            if selector == 0 {
+                None
+            } else {
+                Some(selector - 1)
+            }
+        };
+
+        if let Some(selector) = selector {
+            let mod_switched = mod_switched_array_slice[selector];
+            result = result.wrapping_sub(mod_switched);
+        }
+    }
+    result
+}
 
 fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
     params: ClassicPBSParameters,
@@ -339,6 +386,48 @@ impl DecryptionAndNoiseResult {
             ct.ciphertext_modulus(),
         );
 
+        if decoded_msg == expected_msg {
+            Self::DecryptionSucceeded {
+                noise: NoiseSample { value: noise },
+            }
+        } else {
+            Self::DecryptionFailed
+        }
+    }
+    pub fn new_multi_bit<Scalar, CtCont, KeyCont>(
+        ct: &LweCiphertext<CtCont>,
+        secret_key: &LweSecretKey<KeyCont>,
+        expected_msg: Scalar,
+        delta: Scalar,
+        cleartext_modulus: Scalar,
+        grouping_factor: LweBskGroupingFactor,
+        lwe_dimension: LweDimension,
+        mod_switched_array: &[Scalar],
+    ) -> Self
+    where
+        Scalar: UnsignedInteger + CastInto<usize>,
+        CtCont: Container<Element = Scalar>,
+        KeyCont: Container<Element = Scalar>,
+    {
+        let decrypted_plaintext = decrypt_multi_bit_lwe_ciphertext(
+            secret_key,
+            lwe_dimension,
+            grouping_factor,
+            ct,
+            &mod_switched_array,
+        );
+
+        // We apply the modulus on the cleartext + the padding bit
+        let decoded_msg =
+            round_decode(decrypted_plaintext, delta) % (Scalar::TWO * cleartext_modulus);
+
+        let expected_plaintext = expected_msg * delta;
+
+        let noise = torus_modular_diff(
+            expected_plaintext,
+            decrypted_plaintext,
+            ct.ciphertext_modulus(),
+        );
         if decoded_msg == expected_msg {
             Self::DecryptionSucceeded {
                 noise: NoiseSample { value: noise },

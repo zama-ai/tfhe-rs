@@ -313,6 +313,19 @@ impl PBSParameters {
             Self::MultiBitPBS(params) => params.grouping_factor,
         }
     }
+    pub const fn log2_p_fail(&self) -> f64 {
+        match self {
+            Self::PBS(params) => params.log2_p_fail,
+            Self::MultiBitPBS(params) => params.log2_p_fail,
+        }
+    }
+
+    pub fn set_log2_p_fail(&mut self, new_p_fail: f64) {
+        match self {
+            Self::PBS(params) => params.log2_p_fail = new_p_fail,
+            Self::MultiBitPBS(params) => params.log2_p_fail = new_p_fail,
+        }
+    }
 
     pub const fn is_pbs(&self) -> bool {
         matches!(self, Self::PBS(_))
