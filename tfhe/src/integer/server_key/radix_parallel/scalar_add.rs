@@ -276,15 +276,13 @@ impl ServerKey {
             self.full_propagate_parallelized(ct);
         }
 
-        let scalar_blocks = BlockDecomposer::new(scalar, self.message_modulus().0.ilog2())
-            .iter_as::<u8>()
-            .chain(std::iter::repeat(if scalar < Scalar::ZERO {
-                (self.message_modulus().0 - 1) as u8
-            } else {
-                0
-            }))
-            .take(ct.blocks().len())
-            .collect();
+        let scalar_blocks = BlockDecomposer::with_block_count(
+            scalar,
+            self.message_modulus().0.ilog2(),
+            ct.blocks().len() as u32,
+        )
+        .iter_as::<u8>()
+        .collect();
 
         const COMPUTE_OVERFLOW: bool = false;
         const INPUT_CARRY: bool = false;
