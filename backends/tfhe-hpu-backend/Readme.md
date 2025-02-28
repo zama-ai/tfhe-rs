@@ -2,27 +2,27 @@
 
 ## Brief
 The `tfhe-hpu-backend` holds the code for the HPU acceleration of Zama's variant of TFHE.
-It contains a `HpuDevice` abstraction that enables easy configuration and dispatching of TFHE operations on HPU accelerator.
+It contains a `HpuDevice` abstraction that enables easy configuration and dispatching of TFHE operations on the HPU accelerator.
 
 The user API exposes the following functions for hardware setup:
-- `HpuDevice::new`, `HpuDevice::from_config`: Instantiate abstraction device from configuration file. 
+- `HpuDevice::new`, `HpuDevice::from_config`: Instantiate abstraction device from configuration file.
 - `HpuDevice::init`: Configure and upload the required public material.
 - `new_var_from`: Create a HPU ciphertext from `tfhe-rs` ciphertext.
 
-HPU variables could also be created from `high-level-api` object, with the help of the `hw-xfer` feature.
+HPU variables could also be created from a `high-level-api` object, with the help of the `hw-xfer` feature.
 This implements a trait that enables `clone_on`, `mv_on` `FheUint` object on the HPU accelerator, and cast back `from` them.
 
-These objects implement `std::ops` trait and could be used to dispatch operations on HPU hardware.
+These objects implement the `std::ops` trait and could be used to dispatch operations on HPU hardware.
 
 ### Backend structure
 `tfhe-hpu-backend` is split in various modules:
-- `entities`: Define structure handled by HPU accelerator. Conversion trait from/into those objects are implemented in `tfhe-rs`.
-- `asm`: Describe assembly-like language for the HPU. It enables to abstract HPU behavior and easily update it through micro-code.
-- `fw`: Abstraction to help the micro-code designer. Use simple rust program for describing new HPU operations. Help with register/heap management.
+- `entities`: Define structure handled by HPU accelerator. Conversion traits from/into those objects are implemented in `tfhe-rs`.
+- `asm`: Describe assembly-like language for the HPU. It enables abstract HPU behavior and easily updates it through micro-code.
+- `fw`: Abstraction to help the micro-code designer. Use a simple rust program for describing new HPU operations. Help with register/heap management.
 - `interface`:
   + `device`: High-level structure that exposes the User API.
   + `backend`: Inner private structure that contains HPU modules
-  + `variable`: Wrap HPU ciphertexts. It enables to hook hardware object lifetime within the `rust` borrow-checker. 
+  + `variable`: Wrap HPU ciphertexts. It enables to hook an hardware object lifetime within the `rust` borrow-checker.
   + `memory`: Handle on-board memory allocation and synchronization
   + `config`: Help to configure HPU accelerator through a TOML configuration file
   + `cmd`: Translate operation over `variable` in concrete HPU commands
@@ -30,18 +30,18 @@ These objects implement `std::ops` trait and could be used to dispatch operation
   + `rtl`: Define concrete `rust` structure populated from HPU's status/configuration registers
 
 
-Below an overview of the internal structure of the Backend.
+Below is an overview of the internal structure of the Backend.
 ![HPU backend structure](./figures/tfhe-hpu-backend.excalidraw.png)
 
 This picture depicts the internal modules of `tfhe-hpu-backend`, Device is the main entry point for the user. Its lifecycle is as follows:
 
-1. Create HpuDevice, open link with the associated FPGA. Configure associated driver and upload the bit stream. Read FPGA registers to extract supported configuration and features. Build Firmware conversion table (IOp -> DOps stream).
+1. Create HpuDevice, open link with the associated FPGA. Configure associated drivers and upload the bitstream. Read FPGA registers to extract supported configuration and features. Build Firmware conversion table (IOp -> DOps stream).
 
-2. Allocate required memory chunk in the on-board memory. Upload public material required by TFHE computation.
+2. Allocate required memory chunks in the on-board memory. Upload public material required by TFHE computation.
 
-3. Create HPU variables that handle TFHE Ciphertexts. It wraps TFHE Ciphertext with required internal resources and enforces the correct lifetime management. This abstraction enforces that during variable lifecycle all required resources are valid.
+3. Create HPU variables that handle TFHE Ciphertexts. It wraps TFHE Ciphertext with required internal resources and enforces the correct lifetime management. This abstraction enforces that during the variable lifecycle all required resources are valid.
 
-4. User could triggered HPU operation from HPU variable.
+4. Users could trigger HPU operation from the HPU variable.
   Variable abstraction enforces that required objects are correctly synced on the hardware and converts each operation in a concrete HPU command.
   When HPU operation is acknowledged by the hardware, the internal state of the associated variable is updated.
   This mechanism enables asynchronous operation and minimal amount of Host to/from HW memory transfer.
@@ -49,7 +49,7 @@ This picture depicts the internal modules of `tfhe-hpu-backend`, Device is the m
 
 ## Example
 ### Configuration file
-HPU configuration knobs are gathered in a TOML configuration file. This file describes the targeted FPGA with it's associated configuration:
+HPU configuration knobs are gathered in a TOML configuration file. This file describes the targeted FPGA with its associated configuration:
 ```toml
 [fpga] # FPGA target
   # Register layout in the FPGA
@@ -124,13 +124,13 @@ Following code snippet shows how to convert CPU ciphertext in HPU one:
 ```
 
 ### Dispatch operation on HPU
-HPU variables implement `std::ops` trait. These functions dispatch the operation on HPU device.
+HPU variables implement the `std::ops` trait. These functions dispatch the operation on the HPU device.
 Following code snippets show how to start operation on HPU from Hpu variables:
 
 ``` rust
   // NB: a_hpu, b_hpu are HpuFheUint created from FheUint
   // Compute a * b on Hpu
-  // Result are stored in `axb_hpu`. Result is kept on HPU, axb_hpu is only the image of the result (i.e. No PCIe xfer at this stage)
+  // Results are stored in `axb_hpu`. Result is kept on HPU, axb_hpu is only the image of the result (i.e. No PCIe xfer at this stage)
   let axb_hpu = a_hpu * b_hpu;
 
   // Dispatch operation with low-level interface
@@ -142,10 +142,10 @@ Following code snippets show how to start operation on HPU from Hpu variables:
 ```
 
 ### Retrieved result in CPU world
-The exposed API enables to only synced back required value.
-This enables to offload a sub-computation graph without the cost of syncing intermediate value.
+The exposed API enables to only sync back the required value.
+This enables the user to offload a sub-computation graph without the cost of syncing intermediate values.
 
-Following code snippet starts two operation on HPU and shows how to synced only the required result:
+Following code snippet starts two operation on HPU and shows how to sync only the required result:
 ```rust
   // NB: a_hpu, b_hpu, c_hpu are HpuFheUint created from FheUint
   let axb_hpu = a_hpu * b_hpu;
@@ -169,13 +169,13 @@ cargo build --release --features="hpu-xfer,hw-xrt" --examples
 ```
 
 ## Test framework
-There is also a set of test backed in tfhe-rs. One for each IOp width in [8,16,32,64].
-Those test have 3 sub-kind: 
+There is also a set of tests backed in tfhe-rs. One for each IOp width in [8,16,32,64].
+Those tests have 3 sub-kind:
 * `alu`: Run and check all ct x ct IOp
 * `bitwise`: Run and check all bitwise IOp
 * `cmp`: Run and check all comparison IOp
 
->NB: Like the premade examples, those test must be run from the project root.
+>NB: Like the premade examples, those tests must be run from the project root.
 
 Snippets below give some example of command that could be used for testing:
 ```
