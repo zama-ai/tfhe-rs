@@ -34,7 +34,7 @@ jobs:
   provenance:
     if: ${{ !inputs.dry_run  }}
     needs: [package]
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     permissions:
       # Needed to detect the GitHub Actions environment
       actions: read
