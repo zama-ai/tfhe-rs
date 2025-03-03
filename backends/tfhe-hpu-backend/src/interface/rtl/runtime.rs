@@ -111,12 +111,12 @@ impl InfoPePbs {
     pub fn update_bpip(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg_use = regmap
             .register()
-            .get("Bpip::use")
+            .get("bpip::use")
             .expect("Unknow register, check regmap definition");
         self.bpip_used = ffi_hw.read_reg(*reg_use.offset() as u64) != 0;
         let reg_timeout = regmap
             .register()
-            .get("Bpip::timeout")
+            .get("bpip::timeout")
             .expect("Unknow register, check regmap definition");
         self.bpip_timeout = ffi_hw.read_reg(*reg_timeout.offset() as u64);
     }
@@ -124,7 +124,7 @@ impl InfoPePbs {
     pub fn update_loop(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::infos_loop")
+            .get("runtime_1in3::pep_cmux_loop")
             .expect("Unknow register, check regmap definition");
         let val = ffi_hw.read_reg(*reg.offset() as u64);
         let fields = reg.as_field(val);
@@ -136,7 +136,7 @@ impl InfoPePbs {
     pub fn update_pointer0(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::infos_pointer0")
+            .get("runtime_1in3::pep_pointer_0")
             .expect("Unknow register, check regmap definition");
         let val = ffi_hw.read_reg(*reg.offset() as u64);
         let fields = reg.as_field(val);
@@ -149,7 +149,7 @@ impl InfoPePbs {
     pub fn update_pointer1(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::infos_pointer1")
+            .get("runtime_1in3::pep_pointer_1")
             .expect("Unknow register, check regmap definition");
         let val = ffi_hw.read_reg(*reg.offset() as u64);
         let fields = reg.as_field(val);
@@ -162,7 +162,7 @@ impl InfoPePbs {
     pub fn update_pointer2(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::infos_pointer2")
+            .get("runtime_1in3::pep_pointer_2")
             .expect("Unknow register, check regmap definition");
         let val = ffi_hw.read_reg(*reg.offset() as u64);
         let fields = reg.as_field(val);
@@ -173,7 +173,7 @@ impl InfoPePbs {
     pub fn update_seq_ld_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_ld_ack_cnt")
+            .get("runtime_1in3::pep_seq_ld_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_ld_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -185,7 +185,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_cmux_not_full_batch_cnt")
+            .get("runtime_1in3::pep_seq_cmux_not_full_batch_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_cmux_not_full_batch_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -193,7 +193,7 @@ impl InfoPePbs {
     pub fn update_seq_bpip_batch_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_bpip_batch_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -204,7 +204,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_flush_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_flush_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_bpip_batch_flush_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -215,7 +215,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_timeout_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_timeout_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_bpip_batch_timeout_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -223,35 +223,35 @@ impl InfoPePbs {
     pub fn update_ldb_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldb_rcp_dur")
+            .get("runtime_1in3::pep_ldb_rcp_dur")
             .expect("Unknow register, check regmap definition");
         self.ldb_rcp_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_ldg_req_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldg_req_dur")
+            .get("runtime_1in3::pep_ldg_req_dur")
             .expect("Unknow register, check regmap definition");
         self.ldg_req_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_ldg_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldg_rcp_dur")
+            .get("runtime_1in3::pep_ldg_rcp_dur")
             .expect("Unknow register, check regmap definition");
         self.ldg_rcp_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_mmacc_sxt_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_rcp_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_rcp_dur")
             .expect("Unknow register, check regmap definition");
         self.mmacc_sxt_rcp_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_mmacc_sxt_req_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_req_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_req_dur")
             .expect("Unknow register, check regmap definition");
         self.mmacc_sxt_req_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -262,7 +262,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_cmd_wait_b_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_cmd_wait_b_dur")
             .expect("Unknow register, check regmap definition");
         self.mmacc_sxt_cmd_wait_b_dur = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -270,14 +270,14 @@ impl InfoPePbs {
     pub fn update_pep_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_inst_cnt")
+            .get("runtime_1in3::pep_inst_cnt")
             .expect("Unknow register, check regmap definition");
         self.pep_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_pep_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ack_cnt")
+            .get("runtime_1in3::pep_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.pep_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -302,7 +302,7 @@ impl InfoPePbs {
     pub fn reset_seq_ld_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_ld_ack_cnt")
+            .get("runtime_1in3::pep_seq_ld_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -315,7 +315,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_cmux_not_full_batch_cnt")
+            .get("runtime_1in3::pep_seq_cmux_not_full_batch_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -324,7 +324,7 @@ impl InfoPePbs {
     pub fn reset_seq_bpip_batch_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -332,7 +332,7 @@ impl InfoPePbs {
     pub fn reset_seq_bpip_batch_flush_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_flush_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_flush_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -344,7 +344,7 @@ impl InfoPePbs {
     ) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_seq_bpip_batch_timeout_cnt")
+            .get("runtime_1in3::pep_seq_bpip_batch_timeout_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -353,7 +353,7 @@ impl InfoPePbs {
     pub fn reset_ldb_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldb_rcp_dur")
+            .get("runtime_1in3::pep_ldb_rcp_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -361,7 +361,7 @@ impl InfoPePbs {
     pub fn reset_ldg_req_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldg_req_dur")
+            .get("runtime_1in3::pep_ldg_req_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -369,7 +369,7 @@ impl InfoPePbs {
     pub fn reset_ldg_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ldg_rcp_dur")
+            .get("runtime_1in3::pep_ldg_rcp_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -377,7 +377,7 @@ impl InfoPePbs {
     pub fn reset_mmacc_sxt_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_rcp_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_rcp_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -385,7 +385,7 @@ impl InfoPePbs {
     pub fn reset_mmacc_sxt_req_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_req_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_req_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -393,7 +393,7 @@ impl InfoPePbs {
     pub fn reset_mmacc_sxt_cmd_wait_b_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_mmacc_sxt_cmd_wait_b_dur")
+            .get("runtime_1in3::pep_mmacc_sxt_cmd_wait_b_dur")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -402,7 +402,7 @@ impl InfoPePbs {
     pub fn reset_pep_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_inst_cnt")
+            .get("runtime_1in3::pep_inst_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -410,7 +410,7 @@ impl InfoPePbs {
     pub fn reset_pep_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pep_ack_cnt")
+            .get("runtime_1in3::pep_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -468,28 +468,28 @@ impl InfoPeMem {
     pub fn update_pem_load_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_load_inst_cnt")
+            .get("runtime_1in3::pem_load_inst_cnt")
             .expect("Unknow register, check regmap definition");
         self.pem_load_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_pem_load_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_load_ack_cnt")
+            .get("runtime_1in3::pem_load_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.pem_load_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_pem_store_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_store_inst_cnt")
+            .get("runtime_1in3::pem_store_inst_cnt")
             .expect("Unknow register, check regmap definition");
         self.pem_store_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_pem_store_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_store_ack_cnt")
+            .get("runtime_1in3::pem_store_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.pem_store_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -503,7 +503,7 @@ impl InfoPeMem {
         self.pem_ld_info[pc_idx].addr = ["msb", "lsb"]
             .iter()
             .map(|n| {
-                let reg_name = format!("Runtime::pem_load_info_1_pc{pc_idx}_{n}");
+                let reg_name = format!("runtime_1in3::pem_load_info_1_pc{pc_idx}_{n}");
                 let reg = regmap
                     .register()
                     .get(&reg_name)
@@ -514,7 +514,7 @@ impl InfoPeMem {
 
         // Update value field
         (0..4).for_each(|i| {
-            let reg_name = format!("Runtime::pem_load_info_0_pc{pc_idx}_{i}");
+            let reg_name = format!("runtime_1in3::pem_load_info_0_pc{pc_idx}_{i}");
             let reg = regmap
                 .register()
                 .get(&reg_name)
@@ -533,7 +533,7 @@ impl InfoPeMem {
         self.pem_st_info[pc_idx].addr = ["msb", "lsb"]
             .iter()
             .map(|n| {
-                let reg_name = format!("Runtime::pem_store_info_1_pc{pc_idx}_{n}");
+                let reg_name = format!("runtime_1in3::pem_store_info_1_pc{pc_idx}_{n}");
                 let reg = regmap
                     .register()
                     .get(&reg_name)
@@ -544,7 +544,7 @@ impl InfoPeMem {
 
         // Update value field
         (0..4).for_each(|i| {
-            let reg_name = format!("Runtime::pem_store_info_0_pc{pc_idx}_{i}");
+            let reg_name = format!("runtime_1in3::pem_store_info_0_pc{pc_idx}_{i}");
             let reg = regmap
                 .register()
                 .get(&reg_name)
@@ -564,7 +564,7 @@ impl InfoPeMem {
     pub fn reset_pem_load_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_load_inst_cnt")
+            .get("runtime_1in3::pem_load_inst_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -572,7 +572,7 @@ impl InfoPeMem {
     pub fn reset_pem_load_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_load_ack_cnt")
+            .get("runtime_1in3::pem_load_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -580,7 +580,7 @@ impl InfoPeMem {
     pub fn reset_pem_store_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_store_inst_cnt")
+            .get("runtime_1in3::pem_store_inst_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -588,7 +588,7 @@ impl InfoPeMem {
     pub fn reset_pem_store_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pem_store_ack_cnt")
+            .get("runtime_1in3::pem_store_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -620,14 +620,14 @@ impl InfoPeAlu {
     pub fn update_pea_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pea_inst_cnt")
+            .get("runtime_1in3::pea_inst_cnt")
             .expect("Unknow register, check regmap definition");
         self.pea_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_pea_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pea_ack_cnt")
+            .get("runtime_1in3::pea_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.pea_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
@@ -640,7 +640,7 @@ impl InfoPeAlu {
     pub fn reset_pea_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pea_inst_cnt")
+            .get("runtime_1in3::pea_inst_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -648,7 +648,7 @@ impl InfoPeAlu {
     pub fn reset_pea_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::pea_ack_cnt")
+            .get("runtime_1in3::pea_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -696,21 +696,21 @@ impl InfoIsc {
     pub fn update_isc_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::isc_inst_cnt")
+            .get("runtime_1in3::isc_inst_cnt")
             .expect("Unknow register, check regmap definition");
         self.isc_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
     pub fn update_isc_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::isc_ack_cnt")
+            .get("runtime_1in3::isc_ack_cnt")
             .expect("Unknow register, check regmap definition");
         self.isc_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
 
     pub fn update_isc_info(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         for idx in 0..4 {
-            let name = format!("Runtime::isc_info_{idx}");
+            let name = format!("runtime_1in3::isc_info_{idx}");
             let reg = regmap
                 .register()
                 .get(&name)
@@ -729,7 +729,7 @@ impl InfoIsc {
     pub fn reset_isc_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::isc_inst_cnt")
+            .get("runtime_1in3::isc_inst_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -737,7 +737,7 @@ impl InfoIsc {
     pub fn reset_isc_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
-            .get("Runtime::isc_ack_cnt")
+            .get("runtime_1in3::isc_ack_cnt")
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
@@ -750,8 +750,14 @@ impl FromRtl for ErrorHpu {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let reg = regmap
             .register()
-            .get("Runtime::errors")
+            .get("status_1in3::error")
             .expect("Unknow register, check regmap definition");
         Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
+        // TODO-JJ : now there are 2 error registers
+//        let reg = regmap
+//            .register()
+//            .get("status_3in3::error")
+//            .expect("Unknow register, check regmap definition");
+//        Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
     }
 }
