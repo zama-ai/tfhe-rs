@@ -324,6 +324,82 @@ macro_rules! create_wrapper_type_non_native_type (
 
 create_wrapper_type_non_native_type!(
     {
+        type_name: FheUint128,
+        compressed_type_name: CompressedFheUint128,
+        proven_type: ProvenFheUint128,
+        rust_type: u128,
+    },
+    {
+        type_name: FheUint160,
+        compressed_type_name: CompressedFheUint160,
+        proven_type: ProvenFheUint160,
+        rust_type: U256,
+    },
+    {
+        type_name: FheUint256,
+        compressed_type_name: CompressedFheUint256,
+        proven_type: ProvenFheUint256,
+        rust_type: U256,
+    },
+    {
+        type_name: FheUint512,
+        compressed_type_name: CompressedFheUint512,
+        proven_type: ProvenFheUint512,
+        rust_type: U512,
+    },
+    {
+        type_name: FheUint1024,
+        compressed_type_name: CompressedFheUint1024,
+        proven_type: ProvenFheUint1024,
+        rust_type: U1024,
+    },
+    {
+        type_name: FheUint2048,
+        compressed_type_name: CompressedFheUint2048,
+        proven_type: ProvenFheUint2048,
+        rust_type: U2048,
+    },
+    {
+        type_name: FheInt128,
+        compressed_type_name: CompressedFheInt128,
+        proven_type: ProvenFheInt128,
+        rust_type: i128,
+    },
+    {
+        type_name: FheInt160,
+        compressed_type_name: CompressedFheInt160,
+        proven_type: ProvenFheInt160,
+        rust_type: I256,
+    },
+    {
+        type_name: FheInt256,
+        compressed_type_name: CompressedFheInt256,
+        proven_type: ProvenFheInt256,
+        rust_type: I256,
+    },
+    {
+        type_name: FheInt512,
+        compressed_type_name: CompressedFheInt512,
+        proven_type: ProvenFheInt512,
+        rust_type: I512,
+    },
+    {
+        type_name: FheInt1024,
+        compressed_type_name: CompressedFheInt1024,
+        proven_type: ProvenFheInt1024,
+        rust_type: I1024,
+    },
+    {
+        type_name: FheInt2048,
+        compressed_type_name: CompressedFheInt2048,
+        proven_type: ProvenFheInt2048,
+        rust_type: I2048,
+    },
+);
+
+#[cfg(feature = "extended-types")]
+create_wrapper_type_non_native_type!(
+    {
         type_name: FheUint72,
         compressed_type_name: CompressedFheUint72,
         proven_type: ProvenFheUint72,
@@ -366,12 +442,6 @@ create_wrapper_type_non_native_type!(
         rust_type: u128,
     },
     {
-        type_name: FheUint128,
-        compressed_type_name: CompressedFheUint128,
-        proven_type: ProvenFheUint128,
-        rust_type: u128,
-    },
-    {
         type_name: FheUint136,
         compressed_type_name: CompressedFheUint136,
         proven_type: ProvenFheUint136,
@@ -387,12 +457,6 @@ create_wrapper_type_non_native_type!(
         type_name: FheUint152,
         compressed_type_name: CompressedFheUint152,
         proven_type: ProvenFheUint152,
-        rust_type: U256,
-    },
-    {
-        type_name: FheUint160,
-        compressed_type_name: CompressedFheUint160,
-        proven_type: ProvenFheUint160,
         rust_type: U256,
     },
     {
@@ -461,30 +525,6 @@ create_wrapper_type_non_native_type!(
         proven_type: ProvenFheUint248,
         rust_type: U256,
     },
-    {
-        type_name: FheUint256,
-        compressed_type_name: CompressedFheUint256,
-        proven_type: ProvenFheUint256,
-        rust_type: U256,
-    },
-    {
-        type_name: FheUint512,
-        compressed_type_name: CompressedFheUint512,
-        proven_type: ProvenFheUint512,
-        rust_type: U512,
-    },
-    {
-        type_name: FheUint1024,
-        compressed_type_name: CompressedFheUint1024,
-        proven_type: ProvenFheUint1024,
-        rust_type: U1024,
-    },
-    {
-        type_name: FheUint2048,
-        compressed_type_name: CompressedFheUint2048,
-        proven_type: ProvenFheUint2048,
-        rust_type: U2048,
-    },
     // Signed
     {
         type_name: FheInt72,
@@ -529,12 +569,6 @@ create_wrapper_type_non_native_type!(
         rust_type: i128,
     },
     {
-        type_name: FheInt128,
-        compressed_type_name: CompressedFheInt128,
-        proven_type: ProvenFheInt128,
-        rust_type: i128,
-    },
-    {
         type_name: FheInt136,
         compressed_type_name: CompressedFheInt136,
         proven_type: ProvenFheInt136,
@@ -550,12 +584,6 @@ create_wrapper_type_non_native_type!(
         type_name: FheInt152,
         compressed_type_name: CompressedFheInt152,
         proven_type: ProvenFheInt152,
-        rust_type: I256,
-    },
-    {
-        type_name: FheInt160,
-        compressed_type_name: CompressedFheInt160,
-        proven_type: ProvenFheInt160,
         rust_type: I256,
     },
     {
@@ -623,30 +651,6 @@ create_wrapper_type_non_native_type!(
         compressed_type_name: CompressedFheInt248,
         proven_type: ProvenFheInt248,
         rust_type: I256,
-    },
-    {
-        type_name: FheInt256,
-        compressed_type_name: CompressedFheInt256,
-        proven_type: ProvenFheInt256,
-        rust_type: I256,
-    },
-        {
-        type_name: FheInt512,
-        compressed_type_name: CompressedFheInt512,
-        proven_type: ProvenFheInt512,
-        rust_type: I512,
-    },
-    {
-        type_name: FheInt1024,
-        compressed_type_name: CompressedFheInt1024,
-        proven_type: ProvenFheInt1024,
-        rust_type: I1024,
-    },
-    {
-        type_name: FheInt2048,
-        compressed_type_name: CompressedFheInt2048,
-        proven_type: ProvenFheInt2048,
-        rust_type: I2048,
     },
 );
 
@@ -832,6 +836,58 @@ macro_rules! create_wrapper_type_that_has_native_type (
     }
 );
 
+#[cfg(feature = "extended-types")]
+create_wrapper_type_that_has_native_type!(
+    {
+        type_name: FheUint24,
+        compressed_type_name: CompressedFheUint24,
+        proven_type: ProvenFheUint24,
+        native_type: u32,
+    },
+    {
+        type_name: FheUint40,
+        compressed_type_name: CompressedFheUint40,
+        proven_type: ProvenFheUint40,
+        native_type: u64,
+    },
+    {
+        type_name: FheUint48,
+        compressed_type_name: CompressedFheUint48,
+        proven_type: ProvenFheUint48,
+        native_type: u64,
+    },
+    {
+        type_name: FheUint56,
+        compressed_type_name: CompressedFheUint56,
+        proven_type: ProvenFheUint56,
+        native_type: u64,
+    },
+    {
+        type_name: FheInt24,
+        compressed_type_name: CompressedFheInt24,
+        proven_type: ProvenFheInt24,
+        native_type: i32,
+    },
+    {
+        type_name: FheInt40,
+        compressed_type_name: CompressedFheInt40,
+        proven_type: ProvenFheInt40,
+        native_type: i64,
+    },
+    {
+        type_name: FheInt48,
+        compressed_type_name: CompressedFheInt48,
+        proven_type: ProvenFheInt48,
+        native_type: i64,
+    },
+    {
+        type_name: FheInt56,
+        compressed_type_name: CompressedFheInt56,
+        proven_type: ProvenFheInt56,
+        native_type: i64,
+    },
+);
+
 create_wrapper_type_that_has_native_type!(
     {
         type_name: FheBool,
@@ -888,34 +944,10 @@ create_wrapper_type_that_has_native_type!(
         native_type: u16,
     },
     {
-        type_name: FheUint24,
-        compressed_type_name: CompressedFheUint24,
-        proven_type: ProvenFheUint24,
-        native_type: u32,
-    },
-    {
         type_name: FheUint32,
         compressed_type_name: CompressedFheUint32,
         proven_type: ProvenFheUint32,
         native_type: u32,
-    },
-    {
-        type_name: FheUint40,
-        compressed_type_name: CompressedFheUint40,
-        proven_type: ProvenFheUint40,
-        native_type: u64,
-    },
-    {
-        type_name: FheUint48,
-        compressed_type_name: CompressedFheUint48,
-        proven_type: ProvenFheUint48,
-        native_type: u64,
-    },
-    {
-        type_name: FheUint56,
-        compressed_type_name: CompressedFheUint56,
-        proven_type: ProvenFheUint56,
-        native_type: u64,
     },
     {
         type_name: FheUint64,
@@ -923,7 +955,6 @@ create_wrapper_type_that_has_native_type!(
         proven_type: ProvenFheUint64,
         native_type: u64,
     },
-    // Signed
     {
         type_name: FheInt2,
         compressed_type_name: CompressedFheInt2,
@@ -973,34 +1004,10 @@ create_wrapper_type_that_has_native_type!(
         native_type: i16,
     },
     {
-        type_name: FheInt24,
-        compressed_type_name: CompressedFheInt24,
-        proven_type: ProvenFheInt24,
-        native_type: i32,
-    },
-    {
         type_name: FheInt32,
         compressed_type_name: CompressedFheInt32,
         proven_type: ProvenFheInt32,
         native_type: i32,
-    },
-    {
-        type_name: FheInt40,
-        compressed_type_name: CompressedFheInt40,
-        proven_type: ProvenFheInt40,
-        native_type: i64,
-    },
-    {
-        type_name: FheInt48,
-        compressed_type_name: CompressedFheInt48,
-        proven_type: ProvenFheInt48,
-        native_type: i64,
-    },
-    {
-        type_name: FheInt56,
-        compressed_type_name: CompressedFheInt56,
-        proven_type: ProvenFheInt56,
-        native_type: i64,
     },
     {
         type_name: FheInt64,
@@ -1243,6 +1250,14 @@ macro_rules! define_builder_push_method {
     };
 }
 
+#[cfg(feature = "extended-types")]
+define_builder_push_method!(unsigned: {
+    24 <= u32,
+    40 <= u64,
+    48 <= u64,
+    56 <= u64,
+});
+
 define_builder_push_method!(unsigned: {
     2 <= u8,
     4 <= u8,
@@ -1252,12 +1267,16 @@ define_builder_push_method!(unsigned: {
     12 <= u16,
     14 <= u16,
     16 <= u16,
-    24 <= u32,
     32 <= u32,
-    40 <= u64,
-    48 <= u64,
-    56 <= u64,
     64 <= u64,
+});
+
+#[cfg(feature = "extended-types")]
+define_builder_push_method!(signed: {
+    24 <= i32,
+    40 <= i64,
+    48 <= i64,
+    56 <= i64,
 });
 
 define_builder_push_method!(signed: {
@@ -1269,14 +1288,70 @@ define_builder_push_method!(signed: {
     12 <= i16,
     14 <= i16,
     16 <= i16,
-    24 <= i32,
     32 <= i32,
-    40 <= i64,
-    48 <= i64,
-    56 <= i64,
     64 <= i64,
 });
 
+#[wasm_bindgen]
+impl CompactCiphertextListBuilder {
+    #[wasm_bindgen]
+    pub fn push_u128(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = u128::try_from(value).map_err(into_js_error)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_i128(&mut self, value: JsValue) -> Result<(), JsError> {
+        catch_panic_result(|| {
+            let value = i128::try_from(value).map_err(into_js_error)?;
+            self.0.push(value);
+            Ok(())
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn push_boolean(&mut self, value: bool) -> Result<(), JsError> {
+        catch_panic(|| {
+            self.0.push(value);
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn build(&self) -> Result<CompactCiphertextList, JsError> {
+        catch_panic(|| {
+            let inner = self.0.build();
+            CompactCiphertextList(inner)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn build_packed(&self) -> Result<CompactCiphertextList, JsError> {
+        catch_panic(|| {
+            let inner = self.0.build_packed();
+            CompactCiphertextList(inner)
+        })
+    }
+
+    #[cfg(feature = "zk-pok")]
+    pub fn build_with_proof_packed(
+        &self,
+        crs: &CompactPkeCrs,
+        metadata: &[u8],
+        compute_load: ZkComputeLoad,
+    ) -> Result<ProvenCompactCiphertextList, JsError> {
+        catch_panic_result(|| {
+            self.0
+                .build_with_proof_packed(&crs.0, metadata, compute_load.into())
+                .map_err(into_js_error)
+                .map(ProvenCompactCiphertextList)
+        })
+    }
+}
+
+#[cfg(feature = "extended-types")]
 #[wasm_bindgen]
 impl CompactCiphertextListBuilder {
     #[wasm_bindgen]
@@ -1338,15 +1413,6 @@ impl CompactCiphertextListBuilder {
         catch_panic_result(|| {
             let value = u128::try_from(value).map_err(into_js_error)?;
             self.0.push_with_num_bits(value, 120)?;
-            Ok(())
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn push_u128(&mut self, value: JsValue) -> Result<(), JsError> {
-        catch_panic_result(|| {
-            let value = u128::try_from(value).map_err(into_js_error)?;
-            self.0.push(value);
             Ok(())
         })
     }
@@ -1586,15 +1652,6 @@ impl CompactCiphertextListBuilder {
     }
 
     #[wasm_bindgen]
-    pub fn push_i128(&mut self, value: JsValue) -> Result<(), JsError> {
-        catch_panic_result(|| {
-            let value = i128::try_from(value).map_err(into_js_error)?;
-            self.0.push(value);
-            Ok(())
-        })
-    }
-
-    #[wasm_bindgen]
     pub fn push_i136(&mut self, value: JsValue) -> Result<(), JsError> {
         catch_panic_result(|| {
             let value = I256::try_from(value)?;
@@ -1764,44 +1821,6 @@ impl CompactCiphertextListBuilder {
             Ok(())
         })
     }
-
-    #[wasm_bindgen]
-    pub fn push_boolean(&mut self, value: bool) -> Result<(), JsError> {
-        catch_panic(|| {
-            self.0.push(value);
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn build(&self) -> Result<CompactCiphertextList, JsError> {
-        catch_panic(|| {
-            let inner = self.0.build();
-            CompactCiphertextList(inner)
-        })
-    }
-
-    #[wasm_bindgen]
-    pub fn build_packed(&self) -> Result<CompactCiphertextList, JsError> {
-        catch_panic(|| {
-            let inner = self.0.build_packed();
-            CompactCiphertextList(inner)
-        })
-    }
-
-    #[cfg(feature = "zk-pok")]
-    pub fn build_with_proof_packed(
-        &self,
-        crs: &CompactPkeCrs,
-        metadata: &[u8],
-        compute_load: ZkComputeLoad,
-    ) -> Result<ProvenCompactCiphertextList, JsError> {
-        catch_panic_result(|| {
-            self.0
-                .build_with_proof_packed(&crs.0, metadata, compute_load.into())
-                .map_err(into_js_error)
-                .map(ProvenCompactCiphertextList)
-        })
-    }
 }
 
 /// Helper macro to define get methods for the expander
@@ -1860,15 +1879,25 @@ macro_rules! define_expander_get_method {
         }
     };
 }
+
+#[cfg(feature = "extended-types")]
 define_expander_get_method!(
-    unsigned: { 2, 4, 6, 8, 10, 12, 14, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120,
-                128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256,
-                512, 1024, 2048 }
+    unsigned: { 24, 40, 48, 56, 72, 80, 88, 96, 104, 112, 120, 136, 144, 152, 160, 168, 176, 184,
+                192, 200, 208, 216, 224, 232, 240, 248, 256, 512, 1024, 2048 }
 );
+
 define_expander_get_method!(
-    signed: { 2, 4, 6, 8, 10, 12, 14, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120,
-              128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256,
-              512, 1024, 2048 }
+    unsigned: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128 }
+);
+
+#[cfg(feature = "extended-types")]
+define_expander_get_method!(
+    signed: { 24, 40, 48, 56, 72, 80, 88, 96, 104, 112, 120, 136, 144, 152, 160, 168, 176, 184, 192,
+              200, 208, 216, 224, 232, 240, 248, 256, 512, 1024, 2048 }
+);
+
+define_expander_get_method!(
+    signed: { 2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128 }
 );
 
 #[wasm_bindgen]
