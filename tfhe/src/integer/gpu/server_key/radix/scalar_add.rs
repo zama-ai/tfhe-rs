@@ -100,6 +100,7 @@ impl CudaServerKey {
                 streams,
                 ct.as_mut(),
                 &d_decomposed_scalar,
+                &decomposed_scalar,
                 decomposed_scalar.len() as u32,
                 self.message_modulus.0 as u32,
                 self.carry_modulus.0 as u32,

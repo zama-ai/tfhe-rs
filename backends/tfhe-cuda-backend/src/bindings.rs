@@ -401,6 +401,7 @@ unsafe extern "C" {
         gpu_count: u32,
         lwe_array: *mut CudaRadixCiphertextFFI,
         scalar_input: *const ffi::c_void,
+        h_scalar_input: *const ffi::c_void,
         num_scalars: u32,
         message_modulus: u32,
         carry_modulus: u32,
