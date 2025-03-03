@@ -128,14 +128,14 @@ impl CompactCiphertextList {
                             lwe_view.as_ref().to_vec(),
                             self.ct_list.ciphertext_modulus(),
                         );
-                        let shortint_ct_to_cast = Ciphertext {
-                            ct: lwe_to_cast,
-                            degree: self.degree,
-                            message_modulus: self.message_modulus,
-                            carry_modulus: self.carry_modulus,
+                        let shortint_ct_to_cast = Ciphertext::new(
+                            lwe_to_cast,
+                            self.degree,
+                            NoiseLevel::UNKNOWN,
+                            self.message_modulus,
+                            self.carry_modulus,
                             pbs_order,
-                            noise_level: NoiseLevel::UNKNOWN,
-                        };
+                        );
 
                         casting_key
                             .cast_and_apply_functions(&shortint_ct_to_cast, functions.as_deref())
@@ -151,14 +151,14 @@ impl CompactCiphertextList {
                             lwe_view.as_ref().to_vec(),
                             self.ct_list.ciphertext_modulus(),
                         );
-                        Ciphertext {
+                        Ciphertext::new(
                             ct,
-                            degree: self.degree,
-                            message_modulus: self.message_modulus,
-                            carry_modulus: self.carry_modulus,
+                            self.degree,
+                            NoiseLevel::NOMINAL,
+                            self.message_modulus,
+                            self.carry_modulus,
                             pbs_order,
-                            noise_level: NoiseLevel::NOMINAL,
-                        }
+                        )
                     })
                     .collect::<Vec<_>>();
 

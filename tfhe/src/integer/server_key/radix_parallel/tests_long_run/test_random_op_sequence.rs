@@ -574,7 +574,7 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -624,7 +624,7 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -665,7 +665,7 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -707,12 +707,12 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
             assert!(
-                overflow.0.noise_level <= NoiseLevel::NOMINAL,
+                overflow.0.noise_level() <= NoiseLevel::NOMINAL,
                 "Noise level greater than nominal value on overflow for op {fn_name}",
             );
             // Determinism check
@@ -765,12 +765,12 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
             assert!(
-                overflow.0.noise_level <= NoiseLevel::NOMINAL,
+                overflow.0.noise_level() <= NoiseLevel::NOMINAL,
                 "Noise level greater than nominal value on overflow for op {fn_name}",
             );
             // Determinism check
@@ -815,7 +815,7 @@ pub(crate) fn random_op_sequence_test<P>(
 
             let res = comparison_op_executor.execute((&left_vec[i], &right_vec[i]));
             assert!(
-                res.0.noise_level <= NoiseLevel::NOMINAL,
+                res.0.noise_level() <= NoiseLevel::NOMINAL,
                 "Noise level greater than nominal value on op {fn_name}",
             );
             // Determinism check
@@ -852,7 +852,7 @@ pub(crate) fn random_op_sequence_test<P>(
 
             let res = scalar_comparison_op_executor.execute((&left_vec[i], clear_right_vec[i]));
             assert!(
-                res.0.noise_level <= NoiseLevel::NOMINAL,
+                res.0.noise_level() <= NoiseLevel::NOMINAL,
                 "Noise level greater than nominal value on op {fn_name}",
             );
             // Determinism check
@@ -895,7 +895,7 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -942,13 +942,13 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res_q.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
             res_r.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -1005,13 +1005,13 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res_q.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
             res_r.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
@@ -1073,7 +1073,7 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
-                    b.noise_level <= NoiseLevel::NOMINAL,
+                    b.noise_level() <= NoiseLevel::NOMINAL,
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });

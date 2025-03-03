@@ -251,7 +251,7 @@ impl ExpectedNoiseLevels {
             lhs.blocks
                 .iter()
                 .zip(rhs.blocks.iter())
-                .map(|(a, b)| a.noise_level + b.noise_level),
+                .map(|(a, b)| a.noise_level() + b.noise_level()),
         );
         self
     }

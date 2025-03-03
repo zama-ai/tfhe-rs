@@ -240,7 +240,7 @@ impl ServerKey {
                 s.spawn(|_| {
                     to_be_cleaned
                         .par_iter_mut()
-                        .filter(|block| block.noise_level > NoiseLevel::NOMINAL)
+                        .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
                         .for_each(|block| self.key.message_extract_assign(block));
                 });
             }

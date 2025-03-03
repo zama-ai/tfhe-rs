@@ -248,7 +248,7 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
         first_block.degree
     );
     assert!(
-        max_noise_level.validate(first_block.noise_level).is_ok(),
+        max_noise_level.validate(first_block.noise_level()).is_ok(),
         "Block at index 0 has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
         first_block.degree
     );
@@ -260,7 +260,7 @@ fn panic_if_any_block_info_exceeds_max_degree_or_noise(
             block.degree
         );
         assert!(
-            max_noise_level.validate(block.noise_level).is_ok(),
+            max_noise_level.validate(block.noise_level()).is_ok(),
             "Block at index {i} has a noise level {:?} that exceeds max noise level ({max_noise_level:?})",
             block.degree
         );
@@ -283,10 +283,10 @@ where
 
     for (i, block) in ct.blocks.iter().enumerate() {
         assert_eq!(
-            block.noise_level,
+            block.noise_level(),
             NoiseLevel::NOMINAL,
             "Block at index {i} / {num_blocks} has a non nominal noise level: {:?}",
-            block.noise_level
+            block.noise_level()
         );
 
         assert!(
@@ -321,10 +321,10 @@ where
             continue;
         }
         assert_eq!(
-            block.noise_level,
+            block.noise_level(),
             NoiseLevel::NOMINAL,
             "Block at index {i} has a non nominal noise level: {:?}",
-            block.noise_level
+            block.noise_level()
         );
 
         assert!(
@@ -387,9 +387,10 @@ impl ExpectedNoiseLevels {
             .enumerate()
         {
             assert_eq!(
-                block.noise_level, expected_noise,
+                block.noise_level(),
+                expected_noise,
                 "Block at index {i} has noise level {:?}, but {expected_noise:?} was expected",
-                block.noise_level
+                block.noise_level()
             );
         }
     }

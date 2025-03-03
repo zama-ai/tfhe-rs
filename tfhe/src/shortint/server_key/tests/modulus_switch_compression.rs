@@ -35,7 +35,7 @@ where
             assert_eq!(clear, dec);
 
             assert_eq!(ctxt.degree, decompressed_ct.degree);
-            assert_eq!(decompressed_ct.noise_level, NoiseLevel::NOMINAL);
+            assert_eq!(decompressed_ct.noise_level(), NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
             assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);
@@ -50,7 +50,7 @@ where
 
             assert_eq!((clear + 1) % modulus, dec % modulus);
 
-            assert_eq!(decompressed_ct.noise_level, NoiseLevel::NOMINAL);
+            assert_eq!(decompressed_ct.noise_level(), NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
             assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);

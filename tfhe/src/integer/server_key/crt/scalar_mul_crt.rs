@@ -49,7 +49,7 @@ impl ServerKey {
                 && self
                     .key
                     .max_noise_level
-                    .validate(ct_i.noise_level * scalar)
+                    .validate(ct_i.noise_level() * scalar)
                     .is_ok()
             {
                 self.key.unchecked_scalar_mul_assign(ct_i, scalar_i);

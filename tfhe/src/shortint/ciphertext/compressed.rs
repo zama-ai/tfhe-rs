@@ -56,14 +56,14 @@ impl CompressedCiphertext {
             noise_level,
         } = self;
 
-        Ciphertext {
-            ct: ct.decompress_into_lwe_ciphertext(),
-            degree: *degree,
-            message_modulus: *message_modulus,
-            carry_modulus: *carry_modulus,
-            pbs_order: *pbs_order,
-            noise_level: *noise_level,
-        }
+        Ciphertext::new(
+            ct.decompress_into_lwe_ciphertext(),
+            *degree,
+            *noise_level,
+            *message_modulus,
+            *carry_modulus,
+            *pbs_order,
+        )
     }
 
     /// Deconstruct a [`CompressedCiphertext`] into its constituents.

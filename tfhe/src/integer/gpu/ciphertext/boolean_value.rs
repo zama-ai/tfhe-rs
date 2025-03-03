@@ -139,17 +139,17 @@ impl CudaBooleanBlock {
         let h_lwe_ciphertext_list = self.0.ciphertext.d_blocks.to_lwe_ciphertext_list(streams);
         let ciphertext_modulus = h_lwe_ciphertext_list.ciphertext_modulus();
 
-        let block = Ciphertext {
-            ct: LweCiphertextOwned::from_container(
+        let block = Ciphertext::new(
+            LweCiphertextOwned::from_container(
                 h_lwe_ciphertext_list.into_container(),
                 ciphertext_modulus,
             ),
-            degree: self.0.ciphertext.info.blocks[0].degree,
-            noise_level: self.0.ciphertext.info.blocks[0].noise_level,
-            message_modulus: self.0.ciphertext.info.blocks[0].message_modulus,
-            carry_modulus: self.0.ciphertext.info.blocks[0].carry_modulus,
-            pbs_order: self.0.ciphertext.info.blocks[0].pbs_order,
-        };
+            self.0.ciphertext.info.blocks[0].degree,
+            self.0.ciphertext.info.blocks[0].noise_level,
+            self.0.ciphertext.info.blocks[0].message_modulus,
+            self.0.ciphertext.info.blocks[0].carry_modulus,
+            self.0.ciphertext.info.blocks[0].pbs_order,
+        );
 
         BooleanBlock::new_unchecked(block)
     }
