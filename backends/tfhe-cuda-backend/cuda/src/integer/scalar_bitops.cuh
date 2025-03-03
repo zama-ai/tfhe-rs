@@ -15,7 +15,7 @@ __host__ void host_integer_radix_scalar_bitop_kb(
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")
   if (output->lwe_dimension != input->lwe_dimension)
-    PANIC("Cuda error: input and output num radix blocks must be equal")
+    PANIC("Cuda error: input and output lwe dimension must be equal")
   auto lut = mem_ptr->lut;
   auto op = mem_ptr->op;
   auto num_radix_blocks = output->num_radix_blocks;

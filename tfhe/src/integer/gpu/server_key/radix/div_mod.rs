@@ -25,10 +25,10 @@ impl CudaServerKey {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_div_rem_integer_radix_kb_assign_async(
                     streams,
-                    &mut quotient.as_mut().d_blocks.0.d_vec,
-                    &mut remainder.as_mut().d_blocks.0.d_vec,
-                    &numerator.as_ref().d_blocks.0.d_vec,
-                    &divisor.as_ref().d_blocks.0.d_vec,
+                    quotient.as_mut(),
+                    remainder.as_mut(),
+                    numerator.as_ref(),
+                    divisor.as_ref(),
                     T::IS_SIGNED,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -54,10 +54,10 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 unchecked_div_rem_integer_radix_kb_assign_async(
                     streams,
-                    &mut quotient.as_mut().d_blocks.0.d_vec,
-                    &mut remainder.as_mut().d_blocks.0.d_vec,
-                    &numerator.as_ref().d_blocks.0.d_vec,
-                    &divisor.as_ref().d_blocks.0.d_vec,
+                    quotient.as_mut(),
+                    remainder.as_mut(),
+                    numerator.as_ref(),
+                    divisor.as_ref(),
                     T::IS_SIGNED,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
@@ -81,9 +81,6 @@ impl CudaServerKey {
                 );
             }
         }
-
-        quotient.as_mut().info = quotient.as_ref().info.after_div_rem();
-        remainder.as_mut().info = remainder.as_ref().info.after_div_rem();
     }
 
     pub fn unchecked_div_rem_assign<T>(

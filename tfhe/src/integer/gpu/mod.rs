@@ -73,6 +73,7 @@ fn prepare_cuda_radix_ffi(
         degrees: degrees_vec.as_mut_ptr(),
         noise_levels: noise_levels_vec.as_mut_ptr(),
         num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
+        max_num_radix_blocks: input.d_blocks.0.lwe_ciphertext_count.0 as u32,
         lwe_dimension: input.d_blocks.0.lwe_dimension.0 as u32,
     }
 }
@@ -89,6 +90,7 @@ fn prepare_cuda_radix_ffi_from_slice<T: UnsignedInteger>(
         degrees: degrees_vec.as_mut_ptr(),
         noise_levels: noise_levels_vec.as_mut_ptr(),
         num_radix_blocks,
+        max_num_radix_blocks: num_radix_blocks,
         lwe_dimension,
     }
 }
@@ -105,6 +107,7 @@ fn prepare_cuda_radix_ffi_from_slice_mut<T: UnsignedInteger>(
         degrees: degrees_vec.as_mut_ptr(),
         noise_levels: noise_levels_vec.as_mut_ptr(),
         num_radix_blocks,
+        max_num_radix_blocks: num_radix_blocks,
         lwe_dimension,
     }
 }
@@ -3225,10 +3228,10 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
 ///   is required
 pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    quotient: &mut CudaVec<T>,
-    remainder: &mut CudaVec<T>,
-    numerator: &CudaVec<T>,
-    divisor: &CudaVec<T>,
+    quotient: &mut CudaRadixCiphertext,
+    remainder: &mut CudaRadixCiphertext,
+    numerator: &CudaRadixCiphertext,
+    divisor: &CudaRadixCiphertext,
     is_signed: bool,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -3246,7 +3249,79 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
 ) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        quotient.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        remainder.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        numerator.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        divisor.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut quotient_noise_levels = quotient
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_quotient =
+        prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
+    let mut divisor_degrees = divisor.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut divisor_noise_levels = divisor
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_divisor =
+        prepare_cuda_radix_ffi(divisor, &mut divisor_degrees, &mut divisor_noise_levels);
+    let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut numerator_noise_levels = numerator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_numerator = prepare_cuda_radix_ffi(
+        numerator,
+        &mut numerator_degrees,
+        &mut numerator_noise_levels,
+    );
+    let mut remainder_degrees = remainder.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut remainder_noise_levels = remainder
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_remainder = prepare_cuda_radix_ffi(
+        remainder,
+        &mut remainder_degrees,
+        &mut remainder_noise_levels,
+    );
     scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3272,15 +3347,14 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        quotient.as_mut_c_ptr(0),
-        remainder.as_mut_c_ptr(0),
-        numerator.as_c_ptr(0),
-        divisor.as_c_ptr(0),
+        &mut cuda_ffi_quotient,
+        &mut cuda_ffi_remainder,
+        &cuda_ffi_numerator,
+        &cuda_ffi_divisor,
         is_signed,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
-        num_blocks,
     );
     cleanup_cuda_integer_div_rem(
         streams.ptr.as_ptr(),
@@ -3288,6 +3362,8 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(quotient, &cuda_ffi_quotient);
+    update_noise_degree(remainder, &cuda_ffi_remainder);
 }
 
 #[allow(clippy::too_many_arguments)]

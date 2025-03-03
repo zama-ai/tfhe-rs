@@ -24,32 +24,6 @@ __global__ void device_integer_radix_scalar_addition_inplace(
 }
 
 template <typename Torus>
-__host__ void legacy_host_integer_radix_scalar_addition_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array, Torus const *scalar_input,
-    uint32_t lwe_dimension, uint32_t input_lwe_ciphertext_count,
-    uint32_t message_modulus, uint32_t carry_modulus) {
-  cuda_set_device(gpu_indexes[0]);
-
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  // Value of the shift we multiply our messages by
-  // If message_modulus and carry_modulus are always powers of 2 we can simplify
-  // this
-  uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
-
-  device_integer_radix_scalar_addition_inplace<Torus>
-      <<<grid, thds, 0, streams[0]>>>(lwe_array, scalar_input,
-                                      input_lwe_ciphertext_count, lwe_dimension,
-                                      delta);
-  check_cuda_error(cudaGetLastError());
-}
-template <typename Torus>
 __host__ void host_integer_radix_scalar_addition_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
@@ -96,32 +70,6 @@ __global__ void device_integer_radix_add_scalar_one_inplace(
     Torus *body = lwe_array + tid * (lwe_dimension + 1) + lwe_dimension;
     *body += delta;
   }
-}
-
-template <typename Torus>
-__host__ void legacy_host_integer_radix_add_scalar_one_inplace(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array, uint32_t lwe_dimension,
-    uint32_t num_radix_blocks, uint32_t message_modulus,
-    uint32_t carry_modulus) {
-  cuda_set_device(gpu_indexes[0]);
-
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = num_radix_blocks;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  // Value of the shift we multiply our messages by
-  // If message_modulus and carry_modulus are always powers of 2 we can simplify
-  // this
-  uint64_t delta = ((uint64_t)1 << 63) / (message_modulus * carry_modulus);
-
-  device_integer_radix_add_scalar_one_inplace<Torus>
-      <<<grid, thds, 0, streams[0]>>>(lwe_array, num_radix_blocks,
-                                      lwe_dimension, delta);
-  check_cuda_error(cudaGetLastError());
 }
 
 template <typename Torus>

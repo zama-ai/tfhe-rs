@@ -13,6 +13,7 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         const uint32_t lwe_dimension) {
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
+  radix->max_num_radix_blocks = num_radix_blocks;
   uint32_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
   radix->ptr = (void *)cuda_malloc_async(size, stream, gpu_index);
   cuda_memset_async(radix->ptr, 0, size, stream, gpu_index);

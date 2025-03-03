@@ -22,18 +22,16 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *quotient, void *remainder, void const *numerator, void const *divisor,
-    bool is_signed, int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_blocks) {
+    CudaRadixCiphertextFFI *quotient, CudaRadixCiphertextFFI *remainder,
+    CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks) {
 
   auto mem = (int_div_rem_memory<uint64_t> *)mem_ptr;
 
   host_integer_div_rem_kb<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(quotient), static_cast<uint64_t *>(remainder),
-      static_cast<const uint64_t *>(numerator),
-      static_cast<const uint64_t *>(divisor), is_signed, bsks,
-      (uint64_t **)(ksks), mem, num_blocks);
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, quotient, remainder,
+      numerator, divisor, is_signed, bsks, (uint64_t **)(ksks), mem);
 }
 
 void cleanup_cuda_integer_div_rem(void *const *streams,
