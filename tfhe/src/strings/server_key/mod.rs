@@ -58,6 +58,17 @@ impl<T: Borrow<IntegerServerKey> + Sync> ServerKey<T> {
         num_ascii_blocks(sk.message_modulus())
     }
 
+    pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
+        let sk = self.inner.borrow();
+
+        super::ciphertext::trivial_encrypt_ascii(
+            &sk.key,
+            &crate::shortint::ServerKey::create_trivial,
+            str,
+            padding,
+        )
+    }
+
     // If an iterator is longer than the other, the "excess" characters are ignored. This function
     // performs the equality check by transforming the `str` and `pat` chars into two UInts
     fn asciis_eq<'a, I, U>(&self, str: I, pat: U) -> BooleanBlock

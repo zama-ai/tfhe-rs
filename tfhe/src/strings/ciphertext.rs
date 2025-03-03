@@ -1,11 +1,12 @@
 use super::client_key::ClientKey;
 use super::server_key::ServerKey;
 use crate::integer::ciphertext::{Compactable, DataKind};
-use crate::integer::encryption::KnowsMessageModulus;
+use crate::integer::encryption::{encrypt_words_radix_impl, KnowsMessageModulus};
 use crate::integer::{
     ClientKey as IntegerClientKey, IntegerCiphertext, IntegerRadixCiphertext, RadixCiphertext,
     ServerKey as IntegerServerKey,
 };
+use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::MessageModulus;
 use crate::strings::backward_compatibility::{FheAsciiCharVersions, FheStringVersions};
 use crate::strings::client_key::EncU16;
@@ -248,6 +249,14 @@ impl FheAsciiChar {
             enc_char: sk_integer.create_trivial_zero_radix(sk.num_ascii_blocks()),
         }
     }
+
+    pub fn is_trivial(&self) -> bool {
+        self.enc_char.is_trivial()
+    }
+
+    pub fn decrypt_trivial(&self) -> Result<u8, NotTrivialCiphertextError> {
+        self.enc_char.decrypt_trivial()
+    }
 }
 
 impl FheString {
@@ -297,21 +306,23 @@ impl FheString {
         server_key: &ServerKey<T>,
         str: &str,
     ) -> Self {
-        assert!(str.is_ascii() & !str.contains('\0'));
+        server_key.trivial_encrypt_ascii(str, None)
+    }
 
-        let server_key2 = server_key.inner();
+    pub fn is_trivial(&self) -> bool {
+        self.chars().iter().all(FheAsciiChar::is_trivial)
+    }
 
-        let enc_string: Vec<_> = str
-            .bytes()
-            .map(|char| FheAsciiChar {
-                enc_char: server_key2.create_trivial_radix(char, server_key.num_ascii_blocks()),
-            })
-            .collect();
-
-        Self {
-            enc_string,
-            padded: false,
+    pub fn decrypt_trivial(&self) -> Result<String, NotTrivialCiphertextError> {
+        let mut bytes = Vec::with_capacity(self.chars().len());
+        for enc_char in self.chars() {
+            let clear = enc_char.decrypt_trivial()?;
+            if clear == b'\0' {
+                break;
+            }
+            bytes.push(clear);
         }
+        Ok(String::from_utf8(bytes).expect("String is not valid ASCII"))
     }
 
     pub fn chars(&self) -> &[FheAsciiChar] {
@@ -416,6 +427,49 @@ pub(super) fn num_ascii_blocks(message_modulus: MessageModulus) -> usize {
     assert_eq!(8 % message_modulus.ilog2(), 0);
 
     8 / message_modulus.ilog2() as usize
+}
+
+/// Creates a trivial encryption of the ascii string `str`
+///
+/// * key: typically a shortint::ClientKey/ServerKey
+/// * encrypt: the method of the `key` used to create a trivial block
+///
+/// # Panics
+///
+/// If the string is not ascii or contains null chars ('\0')
+pub(in crate::strings) fn trivial_encrypt_ascii<BlockKey, F>(
+    key: &BlockKey,
+    encrypt_block: &F,
+    str: &str,
+    padding: Option<u32>,
+) -> FheString
+where
+    BlockKey: KnowsMessageModulus,
+    F: Fn(&BlockKey, u64) -> crate::shortint::Ciphertext,
+{
+    assert!(str.is_ascii() & !str.contains('\0'));
+
+    let padded = padding.is_some_and(|p| p != 0);
+
+    let num_blocks = num_ascii_blocks(key.message_modulus());
+
+    let mut enc_string: Vec<_> = str
+        .bytes()
+        .map(|char| FheAsciiChar {
+            enc_char: encrypt_words_radix_impl(key, char, num_blocks, encrypt_block),
+        })
+        .collect();
+
+    // Optional padding
+    if let Some(count) = padding {
+        let null = (0..count).map(|_| FheAsciiChar {
+            enc_char: encrypt_words_radix_impl(key, 0u8, num_blocks, encrypt_block),
+        });
+
+        enc_string.extend(null);
+    }
+
+    FheString { enc_string, padded }
 }
 
 #[cfg(test)]
