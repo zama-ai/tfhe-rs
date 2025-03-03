@@ -404,6 +404,7 @@ impl<const N: usize> From<(u64, u64, u64, u64)> for StaticSignedBigInt<N> {
 }
 
 impl<const N: usize> CastFrom<Self> for StaticSignedBigInt<N> {
+    #[inline(always)]
     fn cast_from(input: Self) -> Self {
         input
     }

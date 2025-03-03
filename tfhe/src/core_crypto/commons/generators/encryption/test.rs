@@ -33,7 +33,7 @@ fn test_gaussian_sampling_margin_factor_does_not_panic() {
         params.lwe_dim,
         &mut sec_generator,
     );
-    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
+    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key::<u64, _>(
         params.glwe_size.to_glwe_dimension(),
         params.poly_size,
         &mut sec_generator,
