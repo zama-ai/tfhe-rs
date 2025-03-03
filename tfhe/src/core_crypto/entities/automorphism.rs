@@ -7,14 +7,67 @@ use crate::core_crypto::prelude::{
 
 pub struct Automorphism {
     power: usize,
+    monomial_reducer: MonomialReducer,
+}
+
+pub struct MonomialReducer {
     polynomial_size: PolynomialSize,
+    modular_mask: u64,
+    log_poly_size_minus_1: u64,
+    modular_sign_change_mask: u64,
+}
+
+impl MonomialReducer {
+    pub fn new(polynomial_size: PolynomialSize) -> Self {
+        let modular_mask = (polynomial_size.0 - 1) as u64;
+
+        let log_poly_size_minus_1 = (polynomial_size.log2().0 - 1) as u64;
+
+        let modular_sign_change_mask = polynomial_size.0 as u64;
+
+        Self {
+            polynomial_size,
+            modular_mask,
+            log_poly_size_minus_1,
+            modular_sign_change_mask,
+        }
+    }
+
+    // Modulus X^N+1
+    // X^(kN+n) = X^n if k even
+    // X^(kN+n) = -X^n if k odd
+    // Given (kN+n) and N, this functions return n and the sign of the reduced monomial
+    pub fn reduce_monomial(&self, power: u64) -> ReducedMonomial {
+        // = 0 if power does not change sign
+        // = 2 if power does change sign
+        let should_be_negated =
+            (power & self.modular_sign_change_mask) >> self.log_poly_size_minus_1;
+
+        // = 1 if power does not change sign
+        // = -1 if power does change sign
+        let sign = 1.wrapping_sub(should_be_negated);
+
+        let reduced_power = power & self.modular_mask;
+
+        ReducedMonomial {
+            sign,
+            reduced_power,
+        }
+    }
+}
+
+struct ReducedMonomial {
+    sign: u64,
+    reduced_power: u64,
 }
 
 impl Automorphism {
     pub fn new(power: usize, polynomial_size: PolynomialSize) -> Self {
+        let monomial_reducer = MonomialReducer::new(polynomial_size);
+
         Self {
             power,
-            polynomial_size,
+            monomial_reducer,
         }
     }
 
@@ -56,26 +109,20 @@ impl Automorphism {
         InCont: Container<Element = Scalar>,
         OutCont: ContainerMut<Element = Scalar>,
     {
-        let log_poly_size_minus_1 = self.polynomial_size.log2().0 - 1;
-
-        let modular_mask = self.polynomial_size.0 - 1;
-
-        let modular_sign_change_mask = self.polynomial_size.0;
-
         let output = output.as_mut();
 
-        for (i, a) in input.as_ref().iter().enumerate() {
-            let power = i * self.power;
+        let mut power = 0;
 
-            // = 0 if power does not change sign
-            // = 2 if power does change sign
-            let should_be_negated = (power & modular_sign_change_mask) >> log_poly_size_minus_1;
+        for in_polynomial_coeff in input.as_ref().iter() {
+            let ReducedMonomial {
+                sign,
+                reduced_power,
+            } = self.monomial_reducer.reduce_monomial(power);
 
-            // = 1 if power does not change sign
-            // = -1 if power does change sign
-            let sign = 1.wrapping_sub(should_be_negated);
+            output[reduced_power as usize] =
+                Scalar::cast_from(sign as usize).wrapping_mul(*in_polynomial_coeff);
 
-            output[power & modular_mask] = Scalar::cast_from(sign).wrapping_mul(*a);
+            power += self.power as u64;
         }
     }
 
