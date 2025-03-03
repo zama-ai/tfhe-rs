@@ -8,6 +8,7 @@ use crate::utilities::{
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::cmp::max;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
@@ -66,27 +67,42 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                let ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                reset_pbs_count();
+                binary_op(&sks, &ct_0, &ct_1);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let setup_encrypted_values = || {
+                        let cts_0 = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+                        let cts_1 = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
 
-                    let mut cts_0 = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
-                    let mut cts_1 = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
+                        (cts_0, cts_1)
+                    };
 
-                    b.iter(|| {
-                        cts_0
-                            .par_iter_mut()
-                            .zip(cts_1.par_iter_mut())
-                            .for_each(|(ct_0, ct_1)| {
-                                binary_op(&sks, ct_0, ct_1);
-                            })
-                    })
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(mut cts_0, mut cts_1)| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&sks, ct_0, ct_1);
+                                },
+                            )
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
         }
@@ -117,7 +133,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
+        .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
     let mut rng = rand::thread_rng();
 
@@ -151,29 +167,45 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                reset_pbs_count();
+                binary_op(&sks, &ct_0, &ct_1);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-                    let mut cts_0 = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
-                    let mut cts_1 = (0..elements)
-                        .map(|_| {
-                            cks.encrypt_radix(rng.gen_range(0u128..bit_size as u128), num_block)
-                        })
-                        .collect::<Vec<_>>();
-
-                    b.iter(|| {
-                        cts_0
-                            .par_iter_mut()
-                            .zip(cts_1.par_iter_mut())
-                            .for_each(|(ct_0, ct_1)| {
-                                binary_op(&sks, ct_0, ct_1);
+                    let setup_encrypted_values = || {
+                        let cts_0 = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+                        let cts_1 = (0..elements)
+                            .map(|_| {
+                                cks.encrypt_radix(rng.gen_range(0u128..bit_size as u128), num_block)
                             })
-                    })
+                            .collect::<Vec<_>>();
+
+                        (cts_0, cts_1)
+                    };
+
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(mut cts_0, mut cts_1)| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&sks, ct_0, ct_1);
+                                },
+                            )
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
         }
@@ -204,7 +236,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
+        .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
 
     let mut rng = rand::thread_rng();
@@ -233,21 +265,34 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                reset_pbs_count();
+                unary_fn(&sks, &ct_0);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let setup_encrypted_values = || {
+                        (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>()
+                    };
 
-                    let mut cts_0 = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
-
-                    b.iter(|| {
-                        cts_0.par_iter_mut().for_each(|ct_0| {
-                            unary_fn(&sks, ct_0);
-                        })
-                    })
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |mut cts| {
+                            cts.par_iter_mut().for_each(|ct_0| {
+                                unary_fn(&sks, ct_0);
+                            })
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
         }
@@ -272,7 +317,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
 
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
+        .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
     let mut rng = rand::thread_rng();
 
@@ -307,32 +352,49 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                reset_pbs_count();
+                sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let setup_encrypted_values = || {
+                        let cts_cond = (0..elements)
+                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .collect::<Vec<_>>();
 
-                    let cts_cond = (0..elements)
-                        .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
-                        .collect::<Vec<_>>();
+                        let cts_then = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+                        let cts_else = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
 
-                    let cts_then = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
-                    let cts_else = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
+                        (cts_cond, cts_then, cts_else)
+                    };
 
-                    b.iter(|| {
-                        cts_cond
-                            .par_iter()
-                            .zip(cts_then.par_iter())
-                            .zip(cts_else.par_iter())
-                            .for_each(|((condition, true_ct), false_ct)| {
-                                sks.if_then_else_parallelized(condition, true_ct, false_ct);
-                            })
-                    })
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(cts_cond, cts_then, cts_else)| {
+                            cts_cond
+                                .par_iter()
+                                .zip(cts_then.par_iter())
+                                .zip(cts_else.par_iter())
+                                .for_each(|((condition, true_ct), false_ct)| {
+                                    sks.if_then_else_parallelized(condition, true_ct, false_ct);
+                                })
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
         }
@@ -786,7 +848,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
+        .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
     let mut rng = rand::thread_rng();
 
@@ -830,36 +892,51 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                 });
             }
             BenchmarkType::Throughput => {
+                let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                // Execute the operation once to know its cost.
+                let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                let clear_1 = rng_func(&mut rng, bit_size);
+
+                reset_pbs_count();
+                binary_op(&sks, &mut ct_0, clear_1);
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
-                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-
-                    let mut cts_0 = (0..elements)
-                        .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
-                        .collect::<Vec<_>>();
-                    let clears_1 = (0..elements)
-                        .map(|_| {
-                            let clear_1 = rng_func(&mut rng, bit_size);
-                            assert!(
-                                range.contains(&clear_1),
-                                "{:?} is not within the range {:?}",
-                                clear_1,
-                                range
-                            );
-                            clear_1
-                        })
-                        .collect::<Vec<_>>();
-
-                    b.iter(|| {
-                        cts_0
-                            .par_iter_mut()
-                            .zip(clears_1.par_iter())
-                            .for_each(|(ct_0, clear_1)| {
-                                binary_op(&sks, ct_0, *clear_1);
+                    let setup_encrypted_values = || {
+                        let cts_0 = (0..elements)
+                            .map(|_| cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+                        let clears_1 = (0..elements)
+                            .map(|_| {
+                                let clear_1 = rng_func(&mut rng, bit_size);
+                                assert!(
+                                    range.contains(&clear_1),
+                                    "{:?} is not within the range {:?}",
+                                    clear_1,
+                                    range
+                                );
+                                clear_1
                             })
-                    })
+                            .collect::<Vec<_>>();
+
+                        (cts_0, clears_1)
+                    };
+
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(mut cts_0, clears_1)| {
+                            cts_0.par_iter_mut().zip(clears_1.par_iter()).for_each(
+                                |(ct_0, clear_1)| {
+                                    binary_op(&sks, ct_0, *clear_1);
+                                },
+                            )
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
                 });
             }
         }
@@ -1256,7 +1333,7 @@ fn bench_server_key_signed_cast_function<F>(
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
+        .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
     let mut rng = rand::thread_rng();
 
@@ -1326,20 +1403,24 @@ criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
+    use crate::utilities::cuda_num_streams;
     use criterion::criterion_group;
     use rayon::iter::IntoParallelRefIterator;
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use std::cmp::max;
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     use tfhe::integer::gpu::server_key::CudaServerKey;
+    use tfhe::GpuIndex;
 
     /// Base function to bench a server key function that is a binary operation, input ciphertext
     /// will contain only zero carries
-    fn bench_cuda_server_key_binary_signed_function_clean_inputs<F>(
+    fn bench_cuda_server_key_binary_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
         bench_name: &str,
         display_name: &str,
         binary_op: F,
+        binary_op_cpu: G,
     ) where
         F: Fn(
                 &CudaServerKey,
@@ -1347,10 +1428,11 @@ mod cuda {
                 &mut CudaSignedRadixCiphertext,
                 &CudaStreams,
             ) + Sync,
+        G: Fn(&ServerKey, &SignedRadixCiphertext, &SignedRadixCiphertext) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -1401,46 +1483,74 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    // Execute the operation once to know its cost.
+                    let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let mut ct_1 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    binary_op_cpu(&cpu_sks, &mut ct_0, &mut ct_1);
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+                        let setup_encrypted_values = || {
+                            let cts_0 = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                        let mut cts_0 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_0, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let cts_1 = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_0, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let mut cts_1 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_0, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
 
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_0, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
+                            let local_streams = (0..cuda_num_streams(num_block))
+                                .map(|i| {
+                                    CudaStreams::new_single_gpu(GpuIndex::new(
+                                        (i % get_number_of_gpus() as u64) as u32,
+                                    ))
+                                })
+                                .cycle()
+                                .take(elements as usize)
+                                .collect::<Vec<_>>();
 
-                        b.iter(|| {
-                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
-                                |(ct_0, ct_1)| {
-                                    binary_op(&gpu_sks, ct_0, ct_1, &stream);
-                                },
-                            )
-                        })
+                            (cts_0, cts_1, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(mut cts_0, mut cts_1, local_streams)| {
+                                cts_0
+                                    .par_iter_mut()
+                                    .zip(cts_1.par_iter_mut())
+                                    .zip(local_streams.par_iter())
+                                    .for_each(|((ct_0, ct_1), local_stream)| {
+                                        binary_op(&gpu_sks, ct_0, ct_1, local_stream);
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
                     });
                 }
             }
@@ -1460,7 +1570,7 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_signed_fn (
-        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_signed_function_clean_inputs(
@@ -1469,6 +1579,9 @@ mod cuda {
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
+                        },
+                        |server_key_cpu, lhs, rhs| {
+                            server_key_cpu.$server_key_method_cpu(lhs, rhs);
                         }
                     )
                 }
@@ -1478,17 +1591,19 @@ mod cuda {
 
     /// Base function to bench a server key function that is a unary operation, input ciphertext
     /// will contain only zero carries
-    fn bench_cuda_server_key_unary_signed_function_clean_inputs<F>(
+    fn bench_cuda_server_key_unary_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
         bench_name: &str,
         display_name: &str,
         unary_op: F,
+        unary_op_cpu: G,
     ) where
         F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, &CudaStreams) + Sync,
+        G: Fn(&ServerKey, &SignedRadixCiphertext) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -1527,32 +1642,59 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    // Execute the operation once to know its cost.
+                    let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    unary_op_cpu(&cpu_sks, &ct_0);
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+                        let setup_encrypted_values = || {
+                            let cts = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                        let mut cts_0 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_0, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
 
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_0, &stream,
+                            let local_streams = (0..cuda_num_streams(num_block))
+                                .map(|i| {
+                                    CudaStreams::new_single_gpu(GpuIndex::new(
+                                        (i % get_number_of_gpus() as u64) as u32,
+                                    ))
+                                })
+                                .cycle()
+                                .take(elements as usize)
+                                .collect::<Vec<_>>();
+
+                            (cts, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(mut cts, local_streams)| {
+                                cts.par_iter_mut().zip(local_streams.par_iter()).for_each(
+                                    |(ct_0, local_stream)| {
+                                        unary_op(&gpu_sks, ct_0, local_stream);
+                                    },
                                 )
-                            })
-                            .collect::<Vec<_>>();
-
-                        b.iter(|| {
-                            cts_0.par_iter_mut().for_each(|ct_0| {
-                                unary_op(&gpu_sks, ct_0, &stream);
-                            })
-                        })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
                     });
                 }
             }
@@ -1572,7 +1714,7 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_signed_unary_fn (
-        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_unary_signed_function_clean_inputs(
@@ -1581,6 +1723,9 @@ mod cuda {
                         stringify!($name),
                         |server_key, input, stream| {
                             server_key.$server_key_method(input, stream);
+                        },
+                        |server_key_cpu, lhs| {
+                            server_key_cpu.$server_key_method_cpu(lhs);
                         }
                     )
                 }
@@ -1588,19 +1733,21 @@ mod cuda {
         }
     );
 
-    fn bench_cuda_server_key_binary_scalar_signed_function_clean_inputs<F, G>(
+    fn bench_cuda_server_key_binary_scalar_signed_function_clean_inputs<F, G, H>(
         c: &mut Criterion,
         bench_name: &str,
         display_name: &str,
         binary_op: F,
-        rng_func: G,
+        binary_op_cpu: G,
+        rng_func: H,
     ) where
         F: Fn(&CudaServerKey, &mut CudaSignedRadixCiphertext, ScalarType, &CudaStreams) + Sync,
-        G: Fn(&mut ThreadRng, usize) -> ScalarType,
+        G: Fn(&ServerKey, &mut SignedRadixCiphertext, ScalarType) + Sync,
+        H: Fn(&mut ThreadRng, usize) -> ScalarType,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -1650,39 +1797,67 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    // Execute the operation once to know its cost.
+                    let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let clear_0 = rng_func(&mut rng, bit_size);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    binary_op_cpu(&cpu_sks, &mut ct_0, clear_0);
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+                        let setup_encrypted_values = || {
+                            let cts_0 = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                        let mut cts_0 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_0, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let clears_1 = (0..elements)
+                                .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
+                                .collect::<Vec<_>>();
 
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_0, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let clears_1 = (0..elements)
-                            .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
-                            .collect::<Vec<_>>();
+                            let local_streams = (0..cuda_num_streams(num_block))
+                                .map(|i| {
+                                    CudaStreams::new_single_gpu(GpuIndex::new(
+                                        (i % get_number_of_gpus() as u64) as u32,
+                                    ))
+                                })
+                                .cycle()
+                                .take(elements as usize)
+                                .collect::<Vec<_>>();
 
-                        b.iter(|| {
-                            cts_0.par_iter_mut().zip(clears_1.par_iter()).for_each(
-                                |(ct_0, clear_1)| {
-                                    binary_op(&gpu_sks, ct_0, *clear_1, &stream);
-                                },
-                            )
-                        })
+                            (cts_0, clears_1, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(mut cts_0, clears_1, local_streams)| {
+                                cts_0
+                                    .par_iter_mut()
+                                    .zip(clears_1.par_iter())
+                                    .zip(local_streams.par_iter())
+                                    .for_each(|((ct_0, clear_1), local_stream)| {
+                                        binary_op(&gpu_sks, ct_0, *clear_1, local_stream);
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
                     });
                 }
             }
@@ -1702,7 +1877,7 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_scalar_signed_fn (
-        (method_name: $server_key_method:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
+        (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident, rng_func:$($rng_fn:tt)*) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_binary_scalar_signed_function_clean_inputs(
@@ -1711,6 +1886,9 @@ mod cuda {
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
+                        },
+                        |server_key_cpu, lhs, rhs| {
+                            server_key_cpu.$server_key_method_cpu(lhs, rhs);
                         },
                         $($rng_fn)*
                     )
@@ -1721,11 +1899,12 @@ mod cuda {
 
     /// Base function to bench a server key function that is a binary operation for shift/rotate,
     /// input ciphertext will contain only zero carries
-    fn bench_cuda_server_key_shift_rotate_signed_function_clean_inputs<F>(
+    fn bench_cuda_server_key_shift_rotate_signed_function_clean_inputs<F, G>(
         c: &mut Criterion,
         bench_name: &str,
         display_name: &str,
         binary_op: F,
+        binary_op_cpu: G,
     ) where
         F: Fn(
                 &CudaServerKey,
@@ -1733,10 +1912,11 @@ mod cuda {
                 &mut CudaUnsignedRadixCiphertext,
                 &CudaStreams,
             ) + Sync,
+        G: Fn(&ServerKey, &SignedRadixCiphertext, &RadixCiphertext) + Sync,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -1786,44 +1966,75 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    // Execute the operation once to know its cost.
+                    let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                    let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    binary_op_cpu(&cpu_sks, &ct_0, &ct_1);
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &stream);
+                        let setup_encrypted_values = || {
+                            let cts_0 = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                        let mut cts_0 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_0, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let cts_1 = (0..elements)
+                                .map(|_| {
+                                    let clearlow = rng.gen::<u128>();
+                                    let clearhigh = rng.gen::<u128>();
+                                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
+                                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_0, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let mut cts_1 = (0..elements)
-                            .map(|_| {
-                                let clearlow = rng.gen::<u128>();
-                                let clearhigh = rng.gen::<u128>();
-                                let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
-                                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                        &ct_1, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
 
-                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &stream)
-                            })
-                            .collect::<Vec<_>>();
+                            let local_streams = (0..cuda_num_streams(num_block))
+                                .map(|i| {
+                                    CudaStreams::new_single_gpu(GpuIndex::new(
+                                        (i % get_number_of_gpus() as u64) as u32,
+                                    ))
+                                })
+                                .cycle()
+                                .take(elements as usize)
+                                .collect::<Vec<_>>();
 
-                        b.iter(|| {
-                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
-                                |(ct_0, ct_1)| {
-                                    binary_op(&gpu_sks, ct_0, ct_1, &stream);
-                                },
-                            )
-                        })
+                            (cts_0, cts_1, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(mut cts_0, mut cts_1, local_streams)| {
+                                cts_0
+                                    .par_iter_mut()
+                                    .zip(cts_1.par_iter_mut())
+                                    .zip(local_streams.par_iter())
+                                    .for_each(|((ct_0, ct_1), local_stream)| {
+                                        binary_op(&gpu_sks, ct_0, ct_1, local_stream);
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
                     });
                 }
             }
@@ -1843,7 +2054,7 @@ mod cuda {
     }
 
     macro_rules! define_cuda_server_key_bench_clean_input_signed_shift_rotate (
-        (method_name: $server_key_method:ident, display_name:$name:ident) => {
+        (method_name: $server_key_method:ident, method_name_cpu: $server_key_method_cpu:ident, display_name:$name:ident) => {
             ::paste::paste!{
                 fn [<cuda_ $server_key_method>](c: &mut Criterion) {
                     bench_cuda_server_key_shift_rotate_signed_function_clean_inputs(
@@ -1852,6 +2063,9 @@ mod cuda {
                         stringify!($name),
                         |server_key, lhs, rhs, stream| {
                             server_key.$server_key_method(lhs, rhs, stream);
+                        },
+                        |server_key_cpu, lhs, rhs| {
+                            server_key_cpu.$server_key_method_cpu(lhs, rhs);
                         }
                     )
                 }
@@ -1863,7 +2077,7 @@ mod cuda {
         let bench_name = "integer::cuda::signed::if_then_else";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -1916,49 +2130,81 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+
+                    // Execute the operation once to know its cost.
+                    let cond = cpu_sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                    let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    cpu_sks.if_then_else_parallelized(&cond, &ct_then, &ct_else);
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
-                        let (cks, _cpu_sks) =
-                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                        let gpu_sks = CudaServerKey::new(&cks, &stream);
-
-                        let cts_cond = (0..elements)
-                            .map(|_| {
-                                let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
-                                CudaBooleanBlock::from_boolean_block(&ct_cond, &stream)
-                            })
-                            .collect::<Vec<_>>();
-                        let cts_then = (0..elements)
-                            .map(|_| {
-                                let ct_then =
-                                    cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_then, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        let cts_else = (0..elements)
-                            .map(|_| {
-                                let ct_else =
-                                    cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                                CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                    &ct_else, &stream,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-
-                        b.iter(|| {
-                            cts_cond
-                                .par_iter()
-                                .zip(cts_then.par_iter())
-                                .zip(cts_else.par_iter())
-                                .for_each(|((ct_cond, ct_then), ct_else)| {
-                                    let _ =
-                                        gpu_sks.if_then_else(ct_cond, ct_then, ct_else, &stream);
+                        let setup_encrypted_values = || {
+                            let cts_cond = (0..elements)
+                                .map(|_| {
+                                    let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
+                                    CudaBooleanBlock::from_boolean_block(&ct_cond, &stream)
                                 })
-                        })
+                                .collect::<Vec<_>>();
+                            let cts_then = (0..elements)
+                                .map(|_| {
+                                    let ct_then = cks
+                                        .encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_then, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let cts_else = (0..elements)
+                                .map(|_| {
+                                    let ct_else = cks
+                                        .encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_else, &stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            let local_streams = (0..cuda_num_streams(num_block))
+                                .map(|i| {
+                                    CudaStreams::new_single_gpu(GpuIndex::new(
+                                        (i % get_number_of_gpus() as u64) as u32,
+                                    ))
+                                })
+                                .cycle()
+                                .take(elements as usize)
+                                .collect::<Vec<_>>();
+
+                            (cts_cond, cts_then, cts_else, local_streams)
+                        };
+
+                        b.iter_batched(
+                            setup_encrypted_values,
+                            |(cts_cond, cts_then, cts_else, local_streams)| {
+                                cts_cond
+                                    .par_iter()
+                                    .zip(cts_then.par_iter())
+                                    .zip(cts_else.par_iter())
+                                    .zip(local_streams.par_iter())
+                                    .for_each(|(((ct_cond, ct_then), ct_else), local_stream)| {
+                                        let _ = gpu_sks.if_then_else(
+                                            ct_cond,
+                                            ct_then,
+                                            ct_else,
+                                            local_stream,
+                                        );
+                                    })
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
                     });
                 }
             }
@@ -1997,246 +2243,291 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_add,
+        method_name_cpu: unchecked_add_parallelized,
         display_name: add
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_sub,
+        method_name_cpu: unchecked_sub,
         display_name: sub
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: unchecked_neg,
+        method_name_cpu: unchecked_neg,
         display_name: neg
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: unchecked_abs,
+        method_name_cpu: unchecked_abs_parallelized,
         display_name: abs
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_mul,
+        method_name_cpu: unchecked_mul_parallelized,
         display_name: mul
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_div_rem,
+        method_name_cpu: unchecked_div_rem_parallelized,
         display_name: div_mod
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_bitand,
+        method_name_cpu: unchecked_bitand_parallelized,
         display_name: bitand
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_bitor,
+        method_name_cpu: unchecked_bitor_parallelized,
         display_name: bitor
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_bitxor,
+        method_name_cpu: unchecked_bitxor_parallelized,
         display_name: bitxor
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: unchecked_bitnot,
+        method_name_cpu: bitnot,
         display_name: bitnot
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: unchecked_rotate_left,
+        method_name_cpu: unchecked_rotate_left_parallelized,
         display_name: rotate_left
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: unchecked_rotate_right,
+        method_name_cpu: unchecked_rotate_right_parallelized,
         display_name: rotate_right
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: unchecked_left_shift,
+        method_name_cpu: unchecked_left_shift_parallelized,
         display_name: left_shift
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: unchecked_right_shift,
+        method_name_cpu: unchecked_right_shift_parallelized,
         display_name: right_shift
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_eq,
+        method_name_cpu: unchecked_eq_parallelized,
         display_name: eq
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_ne,
+        method_name_cpu: unchecked_ne_parallelized,
         display_name: ne
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_gt,
+        method_name_cpu: unchecked_gt_parallelized,
         display_name: gt
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_ge,
+        method_name_cpu: unchecked_ge_parallelized,
         display_name: ge
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_lt,
+        method_name_cpu: unchecked_lt_parallelized,
         display_name: lt
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_le,
+        method_name_cpu: unchecked_le_parallelized,
         display_name: le
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_min,
+        method_name_cpu: unchecked_min_parallelized,
         display_name: min
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_max,
+        method_name_cpu: unchecked_max_parallelized,
         display_name: max
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_signed_overflowing_add,
+        method_name_cpu: unchecked_signed_overflowing_add_parallelized,
         display_name: overflowing_add
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: unchecked_signed_overflowing_sub,
+        method_name_cpu: unchecked_signed_overflowing_sub_parallelized,
         display_name: overflowing_sub
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_add,
+        method_name_cpu: unchecked_scalar_add,
         display_name: add,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_mul,
+        method_name_cpu: unchecked_scalar_mul_parallelized,
         display_name: mul,
         rng_func: mul_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_sub,
+        method_name_cpu: unchecked_scalar_sub,
         display_name: sub,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_bitand,
+        method_name_cpu: unchecked_scalar_bitand_parallelized,
         display_name: bitand,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_bitor,
+        method_name_cpu: unchecked_scalar_bitor_parallelized,
         display_name: bitor,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_bitxor,
+        method_name_cpu: unchecked_scalar_bitxor_parallelized,
         display_name: bitxor,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_right_shift,
+        method_name_cpu: unchecked_scalar_right_shift_parallelized,
         display_name: right_shift,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_left_shift,
+        method_name_cpu: unchecked_scalar_left_shift_parallelized,
         display_name: left_shift,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_rotate_right,
+        method_name_cpu: unchecked_scalar_rotate_right_parallelized,
         display_name: rotate_right,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_rotate_left,
+        method_name_cpu: unchecked_scalar_rotate_left_parallelized,
         display_name: rotate_left,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_eq,
+        method_name_cpu: unchecked_scalar_eq_parallelized,
         display_name: eq,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_ne,
+        method_name_cpu: unchecked_scalar_ne_parallelized,
         display_name: ne,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_gt,
+        method_name_cpu: unchecked_scalar_gt_parallelized,
         display_name: gt,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_ge,
+        method_name_cpu: unchecked_scalar_ge_parallelized,
         display_name: ge,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_lt,
+        method_name_cpu: unchecked_scalar_lt_parallelized,
         display_name: lt,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_le,
+        method_name_cpu: unchecked_scalar_le_parallelized,
         display_name: le,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_min,
+        method_name_cpu: unchecked_scalar_min_parallelized,
         display_name: min,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_scalar_max,
+        method_name_cpu: unchecked_scalar_max_parallelized,
         display_name: max,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: signed_overflowing_scalar_add,
+        method_name_cpu: signed_overflowing_scalar_add_parallelized,
         display_name: overflowing_add,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: signed_overflowing_scalar_sub,
+        method_name_cpu: signed_overflowing_scalar_sub_parallelized,
         display_name: overflowing_sub,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: unchecked_signed_scalar_div_rem,
+        method_name_cpu: unchecked_signed_scalar_div_rem_parallelized,
         display_name: div_rem,
         rng_func: div_scalar
     );
@@ -2247,234 +2538,277 @@ mod cuda {
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: add,
+        method_name_cpu: add_parallelized,
         display_name: add
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: sub,
+        method_name_cpu: sub_parallelized,
         display_name: sub
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: neg,
+        method_name_cpu: neg_parallelized,
         display_name: neg
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: abs,
+        method_name_cpu: abs_parallelized,
         display_name: abs
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: mul,
+        method_name_cpu: mul_parallelized,
         display_name: mul
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: div_rem,
+        method_name_cpu: div_rem_parallelized,
         display_name: div_mod
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: bitand,
+        method_name_cpu: bitand_parallelized,
         display_name: bitand
     );
 
     define_cuda_server_key_bench_clean_input_signed_unary_fn!(
         method_name: bitnot,
+        method_name_cpu: bitnot,
         display_name: bitnot
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: bitor,
+        method_name_cpu: bitor_parallelized,
         display_name: bitor
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: bitxor,
+        method_name_cpu: bitxor_parallelized,
         display_name: bitxor
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: rotate_left,
+        method_name_cpu: rotate_left_parallelized,
         display_name: rotate_left
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: rotate_right,
+        method_name_cpu: rotate_right_parallelized,
         display_name: rotate_right
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: left_shift,
+        method_name_cpu: left_shift_parallelized,
         display_name: left_shift
     );
 
     define_cuda_server_key_bench_clean_input_signed_shift_rotate!(
         method_name: right_shift,
+        method_name_cpu: right_shift_parallelized,
         display_name: right_shift
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: eq,
+        method_name_cpu: eq_parallelized,
         display_name: eq
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: ne,
+        method_name_cpu: ne_parallelized,
         display_name: ne
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: gt,
+        method_name_cpu: gt_parallelized,
         display_name: gt
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: ge,
+        method_name_cpu: ge_parallelized,
         display_name: ge
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: lt,
+        method_name_cpu: lt_parallelized,
         display_name: lt
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: le,
+        method_name_cpu: le_parallelized,
         display_name: le
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: min,
+        method_name_cpu: min_parallelized,
         display_name: min
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: max,
+        method_name_cpu: max_parallelized,
         display_name: max
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: signed_overflowing_add,
+        method_name_cpu: signed_overflowing_add_parallelized,
         display_name: overflowing_add
     );
 
     define_cuda_server_key_bench_clean_input_signed_fn!(
         method_name: signed_overflowing_sub,
+        method_name_cpu: signed_overflowing_sub_parallelized,
         display_name: overflowing_sub
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_add,
+        method_name_cpu: scalar_add_parallelized,
         display_name: add,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_mul,
+        method_name_cpu: scalar_mul_parallelized,
         display_name: mul,
         rng_func: mul_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_sub,
+        method_name_cpu: scalar_sub_parallelized,
         display_name: sub,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_bitand,
+        method_name_cpu: scalar_bitand_parallelized,
         display_name: bitand,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_bitor,
+        method_name_cpu: scalar_bitor_parallelized,
         display_name: bitor,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_bitxor,
+        method_name_cpu: scalar_bitxor_parallelized,
         display_name: bitxor,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_left_shift,
+        method_name_cpu: scalar_left_shift_parallelized,
         display_name: left_shift,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_right_shift,
+        method_name_cpu: scalar_right_shift_parallelized,
         display_name: right_shift,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_rotate_left,
+        method_name_cpu: scalar_rotate_left_parallelized,
         display_name: rotate_left,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_rotate_right,
+        method_name_cpu: scalar_rotate_right_parallelized,
         display_name: rotate_right,
         rng_func: shift_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_eq,
+        method_name_cpu: scalar_eq_parallelized,
         display_name: eq,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_ne,
+        method_name_cpu: scalar_ne_parallelized,
         display_name: ne,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_gt,
+        method_name_cpu: scalar_gt_parallelized,
         display_name: gt,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_ge,
+        method_name_cpu: scalar_ge_parallelized,
         display_name: ge,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_lt,
+        method_name_cpu: scalar_lt_parallelized,
         display_name: lt,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_le,
+        method_name_cpu: scalar_le_parallelized,
         display_name: le,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_min,
+        method_name_cpu: scalar_min_parallelized,
         display_name: min,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: scalar_max,
+        method_name_cpu: scalar_max_parallelized,
         display_name: max,
         rng_func: default_signed_scalar
     );
 
     define_cuda_server_key_bench_clean_input_scalar_signed_fn!(
         method_name: signed_scalar_div_rem,
+        method_name_cpu: signed_scalar_div_rem_parallelized,
         display_name: div_rem,
         rng_func: div_scalar
     );
@@ -2609,7 +2943,7 @@ mod cuda {
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
+            .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
@@ -2697,6 +3031,7 @@ use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {

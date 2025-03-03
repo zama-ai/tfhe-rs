@@ -409,27 +409,43 @@ pub mod integer_utils {
     use super::*;
     use std::sync::OnceLock;
     #[cfg(feature = "gpu")]
-    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+    use tfhe::core_crypto::gpu::get_number_of_gpus;
 
     /// Generate a number of threads to use to saturate current machine for throughput measurements.
     #[allow(dead_code)]
-    pub fn throughput_num_threads(num_block: usize) -> u64 {
+    pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
-        let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil();
+        let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil().min(1.0);
+        // Some operations with a high count of PBS (e.g. division) would yield an operation
+        // loading value so low that the number of elements in the end wouldn't be meaningful.
+        let minimum_loading = if num_block < 64 { 0.2 } else { 0.1 };
 
         #[cfg(feature = "gpu")]
         {
             // This value is for Nvidia H100 GPU
             let streaming_multiprocessors = 132;
-            let num_gpus = unsafe { cuda_get_number_of_gpus() };
-            ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
+            let total_num_sm = streaming_multiprocessors * get_number_of_gpus();
+            let operation_loading =
+                ((total_num_sm as u64 / op_pbs_count) as f64).max(minimum_loading);
+            let elements = (total_num_sm as f64 * block_multiplicator * operation_loading) as u64;
+            elements.min(1500) // This threshold is useful for operation with both a small number of
+                               // block and low PBs count.
         }
         #[cfg(not(feature = "gpu"))]
         {
             let num_threads = rayon::current_num_threads() as f64;
+            let operation_loading = (num_threads / (op_pbs_count as f64)).max(minimum_loading);
             // Add 20% more to maximum threads available.
-            ((num_threads + (num_threads * 0.2)) * block_multiplicator) as u64
+            ((num_threads + (num_threads * 0.2)) * block_multiplicator.min(1.0) * operation_loading)
+                as u64
         }
+    }
+
+    /// Get number of streams usable for CUDA throughput benchmarks
+    #[allow(dead_code)]
+    #[cfg(feature = "gpu")]
+    pub fn cuda_num_streams(num_block: usize) -> u64 {
+        ((192 / num_block) * get_number_of_gpus() as usize) as u64
     }
 
     #[allow(dead_code)]
