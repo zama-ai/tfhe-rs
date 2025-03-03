@@ -1249,7 +1249,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
 ///   is required
 pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_input: &mut CudaVec<T>,
+    radix_lwe_input: &mut CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     lwe_dimension: LweDimension,
@@ -1267,7 +1267,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_input.gpu_index(0),
+        radix_lwe_input.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
     );
     assert_eq!(
@@ -1281,6 +1281,23 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         "GPU error: all data should reside on the same GPU."
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut radix_lwe_input_degrees = radix_lwe_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_lwe_input_noise_levels = radix_lwe_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_input = prepare_cuda_radix_ffi(
+        radix_lwe_input,
+        &mut radix_lwe_input_degrees,
+        &mut radix_lwe_input_noise_levels,
+    );
     scratch_cuda_full_propagation_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -1303,7 +1320,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        radix_lwe_input.as_mut_c_ptr(0),
+        &mut cuda_ffi_radix_lwe_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
         bootstrapping_key.ptr.as_ptr(),
@@ -1315,6 +1332,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(radix_lwe_input, &cuda_ffi_radix_lwe_input);
 }
 
 #[allow(clippy::too_many_arguments)]

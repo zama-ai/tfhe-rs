@@ -383,7 +383,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     full_propagate_assign_async(
                         streams,
-                        &mut ciphertext.d_blocks.0.d_vec,
+                        ciphertext,
                         &d_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         d_bsk.input_lwe_dimension(),
@@ -403,7 +403,7 @@ impl CudaServerKey {
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                     full_propagate_assign_async(
                         streams,
-                        &mut ciphertext.d_blocks.0.d_vec,
+                        ciphertext,
                         &d_multibit_bsk.d_vec,
                         &self.key_switching_key.d_vec,
                         d_multibit_bsk.input_lwe_dimension(),
@@ -422,14 +422,6 @@ impl CudaServerKey {
                 }
             }
         }
-        ciphertext.info.blocks.iter_mut().for_each(|b| {
-            b.degree = Degree::new(b.message_modulus.0 - 1);
-            b.noise_level = if b.noise_level == NoiseLevel::ZERO {
-                NoiseLevel::ZERO
-            } else {
-                NoiseLevel::NOMINAL
-            };
-        });
     }
 
     /// Prepend trivial zero LSB blocks to an existing [`CudaUnsignedRadixCiphertext`] or

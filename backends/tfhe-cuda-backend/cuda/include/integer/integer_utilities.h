@@ -841,8 +841,8 @@ template <typename Torus> struct int_fullprop_buffer {
 
   int_radix_lut<Torus> *lut;
 
-  Torus *tmp_small_lwe_vector;
-  Torus *tmp_big_lwe_vector;
+  CudaRadixCiphertextFFI *tmp_small_lwe_vector;
+  CudaRadixCiphertextFFI *tmp_big_lwe_vector;
 
   int_fullprop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                       uint32_t gpu_count, int_radix_params params,
@@ -889,17 +889,14 @@ template <typename Torus> struct int_fullprop_buffer {
 
       lut->broadcast_lut(streams, gpu_indexes, 0);
 
-      // Temporary arrays
-      Torus small_vector_size =
-          2 * (params.small_lwe_dimension + 1) * sizeof(Torus);
-      Torus big_vector_size =
-          2 * (params.glwe_dimension * params.polynomial_size + 1) *
-          sizeof(Torus);
-
-      tmp_small_lwe_vector = (Torus *)cuda_malloc_async(
-          small_vector_size, streams[0], gpu_indexes[0]);
-      tmp_big_lwe_vector = (Torus *)cuda_malloc_async(
-          big_vector_size, streams[0], gpu_indexes[0]);
+      tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_small_lwe_vector, 2,
+                                                params.small_lwe_dimension);
+      tmp_big_lwe_vector = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_big_lwe_vector, 2,
+                                                params.big_lwe_dimension);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       free(h_lwe_indexes);
     }
@@ -911,8 +908,10 @@ template <typename Torus> struct int_fullprop_buffer {
     lut->release(streams, gpu_indexes, 1);
     delete lut;
 
-    cuda_drop_async(tmp_small_lwe_vector, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_big_lwe_vector, streams[0], gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_small_lwe_vector);
+    delete tmp_small_lwe_vector;
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_big_lwe_vector);
+    delete tmp_big_lwe_vector;
   }
 };
 

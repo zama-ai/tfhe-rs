@@ -569,7 +569,7 @@ impl CudaServerKey {
         let output_flag = OutputFlag::from_signedness(CudaSignedRadixCiphertext::IS_SIGNED);
 
         let mut ct_res = lhs.duplicate_async(stream);
-        let mut carry_out: CudaSignedRadixCiphertext = self
+        let carry_out: CudaSignedRadixCiphertext = self
             .add_and_propagate_single_carry_assign_async(
                 &mut ct_res,
                 rhs,
@@ -577,14 +577,6 @@ impl CudaServerKey {
                 input_carry,
                 output_flag,
             );
-
-        if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-            && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
-        {
-            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::ZERO);
-        } else {
-            carry_out.as_mut().info = carry_out.as_ref().info.boolean_info(NoiseLevel::NOMINAL);
-        }
 
         let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext);
 
