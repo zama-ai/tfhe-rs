@@ -174,7 +174,7 @@ impl CudaBooleanBlock {
         })
     }
 
-    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> Self {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         let ct = unsafe { self.duplicate_async(streams) };
         streams.synchronize();
         ct

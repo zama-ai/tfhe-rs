@@ -6,6 +6,7 @@ use crate::utilities::{
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
+use std::cmp::max;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
@@ -77,9 +78,19 @@ fn cpu_glwe_packing(c: &mut Criterion) {
                 });
             }
             BenchmarkType::Throughput => {
+                // Execute the operation once to know its cost.
+                let ct = cks.encrypt_radix(0_u32, num_blocks);
+                let mut builder = CompressedCiphertextListBuilder::new();
+                builder.push(ct);
+                let compressed = builder.build(&compression_key);
+
+                reset_pbs_count();
+                let _: RadixCiphertext = compressed.get(0, &decompression_key).unwrap().unwrap();
+                let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                 let num_block =
                     (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
-                let elements = throughput_num_threads(num_block);
+                let elements = throughput_num_threads(num_block, pbs_count);
                 // FIXME thread usage seemed to be somewhat more "efficient".
                 //  For example, with bit_size = 2, my laptop is only using around 2/3 of the
                 // available threads  Thread usage increases with bit_size = 8 but
@@ -150,6 +161,8 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
+    use crate::utilities::cuda_local_streams;
+    use std::cmp::max;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -205,8 +218,6 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
-                    // Generate private compression key
-
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
                     let d_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct, &stream);
@@ -240,9 +251,23 @@ mod cuda {
                     });
                 }
                 BenchmarkType::Throughput => {
+                    // Execute the operation once to know its cost.
+                    let (cpu_compression_key, cpu_decompression_key) =
+                        cks.new_compression_decompression_keys(&private_compression_key);
+                    let ct = cks.encrypt_radix(0_u32, num_blocks);
+                    let mut builder = CompressedCiphertextListBuilder::new();
+                    builder.push(ct);
+                    let compressed = builder.build(&cpu_compression_key);
+
+                    reset_pbs_count();
+                    // Use CPU operation as pbs_count do not count PBS on GPU backend.
+                    let _: RadixCiphertext =
+                        compressed.get(0, &cpu_decompression_key).unwrap().unwrap();
+                    let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
+
                     let num_block = (bit_size as f64 / (param.message_modulus.0 as f64).log(2.0))
                         .ceil() as usize;
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, pbs_count);
                     bench_group.throughput(Throughput::Elements(elements));
 
                     // Encrypt
@@ -266,12 +291,16 @@ mod cuda {
                         })
                         .collect::<Vec<_>>();
 
+                    let local_streams = cuda_local_streams(num_block, elements as usize);
+
                     bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                     bench_group.bench_function(&bench_id_pack, |b| {
                         b.iter(|| {
-                            builders.par_iter().for_each(|builder| {
-                                builder.build(&cuda_compression_key, &stream);
-                            })
+                            builders.par_iter().zip(local_streams.par_iter()).for_each(
+                                |(builder, local_stream)| {
+                                    builder.build(&cuda_compression_key, local_stream);
+                                },
+                            )
                         })
                     });
 
@@ -283,15 +312,18 @@ mod cuda {
                     bench_id_unpack = format!("{bench_name}::throughput::unpack_u{bit_size}");
                     bench_group.bench_function(&bench_id_unpack, |b| {
                         b.iter(|| {
-                            compressed.par_iter().for_each(|comp| {
-                                comp.get::<CudaUnsignedRadixCiphertext>(
-                                    0,
-                                    &cuda_decompression_key,
-                                    &stream,
-                                )
-                                .unwrap()
-                                .unwrap();
-                            })
+                            compressed
+                                .par_iter()
+                                .zip(local_streams.par_iter())
+                                .for_each(|(comp, local_stream)| {
+                                    comp.get::<CudaUnsignedRadixCiphertext>(
+                                        0,
+                                        &cuda_decompression_key,
+                                        local_stream,
+                                    )
+                                    .unwrap()
+                                    .unwrap();
+                                })
                         })
                     });
                 }
@@ -328,6 +360,7 @@ criterion_group!(cpu_glwe_packing2, cpu_glwe_packing);
 
 #[cfg(feature = "gpu")]
 use cuda::gpu_glwe_packing2;
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn main() {
     BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());

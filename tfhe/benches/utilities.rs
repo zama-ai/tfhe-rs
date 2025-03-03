@@ -409,27 +409,69 @@ pub mod integer_utils {
     use super::*;
     use std::sync::OnceLock;
     #[cfg(feature = "gpu")]
-    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+    use tfhe::core_crypto::gpu::vec::GpuIndex;
+    #[cfg(feature = "gpu")]
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+
+    /// Number of streaming multiprocessors (SM) available on Nvidia H100 GPU
+    #[allow(dead_code)]
+    const H100_PCIE_SM_COUNT: u32 = 132;
 
     /// Generate a number of threads to use to saturate current machine for throughput measurements.
     #[allow(dead_code)]
-    pub fn throughput_num_threads(num_block: usize) -> u64 {
+    pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
-        let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil();
+        let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil().min(1.0);
+        // Some operations with a high serial workload (e.g. division) would yield an operation
+        // loading value so low that the number of elements in the end wouldn't be meaningful.
+        let minimum_loading = if num_block < 64 { 0.2 } else { 0.1 };
 
         #[cfg(feature = "gpu")]
         {
-            // This value is for Nvidia H100 GPU
-            let streaming_multiprocessors = 132;
-            let num_gpus = unsafe { cuda_get_number_of_gpus() };
-            ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
+            let total_num_sm = H100_PCIE_SM_COUNT * get_number_of_gpus();
+            let operation_loading =
+                ((total_num_sm as u64 / op_pbs_count) as f64).max(minimum_loading);
+            let elements = (total_num_sm as f64 * block_multiplicator * operation_loading) as u64;
+            elements.min(1500) // This threshold is useful for operation with both a small number of
+                               // block and low PBs count.
         }
         #[cfg(not(feature = "gpu"))]
         {
             let num_threads = rayon::current_num_threads() as f64;
+            let operation_loading = (num_threads / (op_pbs_count as f64)).max(minimum_loading);
             // Add 20% more to maximum threads available.
-            ((num_threads + (num_threads * 0.2)) * block_multiplicator) as u64
+            ((num_threads + (num_threads * 0.2)) * block_multiplicator.min(1.0) * operation_loading)
+                as u64
         }
+    }
+
+    /// Get number of streams usable for CUDA throughput benchmarks
+    #[cfg(feature = "gpu")]
+    fn cuda_num_streams(num_block: usize) -> u64 {
+        let num_streams_per_gpu: u32 = match num_block {
+            2 => 64,
+            4 => 32,
+            8 => 16,
+            16 => 8,
+            32 => 4,
+            64 => 2,
+            128 => 1,
+            _ => 8,
+        };
+        (num_streams_per_gpu * get_number_of_gpus()) as u64
+    }
+
+    /// Get vector of CUDA streams that can be directly used for throughput benchmarks.
+    #[allow(dead_code)]
+    #[cfg(feature = "gpu")]
+    pub fn cuda_local_streams(num_block: usize, throughput_elements: usize) -> Vec<CudaStreams> {
+        (0..cuda_num_streams(num_block))
+            .map(|i| {
+                CudaStreams::new_single_gpu(GpuIndex::new((i % get_number_of_gpus() as u64) as u32))
+            })
+            .cycle()
+            .take(throughput_elements)
+            .collect::<Vec<_>>()
     }
 
     #[allow(dead_code)]
