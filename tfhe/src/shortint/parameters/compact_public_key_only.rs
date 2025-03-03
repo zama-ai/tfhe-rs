@@ -99,7 +99,7 @@ impl CompactPublicKeyEncryptionParameters {
         );
     }
 
-    pub(crate) fn encoding(&self) -> ShortintEncoding {
+    pub(crate) fn encoding(&self) -> ShortintEncoding<u64> {
         ShortintEncoding {
             ciphertext_modulus: self.ciphertext_modulus,
             message_modulus: self.message_modulus,

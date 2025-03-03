@@ -617,7 +617,7 @@ impl ServerKey {
         }
     }
 
-    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding<u64> {
         ShortintEncoding {
             ciphertext_modulus: self.ciphertext_modulus,
             message_modulus: self.message_modulus,
