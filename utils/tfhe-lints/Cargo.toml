@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "ff4a26d442bead94a4c96fb1de967374bc4fbd8e" }
+clippy_utils = { git = "https://github.com/rust-lang/rust-clippy", rev = "238edf273d195c8e472851ebd60571f77f978ac8" }
 dylint_linting = "3.2.1"
 
 [dev-dependencies]
@@ -21,5 +21,5 @@ tfhe-versionable = "0.4.0"
 rustc_private = true
 
 [[example]]
-name = "ui" 
-path = "ui/main.rs" 
+name = "ui"
+path = "ui/main.rs"
