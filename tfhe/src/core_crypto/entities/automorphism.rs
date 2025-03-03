@@ -11,7 +11,6 @@ pub struct Automorphism {
 }
 
 pub struct MonomialReducer {
-    polynomial_size: PolynomialSize,
     modular_mask: u64,
     log_poly_size_minus_1: u64,
     modular_sign_change_mask: u64,
@@ -26,7 +25,6 @@ impl MonomialReducer {
         let modular_sign_change_mask = polynomial_size.0 as u64;
 
         Self {
-            polynomial_size,
             modular_mask,
             log_poly_size_minus_1,
             modular_sign_change_mask,
@@ -56,9 +54,9 @@ impl MonomialReducer {
     }
 }
 
-struct ReducedMonomial {
-    sign: u64,
-    reduced_power: u64,
+pub struct ReducedMonomial {
+    pub sign: u64,
+    pub reduced_power: u64,
 }
 
 impl Automorphism {
