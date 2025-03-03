@@ -201,7 +201,7 @@ impl Ciphertext {
             .map(|x| x % self.message_modulus.0)
     }
 
-    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding {
+    pub(crate) fn encoding(&self, padding_bit: PaddingBit) -> ShortintEncoding<u64> {
         ShortintEncoding {
             ciphertext_modulus: self.ct.ciphertext_modulus(),
             message_modulus: self.message_modulus,
