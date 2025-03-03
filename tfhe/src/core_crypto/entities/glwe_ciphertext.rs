@@ -629,6 +629,57 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     }
 }
 
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for GlweCiphertext<C>
+{
+    type Element = C::Element;
+
+    type EntityViewMetadata = PolynomialCreationMetadata;
+
+    type EntityView<'this>
+        = PolynomialView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfViewMetadata = GlweCiphertextCreationMetadata<Scalar>;
+
+    type SelfView<'this>
+        = GlweCiphertextView<'this, Scalar>
+    where
+        Self: 'this;
+
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        PolynomialCreationMetadata {}
+    }
+
+    fn get_entity_view_pod_size(&self) -> usize {
+        self.polynomial_size().0
+    }
+
+    /// Unimplemented for [`SeededLweCiphertextList`]. At the moment it does not make sense to
+    /// return "sub" seeded lists.
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        GlweCiphertextCreationMetadata {
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for GlweCiphertext<C>
+{
+    type EntityMutView<'this>
+        = PolynomialMutView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfMutView<'this>
+        = GlweCiphertextMutView<'this, Self::Element>
+    where
+        Self: 'this;
+}
+
 /// Structure to store the expected properties of a ciphertext
 /// Can be used on a server to check if client inputs are well formed
 /// before running a computation on them
