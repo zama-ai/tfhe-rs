@@ -1,5 +1,7 @@
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::{env, fs};
 use tfhe::core_crypto::prelude::*;
 
@@ -46,7 +48,8 @@ pub mod shortint_utils {
         ShortintKeySwitchingParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use tfhe::shortint::{
-        ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
+        CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
+        ShortintParameterSet,
     };
 
     /// An iterator that yields a succession of combinations
@@ -184,6 +187,181 @@ pub mod shortint_utils {
                 ..Default::default()
             }
         }
+    }
+
+    // This array has been built according to performance benchmarks measuring latency over a
+    // matrix of 4 parameters set, 3 grouping factor and a wide range of threads values.
+    // The values available here as u64 are the optimal number of threads to use for a given triplet
+    // representing one or more parameters set.
+    const MULTI_BIT_THREADS_ARRAY: [((MessageModulus, CarryModulus, LweBskGroupingFactor), u64);
+        12] = [
+        (
+            (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(2)),
+            5,
+        ),
+        (
+            (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(2)),
+            5,
+        ),
+        (
+            (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(2)),
+            5,
+        ),
+        (
+            (
+                MessageModulus(16),
+                CarryModulus(16),
+                LweBskGroupingFactor(2),
+            ),
+            5,
+        ),
+        (
+            (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(3)),
+            7,
+        ),
+        (
+            (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(3)),
+            9,
+        ),
+        (
+            (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(3)),
+            10,
+        ),
+        (
+            (
+                MessageModulus(16),
+                CarryModulus(16),
+                LweBskGroupingFactor(3),
+            ),
+            10,
+        ),
+        (
+            (MessageModulus(2), CarryModulus(2), LweBskGroupingFactor(4)),
+            11,
+        ),
+        (
+            (MessageModulus(4), CarryModulus(4), LweBskGroupingFactor(4)),
+            13,
+        ),
+        (
+            (MessageModulus(8), CarryModulus(8), LweBskGroupingFactor(4)),
+            11,
+        ),
+        (
+            (
+                MessageModulus(16),
+                CarryModulus(16),
+                LweBskGroupingFactor(4),
+            ),
+            11,
+        ),
+    ];
+
+    /// Define the number of threads to use for  parameters doing multithreaded programmable
+    /// bootstrapping.
+    ///
+    /// Parameters must have the same values between message and carry modulus.
+    /// Grouping factor 2, 3 and 4 are the only ones that are supported.
+    #[allow(dead_code)]
+    pub fn multi_bit_num_threads(
+        message_modulus: u64,
+        carry_modulus: u64,
+        grouping_factor: usize,
+    ) -> Option<u64> {
+        // TODO Implement an interpolation mechanism for X_Y parameters set
+        if message_modulus != carry_modulus || [2, 3, 4].contains(&(grouping_factor as i32)) {
+            return None;
+        }
+        let thread_map: HashMap<(MessageModulus, CarryModulus, LweBskGroupingFactor), u64> =
+            HashMap::from_iter(MULTI_BIT_THREADS_ARRAY);
+        thread_map
+            .get(&(
+                MessageModulus(message_modulus),
+                CarryModulus(carry_modulus),
+                LweBskGroupingFactor(grouping_factor),
+            ))
+            .copied()
+    }
+
+    #[allow(dead_code)]
+    pub static PARAMETERS_SET: OnceLock<ParametersSet> = OnceLock::new();
+
+    pub enum ParametersSet {
+        Default,
+        All,
+    }
+
+    #[allow(dead_code)]
+    impl ParametersSet {
+        pub fn from_env() -> Result<Self, String> {
+            let raw_value = env::var("__TFHE_RS_PARAMS_SET").unwrap_or("default".to_string());
+            match raw_value.to_lowercase().as_str() {
+                "default" => Ok(ParametersSet::Default),
+                "all" => Ok(ParametersSet::All),
+                _ => Err(format!("parameters set '{raw_value}' is not supported")),
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn init_parameters_set() {
+        PARAMETERS_SET.get_or_init(|| ParametersSet::from_env().unwrap());
+    }
+
+    #[allow(dead_code)]
+    #[derive(Clone, Copy, Debug)]
+    pub enum DesiredNoiseDistribution {
+        Gaussian,
+        TUniform,
+        Both,
+    }
+
+    #[allow(dead_code)]
+    #[derive(Clone, Copy, Debug)]
+    pub enum DesiredBackend {
+        Cpu,
+        Gpu,
+    }
+
+    #[allow(dead_code)]
+    impl DesiredBackend {
+        fn matches_parameter_name_backend(&self, param_name: &str) -> bool {
+            matches!(
+                (self, param_name.to_lowercase().contains("gpu")),
+                (DesiredBackend::Cpu, false) | (DesiredBackend::Gpu, true)
+            )
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn filter_parameters<'a, P: Copy + Into<PBSParameters>>(
+        params: &[(&'a P, &'a str)],
+        desired_noise_distribution: DesiredNoiseDistribution,
+        desired_backend: DesiredBackend,
+    ) -> Vec<(&'a P, &'a str)> {
+        params
+            .iter()
+            .filter_map(|(p, name)| {
+                let temp_param: PBSParameters = (**p).into();
+
+                match (
+                    temp_param.lwe_noise_distribution(),
+                    desired_noise_distribution,
+                ) {
+                    // If it's one of the pairs, we continue the process.
+                    (DynamicDistribution::Gaussian(_), DesiredNoiseDistribution::Gaussian)
+                    | (DynamicDistribution::TUniform(_), DesiredNoiseDistribution::TUniform)
+                    | (_, DesiredNoiseDistribution::Both) => (),
+                    _ => return None,
+                }
+
+                if !desired_backend.matches_parameter_name_backend(name) {
+                    return None;
+                };
+
+                Some((*p, *name))
+            })
+            .collect()
     }
 }
 
@@ -356,6 +534,10 @@ pub fn write_to_json<
 
     fs::write(params_directory, serde_json::to_string(&record).unwrap()).unwrap();
 }
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
 
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
