@@ -433,6 +433,7 @@ clippy_versionable: install_rs_check_toolchain
 .PHONY: clippy_tfhe_lints # Run clippy lints on tfhe-lints
 clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolchain.toml
 	cd utils/tfhe-lints && \
+	rustup toolchain install && \
 	cargo clippy --all-targets -- --no-deps -D warnings
 
 .PHONY: clippy_all # Run all clippy targets
@@ -909,6 +910,7 @@ test_versionable: install_rs_build_toolchain
 .PHONY: test_tfhe_lints # Run test on tfhe-lints
 test_tfhe_lints: install_cargo_dylint
 	cd utils/tfhe-lints && \
+	rustup toolchain install && \
 	cargo test
 
 # The backward compat data repo holds historical binary data but also rust code to generate and load them.
