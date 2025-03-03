@@ -1,8 +1,12 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, CryptoParametersRecord, OperatorType};
-use criterion::{black_box, criterion_main, Criterion};
+use crate::utilities::{
+    filter_parameters, init_parameters_set, multi_bit_num_threads, write_to_json,
+    CryptoParametersRecord, DesiredBackend, DesiredNoiseDistribution, OperatorType, ParametersSet,
+    PARAMETERS_SET,
+};
+use criterion::{black_box, Criterion};
 use rayon::prelude::*;
 use serde::Serialize;
 use tfhe::boolean::parameters::{
@@ -14,14 +18,38 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::*;
 
-const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 1] =
-    [PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128];
+const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
+    V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+];
 
 const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M128,
+];
+
+#[cfg(feature = "gpu")]
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+];
+
+#[cfg(not(feature = "gpu"))]
+const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+    V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
+    V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
 ];
 
 const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
@@ -33,18 +61,35 @@ const BOOLEAN_BENCH_PARAMS: [(&str, BooleanParameters); 2] = [
 ];
 
 fn benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
-    SHORTINT_BENCH_PARAMS_TUNIFORM
-        .iter()
-        .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
-        .map(|params| {
+    match PARAMETERS_SET.get().unwrap() {
+        ParametersSet::Default => SHORTINT_BENCH_PARAMS_TUNIFORM
+            .iter()
+            .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
+            .map(|params| {
+                (
+                    params.name(),
+                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                )
+            })
+            .collect(),
+        ParametersSet::All => filter_parameters(
+            &VEC_ALL_CLASSIC_PBS_PARAMETERS,
+            DesiredNoiseDistribution::Both,
+            DesiredBackend::Cpu, // No parameters set are specific to GPU in this vector
+        )
+        .into_iter()
+        .map(|(params, name)| {
             (
-                params.name(),
+                name.to_string(),
                 <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
                     .to_owned()
                     .into(),
             )
         })
-        .collect()
+        .collect(),
+    }
 }
 
 fn benchmark_parameters_32bits() -> Vec<(String, CryptoParametersRecord<u32>)> {
@@ -94,36 +139,43 @@ fn throughput_benchmark_parameters_32bits() -> Vec<(String, CryptoParametersReco
 
 fn multi_bit_benchmark_parameters_64bits(
 ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
-    let parameters = if cfg!(feature = "gpu") {
-        vec![
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        ]
-    } else {
-        vec![
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64,
-            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        ]
-    };
-
-    parameters
-        .iter()
-        .map(|params| {
-            (
-                params.name(),
-                <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
-                    .to_owned()
-                    .into(),
-                params.grouping_factor,
+    match PARAMETERS_SET.get().unwrap() {
+        ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
+            .iter()
+            .map(|params| {
+                (
+                    params.name(),
+                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                    params.grouping_factor,
+                )
+            })
+            .collect(),
+        ParametersSet::All => {
+            let desired_backend = if cfg!(feature = "gpu") {
+                DesiredBackend::Gpu
+            } else {
+                DesiredBackend::Cpu
+            };
+            filter_parameters(
+                &VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
+                DesiredNoiseDistribution::Both,
+                desired_backend,
             )
-        })
-        .collect()
+            .into_iter()
+            .map(|(params, name)| {
+                (
+                    name.to_string(),
+                    <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        .to_owned()
+                        .into(),
+                    params.grouping_factor,
+                )
+            })
+            .collect()
+        }
+    }
 }
 
 fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
@@ -133,8 +185,8 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
     let bench_name = "core_crypto::pbs_mem_optimized";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -359,12 +411,17 @@ fn multi_bit_pbs<
 >(
     c: &mut Criterion,
     parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
+    deterministic_pbs: bool,
 ) {
-    let bench_name = "core_crypto::multi_bit_pbs";
+    let bench_name = if deterministic_pbs {
+        "core_crypto::multi_bit_deterministic_pbs"
+    } else {
+        "core_crypto::multi_bit_pbs"
+    };
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -419,98 +476,12 @@ fn multi_bit_pbs<
             params.ciphertext_modulus.unwrap(),
         );
 
-        let id = format!("{bench_name}::{name}::parallelized");
-        bench_group.bench_function(&id, |b| {
-            b.iter(|| {
-                multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &lwe_ciphertext_in,
-                    &mut out_pbs_ct,
-                    &accumulator.as_view(),
-                    &multi_bit_bsk,
-                    ThreadCount(10),
-                    false,
-                );
-                black_box(&mut out_pbs_ct);
-            })
-        });
-
-        let bit_size = params.message_modulus.unwrap().ilog2();
-        write_to_json(
-            &id,
-            *params,
-            name,
-            "pbs",
-            &OperatorType::Atomic,
-            bit_size,
-            vec![bit_size],
-        );
-    }
-}
-
-fn multi_bit_deterministic_pbs<
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
->(
-    c: &mut Criterion,
-    parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
-) {
-    let bench_name = "core_crypto::multi_bit_deterministic_pbs";
-    let mut bench_group = c.benchmark_group(bench_name);
-    bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
-
-    // Create the PRNG
-    let mut seeder = new_seeder();
-    let seeder = seeder.as_mut();
-    let mut encryption_generator =
-        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
-    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
-
-    for (name, params, grouping_factor) in parameters.iter() {
-        // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-            params.lwe_dimension.unwrap(),
-            &mut secret_generator,
-        );
-        let output_glwe_secret_key: GlweSecretKeyOwned<Scalar> =
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension.unwrap(),
-                params.polynomial_size.unwrap(),
-                &mut secret_generator,
-            );
-        let output_lwe_secret_key = output_glwe_secret_key.into_lwe_secret_key();
-
-        let multi_bit_bsk = FourierLweMultiBitBootstrapKey::new(
-            params.lwe_dimension.unwrap(),
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.pbs_base_log.unwrap(),
-            params.pbs_level.unwrap(),
-            *grouping_factor,
-        );
-
-        // Allocate a new LweCiphertext and encrypt our plaintext
-        let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
-            &input_lwe_secret_key,
-            Plaintext(Scalar::ZERO),
-            params.lwe_noise_distribution.unwrap(),
-            params.ciphertext_modulus.unwrap(),
-            &mut encryption_generator,
-        );
-
-        let accumulator = GlweCiphertext::new(
-            Scalar::ZERO,
-            params.glwe_dimension.unwrap().to_glwe_size(),
-            params.polynomial_size.unwrap(),
-            params.ciphertext_modulus.unwrap(),
-        );
-
-        // Allocate the LweCiphertext to store the result of the PBS
-        let mut out_pbs_ct = LweCiphertext::new(
-            Scalar::ZERO,
-            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-            params.ciphertext_modulus.unwrap(),
-        );
+        let thread_count = multi_bit_num_threads(
+            params.message_modulus.unwrap(),
+            params.carry_modulus.unwrap(),
+            grouping_factor.0,
+        )
+        .unwrap() as usize;
 
         let id = format!("{bench_name}::{name}::parallelized");
         bench_group.bench_function(&id, |b| {
@@ -520,8 +491,8 @@ fn multi_bit_deterministic_pbs<
                     &mut out_pbs_ct,
                     &accumulator.as_view(),
                     &multi_bit_bsk,
-                    ThreadCount(10),
-                    true,
+                    ThreadCount(thread_count),
+                    deterministic_pbs,
                 );
                 black_box(&mut out_pbs_ct);
             })
@@ -544,8 +515,8 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
     let bench_name = "core_crypto::pbs_ntt";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -698,8 +669,8 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
     let bench_name = "core_crypto::pbs_throughput";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
-        .sample_size(15)
-        .measurement_time(std::time::Duration::from_secs(60));
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
 
     // Create the PRNG
     let mut seeder = new_seeder();
@@ -817,8 +788,14 @@ fn pbs_throughput<Scalar: UnsignedTorus + CastInto<usize> + Sync + Send + Serial
 
 #[cfg(feature = "gpu")]
 mod cuda {
-    use super::{multi_bit_benchmark_parameters_64bits, throughput_benchmark_parameters_64bits};
-    use crate::utilities::{write_to_json, CryptoParametersRecord, EnvConfig, OperatorType};
+    use super::{
+        benchmark_parameters_64bits, multi_bit_benchmark_parameters_64bits,
+        throughput_benchmark_parameters_64bits,
+    };
+    use crate::utilities::{
+        write_to_json, CryptoParametersRecord, EnvConfig, OperatorType,
+        GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
+    };
     use criterion::{black_box, Criterion};
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -831,43 +808,6 @@ mod cuda {
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
-    use tfhe::keycache::NamedParam;
-    use tfhe::shortint::parameters::current_params::*;
-    use tfhe::shortint::parameters::*;
-    use tfhe::shortint::{ClassicPBSParameters, PBSParameters};
-
-    const SHORTINT_CUDA_BENCH_PARAMS: [ClassicPBSParameters; 14] = [
-        // TUniform
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        // Gaussian
-        V1_0_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_2_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_4_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_4_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_5_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_6_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-        V1_0_PARAM_MESSAGE_7_CARRY_0_KS_PBS_GAUSSIAN_2M128,
-    ];
-
-    fn cuda_benchmark_parameters_64bits() -> Vec<(String, CryptoParametersRecord<u64>)> {
-        SHORTINT_CUDA_BENCH_PARAMS
-            .iter()
-            .map(|params| {
-                (
-                    params.name(),
-                    <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
-                        .to_owned()
-                        .into(),
-                )
-            })
-            .collect()
-    }
 
     fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         c: &mut Criterion,
@@ -876,8 +816,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::pbs";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -891,6 +831,11 @@ mod cuda {
         let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
+            if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
+                println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
+                continue;
+            }
+
             // Create the LweSecretKey
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension.unwrap(),
@@ -997,8 +942,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::multi_bit_pbs";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1012,6 +957,11 @@ mod cuda {
         let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
+            if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
+                println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
+                continue;
+            }
+
             // Create the LweSecretKey
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension.unwrap(),
@@ -1119,8 +1069,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1134,6 +1084,11 @@ mod cuda {
         let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
+            if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
+                println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
+                continue;
+            }
+
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension.unwrap(),
                 &mut secret_generator,
@@ -1259,8 +1214,8 @@ mod cuda {
         let bench_name = "core_crypto::cuda::multi_bit_pbs_throughput";
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
-            .sample_size(15)
-            .measurement_time(std::time::Duration::from_secs(60));
+            .sample_size(10)
+            .measurement_time(std::time::Duration::from_secs(30));
 
         // Create the PRNG
         let mut seeder = new_seeder();
@@ -1274,6 +1229,11 @@ mod cuda {
         let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params, grouping_factor) in parameters.iter() {
+            if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
+                println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
+                continue;
+            }
+
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
                 params.lwe_dimension.unwrap(),
                 &mut secret_generator,
@@ -1399,7 +1359,7 @@ mod cuda {
 
     pub fn cuda_pbs_group() {
         let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-        cuda_pbs(&mut criterion, &cuda_benchmark_parameters_64bits());
+        cuda_pbs(&mut criterion, &benchmark_parameters_64bits());
     }
 
     pub fn cuda_pbs_throughput_group() {
@@ -1434,8 +1394,16 @@ pub fn pbs_group() {
 
 pub fn multi_bit_pbs_group() {
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
-    multi_bit_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
-    multi_bit_deterministic_pbs(&mut criterion, &multi_bit_benchmark_parameters_64bits());
+    multi_bit_pbs(
+        &mut criterion,
+        &multi_bit_benchmark_parameters_64bits(),
+        false,
+    );
+    multi_bit_pbs(
+        &mut criterion,
+        &multi_bit_benchmark_parameters_64bits(),
+        true,
+    );
 }
 
 pub fn pbs_throughput_group() {
@@ -1444,12 +1412,28 @@ pub fn pbs_throughput_group() {
     pbs_throughput(&mut criterion, &throughput_benchmark_parameters_32bits());
 }
 
-#[cfg(not(feature = "gpu"))]
-criterion_main!(pbs_group, multi_bit_pbs_group, pbs_throughput_group);
 #[cfg(feature = "gpu")]
-criterion_main!(
-    cuda_pbs_group,
-    cuda_multi_bit_pbs_group,
-    cuda_pbs_throughput_group,
-    cuda_multi_bit_pbs_throughput_group
-);
+fn go_through_gpu_bench_groups() {
+    cuda_pbs_group();
+    cuda_multi_bit_pbs_group();
+    cuda_pbs_throughput_group();
+    cuda_multi_bit_pbs_throughput_group();
+}
+
+#[cfg(not(feature = "gpu"))]
+fn go_through_cpu_bench_groups() {
+    pbs_group();
+    multi_bit_pbs_group();
+    pbs_throughput_group();
+}
+
+fn main() {
+    init_parameters_set();
+
+    #[cfg(feature = "gpu")]
+    go_through_gpu_bench_groups();
+    #[cfg(not(feature = "gpu"))]
+    go_through_cpu_bench_groups();
+
+    Criterion::default().configure_from_args().final_summary();
+}
