@@ -132,7 +132,7 @@ impl HpuBackend {
         hpu_hw.write_reg(
             *regmap
                 .register()
-                .get("Bpip::use")
+                .get("bpip::use")
                 .expect("Unknow register, check regmap definition")
                 .offset() as u64,
             config.rtl.bpip_used as u32,
@@ -142,7 +142,7 @@ impl HpuBackend {
         hpu_hw.write_reg(
             *regmap
                 .register()
-                .get("Bpip::timeout")
+                .get("bpip::timeout")
                 .expect("Unknow register, check regmap definition")
                 .offset() as u64,
             config.rtl.bpip_timeout,
@@ -289,11 +289,11 @@ impl HpuBackend {
         // Extract register from regmap
         let bsk_avail = regmap
             .register()
-            .get("Keys_Bsk::avail")
+            .get("bsk_avail::avail")
             .expect("Unknow register, check regmap definition");
         let bsk_reset = regmap
             .register()
-            .get("Keys_Bsk::reset")
+            .get("bsk_avail::reset")
             .expect("Unknow register, check regmap definition");
 
         // Cache reset procedure
@@ -333,12 +333,12 @@ impl HpuBackend {
         // Extract register from regmap
         let bsk_avail = regmap
             .register()
-            .get("Keys_Bsk::avail")
+            .get("bsk_avail::avail")
             .expect("Unknow register, check regmap definition");
         let bsk_addr_pc = (0..params.pc_params.bsk_pc)
             .map(|idx| {
-                let lsb_name = format!("Keys_Bsk::addr_pc_pc{idx}_lsb");
-                let msb_name = format!("Keys_Bsk::addr_pc_pc{idx}_msb");
+                let lsb_name = format!("hbm_axi4_addr_3in3::bsk_pc{idx}_lsb");
+                let msb_name = format!("hbm_axi4_addr_3in3::bsk_pc{idx}_msb");
                 let lsb = regmap
                     .register()
                     .get(&lsb_name)
@@ -383,7 +383,7 @@ impl HpuBackend {
         // Extract register from regmap
         let bsk_avail = regmap
             .register()
-            .get("Keys_Bsk::avail")
+            .get("bsk_avail::avail")
             .expect("Unknow register, check regmap definition");
 
         let val = hpu_hw.read_reg(*bsk_avail.offset() as u64);
@@ -407,11 +407,11 @@ impl HpuBackend {
         // Extract register from regmap
         let ksk_avail = regmap
             .register()
-            .get("Keys_Ksk::avail")
+            .get("ksk_avail::avail")
             .expect("Unknow register, check regmap definition");
         let ksk_reset = regmap
             .register()
-            .get("Keys_Ksk::reset")
+            .get("ksk_avail::reset")
             .expect("Unknow register, check regmap definition");
 
         // Cache reset procedure
@@ -450,12 +450,12 @@ impl HpuBackend {
         // Extract register from regmap
         let ksk_avail = regmap
             .register()
-            .get("Keys_Ksk::avail")
+            .get("ksk_avail::avail")
             .expect("Unknow register, check regmap definition");
         let ksk_addr_pc = (0..params.pc_params.ksk_pc)
             .map(|idx| {
-                let lsb_name = format!("Keys_Ksk::addr_pc_pc{idx}_lsb");
-                let msb_name = format!("Keys_Ksk::addr_pc_pc{idx}_msb");
+                let lsb_name = format!("hbm_axi4_addr_1in3::ksk_pc{idx}_lsb");
+                let msb_name = format!("hbm_axi4_addr_1in3::ksk_pc{idx}_msb");
                 let lsb = regmap
                     .register()
                     .get(&lsb_name)
@@ -500,7 +500,7 @@ impl HpuBackend {
         // Extract register from regmap
         let ksk_avail = regmap
             .register()
-            .get("Keys_Ksk::avail")
+            .get("ksk_avail::avail")
             .expect("Unknow register, check regmap definition");
 
         let val = hpu_hw.read_reg(*ksk_avail.offset() as u64);
@@ -553,11 +553,11 @@ impl HpuBackend {
         // Extract register from regmap
         let reg_lsb = regmap
             .register()
-            .get("PbsLut::addr_lsb")
+            .get("hbm_axi4_addr_1in3::glwe_pc0_lsb")
             .expect("Unknow register, check regmap definition");
         let reg_msb = regmap
             .register()
-            .get("PbsLut::addr_msb")
+            .get("hbm_axi4_addr_1in3::glwe_pc0_msb")
             .expect("Unknow register, check regmap definition");
 
         let lut_addr = lut_mem.cut_paddr()[0];
@@ -587,11 +587,11 @@ impl HpuBackend {
         // Extract register from regmap
         let reg_lsb = regmap
             .register()
-            .get("Trace::addr_lsb")
+            .get("hbm_axi4_addr_1in3::trc_pc0_lsb")
             .expect("Unknow register, check regmap definition");
         let reg_msb = regmap
             .register()
-            .get("Trace::addr_msb")
+            .get("hbm_axi4_addr_1in3::trc_pc0_msb")
             .expect("Unknow register, check regmap definition");
 
         let trace_addr = trace_mem.cut_paddr()[0];
