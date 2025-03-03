@@ -3516,6 +3516,7 @@ pub unsafe fn reverse_blocks_inplace_async(
             streams.len() as u32,
             &mut cuda_ffi_radix_lwe_output,
         );
+        update_noise_degree(radix_lwe_output, &cuda_ffi_radix_lwe_output);
     }
 }
 

@@ -1564,7 +1564,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   int_hs_group_prop_memory<Torus> *hs_group_prop_mem;
 
   uint32_t group_size;
-  bool use_sequential_algorithm_to_resolver_group_carries;
+  bool use_sequential_algorithm_to_resolve_group_carries;
 
   int_prop_simu_group_carries_memory(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1622,10 +1622,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       hillis_steel_depth = std::ceil(std::log2(num_carry_to_resolve));
     }
 
-    use_sequential_algorithm_to_resolver_group_carries =
+    use_sequential_algorithm_to_resolve_group_carries =
         sequential_depth <= hillis_steel_depth;
     uint32_t num_extra_luts = 0;
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       num_extra_luts = (grouping_size - 1);
     } else {
       num_extra_luts = 1;
@@ -1696,7 +1696,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           f_other_groupings_inner_propagation);
     }
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       for (int index = 0; index < grouping_size - 1; index++) {
         uint32_t lut_id = index + 2 * grouping_size;
 
@@ -1748,7 +1748,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       if (is_in_first_grouping) {
         h_second_lut_indexes[index] = index_in_grouping;
       } else if (index_in_grouping == (grouping_size - 1)) {
-        if (use_sequential_algorithm_to_resolver_group_carries) {
+        if (use_sequential_algorithm_to_resolve_group_carries) {
           int inner_index = (grouping_index - 1) % (grouping_size - 1);
           h_second_lut_indexes[index] = inner_index + 2 * grouping_size;
         } else {
@@ -1762,7 +1762,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           !is_in_first_grouping && (index_in_grouping == grouping_size - 1);
 
       if (may_have_its_padding_bit_set) {
-        if (use_sequential_algorithm_to_resolver_group_carries) {
+        if (use_sequential_algorithm_to_resolve_group_carries) {
           h_scalar_array_cum_sum[index] =
               1 << ((grouping_index - 1) % (grouping_size - 1));
         } else {
@@ -1783,7 +1783,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
                              gpu_indexes[0]);
     luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
 
       seq_group_prop_mem = new int_seq_group_prop_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, grouping_size,
@@ -1832,7 +1832,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     luts_array_second_step->release(streams, gpu_indexes, gpu_count);
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       seq_group_prop_mem->release(streams, gpu_indexes, gpu_count);
       delete seq_group_prop_mem;
     } else {
@@ -1860,7 +1860,6 @@ template <typename Torus> struct int_sc_prop_memory {
   int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
 
   int_radix_params params;
-  bool use_sequential_algorithm_to_resolver_group_carries;
   uint32_t requested_flag;
 
   uint32_t active_gpu_count;
@@ -4010,7 +4009,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         true);
     uint32_t group_size = overflow_sub_mem->group_size;
     bool use_seq = overflow_sub_mem->prop_simu_group_carries_mem
-                       ->use_sequential_algorithm_to_resolver_group_carries;
+                       ->use_sequential_algorithm_to_resolve_group_carries;
     create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
                                     group_size, use_seq);
 
@@ -4627,7 +4626,6 @@ template <typename Torus> struct int_div_rem_memory {
         allocate_gpu_memory);
 
     if (is_signed) {
-      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
       Torus sign_bit_pos = 31 - __builtin_clz(params.message_modulus) - 1;
 
       // init memory objects for other integer operations
@@ -4794,4 +4792,5 @@ void update_degrees_after_scalar_bitxor(uint64_t *output_degrees,
                                         uint64_t *input_degrees,
                                         uint32_t num_clear_blocks);
 std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare);
+void reverseArray(uint64_t arr[], size_t n);
 #endif // CUDA_INTEGER_UTILITIES_H

@@ -315,11 +315,9 @@ void cuda_integer_compute_prefix_sum_hillis_steele_64(
     CudaRadixCiphertextFFI *generates_or_propagates, int8_t *mem_ptr,
     void *const *ksks, void *const *bsks, uint32_t num_radix_blocks) {
 
-  int_radix_params params = ((int_radix_lut<uint64_t> *)mem_ptr)->params;
-
   host_compute_prefix_sum_hillis_steele<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
-      generates_or_propagates, params, (int_radix_lut<uint64_t> *)mem_ptr, bsks,
+      generates_or_propagates, (int_radix_lut<uint64_t> *)mem_ptr, bsks,
       (uint64_t **)(ksks), num_radix_blocks);
 }
 
@@ -337,4 +335,21 @@ void cuda_integer_reverse_blocks_64_inplace(void *const *streams,
 
   host_radix_blocks_reverse_inplace<uint64_t>((cudaStream_t *)(streams),
                                               gpu_indexes, lwe_array);
+}
+
+void reverseArray(uint64_t arr[], size_t n) {
+  size_t start = 0;
+  size_t end = n - 1;
+
+  // Swap elements from the start with elements from the end
+  while (start < end) {
+    // Swap arr[start] and arr[end]
+    uint64_t temp = arr[start];
+    arr[start] = arr[end];
+    arr[end] = temp;
+
+    // Move towards the middle
+    start++;
+    end--;
+  }
 }
