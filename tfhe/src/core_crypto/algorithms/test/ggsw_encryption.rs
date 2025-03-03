@@ -578,10 +578,11 @@ fn ggsw_ciphertext_encryption_fork_config_exhaustion() {
             Cleartext(0u64),
         );
 
-        encrypt_constant_ggsw_level_matrix(
+        encrypt_monomial_ggsw_level_matrix(
             &glwe_secret_key,
             &mut level_matrix,
             factor,
+            0,
             glwe_noise_distribution,
             &mut child,
         );
