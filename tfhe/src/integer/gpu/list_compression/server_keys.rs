@@ -1,4 +1,5 @@
 use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
@@ -96,17 +97,17 @@ impl Clone for CudaPackedGlweCiphertextList {
     }
 }
 
-impl CudaPackedGlweCiphertext {
+impl CudaPackedGlweCiphertextList {
     pub fn extract_glwe(
         &self,
         glwe_index: usize,
         streams: &CudaStreams,
     ) -> CudaGlweCiphertextList<u64> {
         let mut output_cuda_glwe_list = CudaGlweCiphertextList::new(
-            self.glwe_ciphertext_list.glwe_dimension(),
-            self.glwe_ciphertext_list.polynomial_size(),
+            self.glwe_dimension,
+            self.polynomial_size,
             GlweCiphertextCount(1),
-            self.glwe_ciphertext_list.ciphertext_modulus(),
+            self.ciphertext_modulus,
             streams,
         );
 
@@ -114,11 +115,11 @@ impl CudaPackedGlweCiphertext {
             extract_glwe_async(
                 streams,
                 &mut output_cuda_glwe_list.0.d_vec,
-                &self.glwe_ciphertext_list.0.d_vec,
+                &self.data,
                 glwe_index as u32,
                 self.storage_log_modulus.0 as u32,
-                self.glwe_ciphertext_list.glwe_dimension(),
-                self.glwe_ciphertext_list.polynomial_size(),
+                self.glwe_dimension,
+                self.polynomial_size,
                 self.bodies_count as u32,
             );
         }

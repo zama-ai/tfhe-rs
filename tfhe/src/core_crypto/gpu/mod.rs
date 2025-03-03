@@ -679,7 +679,7 @@ pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_async<T: UnsignedInteger>
 ) {
     cuda_modulus_switch_multi_bit_64(
         streams.ptr[0],
-        streams.gpu_indexes[0].0,
+        streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_mut_c_ptr(0),
         lwe_array_in.len() as u32,
@@ -873,7 +873,7 @@ pub unsafe fn sub_lwe_ciphertext_vector_plaintext_vector_assign_async<T: Unsigne
 ) {
     cuda_sub_lwe_ciphertext_vector_plaintext_vector_64(
         streams.ptr[0],
-        streams.gpu_indexes[0].0,
+        streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_out.as_mut_c_ptr(0),
         plaintext_in.as_c_ptr(0),
