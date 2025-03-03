@@ -101,11 +101,11 @@ impl RegisterMap {
     pub fn read_reg(&mut self, addr: u64) -> u32 {
         let register_name = self.get_register_name(addr);
         match register_name {
-            "Info::NttInternal" => {
+            "info::ntt_structure" => {
                 let ntt_p = &self.rtl_params.ntt_params;
                 (ntt_p.radix + (ntt_p.psi << 8) /*+(ntt_p.div << 16)*/ + (ntt_p.delta << 24)) as u32
             }
-            "Info::NttRdxCut" => {
+            "info::ntt_rdx_cut" => {
                 let ntt_p = &self.rtl_params.ntt_params;
                 let cut_w = match &ntt_p.core_arch {
                     HpuNttCoreArch::GF64(cut_w) => cut_w,
@@ -116,7 +116,7 @@ impl RegisterMap {
                     .enumerate()
                     .fold(0, |acc, (id, val)| acc + ((*val as u32) << (id * 4)))
             }
-            "Info::NttArch" => match self.rtl_params.ntt_params.core_arch {
+            "info::ntt_architecture" => match self.rtl_params.ntt_params.core_arch {
                 HpuNttCoreArch::WmmCompact => NTT_CORE_ARCH_OFS,
                 HpuNttCoreArch::WmmPipeline => NTT_CORE_ARCH_OFS + 1,
                 HpuNttCoreArch::WmmUnfold => NTT_CORE_ARCH_OFS + 2,
@@ -124,15 +124,15 @@ impl RegisterMap {
                 HpuNttCoreArch::WmmUnfoldPcg => NTT_CORE_ARCH_OFS + 4,
                 HpuNttCoreArch::GF64(_) => NTT_CORE_ARCH_OFS + 5,
             },
-            "Info::NttPbsNb" => {
+            "info::ntt_pbs" => {
                 let ntt_p = &self.rtl_params.ntt_params;
                 (ntt_p.batch_pbs_nb + (ntt_p.total_pbs_nb << 8)) as u32
             }
-            "Info::NttModulo" => {
+            "info::ntt_modulo" => {
                 MOD_NTT_NAME_OFS + (self.rtl_params.ntt_params.prime_modulus.clone() as u8) as u32
             }
 
-            "Info::Appli" => {
+            "info::application" => {
                 if CONCRETE_BOOLEAN == self.rtl_params.pbs_params {
                     APPLICATION_NAME_OFS
                 } else if MSG2_CARRY2 == self.rtl_params.pbs_params {
@@ -155,52 +155,48 @@ impl RegisterMap {
                     1
                 }
             }
-            "Info::KsShape" => {
+            "info::ks_structure" => {
                 let ks_p = &self.rtl_params.ks_params;
                 (ks_p.lbx + (ks_p.lby << 8) + (ks_p.lbz << 16)) as u32
             }
-            "Info::KsInfo" => {
+            "info::ks_crypto_param" => {
                 let ks_p = &self.rtl_params.ks_params;
                 let pbs_p = &self.rtl_params.pbs_params;
                 (ks_p.width + (pbs_p.ks_level << 8) + (pbs_p.ks_base_log << 16)) as u32
             }
-            "Info::HbmPc" => {
+            "info::hbm_axi4_nb" => {
                 let pc_p = &self.rtl_params.pc_params;
                 // TODO: Cut number currently not reverted
-                (pc_p.bsk_pc + (pc_p.ksk_pc << 16)) as u32
+                (pc_p.bsk_pc + (pc_p.ksk_pc << 8) + (pc_p.pem_pc << 16)) as u32
             }
-            "Info::HbmPc_2" => {
-                let pc_p = &self.rtl_params.pc_params;
-                pc_p.pem_pc as u32
-            }
-            "Info::ksk_axi4_data_w" => {
+            "info::hbm_axi4_dataw_ksk" => {
                 let bytes_w = &self.rtl_params.pc_params.ksk_bytes_w;
                 *bytes_w as u32 * u8::BITS
             }
-            "Info::bsk_axi4_data_w" => {
+            "info::hbm_axi4_dataw_bsk" => {
                 let bytes_w = &self.rtl_params.pc_params.bsk_bytes_w;
                 *bytes_w as u32 * u8::BITS
             }
-            "Info::pem_axi4_data_w" => {
+            "info::hbm_axi4_dataw_pem" => {
                 let bytes_w = &self.rtl_params.pc_params.pem_bytes_w;
                 *bytes_w as u32 * u8::BITS
             }
-            "Info::glwe_axi4_data_w" => {
+            "info::hbm_axi4_dataw_glwe" => {
                 let bytes_w = &self.rtl_params.pc_params.glwe_bytes_w;
                 *bytes_w as u32 * u8::BITS
             }
 
-            "Info::RegfInfo" => {
+            "info::regf_structure" => {
                 let regf_p = &self.rtl_params.regf_params;
                 (regf_p.reg_nb + (regf_p.coef_nb << 8)) as u32
             }
-            "Info::IscInfo" => {
+            "info::isc_structure" => {
                 let isc_p = &self.rtl_params.isc_params;
-                isc_p.min_iop_size as u32
+                (isc_p.depth + (isc_p.min_iop_size << 8)) as u32
             }
 
-            "Keys_Bsk::avail" => self.bsk.avail.load(Ordering::SeqCst) as u32,
-            "Keys_Bsk::reset" => {
+            "bsk_avail::avail" => self.bsk.avail.load(Ordering::SeqCst) as u32,
+            "bsk_avail::reset" => {
                 if self.bsk.rst_pdg.load(Ordering::SeqCst) {
                     self.bsk.rst_pdg.store(false, Ordering::SeqCst);
                     1 << 31
@@ -208,8 +204,8 @@ impl RegisterMap {
                     0
                 }
             }
-            "Keys_Ksk::avail" => self.ksk.avail.load(Ordering::SeqCst) as u32,
-            "Keys_Ksk::reset" => {
+            "ksk_avail::avail" => self.ksk.avail.load(Ordering::SeqCst) as u32,
+            "ksk_avail::reset" => {
                 if self.ksk.rst_pdg.load(Ordering::SeqCst) {
                     self.ksk.rst_pdg.store(false, Ordering::SeqCst);
                     1 << 31
@@ -219,82 +215,82 @@ impl RegisterMap {
             }
 
             // Bpip configuration registers
-            "Bpip::use" => self.bpip.used as u32,
-            "Bpip::timeout" => self.bpip.timeout,
+            "bpip::use" => self.bpip.used as u32,
+            "bpip::timeout" => self.bpip.timeout,
 
             // Add offset configuration registers
-            "LdSt::addr_pc0_msb" => self.addr_ofst.ldst[0].0,
-            "LdSt::addr_pc0_lsb" => self.addr_ofst.ldst[0].1,
-            "LdSt::addr_pc1_msb" => self.addr_ofst.ldst[1].0,
-            "LdSt::addr_pc1_lsb" => self.addr_ofst.ldst[1].1,
-            "Keys_Bsk::addr_pc_pc0_msb" => self.addr_ofst.bsk[0].0,
-            "Keys_Bsk::addr_pc_pc0_lsb" => self.addr_ofst.bsk[0].1,
-            "Keys_Bsk::addr_pc_pc1_msb" => self.addr_ofst.bsk[1].0,
-            "Keys_Bsk::addr_pc_pc1_lsb" => self.addr_ofst.bsk[1].1,
-            "Keys_Bsk::addr_pc_pc2_msb" => self.addr_ofst.bsk[2].0,
-            "Keys_Bsk::addr_pc_pc2_lsb" => self.addr_ofst.bsk[2].1,
-            "Keys_Bsk::addr_pc_pc3_msb" => self.addr_ofst.bsk[3].0,
-            "Keys_Bsk::addr_pc_pc3_lsb" => self.addr_ofst.bsk[3].1,
-            "Keys_Bsk::addr_pc_pc4_msb" => self.addr_ofst.bsk[4].0,
-            "Keys_Bsk::addr_pc_pc4_lsb" => self.addr_ofst.bsk[4].1,
-            "Keys_Bsk::addr_pc_pc5_msb" => self.addr_ofst.bsk[5].0,
-            "Keys_Bsk::addr_pc_pc5_lsb" => self.addr_ofst.bsk[5].1,
-            "Keys_Bsk::addr_pc_pc6_msb" => self.addr_ofst.bsk[6].0,
-            "Keys_Bsk::addr_pc_pc6_lsb" => self.addr_ofst.bsk[6].1,
-            "Keys_Bsk::addr_pc_pc7_msb" => self.addr_ofst.bsk[7].0,
-            "Keys_Bsk::addr_pc_pc7_lsb" => self.addr_ofst.bsk[7].1,
-            "Keys_Bsk::addr_pc_pc8_msb" => self.addr_ofst.bsk[8].0,
-            "Keys_Bsk::addr_pc_pc8_lsb" => self.addr_ofst.bsk[8].1,
-            "Keys_Bsk::addr_pc_pc9_msb" => self.addr_ofst.bsk[9].0,
-            "Keys_Bsk::addr_pc_pc9_lsb" => self.addr_ofst.bsk[9].1,
-            "Keys_Bsk::addr_pc_pc10_msb" => self.addr_ofst.bsk[10].0,
-            "Keys_Bsk::addr_pc_pc10_lsb" => self.addr_ofst.bsk[10].1,
-            "Keys_Bsk::addr_pc_pc11_msb" => self.addr_ofst.bsk[11].0,
-            "Keys_Bsk::addr_pc_pc11_lsb" => self.addr_ofst.bsk[11].1,
-            "Keys_Bsk::addr_pc_pc12_msb" => self.addr_ofst.bsk[12].0,
-            "Keys_Bsk::addr_pc_pc12_lsb" => self.addr_ofst.bsk[12].1,
-            "Keys_Bsk::addr_pc_pc13_msb" => self.addr_ofst.bsk[13].0,
-            "Keys_Bsk::addr_pc_pc13_lsb" => self.addr_ofst.bsk[13].1,
-            "Keys_Bsk::addr_pc_pc14_msb" => self.addr_ofst.bsk[14].0,
-            "Keys_Bsk::addr_pc_pc14_lsb" => self.addr_ofst.bsk[14].1,
-            "Keys_Bsk::addr_pc_pc15_msb" => self.addr_ofst.bsk[15].0,
-            "Keys_Bsk::addr_pc_pc15_lsb" => self.addr_ofst.bsk[15].1,
-            "Keys_Ksk::addr_pc_pc0_msb" => self.addr_ofst.ksk[0].0,
-            "Keys_Ksk::addr_pc_pc0_lsb" => self.addr_ofst.ksk[0].1,
-            "Keys_Ksk::addr_pc_pc1_msb" => self.addr_ofst.ksk[1].0,
-            "Keys_Ksk::addr_pc_pc1_lsb" => self.addr_ofst.ksk[1].1,
-            "Keys_Ksk::addr_pc_pc2_msb" => self.addr_ofst.ksk[2].0,
-            "Keys_Ksk::addr_pc_pc2_lsb" => self.addr_ofst.ksk[2].1,
-            "Keys_Ksk::addr_pc_pc3_msb" => self.addr_ofst.ksk[3].0,
-            "Keys_Ksk::addr_pc_pc3_lsb" => self.addr_ofst.ksk[3].1,
-            "Keys_Ksk::addr_pc_pc4_msb" => self.addr_ofst.ksk[4].0,
-            "Keys_Ksk::addr_pc_pc4_lsb" => self.addr_ofst.ksk[4].1,
-            "Keys_Ksk::addr_pc_pc5_msb" => self.addr_ofst.ksk[5].0,
-            "Keys_Ksk::addr_pc_pc5_lsb" => self.addr_ofst.ksk[5].1,
-            "Keys_Ksk::addr_pc_pc6_msb" => self.addr_ofst.ksk[6].0,
-            "Keys_Ksk::addr_pc_pc6_lsb" => self.addr_ofst.ksk[6].1,
-            "Keys_Ksk::addr_pc_pc7_msb" => self.addr_ofst.ksk[7].0,
-            "Keys_Ksk::addr_pc_pc7_lsb" => self.addr_ofst.ksk[7].1,
-            "Keys_Ksk::addr_pc_pc8_msb" => self.addr_ofst.ksk[8].0,
-            "Keys_Ksk::addr_pc_pc8_lsb" => self.addr_ofst.ksk[8].1,
-            "Keys_Ksk::addr_pc_pc9_msb" => self.addr_ofst.ksk[9].0,
-            "Keys_Ksk::addr_pc_pc9_lsb" => self.addr_ofst.ksk[9].1,
-            "Keys_Ksk::addr_pc_pc10_msb" => self.addr_ofst.ksk[10].0,
-            "Keys_Ksk::addr_pc_pc10_lsb" => self.addr_ofst.ksk[10].1,
-            "Keys_Ksk::addr_pc_pc11_msb" => self.addr_ofst.ksk[11].0,
-            "Keys_Ksk::addr_pc_pc11_lsb" => self.addr_ofst.ksk[11].1,
-            "Keys_Ksk::addr_pc_pc12_msb" => self.addr_ofst.ksk[12].0,
-            "Keys_Ksk::addr_pc_pc12_lsb" => self.addr_ofst.ksk[12].1,
-            "Keys_Ksk::addr_pc_pc13_msb" => self.addr_ofst.ksk[13].0,
-            "Keys_Ksk::addr_pc_pc13_lsb" => self.addr_ofst.ksk[13].1,
-            "Keys_Ksk::addr_pc_pc14_msb" => self.addr_ofst.ksk[14].0,
-            "Keys_Ksk::addr_pc_pc14_lsb" => self.addr_ofst.ksk[14].1,
-            "Keys_Ksk::addr_pc_pc15_msb" => self.addr_ofst.ksk[15].0,
-            "Keys_Ksk::addr_pc_pc15_lsb" => self.addr_ofst.ksk[15].1,
-            "PbsLut::addr_msb" => self.addr_ofst.lut.0,
-            "PbsLut::addr_lsb" => self.addr_ofst.lut.1,
-            "Trace::addr_msb" => self.addr_ofst.trace.0,
-            "Trace::addr_lsb" => self.addr_ofst.trace.1,
+            "hbm_axi4_addr_1in3::ct_pc0_msb" => self.addr_ofst.ldst[0].0,
+            "hbm_axi4_addr_1in3::ct_pc0_lsb" => self.addr_ofst.ldst[0].1,
+            "hbm_axi4_addr_1in3::ct_pc1_msb" => self.addr_ofst.ldst[1].0,
+            "hbm_axi4_addr_1in3::ct_pc1_lsb" => self.addr_ofst.ldst[1].1,
+            "hbm_axi4_addr_3in3::bsk_pc0_msb" => self.addr_ofst.bsk[0].0,
+            "hbm_axi4_addr_3in3::bsk_pc0_lsb" => self.addr_ofst.bsk[0].1,
+            "hbm_axi4_addr_3in3::bsk_pc1_msb" => self.addr_ofst.bsk[1].0,
+            "hbm_axi4_addr_3in3::bsk_pc1_lsb" => self.addr_ofst.bsk[1].1,
+            "hbm_axi4_addr_3in3::bsk_pc2_msb" => self.addr_ofst.bsk[2].0,
+            "hbm_axi4_addr_3in3::bsk_pc2_lsb" => self.addr_ofst.bsk[2].1,
+            "hbm_axi4_addr_3in3::bsk_pc3_msb" => self.addr_ofst.bsk[3].0,
+            "hbm_axi4_addr_3in3::bsk_pc3_lsb" => self.addr_ofst.bsk[3].1,
+            "hbm_axi4_addr_3in3::bsk_pc4_msb" => self.addr_ofst.bsk[4].0,
+            "hbm_axi4_addr_3in3::bsk_pc4_lsb" => self.addr_ofst.bsk[4].1,
+            "hbm_axi4_addr_3in3::bsk_pc5_msb" => self.addr_ofst.bsk[5].0,
+            "hbm_axi4_addr_3in3::bsk_pc5_lsb" => self.addr_ofst.bsk[5].1,
+            "hbm_axi4_addr_3in3::bsk_pc6_msb" => self.addr_ofst.bsk[6].0,
+            "hbm_axi4_addr_3in3::bsk_pc6_lsb" => self.addr_ofst.bsk[6].1,
+            "hbm_axi4_addr_3in3::bsk_pc7_msb" => self.addr_ofst.bsk[7].0,
+            "hbm_axi4_addr_3in3::bsk_pc7_lsb" => self.addr_ofst.bsk[7].1,
+            "hbm_axi4_addr_3in3::bsk_pc8_msb" => self.addr_ofst.bsk[8].0,
+            "hbm_axi4_addr_3in3::bsk_pc8_lsb" => self.addr_ofst.bsk[8].1,
+            "hbm_axi4_addr_3in3::bsk_pc9_msb" => self.addr_ofst.bsk[9].0,
+            "hbm_axi4_addr_3in3::bsk_pc9_lsb" => self.addr_ofst.bsk[9].1,
+            "hbm_axi4_addr_3in3::bsk_pc10_msb" => self.addr_ofst.bsk[10].0,
+            "hbm_axi4_addr_3in3::bsk_pc10_lsb" => self.addr_ofst.bsk[10].1,
+            "hbm_axi4_addr_3in3::bsk_pc11_msb" => self.addr_ofst.bsk[11].0,
+            "hbm_axi4_addr_3in3::bsk_pc11_lsb" => self.addr_ofst.bsk[11].1,
+            "hbm_axi4_addr_3in3::bsk_pc12_msb" => self.addr_ofst.bsk[12].0,
+            "hbm_axi4_addr_3in3::bsk_pc12_lsb" => self.addr_ofst.bsk[12].1,
+            "hbm_axi4_addr_3in3::bsk_pc13_msb" => self.addr_ofst.bsk[13].0,
+            "hbm_axi4_addr_3in3::bsk_pc13_lsb" => self.addr_ofst.bsk[13].1,
+            "hbm_axi4_addr_3in3::bsk_pc14_msb" => self.addr_ofst.bsk[14].0,
+            "hbm_axi4_addr_3in3::bsk_pc14_lsb" => self.addr_ofst.bsk[14].1,
+            "hbm_axi4_addr_3in3::bsk_pc15_msb" => self.addr_ofst.bsk[15].0,
+            "hbm_axi4_addr_3in3::bsk_pc15_lsb" => self.addr_ofst.bsk[15].1,
+            "hbm_axi4_addr_1in3::ksk_pc0_msb" => self.addr_ofst.ksk[0].0,
+            "hbm_axi4_addr_1in3::ksk_pc0_lsb" => self.addr_ofst.ksk[0].1,
+            "hbm_axi4_addr_1in3::ksk_pc1_msb" => self.addr_ofst.ksk[1].0,
+            "hbm_axi4_addr_1in3::ksk_pc1_lsb" => self.addr_ofst.ksk[1].1,
+            "hbm_axi4_addr_1in3::ksk_pc2_msb" => self.addr_ofst.ksk[2].0,
+            "hbm_axi4_addr_1in3::ksk_pc2_lsb" => self.addr_ofst.ksk[2].1,
+            "hbm_axi4_addr_1in3::ksk_pc3_msb" => self.addr_ofst.ksk[3].0,
+            "hbm_axi4_addr_1in3::ksk_pc3_lsb" => self.addr_ofst.ksk[3].1,
+            "hbm_axi4_addr_1in3::ksk_pc4_msb" => self.addr_ofst.ksk[4].0,
+            "hbm_axi4_addr_1in3::ksk_pc4_lsb" => self.addr_ofst.ksk[4].1,
+            "hbm_axi4_addr_1in3::ksk_pc5_msb" => self.addr_ofst.ksk[5].0,
+            "hbm_axi4_addr_1in3::ksk_pc5_lsb" => self.addr_ofst.ksk[5].1,
+            "hbm_axi4_addr_1in3::ksk_pc6_msb" => self.addr_ofst.ksk[6].0,
+            "hbm_axi4_addr_1in3::ksk_pc6_lsb" => self.addr_ofst.ksk[6].1,
+            "hbm_axi4_addr_1in3::ksk_pc7_msb" => self.addr_ofst.ksk[7].0,
+            "hbm_axi4_addr_1in3::ksk_pc7_lsb" => self.addr_ofst.ksk[7].1,
+            "hbm_axi4_addr_1in3::ksk_pc8_msb" => self.addr_ofst.ksk[8].0,
+            "hbm_axi4_addr_1in3::ksk_pc8_lsb" => self.addr_ofst.ksk[8].1,
+            "hbm_axi4_addr_1in3::ksk_pc9_msb" => self.addr_ofst.ksk[9].0,
+            "hbm_axi4_addr_1in3::ksk_pc9_lsb" => self.addr_ofst.ksk[9].1,
+            "hbm_axi4_addr_1in3::ksk_pc10_msb" => self.addr_ofst.ksk[10].0,
+            "hbm_axi4_addr_1in3::ksk_pc10_lsb" => self.addr_ofst.ksk[10].1,
+            "hbm_axi4_addr_1in3::ksk_pc11_msb" => self.addr_ofst.ksk[11].0,
+            "hbm_axi4_addr_1in3::ksk_pc11_lsb" => self.addr_ofst.ksk[11].1,
+            "hbm_axi4_addr_1in3::ksk_pc12_msb" => self.addr_ofst.ksk[12].0,
+            "hbm_axi4_addr_1in3::ksk_pc12_lsb" => self.addr_ofst.ksk[12].1,
+            "hbm_axi4_addr_1in3::ksk_pc13_msb" => self.addr_ofst.ksk[13].0,
+            "hbm_axi4_addr_1in3::ksk_pc13_lsb" => self.addr_ofst.ksk[13].1,
+            "hbm_axi4_addr_1in3::ksk_pc14_msb" => self.addr_ofst.ksk[14].0,
+            "hbm_axi4_addr_1in3::ksk_pc14_lsb" => self.addr_ofst.ksk[14].1,
+            "hbm_axi4_addr_1in3::ksk_pc15_msb" => self.addr_ofst.ksk[15].0,
+            "hbm_axi4_addr_1in3::ksk_pc15_lsb" => self.addr_ofst.ksk[15].1,
+            "hbm_axi4_addr_1in3::glwe_pc0_msb" => self.addr_ofst.lut.0,
+            "hbm_axi4_addr_1in3::glwe_pc0_lsb" => self.addr_ofst.lut.1,
+            "hbm_axi4_addr_1in3::trc_pc0_msb" => self.addr_ofst.trace.0,
+            "hbm_axi4_addr_1in3::trc_pc0_lsb" => self.addr_ofst.trace.1,
 
             // Queue interface
             "WorkAck::workq" => {
@@ -319,11 +315,11 @@ impl RegisterMap {
     pub fn write_reg(&mut self, addr: u64, value: u32) -> RegisterEvent {
         let register_name = self.get_register_name(addr);
         match register_name {
-            "Keys_Bsk::avail" => {
+            "bsk_avail::avail" => {
                 self.bsk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst);
                 RegisterEvent::None
             }
-            "Keys_Bsk::reset" => {
+            "bsk_avail::reset" => {
                 if (value & 0x1) == 0x1 {
                     self.bsk.rst_pdg.store(true, Ordering::SeqCst);
                     self.bsk.avail.store(false, Ordering::SeqCst);
@@ -332,11 +328,11 @@ impl RegisterMap {
                     RegisterEvent::None
                 }
             }
-            "Keys_Ksk::avail" => {
+            "ksk_avail::avail" => {
                 self.ksk.avail.store((value & 0x1) == 0x1, Ordering::SeqCst);
                 RegisterEvent::None
             }
-            "Keys_Ksk::reset" => {
+            "ksk_avail::reset" => {
                 if (value & 0x1) == 0x1 {
                     self.ksk.rst_pdg.store(true, Ordering::SeqCst);
                     self.ksk.avail.store(false, Ordering::SeqCst);
@@ -347,307 +343,307 @@ impl RegisterMap {
             }
 
             // Bpip configuration registers
-            "Bpip::use" => {
+            "bpip::use" => {
                 self.bpip.used = value == 0x1;
                 RegisterEvent::None
             }
-            "Bpip::timeout" => {
+            "bpip::timeout" => {
                 self.bpip.timeout = value;
                 RegisterEvent::None
             }
             // Add offset configuration registers
-            "LdSt::addr_pc0_msb" => {
+            "hbm_axi4_addr_1in3::ct_pc0_msb" => {
                 self.addr_ofst.ldst[0].0 = value;
                 RegisterEvent::None
             }
-            "LdSt::addr_pc0_lsb" => {
+            "hbm_axi4_addr_1in3::ct_pc0_lsb" => {
                 self.addr_ofst.ldst[0].1 = value;
                 RegisterEvent::None
             }
-            "LdSt::addr_pc1_msb" => {
+            "hbm_axi4_addr_1in3::ct_pc1_msb" => {
                 self.addr_ofst.ldst[1].0 = value;
                 RegisterEvent::None
             }
-            "LdSt::addr_pc1_lsb" => {
+            "hbm_axi4_addr_1in3::ct_pc1_lsb" => {
                 self.addr_ofst.ldst[1].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc0_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc0_msb" => {
                 self.addr_ofst.bsk[0].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc0_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc0_lsb" => {
                 self.addr_ofst.bsk[0].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc1_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc1_msb" => {
                 self.addr_ofst.bsk[1].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc1_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc1_lsb" => {
                 self.addr_ofst.bsk[1].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc2_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc2_msb" => {
                 self.addr_ofst.bsk[2].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc2_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc2_lsb" => {
                 self.addr_ofst.bsk[2].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc3_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc3_msb" => {
                 self.addr_ofst.bsk[3].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc3_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc3_lsb" => {
                 self.addr_ofst.bsk[3].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc4_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc4_msb" => {
                 self.addr_ofst.bsk[4].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc4_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc4_lsb" => {
                 self.addr_ofst.bsk[4].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc5_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc5_msb" => {
                 self.addr_ofst.bsk[5].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc5_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc5_lsb" => {
                 self.addr_ofst.bsk[5].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc6_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc6_msb" => {
                 self.addr_ofst.bsk[6].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc6_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc6_lsb" => {
                 self.addr_ofst.bsk[6].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc7_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc7_msb" => {
                 self.addr_ofst.bsk[7].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc7_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc7_lsb" => {
                 self.addr_ofst.bsk[7].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc8_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc8_msb" => {
                 self.addr_ofst.bsk[8].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc8_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc8_lsb" => {
                 self.addr_ofst.bsk[8].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc9_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc9_msb" => {
                 self.addr_ofst.bsk[9].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc9_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc9_lsb" => {
                 self.addr_ofst.bsk[9].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc10_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc10_msb" => {
                 self.addr_ofst.bsk[10].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc10_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc10_lsb" => {
                 self.addr_ofst.bsk[10].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc11_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc11_msb" => {
                 self.addr_ofst.bsk[11].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc11_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc11_lsb" => {
                 self.addr_ofst.bsk[11].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc12_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc12_msb" => {
                 self.addr_ofst.bsk[12].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc12_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc12_lsb" => {
                 self.addr_ofst.bsk[12].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc13_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc13_msb" => {
                 self.addr_ofst.bsk[13].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc13_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc13_lsb" => {
                 self.addr_ofst.bsk[13].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc14_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc14_msb" => {
                 self.addr_ofst.bsk[14].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc14_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc14_lsb" => {
                 self.addr_ofst.bsk[14].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc15_msb" => {
+            "hbm_axi4_addr_3in3::bsk_pc15_msb" => {
                 self.addr_ofst.bsk[15].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Bsk::addr_pc_pc15_lsb" => {
+            "hbm_axi4_addr_3in3::bsk_pc15_lsb" => {
                 self.addr_ofst.bsk[15].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc0_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc0_msb" => {
                 self.addr_ofst.ksk[0].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc0_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc0_lsb" => {
                 self.addr_ofst.ksk[0].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc1_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc1_msb" => {
                 self.addr_ofst.ksk[1].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc1_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc1_lsb" => {
                 self.addr_ofst.ksk[1].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc2_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc2_msb" => {
                 self.addr_ofst.ksk[2].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc2_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc2_lsb" => {
                 self.addr_ofst.ksk[2].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc3_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc3_msb" => {
                 self.addr_ofst.ksk[3].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc3_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc3_lsb" => {
                 self.addr_ofst.ksk[3].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc4_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc4_msb" => {
                 self.addr_ofst.ksk[4].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc4_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc4_lsb" => {
                 self.addr_ofst.ksk[4].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc5_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc5_msb" => {
                 self.addr_ofst.ksk[5].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc5_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc5_lsb" => {
                 self.addr_ofst.ksk[5].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc6_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc6_msb" => {
                 self.addr_ofst.ksk[6].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc6_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc6_lsb" => {
                 self.addr_ofst.ksk[6].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc7_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc7_msb" => {
                 self.addr_ofst.ksk[7].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc7_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc7_lsb" => {
                 self.addr_ofst.ksk[7].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc8_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc8_msb" => {
                 self.addr_ofst.ksk[8].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc8_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc8_lsb" => {
                 self.addr_ofst.ksk[8].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc9_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc9_msb" => {
                 self.addr_ofst.ksk[9].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc9_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc9_lsb" => {
                 self.addr_ofst.ksk[9].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc10_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc10_msb" => {
                 self.addr_ofst.ksk[10].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc10_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc10_lsb" => {
                 self.addr_ofst.ksk[10].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc11_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc11_msb" => {
                 self.addr_ofst.ksk[11].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc11_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc11_lsb" => {
                 self.addr_ofst.ksk[11].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc12_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc12_msb" => {
                 self.addr_ofst.ksk[12].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc12_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc12_lsb" => {
                 self.addr_ofst.ksk[12].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc13_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc13_msb" => {
                 self.addr_ofst.ksk[13].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc13_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc13_lsb" => {
                 self.addr_ofst.ksk[13].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc14_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc14_msb" => {
                 self.addr_ofst.ksk[14].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc14_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc14_lsb" => {
                 self.addr_ofst.ksk[14].1 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc15_msb" => {
+            "hbm_axi4_addr_1in3::ksk_pc15_msb" => {
                 self.addr_ofst.ksk[15].0 = value;
                 RegisterEvent::None
             }
-            "Keys_Ksk::addr_pc_pc15_lsb" => {
+            "hbm_axi4_addr_1in3::ksk_pc15_lsb" => {
                 self.addr_ofst.ksk[15].1 = value;
                 RegisterEvent::None
             }
-            "PbsLut::addr_msb" => {
+            "hbm_axi4_addr_1in3::glwe_pc0_msb" => {
                 self.addr_ofst.lut.0 = value;
                 RegisterEvent::None
             }
-            "PbsLut::addr_lsb" => {
+            "hbm_axi4_addr_1in3::glwe_pc0_lsb" => {
                 self.addr_ofst.lut.1 = value;
                 RegisterEvent::None
             }
-            "Trace::addr_msb" => {
+            "hbm_axi4_addr_1in3::trc_pc0_msb" => {
                 self.addr_ofst.trace.0 = value;
                 RegisterEvent::None
             }
-            "Trace::addr_lsb" => {
+            "hbm_axi4_addr_1in3::trc_pc0_lsb" => {
                 self.addr_ofst.trace.1 = value;
                 RegisterEvent::None
             }
 
             "WorkAck::workq" => RegisterEvent::WorkQ(value),
             _ => {
-                tracing::warn!("Register {register_name} not hooked for writting");
+                tracing::warn!("Register {register_name} not hooked for writing");
                 RegisterEvent::None
             }
         }

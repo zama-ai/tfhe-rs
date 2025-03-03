@@ -38,14 +38,14 @@ impl FromRtl for HpuKeyswitchParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let ks_shape = regmap
             .register()
-            .get("Info::KsShape")
+            .get("info::ks_structure")
             .expect("Unknow register, check regmap definition");
         let shape_val = ffi_hw.read_reg(*ks_shape.offset() as u64);
         let shape_fields = ks_shape.as_field(shape_val);
 
         let ks_info = regmap
             .register()
-            .get("Info::KsInfo")
+            .get("info::ks_crypto_param")
             .expect("Unknow register, check regmap definition");
         let info_val = ffi_hw.read_reg(*ks_info.offset() as u64);
         let info_fields = ks_info.as_field(info_val);
@@ -65,7 +65,7 @@ impl FromRtl for HpuNttParameters {
         // Values extracted from NttInternal register
         let ntt_internal = regmap
             .register()
-            .get("Info::NttInternal")
+            .get("info::ntt_structure")
             .expect("Unknow register, check regmap definition");
         let internal_val = ffi_hw.read_reg(*ntt_internal.offset() as u64);
         let internal_fields = ntt_internal.as_field(internal_val);
@@ -77,7 +77,7 @@ impl FromRtl for HpuNttParameters {
         // Values extracted from NttInternal register
         let ntt_pbs_nb = regmap
             .register()
-            .get("Info::NttPbsNb")
+            .get("info::ntt_pbs")
             .expect("Unknow register, check regmap definition");
         let pbs_nb_val = ffi_hw.read_reg(*ntt_pbs_nb.offset() as u64);
         let pbs_nb_fields = ntt_pbs_nb.as_field(pbs_nb_val);
@@ -89,7 +89,7 @@ impl FromRtl for HpuNttParameters {
         // Modulus isn't directly expressed, instead used custom encoding
         let ntt_modulo = regmap
             .register()
-            .get("Info::NttModulo")
+            .get("info::ntt_modulo")
             .expect("Unknow register, check regmap definition");
         let ntt_modulo_val = ffi_hw.read_reg(*ntt_modulo.offset() as u64);
 
@@ -138,7 +138,7 @@ impl FromRtl for HpuNttCoreArch {
         // Modulus isn't directly expressed, instead used custom encoding
         let ntt_core_arch = regmap
             .register()
-            .get("Info::NttArch")
+            .get("info::ntt_architecture")
             .expect("Unknow register, check regmap definition");
         let ntt_core_arch_val = ffi_hw.read_reg(*ntt_core_arch.offset() as u64);
 
@@ -160,7 +160,7 @@ impl FromRtl for HpuNttCoreArch {
 
                 let radix_cut = regmap
                     .register()
-                    .get("Info::NttRdxCut")
+                    .get("info::ntt_rdx_cut")
                     .expect("Unknow register, check regmap definition");
                 let radix_cut_val = ffi_hw.read_reg(*radix_cut.offset() as u64);
                 let cut_l = (0..(u32::BITS / 4))
@@ -179,27 +179,20 @@ impl FromRtl for HpuPcParameters {
         // Extract number of Pc for each channel
         let hbm_pc = regmap
             .register()
-            .get("Info::HbmPc")
+            .get("info::hbm_axi4_nb")
             .expect("Unknow register, check regmap definition");
         let hbm_pc_val = ffi_hw.read_reg(*hbm_pc.offset() as u64);
         let hbm_pc_fields = hbm_pc.as_field(hbm_pc_val);
 
-        let hbm_pc_2 = regmap
-            .register()
-            .get("Info::HbmPc_2")
-            .expect("Unknow register, check regmap definition");
-        let hbm_pc_2_val = ffi_hw.read_reg(*hbm_pc_2.offset() as u64);
-        let hbm_pc_2_fields = hbm_pc_2.as_field(hbm_pc_2_val);
-
         let ksk_pc = *hbm_pc_fields.get("ksk_pc").expect("Unknow field") as usize;
         let bsk_pc = *hbm_pc_fields.get("bsk_pc").expect("Unknow field") as usize;
-        let pem_pc = *hbm_pc_2_fields.get("pem_pc").expect("Unknow field") as usize;
+        let pem_pc = *hbm_pc_fields.get("pem_pc").expect("Unknow field") as usize;
 
         // Extract bus width for each channel
         let ksk_bytes_w = {
             let ksk_axi4_data_w = regmap
                 .register()
-                .get("Info::ksk_axi4_data_w")
+                .get("info::hbm_axi4_dataw_ksk")
                 .expect("Unknow register, check regmap definition");
             let ksk_axi4_data_w_val = ffi_hw.read_reg(*ksk_axi4_data_w.offset() as u64);
             // Value is in bit in rtl and SW expect bytes
@@ -208,7 +201,7 @@ impl FromRtl for HpuPcParameters {
         let bsk_bytes_w = {
             let bsk_axi4_data_w = regmap
                 .register()
-                .get("Info::bsk_axi4_data_w")
+                .get("info::hbm_axi4_dataw_bsk")
                 .expect("Unknow register, check regmap definition");
             let bsk_axi4_data_w_val = ffi_hw.read_reg(*bsk_axi4_data_w.offset() as u64);
             // Value is in bit in rtl and SW expect bytes
@@ -217,7 +210,7 @@ impl FromRtl for HpuPcParameters {
         let pem_bytes_w = {
             let pem_axi4_data_w = regmap
                 .register()
-                .get("Info::pem_axi4_data_w")
+                .get("info::hbm_axi4_dataw_pem")
                 .expect("Unknow register, check regmap definition");
             let pem_axi4_data_w_val = ffi_hw.read_reg(*pem_axi4_data_w.offset() as u64);
             // Value is in bit in rtl and SW expect bytes
@@ -226,7 +219,7 @@ impl FromRtl for HpuPcParameters {
         let glwe_bytes_w = {
             let glwe_axi4_data_w = regmap
                 .register()
-                .get("Info::glwe_axi4_data_w")
+                .get("info::hbm_axi4_dataw_glwe")
                 .expect("Unknow register, check regmap definition");
             let glwe_axi4_data_w_val = ffi_hw.read_reg(*glwe_axi4_data_w.offset() as u64);
             // Value is in bit in rtl and SW expect bytes
@@ -249,7 +242,7 @@ impl FromRtl for HpuRegfileParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let regf = regmap
             .register()
-            .get("Info::RegfInfo")
+            .get("info::regf_structure")
             .expect("Unknow register, check regmap definition");
         let regf_val = ffi_hw.read_reg(*regf.offset() as u64);
         let regf_fields = regf.as_field(regf_val);
@@ -265,7 +258,7 @@ impl FromRtl for HpuIscParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let isc = regmap
             .register()
-            .get("Info::IscInfo")
+            .get("info::isc_structure")
             .expect("Unknow register, check regmap definition");
         let isc_val = ffi_hw.read_reg(*isc.offset() as u64);
         let isc_fields = isc.as_field(isc_val);
@@ -403,7 +396,7 @@ impl FromRtl for HpuPBSParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let pbs_app = regmap
             .register()
-            .get("Info::Appli")
+            .get("info::application")
             .expect("Unknow register, check regmap definition");
         let pbs_app_val = ffi_hw.read_reg(*pbs_app.offset() as u64);
 

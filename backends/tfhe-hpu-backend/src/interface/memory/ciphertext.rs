@@ -127,8 +127,8 @@ impl CiphertextMemory {
             // Extract LdSt_addr_pc register addr
             let ldst_addr_pc = (0..props.mem_cut.len())
                 .map(|idx| {
-                    let lsb_name = format!("LdSt::addr_pc{idx}_lsb");
-                    let msb_name = format!("LdSt::addr_pc{idx}_msb");
+                    let lsb_name = format!("hbm_axi4_addr_1in3::ct_pc{idx}_lsb");
+                    let msb_name = format!("hbm_axi4_addr_1in3::ct_pc{idx}_msb");
                     let lsb = regmap
                         .register()
                         .get(&lsb_name)
