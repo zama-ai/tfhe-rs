@@ -634,6 +634,47 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "extended-types")]
+    #[test]
+    fn test_compact_list_extended_types() {
+        let config = crate::ConfigBuilder::default().build();
+
+        let ck = crate::ClientKey::generate(config);
+        let sk = crate::ServerKey::new(&ck);
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push_with_num_bits(-17i64, 40)
+            .unwrap()
+            .push_with_num_bits(3u8, 24)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand().unwrap();
+
+        {
+            let a: crate::FheInt40 = expander.get(0).unwrap().unwrap();
+            let b: crate::FheUint24 = expander.get(1).unwrap().unwrap();
+
+            let a: i64 = a.decrypt(&ck);
+            assert_eq!(a, -17);
+            let b: u8 = b.decrypt(&ck);
+            assert_eq!(b, 3);
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheUint32>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheInt64>(0).is_err());
+        }
+    }
+
     #[test]
     fn test_compact_list_with_casting() {
         let config = crate::ConfigBuilder::with_custom_parameters(
