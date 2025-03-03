@@ -63,6 +63,24 @@ impl<const N: usize> StaticSignedBigInt<N> {
         self - other
     }
 
+    /// Replaces the current value by interpreting the bytes in big endian order
+    pub fn copy_from_be_byte_slice(&mut self, bytes: &[u8]) {
+        super::algorithms::copy_from_be_byte_slice(self.0.as_mut_slice(), bytes);
+    }
+
+    /// Replaces the current value by interpreting the bytes in little endian order
+    pub fn copy_from_le_byte_slice(&mut self, bytes: &[u8]) {
+        super::algorithms::copy_from_le_byte_slice(self.0.as_mut_slice(), bytes);
+    }
+
+    pub fn copy_to_le_byte_slice(&self, bytes: &mut [u8]) {
+        super::algorithms::copy_to_le_byte_slice(self.0.as_slice(), bytes);
+    }
+
+    pub fn copy_to_be_byte_slice(&self, bytes: &mut [u8]) {
+        super::algorithms::copy_to_be_byte_slice(self.0.as_slice(), bytes);
+    }
+
     pub fn is_power_of_two(self) -> bool {
         if self <= Self::ZERO {
             return false;
