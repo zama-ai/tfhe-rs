@@ -459,32 +459,35 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn unchecked_small_scalar_mul_integer_async<T: UnsignedInteger>(
+pub unsafe fn unchecked_small_scalar_mul_integer_async(
     streams: &CudaStreams,
-    lwe_array: &mut CudaVec<T>,
+    lwe_array: &mut CudaRadixCiphertext,
     small_scalar: u64,
-    big_lwe_dimension: LweDimension,
-    num_blocks: u32,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        lwe_array.gpu_index(0),
+        lwe_array.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
+    );
+    let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lwe_array_noise_levels = lwe_array
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_lwe_array = prepare_cuda_radix_ffi(
+        lwe_array,
+        &mut lwe_array_degrees,
+        &mut lwe_array_noise_levels,
     );
 
     cuda_small_scalar_multiplication_integer_64_inplace(
         streams.ptr.as_ptr(),
-        streams
-            .gpu_indexes
-            .iter()
-            .map(|i| i.0)
-            .collect::<Vec<u32>>()
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        lwe_array.as_mut_c_ptr(0),
+        &mut cuda_ffi_lwe_array,
         small_scalar,
-        big_lwe_dimension.0 as u32,
-        num_blocks,
     );
 }
 
@@ -775,30 +778,25 @@ pub unsafe fn extract_glwe_async<T: UnsignedInteger>(
         streams.gpu_indexes[0],
         lwe_array_out.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
-    assert_eq!(
     );
+    assert_eq!(
         streams.gpu_indexes[0],
         glwe_list.gpu_index(0),
         "GPU error: all data should reside on the same GPU."
-
     );
     cuda_integer_extract_glwe_64(
         streams.ptr.as_ptr(),
-        streams
-            .iter()
-            .gpu_indexes
-            .collect::<Vec<u32>>()
-            .map(|i| i.0)
-            .as_ptr(),
+        streams.gpu_indexes_ptr(),
         lwe_array_out.as_mut_c_ptr(0),
         glwe_list.as_c_ptr(0),
         glwe_index,
+        storage_log_modulus,
         compression_polynomial_size.0 as u32,
         compression_glwe_dimension.0 as u32,
         bodies_count,
     );
 }
-        storage_log_modulus,
+
 pub unsafe fn unchecked_add_integer_radix_assign_async(
     streams: &CudaStreams,
     radix_lwe_left: &mut CudaRadixCiphertext,

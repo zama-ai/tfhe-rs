@@ -73,15 +73,6 @@ impl ClientKey {
             )
         });
 
-        let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
-            &self.large_lwe_secret_key(),
-            &private_compression_key.post_packing_ks_key,
-            params.packing_ks_base_log,
-            params.packing_ks_level,
-            params.packing_ks_key_noise_distribution,
-            self.parameters.ciphertext_modulus(),
-            &mut engine.encryption_generator,
-        );
 
         assert!(
             compression_params.storage_log_modulus.0
