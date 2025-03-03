@@ -65,7 +65,7 @@ impl ServerKey {
             result
                 .blocks_mut()
                 .par_iter_mut()
-                .filter(|b| b.noise_level > NoiseLevel::NOMINAL)
+                .filter(|b| b.noise_level() > NoiseLevel::NOMINAL)
                 .for_each(|block| self.key.message_extract_assign(block));
             return result;
         }
@@ -81,7 +81,7 @@ impl ServerKey {
             ct.blocks().iter().all(|block| self
                 .key
                 .max_noise_level
-                .validate(block.noise_level + NoiseLevel::NOMINAL)
+                .validate(block.noise_level() + NoiseLevel::NOMINAL)
                 .is_ok()),
             "Blocks of ciphertext to be shifted has a noise level too high"
         );
@@ -152,7 +152,7 @@ impl ServerKey {
             assert!(current_blocks.iter().all(|block| {
                 self.key
                     .max_noise_level
-                    .validate(block.noise_level + shift_bit.noise_level())
+                    .validate(block.noise_level() + shift_bit.noise_level())
                     .is_ok()
             }));
 

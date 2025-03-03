@@ -161,13 +161,15 @@ impl CudaRadixCiphertext {
             .into_container()
             .chunks(lwe_size)
             .zip(&self.info.blocks)
-            .map(|(data, i)| Ciphertext {
-                ct: LweCiphertextOwned::from_container(data.to_vec(), ciphertext_modulus),
-                degree: i.degree,
-                noise_level: i.noise_level,
-                message_modulus: i.message_modulus,
-                carry_modulus: i.carry_modulus,
-                pbs_order: i.pbs_order,
+            .map(|(data, i)| {
+                Ciphertext::new(
+                    LweCiphertextOwned::from_container(data.to_vec(), ciphertext_modulus),
+                    i.degree,
+                    i.noise_level,
+                    i.message_modulus,
+                    i.carry_modulus,
+                    i.pbs_order,
+                )
             })
             .collect()
     }

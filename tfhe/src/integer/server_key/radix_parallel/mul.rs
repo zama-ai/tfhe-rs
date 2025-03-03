@@ -169,7 +169,7 @@ impl ServerKey {
         if !ct1.block_carries_are_empty() {
             self.full_propagate_parallelized(ct1);
         }
-        if ct2.noise_level != NoiseLevel::NOMINAL || !ct2.carry_is_empty() {
+        if ct2.noise_level() != NoiseLevel::NOMINAL || !ct2.carry_is_empty() {
             self.key.message_extract_assign(ct2);
         }
 

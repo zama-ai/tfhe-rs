@@ -447,15 +447,15 @@ where
 
                 let encrypted_result = executor.execute((&ct, &shift));
                 for (i, b) in encrypted_result.blocks.iter().enumerate() {
-                    if b.noise_level > NoiseLevel::NOMINAL {
-                        println!("{i}: {:?}", b.noise_level);
+                    if b.noise_level() > NoiseLevel::NOMINAL {
+                        println!("{i}: {:?}", b.noise_level());
                     }
                 }
                 assert!(
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -472,7 +472,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -530,7 +530,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -546,7 +546,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -606,7 +606,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let expected = rotate_left_helper(clear, clear_shift, nb_bits);
@@ -622,7 +622,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -677,7 +677,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -694,7 +694,7 @@ where
                     encrypted_result
                         .blocks
                         .iter()
-                        .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                        .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
                     "Expected all blocks to have at most NOMINAL noise level"
                 );
                 let decrypted_result: u64 = cks.decrypt_radix(&encrypted_result);
@@ -2421,7 +2421,7 @@ where
             assert!(res
                 .blocks
                 .iter()
-                .all(|b| b.noise_level <= NoiseLevel::NOMINAL));
+                .all(|b| b.noise_level() <= NoiseLevel::NOMINAL));
             assert_eq!(res, tmp);
 
             clear = clear.wrapping_mul(clear2.wrapping_mul(multiplier)) % modulus;
@@ -2821,7 +2821,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
             "Invalid noise_level after propagation"
         );
 
@@ -2886,7 +2886,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
             "Invalid noise_level after propagation"
         );
 
@@ -2968,7 +2968,7 @@ where
         assert!(
             ct.blocks
                 .iter()
-                .all(|b| b.noise_level <= NoiseLevel::NOMINAL),
+                .all(|b| b.noise_level() <= NoiseLevel::NOMINAL),
             "Invalid noise_level after propagation"
         );
 

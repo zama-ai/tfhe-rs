@@ -397,7 +397,7 @@ where
             expected_degrees.panic_if_any_is_not_equal(&result);
             expected_noise_level.panic_if_any_is_not_equal(&result);
             assert_eq!(is_ok.0.degree.get(), 0);
-            assert_eq!(is_ok.0.noise_level.get(), 0);
+            assert_eq!(is_ok.0.noise_level().get(), 0);
 
             assert_eq!(cks.decrypt::<u64>(&result), 0);
             assert!(!cks.decrypt_bool(&is_ok));
@@ -456,7 +456,7 @@ where
 
         panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
-        assert_eq!(is_ok.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
@@ -531,7 +531,7 @@ where
 
         panic_if_any_block_is_not_clean_or_trivial(&result, &cks);
         assert_eq!(is_ok.0.degree, Degree::new(1));
-        assert_eq!(is_ok.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_ok.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt::<u64>(&result);
         let is_ok = cks.decrypt_bool(&is_ok);
@@ -743,7 +743,7 @@ where
 
             assert!(result.is_trivial());
             assert_eq!(result.0.degree, Degree::new(0));
-            assert_eq!(result.0.noise_level, NoiseLevel::ZERO);
+            assert_eq!(result.0.noise_level(), NoiseLevel::ZERO);
             assert!(!cks.decrypt_bool(&result));
         }
     }
@@ -776,7 +776,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
 
@@ -844,7 +844,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
 
@@ -877,7 +877,7 @@ where
 
         assert!(result.is_trivial());
         assert_eq!(result.0.degree, Degree::new(0));
-        assert_eq!(result.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(result.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&result));
     }
 
@@ -908,7 +908,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -972,7 +972,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -1004,7 +1004,7 @@ where
 
         assert!(result.is_trivial());
         assert_eq!(result.0.degree, Degree::new(0));
-        assert_eq!(result.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(result.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&result));
     }
 
@@ -1029,7 +1029,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -1087,7 +1087,7 @@ where
         // If the mapping only contains numbers (output) that needs less than NB_CTXT
         // blocks, some trivial zeros will be appended
         assert_eq!(result.0.degree, Degree::new(1));
-        assert_eq!(result.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(result.0.noise_level(), NoiseLevel::NOMINAL);
 
         let result = cks.decrypt_bool(&result);
         assert_eq!(result, expected_result);
@@ -1122,7 +1122,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1152,7 +1152,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1217,7 +1217,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1252,7 +1252,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1282,7 +1282,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1346,7 +1346,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1384,7 +1384,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1420,7 +1420,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1495,7 +1495,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1529,7 +1529,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1564,7 +1564,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1630,7 +1630,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1668,7 +1668,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1709,7 +1709,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1793,7 +1793,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1827,7 +1827,7 @@ where
 
         assert!(is_in.is_trivial());
         assert_eq!(is_in.0.degree, Degree::new(0));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::ZERO);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::ZERO);
         assert!(!cks.decrypt_bool(&is_in));
     }
 
@@ -1867,7 +1867,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);
@@ -1930,7 +1930,7 @@ where
         assert_eq!(index, expected_index as u16);
 
         assert_eq!(is_in.0.degree, Degree::new(1));
-        assert_eq!(is_in.0.noise_level, NoiseLevel::NOMINAL);
+        assert_eq!(is_in.0.noise_level(), NoiseLevel::NOMINAL);
 
         let is_in = cks.decrypt_bool(&is_in);
         assert_eq!(is_in, expected_is_in);

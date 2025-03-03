@@ -17,7 +17,9 @@ use tfhe_versionable::Versionize;
 pub struct Ciphertext {
     pub ct: LweCiphertextOwned<u64>,
     pub degree: Degree,
-    pub(crate) noise_level: NoiseLevel,
+    // For correctness reasons this field MUST remain private, this forces the use of the accessor
+    // which has noise checks enabled on demand
+    noise_level: NoiseLevel,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub pbs_order: PBSOrder,

@@ -170,14 +170,14 @@ impl ServerKey {
             }
         };
 
-        Ciphertext {
+        Ciphertext::new(
             ct,
-            degree: Degree::new(p - 1),
-            noise_level: NoiseLevel::NOMINAL,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            pbs_order: self.pbs_order,
-        }
+            Degree::new(p - 1),
+            NoiseLevel::NOMINAL,
+            self.message_modulus,
+            self.carry_modulus,
+            self.pbs_order,
+        )
     }
 }
 
