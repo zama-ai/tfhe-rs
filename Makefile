@@ -385,7 +385,7 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api \
+		--features=boolean-c-api,shortint-c-api,high-level-c-api,extended-types \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
@@ -511,13 +511,13 @@ build_tfhe_coverage: install_rs_build_toolchain
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok \
+		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,gpu \
+		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu \
 		-p $(TFHE_SPEC)
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT

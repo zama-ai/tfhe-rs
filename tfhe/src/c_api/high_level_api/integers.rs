@@ -1,7 +1,10 @@
 use super::utils::*;
 use crate::c_api::high_level_api::booleans::FheBool;
+use crate::c_api::high_level_api::i1024::I1024;
 use crate::c_api::high_level_api::i128::I128;
+use crate::c_api::high_level_api::i2048::I2048;
 use crate::c_api::high_level_api::i256::I256;
+use crate::c_api::high_level_api::i512::I512;
 use crate::c_api::high_level_api::u1024::U1024;
 use crate::c_api::high_level_api::u128::U128;
 use crate::c_api::high_level_api::u2048::U2048;
@@ -21,7 +24,24 @@ macro_rules! define_all_cast_into_for_integer_type {
         define_casting_operation!($from =>
             FheUint2, FheUint4, FheUint6, FheUint8, FheUint10, FheUint12, FheUint14, FheUint16, FheUint32, FheUint64, FheUint128, FheUint160, FheUint256,
             FheUint512, FheUint1024, FheUint2048,
-            FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128, FheInt160, FheInt256,
+            FheInt2, FheInt4, FheInt6, FheInt8, FheInt10, FheInt12, FheInt14, FheInt16, FheInt32, FheInt64, FheInt128, FheInt160, FheInt256, FheInt512,
+            FheInt1024, FheInt2048,
+        );
+    };
+}
+
+#[cfg(feature = "extended-types")]
+macro_rules! define_all_cast_into_for_extended_integer_type {
+    ($from:ty) => {
+        define_casting_operation!($from =>
+            FheUint24, FheUint40, FheUint48, FheUint56, FheUint72, FheUint80,FheUint88, FheUint96,
+            FheUint104, FheUint112, FheUint120, FheUint136, FheUint144, FheUint152, FheUint168,
+            FheUint176, FheUint184, FheUint192, FheUint200, FheUint208, FheUint216, FheUint224,
+            FheUint232, FheUint240, FheUint248,
+            FheInt24, FheInt40, FheInt48, FheInt56, FheInt72, FheInt80,FheInt88, FheInt96,
+            FheInt104, FheInt112, FheInt120, FheInt136, FheInt144, FheInt152, FheInt168,
+            FheInt176, FheInt184, FheInt192, FheInt200, FheInt208, FheInt216, FheInt224,
+            FheInt232, FheInt240, FheInt248,
         );
     };
 }
@@ -322,6 +342,8 @@ macro_rules! create_integer_wrapper_type {
         }
 
         define_all_cast_into_for_integer_type!($name);
+        #[cfg(feature = "extended-types")]
+        define_all_cast_into_for_extended_integer_type!($name);
 
         // The compressed version of the ciphertext type
         ::paste::paste! {
@@ -454,6 +476,40 @@ create_fhe_uint_wrapper_type!(name: FheUint256, clear_scalar_type: U256);
 create_fhe_uint_wrapper_type!(name: FheUint512, clear_scalar_type: U512);
 create_fhe_uint_wrapper_type!(name: FheUint1024, clear_scalar_type: U1024);
 create_fhe_uint_wrapper_type!(name: FheUint2048, clear_scalar_type: U2048);
+
+#[cfg(feature = "extended-types")]
+pub use extended_unsigned::*;
+
+#[cfg(feature = "extended-types")]
+mod extended_unsigned {
+    use super::*;
+
+    create_fhe_uint_wrapper_type!(name: FheUint24, clear_scalar_type: u32);
+    create_fhe_uint_wrapper_type!(name: FheUint40, clear_scalar_type: u64);
+    create_fhe_uint_wrapper_type!(name: FheUint48, clear_scalar_type: u64);
+    create_fhe_uint_wrapper_type!(name: FheUint56, clear_scalar_type: u64);
+    create_fhe_uint_wrapper_type!(name: FheUint72, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint80, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint88, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint96, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint104, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint112, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint120, clear_scalar_type: U128);
+    create_fhe_uint_wrapper_type!(name: FheUint136, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint144, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint152, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint168, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint176, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint184, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint192, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint200, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint208, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint216, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint224, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint232, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint240, clear_scalar_type: U256);
+    create_fhe_uint_wrapper_type!(name: FheUint248, clear_scalar_type: U256);
+}
 
 /// Defines a complete wrapper for a FheInt
 macro_rules! create_fhe_int_wrapper_type {
@@ -600,5 +656,59 @@ create_fhe_int_wrapper_type!(
     clear_scalar_type: I256,
     clear_shift_type: U256,
 );
+create_fhe_int_wrapper_type!(
+    name: FheInt512,
+    fhe_unsigned_type: FheUint512,
+    clear_scalar_type: I512,
+    clear_shift_type: U512,
+);
+create_fhe_int_wrapper_type!(
+    name: FheInt1024,
+    fhe_unsigned_type: FheUint1024,
+    clear_scalar_type: I1024,
+    clear_shift_type: U1024,
+);
+create_fhe_int_wrapper_type!(
+    name: FheInt2048,
+    fhe_unsigned_type: FheUint2048,
+    clear_scalar_type: I2048,
+    clear_shift_type: U2048,
+);
+
+#[cfg(feature = "extended-types")]
+pub use extended_signed::*;
+
+#[cfg(feature = "extended-types")]
+mod extended_signed {
+    use super::*;
+
+    create_fhe_int_wrapper_type!(name: FheInt24, fhe_unsigned_type: FheUint24, clear_scalar_type: i32, clear_shift_type: u32);
+    create_fhe_int_wrapper_type!(name: FheInt40, fhe_unsigned_type: FheUint40, clear_scalar_type: i64, clear_shift_type: u64);
+    create_fhe_int_wrapper_type!(name: FheInt48, fhe_unsigned_type: FheUint48, clear_scalar_type: i64, clear_shift_type: u64);
+    create_fhe_int_wrapper_type!(name: FheInt56, fhe_unsigned_type: FheUint56, clear_scalar_type: i64, clear_shift_type: u64);
+    create_fhe_int_wrapper_type!(name: FheInt72, fhe_unsigned_type: FheUint72, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt80, fhe_unsigned_type: FheUint80, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt88, fhe_unsigned_type: FheUint88, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt96, fhe_unsigned_type: FheUint96, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt104, fhe_unsigned_type: FheUint104, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt112, fhe_unsigned_type: FheUint112, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt120, fhe_unsigned_type: FheUint120, clear_scalar_type: I128, clear_shift_type: U128);
+    create_fhe_int_wrapper_type!(name: FheInt136, fhe_unsigned_type: FheUint136, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt144, fhe_unsigned_type: FheUint144, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt152, fhe_unsigned_type: FheUint152, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt168, fhe_unsigned_type: FheUint168, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt176, fhe_unsigned_type: FheUint176, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt184, fhe_unsigned_type: FheUint184, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt192, fhe_unsigned_type: FheUint192, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt200, fhe_unsigned_type: FheUint200, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt208, fhe_unsigned_type: FheUint208, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt216, fhe_unsigned_type: FheUint216, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt224, fhe_unsigned_type: FheUint224, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt232, fhe_unsigned_type: FheUint232, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt240, fhe_unsigned_type: FheUint240, clear_scalar_type: I256, clear_shift_type: U256);
+    create_fhe_int_wrapper_type!(name: FheInt248, fhe_unsigned_type: FheUint248, clear_scalar_type: I256, clear_shift_type: U256);
+}
 
 define_all_cast_into_for_integer_type!(FheBool);
+#[cfg(feature = "extended-types")]
+define_all_cast_into_for_extended_integer_type!(FheBool);
