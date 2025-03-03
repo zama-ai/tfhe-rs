@@ -95,10 +95,10 @@ void cuda_integer_extract_glwe_64(
     void const *glwe_list, uint32_t const glwe_index,
     uint32_t const log_modulus, uint32_t const polynomial_size,
     uint32_t const glwe_dimension, uint32_t const body_count) {
+  auto casted_streams = (cudaStream_t *)(streams);
 
-  host_extract_nomem<uint64_t>((cudaStream_t *)(streams), gpu_indexes,
-                               static_cast<uint64_t *>(lwe_array_out),
-                               static_cast<const uint64_t *>(glwe_list),
-                               glwe_index, log_modulus, polynomial_size,
-                               glwe_dimension, body_count);
+  host_extract_mem_alloc_free<uint64_t>(
+      casted_streams[0], gpu_indexes[0], static_cast<uint64_t *>(lwe_array_out),
+      static_cast<const uint64_t *>(glwe_list), glwe_index, log_modulus,
+      polynomial_size, glwe_dimension, body_count);
 }
