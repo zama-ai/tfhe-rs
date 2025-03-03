@@ -61,6 +61,7 @@ pub enum FheTypes {
     Type_FheInt1024 = 32,
     Type_FheInt2048 = 33,
 
+    // Extended types
     Type_FheUint24 = 34,
     Type_FheUint40 = 35,
     Type_FheUint48 = 36,
