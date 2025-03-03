@@ -319,7 +319,7 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        input_blocks: *mut ffi::c_void,
+        input_blocks: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,

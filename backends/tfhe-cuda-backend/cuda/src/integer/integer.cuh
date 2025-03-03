@@ -689,6 +689,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
@@ -964,6 +965,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[i % lut->num_blocks];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
@@ -1173,6 +1175,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
                            lut->num_blocks * sizeof(Torus), streams[0],
                            gpu_indexes[0]);
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
@@ -1974,7 +1977,8 @@ void host_compute_shifted_blocks_and_borrow_states(
 template <typename Torus>
 void host_full_propagate_inplace(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
-                                 uint32_t gpu_count, Torus *input_blocks,
+                                 uint32_t gpu_count,
+                                 CudaRadixCiphertextFFI *input_blocks,
                                  int_fullprop_buffer<Torus> *mem_ptr,
                                  Torus *const *ksks, void *const *bsks,
                                  uint32_t num_blocks) {
@@ -1987,39 +1991,51 @@ void host_full_propagate_inplace(cudaStream_t const *streams,
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (int i = 0; i < num_blocks; i++) {
-    auto cur_input_block = &input_blocks[i * big_lwe_size];
+    CudaRadixCiphertextFFI cur_input_block;
+    as_radix_ciphertext_slice<Torus>(&cur_input_block, input_blocks, i, i + 1);
 
     /// Since the keyswitch is done on one input only, use only 1 GPU
     execute_keyswitch_async<Torus>(
-        streams, gpu_indexes, 1, mem_ptr->tmp_small_lwe_vector,
-        mem_ptr->lut->lwe_trivial_indexes, cur_input_block,
+        streams, gpu_indexes, 1, (Torus *)(mem_ptr->tmp_small_lwe_vector->ptr),
+        mem_ptr->lut->lwe_trivial_indexes, (Torus *)cur_input_block.ptr,
         mem_ptr->lut->lwe_trivial_indexes, ksks, params.big_lwe_dimension,
         params.small_lwe_dimension, params.ks_base_log, params.ks_level, 1);
 
-    cuda_memcpy_async_gpu_to_gpu(&mem_ptr->tmp_small_lwe_vector[small_lwe_size],
-                                 mem_ptr->tmp_small_lwe_vector,
-                                 small_lwe_size * sizeof(Torus), streams[0],
-                                 gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], mem_ptr->tmp_small_lwe_vector, 1, 2,
+        mem_ptr->tmp_small_lwe_vector, 0, 1);
 
     execute_pbs_async<Torus>(
-        streams, gpu_indexes, 1, mem_ptr->tmp_big_lwe_vector,
+        streams, gpu_indexes, 1, (Torus *)mem_ptr->tmp_big_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, mem_ptr->lut->lut_vec,
-        mem_ptr->lut->lut_indexes_vec, mem_ptr->tmp_small_lwe_vector,
+        mem_ptr->lut->lut_indexes_vec,
+        (Torus *)mem_ptr->tmp_small_lwe_vector->ptr,
         mem_ptr->lut->lwe_trivial_indexes, bsks, mem_ptr->lut->buffer,
         params.glwe_dimension, params.small_lwe_dimension,
         params.polynomial_size, params.pbs_base_log, params.pbs_level,
         params.grouping_factor, 2, params.pbs_type, num_many_lut, lut_stride);
 
-    cuda_memcpy_async_gpu_to_gpu(
-        (void *)cur_input_block, mem_ptr->tmp_big_lwe_vector,
-        big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             &cur_input_block, 0, 1,
+                                             mem_ptr->tmp_big_lwe_vector, 0, 1);
+    Torus lut_indexes[mem_ptr->lut->num_blocks];
+    cuda_memcpy_async_to_cpu(&lut_indexes, mem_ptr->lut->get_lut_indexes(0, 0),
+                             mem_ptr->lut->num_blocks * sizeof(Torus),
+                             streams[0], gpu_indexes[0]);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    input_blocks->degrees[i] = mem_ptr->lut->degrees[lut_indexes[0]];
+    input_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
 
     if (i < num_blocks - 1) {
-      auto next_input_block = &input_blocks[(i + 1) * big_lwe_size];
-      legacy_host_addition<Torus>(streams[0], gpu_indexes[0], next_input_block,
-                                  (Torus const *)next_input_block,
-                                  &mem_ptr->tmp_big_lwe_vector[big_lwe_size],
-                                  params.big_lwe_dimension, 1);
+      CudaRadixCiphertextFFI next_input_block;
+      as_radix_ciphertext_slice<Torus>(&next_input_block, input_blocks, i + 1,
+                                       i + 2);
+      CudaRadixCiphertextFFI second_input;
+      as_radix_ciphertext_slice<Torus>(&second_input,
+                                       mem_ptr->tmp_big_lwe_vector, 1, 2);
+
+      host_addition<Torus>(streams[0], gpu_indexes[0], &next_input_block,
+                           &next_input_block, &second_input, 1);
     }
   }
 }

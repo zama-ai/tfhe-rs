@@ -4,17 +4,17 @@
 
 void cuda_full_propagation_64_inplace(void *const *streams,
                                       uint32_t const *gpu_indexes,
-                                      uint32_t gpu_count, void *input_blocks,
+                                      uint32_t gpu_count,
+                                      CudaRadixCiphertextFFI *input_blocks,
                                       int8_t *mem_ptr, void *const *ksks,
                                       void *const *bsks, uint32_t num_blocks) {
 
   int_fullprop_buffer<uint64_t> *buffer =
       (int_fullprop_buffer<uint64_t> *)mem_ptr;
 
-  host_full_propagate_inplace<uint64_t>(
-      (cudaStream_t *)(streams), gpu_indexes, gpu_count,
-      static_cast<uint64_t *>(input_blocks), buffer, (uint64_t **)(ksks), bsks,
-      num_blocks);
+  host_full_propagate_inplace<uint64_t>((cudaStream_t *)(streams), gpu_indexes,
+                                        gpu_count, input_blocks, buffer,
+                                        (uint64_t **)(ksks), bsks, num_blocks);
 }
 
 void scratch_cuda_full_propagation_64(

@@ -113,7 +113,8 @@ void scratch_cuda_full_propagation_64(
 
 void cuda_full_propagation_64_inplace(void *const *streams,
                                       uint32_t const *gpu_indexes,
-                                      uint32_t gpu_count, void *input_blocks,
+                                      uint32_t gpu_count,
+                                      CudaRadixCiphertextFFI *input_blocks,
                                       int8_t *mem_ptr, void *const *ksks,
                                       void *const *bsks, uint32_t num_blocks);
 
