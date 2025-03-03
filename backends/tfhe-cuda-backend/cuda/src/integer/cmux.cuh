@@ -38,50 +38,6 @@ __host__ void zero_out_if(cudaStream_t const *streams,
 }
 
 template <typename Torus>
-__host__ void legacy_host_integer_radix_cmux_kb(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, Torus *lwe_array_out, Torus const *lwe_condition,
-    Torus const *lwe_array_true, Torus const *lwe_array_false,
-    int_cmux_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks,
-    uint32_t num_radix_blocks) {
-
-  auto params = mem_ptr->params;
-  Torus lwe_size = params.big_lwe_dimension + 1;
-  Torus radix_lwe_size = lwe_size * num_radix_blocks;
-  cuda_memcpy_async_gpu_to_gpu(mem_ptr->buffer_in->ptr, lwe_array_true,
-                               radix_lwe_size * sizeof(Torus), streams[0],
-                               gpu_indexes[0]);
-  cuda_memcpy_async_gpu_to_gpu(
-      (Torus *)(mem_ptr->buffer_in->ptr) + radix_lwe_size, lwe_array_false,
-      radix_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
-  for (uint i = 0; i < 2 * num_radix_blocks; i++) {
-    cuda_memcpy_async_gpu_to_gpu(
-        (Torus *)(mem_ptr->condition_array->ptr) + i * lwe_size, lwe_condition,
-        lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
-  }
-  legacy_integer_radix_apply_bivariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, (Torus *)(mem_ptr->buffer_out->ptr),
-      (Torus *)(mem_ptr->buffer_in->ptr),
-      (Torus *)(mem_ptr->condition_array->ptr), bsks, ksks,
-      2 * num_radix_blocks, mem_ptr->predicate_lut, params.message_modulus);
-
-  // If the condition was true, true_ct will have kept its value and false_ct
-  // will be 0 If the condition was false, true_ct will be 0 and false_ct will
-  // have kept its value
-  auto mem_true = (Torus *)(mem_ptr->buffer_out->ptr);
-  auto ptr = (Torus *)mem_ptr->buffer_out->ptr;
-  auto mem_false = &ptr[radix_lwe_size];
-  auto added_cts = mem_true;
-  legacy_host_addition<Torus>(streams[0], gpu_indexes[0], added_cts, mem_true,
-                              mem_false, params.big_lwe_dimension,
-                              num_radix_blocks);
-
-  legacy_integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, lwe_array_out, added_cts, bsks, ksks,
-      num_radix_blocks, mem_ptr->message_extract_lut);
-}
-
-template <typename Torus>
 __host__ void host_integer_radix_cmux_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,

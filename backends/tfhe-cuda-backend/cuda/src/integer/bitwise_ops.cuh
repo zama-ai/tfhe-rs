@@ -19,6 +19,12 @@ __host__ void host_integer_radix_bitop_kb(
     CudaRadixCiphertextFFI const *lwe_array_2, int_bitop_buffer<Torus> *mem_ptr,
     void *const *bsks, Torus *const *ksks) {
 
+  if (lwe_array_out->num_radix_blocks != lwe_array_1->num_radix_blocks ||
+      lwe_array_out->num_radix_blocks != lwe_array_2->num_radix_blocks)
+    PANIC("Cuda error: input and output num radix blocks must be equal")
+  if (lwe_array_out->lwe_dimension != lwe_array_1->lwe_dimension ||
+      lwe_array_out->lwe_dimension != lwe_array_2->lwe_dimension)
+    PANIC("Cuda error: input and output lwe dimension must be equal")
   auto lut = mem_ptr->lut;
   uint64_t degrees[lwe_array_1->num_radix_blocks];
   if (mem_ptr->op == BITOP_TYPE::BITAND) {
