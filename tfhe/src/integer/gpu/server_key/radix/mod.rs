@@ -1314,30 +1314,35 @@ impl CudaServerKey {
         output: &mut CudaRadixCiphertext,
         generates_or_propagates: &mut CudaRadixCiphertext,
         lut: &BivariateLookupTableOwned,
+        block_range: std::ops::Range<usize>,
         streams: &CudaStreams,
     ) {
+        if block_range.is_empty() {
+            return;
+        }
         assert_eq!(
             generates_or_propagates.d_blocks.lwe_dimension(),
             output.d_blocks.lwe_dimension()
         );
-        assert_eq!(
-            generates_or_propagates.d_blocks.lwe_ciphertext_count(),
-            output.d_blocks.lwe_ciphertext_count()
-        );
 
         let lwe_dimension = generates_or_propagates.d_blocks.lwe_dimension();
         let lwe_size = lwe_dimension.to_lwe_size().0;
-        let num_blocks = generates_or_propagates.d_blocks.lwe_ciphertext_count().0;
+        let num_blocks = block_range.len();
 
         let mut generates_or_propagates_slice = generates_or_propagates
             .d_blocks
             .0
             .d_vec
-            .as_mut_slice(0..lwe_size * num_blocks, 0)
+            .as_mut_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
             .unwrap();
         let mut generates_or_propagates_degrees = vec![0; num_blocks];
         let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
-        let mut output_slice = output.d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
+        let mut output_slice = output
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
+            .unwrap();
         let mut output_degrees = vec![0_u64; num_blocks];
         let mut output_noise_levels = vec![0_u64; num_blocks];
 
@@ -1404,11 +1409,14 @@ impl CudaServerKey {
             }
         }
 
-        for (i, info) in output.info.blocks[0..num_blocks].iter_mut().enumerate() {
+        for (i, info) in output.info.blocks[block_range.start..block_range.end]
+            .iter_mut()
+            .enumerate()
+        {
             info.degree = Degree(output_degrees[i]);
             info.noise_level = NoiseLevel(output_noise_levels[i]);
         }
-        for (i, info) in generates_or_propagates.info.blocks[0..num_blocks]
+        for (i, info) in generates_or_propagates.info.blocks[block_range.start..block_range.end]
             .iter_mut()
             .enumerate()
         {

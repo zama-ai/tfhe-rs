@@ -185,6 +185,8 @@ __host__ void host_radix_blocks_reverse_inplace(cudaStream_t const *streams,
       <<<num_blocks, num_threads, 0, streams[0]>>>(
           (Torus *)src->ptr, src->num_radix_blocks, src->lwe_dimension + 1);
   check_cuda_error(cudaGetLastError());
+  reverseArray(src->degrees, src->num_radix_blocks);
+  reverseArray(src->noise_levels, src->num_radix_blocks);
 }
 
 // If group_size = 4, the first group of 4 elements will be transformed as
@@ -698,7 +700,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
                            gpu_indexes[0]);
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[i % lut->num_blocks];
+    lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i % lut->num_blocks]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 }
@@ -1242,9 +1244,8 @@ template <typename Torus>
 void host_compute_prefix_sum_hillis_steele(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *step_output,
-    CudaRadixCiphertextFFI *generates_or_propagates, int_radix_params params,
-    int_radix_lut<Torus> *luts, void *const *bsks, Torus *const *ksks,
-    uint32_t num_radix_blocks) {
+    CudaRadixCiphertextFFI *generates_or_propagates, int_radix_lut<Torus> *luts,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks) {
 
   if (step_output->lwe_dimension != generates_or_propagates->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -1325,7 +1326,7 @@ void host_compute_propagation_simulators_and_group_carries(
       propagation_cum_sums, num_radix_blocks, group_size, delta);
 
   auto resolved_carries = mem->resolved_carries;
-  if (mem->use_sequential_algorithm_to_resolver_group_carries) {
+  if (mem->use_sequential_algorithm_to_resolve_group_carries) {
     // Resolve group carries sequentially
     host_resolve_group_carries_sequentially(
         streams, gpu_indexes, gpu_count, resolved_carries, grouping_pgns,
@@ -1338,8 +1339,7 @@ void host_compute_propagation_simulators_and_group_carries(
                                      resolved_carries, 1, num_groups);
     host_compute_prefix_sum_hillis_steele<Torus>(
         streams, gpu_indexes, gpu_count, &shifted_resolved_carries,
-        grouping_pgns, params, luts_carry_propagation_sum, bsks, ksks,
-        num_groups - 1);
+        grouping_pgns, luts_carry_propagation_sum, bsks, ksks, num_groups - 1);
   }
 }
 
