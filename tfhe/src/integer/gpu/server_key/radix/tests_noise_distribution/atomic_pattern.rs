@@ -24,7 +24,7 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
 use crate::core_crypto::commons::parameters::MonomialDegree;
 
 use crate::core_crypto::commons::test_tools::{
-    arithmetic_mean, clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise,
+    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, mean,
     mean_confidence_interval, normality_test_f64, variance, variance_confidence_interval,
 };
 use crate::core_crypto::entities::{LweCiphertext, Plaintext};
@@ -35,15 +35,15 @@ use crate::shortint::ciphertext::NoiseLevel;
 
 use crate::shortint::list_compression::CompressionPrivateKeys;
 
-use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::list_compression::{
-    CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-};
+use crate::shortint::parameters::list_compression::CompressionParameters;
+
 use crate::shortint::parameters::{
     CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, ShortintParameterSet,
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
+
 use crate::shortint::server_key::tests::noise_distribution::atomic_pattern::{
     mean_and_variance_check, CompressionSpecialPfailCase, DecryptionAndNoiseResult, NoiseSample,
 };
@@ -83,6 +83,7 @@ use crate::integer::RadixClientKey;
 
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::numeric::CastInto;
+use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -153,7 +154,7 @@ where
     let encryption_noise = shortint_parameters_set.encryption_noise_distribution();
 
     let gpu_index = 0;
-    let my_streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let my_streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (single_radix_cks, single_sks) = gen_keys_radix_gpu(params, num_blocks, &my_streams);
@@ -230,7 +231,7 @@ where
     let num_runs = 1000u32;
     let num_streams = 16 as u32;
     let vec_local_streams = (0..num_streams)
-        .map(|_| CudaStreams::new_single_gpu(GpuIndex(0)))
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
         .collect::<Vec<_>>();
     for msg in 0..cleartext_modulus {
         let current_noise_samples: Vec<_> = (0..num_runs)
@@ -254,10 +255,8 @@ where
                 unsafe {
                     unchecked_small_scalar_mul_integer_async(
                         streams,
-                        &mut d_ct.as_mut().d_blocks.0.d_vec,
+                        &mut d_ct.ciphertext,
                         scalar_for_multiplication,
-                        LweDimension(big_lwe_dim),
-                        1u32,
                     );
                 }
                 streams.synchronize();
@@ -399,7 +398,7 @@ where
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = arithmetic_mean(&noise_samples);
+    let measured_mean = mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
@@ -469,7 +468,7 @@ where
 create_parameterized_test!(
     noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise_gpu {
         PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     }
 );
@@ -621,10 +620,8 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
     unsafe {
         unchecked_small_scalar_mul_integer_async(
             streams,
-            &mut after_pbs_shortint_ct.as_mut().d_blocks.0.d_vec,
+            &mut after_pbs_shortint_ct.ciphertext,
             scalar_u64,
-            LweDimension(big_lwe_dim),
-            1u32,
         );
     }
     streams.synchronize();
@@ -854,7 +851,7 @@ where
     };
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(params, num_blocks, &streams);
@@ -971,7 +968,7 @@ where
             ..100)
             .into_par_iter()
             .map(|_| {
-                let my_stream = CudaStreams::new_single_gpu(GpuIndex(0));
+                let my_stream = CudaStreams::new_single_gpu(GpuIndex::new(0));
                 classic_pbs_atomic_pattern_noise_helper_gpu(
                     params.into(),
                     &cks.key,
@@ -1086,7 +1083,7 @@ where
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise_gpu {
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
@@ -1159,7 +1156,7 @@ where
     let scalar_for_multiplication = params.max_noise_level().get();
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(params, num_blocks, &streams);
@@ -1169,7 +1166,7 @@ where
         .into_par_iter()
         .map(|_| {
             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
-            let my_stream = CudaStreams::new_single_gpu(GpuIndex(0));
+            let my_stream = CudaStreams::new_single_gpu(GpuIndex::new(0));
             classic_pbs_atomic_pattern_pfail_helper_gpu(
                 params,
                 &cks.key,
@@ -1231,7 +1228,7 @@ where
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail_gpu {
     PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
@@ -1366,15 +1363,16 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
         d_input_indexes.copy_from_cpu_async(&lwe_indexes, streams, 0);
         d_output_indexes.copy_from_cpu_async(&lwe_indexes, streams, 0);
     }
-
-    let vec_local_streams = (0..compression_key.lwe_per_glwe.0)
-        .map(|_| CudaStreams::new_single_gpu(GpuIndex(0)))
+    let num_streams = 16;
+    let vec_local_streams = (0..num_streams)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(0)))
         .collect::<Vec<_>>();
 
     let ciphertexts = (0..compression_key.lwe_per_glwe.0)
-        .into_iter()
+        .into_par_iter()
         .map(|index| {
-            let local_streams = &vec_local_streams[index];
+            let stream_index = index % num_streams;
+            let local_streams = &vec_local_streams[stream_index];
             let mut shortint_ct: CudaUnsignedRadixCiphertext =
                 sks.create_trivial_zero_radix(num_ct_blocks, local_streams);
 
@@ -1449,35 +1447,21 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
         info: vec_info,
     };
     assert_eq!(
-        cuda_compressed_list
-            .packed_list
-            .glwe_ciphertext_list
-            .glwe_ciphertext_count()
-            .0,
+        cuda_compressed_list.packed_list.glwe_ciphertext_count().0,
         1
     );
 
-    let cuda_polynomial_size = cuda_compressed_list
-        .packed_list
-        .glwe_ciphertext_list
-        .polynomial_size();
-    let cuda_glwe_ciphertext_count = cuda_compressed_list
-        .packed_list
-        .glwe_ciphertext_list
-        .glwe_ciphertext_count();
-    let cuda_ciphertext_modulus = cuda_compressed_list
-        .packed_list
-        .glwe_ciphertext_list
-        .ciphertext_modulus();
-    let cuda_glwe_dimension = cuda_compressed_list
-        .packed_list
-        .glwe_ciphertext_list
-        .glwe_dimension();
+    let cuda_polynomial_size = cuda_compressed_list.packed_list.polynomial_size;
+
+    let cuda_glwe_ciphertext_count = cuda_compressed_list.packed_list.glwe_ciphertext_count();
+
+    let cuda_ciphertext_modulus = cuda_compressed_list.packed_list.ciphertext_modulus;
+
+    let cuda_glwe_dimension = cuda_compressed_list.packed_list.glwe_dimension;
 
     let cuda_glwe_equivalent_lwe_dimension = cuda_compressed_list
         .packed_list
-        .glwe_ciphertext_list
-        .glwe_dimension()
+        .glwe_dimension
         .to_equivalent_lwe_dimension(cuda_polynomial_size);
 
     let nths = (0..(cuda_glwe_ciphertext_count.0 * cuda_polynomial_size.0))
@@ -1492,10 +1476,12 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
     );
 
     // Get the individual LWE ciphertexts back under the storage modulus
+    let lwe_per_glwe = cuda_polynomial_size.0;
     cuda_extract_lwe_samples_from_glwe_ciphertext_list(
         &cuda_extracted_glwe,
         &mut d_lwes,
         nths.as_slice(),
+        lwe_per_glwe.try_into().unwrap(),
         streams,
     );
 
@@ -1508,7 +1494,7 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
         .collect();
 
     let after_compression_result: Vec<_> = lwes
-        .into_iter()
+        .into_par_iter()
         .map(|lwe| {
             DecryptionAndNoiseResult::new(
                 &lwe,
@@ -1525,20 +1511,22 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
     let lwe_per_glwe = cuda_compressed_list.packed_list.lwe_per_glwe.0;
 
     let (after_ap_lwe, after_mod_arrays): (Vec<_>, Vec<_>) = (0..lwe_per_glwe)
-        .into_iter()
+        .into_par_iter()
         .map(|index| {
-            let local_streams = &vec_local_streams[index];
+            let stream_index = index % num_streams;
+            let local_streams = &vec_local_streams[stream_index];
             //Get data to do the unpack on GPU
             let preceding_infos = cuda_compressed_list.info.get(..index).unwrap();
             let current_info = cuda_compressed_list.info.get(index).copied().unwrap();
+            let comp_message_modulus = cuda_compressed_list.packed_list.message_modulus;
 
             let start_block_index: usize = preceding_infos
                 .iter()
                 .copied()
-                .map(DataKind::num_blocks)
+                .map(|kind| kind.num_blocks(comp_message_modulus))
                 .sum();
-
-            let end_block_index = start_block_index + current_info.num_blocks() - 1;
+            let end_block_index =
+                start_block_index + current_info.num_blocks(comp_message_modulus) - 1;
 
             let decompressed_radix = decompression_key
                 .unpack(
@@ -1574,10 +1562,8 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
             unsafe {
                 unchecked_small_scalar_mul_integer_async(
                     local_streams,
-                    &mut decompressed_ct.as_mut().d_blocks.0.d_vec,
+                    &mut decompressed_ct.ciphertext,
                     scalar_for_multiplication,
-                    LweDimension(big_lwe_dim),
-                    1u32,
                 );
             }
 
@@ -1861,7 +1847,7 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
         block_params.ciphertext_modulus().get_custom_modulus() as f64
     };
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
@@ -2093,7 +2079,7 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
         ) = (0..number_of_runs)
             .into_iter()
             .map(|_| {
-                let my_stream = CudaStreams::new_single_gpu(GpuIndex(0));
+                let my_stream = CudaStreams::new_single_gpu(GpuIndex::new(0));
                 pbs_compress_and_classic_ap_noise_helper_gpu(
                     block_params.into(),
                     compression_params,
@@ -2268,7 +2254,7 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
         encryption_cleartext_modulus / block_params.message_modulus().0;
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
 
     // Generate the client key and the server key:
@@ -2302,7 +2288,7 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
         })
         .unzip();
 
-    let sample_count = measured_fails_after_ap.len();
+    //let sample_count = measured_fails_after_ap.len();
     let measured_fails_after_ap: f64 = measured_fails_after_ap.into_iter().flatten().sum();
     let measured_pfail_after_ap = measured_fails_after_ap / (total_sample_count as f64);
 
@@ -2437,7 +2423,7 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
     let scalar_for_multiplication = block_params.max_noise_level().get();
 
     let gpu_index = 0;
-    let streams = CudaStreams::new_single_gpu(GpuIndex(gpu_index));
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);

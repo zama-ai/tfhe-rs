@@ -40,7 +40,7 @@ use crate::core_crypto::commons::parameters::{
     GlweDimension, LweDimension, MonomialDegree, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools::{
-    arithmetic_mean, clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise,
+    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, mean,
     mean_confidence_interval, normality_test_f64, torus_modular_diff, variance,
     variance_confidence_interval,
 };
@@ -54,30 +54,43 @@ use crate::prelude::CastInto;
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
-use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
-use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
-    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-};
+// use crate::shortint::parameters::classic::gaussian::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+// use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+// use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+//     V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+//     V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+//     V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// };
 use crate::shortint::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
     ShortintCompactCiphertextListCastingMode,
 };
-use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+// use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// };
+use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
+use crate::shortint::parameters::list_compression::{
+    CompressionParameters, // COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
+use crate::shortint::parameters::v0_11::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+use crate::shortint::parameters::v0_11::key_switching::p_fail_2_minus_64::ks_pbs::{
     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
 };
-use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
-use crate::shortint::parameters::list_compression::{
-    CompressionParameters, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
     EncryptionKeyChoice, LweBskGroupingFactor, MessageModulus, ShortintParameterSet,
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use crate::shortint::server_key::{apply_programmable_bootstrap, ShortintBootstrappingKey};
@@ -280,7 +293,7 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = arithmetic_mean(&noise_samples);
+    let measured_mean = mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
@@ -344,7 +357,7 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
 
 create_parameterized_test!(
     noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise {
-        V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     }
 );
@@ -853,7 +866,7 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise {
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
@@ -985,7 +998,7 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSP
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail {
-    V0_11_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
 
@@ -1393,7 +1406,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = arithmetic_mean(&noise_samples);
+    let measured_mean = mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
@@ -2688,7 +2701,7 @@ pub(crate) fn mean_and_variance_check<Scalar: UnsignedInteger>(
     decryption_key_lwe_dimension: LweDimension,
     modulus_as_f64: f64,
 ) -> bool {
-    let measured_mean = arithmetic_mean(&noise_samples);
+    let measured_mean = mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
