@@ -6,6 +6,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::reverse_blocks_inplace_async;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::parameters::NoiseLevel;
 
 impl CudaServerKey {
     /// This function takes a ciphertext in radix representation
@@ -91,12 +93,14 @@ impl CudaServerKey {
             },
         );
 
-        let mut output_cts = ct.duplicate_async(streams);
+        let mut output_cts: T =
+            self.create_trivial_zero_radix_async(num_ct_blocks * num_ct_blocks, streams);
 
         self.compute_prefix_sum_hillis_steele_async(
             output_cts.as_mut(),
             tmp_radix.as_mut(),
             &sum_lut,
+            0..num_ct_blocks,
             streams,
         );
         output_cts
@@ -162,22 +166,21 @@ impl CudaServerKey {
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-            for b in new_item.ciphertext.info.blocks.iter_mut() {
-                b.degree = leading_count_per_blocks
-                    .as_ref()
-                    .info
-                    .blocks
-                    .get(i)
-                    .unwrap()
-                    .degree;
-                b.noise_level = leading_count_per_blocks
-                    .as_ref()
-                    .info
-                    .blocks
-                    .get(i)
-                    .unwrap()
-                    .noise_level;
-            }
+            let b = new_item.ciphertext.info.blocks.first_mut().unwrap();
+            b.degree = leading_count_per_blocks
+                .as_ref()
+                .info
+                .blocks
+                .get(i)
+                .unwrap()
+                .degree;
+            b.noise_level = leading_count_per_blocks
+                .as_ref()
+                .info
+                .blocks
+                .get(i)
+                .unwrap()
+                .noise_level;
             cts.push(new_item);
         }
 
@@ -397,7 +400,12 @@ impl CudaServerKey {
         let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
-        let capacity = (leading_zeros_per_blocks.as_ref().d_blocks.0.d_vec.len() / lwe_size) + 1;
+        let capacity = leading_zeros_per_blocks
+            .as_ref()
+            .d_blocks
+            .lwe_ciphertext_count()
+            .0
+            + 1;
         let mut cts = Vec::<CudaSignedRadixCiphertext>::with_capacity(capacity);
 
         for i in 0..(capacity - 1) {
@@ -420,22 +428,21 @@ impl CudaServerKey {
                 .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
                 .unwrap();
             dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-            for b in new_item.ciphertext.info.blocks.iter_mut() {
-                b.degree = leading_zeros_per_blocks
-                    .as_ref()
-                    .info
-                    .blocks
-                    .get(i)
-                    .unwrap()
-                    .degree;
-                b.noise_level = leading_zeros_per_blocks
-                    .as_ref()
-                    .info
-                    .blocks
-                    .get(i)
-                    .unwrap()
-                    .noise_level;
-            }
+            let b = new_item.ciphertext.info.blocks.first_mut().unwrap();
+            b.degree = leading_zeros_per_blocks
+                .as_ref()
+                .info
+                .blocks
+                .get(i)
+                .unwrap()
+                .degree;
+            b.noise_level = leading_zeros_per_blocks
+                .as_ref()
+                .info
+                .blocks
+                .get(i)
+                .unwrap()
+                .noise_level;
             cts.push(new_item);
         }
 
@@ -502,6 +509,15 @@ impl CudaServerKey {
             .unwrap();
 
         carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
+        carry_blocks.as_mut().info.blocks.last_mut().unwrap().degree =
+            Degree(self.message_modulus.0 - 1);
+        carry_blocks
+            .as_mut()
+            .info
+            .blocks
+            .last_mut()
+            .unwrap()
+            .noise_level = NoiseLevel::ZERO;
 
         self.apply_lookup_table_async(
             carry_blocks.as_mut(),
