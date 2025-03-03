@@ -6,6 +6,8 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::reverse_blocks_inplace_async;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
+use crate::shortint::ciphertext::Degree;
+use crate::shortint::parameters::NoiseLevel;
 
 impl CudaServerKey {
     /// This function takes a ciphertext in radix representation
@@ -502,6 +504,15 @@ impl CudaServerKey {
             .unwrap();
 
         carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
+        carry_blocks.as_mut().info.blocks.last_mut().unwrap().degree =
+            Degree(self.message_modulus.0 - 1);
+        carry_blocks
+            .as_mut()
+            .info
+            .blocks
+            .last_mut()
+            .unwrap()
+            .noise_level = NoiseLevel::ZERO;
 
         self.apply_lookup_table_async(
             carry_blocks.as_mut(),
