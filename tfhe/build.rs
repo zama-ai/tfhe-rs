@@ -59,6 +59,8 @@ fn gen_c_api() {
         "gpu",
         #[cfg(feature = "zk-pok")]
         "zk-pok",
+        #[cfg(feature = "extended-types")]
+        "extended-types",
     ];
 
     let parse_expand_vec = if parse_expand_features_vec.is_empty() {

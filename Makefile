@@ -348,6 +348,9 @@ clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=integer,experimental,extended-types \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
 clippy: install_rs_check_toolchain
@@ -386,10 +389,10 @@ clippy_c_api: install_rs_check_toolchain
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api \
+		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,extended-types \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
@@ -405,10 +408,10 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,extended-types \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,experimental \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,extended-types,experimental \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
@@ -526,7 +529,7 @@ build_web_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
 
 .PHONY: build_web_js_api_parallel # Build the js API targeting the web browser with parallelism support
 build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
@@ -534,7 +537,7 @@ build_web_js_api_parallel: install_rs_check_toolchain install_wasm_pack
 	rustup component add rust-src --toolchain $(RS_CHECK_TOOLCHAIN) && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS) -C target-feature=+atomics,+bulk-memory" rustup run $(RS_CHECK_TOOLCHAIN) \
 		wasm-pack build --release --target=web \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok \
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,parallel-wasm-api,zk-pok,extended-types \
 		-Z build-std=panic_abort,std && \
 	find pkg/snippets -type f -iname workerHelpers.js -exec sed -i "s|const pkg = await import('..\/..\/..');|const pkg = await import('..\/..\/..\/tfhe.js');|" {} \;
 	jq '.files += ["snippets"]' tfhe/pkg/package.json > tmp_pkg.json && mv -f tmp_pkg.json tfhe/pkg/package.json
@@ -544,7 +547,7 @@ build_node_js_api: install_rs_build_toolchain install_wasm_pack
 	cd tfhe && \
 	RUSTFLAGS="$(WASM_RUSTFLAGS)" rustup run "$(RS_BUILD_TOOLCHAIN)" \
 		wasm-pack build --release --target=nodejs \
-		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok
+		-- --features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,zk-pok,extended-types
 
 .PHONY: build_tfhe_csprng # Build tfhe_csprng
 build_tfhe_csprng: install_rs_build_toolchain
