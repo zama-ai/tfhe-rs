@@ -1,11 +1,11 @@
-use shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
-    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-};
-use shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
-    V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
-};
+// use shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+//     V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+//     V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// };
+// use shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::{
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+//     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// };
 use shortint::parameters::{CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters};
 use shortint::ClassicPBSParameters;
 
@@ -14,11 +14,23 @@ use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noi
 use crate::core_crypto::commons::math::random::DynamicDistribution;
 use crate::core_crypto::commons::test_tools::{variance, variance_confidence_interval};
 use crate::prelude::*;
-use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+//use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+//use crate::shortint::parameters::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::compact_public_key_only::CompactCiphertextListExpansionKind;
-use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-use crate::shortint::parameters::ShortintParameterSet;
+use crate::shortint::parameters::v0_11::compact_public_key_only::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+use crate::shortint::parameters::v0_11::key_switching::p_fail_2_minus_64::ks_pbs::{
+    V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+};
+//use crate::shortint::parameters::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::{
+    ShortintParameterSet, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+};
 use crate::*;
 
 #[test]
