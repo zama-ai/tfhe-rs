@@ -4,13 +4,17 @@ use super::config::HpuConfig;
 use super::*;
 use crate::entities::*;
 
-use std::sync::{atomic, Arc};
+use std::sync::{atomic, mpsc, Arc};
 
 pub struct HpuDevice {
     config: HpuConfig,
     pub(crate) backend: backend::HpuBackendWrapped,
+    pub(crate) ct_mem: memory::CiphertextMemory,
+    pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
+    // TODO use reference to prevent costly clone
+    pub(crate) params: HpuParameters,
     bg_poll: Arc<atomic::AtomicBool>,
-    bg_handle: Option<std::thread::JoinHandle<()>>,
+    bg_handles: Option<(std::thread::JoinHandle<()>, std::thread::JoinHandle<()>)>,
 }
 
 /// Provide constructor
@@ -25,12 +29,22 @@ impl HpuDevice {
     }
 
     pub fn new(config: HpuConfig) -> Self {
-        let backend = backend::HpuBackendWrapped::new_wrapped(&config);
+        // Create backend
+        let (backend, cmd_api) = backend::HpuBackendWrapped::new_wrapped(&config);
+
+        // Get ref to ct_memory and associated params
+        let (ct_mem, params) = {
+            let be = backend.lock().unwrap();
+            (be.ct_mem.clone(), be.params.clone())
+        };
         let mut device = Self {
             config,
             backend,
+            ct_mem,
+            cmd_api,
+            params,
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
-            bg_handle: None,
+            bg_handles: None,
         };
 
         // Start polling thread in the background
@@ -45,10 +59,13 @@ impl Drop for HpuDevice {
         // This enable proper release of the associated HpuBackend
         self.bg_poll.store(false, atomic::Ordering::SeqCst);
 
-        if let Some(handle) = self.bg_handle.take() {
-            handle
+        if let Some((workq_handle, ackq_handle)) = self.bg_handles.take() {
+            workq_handle
                 .join()
-                .expect("Background thread failed to stop properly");
+                .expect("Work_queue Background thread failed to stop properly");
+            ackq_handle
+                .join()
+                .expect("Ack_queue Background thread failed to stop properly");
         }
     }
 }
@@ -151,7 +168,12 @@ impl HpuDevice {
 impl HpuDevice {
     /// Construct an Hpu variable from a vector of HpuLweCiphertext
     pub fn new_var_from(&self, ct: Vec<HpuLweCiphertextOwned<u64>>) -> HpuVarWrapped {
-        HpuVarWrapped::new_from(self.backend.clone(), ct)
+        HpuVarWrapped::new_from(
+            self.ct_mem.clone(),
+            self.cmd_api.clone(),
+            self.params.clone(),
+            ct,
+        )
     }
 }
 
@@ -165,20 +187,33 @@ impl HpuDevice {
         let tick = std::time::Duration::from_micros(self.config.fpga.polling_us);
 
         if bg_poll.load(atomic::Ordering::SeqCst) {
-            // background thread already running
+            // background threads already running
             // -> nothing to do
             return;
         };
 
         bg_poll.store(true, atomic::Ordering::SeqCst);
-        self.bg_handle = Some(std::thread::spawn(move || {
-            while bg_poll.load(atomic::Ordering::SeqCst) {
-                std::thread::sleep(tick);
-                {
-                    let mut be = backend.lock().unwrap();
-                    be.run_step().expect("Hpu encounter internal error");
+        let bg_workq = (bg_poll.clone(), backend.clone());
+        let bg_ackq = (bg_poll.clone(), backend.clone());
+        self.bg_handles = Some((
+            std::thread::spawn(move || {
+                while bg_workq.0.load(atomic::Ordering::SeqCst) {
+                    std::thread::sleep(tick);
+                    {
+                        let mut be = bg_workq.1.lock().unwrap();
+                        be.flush_workq().expect("Hpu encounter internal error");
+                    }
                 }
-            }
-        }));
+            }),
+            std::thread::spawn(move || {
+                while bg_ackq.0.load(atomic::Ordering::SeqCst) {
+                    std::thread::sleep(tick);
+                    {
+                        let mut be = bg_ackq.1.lock().unwrap();
+                        be.flush_ackq().expect("Hpu encounter internal error");
+                    }
+                }
+            }),
+        ));
     }
 }
