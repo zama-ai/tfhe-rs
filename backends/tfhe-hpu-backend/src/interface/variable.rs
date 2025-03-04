@@ -4,7 +4,6 @@
 use super::*;
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use crate::{asm, ffi};
-use backend::HpuBackendWrapped;
 use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug)]
@@ -19,10 +18,6 @@ enum SyncState {
 pub(crate) type HpuImm = usize;
 
 pub(crate) struct HpuVar {
-    /// Reference to associated backend to be able to allocate dst variable with std::ops trait
-    backend: backend::HpuBackendWrapped,
-    /// Way to push cmd insid the backend without need of locking
-    cmd_api: mpsc::Sender<cmd::HpuCmd>,
     bundle: memory::CiphertextBundle,
     state: SyncState,
 }
@@ -81,21 +76,15 @@ impl HpuVar {
     }
 }
 
-/// Parameters inspection
-impl HpuVar {
-    pub fn params(&self) -> HpuParameters {
-        let params = {
-            let be_lock = self.backend.lock().unwrap();
-            be_lock.params.clone()
-        };
-        params
-    }
-}
-
 #[derive(Clone)]
 pub struct HpuVarWrapped {
     pub(crate) inner: Arc<Mutex<HpuVar>>,
     pub(crate) id: memory::ciphertext::SlotId,
+    /// Reference to associated ct pool
+    pub(crate) pool: memory::CiphertextMemory,
+    /// Way to push cmd insid the backend without need of locking
+    pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
+    pub(crate) params: HpuParameters,
     pub(crate) width: usize,
 }
 
@@ -107,18 +96,21 @@ impl std::fmt::Debug for HpuVarWrapped {
 
 /// Conversion function between inner type and HpuLweCiphertext
 impl HpuVarWrapped {
-    fn new_on(backend: HpuBackendWrapped, width: usize) -> Self {
-        let (bundle, cmd_api) = {
-            let mut be_lock = backend.lock().unwrap();
-            (be_lock.ct_mem.get_bundle(width), be_lock.cmd_tx.clone())
-        };
+    fn new_in(
+        pool: memory::CiphertextMemory,
+        cmd_api: mpsc::Sender<cmd::HpuCmd>,
+        params: HpuParameters,
+        width: usize,
+    ) -> Self {
+        let bundle = pool.get_bundle(width);
 
         Self {
-            width,
             id: *bundle.id(),
+            pool,
+            cmd_api,
+            params,
+            width,
             inner: Arc::new(Mutex::new(HpuVar {
-                backend,
-                cmd_api,
                 bundle,
                 state: SyncState::None,
             })),
@@ -126,10 +118,12 @@ impl HpuVarWrapped {
     }
 
     pub(crate) fn new_from(
-        backend: HpuBackendWrapped,
+        pool: memory::CiphertextMemory,
+        cmd_api: mpsc::Sender<cmd::HpuCmd>,
+        params: HpuParameters,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
     ) -> Self {
-        let var = Self::new_on(backend, ct.len());
+        let var = Self::new_in(pool, cmd_api, params, ct.len());
 
         // Write cpu_ct with correct interleaving in host buffer
         // TODO check perf of mmap vs write
@@ -169,13 +163,12 @@ impl HpuVarWrapped {
             }
         }
 
-        let params = inner.params();
         let mut ct = Vec::new();
 
         for slot in inner.bundle.iter() {
             // Allocate HpuLwe
             // and view inner buffer as cut
-            let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, params.clone());
+            let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, self.params.clone());
             let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
             // Copy from Xrt memory
@@ -187,7 +180,7 @@ impl HpuVarWrapped {
                     #[cfg(feature = "io-dump")]
                     io_dump::dump(
                         &cut.as_ref(),
-                        &params,
+                        &self.params,
                         io_dump::DumpKind::BlweOut,
                         io_dump::DumpId::Slot(slot.id, id),
                     );
@@ -233,9 +226,6 @@ impl HpuVarWrapped {
 
         dst.first()
             .expect("Try to generate an IOp without any destination")
-            .inner
-            .lock()
-            .unwrap()
             .cmd_api
             .send(hpu_op)
             .expect("Issue with cmd_api");
@@ -248,12 +238,12 @@ impl HpuVarWrapped {
     /// IOp width is inferred from operand width
     pub fn iop_ct(self, opcode: crate::asm::IOpcode, rhs: Self) -> Self {
         // Allocate output variable
-        let backend = {
-            // NB: use extra scop to take care of mutex lifetime
-            let inner = self.inner.lock().unwrap();
-            inner.backend.clone()
-        };
-        let dst = Self::new_on(backend, self.width);
+        let dst = Self::new_in(
+            self.pool.clone(),
+            self.cmd_api.clone(),
+            self.params.clone(),
+            self.width,
+        );
 
         Self::iop_raw(opcode, &[&dst], &[&self, &rhs], &[]);
         dst
@@ -273,12 +263,12 @@ impl HpuVarWrapped {
     /// IOp width is inferred from operand width
     pub fn iop_imm(self, opcode: crate::asm::IOpcode, rhs: HpuImm) -> Self {
         // Allocate output variable
-        let backend = {
-            // NB: use extra scop to take care of mutex lifetime
-            let inner = self.inner.lock().unwrap();
-            inner.backend.clone()
-        };
-        let dst = Self::new_on(backend, self.width);
+        let dst = Self::new_in(
+            self.pool.clone(),
+            self.cmd_api.clone(),
+            self.params.clone(),
+            self.width,
+        );
 
         Self::iop_raw(opcode, &[&dst], &[&self], &[rhs]);
         dst
@@ -324,12 +314,7 @@ macro_rules! map_ct_ct {
 
                 fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
                     // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = self.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = Self::new_on(backend, self.width);
+                    let dst = Self::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
 
                     Self::[<$hpu_op:lower _raw>](&dst, &self, &rhs);
                     dst
@@ -341,14 +326,9 @@ macro_rules! map_ct_ct {
 
                 fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
                     // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = self.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = HpuVarWrapped::new_on(backend, self.width);
+                    let dst = Self::Output::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
 
-                    HpuVarWrapped::[<$hpu_op:lower _raw>](&dst, self, rhs);
+                    Self::Output::[<$hpu_op:lower _raw>](&dst, self, rhs);
                     dst
                 }
             }
@@ -417,14 +397,9 @@ macro_rules! map_ct_imm {
 
                 fn [<$rust_op:lower>](self, rhs: usize) -> Self::Output {
                     // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = self.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = Self::new_on(backend, self.width);
+                    let dst = Self::Output::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
 
-                    Self::[<$hpu_op:lower _raw>](&dst, &self, rhs);
+                    Self::Output::[<$hpu_op:lower _raw>](&dst, &self, rhs);
                     dst
                 }
             }
@@ -446,14 +421,9 @@ macro_rules! map_imm_ct {
 
                 fn [<$rust_op:lower>](self, rhs: HpuVarWrapped) -> Self::Output {
                     // Allocate output variable
-                    let backend = {
-                        // NB: use extra scop to take care of mutex lifetime
-                        let inner = rhs.inner.lock().unwrap();
-                        inner.backend.clone()
-                    };
-                    let dst = HpuVarWrapped::new_on(backend, rhs.width);
+                    let dst = Self::Output::new_in(rhs.pool.clone(), rhs.cmd_api.clone(), rhs.params.clone(), rhs.width);
 
-                    HpuVarWrapped::[<$hpu_op:lower _raw>](&dst, &rhs, self);
+                    Self::Output::[<$hpu_op:lower _raw>](&dst, &rhs, self);
                     dst
                 }
             }
