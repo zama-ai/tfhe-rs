@@ -44,13 +44,12 @@ pub struct HpuBackend {
     // Keep track of issued IOp and associated variables
     cmd_q: VecDeque<cmd::HpuCmd>,
     cmd_rx: mpsc::Receiver<cmd::HpuCmd>,
-    pub(crate) cmd_tx: mpsc::Sender<cmd::HpuCmd>,
 }
 
 pub struct HpuBackendLock(Mutex<HpuBackend>);
 
 impl HpuBackendLock {
-    pub fn new(inner: HpuBackend) -> Self {
+    fn new(inner: HpuBackend) -> Self {
         Self(Mutex::new(inner))
     }
 }
@@ -68,12 +67,9 @@ unsafe impl Sync for HpuBackendLock {}
 pub struct HpuBackendWrapped(Arc<HpuBackendLock>);
 
 impl HpuBackendWrapped {
-    #[allow(unused)]
-    pub fn new(inner: HpuBackend) -> Self {
-        Self(Arc::new(HpuBackendLock::new(inner)))
-    }
-    pub fn new_wrapped(config: &config::HpuConfig) -> Self {
-        Self(Arc::new(HpuBackendLock::new(HpuBackend::new(config))))
+    pub fn new_wrapped(config: &config::HpuConfig) -> (Self, mpsc::Sender<cmd::HpuCmd>) {
+        let (be, cmd_api) = HpuBackend::new(config);
+        (Self(Arc::new(HpuBackendLock::new(be))), cmd_api)
     }
 }
 impl std::ops::Deref for HpuBackendWrapped {
@@ -88,7 +84,7 @@ unsafe impl Sync for HpuBackendWrapped {}
 
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
-    pub fn new(config: &config::HpuConfig) -> Self {
+    pub fn new(config: &config::HpuConfig) -> (Self, mpsc::Sender<cmd::HpuCmd>) {
         let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
         let regmap_expanded = config
             .fpga
@@ -243,6 +239,7 @@ impl HpuBackend {
             // match the next 4k page boundary
             cut_size_b,
             slot_nb: config.board.ct_mem,
+            retry_rate_us: config.fpga.polling_us,
         };
         debug!("Ct_mem properties -> {:?}", ct_props);
         let ct_mem = memory::CiphertextMemory::alloc(&mut hpu_hw, &regmap, &ct_props);
@@ -258,22 +255,24 @@ impl HpuBackend {
         // Keep track of the sender for clone it later on
         let (cmd_tx, cmd_rx) = mpsc::channel();
 
-        Self {
-            hpu_hw,
-            regmap,
-            params,
-            workq_addr,
-            ackq_addr,
-            bsk_key,
-            ksk_key,
-            lut_mem,
-            fw_mem,
-            ct_mem,
-            trace_mem,
-            cmd_q: VecDeque::new(),
-            cmd_rx,
+        (
+            Self {
+                hpu_hw,
+                regmap,
+                params,
+                workq_addr,
+                ackq_addr,
+                bsk_key,
+                ksk_key,
+                lut_mem,
+                fw_mem,
+                ct_mem,
+                trace_mem,
+                cmd_q: VecDeque::new(),
+                cmd_rx,
+            },
             cmd_tx,
-        }
+        )
     }
 }
 
@@ -711,8 +710,8 @@ impl HpuBackend {
             for (id, fw_bytes) in id_fw.into_iter() {
                 // Store lookup addr
                 // NB: ucore expect addr with physical memory offset
-                // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in the
-                // entry
+                // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in
+                // the entry
                 let byte_ofst = /* cut_ofst + */(tr_table_ofst * std::mem::size_of::<u32>()) as u32;
                 tr_lut[id] = byte_ofst;
 
@@ -851,17 +850,16 @@ impl HpuBackend {
 }
 
 impl HpuBackend {
-    /// This function is in charge of:
-    ///  * Xfer cmd from the queue to the HW
-    ///  * Poll for ack and update vars state accordingly
-    ///  * Collect released memory
-    pub(crate) fn run_step(&mut self) -> Result<(), HpuInternalError> {
+    /// This function flush all pending cmd
+    pub(crate) fn flush_workq(&mut self) -> Result<(), HpuInternalError> {
         while let Ok(cmd) = self.cmd_rx.try_recv() {
             self.workq_push(cmd)?;
         }
+        Ok(())
+    }
+    /// This function flush all pending ack
+    pub(crate) fn flush_ackq(&mut self) -> Result<(), HpuInternalError> {
         while self.poll_ack_q()? {}
-
-        self.ct_mem.gc_bundle();
         Ok(())
     }
 }

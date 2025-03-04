@@ -203,7 +203,6 @@ impl Program<dop::DOp> {
 
 impl Program<dop::DOp> {
     /// Convert a program of Dops in translation table
-    /// TODO modify it to support multiple integer width
     pub fn tr_table(&self) -> Vec<dop::DOpRepr> {
         let ops_stream = self
             .iter()
