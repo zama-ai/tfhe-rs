@@ -20,7 +20,7 @@
   lut_mem = 256
   lut_pc = {Hbm={pc=34}}
 
-  fw_size= 65536
+  fw_size= 16777215 # i.e. 16 MiB
   fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discret DDR
 
   bsk_pc = [
@@ -57,7 +57,7 @@
   trace_depth = 32 # In MB
 
 [firmware]
-  integer_w=[16]
+  integer_w=[2,4,6,8,10,12,14,16,32,64]
   # Set to true for the firmware scheduler to try to fill the PE batch FIFO
   # first even at the expense of missing dependencies
   fill_batch_fifo = true
