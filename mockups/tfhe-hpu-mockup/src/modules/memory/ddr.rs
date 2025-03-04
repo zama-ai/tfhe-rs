@@ -29,7 +29,7 @@ impl DdrMem {
         let clash = self
             .chunk
             .iter()
-            .filter(|(_addr, chunk)| (chunk.paddr + chunk.size_b as u64) < paddr)
+            .filter(|(_addr, chunk)| paddr < (chunk.paddr + chunk.size_b as u64))
             .filter(|(_addr, chunk)| (paddr + size_b as u64) > chunk.paddr)
             .map(|(_addr, chunk)| chunk)
             .collect::<Vec<_>>();
