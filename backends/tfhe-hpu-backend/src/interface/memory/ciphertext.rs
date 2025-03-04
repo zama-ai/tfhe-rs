@@ -2,8 +2,13 @@
 //! Memory manager for HPU
 //! Memory is allocatod upfront and abstract as a set of slot
 use crate::ffi;
-use std::collections::VecDeque;
-use std::sync::mpsc;
+use crossbeam::queue::ArrayQueue;
+
+/// Define the maximum windows size used for pool defragmentation
+pub const ALLOC_MAX_DEFRAG_WIN: usize = 2048;
+
+/// Define the rate of WARNING on allocation retry
+pub const ALLOC_RETRY_WARN_RATE: std::time::Duration = std::time::Duration::from_secs(1);
 
 /// Describe Slot position
 /// Abstract from internal ASM type to help with future
@@ -49,31 +54,37 @@ pub struct CiphertextMemoryProperties {
     pub mem_cut: Vec<ffi::MemKind>,
     pub cut_size_b: usize,
     pub slot_nb: usize,
+    pub retry_rate_us: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CiphertextMemory {
-    pool: VecDeque<CiphertextSlot>,
-    /// Slot free are done through mpsc channel
-    free_rx: mpsc::Receiver<CiphertextSlot>,
-    free_tx: mpsc::Sender<CiphertextSlot>,
+    pub(crate) pool: std::sync::Arc<ArrayQueue<CiphertextSlot>>,
+    retry_rate_us: u64,
 }
 
-/// Structure to keep track of Slot alongside free channel
+impl std::ops::Deref for CiphertextMemory {
+    type Target = std::sync::Arc<ArrayQueue<CiphertextSlot>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pool
+    }
+}
+
+/// Structure to keep track of Slot alongside pool
 /// CiphertextSlot are automatically return back to pool on drop
 #[derive(Debug)]
 pub struct CiphertextBundle {
     slots: Vec<CiphertextSlot>,
-    free_tx: mpsc::Sender<CiphertextSlot>,
+    pool: CiphertextMemory,
 }
 
 impl Drop for CiphertextBundle {
     fn drop(&mut self) {
-        let Self { slots, free_tx, .. } = self;
+        let Self { slots, pool, .. } = self;
         while let Some(slot) = slots.pop() {
-            free_tx
-                .send(slot)
-                .expect("CiphertextBundle: Issue with garbage collection");
+            pool.push(slot)
+                .expect("Error: Release a slot in already full pool");
         }
     }
 }
@@ -103,7 +114,7 @@ impl CiphertextMemory {
                 let id = SlotId(cid);
                 CiphertextSlot::alloc(ffi_hw, id, props)
             })
-            .collect::<VecDeque<_>>();
+            .collect::<Vec<_>>();
 
         let mut paddr = Vec::with_capacity(props.mem_cut.len());
         if !pool.is_empty() {
@@ -150,56 +161,84 @@ impl CiphertextMemory {
                 ffi_hw.write_reg(*lsb.offset() as u64, (addr & (u32::MAX as u64)) as u32);
             }
         }
-        // Construct channel for mt API
-        // Keep track of the sender for clone it later on
-        let (free_tx, free_rx) = mpsc::channel();
 
+        // Store slot in ArrayQueue for MpMc access
+        let array_queue = ArrayQueue::new(props.slot_nb);
+        for slot in pool {
+            array_queue.push(slot).expect("Check ArrayQueue allocation");
+        }
         Self {
-            pool,
-            free_rx,
-            free_tx,
+            pool: std::sync::Arc::new(array_queue),
+            retry_rate_us: props.retry_rate_us,
         }
     }
 
     #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
     pub fn release(&mut self, ffi_hw: &mut ffi::HpuHw) {
-        self.pool.iter_mut().for_each(|slot| slot.release(ffi_hw));
+        while let Some(mut slot) = self.pool.pop() {
+            slot.release(ffi_hw)
+        }
     }
 }
 
 impl CiphertextMemory {
     /// Extract a bundle of contiguous slot in pool
     #[tracing::instrument(level = "trace", skip(self), ret)]
-    pub fn get_bundle(&mut self, bundle_size: usize) -> CiphertextBundle {
-        // TODO handle fragmentation
-        // Check that bundle is contiguous
+    pub fn get_bundle(&self, bundle_size: usize) -> CiphertextBundle {
+        // Implement sliding windows search for contiguous block
+        // TODO enhance this algorithm. Currently it's a naive implementation
+        let max_windows_size = std::cmp::min(self.pool.capacity(), ALLOC_MAX_DEFRAG_WIN);
+        let mut win_slots = Vec::with_capacity(max_windows_size);
 
-        // TODO check that given bundle wasn't reserved for heap
-        // NB: Heap must be outside of allocated memory to prevent collision
-        // However, this `unseen` memory couldn't be correctly handled by the
-        // current mockup implementation
-        // FIXME
+        // Check for contiguousnes and extend the window if necessary
+        loop {
+            // Not contiguous extend the windows or exit if reach the full capacity
+            if win_slots.len() == win_slots.capacity() {
+                panic!("Reach maximum allocation windows size without managing to get a valid CiphertextBundle. Check memory usage of your program")
+            } else {
+                let mut retry = std::time::Duration::from_micros(0);
+                let retry_rate = std::time::Duration::from_micros(self.retry_rate_us);
+                let slot = loop {
+                    if let Some(slot) = self.pool.pop() {
+                        break slot;
+                    } else {
+                        std::thread::sleep(retry_rate);
+                        retry += retry_rate;
+                        if retry >= ALLOC_RETRY_WARN_RATE {
+                            tracing::warn!("Allocation struggle more than {retry:?} to get ciphertext from pool. Check that your algorithm memory allocation and associated Hpu configuration");
+                            retry = std::time::Duration::from_micros(0)
+                        }
+                    }
+                };
+                win_slots.push(slot);
+            }
+            if win_slots.len() < bundle_size {
+                continue;
+            }
+            win_slots.sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
 
-        let mut slots = Vec::with_capacity(bundle_size);
-        for _ in 0..bundle_size {
-            slots.push(self.pool.pop_front().unwrap());
+            // Check contiguous
+            for i in 0..=(win_slots.len() - bundle_size) {
+                let is_contiguous =
+                    (0..bundle_size).all(|j| win_slots[i + j].id == SlotId(win_slots[i].id.0 + j));
+                if is_contiguous {
+                    let mut slots = Vec::with_capacity(bundle_size);
+                    for (p, slot) in win_slots.into_iter().enumerate() {
+                        if (p < i) || p > (i + bundle_size) {
+                            // Return slot to pool
+                            self.pool
+                                .push(slot)
+                                .expect("Error: Release a slot in already full pool");
+                        } else {
+                            slots.push(slot)
+                        }
+                    }
+                    return CiphertextBundle {
+                        slots,
+                        pool: self.clone(),
+                    };
+                }
+            }
         }
-
-        CiphertextBundle {
-            slots,
-            free_tx: self.free_tx.clone(),
-        }
-    }
-
-    /// Return a set of slot into the pool
-    /// Pool is sorted after the operation to prevent fragmentation
-    #[tracing::instrument(level = "trace", skip(self), ret)]
-    pub(crate) fn gc_bundle(&mut self) {
-        while let Ok(slot) = self.free_rx.try_recv() {
-            self.pool.push_back(slot);
-        }
-        self.pool
-            .make_contiguous()
-            .sort_by(|a, b| a.id.partial_cmp(&b.id).unwrap());
     }
 }
