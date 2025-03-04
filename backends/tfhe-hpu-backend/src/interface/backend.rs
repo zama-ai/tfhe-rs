@@ -613,10 +613,10 @@ impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
-        // TODO construct from real params
+        // TODO Add RTL register for the nu value
         let pe_cfg = PeConfigStore::from(&self.params);
-
-        let fw_params = FwParameters {
+        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
+        let mut fw_params = FwParameters {
             register: self.params.regf_params.reg_nb,
             isc_depth: self.params.isc_params.depth,
             heap_size: config.board.heap_size,
@@ -625,7 +625,7 @@ impl HpuBackend {
             msg_w: self.params.pbs_params.message_width,
             carry_w: self.params.pbs_params.carry_width,
             nu: 5,
-            integer_w: config.firmware.integer_w[0],
+            integer_w: 0,
             use_ipip: !config.rtl.bpip_used,
             kogge_cfg: config.firmware.kogge_cfg.expand(),
             fill_batch_fifo: config.firmware.fill_batch_fifo,
@@ -633,73 +633,104 @@ impl HpuBackend {
             pe_cfg,
         };
 
-        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
-        // Generate Fw for standard operation
-        // -> All operation with an associated alias
-        let mut id_fw = asm::iop::IOP_LIST
-            .iter()
-            .map(|iop| {
-                let opcode = iop.opcode();
-                let prog = fw.expand(&fw_params, iop);
-                (opcode.0 as usize, prog.tr_table())
-            })
-            .collect::<Vec<_>>();
-
-        // Load custom IOp from file
-
-        for (name, asm_file) in config.firmware.custom_iop.iter() {
-            let iop = asm::AsmIOpcode::from_str(name)
-                .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
-            let opcode = iop.opcode();
-            let prog = asm::Program::<asm::DOp>::read_asm(&asm_file.expand())
-                .unwrap_or_else(|_| panic!("Invalid custom_iop file {}", asm_file.expand()));
-            id_fw.push((opcode.0 as usize, prog.tr_table()));
-        }
-
-        // Sanity check
-        let _sync_opcode = asm::dop::DOpSync::opcode();
-        for (id, fw_bytes) in id_fw.iter() {
-            // All IOp entry must be gte (MIN_IOP_SIZE-1)
-            // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
-            assert!(
-                fw_bytes.len() >= self.params.isc_params.min_iop_size,
-                "Error: IOp {id} is too short and could lead to sync_id overflow"
-            );
-            // All IOp mustn't contain SYNC token
-            // TODO enable sync check
-            // -> Find a proper way to match on Sync opcode
-            // assert!(!fw_bytes.contains(&sync_opcode),
-            //         "Error: IOp {id} contain SYNC. This break the min_iop_size requirement and
-            // could lead to sync_id overflow");
-        }
-
-        // Sort by opcode and write Lut and translation table into memory
-        // NB: ublaze is a 32b cpu => addr-lut/ translation word must be 32b word
-        id_fw.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        let mut ofst = 0x100; // Opcode is 8bit -> 256 words entry
+        // Check that required number of integer_w don't overflow the lookup table space
+        let integer_w_max = config.firmware.integer_w.iter().max().unwrap_or(&0);
+        let blk_w_max = integer_w_max / fw_params.msg_w;
+        assert!(
+            blk_w_max < FW_TABLE_ENTRY,
+            "ERROR: requested {} fw configuration but current implementation only support {} entries",
+            config.firmware.integer_w.len(),
+            FW_TABLE_ENTRY
+        );
+        let mut tr_table_ofst = FW_TABLE_ENTRY * 0x100; // Opcode is 8bit -> 256 words entry
         let cut_ofst = self.fw_mem.cut_paddr()[0] as usize;
 
-        // Default tr_lut with fallback entry
-        // Uninit entries point to first tr-table
-        let mut tr_lut = vec![(cut_ofst + (ofst * std::mem::size_of::<u32>())) as u32; 256];
+        for integer_w in config.firmware.integer_w.iter() {
+            // Update fw parameters with concrete integer_width
+            assert_eq!(
+                integer_w % fw_params.msg_w,
+                0,
+                "ERROR: requested integer_w {integer_w} isn't compliant with MSG_W {}",
+                fw_params.msg_w
+            );
+            let blk_w = integer_w / fw_params.msg_w;
+            fw_params.integer_w = *integer_w;
 
-        for (id, fw_bytes) in id_fw.into_iter() {
-            // Store lookup addr
-            // NB: ublaze expect addr with Hbm_pc offset
-            // NB': Ublaze understand lut entry as ofst from PC_MEM => on't add cut_ofst in the
-            // entry
-            let byte_ofst = /* cut_ofst + */(ofst * std::mem::size_of::<u32>()) as u32;
-            tr_lut[id] = byte_ofst;
+            // Generate Fw for standard operation
+            // -> All operation with an associated alias
+            let mut id_fw = asm::iop::IOP_LIST
+                .iter()
+                .map(|iop| {
+                    let opcode = iop.opcode();
+                    let prog = fw.expand(&fw_params, iop);
+                    (opcode.0 as usize, prog.tr_table())
+                })
+                .collect::<Vec<_>>();
 
-            // Write tr-table
-            let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());
-            self.fw_mem.write_cut_at(0, ofst, fw_words);
-            tracing::debug!("Opcode::{id:x} @{ofst:x} [{byte_ofst:x}]");
-            tracing::trace!("TrTable::{fw_words:x?}");
-            ofst += fw_words.len();
+            // Load custom IOp from file
+            for (name, asm_file) in config.firmware.custom_iop.iter() {
+                let iop = asm::AsmIOpcode::from_str(name)
+                    .unwrap_or_else(|_| panic!("Invalid Custom Iop name {name}"));
+                let opcode = iop.opcode();
+                let prog = asm::Program::<asm::DOp>::read_asm(&asm_file.expand())
+                    .unwrap_or_else(|_| panic!("Invalid custom_iop file {}", asm_file.expand()));
+                id_fw.push((opcode.0 as usize, prog.tr_table()));
+            }
+
+            // Sanity check
+            let sync_opcode = asm::dop::DOpSync::opcode();
+            for (id, fw_bytes) in id_fw.iter() {
+                // All IOp entry must be gte (MIN_IOP_SIZE-1)
+                // NB fw_bytes contain size + DOps -> gte MIN_IOP_SIZE
+                assert!(
+                    fw_bytes.len() >= self.params.isc_params.min_iop_size,
+                    "Error: IOp {id} is too short and could lead to sync_id overflow"
+                );
+                // All IOp mustn't contain SYNC token
+                let mut sync_dop = fw_bytes
+                    .iter()
+                    .filter(|w| (((*w >> 24) & 0xff) as u8) == sync_opcode)
+                    .peekable();
+                assert!(
+                    sync_dop.peek().is_none(),
+                    "Error: IOp[0x{id:x}] contain SYNC. This break the min_iop_size requirement and
+                could lead to sync_id overflow"
+                );
+            }
+
+            // Sort by opcode and write Lut and translation table into memory
+            // NB: ucore is a 32b cpu => addr-lut/ translation word must be 32b word
+            id_fw.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            let blk_ofst = (blk_w - 1) * 0x100; // Opcode is 8bit -> 256 words per blk_w
+
+            // Default tr_lut with fallback entry
+            // Uninit entries point to fist tr-table entry
+            let mut tr_lut =
+                vec![(cut_ofst + (tr_table_ofst * std::mem::size_of::<u32>())) as u32; 256];
+
+            for (id, fw_bytes) in id_fw.into_iter() {
+                // Store lookup addr
+                // NB: ucore expect addr with physical memory offset
+                // NB': ucore understand lut entry as ofst from PHYS_MEM => don't add cut_ofst in the
+                // entry
+                let byte_ofst = /* cut_ofst + */(tr_table_ofst * std::mem::size_of::<u32>()) as u32;
+                tr_lut[id] = byte_ofst;
+
+                // Write tr-table
+                let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());
+                self.fw_mem.write_cut_at(0, tr_table_ofst, fw_words);
+                tracing::debug!("Opcode::{id:x} @{tr_table_ofst:x} [{byte_ofst:x}]");
+                tracing::trace!("TrTable::{fw_words:x?}");
+                tr_table_ofst += fw_words.len();
+            }
+            // Write lookup table all at once
+            self.fw_mem.write_cut_at(0, blk_ofst, tr_lut.as_slice());
+            tracing::debug!(
+                "Fw[{blk_w}]:: lut entry @{blk_ofst:x} [{:x}]",
+                blk_ofst * std::mem::size_of::<u32>()
+            );
+            tracing::trace!(" LutTable=> {tr_lut:x?}");
         }
-        // Write lookup table all at once
-        self.fw_mem.write_cut_at(0, 0, tr_lut.as_slice());
     }
 }
 

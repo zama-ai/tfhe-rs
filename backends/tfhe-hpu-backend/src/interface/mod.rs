@@ -13,6 +13,7 @@ use thiserror::Error;
 
 // Publicly export some types
 pub const ACKQ_EMPTY: u32 = 0xdeadc0de;
+pub const FW_TABLE_ENTRY: usize = 64;
 pub use config::{BoardConfig, FFIMode, HpuConfig, ShellString};
 pub use device::HpuDevice;
 pub use memory::page_align;
