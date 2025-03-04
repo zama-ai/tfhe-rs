@@ -731,7 +731,6 @@ pub unsafe fn cuda_improve_noise_modulus_switch_ciphertext_async<T: UnsignedInte
     );
 }
 
-
 /// # Safety
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
