@@ -1,5 +1,6 @@
 use rustc_ast::tokenstream::TokenTree;
 use rustc_hir::def_id::DefId;
+use rustc_hir::AttrArgs;
 use rustc_lint::LateContext;
 use rustc_middle::ty::{Ty, TyKind};
 use rustc_span::Symbol;
@@ -11,16 +12,19 @@ pub fn symbols_list_from_str(list: &[&str]) -> Vec<Symbol> {
 
 /// Checks if the lint is allowed for the item represented by [`DefId`].
 /// This shouldn't be necessary since the lints are declared with the
-/// `declare_tool_lint` macro but for a mysterious reason this does not
+/// `impl_late_lint` macro but for a mysterious reason this does not
 /// work automatically.
 pub fn is_allowed_lint(cx: &LateContext<'_>, target: DefId, lint_name: &str) -> bool {
     for attr in cx.tcx.get_attrs(target, Symbol::intern("allow")) {
-        let tokens = attr.get_normal_item().args.inner_tokens();
-        let mut trees = tokens.trees();
+        if let AttrArgs::Delimited(args) = &attr.get_normal_item().args {
+            let len = args.tokens.len();
 
-        if let Some(TokenTree::Token(tool_token, _)) = trees.next() {
-            if tool_token.is_ident_named(Symbol::intern(lint_name)) {
-                return true;
+            for id in 0..len {
+                if let Some(TokenTree::Token(tool_token, _)) = args.tokens.get(id) {
+                    if tool_token.is_ident_named(Symbol::intern(lint_name)) {
+                        return true;
+                    }
+                }
             }
         }
     }
