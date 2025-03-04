@@ -10,8 +10,8 @@ use crate::core_crypto::algorithms::lwe_encryption::{
 };
 use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_plaintext_sub_assign;
-use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft128::programmable_bootstrap_f128_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
+use crate::core_crypto::algorithms::programmable_bootstrap_f128_lwe_ciphertext;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::algorithms::test::round_decode;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
@@ -2940,7 +2940,7 @@ fn br_to_squash_pbs_128_inner_helper(
                     );
 
                 let std_bootstrapping_key =
-                    par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+                    par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                         &thread_input_lwe_secret_key_as_u128,
                         &thread_output_pbs_128_glwe_secret_key,
                         pbs128_params.decomp_base_log,
@@ -3266,7 +3266,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         );
 
         let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                 &input_lwe_secret_key_as_u128,
                 &output_pbs_128_glwe_secret_key,
                 pbs128_params.decomp_base_log,
@@ -3583,7 +3583,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         );
 
         let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                 &input_lwe_secret_key_as_u128,
                 &output_pbs_128_glwe_secret_key,
                 pbs128_params.decomp_base_log,

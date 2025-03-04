@@ -1,9 +1,20 @@
 use crate::core_crypto::algorithms::lwe_encryption::allocate_and_encrypt_new_lwe_ciphertext;
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, PolynomialSize,
+};
 
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::noise_formulas::lwe_keyswitch::{
     keyswitch_additive_variance_132_bits_security_gaussian,
     keyswitch_additive_variance_132_bits_security_tuniform,
+};
+use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::{
+    multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul,
 };
 use crate::core_crypto::commons::noise_formulas::lwe_packing_keyswitch::{
     packing_keyswitch_additive_variance_132_bits_security_gaussian,
@@ -40,7 +51,7 @@ use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
     CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, ShortintParameterSet,
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
 
@@ -126,6 +137,82 @@ pub fn decrypt_multi_bit_lwe_ciphertext(
         }
     }
     result
+}
+
+fn multi_bit_pbs_variance_132_bits_security_tuniform(
+    input_lwe_dimension: LweDimension,
+    output_glwe_dimension: GlweDimension,
+    output_polynomial_size: PolynomialSize,
+    decomposition_base: DecompositionBaseLog,
+    decomposition_level_count: DecompositionLevelCount,
+    modulus: f64,
+    grouping_factor: u32,
+) -> Variance {
+    match grouping_factor {
+        2 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        3 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        4 => multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        _ => panic!("Unsupported grouping factor for multi bit PBS"),
+    }
+}
+
+fn multi_bit_pbs_variance_132_bits_security_gaussian(
+    input_lwe_dimension: LweDimension,
+    output_glwe_dimension: GlweDimension,
+    output_polynomial_size: PolynomialSize,
+    decomposition_base: DecompositionBaseLog,
+    decomposition_level_count: DecompositionLevelCount,
+    modulus: f64,
+    grouping_factor: u32,
+) -> Variance {
+    match grouping_factor {
+        2 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        3 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        4 => multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul(
+            input_lwe_dimension,
+            output_glwe_dimension,
+            output_polynomial_size,
+            decomposition_base,
+            decomposition_level_count,
+            modulus,
+        ),
+        _ => panic!("Unsupported grouping factor for multi bit PBS"),
+    }
 }
 
 fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise_gpu<P>(parameters_set: P)
@@ -467,7 +554,7 @@ where
 
 create_parameterized_test!(
     noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise_gpu {
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
     }
@@ -895,22 +982,48 @@ where
     let scalar_for_multiplication = params.max_noise_level().get();
 
     let expected_variance_after_pbs = match params.glwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
-            input_pbs_lwe_dimension,
-            output_glwe_dimension,
-            output_polynomial_size,
-            pbs_decomp_base_log,
-            pbs_decomp_level_count,
-            modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
-            input_pbs_lwe_dimension,
-            output_glwe_dimension,
-            output_polynomial_size,
-            pbs_decomp_base_log,
-            pbs_decomp_level_count,
-            modulus_as_f64,
-        ),
+        DynamicDistribution::Gaussian(_) => match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_gaussian(
+                input_pbs_lwe_dimension,
+                output_glwe_dimension,
+                output_polynomial_size,
+                pbs_decomp_base_log,
+                pbs_decomp_level_count,
+                modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_gaussian(
+                    input_pbs_lwe_dimension,
+                    output_glwe_dimension,
+                    output_polynomial_size,
+                    pbs_decomp_base_log,
+                    pbs_decomp_level_count,
+                    modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
+        DynamicDistribution::TUniform(_) => match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_tuniform(
+                input_pbs_lwe_dimension,
+                output_glwe_dimension,
+                output_polynomial_size,
+                pbs_decomp_base_log,
+                pbs_decomp_level_count,
+                modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_tuniform(
+                    input_pbs_lwe_dimension,
+                    output_glwe_dimension,
+                    output_polynomial_size,
+                    pbs_decomp_base_log,
+                    pbs_decomp_level_count,
+                    modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
     };
 
     let expected_variance_after_multiplication =
@@ -1082,7 +1195,7 @@ where
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise_gpu {
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
@@ -1107,7 +1220,8 @@ where
     // Padding bit + carry and message
     let original_precision_with_padding =
         (2 * params.carry_modulus().0 * params.message_modulus().0).ilog2();
-    params.carry_modulus().0 = 1 << 4;
+
+    params.set_carry_modulus(CarryModulus(1 << 4));
 
     let new_precision_with_padding =
         (2 * params.carry_modulus().0 * params.message_modulus().0).ilog2();
@@ -1123,7 +1237,7 @@ where
         new_precision_with_padding,
     );
 
-    params.set_log2_p_fail(expected_pfail);
+    params.set_log2_p_fail(expected_pfail.log2());
 
     println!("expected_pfail={expected_pfail}");
     println!("expected_pfail_log2={}", params.log2_p_fail());
@@ -1185,6 +1299,20 @@ where
     println!("measured_pfail={measured_pfail}");
     println!("expected_pfail={expected_pfail}");
 
+    let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail={equivalent_measured_pfail}");
+    println!("original_expected_pfail  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_log2={}",
+        equivalent_measured_pfail.log2()
+    );
+    println!("original_expected_pfail_log2  ={}", original_pfail.log2());
+
     if measured_fails > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
             runs_for_expected_fails as f64,
@@ -1227,7 +1355,7 @@ where
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail_gpu {
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
@@ -1892,24 +2020,49 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
     let ap_br_input_modulus = 1u64 << ap_br_input_modulus_log.0;
 
     let expected_variance_after_compute_pbs = match block_params.glwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
-            compute_pbs_input_lwe_dimension,
-            compute_pbs_output_glwe_dimension,
-            compute_pbs_output_polynomial_size,
-            compute_pbs_decomp_base_log,
-            compute_pbs_decomp_level_count,
-            modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
-            compute_pbs_input_lwe_dimension,
-            compute_pbs_output_glwe_dimension,
-            compute_pbs_output_polynomial_size,
-            compute_pbs_decomp_base_log,
-            compute_pbs_decomp_level_count,
-            modulus_as_f64,
-        ),
+        DynamicDistribution::Gaussian(_) => match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_gaussian(
+                compute_pbs_input_lwe_dimension,
+                compute_pbs_output_glwe_dimension,
+                compute_pbs_output_polynomial_size,
+                compute_pbs_decomp_base_log,
+                compute_pbs_decomp_level_count,
+                modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_gaussian(
+                    compute_pbs_input_lwe_dimension,
+                    compute_pbs_output_glwe_dimension,
+                    compute_pbs_output_polynomial_size,
+                    compute_pbs_decomp_base_log,
+                    compute_pbs_decomp_level_count,
+                    modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
+        DynamicDistribution::TUniform(_) => match &sks.bootstrapping_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_tuniform(
+                compute_pbs_input_lwe_dimension,
+                compute_pbs_output_glwe_dimension,
+                compute_pbs_output_polynomial_size,
+                compute_pbs_decomp_base_log,
+                compute_pbs_decomp_level_count,
+                modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_tuniform(
+                    compute_pbs_input_lwe_dimension,
+                    compute_pbs_output_glwe_dimension,
+                    compute_pbs_output_polynomial_size,
+                    compute_pbs_decomp_base_log,
+                    compute_pbs_decomp_level_count,
+                    modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
     };
-
     let multiplication_factor_before_packing_ks = block_params.message_modulus().0;
 
     let expected_variance_after_msg_shif_to_msb = scalar_multiplication_variance(
@@ -2150,7 +2303,7 @@ fn test_noise_check_shortint_classic_pbs_compression_ap_noise_tuniform_gpu() {
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_noise_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_noise_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
@@ -2297,6 +2450,23 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
     println!("expected_fails_after_ap={expected_fails_after_ap}");
     println!("expected_pfail_after_ap={expected_pfail_after_ap}");
 
+    let equivalent_measured_pfail_after_ap = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail_after_ap,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail_after_ap={equivalent_measured_pfail_after_ap}");
+    println!("original_expected_pfail_after_ap  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_after_ap_log2={}",
+        equivalent_measured_pfail_after_ap.log2()
+    );
+    println!(
+        "original_expected_pfail_after_ap_log2  ={}",
+        original_pfail.log2()
+    );
+
     if measured_fails_after_ap > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
             total_sample_count as f64,
@@ -2304,13 +2474,31 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
             0.99,
         );
 
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
         println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
         );
         println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
         );
 
         if measured_pfail_after_ap <= expected_pfail_after_ap {
@@ -2347,7 +2535,7 @@ fn test_noise_check_shortint_classic_pbs_compression_ap_after_ap_pfail_tuniform_
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_after_ap_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_pfail_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }
@@ -2358,7 +2546,8 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
 ) where
     P: Into<PBSParameters>,
 {
-    let block_params = parameters_set.into();
+    let mut block_params = parameters_set.into();
+
     assert_eq!(
         block_params.carry_modulus().0,
         4,
@@ -2369,6 +2558,8 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
         4,
         "This test is only for 2_2 parameters"
     );
+
+    let block_params_log2_pfail = block_params.log2_p_fail();
 
     let original_message_modulus = block_params.message_modulus();
     let original_carry_modulus = block_params.carry_modulus();
@@ -2381,8 +2572,9 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
     // We are going to simulate 6 bits to measure the pfail of compression
     // To avoid a multiplication we set the message modulus to 1 and put everything in the carry
     // modulus
-    block_params.message_modulus().0 = MessageModulus(1).0;
-    block_params.carry_modulus().0 = CarryModulus(1 << 6).0;
+
+    block_params.set_message_modulus(MessageModulus(1));
+    block_params.set_carry_modulus(CarryModulus(1 << 6));
 
     let block_params = block_params;
 
@@ -2480,6 +2672,14 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
     println!("equivalent_pfail_ms_storage={equivalent_pfail_ms_storage}");
     println!("equivalent_pfail_ms_storage_log2={equivalent_pfail_ms_storage_log2}");
 
+    let original_pfail = 2.0f64.powf(block_params_log2_pfail);
+
+    println!("original_expected_pfail_after_ms_storage={original_pfail}");
+    println!(
+        "original_expected_pfail_after_after_ms_storage={}",
+        original_pfail.log2()
+    );
+
     assert!(equivalent_pfail_ms_storage <= 2.0f64.powi(-64));
 
     // if measured_fails_after_ms_storage > 0.0 {
@@ -2532,7 +2732,7 @@ fn test_noise_check_shortint_classic_pbs_compression_ap_after_ms_storage_pfail_t
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_after_ms_storage_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     )
 }

@@ -327,6 +327,20 @@ impl PBSParameters {
         }
     }
 
+    pub fn set_message_modulus(&mut self, new_message_modulus: MessageModulus) {
+        match self {
+            Self::PBS(params) => params.message_modulus = new_message_modulus,
+            Self::MultiBitPBS(params) => params.message_modulus = new_message_modulus,
+        }
+    }
+
+    pub fn set_carry_modulus(&mut self, new_carry_modulus: CarryModulus) {
+        match self {
+            Self::PBS(params) => params.carry_modulus = new_carry_modulus,
+            Self::MultiBitPBS(params) => params.carry_modulus = new_carry_modulus,
+        }
+    }
+
     pub const fn is_pbs(&self) -> bool {
         matches!(self, Self::PBS(_))
     }
