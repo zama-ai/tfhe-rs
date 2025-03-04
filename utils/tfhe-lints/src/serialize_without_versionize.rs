@@ -23,7 +23,8 @@ impl SerializeWithoutVersionizeInner {
         self.versionize_trait
             .get_or_init(|| {
                 let versionize_trait = cx.tcx.all_traits().find(|def_id| {
-                    cx.match_def_path(*def_id, symbols_list_from_str(&VERSIONIZE_TRAIT).as_slice())
+                    let path = cx.get_def_path(*def_id);
+                    path == symbols_list_from_str(&VERSIONIZE_TRAIT)
                 });
 
                 versionize_trait
@@ -85,8 +86,8 @@ impl<'tcx> LateLintPass<'tcx> for SerializeWithoutVersionize {
 
                 // Check if the implemented trait is `Serialize`
                 if let Some(def_id) = trait_ref.trait_def_id() {
-                    if cx.match_def_path(def_id, symbols_list_from_str(&SERIALIZE_TRAIT).as_slice())
-                    {
+                    let path = cx.get_def_path(def_id);
+                    if path == symbols_list_from_str(&SERIALIZE_TRAIT) {
                         // Try to find an implementation of versionize for this type
                         let mut found_impl = false;
                         if let Some(versionize_trait) = self.0.versionize_trait(cx) {
