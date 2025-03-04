@@ -27,20 +27,20 @@ impl UCore {
 
     /// Read DOp stream from Firmware memory
     fn load_fw(&self, ddr: &DdrMem, hbm_bank: &[HbmBank], iop: &hpu_asm::IOp) -> Vec<hpu_asm::DOp> {
-        let iopcode = iop.opcode();
-
-        // Bypass fw_ofst register value
-        // Expect to have only one memzone in fw bank allocated in 0
-        // NB: Fw memory bank is linked to ucore and there is no associated offset register
-        // -> Stick with Offset 0
         let fw_view = match self.config.fw_pc {
             MemKind::Ddr { offset } => ddr.get_chunk(offset as u64).data(),
-            MemKind::Hbm { pc } => hbm_bank[pc].get_chunk(0).data(),
+            MemKind::Hbm { pc } => {
+                // Bypass fw_ofst register value
+                // Expect to have only one memzone in fw bank allocated in 0
+                // NB: Fw memory bank is linked to ucore and there is no associated offset register
+                // -> Stick with Offset 0
+                hbm_bank[pc].get_chunk(0).data()
+            }
         };
         let fw_view_u32 = bytemuck::cast_slice::<u8, u32>(fw_view);
 
         // WARN: fw ofst are in byte addr and we addr the fw array as 32b word
-        let dop_ofst = fw_view_u32[iopcode.0 as usize] as usize / std::mem::size_of::<u32>();
+        let dop_ofst = fw_view_u32[iop.fw_entry()] as usize / std::mem::size_of::<u32>();
         let dop_len = fw_view_u32[dop_ofst] as usize;
         let (start, end) = (dop_ofst + 1, dop_ofst + 1 + dop_len);
         let dop_stream = &fw_view_u32[start..end];
