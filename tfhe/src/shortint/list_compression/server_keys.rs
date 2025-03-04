@@ -67,7 +67,6 @@ impl ClientKey {
             )
         });
 
-
         assert!(
             private_compression_key.params.storage_log_modulus.0
                 <= pbs_parameters
