@@ -2,6 +2,7 @@
 //! operating on [`slices of scalars`](`slice_algorithms`) and on
 //! [`polynomials`](`polynomial_algorithms`).
 
+pub mod automorphism_base_decomposition;
 pub mod ggsw_conversion;
 pub mod ggsw_encryption;
 pub mod glwe_encryption;
