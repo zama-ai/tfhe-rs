@@ -24,6 +24,17 @@ pub fn modulus_switch<Scalar: UnsignedInteger>(
     output_to_floor >> (Scalar::BITS - log_modulus.0)
 }
 
+pub fn automorphism_modulus_switch<Scalar: UnsignedInteger>(
+    input: Scalar,
+    polynomial_size: PolynomialSize,
+) -> Scalar {
+    let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
+
+    let floor_into_even_value = input >> (Scalar::BITS - log_modulus.0 + 1);
+
+    (floor_into_even_value << 1) + Scalar::ONE
+}
+
 pub trait FourierBootstrapKey<Scalar: UnsignedInteger> {
     type Fft;
 
