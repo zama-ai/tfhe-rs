@@ -309,7 +309,7 @@ __global__ void
 batch_NSMFFT_128(double *in_re_hi, double *in_re_lo, double *in_im_hi,
                  double *in_im_lo, double *out_re_hi, double *out_re_lo,
                  double *out_im_hi, double *out_im_lo, double *buffer) {
-  extern __shared__ double sharedMemoryFFT[];
+  extern __shared__ double sharedMemoryFFT128[];
   double *re_hi, *re_lo, *im_hi, *im_lo;
 
   if (SMD == NOSM) {
@@ -322,10 +322,10 @@ batch_NSMFFT_128(double *in_re_hi, double *in_re_lo, double *in_im_hi,
     im_lo =
         &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 3];
   } else {
-    re_hi = &sharedMemoryFFT[params::degree / 2 * 0];
-    re_lo = &sharedMemoryFFT[params::degree / 2 * 1];
-    im_hi = &sharedMemoryFFT[params::degree / 2 * 2];
-    im_lo = &sharedMemoryFFT[params::degree / 2 * 3];
+    re_hi = &sharedMemoryFFT128[params::degree / 2 * 0];
+    re_lo = &sharedMemoryFFT128[params::degree / 2 * 1];
+    im_hi = &sharedMemoryFFT128[params::degree / 2 * 2];
+    im_lo = &sharedMemoryFFT128[params::degree / 2 * 3];
   }
 
   Index tid = threadIdx.x;

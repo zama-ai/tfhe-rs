@@ -342,18 +342,39 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
     polynomial_size: PolynomialSize,
 ) {
     let size = std::mem::size_of_val(src);
+    println!("#1.5");
     for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
-        assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-        cuda_convert_lwe_programmable_bootstrap_key_64(
-            stream_ptr,
-            streams.gpu_indexes[i].get(),
-            dest.as_mut_c_ptr(i as u32),
-            src.as_ptr().cast(),
-            input_lwe_dim.0 as u32,
-            glwe_dim.0 as u32,
-            l_gadget.0 as u32,
-            polynomial_size.0 as u32,
-        );
+        println!("#1.6");
+        println!("dest.len(): {:?}", dest.len());
+        println!("std::mem::size_of::<T>() {:?}", std::mem::size_of::<T>());
+        println!("size: {:?}", size);
+        assert_eq!(dest.len() * std::mem::size_of::<f64>(), size);
+        if size_of::<T>() == 16 {
+            println!("#2");
+
+            cuda_convert_lwe_programmable_bootstrap_key_128(
+                stream_ptr,
+                streams.gpu_indexes[i].get(),
+                dest.as_mut_c_ptr(i as u32),
+                src.as_ptr().cast(),
+                input_lwe_dim.0 as u32,
+                glwe_dim.0 as u32,
+                l_gadget.0 as u32,
+                polynomial_size.0 as u32,
+            );
+        } else {
+            println!("#3");
+            cuda_convert_lwe_programmable_bootstrap_key_64(
+                stream_ptr,
+                streams.gpu_indexes[i].get(),
+                dest.as_mut_c_ptr(i as u32),
+                src.as_ptr().cast(),
+                input_lwe_dim.0 as u32,
+                glwe_dim.0 as u32,
+                l_gadget.0 as u32,
+                polynomial_size.0 as u32,
+            );
+        }
     }
 }
 

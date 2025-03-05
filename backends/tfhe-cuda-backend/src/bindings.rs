@@ -1432,6 +1432,18 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_convert_lwe_programmable_bootstrap_key_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        dest: *mut ffi::c_void,
+        src: *const ffi::c_void,
+        input_lwe_dim: u32,
+        glwe_dim: u32,
+        level_count: u32,
+        polynomial_size: u32,
+    );
+}
+unsafe extern "C" {
     pub fn scratch_cuda_programmable_bootstrap_amortized_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,

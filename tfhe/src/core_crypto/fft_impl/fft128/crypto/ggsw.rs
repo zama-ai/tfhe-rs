@@ -328,6 +328,10 @@ where
                     fourier_im1,
                     coef_poly.as_ref(),
                 );
+                println!("re0: {:?}", fourier_re0);
+                println!("re1: {:?}", fourier_re1);
+                println!("im0: {:?}", fourier_im0);
+                println!("im1: {:?}", fourier_im1);
             }
         }
         implementation(self.as_mut_view(), coef_ggsw.as_view(), fft);
