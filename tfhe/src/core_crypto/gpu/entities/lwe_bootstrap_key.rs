@@ -37,6 +37,11 @@ impl CudaLweBootstrapKey {
         let decomp_level_count = bsk.decomposition_level_count();
         let decomp_base_log = bsk.decomposition_base_log();
         let glwe_dimension = bsk.glwe_size().to_glwe_dimension();
+        let double_count = if size_of::<InputBskCont::Element>() == 16 {
+            2
+        } else {
+            1
+        };
 
         // Allocate memory
         let mut d_vec = CudaVec::<f64>::new_multi_gpu(
@@ -45,10 +50,11 @@ impl CudaLweBootstrapKey {
                 glwe_dimension.to_glwe_size(),
                 polynomial_size,
                 decomp_level_count,
-            ),
+            ) * double_count,
             streams,
         );
         // Copy to the GPU
+
         unsafe {
             convert_lwe_programmable_bootstrap_key_async(
                 streams,
@@ -59,7 +65,7 @@ impl CudaLweBootstrapKey {
                 decomp_level_count,
                 polynomial_size,
             );
-        }
+        };
         streams.synchronize();
         Self {
             d_vec,
