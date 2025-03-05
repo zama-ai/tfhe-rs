@@ -15,6 +15,7 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
     fourier_ggsw_level_matrix_size, GgswCiphertextView,
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
+// use crate::core_crypto::prelude::{fourier_ggsw_ciphertext_size, CiphertextModulus};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
@@ -451,6 +452,64 @@ impl<C: Container<Element = c64>> FourierGgswCiphertextList<C> {
         )
     }
 }
+
+// #[derive(Clone, Copy)]
+// struct FourierGgswCiphertextCreationMetadata {
+//     glwe_size: GlweSize,
+//     polynomial_size: PolynomialSize,
+//     decomp_base_log: DecompositionBaseLog,
+// }
+
+// #[derive(Clone, Copy)]
+// struct FourierGgswCiphertextListCreationMetadata {
+//     glwe_size: GlweSize,
+//     polynomial_size: PolynomialSize,
+//     decomp_base_log: DecompositionBaseLog,
+//     decomp_level_count: DecompositionLevelCount,
+// }
+
+// impl<C: Container<Element = c64>> ContiguousEntityContainer for FourierGgswCiphertextList<C> {
+//     type Element = c64;
+
+//     type EntityViewMetadata = FourierGgswCiphertextCreationMetadata;
+
+//     type EntityView<'this>
+//         = FourierGgswCiphertextView<'this, Self::Element>
+//     where
+//         Self: 'this;
+
+//     type SelfViewMetadata = FourierGgswCiphertextListCreationMetadata;
+
+//     type SelfView<'this>
+//         = FourierGgswCiphertextListView<'this>
+//     where
+//         Self: 'this;
+
+//     fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+//         FourierGgswCiphertextCreationMetadata {
+//             glwe_size: self.glwe_size,
+//             polynomial_size: self.polynomial_size,
+//             decomp_base_log: self.decomp_base_log,
+//         }
+//     }
+
+//     fn get_entity_view_pod_size(&self) -> usize {
+//         fourier_ggsw_ciphertext_size(
+//             self.glwe_size,
+//             self.polynomial_size,
+//             self.decomp_level_count,
+//         )
+//     }
+
+//     fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+//         FourierGgswCiphertextListCreationMetadata {
+//             glwe_size: self.glwe_size,
+//             polynomial_size: self.polynomial_size,
+//             decomp_base_log: self.decomp_base_log,
+//             decomp_level_count: self.decomp_level_count,
+//         }
+//     }
+// }
 
 /// Return the required memory for [`add_external_product_assign`].
 pub fn add_external_product_assign_scratch<Scalar>(
