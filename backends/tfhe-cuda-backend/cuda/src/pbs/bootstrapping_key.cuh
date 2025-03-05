@@ -302,10 +302,10 @@ void convert_and_transform_128(cudaStream_t stream,
   }
   cuda_drop_async(buffer, stream, gpu_index);
 
-  printf("#cuda\n");
-  cudaDeviceSynchronize();
+//  printf("#cuda\n");
+//  cudaDeviceSynchronize();
 
-  dprint_array<params::degree / 2><<<1, 1>>>(d_re0);
+  //dprint_array<params::degree / 2><<<1, 1>>>(d_re0);
 
 }
 

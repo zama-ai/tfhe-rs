@@ -348,6 +348,16 @@ pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
 };
 
+pub const FFT128_U128_GPU_PARAMS: FftTestParams<u128> = FftTestParams {
+    lwe_dimension: LweDimension(879),
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
+    pbs_base_log: DecompositionBaseLog(32),
+    pbs_level: DecompositionLevelCount(3),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+};
 pub const FFT_WOPBS_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),

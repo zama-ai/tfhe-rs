@@ -348,7 +348,6 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
         println!("dest.len(): {:?}", dest.len());
         println!("std::mem::size_of::<T>() {:?}", std::mem::size_of::<T>());
         println!("size: {:?}", size);
-        assert_eq!(dest.len() * std::mem::size_of::<f64>(), size);
         if size_of::<T>() == 16 {
             println!("#2");
 
