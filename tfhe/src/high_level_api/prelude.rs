@@ -10,9 +10,9 @@
 pub use crate::high_level_api::traits::HwXfer;
 pub use crate::high_level_api::traits::{
     BitSlice, CiphertextList, DivRem, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
-    FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse, OverflowingAdd,
-    OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
-    ScalarIfThenElse, SquashNoise, Tagged,
+    FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, FheWait, IfThenElse,
+    OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight,
+    RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
 };
 
 pub use crate::conformance::ParameterSetConformant;

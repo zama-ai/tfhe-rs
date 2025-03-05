@@ -206,11 +206,18 @@ impl HpuVarWrapped {
         }
     }
 
-
+    /// Wait end of pending operation and synced on Cpu side
+    /// Blocking call that pool the Hpu Backend until variable is ready
     pub fn wait(&self) {
-        let mut inner = self.inner.lock().unwrap();
-        let _ = inner.try_cpu_sync();
-
+        loop {
+            match self.inner.lock().unwrap().try_cpu_sync() {
+                Ok(_) => break,
+                Err(err) => match err {
+                    HpuInternalError::SyncPending => {}
+                    _ => panic!("Hpu encounter internal error {err:?}"),
+                },
+            }
+        }
     }
 }
 
