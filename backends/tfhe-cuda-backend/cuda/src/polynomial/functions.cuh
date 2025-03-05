@@ -3,6 +3,7 @@
 
 #include "crypto/torus.cuh"
 #include "device.h"
+#include "fft128/f128.cuh"
 #include "parameters.cuh"
 
 // Return A if C == 0 and B if C == 1
@@ -160,6 +161,35 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
 
     Torus torus_imag = 0;
     typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
+
+    if (overwrite_result) {
+      result[tid] = torus_real;
+      result[tid + params::degree / 2] = torus_imag;
+    } else {
+      result[tid] += torus_real;
+      result[tid + params::degree / 2] += torus_imag;
+    }
+    tid = tid + params::degree / params::opt;
+  }
+}
+
+/**
+ * In case of classical PBS, this method should accumulate the result.
+ * In case of multi-bit PBS, it should overwrite.
+ */
+template <typename Torus, class params>
+__device__ void add_to_torus_128(double *re_hi, double *re_lo, double *im_hi,
+                                 double *im_lo, Torus *result,
+                                 bool overwrite_result = false) {
+  constexpr double normalization = 1. / (params::degree / 2);
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    f128 f128_real(re_hi[tid] * normalization, re_lo[tid] * normalization);
+    f128 f128_imag(im_hi[tid] * normalization, im_lo[tid] * normalization);
+
+    Torus torus_real = u128_from_torus_f128(f128_real);
+    Torus torus_imag = u128_from_torus_f128(f128_imag);
 
     if (overwrite_result) {
       result[tid] = torus_real;

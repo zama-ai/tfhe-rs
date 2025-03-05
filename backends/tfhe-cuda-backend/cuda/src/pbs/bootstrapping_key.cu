@@ -22,6 +22,18 @@ void cuda_convert_lwe_programmable_bootstrap_key_64(
       (const int64_t *)src, polynomial_size, total_polynomials);
 }
 
+void cuda_convert_lwe_programmable_bootstrap_key_128(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size) {
+
+  uint32_t total_polynomials =
+      input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) * level_count;
+  cuda_convert_lwe_programmable_bootstrap_key_u128(
+      static_cast<cudaStream_t>(stream), gpu_index, (double *)dest,
+      (const __uint128_t *)src, polynomial_size, total_polynomials);
+}
+
 void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
     void *stream, uint32_t gpu_index, void *dest, void const *src,
     uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,

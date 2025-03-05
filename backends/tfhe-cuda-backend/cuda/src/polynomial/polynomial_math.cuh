@@ -56,6 +56,64 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   }
 }
 
+// Computes result += first * second
+// If init_accumulator is set, assumes that result was not initialized and does
+// that with the outcome of first * second
+template <class params>
+__device__ void polynomial_product_accumulate_in_fourier_domain_128(
+    double *result, double *first, const double *second,
+    bool init_accumulator = false) {
+  int tid = threadIdx.x;
+  if (init_accumulator) {
+    for (int i = 0; i < params::opt / 2; i++) {
+      f128 a_re(first[tid + 0 * params::degree / 2],
+                first[tid + 1 * params::degree / 2]);
+      f128 a_im(first[tid + 2 * params::degree / 2],
+                first[tid + 3 * params::degree / 2]);
+      f128 b_re(second[tid + 0 * params::degree / 2],
+                second[tid + 1 * params::degree / 2]);
+      f128 b_im(second[tid + 2 * params::degree / 2],
+                second[tid + 3 * params::degree / 2]);
+      f128 c_re, c_im;
+
+      f128::cplx_f128_mul_assign(c_re, c_im, a_re, a_im, b_re, b_im);
+
+      result[tid + 0 * params::degree / 2] = c_re.hi;
+      result[tid + 1 * params::degree / 2] = c_re.lo;
+      result[tid + 2 * params::degree / 2] = c_im.hi;
+      result[tid + 3 * params::degree / 2] = c_im.lo;
+
+      tid += params::degree / params::opt;
+    }
+  } else {
+    for (int i = 0; i < params::opt / 2; i++) {
+      f128 a_re(first[tid + 0 * params::degree / 2],
+                first[tid + 1 * params::degree / 2]);
+      f128 a_im(first[tid + 2 * params::degree / 2],
+                first[tid + 3 * params::degree / 2]);
+      f128 b_re(second[tid + 0 * params::degree / 2],
+                second[tid + 1 * params::degree / 2]);
+      f128 b_im(second[tid + 2 * params::degree / 2],
+                second[tid + 3 * params::degree / 2]);
+      f128 res_re(result[tid + 0 * params::degree / 2],
+                  result[tid + 1 * params::degree / 2]);
+      f128 res_im(result[tid + 2 * params::degree / 2],
+                  result[tid + 3 * params::degree / 2]);
+      f128 c_re, c_im;
+
+      f128::cplx_f128_mul_assign(c_re, c_im, a_re, a_im, b_re, b_im);
+      f128::cplx_f128_add_assign(res_re, res_im, res_re, res_im, c_re, c_im);
+
+      result[tid + 0 * params::degree / 2] = res_re.hi;
+      result[tid + 1 * params::degree / 2] = res_re.lo;
+      result[tid + 2 * params::degree / 2] = res_im.hi;
+      result[tid + 3 * params::degree / 2] = res_im.lo;
+
+      tid += params::degree / params::opt;
+    }
+  }
+}
+
 // Computes result += x
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
