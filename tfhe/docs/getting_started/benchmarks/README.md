@@ -12,4 +12,4 @@ make print_doc_bench_parameters
 
 ### Operation time over FheUint 64
 
-![Click to enlarge](../../_static/cpu_gpu_integer_benchmark_fheuint64_tuniform_2m64_ciphertext.svg)
+![](../../_static/cpu_gpu_integer_benchmark_fheuint64_tuniform_2m64_ciphertext.svg)

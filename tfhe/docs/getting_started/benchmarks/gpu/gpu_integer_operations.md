@@ -12,22 +12,22 @@ The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_P
 Below come the results for the execution on a single H100.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-![Click to enlarge](../../../_static/gpu_integer_benchmark_h100x1_multi_bit_tuniform_2m64_ciphertext.svg)
+![](../../../_static/gpu_integer_benchmark_h100x1_multi_bit_tuniform_2m64_ciphertext.svg)
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-![Click to enlarge](../../../_static/gpu_integer_benchmark_h100x1_multi_bit_tuniform_2m64_plaintext.svg)
+![](../../../_static/gpu_integer_benchmark_h100x1_multi_bit_tuniform_2m64_plaintext.svg)
 
 ## 2xH100
 
 Below come the results for the execution on two H100's.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-![Click to enlarge](../../../_static/gpu_integer_benchmark_h100x2_multi_bit_tuniform_2m64_ciphertext.svg)
+![](../../../_static/gpu_integer_benchmark_h100x2_multi_bit_tuniform_2m64_ciphertext.svg)
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-![Click to enlarge](../../../_static/gpu_integer_benchmark_h100x2_multi_bit_tuniform_2m64_plaintext.svg)
+![](../../../_static/gpu_integer_benchmark_h100x2_multi_bit_tuniform_2m64_plaintext.svg)
 
 ## Reproducing TFHE-rs benchmarks
 
