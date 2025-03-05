@@ -229,3 +229,8 @@ pub trait HwXfer<HwDevice> {
     fn clone_on(&self, device: &HwDevice) -> Self::Output;
     fn mv_on(self, device: &HwDevice) -> Self::Output;
 }
+
+/// Trait used to have a generic way of waiting Hw accelerator result
+pub trait FheWait {
+    fn wait(&self);
+}

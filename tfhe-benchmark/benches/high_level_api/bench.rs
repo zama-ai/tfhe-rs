@@ -12,6 +12,7 @@ use tfhe::{
 fn bench_fhe_type<FheType>(c: &mut Criterion, client_key: &ClientKey, type_name: &str)
 where
     FheType: FheEncrypt<u128, ClientKey>,
+    FheType: FheWait,
     for<'a> &'a FheType: Add<&'a FheType, Output = FheType>
         + Sub<&'a FheType, Output = FheType>
         + Mul<&'a FheType, Output = FheType>
@@ -35,54 +36,90 @@ where
     let mut name = String::with_capacity(255);
 
     write!(name, "add({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs + &rhs)));
-    name.clear();
-
-    write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
     bench_group.bench_function(&name, |b| {
-        b.iter(|| black_box((&lhs).overflowing_add(&rhs)))
+        b.iter(|| {
+            let res = &lhs + &rhs;
+            res.wait();
+            black_box(res)
+        })
     });
     name.clear();
 
-    write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(lhs.overflowing_sub(&rhs))));
-    name.clear();
+    // write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| {
+    //     b.iter(|| black_box((&lhs).overflowing_add(&rhs)))
+    // });
+    // name.clear();
+
+    // write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| b.iter(|| black_box(lhs.overflowing_sub(&rhs))));
+    // name.clear();
 
     write!(name, "sub({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs - &rhs)));
+    bench_group.bench_function(&name, |b| {
+        b.iter(|| {
+            let res = &lhs - &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
     name.clear();
 
     write!(name, "mul({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs * &rhs)));
+    bench_group.bench_function(&name, |b| {
+        b.iter(|| {
+            let res = &lhs * &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
     name.clear();
 
     write!(name, "bitand({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs & &rhs)));
+    bench_group.bench_function(&name, |b| {
+        b.iter(|| {
+            let res = &lhs & &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
     name.clear();
 
     write!(name, "bitor({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs | &rhs)));
+    bench_group.bench_function(&name, |b| {
+        b.iter(|| {
+            let res = &lhs | &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
     name.clear();
 
     write!(name, "bitxor({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs ^ &rhs)));
+    bench_group.bench_function(&name, |b| {
+        b.iter(|| {
+            let res = &lhs ^ &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
     name.clear();
 
-    write!(name, "shl({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs << &rhs)));
-    name.clear();
+    // write!(name, "shl({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs << &rhs)));
+    // name.clear();
 
-    write!(name, "shr({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs >> &rhs)));
-    name.clear();
+    // write!(name, "shr({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs >> &rhs)));
+    // name.clear();
 
-    write!(name, "rotl({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_left(&rhs))));
-    name.clear();
+    // write!(name, "rotl({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_left(&rhs))));
+    // name.clear();
 
-    write!(name, "rotr({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_right(&rhs))));
-    name.clear();
+    // write!(name, "rotr({type_name}, {type_name})").unwrap();
+    // bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_right(&rhs))));
+    // name.clear();
 }
 
 macro_rules! bench_type {
@@ -108,13 +145,34 @@ bench_type!(FheUint64);
 bench_type!(FheUint128);
 
 fn main() {
-    let config =
-        ConfigBuilder::with_custom_parameters(BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
-            .build();
-    let cks = ClientKey::generate(config);
-    let compressed_sks = CompressedServerKey::new(&cks);
+    let cks = if cfg!(feature = "hpu") {
+        // Hpu is enable, start benchmark on Hpu hw accelerator
+        use tfhe::{set_server_key, Config};
+        use tfhe_hpu_backend::prelude::*;
 
-    set_server_key(compressed_sks.decompress());
+        // Use environnement variable to construct path to configuration file
+        let config_path = ShellString::new(
+            "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+        );
+        let hpu_device = HpuDevice::from_config(&config_path.expand());
+
+        let config = Config::from_hpu_device(&hpu_device);
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        set_server_key((hpu_device, compressed_sks));
+        cks
+    } else {
+        let config = ConfigBuilder::with_custom_parameters(
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .build();
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        set_server_key(compressed_sks.decompress());
+        cks
+    };
 
     let mut c = Criterion::default().configure_from_args();
 
@@ -128,7 +186,7 @@ fn main() {
     bench_fhe_uint16(&mut c, &cks);
     bench_fhe_uint32(&mut c, &cks);
     bench_fhe_uint64(&mut c, &cks);
-    bench_fhe_uint128(&mut c, &cks);
+    // bench_fhe_uint128(&mut c, &cks);
 
     c.final_summary();
 }
