@@ -42,7 +42,7 @@ jobs:
       # This will allow to fallback on permanent instances running on Hyperstack.
       - name: Use permanent remote instance
         id: use-permanent-instance
-        if: ${{ env.SECRETS_AVAILABLE == 'true' && failure() }}
+        if: env.SECRETS_AVAILABLE == 'true' && steps.start-remote-instance.outcome == 'failure'
         run: |
           echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
 
