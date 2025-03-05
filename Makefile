@@ -438,7 +438,7 @@ clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolcha
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable # clippy_tfhe_lints
+clippy_versionable clippy_tfhe_lints
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -1346,8 +1346,8 @@ sha256_bool: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested check_intra_md_links clippy_all check_compile_tests # test_tfhe_lints \
-# tfhe_lints
+check_md_docs_are_tested check_intra_md_links clippy_all check_compile_tests test_tfhe_lints \
+tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
