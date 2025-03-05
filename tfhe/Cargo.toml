@@ -1,6 +1,6 @@
 [package]
 name = "tfhe"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 readme = "../README.md"
 keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
@@ -60,7 +60,7 @@ tfhe-fft = { version = "0.8.0", path = "../tfhe-fft", features = [
 ] }
 tfhe-ntt = { version = "0.5.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
-tfhe-cuda-backend = { version = "0.8.0", path = "../backends/tfhe-cuda-backend", optional = true }
+tfhe-cuda-backend = { version = "0.8.1", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
 dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
