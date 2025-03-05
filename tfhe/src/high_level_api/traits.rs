@@ -191,6 +191,11 @@ pub trait CiphertextList {
 
 pub trait FheId: Copy + Default {}
 
+/// Trait used to have a generic way of waiting Hw accelerator result
+pub trait FheWait {
+    fn wait(&self);
+}
+
 /// Traits use to implement explicit movement with Hw accelerators
 /// Function to handle Xfer from Cpu to Hw device
 /// NB: Wayback is implemented with From trait
