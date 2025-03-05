@@ -7,7 +7,7 @@ use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::Tagged;
+use crate::high_level_api::traits::{FheWait, Tagged};
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 #[cfg(feature = "gpu")]
@@ -145,6 +145,15 @@ where
     }
 }
 
+impl<Id> FheWait for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn wait(&self) {
+        self.ciphertext.wait()
+    }
+}
+
 impl<Id> FheUint<Id>
 where
     Id: FheUintId,
@@ -221,11 +230,6 @@ where
             _ => &[],
         }
     }
-
-    pub fn wait(&self) {
-        self.ciphertext.wait()
-    }
-
     /// Returns a FheBool that encrypts `true` if the value is even
     ///
     /// # Example
