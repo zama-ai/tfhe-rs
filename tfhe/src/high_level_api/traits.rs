@@ -220,16 +220,6 @@ pub trait AddAssignSizeOnGpu<Rhs = Self> {
     fn get_add_assign_size_on_gpu(&self, amount: Rhs) -> u64;
 }
 
-/// Traits use to implement explicit movement with Hw accelerators
-/// Function to handle Xfer from Cpu to Hw device
-/// NB: Wayback is implemented with From trait
-#[cfg(feature = "hpu-xfer")]
-pub trait HwXfer<HwDevice> {
-    type Output;
-    fn clone_on(&self, device: &HwDevice) -> Self::Output;
-    fn mv_on(self, device: &HwDevice) -> Self::Output;
-}
-
 /// Trait used to have a generic way of waiting Hw accelerator result
 pub trait FheWait {
     fn wait(&self);

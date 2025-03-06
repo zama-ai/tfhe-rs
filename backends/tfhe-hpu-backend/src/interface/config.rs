@@ -3,7 +3,7 @@
 
 use crate::ffi;
 use crate::fw::rtl::config::RtlCfg;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// ShellString
 /// Thin wrapper around String that provide a method to interpolate it's content with environnement
@@ -114,7 +114,7 @@ pub struct BoardConfig {
 pub struct FwConfig {
     /// List of supported integer width
     /// NB: Currently only one width is supported at a time
-    pub integer_w: Vec<usize>,
+    pub integer_w: HashSet<usize>,
 
     /// Kogge config filename
     /// Used to depicts best tradeoff for kogge Add/Sub algorithm
