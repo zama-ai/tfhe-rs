@@ -7,9 +7,7 @@ use crate::core_crypto::prelude::{
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{AtomicPatternKind, NoiseLevel};
-use crate::shortint::server_key::{
-    apply_programmable_bootstrap_no_ms_noise_reduction, LookupTableOwned,
-};
+use crate::shortint::server_key::apply_programmable_bootstrap_no_ms_noise_reduction;
 use crate::shortint::{PBSOrder, ServerKey};
 use tfhe_csprng::seeders::Seed;
 
@@ -138,8 +136,7 @@ impl ServerKey {
 
         let poly_delta = 2 * self.bootstrapping_key.polynomial_size().0 as u64 / p;
 
-        let acc: LookupTableOwned =
-            self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
+        let acc = self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
 
         let out_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
 
@@ -152,7 +149,7 @@ impl ServerKey {
                 &self.bootstrapping_key,
                 &seeded,
                 &mut ct,
-                &acc.acc,
+                &acc,
                 buffers,
             );
         });
