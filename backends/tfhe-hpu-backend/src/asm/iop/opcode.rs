@@ -46,3 +46,7 @@ pub const CMP_LT: u8 = 0xC2;
 pub const CMP_LTE: u8 = 0xC3;
 pub const CMP_EQ: u8 = 0xC4;
 pub const CMP_NEQ: u8 = 0xC5;
+
+// IfThenElse -> Select operation
+// Take 2Ct and a Boolean Ct as input
+pub const IF_THEN_ELSE: u8 = 0xCA;
