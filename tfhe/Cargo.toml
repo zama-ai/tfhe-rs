@@ -113,7 +113,6 @@ zk-pok = ["dep:tfhe-zk-pok"]
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
 hpu-xrt = ["tfhe-hpu-backend/hw-xrt"]
 hpu-aved = ["tfhe-hpu-backend/hw-aved"]
-hpu-xfer = ["hpu"]
 hpu-debug = ["tfhe-hpu-backend/io-dump"]
 # End Fpga Hpu features
 
@@ -225,11 +224,12 @@ required-features = ["integer", "internal-keycache"]
 [[example]]
 name = "hpu_hlapi"
 path = "examples/hpu/hlapi.rs"
+required-features = ["hpu"]
 
 [[example]]
 name = "hpu_bench"
 path = "examples/hpu/bench.rs"
-required-features = ["hpu-xfer"]
+required-features = ["hpu"]
 # End of Hpu related section
 
 [lib]

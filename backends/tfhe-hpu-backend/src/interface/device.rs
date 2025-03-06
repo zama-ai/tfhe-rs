@@ -70,10 +70,13 @@ impl Drop for HpuDevice {
     }
 }
 
-/// Retrieved Hw parameters
+/// Retrieved Hw parameters & configuration
 impl HpuDevice {
     pub fn params(&self) -> HpuParameters {
         self.backend.lock().unwrap().params.clone()
+    }
+    pub fn config(&self) -> &HpuConfig {
+        &self.config
     }
 }
 
@@ -173,6 +176,7 @@ impl HpuDevice {
             self.cmd_api.clone(),
             self.params.clone(),
             ct,
+            crate::asm::iop::VarMode::Native,
         )
     }
 }
