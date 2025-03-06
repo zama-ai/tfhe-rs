@@ -17,7 +17,7 @@ RUST_LOG="info"
 
 # Setting PCI device variable: depends on the machine
 mapfile -t DEVICE< <(lspci -d 10ee:50b5)
-if [ ${#DEVICE[@]} != 1 ]; then
+if [ ${#DEVICE[@]} -gt 1 ]; then
     echo "[ERROR]: There is more than one device pcie, we only support one hpu for now"
     return 1
 else
