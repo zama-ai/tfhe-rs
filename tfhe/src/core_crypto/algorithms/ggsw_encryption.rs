@@ -1,6 +1,7 @@
 //! Module containing primitives pertaining to [`GGSW ciphertext
 //! encryption`](`GgswCiphertext#ggsw-encryption`).
 
+use super::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul;
 use crate::core_crypto::algorithms::misc::divide_round;
 use crate::core_crypto::algorithms::slice_algorithms::*;
 use crate::core_crypto::algorithms::*;
@@ -10,8 +11,11 @@ use crate::core_crypto::commons::math::decomposition::{
     DecompositionLevel, DecompositionTerm, DecompositionTermNonNative, SignedDecomposer,
 };
 use crate::core_crypto::commons::math::random::{DefaultRandomGenerator, Distribution, Uniform};
-use crate::core_crypto::commons::parameters::{DecompositionBaseLog, PlaintextCount};
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, MonomialDegree, PlaintextCount,
+};
 use crate::core_crypto::commons::traits::*;
+use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
 
@@ -398,7 +402,22 @@ fn encrypt_constant_ggsw_level_matrix_row<Scalar, NoiseDistribution, KeyCont, Ou
                 ciphertext_modulus.get_custom_modulus().cast_into(),
             ),
             CiphertextModulusKind::Native | CiphertextModulusKind::NonNativePowerOfTwo => {
-                slice_wrapping_scalar_mul_assign(body.as_mut(), factor)
+                let mut a = Polynomial::from_container(vec![
+                    Scalar::ZERO;
+                    glwe_secret_key.polynomial_size().0
+                ]);
+
+                // slice_wrapping_scalar_mul(body.as_mut(), factor)
+
+                for (a_, body_) in izip!(a.as_mut(), body.as_mut()) {
+                    *a_ = body_.wrapping_mul(factor);
+                }
+
+                polynomial_wrapping_monic_monomial_mul(
+                    &mut body.as_mut_polynomial(),
+                    &a.as_view(),
+                    MonomialDegree(power),
+                );
             }
         }
     } else {
