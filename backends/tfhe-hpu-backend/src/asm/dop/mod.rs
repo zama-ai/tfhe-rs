@@ -338,8 +338,29 @@ pbs!(
     }
 ]],
 
+["IfTrueZeroed" => 23 [ // Ct must contain CondCt in Carry and ValueCt in Msg. If condition it's *TRUE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = (val & params.carry_mask()) >> params.msg_w;
+           if cond != 0 {0} else {value}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["IfFalseZeroed" => 24 [ // Ct must contain CondCt in Carry and ValueCt in Msg. If condition it's *FALSE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = (val & params.carry_mask()) >> params.msg_w;
+           if cond != 0 {value} else {0}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+
 // Below Pbs are defined for Test only
-["TestMany2" => 23 [
+["TestMany2" => 128 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();
@@ -349,7 +370,7 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     },
 ]],
-["TestMany4" => 24 [
+["TestMany4" => 129 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();
@@ -367,7 +388,7 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     },
 ]],
-["TestMany8" => 25 [
+["TestMany8" => 130 [
     @0 =>{
         |_params: &DigitParameters, val | val;
         |params: &DigitParameters, _deg| params.msg_mask();

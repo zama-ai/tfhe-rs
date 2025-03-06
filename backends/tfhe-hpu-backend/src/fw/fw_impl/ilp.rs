@@ -31,7 +31,6 @@ crate::impl_fw!("Ilp" [
     MULS => fw_impl::ilp::iop_muls_legacy;
     MULSF => fw_impl::ilp::iop_muls;
 
-
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
     BW_XOR => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwXor::default().into())});
@@ -42,6 +41,8 @@ crate::impl_fw!("Ilp" [
     CMP_LTE => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpLte::default().into())});
     CMP_EQ  => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpEq::default().into())});
     CMP_NEQ => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpNeq::default().into())});
+
+    IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
 
 ]);
 
@@ -1181,6 +1182,7 @@ fn cached_kogge_add(
         .unwrap()
 }
 
+<<<<<<< HEAD
 // ------------------------------------------------------------------------------------------------
 // To help with MUL
 // ------------------------------------------------------------------------------------------------
@@ -1337,4 +1339,58 @@ impl VecVarCellDeg {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_if_then_else(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Operand
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+    // Cond -> Operand
+    // Third operand must be a FheBool and have only one blk
+    let cond = {
+        let mut cond_blk = prog.iop_template_var(OperandKind::Src, 2);
+        cond_blk.truncate(1);
+        cond_blk.pop().unwrap()
+    };
+
+    // Add Comment header
+    prog.push_comment(
+        "IF_THEN_ELSE Operand::Dst Operand::Src Operand::Src Operand::Src[Condition]".to_string(),
+    );
+
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+
+    // Wrapped required lookup table in MetaVar
+    let pbs_if_true_zeroed = new_pbs!(prog, "IfTrueZeroed");
+    let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
+
+    itertools::izip!(dst, src_a, src_b)
+        .chunks(props.pbs_batch_w)
+        .into_iter()
+        .for_each(|chunk| {
+            // Pack (cond, a), (cond, b)
+            let chunk_pack = chunk
+                .into_iter()
+                .map(|(d, a, b)| {
+                    (
+                        d,
+                        cond.mac(tfhe_params.msg_range() as u8, &a),
+                        cond.mac(tfhe_params.msg_range() as u8, &b),
+                    )
+                })
+                .collect::<Vec<_>>();
+            chunk_pack
+                .into_iter()
+                .for_each(|(mut d, mut cond_a, mut cond_b)| {
+                    cond_a.pbs_assign(&pbs_if_false_zeroed, false);
+                    cond_b.pbs_assign(&pbs_if_true_zeroed, false);
+                    d <<= &cond_a + &cond_b;
+                });
+        });
 }
