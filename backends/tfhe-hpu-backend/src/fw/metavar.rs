@@ -322,7 +322,7 @@ impl MetaVarCell {
         if self.is_in(PosKind::EMPTY | PosKind::MEM | PosKind::IMM | PosKind::PBS) {
             return;
         }
-        debug!(target: "Fw", "Evict {self:?} in heap");
+        trace!(target: "Fw", "Evict {self:?} in heap");
 
         // Get cache entry and update state
         let (mid, evicted) = self
