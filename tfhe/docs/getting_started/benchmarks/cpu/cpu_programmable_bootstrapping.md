@@ -13,15 +13,15 @@ Note that these benchmarks use Gaussian parameters. `MB-PBS` stands for multi-bi
 
 ## P-fail: $$2^{-40}$$
 
-![Click to enlarge](../../../_static/cpu_pbs_benchmark_tuniform_2m40.svg)
+![](../../../_static/cpu_pbs_benchmark_tuniform_2m40.svg)
 
 ## P-fail: $$2^{-64}$$
 
-![Click to enlarge](../../../_static/cpu_pbs_benchmark_tuniform_2m64.svg)
+![](../../../_static/cpu_pbs_benchmark_tuniform_2m64.svg)
 
 ## P-fail: $$2^{-128}$$
 
-![Click to enlarge](../../../_static/cpu_pbs_benchmark_tuniform_2m128.svg)
+![](../../../_static/cpu_pbs_benchmark_tuniform_2m128.svg)
 
 ## Reproducing TFHE-rs benchmarks
 

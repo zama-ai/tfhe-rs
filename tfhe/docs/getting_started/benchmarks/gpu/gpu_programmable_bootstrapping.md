@@ -8,11 +8,11 @@ All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS
 
 ## P-fail: $$2^{-40}$$
 
-![Click to enlarge](../../../_static/gpu_pbs_benchmark_tuniform_2m40.svg)
+![](../../../_static/gpu_pbs_benchmark_tuniform_2m40.svg)
 
 ## P-fail: $$2^{-64}$$
 
-![Click to enlarge](../../../_static/gpu_pbs_benchmark_tuniform_2m64.svg)
+![](../../../_static/gpu_pbs_benchmark_tuniform_2m64.svg)
 
 ## Reproducing TFHE-rs benchmarks
 
