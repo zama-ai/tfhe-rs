@@ -808,6 +808,7 @@ mod cuda {
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
+    use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
     fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
         c: &mut Criterion,
@@ -1080,8 +1081,7 @@ mod cuda {
         let mut secret_generator =
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
-        let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        let stream = CudaStreams::new_multi_gpu();
 
         for (name, params) in parameters.iter() {
             if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
@@ -1112,7 +1112,7 @@ mod cuda {
             );
             let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
 
-            const NUM_CTS: usize = 8192;
+            const NUM_CTS: usize = 8192 * 8;
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
 
             let mut lwe_list = LweCiphertextList::new(
@@ -1225,8 +1225,7 @@ mod cuda {
         let mut secret_generator =
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
-        let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        let stream = CudaStreams::new_multi_gpu();
 
         for (name, params, grouping_factor) in parameters.iter() {
             if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
@@ -1261,11 +1260,11 @@ mod cuda {
                 &stream,
             );
 
-            let mut num_cts: usize = 8192;
-            let env_config = EnvConfig::new();
-            if env_config.is_fast_bench {
-                num_cts = 1024;
-            }
+            let mut num_cts: usize = 8192 * unsafe {cuda_get_number_of_gpus() as usize};
+            //let env_config = EnvConfig::new();
+            //if env_config.is_fast_bench {
+            //    num_cts = 1024 * unsafe {cuda_get_number_of_gpus() as usize};
+            //}
 
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(num_cts));
             let mut lwe_list = LweCiphertextList::new(
