@@ -7,17 +7,17 @@
 #[macro_export]
 macro_rules! iop {
     (
-        $([$asm: literal, $opcode: expr, |$src: literal, $imm: literal| -> $dst: literal] $(,)?)*
+        $([ $proto: ident -> $asm: literal, $opcode: expr] $(,)?)*
     ) => {
         ::paste::paste! {
             /// Parser utilities
             /// Hashmap for Name -> to (Opcode, (src, imm, dst))
-            struct IOpFromArg {
-                asm: HashMap<String, IOpAlias>,
-                hex: HashMap<IOpcode, IOpAlias>,
+            pub(crate) struct IOpFromArg {
+                pub(crate) asm: HashMap<String, IOpFormat>,
+                pub(crate) hex: HashMap<IOpcode, IOpFormat>,
             }
             lazy_static! {
-                static ref IOP_LUT: IOpFromArg = {
+                pub(crate) static ref IOP_LUT: IOpFromArg = {
 
                     let mut iop_from_arg = IOpFromArg{
                         asm: HashMap::new(),
@@ -25,29 +25,37 @@ macro_rules! iop {
                     };
 
                     $(
-                        let iop_alias = IOpAlias{
+                        let iop_format = IOpFormat{
                             name: stringify!([< $asm:upper >]).to_string(),
                             opcode: IOpcode($opcode),
-                            src: $src,
-                            imm: $imm,
-                            dst: $dst,
+                            proto: $proto.clone().into()
                         };
-                        iop_from_arg.asm.insert(stringify!([< $asm:upper >]).to_string(), iop_alias.clone());
-                        iop_from_arg.hex.insert(IOpcode($opcode), iop_alias);
+                        iop_from_arg.asm.insert(stringify!([< $asm:upper >]).to_string(), iop_format.clone());
+                        iop_from_arg.hex.insert(IOpcode($opcode), iop_format);
                     )*
                     iop_from_arg
                 };
             }
+            // Export each AsmIOpCode as constant
+            $(
             lazy_static! {
-                pub static ref IOP_LIST: Vec<AsmIOpcode> = vec![ $(AsmIOpcode{opcode: IOpcode($opcode), alias: Some(IOpAlias{
+                pub static ref [< IOP_ $asm:upper >]: AsmIOpcode = {
+                        AsmIOpcode{opcode: IOpcode($opcode), format: Some(IOpFormat{
                             name: stringify!([< $asm:upper >]).to_string(),
                             opcode: IOpcode($opcode),
-                            src: $src,
-                            imm: $imm,
-                            dst: $dst,
+                            proto: $proto.clone().into()
+                        })}
+                };
+            }
+            )*
+
+            lazy_static! {
+                pub static ref IOP_LIST: Vec<AsmIOpcode> = vec![ $(AsmIOpcode{opcode: IOpcode($opcode), format: Some(IOpFormat{
+                            name: stringify!([< $asm:upper >]).to_string(),
+                            opcode: IOpcode($opcode),
+                            proto: $proto.clone().into()
                         })},)*];
             }
-
         }
     }
 }
