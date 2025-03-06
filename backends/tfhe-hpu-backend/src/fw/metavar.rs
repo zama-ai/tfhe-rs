@@ -627,6 +627,8 @@ impl MetaVarCell {
 
 /// Implement mac operator
 impl MetaVarCell {
+    /// Raw Mac implemenation
+    /// MAC output= (rhs_0 * mul_factor) + rhs_1
     pub(super) fn mac_raw(
         &self,
         rhs_0: &MetaVarCell,
