@@ -43,4 +43,6 @@ iop!(
      ["CMP_LTE", opcode::CMP_LTE , |2,0| -> 1],
      ["CMP_EQ" ,  opcode::CMP_EQ , |2,0| -> 1],
      ["CMP_NEQ", opcode::CMP_NEQ , |2,0| -> 1],
+
+     ["IF_THEN_ELSE", opcode::IF_THEN_ELSE, |3,0| -> 1],
 );
