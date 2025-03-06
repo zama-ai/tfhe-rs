@@ -11,8 +11,8 @@ pub use hw_regmap as hpu_regmap;
 /// Load Hw-interface stuff
 /// Warn: Enabling this feature required xrt for build and run
 pub use super::interface::{
-    page_align, BoardConfig, FFIMode, HpuConfig, HpuDevice, HpuError, HpuVarWrapped, ShellString,
-    ACKQ_EMPTY,
+    page_align, BoardConfig, FFIMode, HpuCmd, HpuConfig, HpuDevice, HpuError, HpuImm,
+    HpuVarWrapped, ShellString, ACKQ_EMPTY,
 };
 
 #[cfg(feature = "io-dump")]

@@ -1,11 +1,16 @@
-//! Application dedicated to RTL stimulus generation
-//! This should be used in tandem with `mockups/tfhe-hpu-mockup/src/mockup.rs
+//! Application dedicated to quick HW test/benchmark and RTL stimulus generation
+//! This could be used in tandem with `mockups/tfhe-hpu-mockup/src/mockup.rs or
+//! with the real hardware directly.
 //!
 //! With the `dump-out` option it enable to generate bit-accurate stimulus
 //! for RTL simulation
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 pub use std::time::{Duration, Instant};
+
+use integer::hpu::ciphertext::HpuRadixCiphertext;
+use shortint::ClassicPBSParameters;
+use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
 
 use itertools::Itertools;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
@@ -16,8 +21,6 @@ use tfhe_hpu_backend::prelude::*;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-
-const AVAILABLE_INTEGER_W: [usize; 11] = [2, 4, 6, 8, 10, 12, 14, 16, 32, 64, 128];
 
 /// Define CLI arguments
 pub use clap::Parser;
@@ -38,10 +41,8 @@ pub struct Args {
     pub config: ShellString,
 
     // Exec configuration ----------------------------------------------------
-    /// Select integer-width from a set of available one.
-    /// C.f. `AVAILABLE_INTEGER_W` for available option
-    /// WARN: Used configuration should have the selected integer in the Firmware section
-    /// If None default to All available one
+    /// Select integer width to bench
+    /// If None default to All available one (c.f. Firmware configuration)
     #[clap(long, value_parser)]
     pub integer_w: Vec<usize>,
 
@@ -54,20 +55,20 @@ pub struct Args {
     #[clap(long, value_parser, default_value_t = 1)]
     pub iter: usize,
 
-    /// Force input value for A operand
+    /// Force ct input values
     #[clap(long, value_parser=maybe_hex::<u128>)]
-    pub src_a: Option<u128>,
+    pub src: Vec<u128>,
 
-    /// Force input value for B operand
+    /// Force immediat input values
     #[clap(long, value_parser=maybe_hex::<u128>)]
-    pub src_b: Option<u128>,
+    pub imm: Vec<u128>,
 
-    /// Force immediat mode
-    /// Use for custom IOp testing
-    /// Currently there is no way for the SW to know the expected format of the custom IOp
-    /// Warn: Currently force all IOp input B, there is no way to force only some of them
+    /// Fallback prototype
+    /// Used for custom IOp testing when prototype isn't known
+    /// Syntax example: "<F B> <- <F F> <0>"
+    /// Only apply to IOp with unspecified prototype
     #[clap(long, value_parser)]
-    pub force_imm: bool,
+    pub user_proto: bool,
 
     /// Seed used for some rngs
     #[clap(long, value_parser)]
@@ -148,12 +149,6 @@ pub fn main() {
     // Instanciate HpuDevice --------------------------------------------------
     let hpu_device = HpuDevice::from_config(&args.config.expand());
 
-    // Extract pbs_configuration from Hpu and generate top-level config
-    let pbs_params = tfhe::shortint::PBSParameters::PBS(hpu_device.params().into());
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(pbs_params)
-        .build();
-
     // Force key seeder if seed specified by user
     if let Some(seed) = args.seed {
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
@@ -163,15 +158,13 @@ pub fn main() {
         });
     }
 
-    let (cks, sks) = generate_keys(config);
-    let sks_compressed = cks.generate_compressed_server_key();
-
-    // Init cpu side server keys
-    set_server_key(sks);
+    // Extract pbs_configuration from Hpu and create Client/Server Key
+    let cks = ClientKey::new(ClassicPBSParameters::from(hpu_device.params()));
+    let sks = ServerKey::new_radix_server_key(&cks);
+    let sks_compressed = CompressedServerKey::new_radix_compressed_server_key(&cks);
 
     // Init Hpu device with server key and firmware
-    let (integer_sks_compressed, ..) = sks_compressed.into_raw_parts();
-    tfhe::integer::hpu::init_device(&hpu_device, integer_sks_compressed);
+    tfhe::integer::hpu::init_device(&hpu_device, sks_compressed);
 
     // Create IOps/Width list ------------------------------------------------
     let bench_iop = if !args.iop.is_empty() {
@@ -181,184 +174,119 @@ pub fn main() {
     };
 
     let bench_w = if !args.integer_w.is_empty() {
-        args.integer_w.clone()
+        HashSet::from_iter(args.integer_w.iter().cloned())
     } else {
-        Vec::from(AVAILABLE_INTEGER_W.as_slice())
+        hpu_device.config().firmware.integer_w.clone()
     };
+
+    assert!(
+        bench_w.is_subset(&hpu_device.config().firmware.integer_w),
+        "Requested integer width {:?} isn't enabled [Hpu: {:?}] and could lead to Undefined Behavior.",
+        bench_w,
+        hpu_device.config().firmware.integer_w
+    );
 
     // Execute based on required integer_w ------------------------------------
     let mut report = Vec::with_capacity(bench_w.len());
     for width in bench_w.iter() {
-        // Stimulus generation body -----------------------------------------------
-        // Generate clear value
-        let a = if let Some(val) = args.src_a {
-            val
-        } else {
-            rng.gen_range(0..(u128::max_value() >> (u128::BITS - (*width as u32))))
-        };
+        let num_block = width / hpu_device.params().pbs_params.message_width;
 
-        let b = if let Some(val) = args.src_b {
-            val
-        } else {
-            rng.gen_range(0..(u128::max_value() >> (u128::BITS - (*width as u32))))
-        };
+        let mut width_report = BenchReport::new();
+        for iop in bench_iop.iter() {
+            let proto = if let Some(format) = iop.format() {
+                format.proto.clone()
+            } else {
+                todo!("Add support for user prototype");
+                // args.user_proto.expect(
+                //     "Use of user defined IOp required a explicit prototype -> C.f. --user-proto",
+                // )
+            };
 
-        let rep = match width {
-            2 => {
-                impl_bench_body!(FheUint2, u8);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            4 => {
-                impl_bench_body!(FheUint4, u8);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            6 => {
-                impl_bench_body!(FheUint6, u8);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            8 => {
-                impl_bench_body!(FheUint8, u8);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            10 => {
-                impl_bench_body!(FheUint10, u16);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            12 => {
-                impl_bench_body!(FheUint12, u16);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            14 => {
-                impl_bench_body!(FheUint14, u16);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            16 => {
-                impl_bench_body!(FheUint16, u16);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            32 => {
-                impl_bench_body!(FheUint32, u32);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            64 => {
-                impl_bench_body!(FheUint64, u64);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            128 => {
-                impl_bench_body!(FheUint128, u128);
-                bench_body(
-                    &hpu_device,
-                    &cks,
-                    &bench_iop,
-                    args.iter,
-                    a,
-                    b,
-                    args.force_imm,
-                    args.trivial,
-                )
-            }
-            _ => panic!(
-                "Unsupported integer_w {width}. Supported values are {AVAILABLE_INTEGER_W:?}",
-            ),
-        };
-        report.push((format!("FheUint{width}"), rep));
+            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
+                .src
+                .iter()
+                .enumerate()
+                .map(|(pos, mode)| {
+                    let (bw, block) = match mode {
+                        hpu_asm::iop::VarMode::Native => (*width, num_block),
+                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                        hpu_asm::iop::VarMode::Bool => (1, 1),
+                    };
+
+                    let clear = args
+                        .src
+                        .get(pos)
+                        .unwrap_or(
+                            &rng.gen_range(0..u128::max_value() >> (u128::BITS - (bw as u32))),
+                        )
+                        .clone();
+                    let fhe = if args.trivial {
+                        sks.create_trivial_radix(clear, block)
+                    } else {
+                        cks.encrypt_radix(clear, block)
+                    };
+                    let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device);
+                    (clear, hpu_fhe)
+                })
+                .unzip();
+
+            let imms = (0..proto.imm)
+                .map(|pos| {
+                    args.imm
+                        .get(pos)
+                        .unwrap_or(
+                            &rng.gen_range(0..u128::max_value() >> (u128::BITS - (*width as u32))),
+                        )
+                        .clone()
+                })
+                .collect::<Vec<_>>();
+
+            println!(
+                "{}:: Start test loop for IOp {iop} ...",
+                stringify!($fhe_type)
+            );
+            let roi_start = Instant::now();
+
+            let res_hpu = (0..args.iter)
+                .map(|_i| {
+                    let res = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
+                    std::hint::black_box(&res);
+                    res
+                })
+                .last()
+                .expect("Iteration must be greater than 0");
+
+            // let res_fhe = $fhe_type::from(res_hpu);
+            let res_fhe = res_hpu
+                .iter()
+                .map(|x| x.to_radix_ciphertext())
+                .collect::<Vec<_>>();
+            let roi_duration = roi_start.elapsed();
+            let op_duration = roi_duration / (args.iter as u32);
+            let res = res_fhe
+                .iter()
+                .map(|x| cks.decrypt_radix(x))
+                .collect::<Vec<u128>>();
+            println!("Integer_{width}b:: Execution report: {iop}");
+            println!(
+                "Behavior         : {res:?}  <- {iop} <{:?}> <{:?}> {{{}}}",
+                srcs_clear, imms, args.iter
+            );
+            println!(
+                "Behavior (in hex): {res:x?}  <- {iop} <{:x?}> <{:x?}> {{{}}}",
+                srcs_clear, imms, args.iter
+            );
+            println!("Performance: {iop} -> {op_duration:?} [{roi_duration:?}]");
+            width_report.insert(iop.to_string(), op_duration);
+        }
+        report.push((format!("Integer_{width}"), width_report));
     }
 
     // Display summary report ----------------------------------------------------------
     println!("--------------------------------------------------------------------------------");
-    for (width, perf) in report {
+    for (name, perf) in report {
         println!("________________________________________");
-        println!("Benchmark report for {width}bit integer:");
+        println!("Benchmark report for {name}:");
         println!("{perf}");
         println!("________________________________________");
     }
@@ -368,63 +296,4 @@ pub fn main() {
     } else {
         println!("No stimulus generated. C.f. `--iop-dump` for more information");
     }
-}
-
-#[macro_export]
-macro_rules! impl_bench_body {
-    ($fhe_type: ty, $user_type: ty) => {
-        ::paste::paste! {
-        fn bench_body(
-            hpu_device: &HpuDevice,
-            cks: &ClientKey,
-            iops: &[hpu_asm::AsmIOpcode],
-            iter: usize,
-            src_a: u128,
-            src_b: u128,
-            force_imm: bool,
-            trivial: bool
-        ) -> BenchReport  {
-            let mut bench_report = BenchReport::new();
-            for iop in iops {
-                let imm_fmt = iop.has_imm() || force_imm;
-
-                // Encrypt on cpu side
-                let (a_fhe, b_fhe) = if trivial {
-                    ($fhe_type::encrypt_trivial(src_a as $user_type), $fhe_type::encrypt_trivial(src_b as $user_type))
-                } else {
-                    ($fhe_type::encrypt(src_a as $user_type, cks), $fhe_type::encrypt(src_b as $user_type, cks))
-                };
-
-                // Copy value in Hpu world
-                let a_hpu = a_fhe.clone_on(&hpu_device);
-                let b_hpu = b_fhe.clone_on(&hpu_device);
-
-                // Iteration over same operation reuse previous result
-                // in the following manner: res_{i} = res_{i-1} OP src_b
-                println!("{}:: Start test loop for IOp {iop} ...", stringify!($fhe_type));
-                let roi_start = Instant::now();
-
-                let res_hpu = if imm_fmt {
-                    (1..iter).fold(a_hpu.iop_imm(iop.opcode(), src_b as usize), |acc, _val| {
-                        acc.iop_imm(iop.opcode(), src_b as usize)
-                    })
-                } else {
-                    (1..iter).fold(a_hpu.iop_ct(iop.opcode(), b_hpu.clone()), |acc, _val| {
-                        acc.iop_ct(iop.opcode(), b_hpu.clone())
-                    })
-                };
-                let res_fhe = $fhe_type::from(res_hpu);
-                let roi_duration = roi_start.elapsed();
-                let op_duration = roi_duration / (iter as u32);
-                let res: $user_type = res_fhe.decrypt(&cks);
-                println!("{}:: Execution report: {iop}", stringify!($fhe_type));
-                println!("Behavior         : {res} <- {src_a} [{iop} {src_b}]{{{iter}}}");
-                println!("Behavior (in hex): {res:x} <- {src_a:x} [{iop} {src_b:x}]{{{iter}}}");
-                println!("Performance: {iop} -> {op_duration:?} [{roi_duration:?}]");
-                bench_report.insert(iop.to_string(), op_duration);
-            }
-            bench_report
-        }
-        };
-    };
 }

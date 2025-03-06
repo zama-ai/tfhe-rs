@@ -2,8 +2,9 @@
 //! Abstraction over Hpu ciphertext data
 //! Handle lifetime management, deallocation and state inside HpuDevice.
 use super::*;
+use crate::asm::iop::VarMode;
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
-use crate::{asm, ffi};
+use crate::ffi;
 use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug)]
@@ -14,8 +15,6 @@ enum SyncState {
     BothSync,
     OperationPending,
 }
-/// Underlying type used for Immediat value;
-pub(crate) type HpuImm = usize;
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
@@ -86,6 +85,7 @@ pub struct HpuVarWrapped {
     pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
     pub(crate) params: HpuParameters,
     pub(crate) width: usize,
+    pub(crate) mode: VarMode,
 }
 
 impl std::fmt::Debug for HpuVarWrapped {
@@ -101,6 +101,7 @@ impl HpuVarWrapped {
         cmd_api: mpsc::Sender<cmd::HpuCmd>,
         params: HpuParameters,
         width: usize,
+        mode: VarMode,
     ) -> Self {
         let bundle = pool.get_bundle(width);
 
@@ -110,6 +111,7 @@ impl HpuVarWrapped {
             cmd_api,
             params,
             width,
+            mode,
             inner: Arc::new(Mutex::new(HpuVar {
                 bundle,
                 state: SyncState::None,
@@ -122,8 +124,9 @@ impl HpuVarWrapped {
         cmd_api: mpsc::Sender<cmd::HpuCmd>,
         params: HpuParameters,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
+        mode: VarMode,
     ) -> Self {
-        let var = Self::new_in(pool, cmd_api, params, ct.len());
+        let var = Self::new_in(pool, cmd_api, params, ct.len(), mode);
 
         // Write cpu_ct with correct interleaving in host buffer
         // TODO check perf of mmap vs write
@@ -148,6 +151,29 @@ impl HpuVarWrapped {
             inner.state = SyncState::CpuSync;
         }
         var
+    }
+
+    /// Create a new HpuVarWrapped with same properties
+    /// Associated data is != only share properties
+    pub(crate) fn fork(&self, trgt_mode: VarMode) -> Self {
+        let Self {
+            pool,
+            cmd_api,
+            params,
+            width,
+            mode,
+            ..
+        } = self.clone();
+
+        let width = match (&mode, &trgt_mode) {
+            (_, VarMode::Bool) => 1,
+            (VarMode::Native, VarMode::Native) => width,
+            (VarMode::Native, VarMode::Half) => width / 2,
+            (VarMode::Half, VarMode::Native) => 2 * width,
+            (VarMode::Half, VarMode::Half) => width,
+            _ => panic!("Unsupported mode, couldn't used Boolean to built bigger variable"),
+        };
+        Self::new_in(pool, cmd_api, params, width, trgt_mode)
     }
 
     pub fn try_into(self) -> Result<Vec<HpuLweCiphertextOwned<u64>>, HpuError> {
@@ -221,242 +247,62 @@ impl HpuVarWrapped {
     }
 }
 
-/// Generic Iop function call
-impl HpuVarWrapped {
-    /// This function format and push associated work in cmd_api
-    /// IOp format is &[Ct] <- &[Ct] &[Imm]
-    /// IOp width is inferred from operand width
-    /// TODO clarify this point the new IOp format and width support
-    #[inline(always)]
-    fn iop_raw(opcode: crate::asm::IOpcode, dst: &[&Self], rhs_ct: &[&Self], rhs_imm: &[HpuImm]) {
-        let hpu_op = cmd::HpuCmd::new(opcode, dst, rhs_ct, rhs_imm);
+// TODO remove this
+// /// Specialized Iop function call with usual dst <- lhs,rhs
+// /// Handle Ct x Ct iop only (i.e. No immediat)
+// /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+// impl HpuVarWrapped {
+//     /// IOp format is Ct <- Ct x Ct
+//     /// Dst operand is allocated
+//     /// IOp width is inferred from operand width
+//     pub fn iop_ct(self, opcode: crate::asm::IOpcode, rhs: Self) -> Self {
+//         // Allocate output variable
+//         let dst = Self::new_in(
+//             self.pool.clone(),
+//             self.cmd_api.clone(),
+//             self.params.clone(),
+//             self.width,
+//         );
 
-        dst.first()
-            .expect("Try to generate an IOp without any destination")
-            .cmd_api
-            .send(hpu_op)
-            .expect("Issue with cmd_api");
-    }
+//         // NB: Clone Arcs -> neglicable cost
+//         Self::iop_raw(opcode, &[dst.clone()], &[self, rhs], &[]);
+//         dst
+//     }
 
-    /// This function format and push associated work in cmd_api
-    /// IOp format is Ct <- Ct x Ct
-    /// Dst operand is allocated
-    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-    /// IOp width is inferred from operand width
-    pub fn iop_ct(self, opcode: crate::asm::IOpcode, rhs: Self) -> Self {
-        // Allocate output variable
-        let dst = Self::new_in(
-            self.pool.clone(),
-            self.cmd_api.clone(),
-            self.params.clone(),
-            self.width,
-        );
+//     /// IOp format is Ct <- Ct x Ct
+//     /// Dest operand is first src operand
+//     pub fn iop_ct_assign(&self, opcode: crate::asm::IOpcode, rhs: Self) {
+//         Self::iop_raw(opcode, &[self.clone()], &[self.clone(), rhs], &[]);
+//     }
+// }
 
-        Self::iop_raw(opcode, &[&dst], &[&self, &rhs], &[]);
-        dst
-    }
+// /// Specialized Iop function call with usual dst <- lhs,rhs
+// /// Handle Ct x Imm iop only (i.e. No immediat)
+// /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+// impl HpuVarWrapped {
+//     /// IOp format is Ct <- Ct x Imm
+//     /// Dst operand is allocated
+//     /// IOp width is inferred from operand width
+//     pub fn iop_scalar(self, opcode: crate::asm::IOpcode, rhs: HpuImm) -> Self {
+//         // Allocate output variable
+//         let dst = Self::new_in(
+//             self.pool.clone(),
+//             self.cmd_api.clone(),
+//             self.params.clone(),
+//             self.width,
+//         );
 
-    /// This function format and push associated work in cmd_api
-    /// IOp format is Ct <- Ct x Ct
-    /// Dest operand is first src operand
-    pub fn iop_ct_assign(&mut self, opcode: crate::asm::IOpcode, rhs: Self) {
-        Self::iop_raw(opcode, &[self], &[self, &rhs], &[]);
-    }
+//         // NB: Clone Arcs -> neglicable cost
+//         Self::iop_raw(opcode, &[dst.clone()], &[self], &[rhs]);
+//         dst
+//     }
 
-    /// This function format and push associated work in dst cmd_api
-    /// IOp format is Ct <- Ct x Imm
-    /// Dst operand is allocated
-    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-    /// IOp width is inferred from operand width
-    pub fn iop_imm(self, opcode: crate::asm::IOpcode, rhs: HpuImm) -> Self {
-        // Allocate output variable
-        let dst = Self::new_in(
-            self.pool.clone(),
-            self.cmd_api.clone(),
-            self.params.clone(),
-            self.width,
-        );
-
-        Self::iop_raw(opcode, &[&dst], &[&self], &[rhs]);
-        dst
-    }
-
-    /// This function format and push associated work in dst cmd_api
-    /// IOp format is Ct <- Ct x Imm
-    /// Dest operand is first src operand
-    /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-    /// IOp width is inferred from operand width
-    pub fn iop_imm_assign(&mut self, opcode: crate::asm::IOpcode, rhs: HpuImm) {
-        Self::iop_raw(opcode, &[self], &[self], &[rhs]);
-    }
-}
-
-/// Utility macro to define new Operation implementation
-/// Operation are defined as raw (dst, src, src) to easly map x, x_assign function on it
-#[macro_export]
-macro_rules! impl_ct_ct_raw {
-    ($hpu_op: literal) => {
-        ::paste::paste! {
-
-            impl HpuVarWrapped
-                where Self: Clone,
-                    cmd::HpuCmd: From<cmd::HpuCmd>,
-            {
-                /// This function format and push associated work in dst cmd_api
-                fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: &Self) {
-                    Self::iop_raw(asm::iop::IOpcode(asm::iop::opcode::[<$hpu_op:upper>]),&[dst], &[rhs_0, rhs_1], &[])
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-/// Easily map an Hpu operation to std::ops rust trait
-macro_rules! map_ct_ct {
-    ($hpu_op: literal -> $rust_op: literal) => {
-        ::paste::paste! {
-            impl std::ops::[<$rust_op:camel>] for HpuVarWrapped{
-                type Output = HpuVarWrapped;
-
-                fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
-                    // Allocate output variable
-                    let dst = Self::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
-
-                    Self::[<$hpu_op:lower _raw>](&dst, &self, &rhs);
-                    dst
-                }
-            }
-
-            impl<'a> std::ops::[<$rust_op:camel>] for &'a HpuVarWrapped{
-                type Output = HpuVarWrapped;
-
-                fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
-                    // Allocate output variable
-                    let dst = Self::Output::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
-
-                    Self::Output::[<$hpu_op:lower _raw>](&dst, self, rhs);
-                    dst
-                }
-            }
-
-
-            impl std::ops::[<$rust_op:camel Assign>] for HpuVarWrapped{
-                fn [<$rust_op:lower _assign>](&mut self, rhs: Self) {
-                    Self::[<$hpu_op:lower _raw>](&self, &self, &rhs);
-                }
-            }
-
-            impl<'a> std::ops::[<$rust_op:camel Assign>]<&'a Self> for HpuVarWrapped{
-                fn [<$rust_op:lower _assign>](&mut self, rhs: &'a Self) {
-                    HpuVarWrapped::[<$hpu_op:lower _raw>](&self, &self, rhs);
-                }
-            }
-        }
-    };
-}
-impl_ct_ct_raw!("ADD");
-map_ct_ct!("ADD" -> "Add");
-
-impl_ct_ct_raw!("SUB");
-map_ct_ct!("SUB" -> "Sub");
-
-impl_ct_ct_raw!("MUL");
-map_ct_ct!("MUL" -> "Mul");
-
-impl_ct_ct_raw!("BW_AND");
-map_ct_ct!("BW_AND" -> "BitAnd");
-
-impl_ct_ct_raw!("BW_OR");
-map_ct_ct!("BW_OR" -> "BitOr");
-
-impl_ct_ct_raw!("BW_XOR");
-map_ct_ct!("BW_XOR" -> "BitXor");
-
-#[macro_export]
-/// Operation are defined as raw (dst, src, imm) to easly map x, x_assign function on it
-macro_rules! impl_ct_imm_raw {
-    ( $hpu_op: literal) => {
-        ::paste::paste! {
-
-            impl HpuVarWrapped
-            where Self: Clone,
-                cmd::HpuCmd: From<cmd::HpuCmd>,
-            {
-                /// This function format and push associated work in dst cmd_api
-                fn [<$hpu_op:lower _raw>](dst: &Self, rhs_0: &Self, rhs_1: HpuImm) {
-                    Self::iop_raw(asm::iop::IOpcode(asm::iop::opcode::[<$hpu_op:upper>]), &[dst], &[rhs_0], &[rhs_1]);
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-/// Easily map an Hpu operation to std::ops rust trait
-/// NB: ct_imm have two variants `ct,imm` and `imm,ct`
-macro_rules! map_ct_imm {
-    ($hpu_op: literal -> $rust_op: literal) => {
-        ::paste::paste! {
-
-            impl std::ops::[<$rust_op:camel>]<usize> for HpuVarWrapped{
-                type Output = HpuVarWrapped;
-
-                fn [<$rust_op:lower>](self, rhs: usize) -> Self::Output {
-                    // Allocate output variable
-                    let dst = Self::Output::new_in(self.pool.clone(), self.cmd_api.clone(), self.params.clone(), self.width);
-
-                    Self::Output::[<$hpu_op:lower _raw>](&dst, &self, rhs);
-                    dst
-                }
-            }
-
-            impl std::ops::[<$rust_op:camel Assign>]<usize> for HpuVarWrapped{
-                fn [<$rust_op:lower _assign>](&mut self, rhs: usize) {
-                    Self::[<$hpu_op:lower _raw>](&self, &self, rhs);
-                }
-            }
-        }
-    };
-}
-
-macro_rules! map_imm_ct {
-    ( $hpu_op: literal -> $rust_op: literal) => {
-        ::paste::paste! {
-            impl std::ops::[<$rust_op:camel>]<HpuVarWrapped> for usize {
-                type Output = HpuVarWrapped;
-
-                fn [<$rust_op:lower>](self, rhs: HpuVarWrapped) -> Self::Output {
-                    // Allocate output variable
-                    let dst = Self::Output::new_in(rhs.pool.clone(), rhs.cmd_api.clone(), rhs.params.clone(), rhs.width);
-
-                    Self::Output::[<$hpu_op:lower _raw>](&dst, &rhs, self);
-                    dst
-                }
-            }
-        }
-    };
-}
-
-impl_ct_imm_raw!("ADDS");
-map_ct_imm!("ADDS" -> "Add");
-map_imm_ct!("ADDS" -> "Add");
-
-impl_ct_imm_raw!("SUBS");
-map_ct_imm!("SUBS" -> "Sub");
-impl_ct_imm_raw!("SSUB");
-map_imm_ct!("SSUB" -> "Sub");
-
-impl_ct_imm_raw!("MULS");
-map_ct_imm!("MULS" -> "Mul");
-map_imm_ct!("MULS" -> "Mul");
-
-// TODO Handle CMP operation
-// Couldn't be maped to std::ops trait due to return type != bool
-// -> Check the approach taken by tfhe-rs and follow it
-
-// Implement custom operation
-// Custom operation couldn't be map on a trait instead use function
-// Keep two steps approach:
-// 1. Behavior expressed in a `_raw` function
-// 2. std function/ assign function impl based on `_raw` one
+//     /// This function format and push associated work in dst cmd_api
+//     /// IOp format is Ct <- Ct x Imm
+//     /// Dest operand is first src operand
+//     /// -> Narrow possible IOp format for ease of use and mapping on common operation format
+//     /// IOp width is inferred from operand width
+//     pub fn iop_scalar_assign(&self, opcode: crate::asm::IOpcode, rhs: HpuImm) {
+//         Self::iop_raw(opcode, &[self.clone()], &[self.clone()], &[rhs]);
+//     }
+// }

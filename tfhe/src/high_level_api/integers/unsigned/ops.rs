@@ -16,8 +16,6 @@ use crate::high_level_api::traits::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
-#[cfg(feature = "hpu")]
-use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::{FheBool, FheUint};
 use std::borrow::Borrow;
 use std::ops::{
@@ -404,7 +402,7 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
+            InternalServerKey::Hpu(device) => {
                 todo!("hpu")
             }
         })
@@ -780,8 +778,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 + &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs + &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -830,8 +827,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 - &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs - &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -880,8 +876,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 * &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs * &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -928,8 +923,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 & &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs & &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -976,8 +970,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 | &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs | &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -1024,8 +1017,7 @@ generic_integer_impl_operation!(
                 InternalServerKey::Hpu(device) => {
                     let hpu_lhs = lhs.ciphertext.on_hpu(device);
                     let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                    let hpu_result = HpuRadixCiphertext(&hpu_lhs.0 ^ &hpu_rhs.0);
-                    FheUint::new(hpu_result, device.tag.clone())
+                    FheUint::new(&*hpu_lhs ^ &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -1451,7 +1443,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 += &hpu_rhs.0;
+                *hpu_lhs += &*hpu_rhs;
             }
         })
     }
@@ -1502,7 +1494,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 -= &hpu_rhs.0;
+                *hpu_lhs -= &*hpu_rhs;
             }
         })
     }
@@ -1553,7 +1545,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 *= &hpu_rhs.0;
+                *hpu_lhs *= &*hpu_rhs;
             }
         })
     }
@@ -1602,7 +1594,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 &= &hpu_rhs.0;
+                *hpu_lhs &= &*hpu_rhs;
             }
         })
     }
@@ -1651,7 +1643,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 |= &hpu_rhs.0;
+                *hpu_lhs |= &*hpu_rhs;
             }
         })
     }
@@ -1700,7 +1692,7 @@ where
             InternalServerKey::Hpu(device) => {
                 let hpu_lhs = self.ciphertext.as_hpu_mut();
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                hpu_lhs.0 ^= &hpu_rhs.0;
+                *hpu_lhs ^= &*hpu_rhs;
             }
         })
     }

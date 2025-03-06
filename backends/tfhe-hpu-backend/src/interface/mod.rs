@@ -1,5 +1,6 @@
 mod backend;
 mod cmd;
+pub use cmd::{HpuCmd, HpuImm};
 mod config;
 mod device;
 mod memory;
