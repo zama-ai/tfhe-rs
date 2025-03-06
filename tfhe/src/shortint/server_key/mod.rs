@@ -691,29 +691,15 @@ impl ServerKey {
         )
     }
 
-    pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
+    pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> GlweCiphertextOwned<u64>
     where
         F: Fn(u64) -> u64,
     {
-        let mut acc = GlweCiphertext::new(
-            0,
+        let size = LookupTableSize::new(
             self.bootstrapping_key.glwe_size(),
             self.bootstrapping_key.polynomial_size(),
-            self.ciphertext_modulus,
         );
-        fill_accumulator_no_encoding(
-            &mut acc,
-            self.bootstrapping_key.polynomial_size(),
-            self.bootstrapping_key.glwe_size(),
-            f,
-        );
-
-        LookupTableOwned {
-            acc,
-            // We should not rely on the degree in this case
-            // The degree should be set manually on the outputs of PBS by this LUT
-            degree: Degree::new(self.message_modulus.0 * self.carry_modulus.0 * 2),
-        }
+        generate_lookup_table_no_encode(size, self.ciphertext_modulus, f)
     }
 
     /// Given a function as input, constructs the lookup table working on the message bits
@@ -1612,6 +1598,30 @@ pub(crate) fn apply_programmable_bootstrap_no_ms_noise_reduction<InputCont, Outp
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
 }
 
+/// Generate a lookup table without any encoding specifications
+///
+/// It is the responsibility of the function `f` to encode the input cleartexts into valid
+/// plaintexts for the parameters in use.
+pub(crate) fn generate_lookup_table_no_encode<F>(
+    size: LookupTableSize,
+    ciphertext_modulus: CiphertextModulus,
+    f: F,
+) -> GlweCiphertextOwned<u64>
+where
+    F: Fn(u64) -> u64,
+{
+    let mut acc = GlweCiphertext::new(
+        0,
+        size.glwe_size(),
+        size.polynomial_size(),
+        ciphertext_modulus,
+    );
+    fill_accumulator_no_encoding(&mut acc, size.polynomial_size(), size.glwe_size(), f);
+
+    acc
+}
+
+/// Generate a LUT where the output encoding is identical to the input one
 pub fn generate_lookup_table<F>(
     size: LookupTableSize,
     ciphertext_modulus: CiphertextModulus,
