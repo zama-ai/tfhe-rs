@@ -16,9 +16,6 @@ mod base;
 mod compressed;
 mod static_;
 
-#[cfg(feature = "hpu-xfer")]
-mod hpu;
-
 mod encrypt;
 mod inner;
 mod ops;

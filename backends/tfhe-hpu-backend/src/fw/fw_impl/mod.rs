@@ -27,7 +27,7 @@ macro_rules! impl_fw {
                     match IOpcode::from(iopcode) {
                         $(
                           IOpcode($opcode) => {
-                              prog.set_op(iopcode.alias.as_ref()
+                              prog.set_op(iopcode.format.as_ref()
                                   .map(|a| a.name.as_str())
                                   .unwrap_or("default"));
                               $func(&mut prog)
