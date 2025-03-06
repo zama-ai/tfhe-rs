@@ -12,7 +12,7 @@ use crate::asm::{self, OperandKind, Pbs};
 use crate::fw::program::Program;
 use crate::fw::FwParameters;
 use itertools::Itertools;
-use tracing::{debug, instrument, trace, warn};
+use tracing::{instrument, trace, warn};
 
 use crate::asm::iop::opcode::*;
 use crate::{new_pbs, pbs_by_name};
@@ -45,7 +45,7 @@ crate::impl_fw!("Ilp" [
 
 ]);
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_add(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -61,7 +61,7 @@ pub fn iop_add(prog: &mut Program) {
     iop_addx(dst, src_a, src_b).add_to_prog(prog);
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_add_kogge(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -103,7 +103,7 @@ pub fn iop_adds(prog: &mut Program) {
 /// Generic Add operation
 /// One destination and two sources operation
 /// Source could be Operand or Immediat
-#[instrument(level = "info")]
+#[instrument(level = "trace")]
 pub fn iop_addx(
     dst: Vec<metavar::MetaVarCell>,
     src_a: Vec<metavar::MetaVarCell>,
@@ -138,7 +138,7 @@ pub fn iop_addx(
     Rtl::from(dst)
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_sub(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -154,7 +154,7 @@ pub fn iop_sub(prog: &mut Program) {
     iop_subx(prog, dst, src_a, src_b).add_to_prog(prog);
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_sub_kogge(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -208,7 +208,7 @@ pub fn iop_subs(prog: &mut Program) {
 /// Generic sub operation
 /// One destination and two sources operation
 /// Source could be Operand or Immediat
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_subx(
     prog: &mut Program,
     dst: Vec<metavar::MetaVarCell>,
@@ -250,7 +250,7 @@ pub fn iop_subx(
 
 /// Implemenation of SSUB
 /// Provide its own implementation to match SUBS perfs
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_ssub(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -312,7 +312,7 @@ pub fn iop_ssub(prog: &mut Program) {
     });
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_mul(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -377,7 +377,7 @@ pub fn iop_muls_legacy(prog: &mut Program) {
 /// Generic mul operation
 /// One destination and two sources operation
 /// Source could be Operand or Immediat
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_mulx(
     prog: &mut Program,
     dst: Vec<metavar::MetaVarCell>,
@@ -530,7 +530,7 @@ pub fn iop_mulx_legacy(
             .iter()
             .map(|(w, i, j)| {
                 let mac = src_a[*i].mac(tfhe_params.msg_range() as u8, &src_b[*j]);
-                debug!(target: "Fw", "@{w}[{i}, {j}] -> {mac:?}",);
+                trace!(target: "Fw", "@{w}[{i}, {j}] -> {mac:?}",);
                 (w, mac)
             })
             .collect::<Vec<_>>();
@@ -540,14 +540,14 @@ pub fn iop_mulx_legacy(
         prog.reg_bulk_reserve(2 * props.pbs_batch_w);
         pack.into_iter().for_each(|(w, pp)| {
             let lsb = pp.pbs(&pbs_mul_lsb, false);
-            debug!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
+            trace!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
             pp_vars.push_back((*w, lsb));
 
             // Extract msb if needed
             if *w < (blk_w - 1) {
                 // Force allocation of new reg to allow lsb/msb pbs to run in //
                 let msb = pp.pbs(&pbs_mul_msb, false);
-                debug!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
+                trace!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
                 pp_vars.push_back((*w + 1, msb));
             }
         });
@@ -605,12 +605,12 @@ pub fn iop_mulx_legacy(
                         if wb_idx == w {
                             // Finish computation for digit @w
                             acc_chunks[0].reg_alloc_mv();
-                            debug!(target:"Fw", "Commit {w} <- {:?}", acc_chunks[0]);
+                            trace!(target:"Fw", "Commit {w} <- {:?}", acc_chunks[0]);
                             dst[w] <<= acc_chunks.swap_remove(0);
                             wb_idx += 1;
                         } else {
                             // not my turn, enqueue back
-                            debug!(target:"Fw", "{w}::{wb_idx}: insert backed in pp_vars {:?}", acc_chunks[0]);
+                            trace!(target:"Fw", "{w}::{wb_idx}: insert backed in pp_vars {:?}", acc_chunks[0]);
                             pp_vars.push_back((w, acc_chunks.swap_remove(0)));
                         }
                     }
@@ -629,7 +629,7 @@ pub fn iop_mulx_legacy(
             pp_vars.len()
         );
         while let Some((w, acc_chunks)) = pdg_acc.pop() {
-            debug!(target: "Fw", "Reduce @{w}[{}] <- {acc_chunks:?}",acc_chunks.len());
+            trace!(target: "Fw", "Reduce @{w}[{}] <- {acc_chunks:?}",acc_chunks.len());
             // Hand-writter tree reduction for up to 5
             match acc_chunks.len() {
                 1 => {
@@ -669,7 +669,7 @@ pub fn iop_mulx_legacy(
             prog.reg_bulk_reserve(pdg_pbs.len());
             while let Some((w, var)) = pdg_pbs.pop() {
                 let lsb = var.pbs(&pbs_msg, false);
-                debug!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
+                trace!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
                 // TODO These explicit flush enhance perf for large MUL but degrade them for small
                 // one Find a proper way to arbitrait their used
                 // Furthermore, it induce error with current ISC without LD/ST ordering
@@ -680,7 +680,7 @@ pub fn iop_mulx_legacy(
                 if w < (blk_w - 1) {
                     // Force allocation of new reg to allow carry/msg pbs to run in //
                     let msb = var.pbs(&pbs_carry, false);
-                    debug!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
+                    trace!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
                     // TODO These explicit flush enhance perf for large MUL but degrade them for
                     // small one Find a proper way to arbitrait their used
                     // Furthermore, it induce error with current ISC without LD/ST ordering
@@ -696,7 +696,7 @@ pub fn iop_mulx_legacy(
     }
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_bw(prog: &mut Program, bw_op: Pbs) {
     // Dest -> Operand
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
@@ -729,7 +729,7 @@ pub fn iop_bw(prog: &mut Program, bw_op: Pbs) {
         });
 }
 
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
     // Dest -> Operand
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
@@ -1059,7 +1059,7 @@ impl KoggeTree {
 // in.
 // Calling this only makes sense if the generated PBSs fit nicely into the batch
 // size.
-#[instrument(level = "info", skip(prog))]
+#[instrument(level = "trace", skip(prog))]
 fn propagate_carry(
     prog: &mut Program,
     dst: &mut [VarCell],
