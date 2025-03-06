@@ -1,3 +1,4 @@
+use hpu_asm::iop::*;
 use tfhe_hpu_backend::prelude::*;
 
 use crate::core_crypto::hpu::from_with::FromWith;
@@ -11,14 +12,9 @@ use crate::shortint::{Ciphertext, ClassicPBSParameters};
 #[derive(Clone)]
 pub struct HpuRadixCiphertext(pub(crate) HpuVarWrapped);
 
-#[cfg(feature = "hpu-debug")]
-/// Implement dedicated interface for trace application
 impl HpuRadixCiphertext {
-    pub fn new(hpu_var: HpuVarWrapped) -> Self {
+    fn new(hpu_var: HpuVarWrapped) -> Self {
         Self(hpu_var)
-    }
-    pub fn into_var(self) -> HpuVarWrapped {
-        self.0
     }
 }
 
@@ -62,3 +58,155 @@ impl HpuRadixCiphertext {
         RadixCiphertext { blocks: cpu_ct }
     }
 }
+
+// Use to easily build HpuCmd exec request directly on HpuRadixCiphertext
+impl std::ops::Deref for HpuRadixCiphertext {
+    type Target = HpuVarWrapped;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl HpuRadixCiphertext {
+    pub fn exec(
+        proto: &IOpProto,
+        opcode: IOpcode,
+        rhs_ct: &[Self],
+        rhs_imm: &[HpuImm],
+    ) -> Vec<Self> {
+        let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
+        let res_var = HpuCmd::exec(proto, opcode, &rhs_var, rhs_imm);
+        res_var
+            .into_iter()
+            .map(|v| Self::new(v))
+            .collect::<Vec<Self>>()
+    }
+
+    pub fn exec_assign(proto: &IOpProto, opcode: IOpcode, rhs_ct: &[Self], rhs_imm: &[HpuImm]) {
+        let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
+        HpuCmd::exec_assign(proto, opcode, &rhs_var, rhs_imm)
+    }
+}
+
+// Below we map common Hpu operation to std::ops rust trait -------------------
+#[macro_export]
+/// Easily map an Hpu operation to std::ops rust trait
+macro_rules! map_ct_ct {
+    ($hpu_op: ident -> $rust_op: literal) => {
+        ::paste::paste! {
+            impl std::ops::[<$rust_op:camel>] for HpuRadixCiphertext {
+                type Output = Self;
+
+                fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    let res = HpuCmd::exec(proto, opcode, &[self.0, rhs.0], &[]);
+                    Self::Output::new(res[0].clone())
+                }
+            }
+
+            impl<'a> std::ops::[<$rust_op:camel>] for &'a HpuRadixCiphertext {
+                type Output = HpuRadixCiphertext;
+
+                fn [<$rust_op:lower>](self, rhs: Self) -> Self::Output {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[]);
+                    Self::Output::new(res[0].clone())
+                    }
+            }
+
+
+            impl std::ops::[<$rust_op:camel Assign>] for HpuRadixCiphertext {
+                fn [<$rust_op:lower _assign>](&mut self, rhs: Self) {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone(), rhs.0], &[])
+                }
+            }
+
+            impl<'a> std::ops::[<$rust_op:camel Assign>]<&'a Self> for HpuRadixCiphertext {
+                fn [<$rust_op:lower _assign>](&mut self, rhs: &'a Self) {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[])
+                }
+            }
+        }
+    };
+}
+macro_rules! map_ct_scalar {
+    ($hpu_op: ident -> $rust_op: literal) => {
+        ::paste::paste! {
+            impl std::ops::[<$rust_op:camel>]<u128> for HpuRadixCiphertext {
+                type Output = Self;
+
+                fn [<$rust_op:lower>](self, rhs: u128) -> Self::Output {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    let res = HpuCmd::exec(proto, opcode, &[self.0], &[rhs]);
+                    Self::Output::new(res[0].clone())
+                }
+            }
+
+            impl<'a> std::ops::[<$rust_op:camel>]<u128> for &'a HpuRadixCiphertext {
+                type Output = HpuRadixCiphertext;
+
+                fn [<$rust_op:lower>](self, rhs: u128) -> Self::Output {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone()], &[rhs]);
+                    Self::Output::new(res[0].clone())
+                }
+            }
+
+            impl std::ops::[<$rust_op:camel Assign>]<u128> for HpuRadixCiphertext {
+                fn [<$rust_op:lower _assign>](&mut self, rhs: u128) {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    HpuCmd::exec_assign(proto, opcode, &[self.0.clone()], &[rhs])
+                }
+            }
+        }
+    };
+}
+
+macro_rules! map_scalar_ct {
+    ($hpu_op: ident -> $rust_op: literal) => {
+        ::paste::paste! {
+            impl std::ops::[<$rust_op:camel>]<HpuRadixCiphertext> for u128 {
+                type Output = HpuRadixCiphertext;
+
+                fn [<$rust_op:lower>](self, rhs: HpuRadixCiphertext) -> Self::Output {
+                    let opcode = $hpu_op.opcode();
+                    let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
+
+                    let res = HpuCmd::exec(proto, opcode, &[rhs.0], &[self]);
+                    Self::Output::new(res[0].clone())
+                }
+            }
+        }
+    };
+}
+
+map_ct_ct!(IOP_ADDK -> "Add");
+map_ct_ct!(IOP_SUBK -> "Sub");
+map_ct_ct!(IOP_MUL  -> "Mul");
+map_ct_ct!(IOP_BW_AND -> "BitAnd");
+map_ct_ct!(IOP_BW_OR  -> "BitOr");
+map_ct_ct!(IOP_BW_XOR -> "BitXor");
+
+map_ct_scalar!(IOP_ADDS -> "Add");
+map_scalar_ct!(IOP_ADDS -> "Add");
+map_ct_scalar!(IOP_SUBS -> "Sub");
+map_scalar_ct!(IOP_SSUB -> "Sub");
+map_ct_scalar!(IOP_MULS -> "Mul");
+map_scalar_ct!(IOP_MULS -> "Mul");

@@ -859,7 +859,7 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
-		--features=integer,internal-keycache,hpu,hpu-xfer -p $(TFHE_SPEC) \
+		--features=integer,internal-keycache,hpu -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*hpu.*/)"
 
 
