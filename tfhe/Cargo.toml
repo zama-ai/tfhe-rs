@@ -219,26 +219,26 @@ required-features = ["shortint", "internal-keycache"]
 name = "glwe_packing_compression-integer-bench"
 path = "benches/integer/glwe_packing_compression.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 
 [[bench]]
 name = "integer-bench"
 path = "benches/integer/bench.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
 name = "integer-signed-bench"
 path = "benches/integer/signed_bench.rs"
 harness = false
-required-features = ["integer", "internal-keycache"]
+required-features = ["integer", "pbs-stats", "internal-keycache"]
 
 [[bench]]
 name = "zk-pke-bench"
 path = "benches/integer/zk_pke.rs"
 harness = false
-required-features = ["integer", "zk-pok", "internal-keycache"]
+required-features = ["integer", "zk-pok", "pbs-stats", "internal-keycache"]
 
 [[bench]]
 name = "hlapi"
