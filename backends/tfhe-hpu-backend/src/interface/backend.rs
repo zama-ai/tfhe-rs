@@ -718,7 +718,10 @@ impl HpuBackend {
                 // Write tr-table
                 let fw_words = bytemuck::cast_slice::<_, u32>(fw_bytes.as_slice());
                 self.fw_mem.write_cut_at(0, tr_table_ofst, fw_words);
-                tracing::debug!("Opcode::{id:x} @{tr_table_ofst:x} [{byte_ofst:x}]");
+                tracing::debug!(
+                    "Opcode::{id:x}[{} dops] @{tr_table_ofst:x} [{byte_ofst:x}]",
+                    fw_words.len()
+                );
                 tracing::trace!("TrTable::{fw_words:x?}");
                 tr_table_ofst += fw_words.len();
             }
