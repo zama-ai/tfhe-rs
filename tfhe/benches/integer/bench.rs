@@ -1397,11 +1397,12 @@ mod cuda {
     use crate::utilities::cuda_local_streams;
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::server_key::CudaServerKey;
     use tfhe::integer::{RadixCiphertext, ServerKey};
+    use tfhe::GpuIndex;
     use tfhe_csprng::seeders::Seed;
 
     fn bench_cuda_server_key_unary_function_clean_inputs<F, G>(
@@ -1420,8 +1421,6 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
-        let streams = CudaStreams::new_multi_gpu();
-
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
@@ -1429,6 +1428,7 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
@@ -1452,7 +1452,12 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+                    let gpu_count = get_number_of_gpus() as usize;
+                    let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+                    for i in 0..gpu_count {
+                        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                        gpu_sks_vec.push(CudaServerKey::new(&cks, &stream));
+                    }
 
                     let clear_0 = gen_random_u256(&mut rng);
                     let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
@@ -1470,17 +1475,18 @@ mod cuda {
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_0 =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_0, &streams,
+                                        &ct_0,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
-
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
 
                             (cts, local_streams)
                         };
@@ -1488,11 +1494,12 @@ mod cuda {
                         b.iter_batched(
                             setup_encrypted_values,
                             |(mut cts, local_streams)| {
-                                cts.par_iter_mut().zip(local_streams.par_iter()).for_each(
-                                    |(ct_0, local_stream)| {
-                                        unary_op(&gpu_sks, ct_0, local_stream);
-                                    },
-                                )
+                                cts.par_iter_mut()
+                                    .zip(local_streams.par_iter())
+                                    .enumerate()
+                                    .for_each(|(i, (ct_0, local_stream))| {
+                                        unary_op(&gpu_sks_vec[i % gpu_count], ct_0, local_stream);
+                                    })
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -1537,8 +1544,6 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
-        let streams = CudaStreams::new_multi_gpu();
-
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
@@ -1546,6 +1551,7 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
@@ -1575,7 +1581,12 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+                    let gpu_count = get_number_of_gpus() as usize;
+                    let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+                    for i in 0..gpu_count {
+                        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                        gpu_sks_vec.push(CudaServerKey::new(&cks, &stream));
+                    }
 
                     // Execute the operation once to know its cost.
                     let clear_0 = gen_random_u256(&mut rng);
@@ -1596,26 +1607,29 @@ mod cuda {
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_0 =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_0, &streams,
+                                        &ct_0,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_1 =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_1, &streams,
+                                        &ct_1,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
-
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
 
                             (cts_0, cts_1, local_streams)
                         };
@@ -1627,8 +1641,14 @@ mod cuda {
                                     .par_iter_mut()
                                     .zip(cts_1.par_iter_mut())
                                     .zip(local_streams.par_iter())
-                                    .for_each(|((ct_0, ct_1), local_stream)| {
-                                        binary_op(&gpu_sks, ct_0, ct_1, local_stream);
+                                    .enumerate()
+                                    .for_each(|(i, ((ct_0, ct_1), local_stream))| {
+                                        binary_op(
+                                            &gpu_sks_vec[i % gpu_count],
+                                            ct_0,
+                                            ct_1,
+                                            local_stream,
+                                        );
                                     })
                             },
                             criterion::BatchSize::SmallInput,
@@ -1666,8 +1686,6 @@ mod cuda {
         let mut bench_group = c.benchmark_group(bench_name);
         let mut rng = rand::thread_rng();
 
-        let streams = CudaStreams::new_multi_gpu();
-
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
                 break;
@@ -1681,6 +1699,8 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
+
                     bench_group
                         .sample_size(15)
                         .measurement_time(std::time::Duration::from_secs(30));
@@ -1712,7 +1732,12 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks = CudaServerKey::new(&cks, &streams);
+                    let gpu_count = get_number_of_gpus() as usize;
+                    let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+                    for i in 0..gpu_count {
+                        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                        gpu_sks_vec.push(CudaServerKey::new(&cks, &stream));
+                    }
 
                     // Execute the operation once to know its cost.
                     let clear_0 = gen_random_u256(&mut rng);
@@ -1734,20 +1759,21 @@ mod cuda {
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_0 =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_0, &streams,
+                                        &ct_0,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let clears_1 = (0..elements)
                                 .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
                                 .collect::<Vec<_>>();
-
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
 
                             (cts_0, clears_1, local_streams)
                         };
@@ -1759,8 +1785,14 @@ mod cuda {
                                     .par_iter_mut()
                                     .zip(clears_1.par_iter())
                                     .zip(local_streams.par_iter())
-                                    .for_each(|((ct_0, clear_1), local_stream)| {
-                                        binary_op(&gpu_sks, ct_0, *clear_1, local_stream);
+                                    .enumerate()
+                                    .for_each(|(i, ((ct_0, clear_1), local_stream))| {
+                                        binary_op(
+                                            &gpu_sks_vec[i % gpu_count],
+                                            ct_0,
+                                            *clear_1,
+                                            local_stream,
+                                        );
                                     })
                             },
                             criterion::BatchSize::SmallInput,
@@ -1791,8 +1823,6 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(30));
         let mut rng = rand::thread_rng();
 
-        let stream = CudaStreams::new_multi_gpu();
-
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
                 break;
@@ -1804,6 +1834,8 @@ mod cuda {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let stream = CudaStreams::new_multi_gpu();
+
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
                     bench_group.bench_function(&bench_id, |b| {
@@ -1839,7 +1871,12 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks = CudaServerKey::new(&cks, &stream);
+                    let gpu_count = get_number_of_gpus() as usize;
+                    let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+                    for i in 0..gpu_count {
+                        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+                        gpu_sks_vec.push(CudaServerKey::new(&cks, &stream));
+                    }
 
                     // Execute the operation once to know its cost.
                     let clear_0 = gen_random_u256(&mut rng);
@@ -1861,32 +1898,39 @@ mod cuda {
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_cond = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
-                                    CudaBooleanBlock::from_boolean_block(&ct_cond, &stream)
+                                    CudaBooleanBlock::from_boolean_block(
+                                        &ct_cond,
+                                        &local_streams[i],
+                                    )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_then = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_then =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_then, &stream,
+                                        &ct_then,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_else = (0..elements)
-                                .map(|_| {
+                                .enumerate()
+                                .map(|(i, _)| {
                                     let ct_else =
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_else, &stream,
+                                        &ct_else,
+                                        &local_streams[i],
                                     )
                                 })
                                 .collect::<Vec<_>>();
-
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
 
                             (cts_cond, cts_then, cts_else, local_streams)
                         };
@@ -1898,14 +1942,17 @@ mod cuda {
                                     .zip(cts_then.par_iter())
                                     .zip(cts_else.par_iter())
                                     .zip(local_streams.par_iter())
-                                    .for_each(|(((ct_cond, ct_then), ct_else), local_stream)| {
-                                        let _ = gpu_sks.if_then_else(
-                                            ct_cond,
-                                            ct_then,
-                                            ct_else,
-                                            local_stream,
-                                        );
-                                    })
+                                    .enumerate()
+                                    .for_each(
+                                        |(i, (((ct_cond, ct_then), ct_else), local_stream))| {
+                                            let _ = gpu_sks_vec[i % gpu_count].if_then_else(
+                                                ct_cond,
+                                                ct_then,
+                                                ct_else,
+                                                local_stream,
+                                            );
+                                        },
+                                    )
                             },
                             criterion::BatchSize::SmallInput,
                         );
