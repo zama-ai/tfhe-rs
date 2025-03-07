@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{
-    filter_parameters, init_parameters_set, multi_bit_num_threads, write_to_json,
+    filter_parameters, init_bench_type, init_parameters_set, multi_bit_num_threads, write_to_json,
     CryptoParametersRecord, DesiredBackend, DesiredNoiseDistribution, OperatorType, ParametersSet,
     PARAMETERS_SET,
 };
@@ -1427,6 +1427,7 @@ fn go_through_cpu_bench_groups() {
 }
 
 fn main() {
+    init_bench_type();
     init_parameters_set();
 
     #[cfg(feature = "gpu")]

@@ -1,7 +1,7 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
+use crate::utilities::{init_bench_type, throughput_num_threads, BenchmarkType, BENCH_TYPE};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -437,7 +437,7 @@ pub fn zk_verify() {
 }
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+    init_bench_type();
 
     zk_verify();
 

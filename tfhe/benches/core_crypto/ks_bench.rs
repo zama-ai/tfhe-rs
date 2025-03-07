@@ -2,8 +2,8 @@
 mod utilities;
 
 use crate::utilities::{
-    filter_parameters, init_parameters_set, write_to_json, CryptoParametersRecord, DesiredBackend,
-    DesiredNoiseDistribution, OperatorType, ParametersSet, PARAMETERS_SET,
+    filter_parameters, init_bench_type, init_parameters_set, write_to_json, CryptoParametersRecord,
+    DesiredBackend, DesiredNoiseDistribution, OperatorType, ParametersSet, PARAMETERS_SET,
 };
 use criterion::{black_box, Criterion};
 use serde::Serialize;
@@ -625,6 +625,7 @@ fn go_through_cpu_bench_groups() {
 }
 
 fn main() {
+    init_bench_type();
     init_parameters_set();
 
     #[cfg(feature = "gpu")]
