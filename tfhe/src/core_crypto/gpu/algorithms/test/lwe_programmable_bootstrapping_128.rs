@@ -4,15 +4,21 @@ use crate::core_crypto::algorithms::test::{
     FftBootstrapKeys, FftTestParams, TestResources, FFT_U128_PARAMS, FFT_U32_PARAMS,
 };
 use crate::core_crypto::fft_impl::common::tests::test_bootstrap_generic;
+use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
+
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::vec::GpuIndex;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 use dyn_stack::{GlobalPodBuffer, PodStack};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use itertools::Itertools;
+
 
 pub fn generate_keys<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
@@ -77,7 +83,7 @@ where
     let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
     let (std_bootstrapping_key, small_lwe_sk, big_lwe_sk) =
         (keys.bsk, keys.small_lwe_sk, keys.big_lwe_sk);
-
+    let output_lwe_dimension = big_lwe_sk.lwe_dimension();
     let mut cnt = 0;
     let mut level_matrix_cnt = 0;
     for Ggsw in std_bootstrapping_key.iter() {
@@ -121,7 +127,7 @@ where
 
     // Our input message
     let input_message: Scalar = 3usize.cast_into();
-
+    let number_of_messages = 1;
     // Delta used to encode 4 bits of message + a bit of padding on Scalar
     let delta: Scalar = (Scalar::ONE << (Scalar::BITS - 1)) / message_modulus;
 
@@ -155,20 +161,67 @@ where
     );
     println!("Computing PBS...");
 
-    fourier_bsk.bootstrap(
-        &mut pbs_ct,
-        &lwe_ciphertext_in,
-        &accumulator,
-        &fft,
-        PodStack::new(&mut GlobalPodBuffer::new(
-            K::bootstrap_scratch(
-                std_bootstrapping_key.glwe_size(),
-                std_bootstrapping_key.polynomial_size(),
-                &fft,
-            )
-            .unwrap(),
-        )),
+    let d_lwe_ciphertext_in =
+        CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
+    let mut d_out_pbs_ct = CudaLweCiphertextList::new(
+        output_lwe_dimension,
+        LweCiphertextCount(1),
+        ciphertext_modulus,
+        &stream,
     );
+
+    let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+
+    let mut test_vector_indexes: Vec<Scalar> = vec![Scalar::ZERO; number_of_messages];
+    for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
+        *ind = <usize as CastInto<Scalar>>::cast_into(i);
+    }
+    let mut d_test_vector_indexes =
+        unsafe { CudaVec::<Scalar>::new_async(number_of_messages, &stream, 0) };
+    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0) };
+
+    let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
+    let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
+    let lwe_indexes = lwe_indexes_usize
+        .iter()
+        .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
+        .collect_vec();
+    let mut d_output_indexes =
+        unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+    let mut d_input_indexes =
+        unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+    unsafe {
+        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
+        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
+    }
+
+    cuda_programmable_bootstrap_lwe_ciphertext(
+        &d_lwe_ciphertext_in,
+        &mut d_out_pbs_ct,
+        &d_accumulator,
+        &d_test_vector_indexes,
+        &d_output_indexes,
+        &d_input_indexes,
+        LweCiphertextCount(num_blocks),
+        &d_bsk,
+        &stream,
+    );
+
+    pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
+    // fourier_bsk.bootstrap(
+    //     &mut pbs_ct,
+    //     &lwe_ciphertext_in,
+    //     &accumulator,
+    //     &fft,
+    //     PodStack::new(&mut GlobalPodBuffer::new(
+    //         K::bootstrap_scratch(
+    //             std_bootstrapping_key.glwe_size(),
+    //             std_bootstrapping_key.polynomial_size(),
+    //             &fft,
+    //         )
+    //         .unwrap(),
+    //     )),
+    // );
 
     // Decrypt the PBS result
     let pbs_plaintext: Plaintext<Scalar> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);

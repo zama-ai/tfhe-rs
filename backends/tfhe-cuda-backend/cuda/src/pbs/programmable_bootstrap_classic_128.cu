@@ -195,3 +195,13 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
       glwe_dimension, polynomial_size, base_log, level_count, num_samples,
       num_many_lut, lut_stride);
 }
+
+/*
+ * This cleanup function frees the data on GPU for the PBS buffer for 32 or 64
+ * bits inputs.
+ */
+void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
+                                         int8_t **buffer) {
+  auto x = (pbs_buffer_128<CLASSICAL> *)(*buffer);
+  x->release(static_cast<cudaStream_t>(stream), gpu_index);
+}
