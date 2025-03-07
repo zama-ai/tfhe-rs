@@ -76,18 +76,26 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 
   Torus *global_accumulator;
   double2 *global_join_buffer;
+  Torus *temp_lwe_array_in;
 
   PBS_VARIANT pbs_variant;
+  bool uses_noise_reduction;
 
-  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
-             uint32_t polynomial_size, uint32_t level_count,
-             uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
-             bool allocate_gpu_memory) {
+  pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
+             uint32_t glwe_dimension, uint32_t polynomial_size,
+             uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+             PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
+             bool allocate_ms_array) {
     cuda_set_device(gpu_index);
+    this->uses_noise_reduction = allocate_ms_array;
     this->pbs_variant = pbs_variant;
 
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-
+    if (allocate_ms_array) {
+      this->temp_lwe_array_in = (Torus *)cuda_malloc_async(
+          (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(Torus),
+          stream, gpu_index);
+    }
     if (allocate_gpu_memory) {
       switch (pbs_variant) {
       case PBS_VARIANT::DEFAULT: {
@@ -218,6 +226,9 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 
     if (pbs_variant == DEFAULT)
       cuda_drop_async(global_accumulator, stream, gpu_index);
+
+    if (uses_noise_reduction)
+      cuda_drop_async(temp_lwe_array_in, stream, gpu_index);
   }
 };
 
@@ -228,16 +239,25 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
 
   __uint128_t *global_accumulator;
   double *global_join_buffer;
+  __uint128_t *temp_lwe_array_in;
 
   PBS_VARIANT pbs_variant;
+  bool uses_noise_reduction;
 
   pbs_buffer_128(cudaStream_t stream, uint32_t gpu_index,
-                 uint32_t glwe_dimension, uint32_t polynomial_size,
-                 uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-                 PBS_VARIANT pbs_variant, bool allocate_gpu_memory) {
+                 uint32_t lwe_dimension, uint32_t glwe_dimension,
+                 uint32_t polynomial_size, uint32_t level_count,
+                 uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
+                 bool allocate_gpu_memory, bool allocate_ms_array) {
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
-
+    this->uses_noise_reduction = allocate_ms_array;
+    if (allocate_ms_array) {
+      this->temp_lwe_array_in = (__uint128_t *)cuda_malloc_async(
+          (lwe_dimension + 1) * input_lwe_ciphertext_count *
+              sizeof(__uint128_t),
+          stream, gpu_index);
+    }
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
     size_t global_join_buffer_size = (glwe_dimension + 1) * level_count *
                                      input_lwe_ciphertext_count *
@@ -367,6 +387,9 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
 
     if (pbs_variant == DEFAULT)
       cuda_drop_async(global_accumulator, stream, gpu_index);
+
+    if (uses_noise_reduction)
+      cuda_drop_async(temp_lwe_array_in, stream, gpu_index);
   }
 };
 
@@ -439,21 +462,24 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
 template <typename Torus>
 void scratch_cuda_programmable_bootstrap_tbc(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 #endif
 
 template <typename Torus>
 void scratch_cuda_programmable_bootstrap_cg(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 
 template <typename Torus>
 void scratch_cuda_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory);
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,

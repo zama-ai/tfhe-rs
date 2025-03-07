@@ -75,3 +75,24 @@ void cuda_glwe_sample_extract_64(void *stream, uint32_t gpu_index,
           "N's are powers of two in the interval [256..16384].")
   }
 }
+
+void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
+                                    void *lwe_array_out, uint32_t size,
+                                    uint32_t log_modulus) {
+  host_modulus_switch_inplace<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out), size, log_modulus);
+}
+
+void cuda_improve_noise_modulus_switch_64(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *lwe_array_in, void const *encrypted_zeros, uint32_t lwe_size,
+    uint32_t num_lwes, uint32_t num_zeros, double input_variance,
+    double r_sigma, double bound, uint32_t log_modulus) {
+  host_improve_noise_modulus_switch<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_array_out),
+      static_cast<uint64_t const *>(lwe_array_in),
+      static_cast<const uint64_t *>(encrypted_zeros), lwe_size, num_lwes,
+      num_zeros, input_variance, r_sigma, bound, log_modulus);
+}

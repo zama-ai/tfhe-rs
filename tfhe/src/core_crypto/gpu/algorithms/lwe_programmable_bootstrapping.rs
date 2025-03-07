@@ -127,6 +127,9 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         lut_indexes.gpu_index(0).get(),
     );
 
+    let lwe_dimension = input.lwe_dimension();
+    let ct_modulus = input.ciphertext_modulus().raw_modulus_float();
+
     programmable_bootstrap_async(
         streams,
         &mut output.0.d_vec,
@@ -136,12 +139,14 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         &input.0.d_vec,
         input_indexes,
         &bsk.d_vec,
-        input.lwe_dimension(),
+        lwe_dimension,
         bsk.glwe_dimension(),
         bsk.polynomial_size(),
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
+        bsk.d_ms_noise_reduction_key.as_ref(),
+        ct_modulus,
     );
 }
 
@@ -256,19 +261,22 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
         streams.gpu_indexes[0].get(),
         accumulator.0.d_vec.gpu_index(0).get(),
     );
-
+    let lwe_dimension = input.lwe_dimension();
+    let ct_modulus = input.ciphertext_modulus().raw_modulus_float();
     programmable_bootstrap_128_async(
         streams,
         &mut output.0.d_vec,
         &accumulator.0.d_vec,
         &input.0.d_vec,
         &bsk.d_vec,
-        input.lwe_dimension(),
+        lwe_dimension,
         bsk.glwe_dimension(),
         bsk.polynomial_size(),
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
+        bsk.d_ms_noise_reduction_key.as_ref(),
+        ct_modulus,
     );
 }
 

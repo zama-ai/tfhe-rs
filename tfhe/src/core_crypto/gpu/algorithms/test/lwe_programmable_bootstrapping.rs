@@ -91,7 +91,7 @@ fn lwe_encrypt_pbs_decrypt<
         ciphertext_modulus
     ));
 
-    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);

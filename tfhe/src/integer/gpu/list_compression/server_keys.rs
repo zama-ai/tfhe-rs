@@ -263,6 +263,10 @@ impl CudaDecompressionKey {
 
         match &self.blind_rotate_key {
             CudaBootstrappingKey::Classic(bsk) => {
+                assert!(
+                    bsk.d_ms_noise_reduction_key.is_none(),
+                    "Decompression key should not do modulus switch noise reduction"
+                );
                 let lwe_dimension = bsk.output_lwe_dimension();
 
                 let mut output_lwe = CudaLweCiphertextList::new(

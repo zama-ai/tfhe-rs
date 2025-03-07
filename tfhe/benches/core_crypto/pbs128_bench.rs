@@ -224,7 +224,7 @@ mod cuda {
             lwe_dimension,
             ciphertext_modulus,
         );
-        let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+        let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
         let message_modulus: Scalar = 1 << 4;
 

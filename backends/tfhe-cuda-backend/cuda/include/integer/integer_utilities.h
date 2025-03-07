@@ -94,6 +94,7 @@ struct int_radix_params {
   uint32_t grouping_factor;
   uint32_t message_modulus;
   uint32_t carry_modulus;
+  bool allocate_ms_array;
 
   int_radix_params(){};
 
@@ -102,13 +103,16 @@ struct int_radix_params {
                    uint32_t small_lwe_dimension, uint32_t ks_level,
                    uint32_t ks_base_log, uint32_t pbs_level,
                    uint32_t pbs_base_log, uint32_t grouping_factor,
-                   uint32_t message_modulus, uint32_t carry_modulus)
+                   uint32_t message_modulus, uint32_t carry_modulus,
+                   bool allocate_ms_array)
+
       : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
         polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),
         pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
-        message_modulus(message_modulus), carry_modulus(carry_modulus){};
+        message_modulus(message_modulus), carry_modulus(carry_modulus),
+        allocate_ms_array(allocate_ms_array){};
 
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
@@ -198,7 +202,7 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory);
+          allocate_gpu_memory, params.allocate_ms_array);
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
     }
@@ -394,7 +398,7 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory);
+          allocate_gpu_memory, params.allocate_ms_array);
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
     }
@@ -1279,7 +1283,6 @@ template <typename Torus> struct int_seq_group_prop_memory {
                             int_radix_params params, uint32_t group_size,
                             uint32_t big_lwe_size_bytes,
                             bool allocate_gpu_memory) {
-
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
     auto message_modulus = params.message_modulus;

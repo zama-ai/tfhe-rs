@@ -78,7 +78,7 @@ where
 
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, &stream);
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, None, &stream);
 
     // Our 4 bits message space
     let message_modulus: Scalar = Scalar::ONE << 4;

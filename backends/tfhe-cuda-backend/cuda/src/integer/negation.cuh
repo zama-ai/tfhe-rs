@@ -114,10 +114,12 @@ template <typename Torus>
 __host__ void scratch_cuda_integer_overflowing_sub_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_overflowing_sub_memory<Torus> **mem_ptr,
-    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
+    uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory,
+    bool allocate_ms_array) {
 
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
-      streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory);
+      streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory,
+      allocate_ms_array);
 }
 
 template <typename Torus>
@@ -129,7 +131,9 @@ __host__ void host_integer_overflowing_sub(
     CudaRadixCiphertextFFI *overflow_block,
     const CudaRadixCiphertextFFI *input_borrow,
     int_borrow_prop_memory<uint64_t> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t compute_overflow, uint32_t uses_input_borrow) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t compute_overflow, uint32_t uses_input_borrow) {
 
   if (output->num_radix_blocks != input_left->num_radix_blocks ||
       output->num_radix_blocks != input_right->num_radix_blocks)
@@ -160,7 +164,7 @@ __host__ void host_integer_overflowing_sub(
   host_single_borrow_propagate<Torus>(
       streams, gpu_indexes, gpu_count, output, overflow_block, input_borrow,
       (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
-      num_groups, compute_overflow, uses_input_borrow);
+      ms_noise_reduction_key, num_groups, compute_overflow, uses_input_borrow);
 }
 
 #endif

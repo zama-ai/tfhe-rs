@@ -263,8 +263,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, TbcPBC)
 
   scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
+      input_lwe_ciphertext_count, true, false);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -295,8 +295,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, CgPBS)
 
   scratch_cuda_programmable_bootstrap_cg<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
+      input_lwe_ciphertext_count, true, false);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {
@@ -320,8 +320,8 @@ BENCHMARK_DEFINE_F(ClassicalBootstrap_u64, DefaultPBS)
 
   scratch_cuda_programmable_bootstrap<uint64_t>(
       stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)&buffer,
-      glwe_dimension, polynomial_size, pbs_level, input_lwe_ciphertext_count,
-      true);
+      lwe_dimension, glwe_dimension, polynomial_size, pbs_level,
+      input_lwe_ciphertext_count, true, false);
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
   for (auto _ : st) {

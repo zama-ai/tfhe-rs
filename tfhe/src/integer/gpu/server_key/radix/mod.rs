@@ -258,6 +258,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     requested_flag,
                     uses_carry,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -282,6 +283,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     requested_flag,
                     uses_carry,
+                    None,
                 );
             }
         }
@@ -335,6 +337,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     requested_flag,
                     uses_carry,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -360,6 +363,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     requested_flag,
                     uses_carry,
+                    None,
                 );
             }
         }
@@ -393,6 +397,7 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -413,6 +418,7 @@ impl CudaServerKey {
                         ciphertext.info.blocks.first().unwrap().carry_modulus,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        None,
                     );
                 }
             }
@@ -904,6 +910,7 @@ impl CudaServerKey {
         let mut output_noise_levels = vec![0_u64; num_output_blocks];
 
         let num_ct_blocks = block_range.len() as u32;
+        let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -931,6 +938,8 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        ct_modulus,
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -958,6 +967,8 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        None,
+                        ct_modulus,
                     );
                 }
             }
@@ -1020,6 +1031,7 @@ impl CudaServerKey {
         let mut output_noise_levels = vec![0_u64; num_output_blocks];
 
         let num_ct_blocks = block_range.len() as u32;
+        let ct_modulus = input_1.d_blocks.ciphertext_modulus().raw_modulus_float();
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1049,6 +1061,8 @@ impl CudaServerKey {
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
                         self.message_modulus.0 as u32,
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        ct_modulus,
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1078,6 +1092,8 @@ impl CudaServerKey {
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
                         self.message_modulus.0 as u32,
+                        None,
+                        ct_modulus,
                     );
                 }
             }
@@ -1100,7 +1116,7 @@ impl CudaServerKey {
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
     ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// {
     ///     // Generate the client key and the server key:
@@ -1140,11 +1156,11 @@ impl CudaServerKey {
     /// }
     /// {
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
+    ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///     let gpu_index = 0;
     ///     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///     // Generate the client key and the server key:
-    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, &streams);
+    ///     let (cks, sks) = gen_keys_gpu(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, &streams);
     ///     let num_blocks = 2;
     ///     let msg = 3;
     ///     let ct = cks.encrypt_radix(msg, num_blocks);
@@ -1197,6 +1213,7 @@ impl CudaServerKey {
             .unwrap();
         let mut output_degrees = vec![0_u64; num_ct_blocks * function_count];
         let mut output_noise_levels = vec![0_u64; num_ct_blocks * function_count];
+        let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1226,6 +1243,8 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     function_count as u32,
                     lut.sample_extraction_stride as u32,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    ct_modulus,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1255,6 +1274,8 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     function_count as u32,
                     lut.sample_extraction_stride as u32,
+                    None,
+                    ct_modulus,
                 );
             }
         }
@@ -1320,6 +1341,7 @@ impl CudaServerKey {
             .unwrap();
         let mut generates_or_propagates_degrees = vec![0; num_blocks];
         let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
+        let ct_modulus = output.d_blocks.ciphertext_modulus().raw_modulus_float();
         let mut output_slice = output
             .d_blocks
             .0
@@ -1328,7 +1350,6 @@ impl CudaServerKey {
             .unwrap();
         let mut output_degrees = vec![0_u64; num_blocks];
         let mut output_noise_levels = vec![0_u64; num_blocks];
-
         unsafe {
             match &self.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -1358,6 +1379,8 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        ct_modulus,
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1387,6 +1410,8 @@ impl CudaServerKey {
                         self.carry_modulus,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        None,
+                        ct_modulus,
                     );
                 }
             }
@@ -1455,7 +1480,12 @@ impl CudaServerKey {
         let mut padding_block_degree = vec![0_u64; 1];
         let mut padding_block_noise_level = vec![0_u64; 1];
         let mut new_blocks = new_blocks.unwrap();
-
+        let ct_modulus = ct
+            .to_owned()
+            .as_ref()
+            .d_blocks
+            .ciphertext_modulus()
+            .raw_modulus_float();
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 apply_univariate_lut_kb_async(
@@ -1482,6 +1512,8 @@ impl CudaServerKey {
                     self.carry_modulus,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    ct_modulus,
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1509,6 +1541,8 @@ impl CudaServerKey {
                     self.carry_modulus,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    None,
+                    ct_modulus,
                 );
             }
         }

@@ -858,7 +858,8 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -1109,7 +1110,8 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
             const NUM_CTS: usize = 8192;
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));

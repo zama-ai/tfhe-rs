@@ -247,8 +247,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename params>
 __host__ void scratch_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, pbs_buffer_128<CLASSICAL> **buffer,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, bool allocate_ms_array) {
 
   cuda_set_device(gpu_index);
   uint64_t full_sm_step_one =
@@ -342,14 +343,15 @@ __host__ void scratch_programmable_bootstrap_128(
   }
 
   *buffer = new pbs_buffer_128<CLASSICAL>(
-      stream, gpu_index, glwe_dimension, polynomial_size, level_count,
-      input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
+      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
+      allocate_gpu_memory, allocate_ms_array);
 }
 
 template <class params, bool first_iter>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
-    __uint128_t const *lwe_array_in, double const *bootstrapping_key,
+    __uint128_t *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
     uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -432,7 +434,7 @@ __host__ void execute_step_two_128(
 template <class params>
 __host__ void host_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lut_vector, __uint128_t const *lwe_array_in,
+    __uint128_t const *lut_vector, __uint128_t *lwe_array_in,
     double const *bootstrapping_key, pbs_buffer_128<CLASSICAL> *pbs_buffer,
     uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
     uint32_t base_log, uint32_t level_count,
