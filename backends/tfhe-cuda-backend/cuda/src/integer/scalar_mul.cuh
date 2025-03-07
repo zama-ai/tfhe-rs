@@ -45,6 +45,7 @@ __host__ void host_integer_scalar_mul_radix(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
     T const *decomposed_scalar, T const *has_at_least_one_set,
     int_scalar_mul_buffer<T> *mem, void *const *bsks, T *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t message_modulus, uint32_t num_scalars) {
 
   auto num_radix_blocks = lwe_array->num_radix_blocks;
@@ -67,7 +68,8 @@ __host__ void host_integer_scalar_mul_radix(
                                            lwe_array, 0, num_radix_blocks);
       host_integer_radix_logical_scalar_shift_kb_inplace<T>(
           streams, gpu_indexes, gpu_count, &shift_input, shift_amount,
-          mem->logical_scalar_shift_buffer, bsks, ksks, num_radix_blocks);
+          mem->logical_scalar_shift_buffer, bsks, ksks, ms_noise_reduction_key,
+          num_radix_blocks);
     } else {
       // create trivial assign for value = 0
       set_zero_radix_ciphertext_slice_async<T>(
@@ -115,14 +117,16 @@ __host__ void host_integer_scalar_mul_radix(
     }
     host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, bsks,
-        ksks, mem->sum_ciphertexts_vec_mem, num_radix_blocks, j, nullptr);
+        ksks, ms_noise_reduction_key, mem->sum_ciphertexts_vec_mem,
+        num_radix_blocks, j, nullptr);
 
     auto scp_mem_ptr = mem->sc_prop_mem;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     uint32_t uses_carry = 0;
     host_propagate_single_carry<T>(streams, gpu_indexes, gpu_count, lwe_array,
                                    nullptr, nullptr, scp_mem_ptr, bsks, ksks,
-                                   requested_flag, uses_carry);
+                                   ms_noise_reduction_key, requested_flag,
+                                   uses_carry);
   }
 }
 

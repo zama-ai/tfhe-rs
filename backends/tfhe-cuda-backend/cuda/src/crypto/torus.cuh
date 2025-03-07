@@ -1,7 +1,9 @@
 #ifndef CNCRT_TORUS_CUH
 #define CNCRT_TORUS_CUH
 
+#include "ciphertext.h"
 #include "device.h"
+#include "helper_multi_gpu.h"
 #include "polynomial/parameters.cuh"
 #include "types/int128.cuh"
 #include "utils/kernel_dimensions.cuh"
@@ -115,8 +117,180 @@ __host__ void host_modulus_switch_inplace(cudaStream_t stream,
   int num_threads = 0, num_blocks = 0;
   getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
 
-  modulus_switch_inplace<<<num_blocks, num_threads, 0, stream>>>(array, size,
-                                                                 log_modulus);
+  modulus_switch_inplace<Torus>
+      <<<num_blocks, num_threads, 0, stream>>>(array, size, log_modulus);
+  check_cuda_error(cudaGetLastError());
+}
+
+template <typename T>
+__device__ __forceinline__ double round_error_double(T input,
+                                                     uint32_t log_modulus) {
+  T rounded;
+  constexpr uint32_t BITS = sizeof(T) * 8;
+  modulus_switch<T>(input, rounded, log_modulus);
+  rounded <<= (BITS - log_modulus);
+  rounded -= input;
+  return __ll2double_rn((int64_t)rounded);
+}
+
+template <typename T>
+__device__ __forceinline__ double measure_modulus_switch_noise(
+    T input1, T input2, uint32_t log_modulus, uint32_t lwe_size,
+    double *sum_mask_errors, double *sum_squared_mask_errors, double *body,
+    double input_variance, double r_sigma, double bound) {
+
+  double input_double1 = round_error_double<T>(input1, log_modulus);
+  double input_double2 = round_error_double<T>(input2, log_modulus);
+
+  if (threadIdx.x + blockDim.x == lwe_size - 1) {
+    body[0] = input_double2;
+  }
+  // Here we are assuming that lwe is at least 512 so all threads will work
+  sum_mask_errors[threadIdx.x] = input_double1;
+  sum_squared_mask_errors[threadIdx.x] = input_double1 * input_double1;
+
+  if (threadIdx.x + blockDim.x < lwe_size - 1) {
+    sum_mask_errors[threadIdx.x] += input_double2;
+    sum_squared_mask_errors[threadIdx.x] += input_double2 * input_double2;
+  }
+
+  // We need to perform a reduction to get the expectancy and variance
+  for (int offset = blockDim.x / 2; offset > 0; offset /= 2) {
+    __syncthreads();
+    if (threadIdx.x < offset) {
+      sum_mask_errors[threadIdx.x] += sum_mask_errors[threadIdx.x + offset];
+      sum_squared_mask_errors[threadIdx.x] +=
+          sum_squared_mask_errors[threadIdx.x + offset];
+    }
+  }
+
+  // Thread 0 has the sum of the mask errors and calculates the noise
+  double noise = 0;
+  if (threadIdx.x == 0) {
+    double expectancy = body[threadIdx.x] - sum_mask_errors[threadIdx.x] / 2.0f;
+    double variance = sum_squared_mask_errors[threadIdx.x] / 4.0f;
+    double std_dev = sqrt(variance + input_variance);
+    noise = abs(expectancy) + std_dev * r_sigma;
+  }
+  __syncthreads();
+  return noise; // only thread 0 will return the correct noise
+}
+
+// Each thread processes two elements of the lwe array
+template <typename Torus>
+__global__ void
+improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
+                             const Torus *zeros, int lwe_size, int num_zeros,
+                             double input_variance, double r_sigma,
+                             double bound, uint32_t log_modulus) {
+
+  // First we will assume size is less than the number of threads per block
+  // I should switch this to dynamic shared memory
+  __shared__ double sum_mask_errors[512];
+  __shared__ double sum_squared_mask_errors[512];
+  __shared__ double body[1];
+  __shared__ bool found;
+
+  // We need to initialize the shared memory
+  if (threadIdx.x == 0)
+    found = false;
+  __syncthreads();
+  // This probably are not needed cause we are setting the values
+  sum_mask_errors[threadIdx.x] = 0.f;
+  sum_squared_mask_errors[threadIdx.x] = 0.f;
+
+  Torus input_element1 = array_in[threadIdx.x + blockIdx.x * lwe_size];
+
+  Torus input_element2 =
+      threadIdx.x + blockDim.x < lwe_size
+          ? array_in[threadIdx.x + blockDim.x + blockIdx.x * lwe_size]
+          : 0;
+
+  // Base noise is only handled by thread 0
+  double base_noise = measure_modulus_switch_noise<Torus>(
+      input_element1, input_element2, log_modulus, lwe_size, sum_mask_errors,
+      sum_squared_mask_errors, body, input_variance, r_sigma, bound);
+
+  // If the noise is less than the bound we can just copy the input
+  if (base_noise <= bound && threadIdx.x == 0) {
+    found = true;
+  }
+  __syncthreads();
+
+  if (found)
+    array_out[threadIdx.x + blockIdx.x * lwe_size] = input_element1;
+
+  if (found && (threadIdx.x + blockDim.x) < lwe_size)
+    array_out[threadIdx.x + blockDim.x + blockIdx.x * lwe_size] =
+        input_element2;
+
+  __syncthreads();
+  // If we found a zero element we stop iterating (in avg 20 times are
+  // required)
+  if (found)
+    return;
+
+  // Now we need to start testing the other zero_elements
+  for (int index = 0; index < num_zeros; index++) {
+
+    Torus zero_element1 =
+        zeros[threadIdx.x + index * lwe_size] + input_element1;
+    Torus zero_element2 =
+        threadIdx.x + blockDim.x < lwe_size
+            ? zeros[threadIdx.x + blockDim.x + index * lwe_size] +
+                  input_element2
+            : 0;
+    // Index noise is only handled by thread 0
+    // Measuring the potential noise is costly cause requires a reduction
+    double index_noise = measure_modulus_switch_noise<Torus>(
+        zero_element1, zero_element2, log_modulus, lwe_size, sum_mask_errors,
+        sum_squared_mask_errors, body, input_variance, r_sigma, bound);
+
+    if (index_noise <= bound && threadIdx.x == 0) {
+      found = true;
+    }
+    __syncthreads();
+    // Assumption we always have at least 512 elements
+    // If we find a useful zero encryption we replace the lwe by lwe + zero
+    if (found)
+      array_out[threadIdx.x + blockIdx.x * lwe_size] = zero_element1;
+
+    if (found && (threadIdx.x + blockDim.x) < lwe_size)
+      array_out[threadIdx.x + blockDim.x + blockIdx.x * lwe_size] =
+          zero_element2;
+
+    __syncthreads();
+    // If we found a zero element we stop iterating (in avg 20 times are
+    // required)
+    if (found)
+      return;
+  }
+}
+
+template <typename Torus>
+__host__ void host_improve_noise_modulus_switch(
+    cudaStream_t stream, uint32_t gpu_index, Torus *array_out,
+    Torus const *array_in, const Torus *zeros, uint32_t lwe_size,
+    uint32_t num_lwes, const uint32_t num_zeros, const double input_variance,
+    const double r_sigma, const double bound, uint32_t log_modulus) {
+
+  if (lwe_size < 512) {
+    PANIC("The lwe_size is less than 512, this is not supported\n");
+    return;
+  }
+
+  if (lwe_size > 1024) {
+    PANIC("The lwe_size is greater than 1024, this is not supported\n");
+    return;
+  }
+  cuda_set_device(gpu_index);
+
+  // This reduction requires a power of two num of threads
+  int num_threads = 512, num_blocks = num_lwes;
+
+  improve_noise_modulus_switch<Torus><<<num_blocks, num_threads, 0, stream>>>(
+      array_out, array_in, zeros, lwe_size, num_zeros, input_variance, r_sigma,
+      bound, log_modulus);
   check_cuda_error(cudaGetLastError());
 }
 

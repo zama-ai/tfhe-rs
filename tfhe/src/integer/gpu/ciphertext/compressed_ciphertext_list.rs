@@ -676,9 +676,8 @@ mod tests {
 
         for (params, comp_params) in [
             (
-                // TODO GPU DRIFT UPDATE
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
             (
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),

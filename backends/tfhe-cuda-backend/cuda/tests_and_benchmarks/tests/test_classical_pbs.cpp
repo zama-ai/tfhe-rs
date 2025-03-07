@@ -165,9 +165,9 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, amortized_bootstrap) {
 
 TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   int8_t *pbs_buffer;
-  scratch_cuda_programmable_bootstrap_64(stream, gpu_index, &pbs_buffer,
-                                         glwe_dimension, polynomial_size,
-                                         pbs_level, number_of_inputs, true);
+  scratch_cuda_programmable_bootstrap_64(
+      stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
+      polynomial_size, pbs_level, number_of_inputs, true, false);
 
   int number_of_sm = 0;
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
@@ -190,9 +190,9 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
           stream, gpu_index, (void *)d_lwe_ct_out_array,
           (void *)d_lwe_output_indexes, (void *)d_lut_pbs_identity,
           (void *)d_lut_pbs_indexes, (void *)d_lwe_ct_in,
-          (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, pbs_buffer,
-          lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
-          pbs_level, number_of_inputs, num_many_lut, lut_stride);
+          (void *)d_lwe_input_indexes, (void *)d_fourier_bsk, nullptr,
+          pbs_buffer, lwe_dimension, glwe_dimension, polynomial_size,
+          pbs_base_log, pbs_level, number_of_inputs, num_many_lut, lut_stride);
       // Copy result back
       cuda_memcpy_async_to_cpu(lwe_ct_out_array, d_lwe_ct_out_array,
                                (glwe_dimension * polynomial_size + 1) *

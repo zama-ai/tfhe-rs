@@ -30,7 +30,9 @@ __host__ void scalar_compare_radix_blocks_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI *lwe_array_in, Torus *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks) {
 
   if (num_radix_blocks == 0)
     return;
@@ -72,7 +74,7 @@ __host__ void scalar_compare_radix_blocks_kb(
   auto sign_lut = mem_ptr->eq_buffer->is_non_zero_lut;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, subtracted_blocks, bsks,
-      ksks, sign_lut, num_radix_blocks);
+      ksks, ms_noise_reduction_key, sign_lut, num_radix_blocks);
 
   // FIXME: without this sync signed scalar eq tests fail, I don't understand
   // the reason
@@ -92,14 +94,16 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
-
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: input num radix blocks should not be lower "
           "than the number of blocks to operate on")
 
+  bool allocate_ms_array = ms_noise_reduction_key->num_zeros != 0;
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -133,11 +137,11 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     // means scalar is zero
     host_compare_blocks_with_zero<Torus>(
         streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
-        lwe_array_in, mem_ptr, bsks, ksks, num_radix_blocks,
-        mem_ptr->is_zero_lut);
+        lwe_array_in, mem_ptr, bsks, ksks, ms_noise_reduction_key,
+        num_radix_blocks, mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
         streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
-        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks,
+        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks, ms_noise_reduction_key,
         mem_ptr->tmp_lwe_array_out->num_radix_blocks);
 
     auto scalar_last_leaf_lut_f = [sign_handler_f](Torus x) -> Torus {
@@ -155,7 +159,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
-        mem_ptr->tmp_lwe_array_out, bsks, ksks, lut, 1);
+        mem_ptr->tmp_lwe_array_out, bsks, ksks, ms_noise_reduction_key, lut, 1);
 
   } else if (num_scalar_blocks < num_radix_blocks) {
     // We have to handle both part of the work described above
@@ -207,10 +211,10 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     // - 2 if lhs > rhs
 
     auto comparisons = mem_ptr->tmp_block_comparisons;
-    scalar_compare_radix_blocks_kb<Torus>(lsb_streams, gpu_indexes, gpu_count,
-                                          comparisons, diff_buffer->tmp_packed,
-                                          (Torus *)rhs.ptr, mem_ptr, bsks, ksks,
-                                          num_lsb_radix_blocks);
+    scalar_compare_radix_blocks_kb<Torus>(
+        lsb_streams, gpu_indexes, gpu_count, comparisons,
+        diff_buffer->tmp_packed, (Torus *)rhs.ptr, mem_ptr, bsks, ksks,
+        ms_noise_reduction_key, num_lsb_radix_blocks);
 
     // Reduces a vec containing radix blocks that encrypts a sign
     // (inferior, equal, superior) to one single radix block containing the
@@ -218,15 +222,16 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     tree_sign_reduction<Torus>(
         lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, comparisons,
         mem_ptr->diff_buffer->tree_buffer, mem_ptr->identity_lut_f, bsks, ksks,
-        num_lsb_radix_blocks);
+        ms_noise_reduction_key, num_lsb_radix_blocks);
     //////////////
     // msb
     host_compare_blocks_with_zero<Torus>(
         msb_streams, gpu_indexes, gpu_count, &lwe_array_msb_out, &msb, mem_ptr,
-        bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
+        bsks, ksks, ms_noise_reduction_key, num_msb_radix_blocks,
+        mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
         msb_streams, gpu_indexes, gpu_count, &lwe_array_msb_out,
-        &lwe_array_msb_out, mem_ptr, bsks, ksks,
+        &lwe_array_msb_out, mem_ptr, bsks, ksks, ms_noise_reduction_key,
         lwe_array_msb_out.num_radix_blocks);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
@@ -253,7 +258,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_lsb_out,
-        &lwe_array_msb_out, bsks, ksks, lut, 1, lut->params.message_modulus);
+        &lwe_array_msb_out, bsks, ksks, ms_noise_reduction_key, lut, 1,
+        lut->params.message_modulus);
 
   } else {
     if (num_radix_blocks == 1) {
@@ -285,7 +291,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks,
-          ksks, one_block_lut, 1);
+          ksks, ms_noise_reduction_key, one_block_lut, 1);
       one_block_lut->release(streams, gpu_indexes, gpu_count);
       delete one_block_lut;
     } else {
@@ -314,7 +320,8 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       auto comparisons = mem_ptr->tmp_lwe_array_out;
       scalar_compare_radix_blocks_kb<Torus>(
           streams, gpu_indexes, gpu_count, comparisons, diff_buffer->tmp_packed,
-          (Torus *)rhs.ptr, mem_ptr, bsks, ksks, num_lsb_radix_blocks);
+          (Torus *)rhs.ptr, mem_ptr, bsks, ksks, ms_noise_reduction_key,
+          num_lsb_radix_blocks);
 
       // Reduces a vec containing radix blocks that encrypts a sign
       // (inferior, equal, superior) to one single radix block containing the
@@ -322,7 +329,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
       tree_sign_reduction<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                                  comparisons, mem_ptr->diff_buffer->tree_buffer,
                                  sign_handler_f, bsks, ksks,
-                                 num_lsb_radix_blocks);
+                                 ms_noise_reduction_key, num_lsb_radix_blocks);
     }
   }
 }
@@ -334,14 +341,16 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: input num radix blocks should not be lower "
           "than the number of blocks to operate on")
-
+  bool allocate_ms_array = ms_noise_reduction_key->num_zeros != 0;
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -376,10 +385,12 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     auto are_all_msb_zeros = mem_ptr->tmp_lwe_array_out;
     host_compare_blocks_with_zero<Torus>(
         streams, gpu_indexes, gpu_count, are_all_msb_zeros, lwe_array_in,
-        mem_ptr, bsks, ksks, num_radix_blocks, mem_ptr->is_zero_lut);
+        mem_ptr, bsks, ksks, ms_noise_reduction_key, num_radix_blocks,
+        mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
         streams, gpu_indexes, gpu_count, are_all_msb_zeros, are_all_msb_zeros,
-        mem_ptr, bsks, ksks, are_all_msb_zeros->num_radix_blocks);
+        mem_ptr, bsks, ksks, ms_noise_reduction_key,
+        are_all_msb_zeros->num_radix_blocks);
     CudaRadixCiphertextFFI sign_block;
     as_radix_ciphertext_slice<Torus>(&sign_block, lwe_array_in,
                                      num_radix_blocks - 1, num_radix_blocks);
@@ -428,7 +439,8 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, are_all_msb_zeros,
-        &sign_block, bsks, ksks, lut, 1, lut->params.message_modulus);
+        &sign_block, bsks, ksks, ms_noise_reduction_key, lut, 1,
+        lut->params.message_modulus);
 
   } else if (num_scalar_blocks < num_radix_blocks) {
     // We have to handle both part of the work described above
@@ -474,10 +486,10 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // - 2 if lhs > rhs
 
     auto comparisons = mem_ptr->tmp_block_comparisons;
-    scalar_compare_radix_blocks_kb<Torus>(lsb_streams, gpu_indexes, gpu_count,
-                                          comparisons, diff_buffer->tmp_packed,
-                                          (Torus *)rhs.ptr, mem_ptr, bsks, ksks,
-                                          num_lsb_radix_blocks);
+    scalar_compare_radix_blocks_kb<Torus>(
+        lsb_streams, gpu_indexes, gpu_count, comparisons,
+        diff_buffer->tmp_packed, (Torus *)rhs.ptr, mem_ptr, bsks, ksks,
+        ms_noise_reduction_key, num_lsb_radix_blocks);
 
     // Reduces a vec containing radix blocks that encrypts a sign
     // (inferior, equal, superior) to one single radix block containing the
@@ -485,17 +497,18 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     tree_sign_reduction<Torus>(
         lsb_streams, gpu_indexes, gpu_count, lwe_array_lsb_out, comparisons,
         mem_ptr->diff_buffer->tree_buffer, mem_ptr->identity_lut_f, bsks, ksks,
-        num_lsb_radix_blocks);
+        ms_noise_reduction_key, num_lsb_radix_blocks);
     //////////////
     // msb
     // We remove the last block (which is the sign)
     auto are_all_msb_zeros = lwe_array_msb_out;
     host_compare_blocks_with_zero<Torus>(
         msb_streams, gpu_indexes, gpu_count, &are_all_msb_zeros, &msb, mem_ptr,
-        bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
+        bsks, ksks, ms_noise_reduction_key, num_msb_radix_blocks,
+        mem_ptr->is_zero_lut);
     are_all_comparisons_block_true<Torus>(
         msb_streams, gpu_indexes, gpu_count, &are_all_msb_zeros,
-        &are_all_msb_zeros, mem_ptr, bsks, ksks,
+        &are_all_msb_zeros, mem_ptr, bsks, ksks, ms_noise_reduction_key,
         are_all_msb_zeros.num_radix_blocks);
 
     auto sign_bit_pos = (int)log2(message_modulus) - 1;
@@ -535,8 +548,8 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         &sign_block, &msb, num_msb_radix_blocks - 1, num_msb_radix_blocks);
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         msb_streams, gpu_indexes, gpu_count, &lwe_array_msb_out, &sign_block,
-        &are_all_msb_zeros, bsks, ksks, signed_msb_lut, 1,
-        signed_msb_lut->params.message_modulus);
+        &are_all_msb_zeros, bsks, ksks, ms_noise_reduction_key, signed_msb_lut,
+        1, signed_msb_lut->params.message_modulus);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -546,7 +559,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // Reduce the two blocks into one final
     reduce_signs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                         lwe_array_lsb_out, mem_ptr, sign_handler_f, bsks, ksks,
-                        2);
+                        ms_noise_reduction_key, 2);
 
   } else {
     if (num_radix_blocks == 1) {
@@ -580,7 +593,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in, bsks,
-          ksks, one_block_lut, 1);
+          ksks, ms_noise_reduction_key, one_block_lut, 1);
       one_block_lut->release(streams, gpu_indexes, gpu_count);
       delete one_block_lut;
     } else {
@@ -621,7 +634,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       scalar_compare_radix_blocks_kb<Torus>(
           lsb_streams, gpu_indexes, gpu_count, lwe_array_ct_out,
           diff_buffer->tmp_packed, (Torus *)rhs.ptr, mem_ptr, bsks, ksks,
-          num_lsb_radix_blocks);
+          ms_noise_reduction_key, num_lsb_radix_blocks);
       CudaRadixCiphertextFFI encrypted_sign_block;
       as_radix_ciphertext_slice<Torus>(&encrypted_sign_block, lwe_array_in,
                                        num_radix_blocks - 1, num_radix_blocks);
@@ -637,7 +650,8 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           msb_streams, gpu_indexes, gpu_count, &lwe_array_sign_out,
           &encrypted_sign_block, trivial_sign_block, bsks, ksks,
-          mem_ptr->signed_lut, 1, mem_ptr->signed_lut->params.message_modulus);
+          ms_noise_reduction_key, mem_ptr->signed_lut, 1,
+          mem_ptr->signed_lut->params.message_modulus);
       for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
         cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
         cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -648,7 +662,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       // final sign
       reduce_signs<Torus>(streams, gpu_indexes, gpu_count, lwe_array_out,
                           lwe_array_ct_out, mem_ptr, sign_handler_f, bsks, ksks,
-                          num_lsb_radix_blocks + 1);
+                          ms_noise_reduction_key, num_lsb_radix_blocks + 1);
     }
   }
 }
@@ -660,7 +674,9 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input lwe dimensions must be the same")
@@ -673,12 +689,12 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     integer_radix_signed_scalar_difference_check_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in,
         scalar_blocks, h_scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks,
-        num_radix_blocks, num_scalar_blocks);
+        ms_noise_reduction_key, num_radix_blocks, num_scalar_blocks);
   } else {
     integer_radix_unsigned_scalar_difference_check_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in,
         scalar_blocks, h_scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks,
-        num_radix_blocks, num_scalar_blocks);
+        ms_noise_reduction_key, num_radix_blocks, num_scalar_blocks);
   }
 }
 
@@ -688,8 +704,9 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
-    uint32_t num_scalar_blocks) {
+    void *const *bsks, Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -708,7 +725,7 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
   host_integer_radix_scalar_difference_check_kb<Torus>(
       streams, gpu_indexes, gpu_count, sign, lwe_array_in, scalar_blocks,
       h_scalar_blocks, mem_ptr, mem_ptr->identity_lut_f, bsks, ksks,
-      num_radix_blocks, num_scalar_blocks);
+      ms_noise_reduction_key, num_radix_blocks, num_scalar_blocks);
 
   // There is no optimized CMUX for scalars, so we convert to a trivial
   // ciphertext
@@ -722,10 +739,10 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
 
   // Selector
   // CMUX for Max or Min
-  host_integer_radix_cmux_kb<Torus>(streams, gpu_indexes, gpu_count,
-                                    lwe_array_out, mem_ptr->tmp_lwe_array_out,
-                                    lwe_array_left, lwe_array_right,
-                                    mem_ptr->cmux_buffer, bsks, ksks);
+  host_integer_radix_cmux_kb<Torus>(
+      streams, gpu_indexes, gpu_count, lwe_array_out,
+      mem_ptr->tmp_lwe_array_out, lwe_array_left, lwe_array_right,
+      mem_ptr->cmux_buffer, bsks, ksks, ms_noise_reduction_key);
 }
 
 template <typename Torus>
@@ -734,7 +751,9 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
     int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -804,8 +823,8 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         lsb_streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
-        mem_ptr->tmp_packed_input, bsks, ksks, scalar_comparison_luts,
-        num_halved_lsb_radix_blocks);
+        mem_ptr->tmp_packed_input, bsks, ksks, ms_noise_reduction_key,
+        scalar_comparison_luts, num_halved_lsb_radix_blocks);
   }
   //////////////
   // msb_in
@@ -822,12 +841,12 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
       PANIC("Cuda error: integer operation not supported")
     }
 
-    host_compare_blocks_with_zero<Torus>(msb_streams, gpu_indexes, gpu_count,
-                                         &msb_out, &msb_in, mem_ptr, bsks, ksks,
-                                         num_msb_radix_blocks, msb_lut);
-    are_all_comparisons_block_true<Torus>(msb_streams, gpu_indexes, gpu_count,
-                                          &msb_out, &msb_out, mem_ptr, bsks,
-                                          ksks, msb_out.num_radix_blocks);
+    host_compare_blocks_with_zero<Torus>(
+        msb_streams, gpu_indexes, gpu_count, &msb_out, &msb_in, mem_ptr, bsks,
+        ksks, ms_noise_reduction_key, num_msb_radix_blocks, msb_lut);
+    are_all_comparisons_block_true<Torus>(
+        msb_streams, gpu_indexes, gpu_count, &msb_out, &msb_out, mem_ptr, bsks,
+        ksks, ms_noise_reduction_key, msb_out.num_radix_blocks);
   }
 
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
@@ -839,13 +858,13 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
   case COMPARISON_TYPE::EQ:
     are_all_comparisons_block_true<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
-        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks,
+        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks, ms_noise_reduction_key,
         num_halved_scalar_blocks + (num_msb_radix_blocks > 0));
     break;
   case COMPARISON_TYPE::NE:
     is_at_least_one_comparisons_block_true<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out,
-        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks,
+        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks, ms_noise_reduction_key,
         num_halved_scalar_blocks + (num_msb_radix_blocks > 0));
     break;
   default:

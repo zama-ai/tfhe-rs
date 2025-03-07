@@ -184,6 +184,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI *terms, void *const *bsks, uint64_t *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     int_sum_ciphertexts_vec_memory<uint64_t> *mem_ptr,
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec,
     int_radix_lut<Torus> *reused_lut) {
@@ -375,8 +376,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           streams, gpu_indexes, 1, (Torus *)new_blocks->ptr, lwe_indexes_out,
           luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
           (Torus *)small_lwe_vector->ptr, lwe_indexes_in, bsks,
-          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
-          polynomial_size, mem_ptr->params.pbs_base_log,
+          ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
+          small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
           mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
           total_count, mem_ptr->params.pbs_type, num_many_lut, lut_stride);
     } else {
@@ -422,11 +423,11 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
           lwe_trivial_indexes_vec, luts_message_carry->lut_vec,
           luts_message_carry->lut_indexes_vec, small_lwe_vector_vec,
-          lwe_trivial_indexes_vec, bsks, luts_message_carry->buffer,
-          glwe_dimension, small_lwe_dimension, polynomial_size,
-          mem_ptr->params.pbs_base_log, mem_ptr->params.pbs_level,
-          mem_ptr->params.grouping_factor, total_count,
-          mem_ptr->params.pbs_type, num_many_lut, lut_stride);
+          lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
+          luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
+          polynomial_size, mem_ptr->params.pbs_base_log,
+          mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
+          total_count, mem_ptr->params.pbs_type, num_many_lut, lut_stride);
 
       multi_gpu_gather_lwe_async<Torus>(
           streams, gpu_indexes, active_gpu_count, (Torus *)new_blocks->ptr,
@@ -471,8 +472,9 @@ __host__ void host_integer_mult_radix_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *radix_lwe_out,
     CudaRadixCiphertextFFI const *radix_lwe_left, bool const is_bool_left,
     CudaRadixCiphertextFFI const *radix_lwe_right, bool const is_bool_right,
-    void *const *bsks, uint64_t *const *ksks, int_mul_memory<Torus> *mem_ptr,
-    uint32_t num_blocks) {
+    void *const *bsks, uint64_t *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    int_mul_memory<Torus> *mem_ptr, uint32_t num_blocks) {
 
   if (radix_lwe_out->lwe_dimension != radix_lwe_left->lwe_dimension ||
       radix_lwe_right->lwe_dimension != radix_lwe_left->lwe_dimension)
@@ -492,14 +494,16 @@ __host__ void host_integer_mult_radix_kb(
   if (is_bool_right) {
     zero_out_if<Torus>(streams, gpu_indexes, gpu_count, radix_lwe_out,
                        radix_lwe_left, radix_lwe_right, mem_ptr->zero_out_mem,
-                       mem_ptr->zero_out_predicate_lut, bsks, ksks, num_blocks);
+                       mem_ptr->zero_out_predicate_lut, bsks, ksks,
+                       ms_noise_reduction_key, num_blocks);
     return;
   }
 
   if (is_bool_left) {
     zero_out_if<Torus>(streams, gpu_indexes, gpu_count, radix_lwe_out,
                        radix_lwe_right, radix_lwe_left, mem_ptr->zero_out_mem,
-                       mem_ptr->zero_out_predicate_lut, bsks, ksks, num_blocks);
+                       mem_ptr->zero_out_predicate_lut, bsks, ksks,
+                       ms_noise_reduction_key, num_blocks);
     return;
   }
 
@@ -573,8 +577,8 @@ __host__ void host_integer_mult_radix_kb(
 
   integer_radix_apply_bivariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, block_mul_res, block_mul_res,
-      vector_result_sb, bsks, ksks, luts_array, total_block_count,
-      luts_array->params.message_modulus);
+      vector_result_sb, bsks, ksks, ms_noise_reduction_key, luts_array,
+      total_block_count, luts_array->params.message_modulus);
 
   vector_result_lsb = block_mul_res;
   as_radix_ciphertext_slice<Torus>(&vector_result_msb, block_mul_res,
@@ -602,8 +606,8 @@ __host__ void host_integer_mult_radix_kb(
   }
   host_integer_partial_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb, bsks,
-      ksks, mem_ptr->sum_ciphertexts_mem, num_blocks, 2 * num_blocks,
-      mem_ptr->luts_array);
+      ksks, ms_noise_reduction_key, mem_ptr->sum_ciphertexts_mem, num_blocks,
+      2 * num_blocks, mem_ptr->luts_array);
 
   uint32_t block_modulus = message_modulus * carry_modulus;
   uint32_t num_bits_in_block = log2_int(block_modulus);
@@ -613,7 +617,8 @@ __host__ void host_integer_mult_radix_kb(
   uint32_t uses_carry = 0;
   host_propagate_single_carry<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
-      scp_mem_ptr, bsks, ksks, requested_flag, uses_carry);
+      scp_mem_ptr, bsks, ksks, ms_noise_reduction_key, requested_flag,
+      uses_carry);
 }
 
 template <typename Torus>

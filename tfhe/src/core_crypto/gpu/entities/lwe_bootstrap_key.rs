@@ -1,10 +1,46 @@
+use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::gpu::vec::CudaVec;
-use crate::core_crypto::gpu::{convert_lwe_programmable_bootstrap_key_async, CudaStreams};
+use crate::core_crypto::gpu::{
+    convert_lwe_programmable_bootstrap_key_async, CudaModulusSwitchNoiseReductionKeyFFI,
+    CudaStreams,
+};
 use crate::core_crypto::prelude::{
     lwe_bootstrap_key_size, Container, DecompositionBaseLog, DecompositionLevelCount,
-    GlweDimension, LweBootstrapKey, LweDimension, PolynomialSize, UnsignedInteger,
+    GlweDimension, LweBootstrapKey, LweDimension, NoiseEstimationMeasureBound, PolynomialSize,
+    RSigmaFactor, UnsignedInteger, Variance,
 };
+use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
+#[derive(Debug)]
+#[allow(dead_code)]
+pub struct CudaModulusSwitchNoiseReductionKey {
+    pub modulus_switch_zeros: CudaVec<u64>,
+    pub ms_bound: NoiseEstimationMeasureBound,
+    pub ms_r_sigma_factor: RSigmaFactor,
+    pub ms_input_variance: Variance,
+    pub num_zeros: u32,
+}
 
+pub fn prepare_cuda_ms_noise_reduction_key_ffi(
+    input_ms_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    modulus: f64,
+) -> CudaModulusSwitchNoiseReductionKeyFFI {
+    input_ms_key.map_or(
+        CudaModulusSwitchNoiseReductionKeyFFI {
+            ptr: std::ptr::null_mut(),
+            num_zeros: 0,
+            ms_bound: 0.0,
+            ms_r_sigma: 0.0,
+            ms_input_variance: 0.0,
+        },
+        |ms_key| CudaModulusSwitchNoiseReductionKeyFFI {
+            ptr: ms_key.modulus_switch_zeros.ptr.as_ptr(),
+            num_zeros: ms_key.num_zeros,
+            ms_bound: ms_key.ms_bound.0,
+            ms_r_sigma: ms_key.ms_r_sigma_factor.0,
+            ms_input_variance: ms_key.ms_input_variance.get_modular_variance(modulus).value,
+        },
+    )
+}
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -21,12 +57,15 @@ pub struct CudaLweBootstrapKey {
     pub(crate) decomp_base_log: DecompositionBaseLog,
     // Decomposition level count
     pub(crate) decomp_level_count: DecompositionLevelCount,
+    // Pointer to the noise reduction key
+    pub(crate) d_ms_noise_reduction_key: Option<CudaModulusSwitchNoiseReductionKey>,
 }
 
 #[allow(dead_code)]
 impl CudaLweBootstrapKey {
     pub fn from_lwe_bootstrap_key<InputBskCont: Container>(
         bsk: &LweBootstrapKey<InputBskCont>,
+        ms_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
         streams: &CudaStreams,
     ) -> Self
     where
@@ -65,7 +104,41 @@ impl CudaLweBootstrapKey {
                 decomp_level_count,
                 polynomial_size,
             );
+        }
+
+        // If noise reduction key is present, copy it to the GPU
+        let d_ms_noise_reduction_key = match ms_noise_reduction_key {
+            Some(ms_noise_red_key) => {
+                let h_input = ms_noise_red_key
+                    .modulus_switch_zeros
+                    .as_view()
+                    .into_container();
+                let lwe_ciphertext_count =
+                    ms_noise_red_key.modulus_switch_zeros.lwe_ciphertext_count();
+                let mut d_zeros_vec = CudaVec::new_multi_gpu(
+                    input_lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
+                    streams,
+                );
+
+                unsafe {
+                    d_zeros_vec.copy_from_cpu_multi_gpu_async(h_input, streams);
+                }
+
+                streams.synchronize();
+                Some(CudaModulusSwitchNoiseReductionKey {
+                    modulus_switch_zeros: d_zeros_vec,
+                    num_zeros: ms_noise_red_key
+                        .modulus_switch_zeros
+                        .lwe_ciphertext_count()
+                        .0 as u32,
+                    ms_bound: ms_noise_red_key.ms_bound,
+                    ms_r_sigma_factor: ms_noise_red_key.ms_r_sigma_factor,
+                    ms_input_variance: ms_noise_red_key.ms_input_variance,
+                })
+            }
+            None => None,
         };
+
         streams.synchronize();
         Self {
             d_vec,
@@ -74,6 +147,7 @@ impl CudaLweBootstrapKey {
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
+            d_ms_noise_reduction_key,
         }
     }
 

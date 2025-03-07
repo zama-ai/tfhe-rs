@@ -79,7 +79,7 @@ impl RadixClientKey {
         });
 
         let blind_rotate_key = CudaBootstrappingKey::Classic(
-            CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, streams),
+            CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, streams),
         );
 
         let cuda_decompression_key = CudaDecompressionKey {

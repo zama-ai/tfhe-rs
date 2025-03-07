@@ -27,7 +27,7 @@ impl CompressedDecompressionKey {
             .par_decompress_into_lwe_bootstrap_key();
 
         let d_bootstrap_key =
-            CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, streams);
+            CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, None, streams);
 
         let blind_rotate_key = CudaBootstrappingKey::Classic(d_bootstrap_key);
 
