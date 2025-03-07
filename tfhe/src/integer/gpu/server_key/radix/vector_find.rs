@@ -1801,6 +1801,7 @@ impl CudaServerKey {
                 first_true.as_mut(),
                 clone_ct.as_mut(),
                 &lut_fn,
+                0..num_ct_blocks,
                 streams,
             );
         }

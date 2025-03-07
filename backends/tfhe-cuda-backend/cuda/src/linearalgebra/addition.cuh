@@ -195,29 +195,6 @@ __host__ void host_add_the_same_block_to_all_blocks(
   }
 }
 
-// Coefficient-wise addition
-template <typename T>
-__host__ void legacy_host_addition(cudaStream_t stream, uint32_t gpu_index,
-                                   T *output, T const *input_1,
-                                   T const *input_2,
-                                   const uint32_t input_lwe_dimension,
-                                   const uint32_t input_lwe_ciphertext_count) {
-
-  cuda_set_device(gpu_index);
-  // lwe_size includes the presence of the body
-  // whereas lwe_dimension is the number of elements in the mask
-  int lwe_size = input_lwe_dimension + 1;
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count * lwe_size;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  addition<T><<<grid, thds, 0, stream>>>(output, input_1, input_2, num_entries);
-  check_cuda_error(cudaGetLastError());
-}
-
 template <typename T>
 __global__ void pack_for_overflowing_ops(T *output, T const *input_1,
                                          T const *input_2, uint32_t num_entries,
@@ -353,29 +330,6 @@ unchecked_sub_with_correcting_term(T *output, T const *input_1,
     if (index % lwe_size == lwe_size - 1)
       output[index] += w;
   }
-}
-template <typename T>
-__host__ void legacy_host_unchecked_sub_with_correcting_term(
-    cudaStream_t stream, uint32_t gpu_index, T *output, T const *input_1,
-    T const *input_2, uint32_t input_lwe_dimension,
-    uint32_t input_lwe_ciphertext_count, uint32_t message_modulus,
-    uint32_t carry_modulus, uint32_t degree) {
-
-  cuda_set_device(gpu_index);
-  // lwe_size includes the presence of the body
-  // whereas lwe_dimension is the number of elements in the mask
-  int lwe_size = input_lwe_dimension + 1;
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count * lwe_size;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  unchecked_sub_with_correcting_term<T><<<grid, thds, 0, stream>>>(
-      output, input_1, input_2, num_entries, lwe_size, message_modulus,
-      carry_modulus, degree);
-  check_cuda_error(cudaGetLastError());
 }
 
 template <typename T>

@@ -1564,7 +1564,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   int_hs_group_prop_memory<Torus> *hs_group_prop_mem;
 
   uint32_t group_size;
-  bool use_sequential_algorithm_to_resolver_group_carries;
+  bool use_sequential_algorithm_to_resolve_group_carries;
 
   int_prop_simu_group_carries_memory(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1622,10 +1622,10 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       hillis_steel_depth = std::ceil(std::log2(num_carry_to_resolve));
     }
 
-    use_sequential_algorithm_to_resolver_group_carries =
+    use_sequential_algorithm_to_resolve_group_carries =
         sequential_depth <= hillis_steel_depth;
     uint32_t num_extra_luts = 0;
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       num_extra_luts = (grouping_size - 1);
     } else {
       num_extra_luts = 1;
@@ -1696,7 +1696,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           f_other_groupings_inner_propagation);
     }
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       for (int index = 0; index < grouping_size - 1; index++) {
         uint32_t lut_id = index + 2 * grouping_size;
 
@@ -1748,7 +1748,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       if (is_in_first_grouping) {
         h_second_lut_indexes[index] = index_in_grouping;
       } else if (index_in_grouping == (grouping_size - 1)) {
-        if (use_sequential_algorithm_to_resolver_group_carries) {
+        if (use_sequential_algorithm_to_resolve_group_carries) {
           int inner_index = (grouping_index - 1) % (grouping_size - 1);
           h_second_lut_indexes[index] = inner_index + 2 * grouping_size;
         } else {
@@ -1762,7 +1762,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           !is_in_first_grouping && (index_in_grouping == grouping_size - 1);
 
       if (may_have_its_padding_bit_set) {
-        if (use_sequential_algorithm_to_resolver_group_carries) {
+        if (use_sequential_algorithm_to_resolve_group_carries) {
           h_scalar_array_cum_sum[index] =
               1 << ((grouping_index - 1) % (grouping_size - 1));
         } else {
@@ -1783,7 +1783,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
                              gpu_indexes[0]);
     luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
 
       seq_group_prop_mem = new int_seq_group_prop_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, grouping_size,
@@ -1832,7 +1832,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     luts_array_second_step->release(streams, gpu_indexes, gpu_count);
 
-    if (use_sequential_algorithm_to_resolver_group_carries) {
+    if (use_sequential_algorithm_to_resolve_group_carries) {
       seq_group_prop_mem->release(streams, gpu_indexes, gpu_count);
       delete seq_group_prop_mem;
     } else {
@@ -1860,7 +1860,6 @@ template <typename Torus> struct int_sc_prop_memory {
   int_prop_simu_group_carries_memory<Torus> *prop_simu_group_carries_mem;
 
   int_radix_params params;
-  bool use_sequential_algorithm_to_resolver_group_carries;
   uint32_t requested_flag;
 
   uint32_t active_gpu_count;
@@ -3733,23 +3732,23 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   cudaStream_t *sub_streams_4;
 
   // temporary device buffers
-  Torus *remainder1;
-  Torus *remainder2;
-  Torus *numerator_block_stack;
-  Torus *numerator_block_1;
-  Torus *tmp_radix;
-  Torus *interesting_remainder1;
-  Torus *interesting_remainder2;
-  Torus *interesting_divisor;
-  Torus *divisor_ms_blocks;
-  Torus *new_remainder;
-  Torus *subtraction_overflowed;
-  Torus *did_not_overflow;
-  Torus *overflow_sum;
-  Torus *overflow_sum_radix;
-  Torus *tmp_1;
-  Torus *at_least_one_upper_block_is_non_zero;
-  Torus *cleaned_merged_interesting_remainder;
+  CudaRadixCiphertextFFI *remainder1;
+  CudaRadixCiphertextFFI *remainder2;
+  CudaRadixCiphertextFFI *numerator_block_stack;
+  CudaRadixCiphertextFFI *numerator_block_1;
+  CudaRadixCiphertextFFI *tmp_radix;
+  CudaRadixCiphertextFFI *interesting_remainder1;
+  CudaRadixCiphertextFFI *interesting_remainder2;
+  CudaRadixCiphertextFFI *interesting_divisor;
+  CudaRadixCiphertextFFI *divisor_ms_blocks;
+  CudaRadixCiphertextFFI *new_remainder;
+  CudaRadixCiphertextFFI *subtraction_overflowed;
+  CudaRadixCiphertextFFI *did_not_overflow;
+  CudaRadixCiphertextFFI *overflow_sum;
+  CudaRadixCiphertextFFI *overflow_sum_radix;
+  CudaRadixCiphertextFFI *tmp_1;
+  CudaRadixCiphertextFFI *at_least_one_upper_block_is_non_zero;
+  CudaRadixCiphertextFFI *cleaned_merged_interesting_remainder;
 
   Torus **first_indexes_for_overflow_sub;
   Torus **second_indexes_for_overflow_sub;
@@ -3764,46 +3763,77 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     uint32_t big_lwe_size = params.big_lwe_dimension + 1;
 
     // non boolean temporary arrays, with `num_blocks` blocks
-    remainder1 = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    remainder2 = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    numerator_block_stack = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    interesting_remainder2 = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    interesting_divisor = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    divisor_ms_blocks = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    new_remainder = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    cleaned_merged_interesting_remainder = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    tmp_1 = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+    remainder1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              remainder1, num_blocks,
+                                              params.big_lwe_dimension);
+    remainder2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              remainder2, num_blocks,
+                                              params.big_lwe_dimension);
+    numerator_block_stack = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              numerator_block_stack, num_blocks,
+                                              params.big_lwe_dimension);
+    interesting_remainder2 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], interesting_remainder2, num_blocks,
+        params.big_lwe_dimension);
+    interesting_divisor = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              interesting_divisor, num_blocks,
+                                              params.big_lwe_dimension);
+    divisor_ms_blocks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              divisor_ms_blocks, num_blocks,
+                                              params.big_lwe_dimension);
+    new_remainder = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              new_remainder, num_blocks,
+                                              params.big_lwe_dimension);
+    cleaned_merged_interesting_remainder = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], cleaned_merged_interesting_remainder,
+        num_blocks, params.big_lwe_dimension);
+    tmp_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], tmp_1,
+                                              num_blocks,
+                                              params.big_lwe_dimension);
 
     // temporary arrays used as stacks
-    tmp_radix = (Torus *)cuda_malloc_async(big_lwe_size * (num_blocks + 1) *
-                                               sizeof(Torus),
-                                           streams[0], gpu_indexes[0]);
-    interesting_remainder1 = (Torus *)cuda_malloc_async(
-        big_lwe_size * (num_blocks + 1) * sizeof(Torus), streams[0],
-        gpu_indexes[0]);
-    numerator_block_1 = (Torus *)cuda_malloc_async(
-        big_lwe_size * 2 * sizeof(Torus), streams[0], gpu_indexes[0]);
+    tmp_radix = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              tmp_radix, num_blocks + 1,
+                                              params.big_lwe_dimension);
+    interesting_remainder1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], interesting_remainder1, num_blocks + 1,
+        params.big_lwe_dimension);
+    numerator_block_1 = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              numerator_block_1, 1,
+                                              params.big_lwe_dimension);
 
     // temporary arrays for boolean blocks
-    subtraction_overflowed = (Torus *)cuda_malloc_async(
-        big_lwe_size * 1 * sizeof(Torus), streams[0], gpu_indexes[0]);
-    did_not_overflow = (Torus *)cuda_malloc_async(
-        big_lwe_size * 1 * sizeof(Torus), streams[0], gpu_indexes[0]);
-    overflow_sum = (Torus *)cuda_malloc_async(big_lwe_size * 1 * sizeof(Torus),
-                                              streams[0], gpu_indexes[0]);
-    overflow_sum_radix = (Torus *)cuda_malloc_async(
-        big_lwe_size * num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    at_least_one_upper_block_is_non_zero = (Torus *)cuda_malloc_async(
-        big_lwe_size * 1 * sizeof(Torus), streams[0], gpu_indexes[0]);
+    subtraction_overflowed = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              subtraction_overflowed, 1,
+                                              params.big_lwe_dimension);
+    did_not_overflow = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              did_not_overflow, 1,
+                                              params.big_lwe_dimension);
+    overflow_sum = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], overflow_sum, 1, params.big_lwe_dimension);
+    overflow_sum_radix = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                              overflow_sum_radix, num_blocks,
+                                              params.big_lwe_dimension);
+    at_least_one_upper_block_is_non_zero = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], at_least_one_upper_block_is_non_zero, 1,
+        params.big_lwe_dimension);
   }
 
   // initialize lookup tables for div_rem operation
@@ -3979,7 +4009,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         true);
     uint32_t group_size = overflow_sub_mem->group_size;
     bool use_seq = overflow_sub_mem->prop_simu_group_carries_mem
-                       ->use_sequential_algorithm_to_resolver_group_carries;
+                       ->use_sequential_algorithm_to_resolve_group_carries;
     create_indexes_for_overflow_sub(streams, gpu_indexes, num_blocks,
                                     group_size, use_seq);
 
@@ -4169,25 +4199,28 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(sub_streams_4);
 
     // drop temporary buffers
-    cuda_drop_async(remainder1, streams[0], gpu_indexes[0]);
-    cuda_drop_async(remainder2, streams[0], gpu_indexes[0]);
-    cuda_drop_async(numerator_block_stack, streams[0], gpu_indexes[0]);
-    cuda_drop_async(numerator_block_1, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_radix, streams[0], gpu_indexes[0]);
-    cuda_drop_async(interesting_remainder1, streams[0], gpu_indexes[0]);
-    cuda_drop_async(interesting_remainder2, streams[0], gpu_indexes[0]);
-    cuda_drop_async(interesting_divisor, streams[0], gpu_indexes[0]);
-    cuda_drop_async(divisor_ms_blocks, streams[0], gpu_indexes[0]);
-    cuda_drop_async(new_remainder, streams[0], gpu_indexes[0]);
-    cuda_drop_async(subtraction_overflowed, streams[0], gpu_indexes[0]);
-    cuda_drop_async(did_not_overflow, streams[0], gpu_indexes[0]);
-    cuda_drop_async(overflow_sum, streams[0], gpu_indexes[0]);
-    cuda_drop_async(overflow_sum_radix, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_1, streams[0], gpu_indexes[0]);
-    cuda_drop_async(at_least_one_upper_block_is_non_zero, streams[0],
-                    gpu_indexes[0]);
-    cuda_drop_async(cleaned_merged_interesting_remainder, streams[0],
-                    gpu_indexes[0]);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], remainder1);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], remainder2);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], numerator_block_stack);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], numerator_block_1);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_radix);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             interesting_remainder1);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             interesting_remainder2);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], interesting_divisor);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], divisor_ms_blocks);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], new_remainder);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             subtraction_overflowed);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], did_not_overflow);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_sum);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_sum_radix);
+    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_1);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             at_least_one_upper_block_is_non_zero);
+    release_radix_ciphertext(streams[0], gpu_indexes[0],
+                             cleaned_merged_interesting_remainder);
 
     for (int i = 0; i < max_indexes_to_erase; i++) {
       cuda_drop_async(first_indexes_for_overflow_sub[i], streams[0],
@@ -4573,11 +4606,11 @@ template <typename Torus> struct int_div_rem_memory {
   cudaStream_t *sub_streams_3;
 
   // temporary device buffers
-  Torus *positive_numerator;
-  Torus *positive_divisor;
-  Torus *sign_bits_are_different;
-  Torus *negated_quotient;
-  Torus *negated_remainder;
+  CudaRadixCiphertextFFI *positive_numerator;
+  CudaRadixCiphertextFFI *positive_divisor;
+  CudaRadixCiphertextFFI *sign_bits_are_different;
+  CudaRadixCiphertextFFI *negated_quotient;
+  CudaRadixCiphertextFFI *negated_remainder;
 
   int_div_rem_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
@@ -4593,7 +4626,6 @@ template <typename Torus> struct int_div_rem_memory {
         allocate_gpu_memory);
 
     if (is_signed) {
-      uint32_t big_lwe_size = params.big_lwe_dimension + 1;
       Torus sign_bit_pos = 31 - __builtin_clz(params.message_modulus) - 1;
 
       // init memory objects for other integer operations
@@ -4626,22 +4658,28 @@ template <typename Torus> struct int_div_rem_memory {
           streams, gpu_indexes, gpu_count, remainder_predicate_lut_f, params,
           num_blocks, allocate_gpu_memory);
       // init temporary memory buffers
-      positive_numerator =
-          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
-                                     streams[0], gpu_indexes[0]);
-      positive_divisor =
-          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
-                                     streams[0], gpu_indexes[0]);
-      negated_quotient =
-          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
-                                     streams[0], gpu_indexes[0]);
-      negated_remainder =
-          (Torus *)cuda_malloc_async(big_lwe_size * num_blocks * sizeof(Torus),
-                                     streams[0], gpu_indexes[0]);
+      positive_numerator = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                positive_numerator, num_blocks,
+                                                params.big_lwe_dimension);
+      positive_divisor = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                positive_divisor, num_blocks,
+                                                params.big_lwe_dimension);
+      negated_quotient = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                negated_quotient, num_blocks,
+                                                params.big_lwe_dimension);
+      negated_remainder = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                negated_remainder, num_blocks,
+                                                params.big_lwe_dimension);
 
       // init boolean temporary buffers
-      sign_bits_are_different = (Torus *)cuda_malloc_async(
-          big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+      sign_bits_are_different = new CudaRadixCiphertextFFI;
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                sign_bits_are_different, 1,
+                                                params.big_lwe_dimension);
 
       // init sub streams
       sub_streams_1 =
@@ -4714,11 +4752,17 @@ template <typename Torus> struct int_div_rem_memory {
       free(sub_streams_3);
 
       // drop temporary buffers
-      cuda_drop_async(positive_numerator, streams[0], gpu_indexes[0]);
-      cuda_drop_async(positive_divisor, streams[0], gpu_indexes[0]);
-      cuda_drop_async(sign_bits_are_different, streams[0], gpu_indexes[0]);
-      cuda_drop_async(negated_quotient, streams[0], gpu_indexes[0]);
-      cuda_drop_async(negated_remainder, streams[0], gpu_indexes[0]);
+      release_radix_ciphertext(streams[0], gpu_indexes[0], positive_numerator);
+      delete positive_numerator;
+      release_radix_ciphertext(streams[0], gpu_indexes[0], positive_divisor);
+      delete positive_divisor;
+      release_radix_ciphertext(streams[0], gpu_indexes[0],
+                               sign_bits_are_different);
+      delete sign_bits_are_different;
+      release_radix_ciphertext(streams[0], gpu_indexes[0], negated_quotient);
+      delete negated_quotient;
+      release_radix_ciphertext(streams[0], gpu_indexes[0], negated_remainder);
+      delete negated_remainder;
     }
   }
 };
@@ -4748,4 +4792,5 @@ void update_degrees_after_scalar_bitxor(uint64_t *output_degrees,
                                         uint64_t *input_degrees,
                                         uint32_t num_clear_blocks);
 std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare);
+void reverseArray(uint64_t arr[], size_t n);
 #endif // CUDA_INTEGER_UTILITIES_H

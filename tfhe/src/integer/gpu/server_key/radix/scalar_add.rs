@@ -265,7 +265,6 @@ impl CudaServerKey {
                 self.propagate_single_carry_assign_async(ct_left, stream, None, OutputFlag::Carry);
         }
         stream.synchronize();
-        ct_left.as_mut().info = ct_left.as_ref().info.after_overflowing_scalar_add_sub();
 
         let num_scalar_blocks =
             BlockDecomposer::with_early_stop_at_zero(scalar, self.message_modulus.0.ilog2())
@@ -340,8 +339,7 @@ impl CudaServerKey {
             ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
             streams,
         );
-        let (mut result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
-        result.as_mut().info = tmp_lhs.as_ref().info.after_overflowing_scalar_add_sub();
+        let (result, overflowed) = self.signed_overflowing_add(&tmp_lhs, &trivial, streams);
 
         let mut extra_scalar_block_iter =
             BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
