@@ -34,6 +34,7 @@ package-lock.json
 
 # Python .env
 .env
+__pycache__
 
 # Dir used for backward compatibility test data
 tests/tfhe-backward-compat-data/
