@@ -35,6 +35,30 @@ unsafe extern "C" {
         polynomial_size: u32,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_modulus_switch_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_improve_noise_modulus_switch_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        encrypted_zeros: *const ffi::c_void,
+        lwe_size: u32,
+        num_lwes: u32,
+        num_zeros: u32,
+        input_variance: f64,
+        r_sigma: f64,
+        bound: f64,
+        log_modulus: u32,
+    );
+}
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
