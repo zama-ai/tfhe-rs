@@ -131,6 +131,8 @@ __profiling = []
 
 software-prng = ["tfhe-csprng/software-prng"]
 
+ntt-gf64-ru64-8 = ["tfhe-ntt/gf64-ru64-8"]
+
 [package.metadata.docs.rs]
 # TODO: manage builds for docs.rs based on their documentation https://docs.rs/about
 features = [
