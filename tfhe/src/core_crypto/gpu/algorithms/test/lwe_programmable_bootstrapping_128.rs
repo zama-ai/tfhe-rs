@@ -8,17 +8,16 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
-use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 use dyn_stack::{GlobalPodBuffer, PodStack};
+use itertools::Itertools;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use itertools::Itertools;
-
 
 pub fn generate_keys<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
@@ -186,10 +185,8 @@ where
         .iter()
         .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
         .collect_vec();
-    let mut d_output_indexes =
-        unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
-    let mut d_input_indexes =
-        unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+    let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
+    let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
     unsafe {
         d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
         d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
