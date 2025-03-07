@@ -127,30 +127,6 @@ __host__ void host_integer_scalar_mul_radix(
 
 // Small scalar_mul is used in shift/rotate
 template <typename T>
-__host__ void host_legacy_integer_small_scalar_mul_radix(
-    cudaStream_t const *streams, uint32_t const *gpu_indexes,
-    uint32_t gpu_count, T *output_lwe_array, T *input_lwe_array, T scalar,
-    uint32_t input_lwe_dimension, uint32_t input_lwe_ciphertext_count) {
-
-  cuda_set_device(gpu_indexes[0]);
-  // lwe_size includes the presence of the body
-  // whereas lwe_dimension is the number of elements in the mask
-  int lwe_size = input_lwe_dimension + 1;
-  // Create a 1-dimensional grid of threads
-  int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count * lwe_size;
-  getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
-  dim3 grid(num_blocks, 1, 1);
-  dim3 thds(num_threads, 1, 1);
-
-  device_small_scalar_radix_multiplication<<<grid, thds, 0, streams[0]>>>(
-      output_lwe_array, input_lwe_array, scalar, input_lwe_dimension,
-      input_lwe_ciphertext_count);
-  check_cuda_error(cudaGetLastError());
-}
-
-// Small scalar_mul is used in shift/rotate
-template <typename T>
 __host__ void host_integer_small_scalar_mul_radix(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *output_lwe_array,

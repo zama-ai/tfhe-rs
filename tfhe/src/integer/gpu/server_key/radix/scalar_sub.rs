@@ -235,8 +235,7 @@ impl CudaServerKey {
             ct_left.ciphertext.d_blocks.lwe_ciphertext_count().0,
             streams,
         );
-        let (mut result, overflowed) = self.signed_overflowing_sub(&tmp_lhs, &trivial, streams);
-        result.as_mut().info = tmp_lhs.as_ref().info.after_overflowing_scalar_add_sub();
+        let (result, overflowed) = self.signed_overflowing_sub(&tmp_lhs, &trivial, streams);
 
         let mut extra_scalar_block_iter =
             BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())

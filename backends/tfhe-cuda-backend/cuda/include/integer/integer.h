@@ -44,6 +44,7 @@ typedef struct {
   uint64_t *degrees;
   uint64_t *noise_levels;
   uint32_t num_radix_blocks;
+  uint32_t max_num_radix_blocks;
   uint32_t lwe_dimension;
 } CudaRadixCiphertextFFI;
 
@@ -416,9 +417,10 @@ void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    void *quotient, void *remainder, void const *numerator, void const *divisor,
-    bool is_signed, int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_blocks_in_radix);
+    CudaRadixCiphertextFFI *quotient, CudaRadixCiphertextFFI *remainder,
+    CudaRadixCiphertextFFI const *numerator,
+    CudaRadixCiphertextFFI const *divisor, bool is_signed, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_integer_div_rem(void *const *streams,
                                   uint32_t const *gpu_indexes,

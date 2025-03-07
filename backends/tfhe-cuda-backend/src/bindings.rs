@@ -149,24 +149,10 @@ pub struct CudaRadixCiphertextFFI {
     pub degrees: *mut u64,
     pub noise_levels: *mut u64,
     pub num_radix_blocks: u32,
+    pub max_num_radix_blocks: u32, // New field
     pub lwe_dimension: u32,
 }
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaRadixCiphertextFFI"][::std::mem::size_of::<CudaRadixCiphertextFFI>() - 32usize];
-    ["Alignment of CudaRadixCiphertextFFI"]
-        [::std::mem::align_of::<CudaRadixCiphertextFFI>() - 8usize];
-    ["Offset of field: CudaRadixCiphertextFFI::ptr"]
-        [::std::mem::offset_of!(CudaRadixCiphertextFFI, ptr) - 0usize];
-    ["Offset of field: CudaRadixCiphertextFFI::degrees"]
-        [::std::mem::offset_of!(CudaRadixCiphertextFFI, degrees) - 8usize];
-    ["Offset of field: CudaRadixCiphertextFFI::noise_levels"]
-        [::std::mem::offset_of!(CudaRadixCiphertextFFI, noise_levels) - 16usize];
-    ["Offset of field: CudaRadixCiphertextFFI::num_radix_blocks"]
-        [::std::mem::offset_of!(CudaRadixCiphertextFFI, num_radix_blocks) - 24usize];
-    ["Offset of field: CudaRadixCiphertextFFI::lwe_dimension"]
-        [::std::mem::offset_of!(CudaRadixCiphertextFFI, lwe_dimension) - 28usize];
-};
+
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
         streams: *const *mut ffi::c_void,
@@ -997,15 +983,14 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        quotient: *mut ffi::c_void,
-        remainder: *mut ffi::c_void,
-        numerator: *const ffi::c_void,
-        divisor: *const ffi::c_void,
+        quotient: *mut CudaRadixCiphertextFFI,
+        remainder: *mut CudaRadixCiphertextFFI,
+        numerator: *const CudaRadixCiphertextFFI,
+        divisor: *const CudaRadixCiphertextFFI,
         is_signed: bool,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
-        num_blocks_in_radix: u32,
     );
 }
 unsafe extern "C" {
