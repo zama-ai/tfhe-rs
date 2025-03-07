@@ -21,7 +21,7 @@ struct alignas(16) f128 {
 #else
     double s = a + b;
     return f128(s, b - (s - a));
-#endif;
+#endif
   }
 
   // Two-sum
