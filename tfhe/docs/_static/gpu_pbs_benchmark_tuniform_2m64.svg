@@ -1,42 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="550.0" height="120" viewBox="0 0 550.0 120">
-    <!-- Header Row -->
-    <rect x="0" y="0" width="550.0" height="40" fill="black" />
-	<text x="10" y="24.0" fill="white" font-family="Arial" font-size="14">Operation \ Precision(bits)</text>
-	<text x="229.0" y="24.0" fill="white" font-family="Arial" font-size="14">2</text>
-	<text x="321.0" y="24.0" fill="white" font-family="Arial" font-size="14">4</text>
-	<text x="413.0" y="24.0" fill="white" font-family="Arial" font-size="14">6</text>
-	<text x="505.0" y="24.0" fill="white" font-family="Arial" font-size="14">8</text>
-
-    <!-- Data Rows -->
-    <rect x="0" y="40" width="550.0" height="40" fill="#fbbc04" />
-	<text x="10" y="64.0" fill="black" font-family="Arial" font-size="14">MB-PBS</text>
-	<rect x="182.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="205.0" y="64.0" fill="black" font-family="Arial" font-size="14">3.38 ms</text>
-	<rect x="274.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="297.0" y="64.0" fill="black" font-family="Arial" font-size="14">4.22 ms</text>
-	<rect x="366.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="389.0" y="64.0" fill="black" font-family="Arial" font-size="14">23.0 ms</text>
-	<rect x="458.0" y="40" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="497.0" y="64.0" fill="black" font-family="Arial" font-size="14">N/A</text>
-	<rect x="0" y="80" width="550.0" height="40" fill="#fbbc04" />
-	<text x="10" y="104.0" fill="black" font-family="Arial" font-size="14">KS - MB-PBS</text>
-	<rect x="182.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="205.0" y="104.0" fill="black" font-family="Arial" font-size="14">3.38 ms</text>
-	<rect x="274.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="297.0" y="104.0" fill="black" font-family="Arial" font-size="14">4.22 ms</text>
-	<rect x="366.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="389.0" y="104.0" fill="black" font-family="Arial" font-size="14">23.1 ms</text>
-	<rect x="458.0" y="80" width="550.0" height="40" fill="#f3f3f3" />
-	<text x="497.0" y="104.0" fill="black" font-family="Arial" font-size="14">N/A</text>
-
-    <!-- Borders -->
-    <line x1="0" y1="0" x2="0" y2="120" stroke="white" />
-	<line x1="182.0" y1="0" x2="182.0" y2="120" stroke="white" />
-	<line x1="274.0" y1="0" x2="274.0" y2="120" stroke="white" />
-	<line x1="366.0" y1="0" x2="366.0" y2="120" stroke="white" />
-	<line x1="458.0" y1="0" x2="458.0" y2="120" stroke="white" />
-	<line x1="0" y1="0" x2="550.0" y2="0" stroke="white" />
-	<line x1="0" y1="40" x2="550.0" y2="40" stroke="white" />
-	<line x1="0" y1="80" x2="550.0" y2="80" stroke="white" />
-	<line x1="0" y1="120" x2="550.0" y2="120" stroke="white" />
+<?xml version="1.0" ?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 120" preserveAspectRatio="meet" width="100%" height="120">
+	<rect x="0" y="0" width="720" height="40" fill="black"/>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="6" y="20.0">Operation \ Precision (bits)</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="352.5" y="20.0">2</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="457.5" y="20.0">4</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="562.5" y="20.0">6</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="bold" fill="white" x="667.5" y="20.0">8</text>
+	<rect x="0" y="40" width="300" height="80" fill="#fbbc04"/>
+	<rect x="300" y="40" width="420" height="80" fill="#f3f3f3"/>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="60.0">MB-PBS</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="60.0">3.38 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="60.0">4.22 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="60.0">23.0 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="60.0">N/A</text>
+	<text dominant-baseline="middle" text-anchor="start" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="6" y="100.0">KS - MB-PBS</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="352.5" y="100.0">3.38 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="457.5" y="100.0">4.22 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="562.5" y="100.0">23.1 ms</text>
+	<text dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="14" font-weight="normal" fill="black" x="667.5" y="100.0">N/A</text>
+	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="720" y2="0"/>
+	<line stroke="white" stroke-width="2" x1="0" y1="40" x2="720" y2="40"/>
+	<line stroke="white" stroke-width="2" x1="0" y1="80" x2="720" y2="80"/>
+	<line stroke="white" stroke-width="2" x1="0" y1="0" x2="0" y2="120"/>
+	<line stroke="white" stroke-width="2" x1="300.0" y1="0" x2="300.0" y2="120"/>
+	<line stroke="white" stroke-width="2" x1="405.0" y1="0" x2="405.0" y2="120"/>
+	<line stroke="white" stroke-width="2" x1="510.0" y1="0" x2="510.0" y2="120"/>
+	<line stroke="white" stroke-width="2" x1="615.0" y1="0" x2="615.0" y2="120"/>
+	<line stroke="white" stroke-width="2" x1="720.0" y1="0" x2="720.0" y2="120"/>
 </svg>
