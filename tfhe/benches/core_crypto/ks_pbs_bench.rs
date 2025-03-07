@@ -451,7 +451,8 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
@@ -514,7 +515,7 @@ mod cuda {
                             &stream,
                         );
                         cuda_programmable_bootstrap_lwe_ciphertext(
-                            &output_ks_ct_gpu,
+                            &mut output_ks_ct_gpu,
                             &mut output_pbs_ct_gpu,
                             &accumulator_gpu,
                             &d_lut_indexes,

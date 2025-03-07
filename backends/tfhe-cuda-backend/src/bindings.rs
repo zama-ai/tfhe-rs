@@ -35,9 +35,61 @@ unsafe extern "C" {
         polynomial_size: u32,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_modulus_switch_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_improve_noise_modulus_switch_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        encrypted_zeros: *const ffi::c_void,
+        lwe_size: u32,
+        num_lwes: u32,
+        num_zeros: u32,
+        input_variance: f64,
+        r_sigma: f64,
+        bound: f64,
+        log_modulus: u32,
+    );
+}
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaModulusSwitchNoiseReductionKeyFFI {
+    pub ptr: *mut ffi::c_void,
+    pub num_zeros: u32,
+    pub ms_bound: f64,
+    pub ms_r_sigma: f64,
+    pub ms_input_variance: f64,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaModulusSwitchNoiseReductionKeyFFI"]
+        [::std::mem::size_of::<CudaModulusSwitchNoiseReductionKeyFFI>() - 40usize];
+    ["Alignment of CudaModulusSwitchNoiseReductionKeyFFI"]
+        [::std::mem::align_of::<CudaModulusSwitchNoiseReductionKeyFFI>() - 8usize];
+    ["Offset of field: CudaModulusSwitchNoiseReductionKeyFFI::ptr"]
+        [::std::mem::offset_of!(CudaModulusSwitchNoiseReductionKeyFFI, ptr) - 0usize];
+    ["Offset of field: CudaModulusSwitchNoiseReductionKeyFFI::num_zeros"]
+        [::std::mem::offset_of!(CudaModulusSwitchNoiseReductionKeyFFI, num_zeros) - 8usize];
+    ["Offset of field: CudaModulusSwitchNoiseReductionKeyFFI::ms_bound"]
+        [::std::mem::offset_of!(CudaModulusSwitchNoiseReductionKeyFFI, ms_bound) - 16usize];
+    ["Offset of field: CudaModulusSwitchNoiseReductionKeyFFI::ms_r_sigma"]
+        [::std::mem::offset_of!(CudaModulusSwitchNoiseReductionKeyFFI, ms_r_sigma) - 24usize];
+    ["Offset of field: CudaModulusSwitchNoiseReductionKeyFFI::ms_input_variance"][::std::mem::offset_of!(
+        CudaModulusSwitchNoiseReductionKeyFFI,
+        ms_input_variance
+    ) - 32usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: *const *mut ffi::c_void,
@@ -226,6 +278,7 @@ unsafe extern "C" {
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
     );
 }
@@ -270,6 +323,7 @@ unsafe extern "C" {
         input_radix_lwe_2: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
         num_radix_blocks: u32,
         shift: u32,
@@ -292,6 +346,7 @@ unsafe extern "C" {
         input_radix_lwe: *const CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
         num_luts: u32,
         lut_stride: u32,
@@ -325,6 +380,7 @@ unsafe extern "C" {
         input_blocks: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
         num_blocks: u32,
     );
@@ -372,6 +428,7 @@ unsafe extern "C" {
         is_bool_right: bool,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         mem_ptr: *mut i8,
         polynomial_size: u32,
         num_blocks: u32,
@@ -443,6 +500,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -478,6 +536,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -530,6 +589,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -575,6 +635,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -589,6 +650,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         num_scalar_blocks: u32,
     );
 }
@@ -634,6 +696,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -649,6 +712,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -693,6 +757,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -736,6 +801,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -805,6 +871,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         requested_flag: u32,
         uses_carry: u32,
     );
@@ -821,6 +888,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         requested_flag: u32,
         uses_carry: u32,
     );
@@ -876,6 +944,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         compute_overflow: u32,
         uses_input_borrow: u32,
     );
@@ -920,6 +989,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -962,6 +1032,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         polynomial_size: u32,
         message_modulus: u32,
         num_scalars: u32,
@@ -1011,6 +1082,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -1053,6 +1125,7 @@ unsafe extern "C" {
         generates_or_propagates: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
         num_blocks: u32,
     );
@@ -1106,6 +1179,7 @@ unsafe extern "C" {
         is_signed: bool,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
     );
 }
 unsafe extern "C" {
@@ -1148,6 +1222,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         num_radix_blocks: u32,
     );
 }
@@ -1191,6 +1266,7 @@ unsafe extern "C" {
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         num_radix_blocks: u32,
     );
 }
@@ -1583,9 +1659,10 @@ unsafe extern "C" {
         lwe_output_indexes: *const ffi::c_void,
         lut_vector: *const ffi::c_void,
         lut_vector_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         buffer: *mut i8,
         lwe_dimension: u32,
         glwe_dimension: u32,
@@ -1605,9 +1682,10 @@ unsafe extern "C" {
         lwe_output_indexes: *const ffi::c_void,
         lut_vector: *const ffi::c_void,
         lut_vector_indexes: *const ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
         lwe_input_indexes: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         buffer: *mut i8,
         lwe_dimension: u32,
         glwe_dimension: u32,

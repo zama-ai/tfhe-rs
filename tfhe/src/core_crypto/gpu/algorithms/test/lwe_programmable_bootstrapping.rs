@@ -91,7 +91,7 @@ fn lwe_encrypt_pbs_decrypt<
         ciphertext_modulus
     ));
 
-    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -111,7 +111,7 @@ fn lwe_encrypt_pbs_decrypt<
                 ciphertext_modulus
             ));
 
-            let d_lwe_ciphertext_in =
+            let mut d_lwe_ciphertext_in =
                 CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
             let mut d_out_pbs_ct = CudaLweCiphertextList::new(
                 output_lwe_dimension,
@@ -146,7 +146,7 @@ fn lwe_encrypt_pbs_decrypt<
             }
 
             cuda_programmable_bootstrap_lwe_ciphertext(
-                &d_lwe_ciphertext_in,
+                &mut d_lwe_ciphertext_in,
                 &mut d_out_pbs_ct,
                 &d_accumulator,
                 &d_test_vector_indexes,

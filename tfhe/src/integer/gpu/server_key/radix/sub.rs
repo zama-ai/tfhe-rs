@@ -397,6 +397,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     compute_overflow,
                     uses_input_borrow,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -421,6 +422,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     compute_overflow,
                     uses_input_borrow,
+                    None,
                 );
             }
         }

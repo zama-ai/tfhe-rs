@@ -79,7 +79,7 @@ where
 
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, &stream);
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, None, &stream);
 
     // Our 4 bits message space
     let message_modulus: Scalar = Scalar::ONE << 4;
@@ -112,7 +112,7 @@ where
         f,
     );
 
-    let d_lwe_ciphertext_in =
+    let mut d_lwe_ciphertext_in =
         CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
 
     let mut d_out_pbs_ct = CudaLweCiphertextList::new(
@@ -146,7 +146,7 @@ where
     }
 
     cuda_programmable_bootstrap_lwe_ciphertext(
-        &d_lwe_ciphertext_in,
+        &mut d_lwe_ciphertext_in,
         &mut d_out_pbs_ct,
         &d_accumulator,
         &d_test_vector_indexes,

@@ -487,7 +487,7 @@ impl CudaServerKey {
             self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
 
         let num_ct_blocks = 1;
-        let ct_seeded = CudaLweCiphertextList::from_lwe_ciphertext(&seeded, streams);
+        let mut ct_seeded = CudaLweCiphertextList::from_lwe_ciphertext(&seeded, streams);
 
         let mut ct_out: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
 
@@ -517,7 +517,7 @@ impl CudaServerKey {
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 cuda_programmable_bootstrap_lwe_ciphertext(
-                    &ct_seeded,
+                    &mut ct_seeded,
                     &mut ct_out.as_mut().d_blocks,
                     &d_accumulator,
                     &d_lut_vector_indexes,

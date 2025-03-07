@@ -28,7 +28,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks, uint32_t num_blocks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    uint32_t num_blocks) {
 
   if (lwe_array->num_radix_blocks < num_blocks)
     PANIC("Cuda error: input does not have enough blocks")
@@ -81,7 +83,7 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, &partial_current_blocks,
         &partial_current_blocks, &partial_previous_blocks, bsks, ksks,
-        lut_bivariate, partial_block_count,
+        ms_noise_reduction_key, lut_bivariate, partial_block_count,
         lut_bivariate->params.message_modulus);
 
   } else {
@@ -113,8 +115,9 @@ __host__ void host_integer_radix_logical_scalar_shift_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, partial_current_blocks,
-        partial_current_blocks, &partial_next_blocks, bsks, ksks, lut_bivariate,
-        partial_block_count, lut_bivariate->params.message_modulus);
+        partial_current_blocks, &partial_next_blocks, bsks, ksks,
+        ms_noise_reduction_key, lut_bivariate, partial_block_count,
+        lut_bivariate->params.message_modulus);
   }
 }
 
@@ -135,7 +138,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t shift,
     int_arithmetic_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
@@ -206,7 +210,7 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
         integer_radix_apply_bivariate_lookup_table_kb<Torus>(
             streams, gpu_indexes, gpu_count, partial_current_blocks,
             partial_current_blocks, &partial_next_blocks, bsks, ksks,
-            lut_bivariate, partial_block_count,
+            ms_noise_reduction_key, lut_bivariate, partial_block_count,
             lut_bivariate->params.message_modulus);
       }
       // Since our CPU threads will be working on different streams we shall
@@ -218,7 +222,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
           mem->lut_buffers_univariate[num_bits_in_block - 1];
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           mem->local_streams_1, gpu_indexes, gpu_count, &padding_block,
-          &last_block_copy, bsks, ksks, lut_univariate_padding_block, 1);
+          &last_block_copy, bsks, ksks, ms_noise_reduction_key,
+          lut_univariate_padding_block, 1);
       // Replace blocks 'pulled' from the left with the correct padding
       // block
       for (uint i = 0; i < rotations; i++) {
@@ -232,7 +237,8 @@ __host__ void host_integer_radix_arithmetic_scalar_shift_kb_inplace(
             mem->lut_buffers_univariate[shift_within_block - 1];
         integer_radix_apply_univariate_lookup_table_kb<Torus>(
             mem->local_streams_2, gpu_indexes, gpu_count, &last_block,
-            &last_block_copy, bsks, ksks, lut_univariate_shift_last_block, 1);
+            &last_block_copy, bsks, ksks, ms_noise_reduction_key,
+            lut_univariate_shift_last_block, 1);
       }
       for (uint j = 0; j < mem->active_gpu_count; j++) {
         cuda_synchronize_stream(mem->local_streams_1[j], gpu_indexes[j]);

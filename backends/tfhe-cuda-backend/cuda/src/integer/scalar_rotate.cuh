@@ -28,7 +28,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array, uint32_t n,
     int_logical_scalar_shift_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   auto num_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
@@ -75,8 +76,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
-        giver_blocks, bsks, ksks, lut_bivariate, num_blocks,
-        lut_bivariate->params.message_modulus);
+        giver_blocks, bsks, ksks, ms_noise_reduction_key, lut_bivariate,
+        num_blocks, lut_bivariate->params.message_modulus);
 
   } else {
     // rotate left as the blocks are from LSB to MSB
@@ -102,8 +103,8 @@ __host__ void host_integer_radix_scalar_rotate_kb_inplace(
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, receiver_blocks,
-        giver_blocks, bsks, ksks, lut_bivariate, num_blocks,
-        lut_bivariate->params.message_modulus);
+        giver_blocks, bsks, ksks, ms_noise_reduction_key, lut_bivariate,
+        num_blocks, lut_bivariate->params.message_modulus);
   }
 }
 

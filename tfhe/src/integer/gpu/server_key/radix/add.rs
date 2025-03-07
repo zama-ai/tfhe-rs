@@ -284,6 +284,7 @@ impl CudaServerKey {
                     radix_count_in_vec as u32,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -308,6 +309,7 @@ impl CudaServerKey {
                     radix_count_in_vec as u32,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    None,
                 );
             }
         }

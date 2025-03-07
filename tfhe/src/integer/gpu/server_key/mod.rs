@@ -12,6 +12,7 @@ use crate::integer::server_key::num_bits_to_represent_unsigned_value;
 use crate::integer::ClientKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 mod radix;
 
@@ -95,9 +96,22 @@ impl CudaServerKey {
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
-
-                let d_bootstrap_key =
-                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&h_bootstrap_key, streams);
+                let modulus_switch_noise_reduction_key = pbs_params
+                    .modulus_switch_noise_reduction_params
+                    .map(|modulus_switch_noise_reduction_params| {
+                        ModulusSwitchNoiseReductionKey::new(
+                            modulus_switch_noise_reduction_params,
+                            &cks.key.small_lwe_secret_key(),
+                            &mut engine,
+                            pbs_params.ciphertext_modulus,
+                            pbs_params.lwe_noise_distribution,
+                        )
+                    });
+                let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+                    &h_bootstrap_key,
+                    modulus_switch_noise_reduction_key,
+                    streams,
+                );
 
                 CudaBootstrappingKey::Classic(d_bootstrap_key)
             }
@@ -210,15 +224,13 @@ impl CudaServerKey {
         let key_switching_key =
             CudaLweKeyswitchKey::from_lwe_keyswitch_key(&h_key_switching_key, streams);
         let bootstrapping_key = match bootstrapping_key {
-            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key } => {
+            crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key, } => {
 
-                assert!(modulus_switch_noise_reduction_key.is_none(), "Modulus Switch Noise Reduction is not yet support on GPU");
-
-                let standard_bootstrapping_key =
-                    h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
+                let  ms_noise_reduction_key = modulus_switch_noise_reduction_key.map(|msnr| msnr.decompress());
+                let standard_bootstrapping_key = h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
 
                 let d_bootstrap_key =
-                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, streams);
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, ms_noise_reduction_key, streams);
 
                 CudaBootstrappingKey::Classic(d_bootstrap_key)
             }

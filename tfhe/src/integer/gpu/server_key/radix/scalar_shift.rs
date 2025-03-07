@@ -70,6 +70,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -96,6 +97,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    None,
                 );
             }
         }
@@ -214,6 +216,7 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -239,6 +242,7 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        None,
                     );
                 }
             }
@@ -268,6 +272,7 @@ impl CudaServerKey {
                         lwe_ciphertext_count.0 as u32,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -294,6 +299,7 @@ impl CudaServerKey {
                         lwe_ciphertext_count.0 as u32,
                         PBSType::MultiBit,
                         d_multibit_bsk.grouping_factor,
+                        None,
                     );
                 }
             }
@@ -609,6 +615,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -635,6 +642,7 @@ impl CudaServerKey {
                     lwe_ciphertext_count.0 as u32,
                     PBSType::MultiBit,
                     d_multibit_bsk.grouping_factor,
+                    None,
                 );
             }
         }

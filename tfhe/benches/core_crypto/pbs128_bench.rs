@@ -224,7 +224,7 @@ mod cuda {
             lwe_dimension,
             ciphertext_modulus,
         );
-        let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+        let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
         let message_modulus: Scalar = 1 << 4;
 
@@ -241,7 +241,7 @@ mod cuda {
             ciphertext_modulus,
             &mut encryption_generator,
         );
-        let lwe_ciphertext_in_gpu =
+        let mut lwe_ciphertext_in_gpu =
             CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
 
         let accumulator: GlweCiphertextOwned<Scalar> = GlweCiphertextOwned::new(
@@ -274,7 +274,7 @@ mod cuda {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
                     cuda_programmable_bootstrap_lwe_ciphertext(
-                        &lwe_ciphertext_in_gpu,
+                        &mut lwe_ciphertext_in_gpu,
                         &mut out_pbs_ct_gpu,
                         &accumulator_gpu,
                         &d_lut_indexes,

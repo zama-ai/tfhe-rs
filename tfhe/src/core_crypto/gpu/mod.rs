@@ -3,6 +3,9 @@ pub mod entities;
 pub mod slice;
 pub mod vec;
 
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
+};
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::prelude::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
@@ -108,7 +111,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     lwe_out_indexes: &CudaVec<T>,
     test_vector: &CudaVec<T>,
     test_vector_indexes: &CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
+    lwe_array_in: &mut CudaVec<T>,
     lwe_in_indexes: &CudaVec<T>,
     bootstrapping_key: &CudaVec<f64>,
     lwe_dimension: LweDimension,
@@ -117,10 +120,15 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
     num_samples: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
 ) {
     let num_many_lut = 1u32;
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
     if size_of::<T>() == 16 {
         scratch_cuda_programmable_bootstrap_128(
@@ -141,9 +149,10 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
             lwe_out_indexes.as_c_ptr(0),
             test_vector.as_c_ptr(0),
             test_vector_indexes.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
+            lwe_array_in.as_mut_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             bootstrapping_key.as_c_ptr(0),
+            &ms_noise_reduction_key_ffi,
             pbs_buffer,
             lwe_dimension.0 as u32,
             glwe_dimension.0 as u32,
@@ -179,9 +188,10 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
             lwe_out_indexes.as_c_ptr(0),
             test_vector.as_c_ptr(0),
             test_vector_indexes.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
+            lwe_array_in.as_mut_c_ptr(0),
             lwe_in_indexes.as_c_ptr(0),
             bootstrapping_key.as_c_ptr(0),
+            &ms_noise_reduction_key_ffi,
             pbs_buffer,
             lwe_dimension.0 as u32,
             glwe_dimension.0 as u32,
@@ -470,6 +480,57 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
         lwe_per_glwe,
         glwe_dimension.0 as u32,
         polynomial_size.0 as u32,
+    );
+}
+
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    log_modulus: u32,
+) {
+    cuda_modulus_switch_inplace_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_out.len() as u32,
+        log_modulus,
+    );
+}
+
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn cuda_improve_noise_modulus_switch_ciphertext_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    encrypted_zeros: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: u32,
+    num_zeros: u32,
+    input_variance: f64,
+    r_sigma_factor: f64,
+    bound: f64,
+    log_modulus: u32,
+) {
+    cuda_improve_noise_modulus_switch_inplace_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        encrypted_zeros.as_c_ptr(0),
+        lwe_dimension.to_lwe_size().0 as u32,
+        num_samples,
+        num_zeros,
+        input_variance,
+        r_sigma_factor,
+        bound,
+        log_modulus,
     );
 }
 
