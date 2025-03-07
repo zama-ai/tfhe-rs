@@ -61,7 +61,6 @@ impl CudaLweBootstrapKey {
         );
         // Copy to the GPU
 
-
         unsafe {
             convert_lwe_programmable_bootstrap_key_async(
                 streams,

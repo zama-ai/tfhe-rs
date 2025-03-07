@@ -1,35 +1,28 @@
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 
-use crate::core_crypto::algorithms::test::{FftBootstrapKeys, FftTestParams, TestResources, FFT_U128_PARAMS, FFT_U32_PARAMS};
+use crate::core_crypto::algorithms::test::{
+    FftBootstrapKeys, FftTestParams, TestResources, FFT_U128_PARAMS, FFT_U32_PARAMS,
+};
+use crate::core_crypto::fft_impl::common::tests::test_bootstrap_generic;
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
+use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::vec::GpuIndex;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
 use dyn_stack::{GlobalPodBuffer, PodStack};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use crate::core_crypto::fft_impl::common::tests::test_bootstrap_generic;
-use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
-use crate::core_crypto::gpu::vec::GpuIndex;
-
 
 pub fn generate_keys<
-    Scalar: UnsignedTorus
-    + Sync
-    + Send
-    + CastFrom<usize>
-    + CastInto<usize>
-    + Serialize
-    + DeserializeOwned,
+    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
 >(
     params: FftTestParams<Scalar>,
     rsc: &mut TestResources,
 ) -> FftBootstrapKeys<Scalar> {
     // Generate an LweSecretKey with binary coefficients
-    let small_lwe_sk = LweSecretKey::generate_new_binary(
-        params.lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
+    let small_lwe_sk =
+        LweSecretKey::generate_new_binary(params.lwe_dimension, &mut rsc.secret_random_generator);
 
     // Generate a GlweSecretKey with binary coefficients
     let glwe_sk = GlweSecretKey::generate_new_binary(
@@ -61,13 +54,13 @@ pub fn generate_keys<
 pub fn execute_bootstrap_u128<Scalar, K>(params: FftTestParams<Scalar>)
 where
     Scalar: Numeric
-    + UnsignedTorus
-    + CastFrom<usize>
-    + CastInto<usize>
-    + Send
-    + Sync
-    + Serialize
-    + DeserializeOwned,
+        + UnsignedTorus
+        + CastFrom<usize>
+        + CastInto<usize>
+        + Send
+        + Sync
+        + Serialize
+        + DeserializeOwned,
     K: FourierBootstrapKey<Scalar>,
     FftTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
 {
@@ -93,7 +86,6 @@ where
                 for polynomial in glwe_ciphertext.as_polynomial_list().iter() {
                     for coef in polynomial.iter() {
                         cnt += 1;
-
                     }
                 }
             }
@@ -174,7 +166,7 @@ where
                 std_bootstrapping_key.polynomial_size(),
                 &fft,
             )
-                .unwrap(),
+            .unwrap(),
         )),
     );
 
