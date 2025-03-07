@@ -594,6 +594,9 @@ pub mod integer_utils {
     use tfhe::core_crypto::gpu::vec::GpuIndex;
     #[cfg(feature = "gpu")]
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
+    #[cfg(feature = "gpu")]
+    use tfhe::integer::gpu::CudaServerKey;
+    use tfhe::integer::ClientKey;
 
     /// Number of streaming multiprocessors (SM) available on Nvidia H100 GPU
     #[allow(dead_code)]
@@ -656,6 +659,17 @@ pub mod integer_utils {
             .collect::<Vec<_>>()
     }
 
+    #[allow(dead_code)]
+    #[cfg(feature = "gpu")]
+    pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
+        let gpu_count = get_number_of_gpus() as usize;
+        let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+        for i in 0..gpu_count {
+            let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+            gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
+        }
+        gpu_sks_vec
+    }
     #[allow(dead_code)]
     pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
 

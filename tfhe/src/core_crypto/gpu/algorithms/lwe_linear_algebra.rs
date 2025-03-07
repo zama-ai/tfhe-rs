@@ -54,6 +54,27 @@ pub unsafe fn cuda_lwe_ciphertext_add_async<Scalar>(
         output.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.0.d_vec.gpu_index(0).get(),
+    );
 
     add_lwe_ciphertext_vector_async(
         streams,
@@ -93,6 +114,20 @@ pub unsafe fn cuda_lwe_ciphertext_add_assign_async<Scalar>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs.0.d_vec.gpu_index(0).get(),
+    );
 
     add_lwe_ciphertext_vector_assign_async(
         streams,
@@ -111,7 +146,7 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     lhs: &CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
@@ -132,9 +167,30 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
         output.ciphertext_modulus(),
         lhs.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.0.d_vec.gpu_index(0).get(),
+    );
 
     add_lwe_ciphertext_vector_plaintext_vector_async(
-        stream,
+        streams,
         &mut output.0.d_vec,
         &lhs.0.d_vec,
         rhs,
@@ -150,7 +206,7 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
 pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
     lhs: &mut CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
@@ -158,7 +214,7 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
     let lwe_dimension = &lhs.lwe_dimension();
 
     add_lwe_ciphertext_vector_plaintext_vector_assign_async(
-        stream,
+        streams,
         &mut lhs.0.d_vec,
         rhs,
         *lwe_dimension,
@@ -173,7 +229,7 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_assign_async<Scalar>(
 pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
@@ -184,11 +240,25 @@ pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.0.d_vec.gpu_index(0).get(),
+    );
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
 
     negate_lwe_ciphertext_vector_async(
-        stream,
+        streams,
         &mut output.0.d_vec,
         &input.0.d_vec,
         *lwe_dimension,
@@ -202,14 +272,19 @@ pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
 ///   be dropped until stream is synchronised
 pub unsafe fn cuda_lwe_ciphertext_negate_assign_async<Scalar>(
     ct: &mut CudaLweCiphertextList<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     let num_samples = ct.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &ct.lwe_dimension();
 
-    negate_lwe_ciphertext_vector_assign_async(stream, &mut ct.0.d_vec, *lwe_dimension, num_samples);
+    negate_lwe_ciphertext_vector_assign_async(
+        streams,
+        &mut ct.0.d_vec,
+        *lwe_dimension,
+        num_samples,
+    );
 }
 
 /// # Safety
@@ -220,7 +295,7 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
     cleartext: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
@@ -231,11 +306,32 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        cleartext.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first cleartext pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        cleartext.gpu_index(0).get(),
+    );
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
 
     mult_lwe_ciphertext_vector_cleartext_vector(
-        stream,
+        streams,
         &mut output.0.d_vec,
         &input.0.d_vec,
         cleartext,
@@ -251,7 +347,7 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
 pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_assign_async<Scalar>(
     ct: &mut CudaLweCiphertextList<Scalar>,
     cleartext: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
@@ -259,7 +355,7 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_assign_async<Scalar>(
     let lwe_dimension = ct.lwe_dimension();
 
     mult_lwe_ciphertext_vector_cleartext_vector_assign_async(
-        stream,
+        streams,
         &mut ct.0.d_vec,
         cleartext,
         lwe_dimension,
@@ -298,66 +394,66 @@ pub fn cuda_lwe_ciphertext_plaintext_add<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     lhs: &CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_lwe_ciphertext_plaintext_add_async(output, lhs, rhs, stream);
+        cuda_lwe_ciphertext_plaintext_add_async(output, lhs, rhs, streams);
     }
-    stream.synchronize();
+    streams.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_plaintext_add_assign<Scalar>(
     lhs: &mut CudaLweCiphertextList<Scalar>,
     rhs: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_lwe_ciphertext_plaintext_add_assign_async(lhs, rhs, stream);
+        cuda_lwe_ciphertext_plaintext_add_assign_async(lhs, rhs, streams);
     }
-    stream.synchronize();
+    streams.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_negate<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_lwe_ciphertext_negate_async(output, input, stream);
+        cuda_lwe_ciphertext_negate_async(output, input, streams);
     }
-    stream.synchronize();
+    streams.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_negate_assign<Scalar>(
     ct: &mut CudaLweCiphertextList<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_lwe_ciphertext_negate_assign_async(ct, stream);
+        cuda_lwe_ciphertext_negate_assign_async(ct, streams);
     }
-    stream.synchronize();
+    streams.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_cleartext_mul<Scalar>(
     output: &mut CudaLweCiphertextList<Scalar>,
     input: &CudaLweCiphertextList<Scalar>,
     cleartext: &CudaVec<Scalar>,
-    stream: &CudaStreams,
+    streams: &CudaStreams,
 ) where
     Scalar: UnsignedInteger,
 {
     unsafe {
-        cuda_lwe_ciphertext_cleartext_mul_async(output, input, cleartext, stream);
+        cuda_lwe_ciphertext_cleartext_mul_async(output, input, cleartext, streams);
     }
-    stream.synchronize();
+    streams.synchronize();
 }
 
 pub fn cuda_lwe_ciphertext_cleartext_mul_assign<Scalar>(

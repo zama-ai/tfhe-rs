@@ -44,6 +44,20 @@ pub unsafe fn cuda_extract_lwe_samples_from_glwe_ciphertext_list_async<Scalar>(
         input_glwe_list.ciphertext_modulus(),
         output_lwe_list.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_glwe_list.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input_glwe_list pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input_glwe_list.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_lwe_list.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output_lwe_list pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output_lwe_list.0.d_vec.gpu_index(0).get(),
+    );
 
     let nth_array: Vec<u32> = vec_nth.iter().map(|x| x.0 as u32).collect_vec();
     let gpu_indexes = &streams.gpu_indexes;

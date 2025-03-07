@@ -34,6 +34,41 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_async<Scalar>(
         lwe_keyswitch_key.output_key_lwe_size().to_lwe_dimension(),
         output_lwe_ciphertext.lwe_dimension(),
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_keyswitch_key.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_keyswitch_key.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_lwe_ciphertext.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input lwe pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input_lwe_ciphertext.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_lwe_ciphertext.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output lwe pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output_lwe_ciphertext.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_indexes.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input indexes pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input_indexes.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_indexes.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output indexes pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output_indexes.gpu_index(0).get(),
+    );
 
     keyswitch_async(
         streams,
