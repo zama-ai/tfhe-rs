@@ -27,6 +27,16 @@ use tfhe::shortint::parameters::{
 };
 use tfhe::shortint::MultiBitPBSParameters;
 
+const KSK_PARAMS: [(
+    ClassicPBSParameters,
+    ClassicPBSParameters,
+    ShortintKeySwitchingParameters,
+); 1] = [(
+    V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+)];
+
 fn client_server_keys() {
     let matches = Command::new("test key gen")
         .arg(
@@ -44,6 +54,9 @@ fn client_server_keys() {
                 .exclusive(true),
         )
         .get_matches();
+
+    // Always generate those as they may be used in the different cases
+    generate_ksk_keys(&KSK_PARAMS);
 
     // If set using the command line flag "--ladner-fischer" this algorithm will be used in
     // additions
@@ -80,18 +93,6 @@ fn client_server_keys() {
 
             generate_pbs_multi_bit_keys(&MULTI_BIT_PARAMS);
         }
-
-        const KSK_PARAMS: [(
-            ClassicPBSParameters,
-            ClassicPBSParameters,
-            ShortintKeySwitchingParameters,
-        ); 1] = [(
-            V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-            V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-        )];
-
-        generate_ksk_keys(&KSK_PARAMS);
 
         #[cfg(feature = "experimental")]
         {
