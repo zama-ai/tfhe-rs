@@ -253,7 +253,7 @@ mod test {
     use rayon::iter::IntoParallelIterator;
 
     #[test]
-    fn test_packing() {
+    fn test_packing_ci_run_filter() {
         for params in [
             V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),

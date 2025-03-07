@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_max_noise_level_from_msg_carry_modulus() {
+    fn test_max_noise_level_from_msg_carry_modulus_ci_run_filter() {
         let max_noise_level =
             MaxNoiseLevel::from_msg_carry_modulus(MessageModulus(4), CarryModulus(4));
 

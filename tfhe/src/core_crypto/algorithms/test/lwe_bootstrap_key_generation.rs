@@ -42,7 +42,7 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
 
         let mut secret_generator = new_secret_random_generator();
         let lwe_sk =
-            allocate_and_generate_new_binary_lwe_secret_key(lwe_dim, &mut secret_generator);
+            allocate_and_generate_new_binary_lwe_secret_key::<T, _>(lwe_dim, &mut secret_generator);
         let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
             glwe_dim,
             poly_size,

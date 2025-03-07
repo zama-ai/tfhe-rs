@@ -2,6 +2,7 @@ pub mod compact_public_key_only;
 pub mod key_switching;
 pub mod list_compression;
 pub mod modulus_switch_noise_reduction;
+pub mod noise_squashing;
 
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,

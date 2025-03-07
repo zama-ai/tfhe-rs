@@ -71,7 +71,8 @@ use rayon::prelude::*;
 /// }
 /// ```
 pub fn generate_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -84,11 +85,12 @@ pub fn generate_lwe_bootstrap_key<
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: Copy + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     assert!(
@@ -127,7 +129,7 @@ pub fn generate_lwe_bootstrap_key<
         encrypt_constant_ggsw_ciphertext(
             output_glwe_secret_key,
             &mut ggsw,
-            Cleartext(input_key_element),
+            Cleartext(input_key_element.cast_into()),
             noise_distribution,
             &mut generator,
         );
@@ -141,7 +143,8 @@ pub fn generate_lwe_bootstrap_key<
 /// Consider using [`par_allocate_and_generate_new_lwe_bootstrap_key`] for better key generation
 /// times.
 pub fn allocate_and_generate_new_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -152,18 +155,19 @@ pub fn allocate_and_generate_new_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweBootstrapKeyOwned<Scalar>
+) -> LweBootstrapKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: Copy + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     let mut bsk = LweBootstrapKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
         decomp_base_log,
@@ -211,8 +215,10 @@ where
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
-/// let input_lwe_secret_key =
-///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
+/// let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key::<u64, _>(
+///     input_lwe_dimension,
+///     &mut secret_generator,
+/// );
 /// let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
 ///     glwe_dimension,
 ///     polynomial_size,
@@ -240,7 +246,8 @@ where
 /// assert!(!bsk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn par_generate_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -253,11 +260,12 @@ pub fn par_generate_lwe_bootstrap_key<
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    InputScalar: Copy + CastInto<OutputScalar> + Sync,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
     NoiseDistribution: Distribution + Sync,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar> + Sync,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar> + Sync,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     Gen: ParallelByteRandomGenerator,
 {
     assert!(
@@ -296,7 +304,7 @@ pub fn par_generate_lwe_bootstrap_key<
             par_encrypt_constant_ggsw_ciphertext(
                 output_glwe_secret_key,
                 &mut ggsw,
-                Cleartext(input_key_element),
+                Cleartext(input_key_element.cast_into()),
                 noise_distribution,
                 &mut generator,
             );
@@ -308,7 +316,8 @@ pub fn par_generate_lwe_bootstrap_key<
 ///
 /// See [`programmable_bootstrap_lwe_ciphertext`] for usage.
 pub fn par_allocate_and_generate_new_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -319,18 +328,19 @@ pub fn par_allocate_and_generate_new_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweBootstrapKeyOwned<Scalar>
+) -> LweBootstrapKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    InputScalar: Copy + CastInto<OutputScalar> + Sync,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
     NoiseDistribution: Distribution + Sync,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar> + Sync,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar> + Sync,
     Gen: ParallelByteRandomGenerator,
 {
     let mut bsk = LweBootstrapKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
         decomp_base_log,
@@ -356,7 +366,8 @@ where
 ///
 /// Consider using [`par_generate_seeded_lwe_bootstrap_key`] for better key generation times.
 pub fn generate_seeded_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -369,11 +380,12 @@ pub fn generate_seeded_lwe_bootstrap_key<
     noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: Copy + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
@@ -418,7 +430,7 @@ pub fn generate_seeded_lwe_bootstrap_key<
         encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
             output_glwe_secret_key,
             &mut ggsw,
-            Cleartext(input_key_element),
+            Cleartext(input_key_element.cast_into()),
             noise_distribution,
             &mut generator,
         );
@@ -432,7 +444,8 @@ pub fn generate_seeded_lwe_bootstrap_key<
 /// Consider using [`par_allocate_and_generate_new_seeded_lwe_bootstrap_key`] for better key
 /// generation times.
 pub fn allocate_and_generate_new_seeded_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -443,19 +456,20 @@ pub fn allocate_and_generate_new_seeded_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     noise_seeder: &mut NoiseSeeder,
-) -> SeededLweBootstrapKeyOwned<Scalar>
+) -> SeededLweBootstrapKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: Copy + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut bsk = SeededLweBootstrapKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
         decomp_base_log,
@@ -479,7 +493,8 @@ where
 /// Parallel variant of [`generate_seeded_lwe_bootstrap_key`], it is recommended to use this
 /// function for better key generation times as LWE bootstrapping keys can be quite large.
 pub fn par_generate_seeded_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -492,11 +507,12 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
     noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    InputScalar: Copy + CastInto<OutputScalar> + Sync,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
     NoiseDistribution: Distribution + Sync,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar> + Sync,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar> + Sync,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
@@ -541,7 +557,7 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
             par_encrypt_constant_seeded_ggsw_ciphertext_with_pre_seeded_generator(
                 output_glwe_secret_key,
                 &mut ggsw,
-                Cleartext(input_key_element),
+                Cleartext(input_key_element.cast_into()),
                 noise_distribution,
                 &mut generator,
             );
@@ -551,7 +567,8 @@ pub fn par_generate_seeded_lwe_bootstrap_key<
 /// Parallel variant of [`allocate_and_generate_new_seeded_lwe_bootstrap_key`], it is recommended to
 /// use this function for better key generation times as LWE bootstrapping keys can be quite large.
 pub fn par_allocate_and_generate_new_seeded_lwe_bootstrap_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -562,19 +579,20 @@ pub fn par_allocate_and_generate_new_seeded_lwe_bootstrap_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     noise_seeder: &mut NoiseSeeder,
-) -> SeededLweBootstrapKeyOwned<Scalar>
+) -> SeededLweBootstrapKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
+    InputScalar: Copy + CastInto<OutputScalar> + Sync,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution> + Sync + Send,
     NoiseDistribution: Distribution + Sync,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar> + Sync,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar> + Sync,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut bsk = SeededLweBootstrapKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         output_glwe_secret_key.glwe_dimension().to_glwe_size(),
         output_glwe_secret_key.polynomial_size(),
         decomp_base_log,

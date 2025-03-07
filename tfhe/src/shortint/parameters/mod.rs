@@ -33,6 +33,7 @@ pub mod coverage_parameters;
 pub mod key_switching;
 pub mod list_compression;
 pub mod multi_bit;
+pub mod noise_squashing;
 pub mod parameters_wopbs;
 pub mod parameters_wopbs_message_carry;
 pub mod parameters_wopbs_only;
@@ -59,6 +60,7 @@ pub use compact_public_key_only::{
 pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use multi_bit::MultiBitPBSParameters;
+pub use noise_squashing::NoiseSquashingParameters;
 pub use parameters_wopbs::*;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as

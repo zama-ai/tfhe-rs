@@ -463,7 +463,7 @@ impl CompactPublicKey {
     }
 
     #[cfg(feature = "zk-pok")]
-    pub(crate) fn encoding(&self) -> ShortintEncoding {
+    pub(crate) fn encoding(&self) -> ShortintEncoding<u64> {
         self.parameters.encoding()
     }
 }

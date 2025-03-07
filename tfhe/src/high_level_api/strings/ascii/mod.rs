@@ -297,6 +297,7 @@ impl crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable
         blocks: crate::integer::gpu::ciphertext::CudaRadixCiphertext,
         kind: DataKind,
     ) -> crate::Result<Self> {
+        let _ = (blocks, kind);
         Err(crate::error!("GPU does not supports strings yet"))
     }
 }
