@@ -8,9 +8,13 @@ mod trim;
 
 pub use crate::high_level_api::backward_compatibility::strings::FheAsciiStringVersions;
 use crate::high_level_api::details::MaybeCloned;
+use crate::high_level_api::errors::UninitializedServerKey;
+use crate::high_level_api::global_state;
+use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
 use crate::named::Named;
-use crate::prelude::{FheDecrypt, FheTryEncrypt, Tagged};
+use crate::prelude::{FheDecrypt, FheTryEncrypt, FheTryTrivialEncrypt, Tagged};
+use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::strings::ciphertext::FheString;
 use crate::{ClientKey, HlExpandable, Tag};
 pub use no_pattern::{FheStringIsEmpty, FheStringLen};
@@ -234,6 +238,89 @@ impl FheAsciiString {
             client_key,
         )
     }
+
+    /// Trivially encrypts the string `str` and adds `padding` blocks of padding (encryption of
+    /// zero)
+    /// # Example
+    ///
+    /// ```
+    /// use tfhe::prelude::*;
+    /// use tfhe::safe_serialization::safe_serialize;
+    /// use tfhe::{
+    ///     generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty,
+    ///     FheStringLen,
+    /// };
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// // The input string is shorter
+    /// let string1 = FheAsciiString::try_encrypt_trivial_with_padding("tfhe", 5).unwrap();
+    /// assert!(string1.is_trivial());
+    /// assert_eq!(string1.try_decrypt_trivial(), Ok("tfhe".to_string()));
+    /// ```
+    pub fn try_encrypt_trivial_with_padding(
+        str: impl AsRef<str>,
+        padding: u32,
+    ) -> crate::Result<Self> {
+        Self::try_encrypt_trivial(EncryptableString::WithPadding {
+            str: str.as_ref(),
+            padding,
+        })
+    }
+
+    /// Trivially encrypts the string `str` with a fixed size `size`
+    ///
+    /// * If the input str is shorter than size, it will be padded with encryptions of 0
+    /// * If the input str is longer than size, it will be truncated
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use tfhe::prelude::*;
+    /// use tfhe::safe_serialization::safe_serialize;
+    /// use tfhe::{
+    ///     generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty,
+    ///     FheStringLen,
+    /// };
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// // The input string is shorter
+    /// let string1 = FheAsciiString::try_encrypt_trivial_with_fixed_sized("tfhe", 5).unwrap();
+    /// assert!(string1.is_trivial());
+    /// assert_eq!(string1.try_decrypt_trivial(), Ok("tfhe".to_string()));
+    ///
+    /// // The input string is longer
+    /// let string2 = FheAsciiString::try_encrypt_trivial_with_fixed_sized("tfhe-rs", 5).unwrap();
+    /// assert!(string2.is_trivial());
+    /// assert_eq!(string2.try_decrypt_trivial(), Ok("tfhe-".to_string()));
+    /// ```
+    pub fn try_encrypt_trivial_with_fixed_sized(
+        str: impl AsRef<str>,
+        size: usize,
+    ) -> crate::Result<Self> {
+        let str = str.as_ref();
+        let (sliced, padding) = if str.len() >= size {
+            (&str[..size], 0)
+        } else {
+            (str, (size - str.len()) as u32)
+        };
+
+        Self::try_encrypt_trivial(EncryptableString::WithPadding {
+            str: sliced,
+            padding,
+        })
+    }
+
+    pub fn try_decrypt_trivial(&self) -> Result<String, NotTrivialCiphertextError> {
+        self.inner.on_cpu().decrypt_trivial()
+    }
+
+    pub fn is_trivial(&self) -> bool {
+        self.inner.on_cpu().is_trivial()
+    }
 }
 
 impl<'a> FheTryEncrypt<EncryptableString<'a>, ClientKey> for FheAsciiString {
@@ -271,6 +358,46 @@ impl FheTryEncrypt<&String, ClientKey> for FheAsciiString {
     }
 }
 
+impl<'a> FheTryTrivialEncrypt<EncryptableString<'a>> for FheAsciiString {
+    type Error = crate::Error;
+
+    fn try_encrypt_trivial(value: EncryptableString<'a>) -> Result<Self, Self::Error> {
+        let (str, padding) = value.str_and_padding();
+
+        if !str.is_ascii() || str.contains('\0') {
+            return Err(crate::Error::new(
+                "Input is not an ASCII string".to_string(),
+            ));
+        }
+
+        global_state::try_with_internal_keys(|keys| match keys {
+            Some(InternalServerKey::Cpu(cpu_key)) => {
+                let inner = cpu_key.string_key().trivial_encrypt_ascii(str, padding);
+                Ok(Self::new(inner, cpu_key.tag.clone()))
+            }
+            #[cfg(feature = "gpu")]
+            Some(InternalServerKey::Cuda(_)) => Err(crate::error!("CUDA does not support string")),
+            None => Err(UninitializedServerKey.into()),
+        })
+    }
+}
+
+impl FheTryTrivialEncrypt<&str> for FheAsciiString {
+    type Error = crate::Error;
+
+    fn try_encrypt_trivial(value: &str) -> Result<Self, Self::Error> {
+        Self::try_encrypt_trivial(EncryptableString::NoPadding(value))
+    }
+}
+
+impl FheTryTrivialEncrypt<&String> for FheAsciiString {
+    type Error = crate::Error;
+
+    fn try_encrypt_trivial(value: &String) -> Result<Self, Self::Error> {
+        Self::try_encrypt_trivial(EncryptableString::NoPadding(value.as_str()))
+    }
+}
+
 impl FheDecrypt<String> for FheAsciiString {
     fn decrypt(&self, key: &ClientKey) -> String {
         crate::strings::ClientKey::new(&key.key.key).decrypt_ascii(&self.inner.on_cpu())
@@ -280,7 +407,7 @@ impl FheDecrypt<String> for FheAsciiString {
 impl Expandable for FheAsciiString {
     fn from_expanded_blocks(
         blocks: Vec<crate::shortint::Ciphertext>,
-        kind: crate::integer::ciphertext::DataKind,
+        kind: DataKind,
     ) -> crate::Result<Self> {
         FheString::from_expanded_blocks(blocks, kind)
             .map(|cpu_string| Self::new(cpu_string, Tag::default()))
