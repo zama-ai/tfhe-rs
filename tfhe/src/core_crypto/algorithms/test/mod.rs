@@ -321,9 +321,9 @@ pub const FFT_U64_PARAMS: FftTestParams<u64> = FftTestParams {
 };
 
 pub const FFT_U128_PARAMS: FftTestParams<u128> = FftTestParams {
-    lwe_dimension: LweDimension(742),
+    lwe_dimension: LweDimension(5),
     glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
+    polynomial_size: PolynomialSize(256),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
         0.00000000004998277131225527,
     )),

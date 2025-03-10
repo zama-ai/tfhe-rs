@@ -3,9 +3,8 @@ pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_
 use crate::core_crypto::algorithms::test::{
     FftBootstrapKeys, FftTestParams, TestResources, FFT_U128_PARAMS, FFT_U32_PARAMS,
 };
-use crate::core_crypto::fft_impl::common::tests::test_bootstrap_generic;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKeyOwned;
 use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -107,6 +106,7 @@ where
         std_bootstrapping_key.decomposition_level_count(),
     );
 
+    println!("decomposition_base_log: {:?}", std_bootstrapping_key.decomposition_base_log());
     println!("cnt: {:?}", cnt);
     println!("rust transforming standard bsk");
     fourier_bsk.fill_with_forward_fourier(
@@ -205,20 +205,20 @@ where
     );
 
     pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
-    // fourier_bsk.bootstrap(
-    //     &mut pbs_ct,
-    //     &lwe_ciphertext_in,
-    //     &accumulator,
-    //     &fft,
-    //     PodStack::new(&mut GlobalPodBuffer::new(
-    //         K::bootstrap_scratch(
-    //             std_bootstrapping_key.glwe_size(),
-    //             std_bootstrapping_key.polynomial_size(),
-    //             &fft,
-    //         )
-    //         .unwrap(),
-    //     )),
-    // );
+    fourier_bsk.bootstrap(
+        &mut pbs_ct,
+        &lwe_ciphertext_in,
+        &accumulator,
+        &fft,
+        PodStack::new(&mut GlobalPodBuffer::new(
+            K::bootstrap_scratch(
+                std_bootstrapping_key.glwe_size(),
+                std_bootstrapping_key.polynomial_size(),
+                &fft,
+            )
+            .unwrap(),
+        )),
+    );
 
     // Decrypt the PBS result
     let pbs_plaintext: Plaintext<Scalar> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);

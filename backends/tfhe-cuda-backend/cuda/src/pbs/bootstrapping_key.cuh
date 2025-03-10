@@ -287,13 +287,13 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
 template <int N> __global__ void dprint_array(double *a) {
   if (threadIdx.x == 0 && blockIdx.x == 0) {
     for (int i = 0; i < N; i++)
-      printf("%.30f\n", a[i]);
+      printf("%.30f, ", a[i]);
+    printf("\n");
   }
 }
 template <class params>
 void convert_and_transform_128(cudaStream_t stream, uint32_t gpu_index,
-                               double *d_re0, double *d_re1, double *d_im0,
-                               double *d_im1, __uint128_t const *d_standard,
+                               double *d_bsk, __uint128_t const *d_standard,
                                uint32_t number_of_samples) {
 
   printf("bsk transform\n");
@@ -310,34 +310,70 @@ void convert_and_transform_128(cudaStream_t stream, uint32_t gpu_index,
   // configure shared memory for batch fft kernel
   if (full_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM>,
+        batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
     check_cuda_error(cudaFuncSetCacheConfig(
-        batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM>,
+        batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>,
         cudaFuncCachePreferShared));
   }
 
   // convert u128 into 4 x double
-  batch_convert_u128_to_f128_as_torus<params>
-      <<<grid_size, block_size, 0, stream>>>(d_re0, d_re1, d_im0, d_im1,
+  batch_convert_u128_to_f128_strided_as_torus<params>
+      <<<grid_size, block_size, 0, stream>>>(d_bsk,
                                              d_standard);
 
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, FULLSM>
+    batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>
         <<<grid_size, block_size, shared_memory_size, stream>>>(
-            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+        d_bsk, d_bsk, buffer);
   } else {
-    batch_NSMFFT_128<FFTDegree<params, ForwardFFT>, NOSM>
+    batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, NOSM>
         <<<grid_size, block_size, shared_memory_size, stream>>>(
-            d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
+        d_bsk, d_bsk, buffer);
   }
   cuda_drop_async(buffer, stream, gpu_index);
+for (int i = 0; i < number_of_samples; i++) {
+  auto chunk = d_bsk + i * params::degree / 2 * 4;
+  auto re_hi = chunk;
+  auto re_lo = chunk + params::degree / 2;
+  auto im_hi = chunk + 2 * params::degree / 2;
+  auto im_lo = chunk + 3 * params::degree / 2;
 
-  //  printf("#cuda\n");
-  //  cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
+  printf("#re_hi ");
+  cudaDeviceSynchronize();
+  dprint_array<params::degree / 2><<<1, 1>>>(re_hi);
+  cudaDeviceSynchronize();
+  printf("#re_lo");
+  cudaDeviceSynchronize();
+  dprint_array<params::degree / 2><<<1, 1>>>(re_lo);
+  cudaDeviceSynchronize();
+  printf("#im_hi");
+  cudaDeviceSynchronize();
+  dprint_array<params::degree / 2><<<1, 1>>>(im_hi);
+  cudaDeviceSynchronize();
+  printf("#im_lo");
+  cudaDeviceSynchronize();
+  dprint_array<params::degree / 2><<<1, 1>>>(im_lo);
+  cudaDeviceSynchronize();
 
-  // dprint_array<params::degree / 2><<<1, 1>>>(d_re0);
+}
+
+//    cudaDeviceSynchronize();
+//  printf("#cuda\n");
+//  printf("#re_hi\n");
+//  dprint_array<params::degree / 2><<<1, 1>>>(d_bsk);
+//  cudaDeviceSynchronize();
+//  printf("#re_lo\n");
+//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[1ULL * params::degree/2]);
+//  cudaDeviceSynchronize();
+//  printf("#im_hi\n");
+//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[2ULL * params::degree/2]);
+//  cudaDeviceSynchronize();
+//  printf("#im_lo\n");
+//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[3ULL * params::degree/2]);
+//  cudaDeviceSynchronize();
 }
 
 inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
@@ -354,38 +390,33 @@ inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
 
   __uint128_t *d_standard =
       (__uint128_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
-  double *d_bsk = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
-
-  double *d_re0 = d_bsk + 0ULL * total_polynomials * polynomial_size / 2;
-  double *d_re1 = d_bsk + 1ULL * total_polynomials * polynomial_size / 2;
-  double *d_im0 = d_bsk + 2ULL * total_polynomials * polynomial_size / 2;
-  double *d_im1 = d_bsk + 3ULL * total_polynomials * polynomial_size / 2;
 
   cuda_memcpy_async_to_gpu(d_standard, src, buffer_size, stream, gpu_index);
 
   switch (polynomial_size) {
   case 256:
     convert_and_transform_128<AmortizedDegree<256>>(
-        stream, gpu_index, d_re0, d_re1, d_im0, d_im1, d_standard,
+        stream, gpu_index, dest, d_standard,
         total_polynomials);
+      break;
   case 512:
     convert_and_transform_128<AmortizedDegree<512>>(
-        stream, gpu_index, d_re0, d_re1, d_im0, d_im1, d_standard,
+        stream, gpu_index, dest, d_standard,
         total_polynomials);
     break;
   case 1024:
     convert_and_transform_128<AmortizedDegree<1024>>(
-        stream, gpu_index, d_re0, d_re1, d_im0, d_im1, d_standard,
+        stream, gpu_index, dest, d_standard,
         total_polynomials);
     break;
   case 2048:
     convert_and_transform_128<AmortizedDegree<2048>>(
-        stream, gpu_index, d_re0, d_re1, d_im0, d_im1, d_standard,
+        stream, gpu_index, dest, d_standard,
         total_polynomials);
     break;
   case 4096:
     convert_and_transform_128<AmortizedDegree<4096>>(
-        stream, gpu_index, d_re0, d_re1, d_im0, d_im1, d_standard,
+        stream, gpu_index, dest, d_standard,
         total_polynomials);
     break;
   default:
@@ -394,7 +425,6 @@ inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
   }
 
   cuda_drop_async(d_standard, stream, gpu_index);
-  cuda_drop_async(d_bsk, stream, gpu_index);
 }
 
 #endif // CNCRT_BSK_H

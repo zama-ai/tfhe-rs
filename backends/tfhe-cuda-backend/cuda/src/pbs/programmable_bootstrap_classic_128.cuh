@@ -17,6 +17,22 @@
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
 
+__device__ void print_u128(__uint128_t x) {
+  int8_t digits[40];
+  int i = 0;
+
+  do
+  {
+    digits[i] = x % 10;
+    x /= 10;
+    i++;
+  } while(x);
+
+  for (int j = i - 1; j >= 0; j--) {
+    printf("%d", digits[j]);
+  }
+}
+
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one_128(
@@ -90,6 +106,19 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       global_slice[tid] = accumulator[tid];
       tid += params::degree / params::opt;
     }
+
+    //debug
+    __syncthreads();
+    if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0) {
+      printf("after div: ");
+      for (int j = 0; j < params::degree; j++) {
+        print_u128(accumulator[j]);
+        printf(", ");
+      }
+      printf("\n");
+      printf("b_hat: %d\n", b_hat);
+    }
+    __syncthreads();
   }
 
   // Put "a" in [0, 2N[
@@ -104,6 +133,19 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       Torus, params::opt, params::degree / params::opt>(global_slice,
                                                         accumulator, a_hat);
 
+      //debug
+      __syncthreads();
+      if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 &&
+      lwe_iteration == 0) {
+        printf("after mul: ");
+        for (int j = 0; j < params::degree; j++) {
+          print_u128(accumulator[j]);
+          printf(", ");
+        }
+        printf("\n");
+        printf("a_hat: %d\n", a_hat);
+      }
+      __syncthreads();
   // Perform a rounding to increase the accuracy of the
   // bootstrapped ciphertext
   init_decomposer_state_inplace<Torus, params::opt,
@@ -132,8 +174,69 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   auto global_fft_im_hi = global_fft_slice + 2LL * params::degree / 2;
   auto global_fft_im_lo = global_fft_slice + 3LL * params::degree / 2;
 
+      //debug
+      __syncthreads();
+      if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 &&
+          lwe_iteration == 0) {
+        printf("before_fft_re_hi: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_re_hi[j]);
+        }
+        printf("\n");
+
+        printf("before_fft_re_lo: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_re_lo[j]);
+        }
+        printf("\n");
+
+        printf("before_fft_im_hi: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_im_hi[j]);
+        }
+        printf("\n");
+
+        printf("before_fft_im_lo: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_im_lo[j]);
+        }
+        printf("\n");
+      }
+      __syncthreads();
+
   negacyclic_forward_fft_f128<HalfDegree<params>>(acc_fft_re_hi, acc_fft_re_lo,
                                                   acc_fft_im_hi, acc_fft_im_lo);
+
+
+      //debug
+      __syncthreads();
+      if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 &&
+          lwe_iteration == 0) {
+        printf("after_fft_re_hi: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_re_hi[j]);
+        }
+        printf("\n");
+
+        printf("after_fft_re_lo: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_re_lo[j]);
+        }
+        printf("\n");
+
+        printf("after_fft_im_hi: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_im_hi[j]);
+        }
+        printf("\n");
+
+        printf("after_fft_im_lo: ");
+        for (int j = 0; j < params::degree / 2; j++) {
+          printf("%.5f, ", acc_fft_im_lo[j]);
+        }
+        printf("\n");
+      }
+      __syncthreads();
 
   int tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
@@ -199,7 +302,37 @@ __global__ void __launch_bounds__(params::degree / params::opt)
           glwe_dimension, level_count);
       auto bsk_poly = bsk_slice + blockIdx.y * params::degree / 2 * 4;
 
-      polynomial_product_accumulate_in_fourier_domain_128<params>(
+//debug
+__syncthreads();
+if (threadIdx.x == 0 && blockIdx.x == 0 && blockIdx.y == 1 && blockIdx.z == 0 &&
+lwe_iteration == 0) {
+printf("bsk_poly_re_hi: ");
+for (int j = 0; j < params::degree / 2; j++) {
+printf("%.5f, ", bsk_poly[j]);
+}
+printf("\n");
+
+printf("bsk_poly_re_lo: ");
+for (int j = 0; j < params::degree / 2; j++) {
+printf("%.5f, ", bsk_poly[params::degree / 2 +  j]);
+}
+printf("\n");
+
+printf("bsk_poly_im_hi: ");
+for (int j = 0; j < params::degree / 2; j++) {
+printf("%.5f, ", bsk_poly[2 * params::degree / 2  + j]);
+}
+printf("\n");
+
+printf("bsk_poly_im_lo: ");
+for (int j = 0; j < params::degree / 2; j++) {
+printf("%.5f, ", bsk_poly[3 * params::degree / 2 + j]);
+}
+printf("\n");
+}
+__syncthreads();
+
+polynomial_product_accumulate_in_fourier_domain_128<params>(
           accumulator_fft, fft, bsk_poly, !level && !j);
     }
   }
@@ -298,6 +431,10 @@ __host__ void scratch_programmable_bootstrap_128(
           polynomial_size);
 
   int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  printf("full_sm_step_one: %llu\n", full_sm_step_one);
+  printf("full_sm_step_two: %llu\n", full_sm_step_two);
+  printf("partial_sm: %llu\n", partial_sm);
+  printf("max_shared_memory: %llu\n", max_shared_memory);
 
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
@@ -363,6 +500,7 @@ __host__ void execute_step_one_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
+    printf("step one NOSM\n");
     device_programmable_bootstrap_step_one_128<__uint128_t, params, NOSM>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -370,6 +508,7 @@ __host__ void execute_step_one_128(
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
+    printf("step one PARTIALSM\n");
     device_programmable_bootstrap_step_one_128<__uint128_t, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -377,6 +516,7 @@ __host__ void execute_step_one_128(
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, partial_dm);
   } else {
+    //printf("step one FULLSM\n");
     device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
@@ -405,6 +545,7 @@ __host__ void execute_step_two_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
+    printf("step two NOSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM>
         <<<grid, thds, 0, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
@@ -412,6 +553,7 @@ __host__ void execute_step_two_128(
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, full_dm, num_many_lut, lut_stride);
   } else if (max_shared_memory < full_sm) {
+    printf("step two PARTIALSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
@@ -419,6 +561,7 @@ __host__ void execute_step_two_128(
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, partial_dm, num_many_lut, lut_stride);
   } else {
+    //printf("step two FULLSM\n");
     device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM>
         <<<grid, thds, full_sm, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,

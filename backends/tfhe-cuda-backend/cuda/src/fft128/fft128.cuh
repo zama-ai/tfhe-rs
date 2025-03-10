@@ -289,6 +289,28 @@ batch_convert_u128_to_f128_as_torus(double *out_re_hi, double *out_re_lo,
 
 // params is expected to be full degree not half degree
 template <class params>
+__global__ void
+batch_convert_u128_to_f128_strided_as_torus(double *d_out,
+                                    const __uint128_t *d_in) {
+
+  constexpr size_t chunk_size = params::degree / 2 * 4;
+  double *chunk = &d_out[blockIdx.x * chunk_size];
+  double *out_re_hi = &chunk[0ULL * params::degree / 2];
+  double *out_re_lo = &chunk[1ULL * params::degree / 2];
+  double *out_im_hi = &chunk[2ULL * params::degree / 2];
+  double *out_im_lo = &chunk[3ULL * params::degree / 2];
+
+  convert_u128_to_f128_as_torus<params>(
+      out_re_hi,
+      out_re_lo,
+      out_im_hi,
+      out_im_lo,
+      &d_in[blockIdx.x * params::degree],
+      &d_in[blockIdx.x * params::degree + params::degree / 2]);
+}
+
+// params is expected to be full degree not half degree
+template <class params>
 __global__ void batch_convert_f128_to_u128_as_torus(__uint128_t *out,
                                                     const double *in_re_hi,
                                                     const double *in_re_lo,
@@ -352,6 +374,70 @@ batch_NSMFFT_128(double *in_re_hi, double *in_re_lo, double *in_im_hi,
     out_re_lo[blockIdx.x * (params::degree / 2) + tid] = re_lo[tid];
     out_im_hi[blockIdx.x * (params::degree / 2) + tid] = im_hi[tid];
     out_im_lo[blockIdx.x * (params::degree / 2) + tid] = im_lo[tid];
+    tid += params::degree / params::opt;
+  }
+}
+
+template <class params, sharedMemDegree SMD>
+__global__ void
+batch_NSMFFT_strided_128(double *d_in, double *d_out, double *buffer) {
+  extern __shared__ double sharedMemoryFFT128[];
+  double *re_hi, *re_lo, *im_hi, *im_lo;
+
+  if (SMD == NOSM) {
+    re_hi =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 0];
+    re_lo =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 1];
+    im_hi =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 2];
+    im_lo =
+        &buffer[blockIdx.x * params::degree / 2 * 4 + params::degree / 2 * 3];
+  } else {
+    re_hi = &sharedMemoryFFT128[params::degree / 2 * 0];
+    re_lo = &sharedMemoryFFT128[params::degree / 2 * 1];
+    im_hi = &sharedMemoryFFT128[params::degree / 2 * 2];
+    im_lo = &sharedMemoryFFT128[params::degree / 2 * 3];
+  }
+
+  constexpr size_t chunk_size = params::degree / 2 * 4;
+  double *chunk = &d_in[blockIdx.x * chunk_size];
+  double *tmp_re_hi = &chunk[0ULL * params::degree / 2];
+  double *tmp_re_lo = &chunk[1ULL * params::degree / 2];
+  double *tmp_im_hi = &chunk[2ULL * params::degree / 2];
+  double *tmp_im_lo = &chunk[3ULL * params::degree / 2];
+
+  Index tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < params::opt / 2; ++i) {
+    re_hi[tid] = tmp_re_hi[tid];
+    re_lo[tid] = tmp_re_lo[tid];
+    im_hi[tid] = tmp_im_hi[tid];
+    im_lo[tid] = tmp_im_lo[tid];
+    tid += params::degree / params::opt;
+  }
+  __syncthreads();
+  if constexpr (params::fft_direction == 1) {
+    negacyclic_backward_fft_f128<HalfDegree<params>>(re_hi, re_lo, im_hi,
+                                                     im_lo);
+  } else {
+    negacyclic_forward_fft_f128<HalfDegree<params>>(re_hi, re_lo, im_hi, im_lo);
+  }
+  __syncthreads();
+
+  chunk = &d_out[blockIdx.x * chunk_size];
+  tmp_re_hi = &chunk[0ULL * params::degree / 2];
+  tmp_re_lo = &chunk[1ULL * params::degree / 2];
+  tmp_im_hi = &chunk[2ULL * params::degree / 2];
+  tmp_im_lo = &chunk[3ULL * params::degree / 2];
+
+  tid = threadIdx.x;
+#pragma unroll
+  for (Index i = 0; i < params::opt / 2; ++i) {
+    tmp_re_hi[tid] = re_hi[tid];
+    tmp_re_lo[tid] = re_lo[tid];
+    tmp_im_hi[tid] = im_hi[tid];
+    tmp_im_lo[tid] = im_lo[tid];
     tid += params::degree / params::opt;
   }
 }

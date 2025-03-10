@@ -256,6 +256,7 @@ where
         ContLut: ContainerMut<Element = Scalar>,
         ContLwe: Container<Element = Scalar>,
     {
+        println!("rust#4");
         fn implementation<Scalar: UnsignedTorus + CastInto<usize>>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lut: GlweCiphertext<&mut [Scalar]>,
@@ -270,7 +271,7 @@ where
             let ciphertext_modulus = lut.ciphertext_modulus();
             assert!(ciphertext_modulus.is_compatible_with_native_modulus());
             let monomial_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
-
+            println!("monomial_degree: {:?}", monomial_degree);
             lut.as_mut_polynomial_list()
                 .iter_mut()
                 .for_each(|mut poly| {
@@ -283,6 +284,7 @@ where
             // We initialize the ct_0 used for the successive cmuxes
             let mut ct0 = lut;
 
+            println!("ct0_after_div: {:?}", ct0.get_body());
             for (lwe_mask_element, bootstrap_key_ggsw) in
                 izip!(lwe_mask.iter(), this.into_ggsw_iter())
             {
@@ -304,11 +306,15 @@ where
                             MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size)),
                         );
                     }
+                    // println!("ct1_after_mul: {:?}", ct1.get_body());
+                    // println!("MonomialDegree: {:?}", MonomialDegree(pbs_modulus_switch
+                    //     (*lwe_mask_element, lut_poly_size)));
 
                     // ct1 is re-created each loop it can be moved, ct0 is already a view, but
                     // as_mut_view is required to keep borrow rules consistent
                     cmux(&mut ct0, &mut ct1, &bootstrap_key_ggsw, fft, stack);
                 }
+                break;
             }
 
             if !ciphertext_modulus.is_native_modulus() {
@@ -343,6 +349,8 @@ where
         ContLweIn: Container<Element = Scalar>,
         ContAcc: Container<Element = Scalar>,
     {
+        println!("rust#2");
+
         fn implementation<Scalar: UnsignedTorus + CastInto<usize>>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lwe_out: LweCiphertext<&mut [Scalar]>,
@@ -351,15 +359,17 @@ where
             fft: Fft128View<'_>,
             stack: &mut PodStack,
         ) {
-            // We type check dynamically with TypeId
-            #[allow(clippy::transmute_undefined_repr)]
-            if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
-                let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
-                let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
-                let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
+            println!("rust#3");
 
-                return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
-            }
+            // We type check dynamically with TypeId
+            // #[allow(clippy::transmute_undefined_repr)]
+            // if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
+            //     let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
+            //     let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
+            //     let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
+            //
+            //     return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
+            // }
 
             let (local_accumulator_data, stack) =
                 stack.collect_aligned(CACHELINE_ALIGN, accumulator.as_ref().iter().copied());
@@ -446,6 +456,7 @@ where
         ContLweIn: Container<Element = Scalar>,
         ContAcc: Container<Element = Scalar>,
     {
+        println!("rust#1");
         self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack);
     }
 
