@@ -71,7 +71,7 @@ impl KeySwitchingKeyMaterial {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
-    pub(crate) key: crate::shortint::KeySwitchingKey,
+    pub key: crate::shortint::KeySwitchingKey,
 }
 
 impl From<KeySwitchingKeyBuildHelper<'_>> for KeySwitchingKey {

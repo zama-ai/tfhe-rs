@@ -1,15 +1,30 @@
 pub mod boolean_value;
+pub mod compact_list;
 pub mod compressed_ciphertext_list;
 pub mod info;
 
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
+};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{LweCiphertextList, LweCiphertextOwned};
+use crate::core_crypto::prelude::{
+    LweBskGroupingFactor, LweCiphertextCount, LweCiphertextList, LweCiphertextOwned, Numeric,
+    UnsignedInteger,
+};
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
+use crate::integer::gpu::PBSType;
+use crate::integer::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
+};
 use crate::integer::{IntegerCiphertext, RadixCiphertext, SignedRadixCiphertext};
-use crate::shortint::Ciphertext;
+use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 use crate::GpuIndex;
+use tfhe_cuda_backend::bindings::{
+    cleanup_expand_without_verification_64, cuda_expand_without_verification_64,
+    cuda_lwe_expand_64, scratch_cuda_expand_without_verification_64,
+};
 
 pub trait CudaIntegerRadixCiphertext: Sized {
     const IS_SIGNED: bool;
@@ -495,4 +510,108 @@ impl CudaRadixCiphertext {
 
         self_container == other_container
     }
+}
+
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn lwe_expand_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_compact_array_in: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    num_samples: LweCiphertextCount,
+    num_samples_per_compact_list: &[u32],
+    lwe_compact_input_indexes: &CudaVec<u32>,
+) {
+    cuda_lwe_expand_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_compact_array_in.as_c_ptr(0),
+        lwe_dimension.0 as u32,
+        num_samples.0 as u32,
+        num_samples_per_compact_list.as_ptr(),
+        lwe_compact_input_indexes.as_c_ptr(0),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must not
+///   be dropped until stream is synchronised
+pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaLweCiphertextList<T>,
+    lwe_compact_array_in: &CudaLweCiphertextList<T>,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    num_samples_per_compact_list: &[u32],
+    is_boolean: &[bool],
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    let ct_modulus = lwe_compact_array_in
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let num_compact_lists = num_samples_per_compact_list.len();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    scratch_cuda_expand_without_verification_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_samples_per_compact_list.as_ptr(),
+        is_boolean.as_ptr(),
+        num_compact_lists as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        allocate_ms_noise_array,
+    );
+    cuda_expand_without_verification_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        lwe_array_out.0.d_vec.as_mut_c_ptr(0),
+        lwe_compact_array_in.0.d_vec.as_c_ptr(0),
+        mem_ptr,
+        0u32,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
+    );
+    cleanup_expand_without_verification_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
 }
