@@ -70,10 +70,10 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_128(
                 first[tid + 1ULL * params::degree / 2]);
       f128 a_im(first[tid + 2ULL * params::degree / 2],
                 first[tid + 3ULL * params::degree / 2]);
-      f128 b_re(first[tid + 0ULL * params::degree / 2],
-                first[tid + 1ULL * params::degree / 2]);
-      f128 b_im(first[tid + 2ULL * params::degree / 2],
-                first[tid + 3ULL * params::degree / 2]);
+      f128 b_re(second[tid + 0ULL * params::degree / 2],
+                second[tid + 1ULL * params::degree / 2]);
+      f128 b_im(second[tid + 2ULL * params::degree / 2],
+                second[tid + 3ULL * params::degree / 2]);
       f128 c_re, c_im;
 
       f128::cplx_f128_mul_assign(c_re, c_im, a_re, a_im, b_re, b_im);
@@ -91,10 +91,10 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_128(
                 first[tid + 1ULL * params::degree / 2]);
       f128 a_im(first[tid + 2ULL * params::degree / 2],
                 first[tid + 3ULL * params::degree / 2]);
-      f128 b_re(first[tid + 0ULL * params::degree / 2],
-                first[tid + 1ULL * params::degree / 2]);
-      f128 b_im(first[tid + 2ULL * params::degree / 2],
-                first[tid + 3ULL * params::degree / 2]);
+      f128 b_re(second[tid + 0ULL * params::degree / 2],
+                second[tid + 1ULL * params::degree / 2]);
+      f128 b_im(second[tid + 2ULL * params::degree / 2],
+                second[tid + 3ULL * params::degree / 2]);
       f128 res_re(result[tid + 0ULL * params::degree / 2],
                   result[tid + 1ULL * params::degree / 2]);
       f128 res_im(result[tid + 2ULL * params::degree / 2],
@@ -109,7 +109,6 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_128(
       result[tid + 2ULL * params::degree / 2] = res_im.hi;
       result[tid + 3ULL * params::degree / 2] = res_im.lo;
 
-      result[tid] += first[tid] * second[tid];
       tid += params::degree / params::opt;
     }
   }

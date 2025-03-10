@@ -291,7 +291,7 @@ batch_convert_u128_to_f128_as_torus(double *out_re_hi, double *out_re_lo,
 template <class params>
 __global__ void
 batch_convert_u128_to_f128_strided_as_torus(double *d_out,
-                                    const __uint128_t *d_in) {
+                                            const __uint128_t *d_in) {
 
   constexpr size_t chunk_size = params::degree / 2 * 4;
   double *chunk = &d_out[blockIdx.x * chunk_size];
@@ -301,10 +301,7 @@ batch_convert_u128_to_f128_strided_as_torus(double *d_out,
   double *out_im_lo = &chunk[3ULL * params::degree / 2];
 
   convert_u128_to_f128_as_torus<params>(
-      out_re_hi,
-      out_re_lo,
-      out_im_hi,
-      out_im_lo,
+      out_re_hi, out_re_lo, out_im_hi, out_im_lo,
       &d_in[blockIdx.x * params::degree],
       &d_in[blockIdx.x * params::degree + params::degree / 2]);
 }
@@ -379,8 +376,8 @@ batch_NSMFFT_128(double *in_re_hi, double *in_re_lo, double *in_im_hi,
 }
 
 template <class params, sharedMemDegree SMD>
-__global__ void
-batch_NSMFFT_strided_128(double *d_in, double *d_out, double *buffer) {
+__global__ void batch_NSMFFT_strided_128(double *d_in, double *d_out,
+                                         double *buffer) {
   extern __shared__ double sharedMemoryFFT128[];
   double *re_hi, *re_lo, *im_hi, *im_lo;
 

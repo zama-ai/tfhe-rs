@@ -454,7 +454,6 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 //
                 //        t = 1                           t = 2                     ...
 
-
                 for (ggsw_row, glwe_poly) in izip!(
                     ggsw_decomp_matrix.into_rows(),
                     glwe_decomp_term.as_polynomial_list().iter()
@@ -520,6 +519,10 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 output_fft_buffer_im0.into_chunks(fourier_poly_size),
                 output_fft_buffer_im1.into_chunks(fourier_poly_size),
             ) {
+                println!("before_ifft_fourier_re0: {:?}", fourier_re0);
+                println!("before_ifft_fourier_re1: {:?}", fourier_re1);
+                println!("before_ifft_fourier_im0: {:?}", fourier_im0);
+                println!("before_ifft_fourier_im1: {:?}", fourier_im1);
                 fft.add_backward_as_torus(
                     out.as_mut(),
                     fourier_re0,

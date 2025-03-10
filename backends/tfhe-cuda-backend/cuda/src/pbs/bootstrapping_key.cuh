@@ -319,61 +319,57 @@ void convert_and_transform_128(cudaStream_t stream, uint32_t gpu_index,
 
   // convert u128 into 4 x double
   batch_convert_u128_to_f128_strided_as_torus<params>
-      <<<grid_size, block_size, 0, stream>>>(d_bsk,
-                                             d_standard);
+      <<<grid_size, block_size, 0, stream>>>(d_bsk, d_standard);
 
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
     batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>
-        <<<grid_size, block_size, shared_memory_size, stream>>>(
-        d_bsk, d_bsk, buffer);
+        <<<grid_size, block_size, shared_memory_size, stream>>>(d_bsk, d_bsk,
+                                                                buffer);
   } else {
     batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, NOSM>
-        <<<grid_size, block_size, shared_memory_size, stream>>>(
-        d_bsk, d_bsk, buffer);
+        <<<grid_size, block_size, shared_memory_size, stream>>>(d_bsk, d_bsk,
+                                                                buffer);
   }
   cuda_drop_async(buffer, stream, gpu_index);
-for (int i = 0; i < number_of_samples; i++) {
-  auto chunk = d_bsk + i * params::degree / 2 * 4;
-  auto re_hi = chunk;
-  auto re_lo = chunk + params::degree / 2;
-  auto im_hi = chunk + 2 * params::degree / 2;
-  auto im_lo = chunk + 3 * params::degree / 2;
+  for (int i = 0; i < number_of_samples; i++) {
+    auto chunk = d_bsk + i * params::degree / 2 * 4;
+    auto re_hi = chunk;
+    auto re_lo = chunk + params::degree / 2;
+    auto im_hi = chunk + 2 * params::degree / 2;
+    auto im_lo = chunk + 3 * params::degree / 2;
 
-  cudaDeviceSynchronize();
-  printf("#re_hi ");
-  cudaDeviceSynchronize();
-  dprint_array<params::degree / 2><<<1, 1>>>(re_hi);
-  cudaDeviceSynchronize();
-  printf("#re_lo");
-  cudaDeviceSynchronize();
-  dprint_array<params::degree / 2><<<1, 1>>>(re_lo);
-  cudaDeviceSynchronize();
-  printf("#im_hi");
-  cudaDeviceSynchronize();
-  dprint_array<params::degree / 2><<<1, 1>>>(im_hi);
-  cudaDeviceSynchronize();
-  printf("#im_lo");
-  cudaDeviceSynchronize();
-  dprint_array<params::degree / 2><<<1, 1>>>(im_lo);
-  cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
+    printf("#re_hi ");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(re_hi);
+    cudaDeviceSynchronize();
+    printf("#re_lo");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(re_lo);
+    cudaDeviceSynchronize();
+    printf("#im_hi");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(im_hi);
+    cudaDeviceSynchronize();
+    printf("#im_lo");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(im_lo);
+    cudaDeviceSynchronize();
+  }
 
-}
-
-//    cudaDeviceSynchronize();
-//  printf("#cuda\n");
-//  printf("#re_hi\n");
-//  dprint_array<params::degree / 2><<<1, 1>>>(d_bsk);
-//  cudaDeviceSynchronize();
-//  printf("#re_lo\n");
-//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[1ULL * params::degree/2]);
-//  cudaDeviceSynchronize();
-//  printf("#im_hi\n");
-//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[2ULL * params::degree/2]);
-//  cudaDeviceSynchronize();
-//  printf("#im_lo\n");
-//  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[3ULL * params::degree/2]);
-//  cudaDeviceSynchronize();
+  //    cudaDeviceSynchronize();
+  //  printf("#cuda\n");
+  //  printf("#re_hi\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(d_bsk);
+  //  cudaDeviceSynchronize();
+  //  printf("#re_lo\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[1ULL *
+  //  params::degree/2]); cudaDeviceSynchronize(); printf("#im_hi\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[2ULL *
+  //  params::degree/2]); cudaDeviceSynchronize(); printf("#im_lo\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[3ULL *
+  //  params::degree/2]); cudaDeviceSynchronize();
 }
 
 inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
@@ -396,28 +392,23 @@ inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
   switch (polynomial_size) {
   case 256:
     convert_and_transform_128<AmortizedDegree<256>>(
-        stream, gpu_index, dest, d_standard,
-        total_polynomials);
-      break;
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
   case 512:
     convert_and_transform_128<AmortizedDegree<512>>(
-        stream, gpu_index, dest, d_standard,
-        total_polynomials);
+        stream, gpu_index, dest, d_standard, total_polynomials);
     break;
   case 1024:
     convert_and_transform_128<AmortizedDegree<1024>>(
-        stream, gpu_index, dest, d_standard,
-        total_polynomials);
+        stream, gpu_index, dest, d_standard, total_polynomials);
     break;
   case 2048:
     convert_and_transform_128<AmortizedDegree<2048>>(
-        stream, gpu_index, dest, d_standard,
-        total_polynomials);
+        stream, gpu_index, dest, d_standard, total_polynomials);
     break;
   case 4096:
     convert_and_transform_128<AmortizedDegree<4096>>(
-        stream, gpu_index, dest, d_standard,
-        total_polynomials);
+        stream, gpu_index, dest, d_standard, total_polynomials);
     break;
   default:
     PANIC("Cuda error (convert BSK): unsupported polynomial size. Supported "
