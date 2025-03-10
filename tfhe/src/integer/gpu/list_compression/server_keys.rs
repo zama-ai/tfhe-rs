@@ -107,17 +107,17 @@ impl CudaCompressionKey {
     }
 
     unsafe fn flatten_async(
-        vec_ciphertexts: &[CudaRadixCiphertext],
+        ciphertexts_slice: &[CudaRadixCiphertext],
         streams: &CudaStreams,
     ) -> CudaLweCiphertextList<u64> {
-        let first_ct = &vec_ciphertexts.first().unwrap().d_blocks;
+        let first_ct = &ciphertexts_slice.first().unwrap().d_blocks;
 
         // We assume all ciphertexts will have the same lwe dimension
         let lwe_dimension = first_ct.lwe_dimension();
         let ciphertext_modulus = first_ct.ciphertext_modulus();
 
         // Compute total number of lwe ciphertexts we will be handling
-        let total_num_blocks: usize = vec_ciphertexts
+        let total_num_blocks: usize = ciphertexts_slice
             .iter()
             .map(|x| x.d_blocks.lwe_ciphertext_count().0)
             .sum();
@@ -130,7 +130,7 @@ impl CudaCompressionKey {
             0,
         );
         let mut offset: usize = 0;
-        for ciphertext in vec_ciphertexts {
+        for ciphertext in ciphertexts_slice {
             let dest_ptr = d_vec
                 .as_mut_c_ptr(0)
                 .add(offset * std::mem::size_of::<u64>());
