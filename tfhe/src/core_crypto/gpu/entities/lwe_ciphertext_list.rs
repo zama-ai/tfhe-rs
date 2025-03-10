@@ -1,4 +1,4 @@
-use crate::core_crypto::gpu::vec::CudaVec;
+use crate::core_crypto::gpu::vec::{range_bounds_to_start_end, CudaVec};
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
     CiphertextModulus, Container, LweCiphertext, LweCiphertextCount, LweCiphertextList,
@@ -234,5 +234,40 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             self.set_to_zero_async(streams);
             streams.synchronize_one(0);
         }
+    }
+
+    pub fn get<R>(&self, streams: &CudaStreams, range: R) -> Self
+    where
+        R: std::ops::RangeBounds<usize>,
+    {
+        let (start, end) = range_bounds_to_start_end(self.0.d_vec.len(), range).into_inner();
+
+        let lwe_dimension = self.lwe_dimension();
+        let slice_lwe_ciphertext_count = LweCiphertextCount(end - start + 1);
+        let ciphertext_modulus = self.ciphertext_modulus();
+
+        let d_vec = unsafe {
+            let mut d_vec = CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * slice_lwe_ciphertext_count.0,
+                streams,
+                0,
+            );
+
+            let copy_start = start * lwe_dimension.to_lwe_size().0;
+            let copy_end = (end + 1) * lwe_dimension.to_lwe_size().0;
+            d_vec.copy_src_range_gpu_to_gpu_async(copy_start..copy_end, &self.0.d_vec, streams, 0);
+
+            streams.synchronize();
+            d_vec
+        };
+
+        let cuda_lwe_list = CudaLweList {
+            d_vec,
+            lwe_ciphertext_count: slice_lwe_ciphertext_count,
+            lwe_dimension,
+            ciphertext_modulus,
+        };
+
+        Self(cuda_lwe_list)
     }
 }
