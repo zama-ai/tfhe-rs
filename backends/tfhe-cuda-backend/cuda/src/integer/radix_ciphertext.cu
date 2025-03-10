@@ -15,3 +15,19 @@ void reset_radix_ciphertext_blocks(CudaRadixCiphertextFFI *data,
           "radix' maximum number of blocks")
   data->num_radix_blocks = new_num_blocks;
 }
+
+void into_radix_ciphertext(CudaRadixCiphertextFFI *radix, void *lwe_array,
+                           const uint32_t num_radix_blocks,
+                           const uint32_t lwe_dimension) {
+  radix->lwe_dimension = lwe_dimension;
+  radix->num_radix_blocks = num_radix_blocks;
+  radix->max_num_radix_blocks = num_radix_blocks;
+  radix->ptr = lwe_array;
+
+  radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  radix->noise_levels =
+      (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
+  if (radix->degrees == NULL || radix->noise_levels == NULL) {
+    PANIC("Cuda error: degrees / noise levels not allocated correctly")
+  }
+}
