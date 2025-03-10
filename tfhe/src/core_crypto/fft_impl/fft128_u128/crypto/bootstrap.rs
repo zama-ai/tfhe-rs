@@ -174,6 +174,7 @@ where
             fft: Fft128View<'_>,
             stack: &mut PodStack,
         ) {
+            println!("rust#-1");
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 

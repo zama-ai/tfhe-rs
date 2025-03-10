@@ -3,6 +3,8 @@
 
 #include "device.h"
 #include "fft/bnsmfft.cuh"
+#include "fft128/fft128.cuh"
+
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include "polynomial/parameters.cuh"
@@ -14,6 +16,13 @@ __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
                                          uint32_t level_count) {
   return i * polynomial_size / 2 * (glwe_dimension + 1) * (glwe_dimension + 1) *
          level_count;
+}
+
+__device__ inline int get_start_ith_ggsw_128(int i, uint32_t polynomial_size,
+                                             int glwe_dimension,
+                                             uint32_t level_count) {
+  return i * polynomial_size / 2 * 4 * (glwe_dimension + 1) *
+         (glwe_dimension + 1) * level_count;
 }
 
 ////////////////////////////////////////////////
@@ -39,6 +48,31 @@ __device__ T *get_ith_mask_kth_block(T *ptr, int i, int k, int level,
                   (glwe_dimension + 1) * (glwe_dimension + 1) +
               k * polynomial_size / 2 * (glwe_dimension + 1)];
 }
+
+template <typename T>
+__device__ const T *
+get_ith_mask_kth_block_128(const T *ptr, int i, int k, int level,
+                           uint32_t polynomial_size, int glwe_dimension,
+                           uint32_t level_count) {
+  return &ptr[get_start_ith_ggsw_128(i, polynomial_size, glwe_dimension,
+                                     level_count) +
+              (level_count - level - 1) * polynomial_size / 2 * 4 *
+                  (glwe_dimension + 1) * (glwe_dimension + 1) +
+              k * polynomial_size / 2 * 4 * (glwe_dimension + 1)];
+}
+
+template <typename T>
+__device__ T *get_ith_mask_kth_block_128(T *ptr, int i, int k, int level,
+                                         uint32_t polynomial_size,
+                                         int glwe_dimension,
+                                         uint32_t level_count) {
+  return &ptr[get_start_ith_ggsw_128(i, polynomial_size, glwe_dimension,
+                                     level_count) +
+              (level_count - level - 1) * polynomial_size / 2 * 4 *
+                  (glwe_dimension + 1) * (glwe_dimension + 1) +
+              k * polynomial_size / 2 * 4 * (glwe_dimension + 1)];
+}
+
 template <typename T>
 __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
@@ -249,6 +283,139 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
   cuda_drop_async(d_bsk, stream, gpu_index);
   cuda_drop_async(buffer, stream, gpu_index);
   cudaFreeHost(h_bsk);
+}
+template <int N> __global__ void dprint_array(double *a) {
+  if (threadIdx.x == 0 && blockIdx.x == 0) {
+    for (int i = 0; i < N; i++)
+      printf("%.30f, ", a[i]);
+    printf("\n");
+  }
+}
+template <class params>
+void convert_and_transform_128(cudaStream_t stream, uint32_t gpu_index,
+                               double *d_bsk, __uint128_t const *d_standard,
+                               uint32_t number_of_samples) {
+
+  printf("bsk transform\n");
+  size_t required_shared_memory_size = sizeof(double) * params::degree / 2 * 4;
+  int grid_size = number_of_samples;
+  int block_size = params::degree / params::opt;
+  bool full_sm =
+      (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
+  size_t buffer_size =
+      full_sm ? 0 : (size_t)number_of_samples * params::degree / 2 * 4;
+  size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
+
+  // configure shared memory for batch fft kernel
+  if (full_sm) {
+    check_cuda_error(cudaFuncSetAttribute(
+        batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
+    check_cuda_error(cudaFuncSetCacheConfig(
+        batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>,
+        cudaFuncCachePreferShared));
+  }
+
+  // convert u128 into 4 x double
+  batch_convert_u128_to_f128_strided_as_torus<params>
+      <<<grid_size, block_size, 0, stream>>>(d_bsk, d_standard);
+
+  // call negacyclic 128 bit forward fft.
+  if (full_sm) {
+    batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, FULLSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(d_bsk, d_bsk,
+                                                                buffer);
+  } else {
+    batch_NSMFFT_strided_128<FFTDegree<params, ForwardFFT>, NOSM>
+        <<<grid_size, block_size, shared_memory_size, stream>>>(d_bsk, d_bsk,
+                                                                buffer);
+  }
+  cuda_drop_async(buffer, stream, gpu_index);
+  for (int i = 0; i < number_of_samples; i++) {
+    auto chunk = d_bsk + i * params::degree / 2 * 4;
+    auto re_hi = chunk;
+    auto re_lo = chunk + params::degree / 2;
+    auto im_hi = chunk + 2 * params::degree / 2;
+    auto im_lo = chunk + 3 * params::degree / 2;
+
+    cudaDeviceSynchronize();
+    printf("#re_hi ");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(re_hi);
+    cudaDeviceSynchronize();
+    printf("#re_lo");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(re_lo);
+    cudaDeviceSynchronize();
+    printf("#im_hi");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(im_hi);
+    cudaDeviceSynchronize();
+    printf("#im_lo");
+    cudaDeviceSynchronize();
+    dprint_array<params::degree / 2><<<1, 1>>>(im_lo);
+    cudaDeviceSynchronize();
+  }
+
+  //    cudaDeviceSynchronize();
+  //  printf("#cuda\n");
+  //  printf("#re_hi\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(d_bsk);
+  //  cudaDeviceSynchronize();
+  //  printf("#re_lo\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[1ULL *
+  //  params::degree/2]); cudaDeviceSynchronize(); printf("#im_hi\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[2ULL *
+  //  params::degree/2]); cudaDeviceSynchronize(); printf("#im_lo\n");
+  //  dprint_array<params::degree / 2><<<1, 1>>>(&d_bsk[3ULL *
+  //  params::degree/2]); cudaDeviceSynchronize();
+}
+
+inline void cuda_convert_lwe_programmable_bootstrap_key_u128(
+    cudaStream_t stream, uint32_t gpu_index, double *dest,
+    __uint128_t const *src, uint32_t polynomial_size,
+    uint32_t total_polynomials) {
+  cuda_set_device(gpu_index);
+
+  // Here the buffer size is the size of double times the number of polynomials
+  // time 4 each polynomial is represented with 4 double array with size
+  // polynomial_size / 2 into the complex domain to perform the FFT
+  size_t buffer_size =
+      total_polynomials * polynomial_size / 2 * sizeof(double) * 4;
+
+  __uint128_t *d_standard =
+      (__uint128_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
+
+  cuda_memcpy_async_to_gpu(d_standard, src, buffer_size, stream, gpu_index);
+
+  switch (polynomial_size) {
+  case 256:
+    convert_and_transform_128<AmortizedDegree<256>>(
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
+  case 512:
+    convert_and_transform_128<AmortizedDegree<512>>(
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
+  case 1024:
+    convert_and_transform_128<AmortizedDegree<1024>>(
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
+  case 2048:
+    convert_and_transform_128<AmortizedDegree<2048>>(
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
+  case 4096:
+    convert_and_transform_128<AmortizedDegree<4096>>(
+        stream, gpu_index, dest, d_standard, total_polynomials);
+    break;
+  default:
+    PANIC("Cuda error (convert BSK): unsupported polynomial size. Supported "
+          "N's are powers of two in the interval [256..4096].")
+  }
+
+  cuda_drop_async(d_standard, stream, gpu_index);
 }
 
 #endif // CNCRT_BSK_H

@@ -328,6 +328,10 @@ where
                     fourier_im1,
                     coef_poly.as_ref(),
                 );
+                println!("re0: {:?}", fourier_re0);
+                println!("re1: {:?}", fourier_re1);
+                println!("im0: {:?}", fourier_im0);
+                println!("im1: {:?}", fourier_im1);
             }
         }
         implementation(self.as_mut_view(), coef_ggsw.as_view(), fft);
@@ -461,6 +465,12 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                     let (fourier_im0, stack) = stack.make_aligned_raw::<f64>(len, align);
                     let (fourier_im1, _) = stack.make_aligned_raw::<f64>(len, align);
                     // We perform the forward fft transform for the glwe polynomial
+
+                    println!("before_fft_fourier_re0: {:?}", fourier_re0);
+                    println!("before_fft_fourier_re1: {:?}", fourier_re1);
+                    println!("before_fft_fourier_im0: {:?}", fourier_im0);
+                    println!("before_fft_fourier_im1: {:?}", fourier_im1);
+
                     fft.forward_as_integer(
                         fourier_re0,
                         fourier_re1,
@@ -468,6 +478,12 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                         fourier_im1,
                         glwe_poly.as_ref(),
                     );
+
+                    println!("after_fft_fourier_re0: {:?}", fourier_re0);
+                    println!("after_fft_fourier_re1: {:?}", fourier_re1);
+                    println!("after_fft_fourier_im0: {:?}", fourier_im0);
+                    println!("after_fft_fourier_im1: {:?}", fourier_im1);
+
                     // Now we loop through the polynomials of the output, and add the
                     // corresponding product of polynomials.
                     update_with_fmadd(
@@ -503,6 +519,10 @@ pub fn add_external_product_assign<Scalar, ContOut, ContGgsw, ContGlwe>(
                 output_fft_buffer_im0.into_chunks(fourier_poly_size),
                 output_fft_buffer_im1.into_chunks(fourier_poly_size),
             ) {
+                println!("before_ifft_fourier_re0: {:?}", fourier_re0);
+                println!("before_ifft_fourier_re1: {:?}", fourier_re1);
+                println!("before_ifft_fourier_im0: {:?}", fourier_im0);
+                println!("before_ifft_fourier_im1: {:?}", fourier_im1);
                 fft.add_backward_as_torus(
                     out.as_mut(),
                     fourier_re0,
@@ -678,6 +698,11 @@ pub fn update_with_fmadd(
         ggsw_row.data_im0.into_chunks(fourier_poly_size),
         ggsw_row.data_im1.into_chunks(fourier_poly_size),
     ) {
+        println!("ggsw_poly_re0: {:?}", ggsw_poly_re0);
+        println!("ggsw_poly_re1: {:?}", ggsw_poly_re1);
+        println!("ggsw_poly_im0: {:?}", ggsw_poly_im0);
+        println!("ggsw_poly_im1: {:?}", ggsw_poly_im1);
+
         struct Impl<'a> {
             output_fourier_re0: &'a mut [f64],
             output_fourier_re1: &'a mut [f64],
@@ -784,6 +809,7 @@ pub fn cmux<Scalar, ContCt0, ContCt1, ContGgsw>(
         for (c1, c0) in izip!(ct1.as_mut(), ct0.as_ref()) {
             *c1 = c1.wrapping_sub(*c0);
         }
+        println!("ct1_after_mul_sub: {:?}", ct1.get_body());
         add_external_product_assign(&mut ct0, &ggsw, &ct1, fft, stack);
     }
 

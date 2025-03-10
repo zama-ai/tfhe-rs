@@ -21,7 +21,7 @@ struct alignas(16) f128 {
 #else
     double s = a + b;
     return f128(s, b - (s - a));
-#endif;
+#endif
   }
 
   // Two-sum
@@ -270,7 +270,7 @@ __host__ __device__ inline double bits_to_double(uint64_t bits) {
   return d;
 }
 
-__host__ __device__ double u128_to_f64(__uint128_t x) {
+__host__ __device__ inline double u128_to_f64(__uint128_t x) {
   const __uint128_t ONE = 1;
   const double A = ONE << 52;
   const double B = ONE << 104;
@@ -322,7 +322,7 @@ __host__ __device__ double u128_to_f64(__uint128_t x) {
   }
 }
 
-__host__ __device__ __uint128_t f64_to_u128(const double f) {
+__host__ __device__ inline __uint128_t f64_to_u128(const double f) {
   const __uint128_t ONE = 1;
   const uint64_t f_bits = double_to_bits(f);
   if (f_bits < 1023ull << 52) {
@@ -338,7 +338,7 @@ __host__ __device__ __uint128_t f64_to_u128(const double f) {
   }
 }
 
-__host__ __device__ __uint128_t f64_to_i128(const double f) {
+__host__ __device__ inline __uint128_t f64_to_i128(const double f) {
   // Get raw bits of the double
   const uint64_t f_bits = double_to_bits(f);
 
@@ -366,14 +366,14 @@ __host__ __device__ __uint128_t f64_to_i128(const double f) {
   return (f_bits >> 63) ? -result : result;
 }
 
-__host__ __device__ double i128_to_f64(__int128_t const x) {
+__host__ __device__ inline double i128_to_f64(__int128_t const x) {
   uint64_t sign = static_cast<uint64_t>(x >> 64) & (1ULL << 63);
   __uint128_t abs =
       (x < 0) ? static_cast<__uint128_t>(-x) : static_cast<__uint128_t>(x);
 
   return bits_to_double(double_to_bits(u128_to_f64(abs)) | sign);
 }
-__host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
+__host__ __device__ inline f128 u128_to_signed_to_f128(__uint128_t x) {
   const double first_approx = i128_to_f64(x);
   const uint64_t sign_bit = double_to_bits(first_approx) & (1ull << 63);
   const __uint128_t first_approx_roundtrip =
@@ -387,7 +387,7 @@ __host__ __device__ f128 u128_to_signed_to_f128(__uint128_t x) {
   return f128(first_approx, correction);
 }
 
-__host__ __device__ __uint128_t u128_from_torus_f128(const f128 &a) {
+__host__ __device__ inline __uint128_t u128_from_torus_f128(const f128 &a) {
   auto x = f128::sub_estimate(a, f128::f128_floor(a));
   const double normalization = 340282366920938500000000000000000000000.;
 #ifdef __CUDA_ARCH__
