@@ -31,7 +31,7 @@ mod test;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(KeySwitchingKeyMaterialVersions)]
 pub struct KeySwitchingKeyMaterial {
-    pub(crate) key_switching_key: LweKeyswitchKeyOwned<u64>,
+    pub key_switching_key: LweKeyswitchKeyOwned<u64>,
     pub(crate) cast_rshift: i8,
     pub(crate) destination_key: EncryptionKeyChoice,
 }
@@ -82,7 +82,7 @@ pub(crate) struct KeySwitchingKeyBuildHelper<'keys> {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(KeySwitchingKeyVersions)]
 pub struct KeySwitchingKey {
-    pub(crate) key_switching_key_material: KeySwitchingKeyMaterial,
+    pub key_switching_key_material: KeySwitchingKeyMaterial,
     pub(crate) dest_server_key: ServerKey,
     pub(crate) src_server_key: Option<ServerKey>,
 }
@@ -551,6 +551,16 @@ impl<'keys> KeySwitchingKeyView<'keys> {
             Ordering::Equal | Ordering::Greater => input_ct,
         };
 
+        let x = self
+            .key_switching_key_material
+            .key_switching_key
+            .clone()
+            .into_container();
+        println!("cpu ksk {:?}", x.chunks(8).next().unwrap());
+
+        let x = pre_processed.ct.clone().into_container();
+        println!("cpu ks input {:?}", x);
+
         // The keyswitch
         keyswitch_lwe_ciphertext(
             self.key_switching_key_material.key_switching_key,
@@ -558,6 +568,9 @@ impl<'keys> KeySwitchingKeyView<'keys> {
             &mut keyswitched.ct,
         );
         keyswitched.degree = pre_processed.degree;
+
+        let x = keyswitched.ct.clone().into_container();
+        println!("cpu ks output {:?}", x.chunks(8).next().unwrap());
 
         let degree_after_keyswitch = keyswitched.degree;
 
@@ -577,6 +590,7 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                 match self.key_switching_key_material.destination_key {
                     // Big to Small == keyswitch
                     EncryptionKeyChoice::Big => {
+                        println!("CPU BIG to small case");
                         let wrong_key_ct = keyswitched;
                         let mut correct_key_ct = self.dest_server_key.create_trivial(0);
                         correct_key_ct.degree = wrong_key_ct.degree;
@@ -614,10 +628,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                 // Refresh or apply user functions if provided
                 match res {
                     CastCiphertext::CorrectKey(ciphertext) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 let acc = self.dest_server_key.generate_lookup_table(function);
                                 *correct_key_ct =
                                     self.dest_server_key.apply_lookup_table(&ciphertext, &acc);
@@ -626,13 +638,12 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                 if using_identity_lut {
                                     correct_key_ct.degree = degree_after_keyswitch;
                                 }
-                            });
+                            },
+                        );
                     }
                     CastCiphertext::WrongKeyRequiresPBS(wrong_key_ct) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
                                     let (_, buffers) = engine.get_buffers(self.dest_server_key);
                                     let acc = self.dest_server_key.generate_lookup_table(function);
@@ -657,7 +668,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         self.dest_server_key.max_noise_level,
                                     );
                                 });
-                            });
+                            },
+                        );
                     }
                 }
             }
@@ -666,23 +678,20 @@ impl<'keys> KeySwitchingKeyView<'keys> {
             Ordering::Greater => {
                 match res {
                     CastCiphertext::CorrectKey(ciphertext) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 let acc = self
                                     .dest_server_key
                                     .generate_lookup_table(|n| function(n >> cast_rshift));
                                 *correct_key_ct =
                                     self.dest_server_key.apply_lookup_table(&ciphertext, &acc);
                                 // degree and noise are updated by the apply lookup table
-                            });
+                            },
+                        );
                     }
                     CastCiphertext::WrongKeyRequiresPBS(wrong_key_ct) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
                                     let (_, buffers) = engine.get_buffers(self.dest_server_key);
                                     let acc = self.dest_server_key.generate_lookup_table(|n| {
@@ -704,7 +713,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         self.dest_server_key.max_noise_level,
                                     );
                                 });
-                            });
+                            },
+                        );
                     }
                 }
             }
@@ -713,10 +723,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
             Ordering::Less => {
                 match res {
                     CastCiphertext::CorrectKey(ciphertext) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 let acc = self.dest_server_key.generate_lookup_table(function);
                                 *correct_key_ct =
                                     self.dest_server_key.apply_lookup_table(&ciphertext, &acc);
@@ -739,16 +747,16 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         Degree::new(degree_after_keyswitch.get() >> -cast_rshift);
                                     correct_key_ct.degree = new_degree;
                                 }
-                            });
+                            },
+                        );
                     }
                     CastCiphertext::WrongKeyRequiresPBS(wrong_key_ct) => {
-                        output_cts
-                            .par_iter_mut()
-                            .zip(functions_to_use.par_iter())
-                            .for_each(|(correct_key_ct, function)| {
+                        output_cts.iter_mut().zip(functions_to_use.iter()).for_each(
+                            |(correct_key_ct, function)| {
                                 ShortintEngine::with_thread_local_mut(|engine| {
                                     let (_, buffers) = engine.get_buffers(self.dest_server_key);
                                     let acc = self.dest_server_key.generate_lookup_table(function);
+
                                     apply_programmable_bootstrap(
                                         &self.dest_server_key.bootstrapping_key,
                                         &wrong_key_ct.ct,
@@ -769,7 +777,8 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                                         self.dest_server_key.max_noise_level,
                                     );
                                 });
-                            });
+                            },
+                        );
                     }
                 }
             }
@@ -792,7 +801,7 @@ impl CompressedKeySwitchingKeyMaterial {
         let key_switching_key = self
             .key_switching_key
             .as_view()
-            .par_decompress_into_lwe_keyswitch_key();
+            .decompress_into_lwe_keyswitch_key();
 
         KeySwitchingKeyMaterial {
             key_switching_key,

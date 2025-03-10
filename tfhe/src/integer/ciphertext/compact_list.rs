@@ -341,6 +341,13 @@ impl CompactCiphertextListExpander {
             .sum();
         let end_block_index = start_block_index + current_info.num_blocks(msg_mod);
 
+        println!(
+            "cpu start_block_index: {}, end_block_index: {}",
+            start_block_index, end_block_index
+        );
+
+        let x = self.expanded_blocks.get(start_block_index..end_block_index);
+        println!("cpu returned {} blocks", x.unwrap().len());
         self.expanded_blocks
             .get(start_block_index..end_block_index)
             .map(|block| (block, current_info))
@@ -980,6 +987,7 @@ impl ProvenCompactCiphertextList {
         metadata: &[u8],
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        println!("integer verify_and_expand");
         let is_packed = self.is_packed();
 
         // Type annotation needed rust is not able to coerce the type on its own, also forces us to
@@ -993,6 +1001,7 @@ impl ProvenCompactCiphertextList {
                 expansion_mode,
             )
         };
+        println!("integer verify_and_expand callback");
 
         let expanded_blocks = expansion_helper(
             expansion_mode,

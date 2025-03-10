@@ -17,7 +17,7 @@ pub const V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1:
 pub const V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2:
     CompactPublicKeyEncryptionParameters = CompactPublicKeyEncryptionParameters {
     encryption_lwe_dimension: LweDimension(2048),
-    encryption_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    encryption_noise_distribution: DynamicDistribution::new_t_uniform(0),
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CiphertextModulus::new_native(),

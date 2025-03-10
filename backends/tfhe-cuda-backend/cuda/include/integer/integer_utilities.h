@@ -5,6 +5,7 @@
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
 #include "keyswitch.h"
+#include "keyswitch/ks_enums.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include <cmath>
 #include <functional>
@@ -83,6 +84,7 @@ void generate_many_lut_device_accumulator(
 
 struct int_radix_params {
   PBS_TYPE pbs_type;
+  KS_TYPE ks_type;
   uint32_t glwe_dimension;
   uint32_t polynomial_size;
   uint32_t big_lwe_dimension;
@@ -103,7 +105,21 @@ struct int_radix_params {
                    uint32_t ks_base_log, uint32_t pbs_level,
                    uint32_t pbs_base_log, uint32_t grouping_factor,
                    uint32_t message_modulus, uint32_t carry_modulus)
-      : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
+      : pbs_type(pbs_type), ks_type(BIG_TO_SMALL),
+        glwe_dimension(glwe_dimension), polynomial_size(polynomial_size),
+        big_lwe_dimension(big_lwe_dimension),
+        small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
+        ks_base_log(ks_base_log), pbs_level(pbs_level),
+        pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
+        message_modulus(message_modulus), carry_modulus(carry_modulus){};
+
+  int_radix_params(PBS_TYPE pbs_type, KS_TYPE ks_type, uint32_t glwe_dimension,
+                   uint32_t polynomial_size, uint32_t big_lwe_dimension,
+                   uint32_t small_lwe_dimension, uint32_t ks_level,
+                   uint32_t ks_base_log, uint32_t pbs_level,
+                   uint32_t pbs_base_log, uint32_t grouping_factor,
+                   uint32_t message_modulus, uint32_t carry_modulus)
+      : pbs_type(pbs_type), ks_type(ks_type), glwe_dimension(glwe_dimension),
         polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),
@@ -371,7 +387,7 @@ template <typename Torus> struct int_radix_lut {
     this->params = params;
     this->num_blocks = num_radix_blocks;
     this->num_luts = num_luts;
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    Torus lut_indexes_size = num_blocks * sizeof(Torus);
     Torus lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
@@ -379,13 +395,13 @@ template <typename Torus> struct int_radix_lut {
     std::memcpy(gpu_indexes, input_gpu_indexes, gpu_count * sizeof(uint32_t));
 
     ///////////////
-    active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    active_gpu_count = get_active_gpu_count(num_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(i);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
+          get_num_inputs_on_gpu(num_blocks, i, active_gpu_count);
 
       execute_scratch_pbs<Torus>(
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
@@ -416,57 +432,56 @@ template <typename Torus> struct int_radix_lut {
         cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
 
-      // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
+      // lwe_(input/output)_indexes are initialized to range(num_blocks)
       // by default
-      lwe_indexes_in = (Torus *)cuda_malloc_async(
-          num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-      lwe_indexes_out = (Torus *)cuda_malloc_async(
-          num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+      lwe_indexes_in = (Torus *)cuda_malloc_async(num_blocks * sizeof(Torus),
+                                                  streams[0], gpu_indexes[0]);
+      lwe_indexes_out = (Torus *)cuda_malloc_async(num_blocks * sizeof(Torus),
+                                                   streams[0], gpu_indexes[0]);
       lwe_trivial_indexes = (Torus *)cuda_malloc_async(
-          num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+          num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
 
-      h_lwe_indexes_in = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
-      h_lwe_indexes_out = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+      h_lwe_indexes_in = (Torus *)malloc(num_blocks * sizeof(Torus));
+      h_lwe_indexes_out = (Torus *)malloc(num_blocks * sizeof(Torus));
 
-      for (int i = 0; i < num_radix_blocks; i++)
+      for (int i = 0; i < num_blocks; i++)
         h_lwe_indexes_in[i] = i;
 
       cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes_in,
-                               num_radix_blocks * sizeof(Torus), streams[0],
+                               num_blocks * sizeof(Torus), streams[0],
                                gpu_indexes[0]);
       cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes_in,
-                               num_radix_blocks * sizeof(Torus), streams[0],
+                               num_blocks * sizeof(Torus), streams[0],
                                gpu_indexes[0]);
       cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes_in,
-                               num_radix_blocks * sizeof(Torus), streams[0],
+                               num_blocks * sizeof(Torus), streams[0],
                                gpu_indexes[0]);
-      memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
-             num_radix_blocks * sizeof(Torus));
+      memcpy(h_lwe_indexes_out, h_lwe_indexes_in, num_blocks * sizeof(Torus));
 
       /// With multiple GPUs we allocate arrays to be pushed to the vectors and
       /// copy data on each GPU then when we gather data to GPU 0 we can copy
       /// back to the original indexing
       multi_gpu_alloc_lwe_async(streams, gpu_indexes, active_gpu_count,
-                                lwe_array_in_vec, num_radix_blocks,
+                                lwe_array_in_vec, num_blocks,
                                 params.big_lwe_dimension + 1);
       multi_gpu_alloc_lwe_async(streams, gpu_indexes, active_gpu_count,
-                                lwe_after_ks_vec, num_radix_blocks,
+                                lwe_after_ks_vec, num_blocks,
                                 params.small_lwe_dimension + 1);
       multi_gpu_alloc_lwe_many_lut_output_async(
-          streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
-          num_radix_blocks, num_many_lut, params.big_lwe_dimension + 1);
+          streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec, num_blocks,
+          num_many_lut, params.big_lwe_dimension + 1);
       multi_gpu_alloc_array_async(streams, gpu_indexes, active_gpu_count,
-                                  lwe_trivial_indexes_vec, num_radix_blocks);
+                                  lwe_trivial_indexes_vec, num_blocks);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       multi_gpu_copy_array_async(streams, gpu_indexes, active_gpu_count,
                                  lwe_trivial_indexes_vec, lwe_trivial_indexes,
-                                 num_radix_blocks);
+                                 num_blocks);
 
       // Keyswitch
       tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
-      create_zero_radix_ciphertext_async<Torus>(
-          streams[0], gpu_indexes[0], tmp_lwe_before_ks, num_radix_blocks,
-          params.big_lwe_dimension);
+      create_zero_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
+                                                tmp_lwe_before_ks, num_blocks,
+                                                params.big_lwe_dimension);
     }
     degrees = (uint64_t *)malloc(num_many_lut * num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
@@ -483,6 +498,7 @@ template <typename Torus> struct int_radix_lut {
   }
 
   // Return a pointer to idx-ith degree at gpu_index's global memory
+  // FIXME: The indexing here is possibly wrong!
   Torus *get_degree(size_t idx) { return &degrees[num_many_lut * idx]; }
 
   // Return a pointer to idx-ith max degree at gpu_index's global memory

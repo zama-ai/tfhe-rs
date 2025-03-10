@@ -149,10 +149,27 @@ pub struct CudaRadixCiphertextFFI {
     pub degrees: *mut u64,
     pub noise_levels: *mut u64,
     pub num_radix_blocks: u32,
-    pub max_num_radix_blocks: u32, // New field
+    pub max_num_radix_blocks: u32,
     pub lwe_dimension: u32,
 }
-
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaRadixCiphertextFFI"][::std::mem::size_of::<CudaRadixCiphertextFFI>() - 40usize];
+    ["Alignment of CudaRadixCiphertextFFI"]
+        [::std::mem::align_of::<CudaRadixCiphertextFFI>() - 8usize];
+    ["Offset of field: CudaRadixCiphertextFFI::ptr"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, ptr) - 0usize];
+    ["Offset of field: CudaRadixCiphertextFFI::degrees"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, degrees) - 8usize];
+    ["Offset of field: CudaRadixCiphertextFFI::noise_levels"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, noise_levels) - 16usize];
+    ["Offset of field: CudaRadixCiphertextFFI::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, num_radix_blocks) - 24usize];
+    ["Offset of field: CudaRadixCiphertextFFI::max_num_radix_blocks"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, max_num_radix_blocks) - 28usize];
+    ["Offset of field: CudaRadixCiphertextFFI::lwe_dimension"]
+        [::std::mem::offset_of!(CudaRadixCiphertextFFI, lwe_dimension) - 32usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
         streams: *const *mut ffi::c_void,
@@ -1176,6 +1193,63 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
+pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
+pub type KS_TYPE = ffi::c_uint;
+unsafe extern "C" {
+    pub fn cuda_lwe_expand_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_compact_array_in: *const ffi::c_void,
+        lwe_dimension: u32,
+        num_lwe: u32,
+        max_ciphertext_per_bin: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_expand_without_verification_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        lwe_ciphertext_count: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        ks_type: KS_TYPE,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_expand_without_verification_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_compact_array_in: *const ffi::c_void,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_expand_without_verification_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,

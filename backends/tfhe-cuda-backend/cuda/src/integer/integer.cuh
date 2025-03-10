@@ -509,12 +509,19 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
+  printf("num_radix_blocks: %u\n", num_radix_blocks);
+  printf("lwe_array_out->num_radix_blocks: %u\n",
+         lwe_array_out->num_radix_blocks);
+  printf("lwe_array_in->num_radix_blocks: %u\n",
+         lwe_array_in->num_radix_blocks);
+
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
+
   if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
       num_radix_blocks > lwe_array_in->num_radix_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
@@ -537,6 +544,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lwe_trivial_indexes_vec[0], (Torus *)lwe_array_in->ptr,
         lut->lwe_indexes_in, ksks, big_lwe_dimension, small_lwe_dimension,
         ks_base_log, ks_level, num_radix_blocks);
+    print_debug("gpu ks output", lwe_after_ks_vec[0], 8);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension
@@ -619,11 +627,18 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   auto polynomial_size = params.polynomial_size;
   auto grouping_factor = params.grouping_factor;
 
+  printf("lwe_array_out->num_radix_blocks: %u\n",
+         lwe_array_out->num_radix_blocks);
+  printf("lwe_array_in->num_radix_blocks: %u\n",
+         lwe_array_in->num_radix_blocks);
+  printf("num_many_lut: %u\n", num_many_lut);
+
   if (lwe_array_out->num_radix_blocks <
       lwe_array_in->num_radix_blocks * num_many_lut)
     PANIC("Cuda error: output radix ciphertext should have at least "
           "num_many_lut times "
           "the number of blocks of the input")
+
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output radix ciphertexts should have the same "
           "lwe dimension")
@@ -638,11 +653,13 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
+    print_debug<Torus>("gpu ksk", ksks[0], 8);
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], (Torus *)lwe_array_in->ptr,
         lut->lwe_indexes_in, ksks, big_lwe_dimension, small_lwe_dimension,
         ks_base_log, ks_level, num_radix_blocks);
+    print_debug("lwe_after_ks_vec", lwe_after_ks_vec[0], 8);
 
     /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
     /// dimension to a big LWE dimension

@@ -6,6 +6,8 @@
 #include <cuda_runtime.h>
 #endif
 
+#include <utils/helper.cuh>
+
 #include "cooperative_groups.h"
 #include "crypto/gadget.cuh"
 #include "crypto/torus.cuh"
@@ -236,6 +238,8 @@ __host__ void host_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     uint32_t num_many_lut, uint32_t lut_stride) {
+
+  print_debug<double2>("pbs bsk", bootstrapping_key, 8);
 
   // With SM each block corresponds to either the mask or body, no need to
   // duplicate data for each

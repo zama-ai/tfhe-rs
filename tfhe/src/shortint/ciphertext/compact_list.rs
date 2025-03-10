@@ -83,8 +83,8 @@ impl CompactCiphertextList {
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
-            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
-            par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+            use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
+            expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
         }
 
         match (self.expansion_kind, casting_mode) {
@@ -121,8 +121,8 @@ impl CompactCiphertextList {
                 let pbs_order = casting_key.dest_server_key.pbs_order;
 
                 let res = output_lwe_ciphertext_list
-                    .par_iter()
-                    .zip(functions.par_iter())
+                    .iter()
+                    .zip(functions.iter())
                     .flat_map(|(lwe_view, functions)| {
                         let lwe_to_cast = LweCiphertext::from_container(
                             lwe_view.as_ref().to_vec(),
@@ -141,6 +141,12 @@ impl CompactCiphertextList {
                             .cast_and_apply_functions(&shortint_ct_to_cast, functions.as_deref())
                     })
                     .collect::<Vec<_>>();
+
+                let x = res.first().unwrap().clone();
+                println!(
+                    "cpu ks+pbs output{:?}",
+                    x.ct.into_container().chunks(8).next().unwrap()
+                );
                 Ok(res)
             }
             (CompactCiphertextListExpansionKind::NoCasting(pbs_order), _) => {

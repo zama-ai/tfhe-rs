@@ -18,6 +18,7 @@ mod scalar_mul;
 mod scalar_sub;
 mod shift;
 mod sub;
+use itertools::Itertools;
 
 pub mod compressed;
 
@@ -807,6 +808,12 @@ impl ServerKey {
     pub fn apply_lookup_table(&self, ct: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
         let mut ct_res = ct.clone();
 
+        println!("cpu apply_lookup_table");
+
+        let x = ct.ct.clone().into_container();
+        println!("cpu pbs input {:?}", x.chunks(8).next().unwrap());
+        let x = acc.acc.clone().into_container();
+        println!("cpu lut {:?}", x.chunks(8).next().unwrap());
         self.apply_lookup_table_assign(&mut ct_res, acc);
 
         ct_res
@@ -817,6 +824,13 @@ impl ServerKey {
             self.trivial_pbs_assign(ct, acc);
             return;
         }
+
+        println!("cpu apply_lookup_table_assign");
+
+        let x = ct.ct.clone().into_container();
+        println!("cpu pbs input {:?}", x.chunks(8).next().unwrap());
+        let x = acc.acc.clone().into_container();
+        println!("cpu lut {:?}", x.chunks(8).next().unwrap());
 
         ShortintEngine::with_thread_local_mut(|engine| {
             let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
@@ -1565,11 +1579,21 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
 {
+    println!("cpu apply_programmable_bootstrap");
+
+    let in_buffer_elements: Vec<u64> = in_buffer.as_ref().iter().take(8).cloned().collect();
+    println!("First 8 elements of in_buffer: {:?}", in_buffer_elements);
+    let x = acc.clone().into_container();
+    println!("cpu lut {:?}", x);
+
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
     apply_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
+
+    let out_buffer_elements: Vec<u64> = out_buffer.as_ref().iter().take(8).cloned().collect();
+    println!("First 8 elements of out_buffer: {:?}", out_buffer_elements);
 }
 
 pub(crate) fn apply_programmable_bootstrap_no_ms_noise_reduction<InputCont, OutputCont>(

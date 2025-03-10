@@ -2355,15 +2355,19 @@ where
     let (mut output_mask_list, mut output_body_list) = output.get_mut_mask_and_body_list();
 
     let mut binary_random_vector = vec![Scalar::ZERO; output_mask_list.lwe_mask_list_size()];
-    secret_generator.fill_slice_with_random_uniform_binary(&mut binary_random_vector);
+    // secret_generator.fill_slice_with_random_uniform_binary(&mut binary_random_vector);
+    println!("binary_random_vector {:?}", binary_random_vector);
 
     let mut mask_noise = vec![Scalar::ZERO; output_mask_list.lwe_mask_list_size()];
-    encryption_generator
-        .fill_slice_with_random_noise_from_distribution(&mut mask_noise, mask_noise_distribution);
+    // encryption_generator
+    //     .fill_slice_with_random_noise_from_distribution(&mut mask_noise,
+    // mask_noise_distribution);
+    println!("mask noise{:?}", mask_noise);
 
     let mut body_noise = vec![Scalar::ZERO; encoded.plaintext_count().0];
-    encryption_generator
-        .fill_slice_with_random_noise_from_distribution(&mut body_noise, body_noise_distribution);
+    // encryption_generator
+    //     .fill_slice_with_random_noise_from_distribution(&mut body_noise,
+    // body_noise_distribution);
 
     let max_ciphertext_per_bin = lwe_compact_public_key.lwe_dimension().0;
     output_mask_list

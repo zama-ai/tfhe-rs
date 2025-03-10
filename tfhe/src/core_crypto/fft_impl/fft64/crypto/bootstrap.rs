@@ -316,6 +316,7 @@ impl FourierLweBootstrapKeyView<'_> {
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
+        let mut count = 0;
         for (lwe_mask_element, bootstrap_key_ggsw) in
             izip!(lwe_mask.as_ref().iter(), self.into_ggsw_iter())
         {

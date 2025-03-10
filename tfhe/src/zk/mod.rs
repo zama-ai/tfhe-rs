@@ -1,4 +1,5 @@
 pub mod backward_compatibility;
+pub mod gpu;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{

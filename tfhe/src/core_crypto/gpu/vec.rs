@@ -297,6 +297,8 @@ impl<T: Numeric> CudaVec<T> {
         if end < start {
             return;
         }
+        println!("start: {}, end: {}", start, end);
+        println!("src.len(): {}", src.len());
         assert!(end < src.len());
         assert!(end - start < self.len());
 

@@ -55,6 +55,14 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
             *out_body.data = *input_body.data;
         }
     }
+
+    // println!("CPU's input_lwe_compact_ciphertext_list: {:?}",
+    //          &input_lwe_compact_ciphertext_list.as_ref()[..8.
+    // min(input_lwe_compact_ciphertext_list.as_ref().len())] );
+    println!(
+        "CPU's output_lwe_ciphertext_list: {:?}",
+        &output_lwe_ciphertext_list.as_ref()
+    );
 }
 
 /// Parallel variant of [`expand_lwe_compact_ciphertext_list`].
