@@ -1,6 +1,7 @@
 #ifndef HELPER_CUH
 #define HELPER_CUH
 
+#include <cstdint>
 #include <stdio.h>
 #include <type_traits>
 
@@ -16,13 +17,20 @@ template <> inline __device__ const char *get_format<uint64_t>() {
   return "%lu, ";
 }
 
-template <typename T> __global__ void print_debug_kernel(T *src, int N) {
+template <typename T> __global__ void print_debug_kernel(const T *src, int N) {
   for (int i = 0; i < N; i++) {
     printf(get_format<T>(), src[i]);
   }
 }
 
-template <typename T> void print_debug(const char *name, T *src, int N) {
+template <>
+__global__ inline void print_debug_kernel(const double2 *src, int N) {
+  for (int i = 0; i < N; i++) {
+    printf("(%lf, %lf), ", src[i].x, src[i].y);
+  }
+}
+
+template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("%s: ", name);
   cudaDeviceSynchronize();
   print_debug_kernel<<<1, 1>>>(src, N);
