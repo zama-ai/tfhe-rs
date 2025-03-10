@@ -114,7 +114,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
 
       const Torus *bsk_poly = bsk_poly_ini + g * offset;
       // Multiply by the bsk element
-      polynomial_product_accumulate_by_monomial_nosync<Torus, params>(
+      polynomial_accumulate_monic_monomial_mul_on_regs<Torus, params>(
           reg_acc, bsk_poly, monomial_degree);
     }
     synchronize_threads_in_block(); // needed because we are going to reuse the
