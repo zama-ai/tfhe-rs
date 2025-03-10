@@ -105,8 +105,10 @@ __device__ void polynomial_accumulate_monic_monomial_mul(
   }
 }
 
+// Does the same as polynomial_accumulate_monic_monomial_mul() but result is
+// being written to registers
 template <typename T, class params>
-__device__ void polynomial_product_accumulate_by_monomial_nosync(
+__device__ void polynomial_accumulate_monic_monomial_mul_on_regs(
     T *result, const T *__restrict__ poly, uint32_t monomial_degree) {
   // monomial_degree \in [0, 2 * params::degree)
   int full_cycles_count = monomial_degree / params::degree;
@@ -129,5 +131,4 @@ __device__ void polynomial_product_accumulate_by_monomial_nosync(
     result[i] += x;
   }
 }
-
 #endif // CNCRT_POLYNOMIAL_MATH_H

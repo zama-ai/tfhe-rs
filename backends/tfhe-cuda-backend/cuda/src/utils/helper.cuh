@@ -12,7 +12,7 @@ template <> inline __device__ const char *get_format<unsigned int>() {
   return "%u, ";
 }
 
-template <> inline __device__ const char *get_format<uint64_t>() {
+template <> inline __device__ const char *get_format<const uint64_t>() {
   return "%lu, ";
 }
 
@@ -22,7 +22,7 @@ template <typename T> __global__ void print_debug_kernel(T *src, int N) {
   }
 }
 
-template <typename T> void print_debug(const char *name, T *src, int N) {
+template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("%s: ", name);
   cudaDeviceSynchronize();
   print_debug_kernel<<<1, 1>>>(src, N);

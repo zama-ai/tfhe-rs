@@ -5,11 +5,15 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::traits::ContiguousEntityContainer;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
+use crate::core_crypto::gpu::CudaStreams;
 use crate::shortint::backward_compatibility::ciphertext::CompactCiphertextListVersions;
 pub use crate::shortint::parameters::ShortintCompactCiphertextListCastingMode;
 use crate::shortint::parameters::{
     CarryModulus, CompactCiphertextListExpansionKind, MessageModulus,
 };
+use crate::zk::gpu::lwe_expand_async;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -66,6 +70,7 @@ impl CompactCiphertextList {
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> Result<Vec<Ciphertext>, crate::Error> {
+        println!("expand");
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
             self.ct_list.lwe_size(),
@@ -83,9 +88,34 @@ impl CompactCiphertextList {
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
-            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
-            par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+            use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
+            expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+            output_lwe_ciphertext_list = unsafe {
+                let stream = CudaStreams::new_multi_gpu();
+                let mut d_output = CudaLweCiphertextList::from_lwe_ciphertext_list(
+                    &output_lwe_ciphertext_list,
+                    &stream,
+                );
+                let d_input = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list(
+                    &self.ct_list,
+                    &stream,
+                );
+
+                lwe_expand_async(
+                    &stream,
+                    &mut d_output.0.d_vec,
+                    &d_input.0.d_vec,
+                    d_input.0.lwe_dimension,
+                    d_input.0.lwe_ciphertext_count,
+                    d_input.0.lwe_dimension.0 as u32,
+                );
+                stream.synchronize();
+
+                d_output.to_lwe_ciphertext_list(&stream)
+            }
         }
+
+        println!("expand done");
 
         match (self.expansion_kind, casting_mode) {
             (

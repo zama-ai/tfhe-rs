@@ -8,6 +8,8 @@
 #include "pbs/programmable_bootstrap.cuh"
 #include <cmath>
 #include <functional>
+#include "keyswitch/ks_enums.h"
+
 
 class NoiseLevel {
 public:
@@ -83,6 +85,7 @@ void generate_many_lut_device_accumulator(
 
 struct int_radix_params {
   PBS_TYPE pbs_type;
+    KS_TYPE ks_type;
   uint32_t glwe_dimension;
   uint32_t polynomial_size;
   uint32_t big_lwe_dimension;
@@ -103,7 +106,20 @@ struct int_radix_params {
                    uint32_t ks_base_log, uint32_t pbs_level,
                    uint32_t pbs_base_log, uint32_t grouping_factor,
                    uint32_t message_modulus, uint32_t carry_modulus)
-      : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
+      : pbs_type(pbs_type), ks_type(BIG_TO_SMALL), glwe_dimension(glwe_dimension),
+        polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
+        small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
+        ks_base_log(ks_base_log), pbs_level(pbs_level),
+        pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
+        message_modulus(message_modulus), carry_modulus(carry_modulus){};
+
+  int_radix_params(PBS_TYPE pbs_type, KS_TYPE ks_type, uint32_t glwe_dimension,
+                   uint32_t polynomial_size, uint32_t big_lwe_dimension,
+                   uint32_t small_lwe_dimension, uint32_t ks_level,
+                   uint32_t ks_base_log, uint32_t pbs_level,
+                   uint32_t pbs_base_log, uint32_t grouping_factor,
+                   uint32_t message_modulus, uint32_t carry_modulus)
+      : pbs_type(pbs_type), ks_type(ks_type), glwe_dimension(glwe_dimension),
         polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
         small_lwe_dimension(small_lwe_dimension), ks_level(ks_level),
         ks_base_log(ks_base_log), pbs_level(pbs_level),

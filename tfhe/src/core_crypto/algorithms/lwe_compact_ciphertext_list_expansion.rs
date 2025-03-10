@@ -30,29 +30,67 @@ pub fn expand_lwe_compact_ciphertext_list<Scalar, InputCont, OutputCont>(
     let lwe_dimension = input_mask_list.lwe_dimension();
     let max_ciphertext_per_bin = lwe_dimension.0;
 
+    println!("\nlwe_dimension: {:?}", lwe_dimension);
+    println!(
+        "input_mask_list length: {:?}",
+        input_mask_list.iter().count()
+    );
+    println!(
+        "input_body_list length: {:?}",
+        input_body_list.iter().count()
+    );
+
     for (input_mask, (mut output_ct_chunk, input_body_chunk)) in input_mask_list.iter().zip(
         output_lwe_ciphertext_list
             .chunks_mut(max_ciphertext_per_bin)
             .zip(input_body_list.chunks(max_ciphertext_per_bin)),
     ) {
+        println!("input_mask length: {:?}", input_mask.as_ref().len());
+        println!(
+            "output_ct_chunk length: {:?}",
+            output_ct_chunk.as_ref().len()
+        );
+        println!(
+            "input_body_chunk length: {:?}",
+            input_body_chunk.as_ref().len()
+        );
+
         for (ct_idx, (mut out_ct, input_body)) in output_ct_chunk
             .iter_mut()
             .zip(input_body_chunk.iter())
             .enumerate()
         {
+            println!("ct_idx: {}", ct_idx);
+            println!("out_ct length (before): 1");
+            println!("input_body: {:?}", input_body);
+
             let (mut out_mask, out_body) = out_ct.get_mut_mask_and_body();
+            println!("out_mask length (before): {:?}", out_mask.as_ref().len());
+            println!("out_body length (before): 1");
+
             out_mask.as_mut().copy_from_slice(input_mask.as_ref());
+            println!(
+                "out_mask length (after copy): {:?}",
+                out_mask.as_ref().len()
+            );
 
             let mut out_mask_as_polynomial = Polynomial::from_container(out_mask.as_mut());
+            println!(
+                "out_mask_as_polynomial length (before multiplication): {:?}",
+                out_mask_as_polynomial.as_ref().len()
+            );
 
-            // This the Psi_jl from the paper, it's equivalent to a multiplication in the X^N + 1
-            // ring for our choice of i == n
             polynomial_wrapping_monic_monomial_mul_assign(
                 &mut out_mask_as_polynomial,
                 MonomialDegree(ct_idx),
             );
+            println!(
+                "out_mask_as_polynomial length (after multiplication): {:?}",
+                out_mask_as_polynomial.as_ref().len()
+            );
 
             *out_body.data = *input_body.data;
+            println!("out_body.data (after update): {:?}", out_body.data);
         }
     }
 }

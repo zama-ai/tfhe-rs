@@ -8,7 +8,8 @@ use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
 
 /// A structure representing a vector of LWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
-pub struct CudaLweCiphertextList<T: UnsignedInteger>(pub(crate) CudaLweList<T>);
+pub struct CudaLweCiphertextList<T: UnsignedInteger>(pub CudaLweList<T>);
+// pub struct CudaLweCiphertextList<T: UnsignedInteger>(pub(crate) CudaLweList<T>);
 
 #[allow(dead_code)]
 impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
@@ -234,5 +235,53 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
             self.set_to_zero_async(streams);
             streams.synchronize_one(0);
         }
+    }
+
+    pub fn get<R>(&self, streams: &CudaStreams, range: R) -> Self
+    where
+        R: std::ops::RangeBounds<usize>,
+    {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&bound) => bound,
+            std::ops::Bound::Excluded(&bound) => bound + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&bound) => bound + 1,
+            std::ops::Bound::Excluded(&bound) => bound,
+            std::ops::Bound::Unbounded => self.0.lwe_ciphertext_count.0,
+        };
+
+
+        let lwe_dimension = self.lwe_dimension();
+        let slice_lwe_ciphertext_count = LweCiphertextCount(end - start);
+        let ciphertext_modulus = self.ciphertext_modulus();
+
+        let d_vec = unsafe {
+            let mut d_vec = CudaVec::new_async(
+                lwe_dimension.to_lwe_size().0 * slice_lwe_ciphertext_count.0,
+                streams,
+                0,
+            );
+
+            d_vec.copy_src_range_gpu_to_gpu_async(
+                range, &self.0.d_vec,
+                streams,
+                0,
+            );
+
+            streams.synchronize();
+            d_vec
+        };
+
+        let cuda_lwe_list = CudaLweList {
+            d_vec,
+            lwe_ciphertext_count: slice_lwe_ciphertext_count,
+            lwe_dimension,
+            ciphertext_modulus,
+        };
+
+        Self(cuda_lwe_list)
     }
 }

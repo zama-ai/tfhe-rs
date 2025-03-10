@@ -1,4 +1,5 @@
 pub mod glwe_sample_extraction;
+pub mod lwe_compact_ciphertext_list_expansion;
 pub mod lwe_keyswitch;
 pub mod lwe_linear_algebra;
 pub mod lwe_multi_bit_programmable_bootstrapping;
