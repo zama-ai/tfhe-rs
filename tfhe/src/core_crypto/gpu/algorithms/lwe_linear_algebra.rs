@@ -54,6 +54,21 @@ pub unsafe fn cuda_lwe_ciphertext_add_async<Scalar>(
         output.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     add_lwe_ciphertext_vector_async(
         streams,
@@ -93,6 +108,16 @@ pub unsafe fn cuda_lwe_ciphertext_add_assign_async<Scalar>(
         lhs.ciphertext_modulus(),
         rhs.ciphertext_modulus()
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     add_lwe_ciphertext_vector_assign_async(
         streams,
@@ -131,6 +156,21 @@ pub unsafe fn cuda_lwe_ciphertext_plaintext_add_async<Scalar>(
         "Mismatched moduli between output ({:?}) and lhs ({:?}) LweCiphertext",
         output.ciphertext_modulus(),
         lhs.ciphertext_modulus()
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        lhs.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        rhs.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
     );
 
     add_lwe_ciphertext_vector_plaintext_vector_async(
@@ -184,6 +224,16 @@ pub unsafe fn cuda_lwe_ciphertext_negate_async<Scalar>(
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
     );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        input.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
 
@@ -230,6 +280,21 @@ pub unsafe fn cuda_lwe_ciphertext_cleartext_mul_async<Scalar>(
         "Mismatched number of ciphertexts between input ({:?}) and output ({:?})",
         input.lwe_ciphertext_count(),
         output.lwe_ciphertext_count()
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        input.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        cleartext.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
     );
     let num_samples = output.lwe_ciphertext_count().0 as u32;
     let lwe_dimension = &output.lwe_dimension();
