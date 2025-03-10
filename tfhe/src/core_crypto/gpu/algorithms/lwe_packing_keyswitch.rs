@@ -20,6 +20,21 @@ pub unsafe fn cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async<Scal
     let input_lwe_dimension = input_lwe_ciphertext_list.lwe_dimension();
     let output_glwe_dimension = output_glwe_ciphertext.glwe_dimension();
     let output_polynomial_size = output_glwe_ciphertext.polynomial_size();
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_lwe_ciphertext_list.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_glwe_ciphertext.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_pksk.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     packing_keyswitch_list_async(
         streams,

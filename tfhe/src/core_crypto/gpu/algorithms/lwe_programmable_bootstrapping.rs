@@ -75,6 +75,41 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
     );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        bsk.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        input.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        output.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        accumulator.0.d_vec.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        input_indexes.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        output_indexes.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
+    assert_eq!(
+        stream.gpu_indexes[0],
+        lut_indexes.gpu_index(0),
+        "GPU error: all data should reside on the same GPU."
+    );
 
     programmable_bootstrap_async(
         stream,
