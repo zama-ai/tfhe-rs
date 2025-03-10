@@ -710,7 +710,7 @@ impl InfoIsc {
 
     pub fn update_isc_info(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         for idx in 0..4 {
-            let name = format!("runtime_1in3::isc_info_{idx}");
+            let name = format!("runtime_1in3::isc_latest_instruction_{idx}");
             let reg = regmap
                 .register()
                 .get(&name)
