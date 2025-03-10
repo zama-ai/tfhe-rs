@@ -48,6 +48,7 @@ create_parameterized_test_classical_params!(integer_encrypt_decrypt_128_bits);
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_128_bits_specific_values);
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits_specific_values);
 create_parameterized_test_classical_params!(integer_encrypt_decrypt_256_bits);
+create_parameterized_test_classical_params!(integer_encrypt_auto_cast);
 create_parameterized_test_classical_params!(integer_unchecked_add);
 create_parameterized_test_classical_params!(integer_smart_add);
 create_parameterized_test!(
@@ -157,7 +158,7 @@ fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     for _ in 0..10 {
         let clear = rng.gen::<u128>();
 
@@ -172,7 +173,7 @@ fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
 fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     {
         let a = u64::MAX as u128;
         let ct = cks.encrypt_radix(a, num_block);
@@ -220,7 +221,7 @@ fn integer_encrypt_decrypt_128_bits_specific_values(param: ClassicPBSParameters)
 fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     {
         let a = (u64::MAX as u128) << 64;
         let b = 0;
@@ -245,7 +246,7 @@ fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = (256f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..10 {
         let clear0 = rng.gen::<u128>();
@@ -261,11 +262,52 @@ fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
     }
 }
 
+fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
+    // The goal is to test that encrypting a value stored in a type
+    // for which the bit count does not match the target block count of the encrypted
+    // radix properly applies upcasting/downcasting
+
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let mut rng = rand::thread_rng();
+
+    let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
+
+    // Positive signed value
+    let value = rng.gen_range(0..=i32::MAX);
+    let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
+    let d: i64 = cks.decrypt_signed_radix(&ct);
+    assert_eq!(i64::from(value), d);
+
+    let ct = cks.encrypt_signed_radix(value, num_blocks.div_ceil(2));
+    let d: i16 = cks.decrypt_signed_radix(&ct);
+    assert_eq!(value as i16, d);
+
+    // Negative signed value
+    let value = rng.gen_range(i8::MIN..0);
+    let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
+    let d: i64 = cks.decrypt_signed_radix(&ct);
+    assert_eq!(i64::from(value), d);
+
+    let ct = cks.encrypt_signed_radix(value, num_blocks.div_ceil(2));
+    let d: i16 = cks.decrypt_signed_radix(&ct);
+    assert_eq!(value as i16, d);
+
+    // Unsigned value
+    let value = rng.gen::<u32>();
+    let ct = cks.encrypt_radix(value, num_blocks * 2);
+    let d: u64 = cks.decrypt_radix(&ct);
+    assert_eq!(u64::from(value), d);
+
+    let ct = cks.encrypt_radix(value, num_blocks.div_ceil(2));
+    let d: u16 = cks.decrypt_radix(&ct);
+    assert_eq!(value as u16, d);
+}
+
 fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
-    let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
+    let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..100 {
         let clear_0 = rng.gen::<u128>();

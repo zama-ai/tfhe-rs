@@ -641,6 +641,7 @@ impl ServerKey {
         const INPUT_CARRY: bool = true;
         let flipped_scalar = !scalar;
         let decomposed_flipped_scalar =
+            // We don't use BlockDecomposer::with_block_count as we are doing something special
             BlockDecomposer::new(flipped_scalar, self.message_modulus().0.ilog2())
                 .iter_as::<u8>()
                 .chain(std::iter::repeat(if scalar < Scalar::ZERO {
