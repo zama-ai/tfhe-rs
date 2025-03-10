@@ -980,6 +980,7 @@ impl ProvenCompactCiphertextList {
         metadata: &[u8],
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        println!("integer verify_and_expand");
         let is_packed = self.is_packed();
 
         // Type annotation needed rust is not able to coerce the type on its own, also forces us to
@@ -993,6 +994,7 @@ impl ProvenCompactCiphertextList {
                 expansion_mode,
             )
         };
+        println!("integer verify_and_expand callback");
 
         let expanded_blocks = expansion_helper(
             expansion_mode,

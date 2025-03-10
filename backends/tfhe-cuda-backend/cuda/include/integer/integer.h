@@ -38,7 +38,6 @@ enum SIGNED_OPERATION { ADDITION = 1, SUBTRACTION = -1 };
 enum outputFlag { FLAG_NONE = 0, FLAG_OVERFLOW = 1, FLAG_CARRY = 2 };
 
 extern "C" {
-
 typedef struct {
   void *ptr;
   uint64_t *degrees;

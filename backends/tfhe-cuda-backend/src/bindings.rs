@@ -1198,6 +1198,17 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_lwe_expand_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_compact_array_in: *const ffi::c_void,
+        lwe_dimension: u32,
+        num_lwe: u32,
+        max_ciphertext_per_bin: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_keyswitch_lwe_ciphertext_vector_32(
         stream: *mut ffi::c_void,
         gpu_index: u32,

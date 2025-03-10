@@ -96,6 +96,7 @@ impl ProvenCompactCiphertextList {
         metadata: &[u8],
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> crate::Result<Vec<Ciphertext>> {
+        println!("shortint verify_and_expand");
         let not_all_valid = self.proved_lists.par_iter().any(|(ct_list, proof)| {
             verify_lwe_compact_ciphertext_list(
                 &ct_list.ct_list,
@@ -129,6 +130,7 @@ impl ProvenCompactCiphertextList {
                 functions,
             } => match functions {
                 Some(functions) => {
+                println!("expand without verification");
                     // For how many ciphertexts we have functions
                     let functions_sets_count = functions.len();
                     let total_ciphertext_count: usize = self

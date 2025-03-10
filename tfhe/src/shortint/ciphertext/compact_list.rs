@@ -14,6 +14,10 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
+use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+use crate::core_crypto::gpu::lwe_compact_ciphertext_list::CudaLweCompactCiphertextList;
+use crate::zk::gpu::lwe_expand_async;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
@@ -66,6 +70,7 @@ impl CompactCiphertextList {
         &self,
         casting_mode: ShortintCompactCiphertextListCastingMode<'_>,
     ) -> Result<Vec<Ciphertext>, crate::Error> {
+        println!("expand");
         let mut output_lwe_ciphertext_list = LweCiphertextList::new(
             0u64,
             self.ct_list.lwe_size(),
@@ -83,8 +88,21 @@ impl CompactCiphertextList {
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
         {
-            use crate::core_crypto::prelude::par_expand_lwe_compact_ciphertext_list;
-            par_expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+            // use crate::core_crypto::prelude::expand_lwe_compact_ciphertext_list;
+            // expand_lwe_compact_ciphertext_list(&mut output_lwe_ciphertext_list, &self.ct_list);
+            output_lwe_ciphertext_list = unsafe {
+                let stream = CudaStreams::new_multi_gpu();
+                let mut d_output = CudaLweCiphertextList::from_lwe_ciphertext_list
+                    (&output_lwe_ciphertext_list, &stream);
+                let d_input = CudaLweCompactCiphertextList::from_lwe_compact_ciphertext_list
+                    (&self.ct_list, &stream);
+
+            lwe_expand_async(&stream, &mut d_output.0.d_vec, &d_input.0.d_vec, d_input.0
+                .lwe_dimension, d_input.0.lwe_ciphertext_count, d_input.0.lwe_dimension.0 as u32);
+                stream.synchronize();
+
+                d_output.to_lwe_ciphertext_list(&stream)
+            }
         }
 
         match (self.expansion_kind, casting_mode) {

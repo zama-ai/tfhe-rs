@@ -233,6 +233,7 @@ mod zk {
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
+            println!("verify_and_expand");
             // For WASM
             if !self.inner.is_packed() && !self.inner.needs_casting() {
                 // No ServerKey required, short circuit to avoid the global state call
