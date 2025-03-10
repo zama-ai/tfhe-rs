@@ -1302,6 +1302,73 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
+pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
+pub type KS_TYPE = ffi::c_uint;
+unsafe extern "C" {
+    pub fn cuda_lwe_expand_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_compact_array_in: *const ffi::c_void,
+        lwe_dimension: u32,
+        num_lwe: u32,
+        lwe_compact_input_indexes: *const u32,
+        output_body_id_per_compact_list: *const u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_expand_without_verification_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        computing_ks_level: u32,
+        computing_ks_base_log: u32,
+        casting_input_dimension: u32,
+        casting_output_dimension: u32,
+        casting_ks_level: u32,
+        casting_ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_lwes_per_compact_list: *const u32,
+        is_boolean_array: *const bool,
+        num_compact_lists: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        casting_key_type: KS_TYPE,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_expand_without_verification_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_flattened_compact_array_in: *const ffi::c_void,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        computing_ksks: *const *mut ffi::c_void,
+        casting_keys: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_expand_without_verification_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
 unsafe extern "C" {
     pub fn cuda_keyswitch_lwe_ciphertext_vector_32(
         stream: *mut ffi::c_void,
