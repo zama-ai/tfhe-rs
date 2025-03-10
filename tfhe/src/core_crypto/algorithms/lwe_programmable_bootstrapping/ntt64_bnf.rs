@@ -628,7 +628,7 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                     // 1. Move poly coef in ntt_modulus if needed
                     ntt_poly.clone_from_slice(glwe_poly.into_container());
                     // NB: Decomposition term is already LSB align
-                    user2ntt_bitmask_modswitch(&mut ntt_poly, req_ba, req_ms, ntt);
+                    decomp2ntt(&mut ntt_poly, ntt);
 
                     // 2. We perform the forward ntt transform for the glwe polynomial
                     ntt.plan.fwd(&mut ntt_poly);
@@ -829,22 +829,17 @@ pub fn user2ntt_bitalign_modswitch(
 }
 
 /// This function is used when the input come from the decomposer
-/// In such case value inputs are small value around 0. But negative value are signed
-/// extend on BITS and prevent the modswitch to work properly
-/// Thus we start by bitmask to remove extra MSB and then modswitch
-pub fn user2ntt_bitmask_modswitch(
-    data: &mut [u64],
-    req_bitalign: Option<u32>,
-    req_modswitch: Option<u32>,
-    ntt: Ntt64View<'_>,
-) {
-    if let Some(shr_bit) = req_bitalign {
-        data.iter_mut()
-            .for_each(|x| *x = (*x << shr_bit) >> shr_bit);
-    }
-    if let Some(modswitch) = req_modswitch {
-        ntt.user2ntt_modswitch(modswitch, data);
-    }
+/// In such case value inputs are small value around 0
+/// No modswitch needed, only a correct encoding of negative value regarding
+/// to the prime value is required.
+pub fn decomp2ntt(data: &mut [u64], ntt: Ntt64View<'_>) {
+    data.iter_mut().for_each(|x| {
+        *x = match *x >> (u64::BITS - 1) {
+            0 => *x,
+            1 => ntt.custom_modulus() - (!(*x) + 1),
+            _ => panic!("x[{}] should be either 1 or 0", u64::BITS - 1),
+        }
+    });
 }
 
 pub fn ntt2user_bitalign_modswitch(
