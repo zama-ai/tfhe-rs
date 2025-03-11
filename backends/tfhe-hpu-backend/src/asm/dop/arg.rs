@@ -190,6 +190,25 @@ where
     fn src(&self) -> Vec<arg::Arg>;
 }
 
+#[enum_dispatch]
+pub trait IsFlush
+where
+    Self: Sized,
+{
+    fn is_flush(&self) -> bool {
+        false
+    }
+}
+
+pub trait ToFlush
+where
+    Self: Sized + Clone,
+{
+    fn to_flush(&self) -> Self {
+        self.clone()
+    }
+}
+
 impl FromAsm for field::PeArithInsn {
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
         if (args.len() != 3) && (args.len() != 4) {
@@ -485,3 +504,16 @@ impl ToAsm for PeSyncInsn {
         vec![Arg::Sync(self.sid)]
     }
 }
+
+impl ToFlush for field::PePbsInsn {
+    fn to_flush(&self) -> Self {
+        PePbsInsn {
+            opcode: self.opcode.to_flush(),
+            ..*self
+        }
+    }
+}
+impl ToFlush for field::PeSyncInsn {}
+impl ToFlush for field::PeArithInsn {}
+impl ToFlush for field::PeArithMsgInsn {}
+impl ToFlush for field::PeMemInsn {}

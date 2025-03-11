@@ -302,6 +302,35 @@ impl std::ops::Deref for Program {
     }
 }
 
+#[derive(Clone)]
+pub struct StmtLink {
+    prog: Program,
+    pos: Vec<usize>,
+}
+
+impl std::fmt::Debug for StmtLink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("StmtLink").field("pos", &self.pos).finish()
+    }
+}
+
+impl StmtLink {
+    pub fn empty(prog: Program) -> StmtLink {
+        StmtLink {
+            prog,
+            pos: Vec::new(),
+        }
+    }
+
+    pub fn to_flush(&mut self) {
+        if let Some(pos) = self.pos.first() {
+            let mut borrow = self.prog.borrow_mut();
+            let dop = borrow.stmts.get_stmt_mut(*pos);
+            dop.to_flush();
+        }
+    }
+}
+
 impl Program {
     pub fn new(params: &FwParameters) -> Self {
         Self {
@@ -392,6 +421,14 @@ impl Program {
             asm::OperandKind::Unknow => panic!("Template var required a known kind"),
         }
     }
+
+    pub fn push_stmt(&mut self, asm: asm::dop::DOp) -> StmtLink {
+        let pos = self.borrow_mut().stmts.push_stmt_pos(asm);
+        StmtLink {
+            prog: self.clone(),
+            pos: vec![pos],
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -403,6 +440,31 @@ pub enum AtomicRegType {
 
 // Register utilities
 impl Program {
+    /// Bulk reserve
+    /// Evict value from cache in a bulk manner. This enable to prevent false dependency of bulk
+    /// opertions when cache is almost full Enforce that at least bulk_size register is `free`
+    pub(crate) fn reg_bulk_reserve(&self, bulk_size: usize) {
+        // Iter from Lru -> MRu and take bulk_size regs
+        let to_evict = self
+            .inner
+            .borrow()
+            .regs
+            .iter()
+            .rev()
+            .take(bulk_size)
+            .filter(|(_, var)| var.is_some())
+            .map(|(_, var)| var.as_ref().unwrap().clone())
+            .collect::<Vec<_>>();
+
+        // Evict metavar to heap and release
+        to_evict.into_iter().for_each(|var| {
+            // Evict in memory if needed
+            if let Ok(cell) = MetaVarCell::try_from(&var) {
+                cell.heap_alloc_mv(true);
+            }
+        });
+    }
+
     /// Removes the given register from use
     pub fn reg_pop(&self, rid: &asm::RegId) -> Option<MetaVarCellWeak> {
         self.inner.borrow_mut().regs.pop(rid).unwrap()
