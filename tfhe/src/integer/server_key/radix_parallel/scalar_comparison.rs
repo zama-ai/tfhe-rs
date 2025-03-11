@@ -757,11 +757,8 @@ impl ServerKey {
             .map(|chunk_of_two| self.pack_block_chunk(chunk_of_two))
             .collect::<Vec<_>>();
 
-        let padding_value = (packed_modulus - 1) * u64::from(b < Scalar::ZERO);
-        let mut b_blocks = BlockDecomposer::new(b, packed_modulus.ilog2())
+        let mut b_blocks = BlockDecomposer::with_block_count(b, packed_modulus.ilog2(), a.len())
             .iter_as::<u64>()
-            .chain(std::iter::repeat(padding_value))
-            .take(a.len())
             .collect::<Vec<_>>();
 
         if !num_block_is_even && b < Scalar::ZERO {
@@ -1058,25 +1055,23 @@ impl ServerKey {
         Scalar: DecomposableInto<u64>,
     {
         let is_superior = self.unchecked_scalar_gt_parallelized(lhs, rhs);
-        let luts = BlockDecomposer::new(rhs, self.message_modulus().0.ilog2())
-            .iter_as::<u64>()
-            .chain(std::iter::repeat(if rhs >= Scalar::ZERO {
-                0u64
-            } else {
-                self.message_modulus().0 - 1
-            }))
-            .take(lhs.blocks().len())
-            .map(|scalar_block| {
-                self.key
-                    .generate_lookup_table_bivariate(|is_superior, block| {
-                        if is_superior == 1 {
-                            block
-                        } else {
-                            scalar_block
-                        }
-                    })
-            })
-            .collect::<Vec<_>>();
+        let luts = BlockDecomposer::with_block_count(
+            rhs,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u64>()
+        .map(|scalar_block| {
+            self.key
+                .generate_lookup_table_bivariate(|is_superior, block| {
+                    if is_superior == 1 {
+                        block
+                    } else {
+                        scalar_block
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
 
         let new_blocks = lhs
             .blocks()
@@ -1097,25 +1092,23 @@ impl ServerKey {
         Scalar: DecomposableInto<u64>,
     {
         let is_inferior = self.unchecked_scalar_lt_parallelized(lhs, rhs);
-        let luts = BlockDecomposer::new(rhs, self.message_modulus().0.ilog2())
-            .iter_as::<u64>()
-            .chain(std::iter::repeat(if rhs >= Scalar::ZERO {
-                0u64
-            } else {
-                self.message_modulus().0 - 1
-            }))
-            .take(lhs.blocks().len())
-            .map(|scalar_block| {
-                self.key
-                    .generate_lookup_table_bivariate(|is_inferior, block| {
-                        if is_inferior == 1 {
-                            block
-                        } else {
-                            scalar_block
-                        }
-                    })
-            })
-            .collect::<Vec<_>>();
+        let luts = BlockDecomposer::with_block_count(
+            rhs,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks().len(),
+        )
+        .iter_as::<u64>()
+        .map(|scalar_block| {
+            self.key
+                .generate_lookup_table_bivariate(|is_inferior, block| {
+                    if is_inferior == 1 {
+                        block
+                    } else {
+                        scalar_block
+                    }
+                })
+        })
+        .collect::<Vec<_>>();
 
         let new_blocks = lhs
             .blocks()
