@@ -10,6 +10,8 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
+  PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
@@ -115,13 +117,18 @@ jobs:
         run: |
           make test_zk_wasm_x86_compat_ci
 
+      - name: Set pull-request URL
+        if: ${{ failure() && github.event_name == 'pull_request' }}
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "WASM tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "WASM tests finished with status: ${{ job.status }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: Teardown instance (wasm-tests)
