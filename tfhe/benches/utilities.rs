@@ -273,7 +273,7 @@ pub mod shortint_utils {
         grouping_factor: usize,
     ) -> Option<u64> {
         // TODO Implement an interpolation mechanism for X_Y parameters set
-        if message_modulus != carry_modulus || [2, 3, 4].contains(&(grouping_factor as i32)) {
+        if message_modulus != carry_modulus || ![2, 3, 4].contains(&(grouping_factor as i32)) {
             return None;
         }
         let thread_map: HashMap<(MessageModulus, CarryModulus, LweBskGroupingFactor), u64> =
