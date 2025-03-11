@@ -47,7 +47,7 @@ impl MockupOptions {
     pub fn report_trace(&self, iop: hpu_asm::AsmIOpcode) -> Option<File> {
         if self.report_out.is_some() && self.report_trace {
             let report_out = &self.report_out.as_ref().unwrap();
-            let iop_file = format!("{report_out}/{iop}.trace");
+            let iop_file = format!("{report_out}/{iop}.json");
             Some(Self::open_wr_file(&iop_file))
         } else {
             None
