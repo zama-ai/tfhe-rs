@@ -77,7 +77,7 @@ do
             shift
             ;;
         "") # End of input reading
-            shift; break ;;
+            break ;;
         *)
             echo "Unknown flag: $1"
             echo " use -h|--help for available options"

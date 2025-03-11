@@ -24,12 +24,14 @@ iop!(
      ["SUBS"   ,    opcode::SUBS , |1,1| -> 1],
      ["SSUB"   ,    opcode::SSUB , |1,1| -> 1],
      ["MULS"   ,    opcode::MULS , |1,1| -> 1],
+     ["MULSL"  ,    opcode::MULSL , |1,1| -> 1],
 
      ["ADD"    ,     opcode::ADD , |2,0| -> 1],
      ["ADDK"   ,     opcode::ADDK, |2,0| -> 1],
      ["SUB"    ,     opcode::SUB , |2,0| -> 1],
      ["SUBK"   ,     opcode::SUBK, |2,0| -> 1],
      ["MUL"    ,     opcode::MUL , |2,0| -> 1],
+     ["MULL"   ,     opcode::MULL , |2,0| -> 1],
 
      ["BW_AND" ,  opcode::BW_AND , |2,0| -> 1],
      ["BW_OR"  ,   opcode::BW_OR , |2,0| -> 1],

@@ -152,3 +152,15 @@ impl Opcode {
         }
     }
 }
+
+impl Opcode {
+    pub fn is_flush(&self) -> bool {
+        (self.optype == DOpType::PBS) && (self.subtype & PBS_HAS_FLUSH) != 0
+    }
+    pub fn to_flush(&self) -> Self {
+        Self {
+            subtype: self.subtype | PBS_HAS_FLUSH,
+            ..*self
+        }
+    }
+}

@@ -31,6 +31,14 @@ pub enum AsmOp<Op> {
     Stmt(Op),
 }
 
+impl<Op: dop::arg::ToFlush> AsmOp<Op> {
+    pub fn to_flush(&mut self) {
+        if let AsmOp::Stmt(op) = self {
+            *op = op.to_flush();
+        }
+    }
+}
+
 impl<Op: std::fmt::Display> std::fmt::Display for AsmOp<Op> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -56,11 +64,20 @@ impl<Op> Program<Op> {
     pub fn new(ops: Vec<AsmOp<Op>>) -> Self {
         Self(ops)
     }
+    // Returns the position in which the statement was inserted
     pub fn push_stmt(&mut self, op: Op) {
         self.0.push(AsmOp::Stmt(op))
     }
+    pub fn push_stmt_pos(&mut self, op: Op) -> usize {
+        let ret = self.0.len();
+        self.0.push(AsmOp::Stmt(op));
+        ret
+    }
     pub fn push_comment(&mut self, comment: String) {
         self.0.push(AsmOp::Comment(comment))
+    }
+    pub fn get_stmt_mut(&mut self, i: usize) -> &mut AsmOp<Op> {
+        &mut self.0[i]
     }
 }
 

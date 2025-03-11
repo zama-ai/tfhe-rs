@@ -9,7 +9,7 @@ mod macros;
 use super::isc_sim;
 use super::isc_sim::{report::PeStoreRpt, InstructionKind, PeFlush, PeStore};
 use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
-use super::program::{AtomicRegType, Program};
+use super::program::{AtomicRegType, Program, StmtLink};
 use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
 use enum_dispatch::enum_dispatch;
@@ -282,11 +282,11 @@ where
 }
 
 #[enum_dispatch(Operation)]
-trait SetFlush
+trait ToFlush
 where
     Self: Sized + Debug + std::hash::Hash,
 {
-    fn set_flush(&mut self, _flush: bool) {}
+    fn to_flush(&mut self) {}
 }
 
 #[enum_dispatch(Operation)]
@@ -401,9 +401,9 @@ struct MacData {
 #[derive(Clone, Debug)]
 struct PbsData {
     lut: Pbs,
-    flush: bool,
     rd_lock: Option<RegLockPtr>,
     wr_lock: Option<Vec<RegLockPtr>>,
+    stmt_link: Option<StmtLink>,
 }
 
 rtl_op!("ADDS", Arith, AddsData);
@@ -634,13 +634,13 @@ impl ProgManager for PbsOp {
             .map(MetaVarCell::from)
             .collect::<Vec<_>>();
 
-        MetaVarCell::pbs_raw(
+        self.data.stmt_link = Some(MetaVarCell::pbs_raw(
             &dst.iter().collect::<Vec<_>>(),
             &src,
             &pbs,
-            self.data.flush,
+            false,
             &tfhe_params,
-        );
+        ));
     }
 
     fn free_rd(&mut self) {
@@ -786,9 +786,9 @@ impl PbsOp {
             dst: dst.iter().map(|_| None).collect(),
             data: PbsData {
                 lut: lut.clone(),
-                flush: false,
                 rd_lock: None,
                 wr_lock: None,
+                stmt_link: None,
             },
             uid: new_uid(),
             load_stats: None,
@@ -810,17 +810,19 @@ impl StOp {
     }
 }
 
-impl SetFlush for AddsOp {}
-impl SetFlush for SubsOp {}
-impl SetFlush for AddOp {}
-impl SetFlush for SubOp {}
-impl SetFlush for MacOp {}
-impl SetFlush for PbsOp {
-    fn set_flush(&mut self, flush: bool) {
-        self.data.flush = flush
+impl ToFlush for AddsOp {}
+impl ToFlush for SubsOp {}
+impl ToFlush for AddOp {}
+impl ToFlush for SubOp {}
+impl ToFlush for MacOp {}
+impl ToFlush for PbsOp {
+    fn to_flush(&mut self) {
+        if let Some(asm) = &mut self.data.stmt_link {
+            asm.to_flush();
+        }
     }
 }
-impl SetFlush for StOp {}
+impl ToFlush for StOp {}
 
 #[enum_dispatch]
 #[derive(EnumDiscriminants, Debug, Hash, PartialEq, Eq, Clone)]
@@ -975,8 +977,8 @@ impl OperationCell {
         ret
     }
 
-    fn set_flush(&self, flush: bool) {
-        self.0.borrow_mut().set_flush(flush)
+    fn to_flush(&self) {
+        self.0.borrow_mut().to_flush()
     }
 
     fn peek_prog(&self, prog: Option<&mut Program>) -> bool {
@@ -1113,10 +1115,11 @@ struct Arch {
     program: Option<Program>,
     cycle: usize,
     events: BinaryHeap<isc_sim::Event>,
-    queued: HashMap<usize, Vec<OperationCell>>,
-    rd_pdg: HashMap<usize, Vec<OperationCell>>,
-    wr_pdg: HashMap<usize, Vec<OperationCell>>,
+    queued: HashMap<usize, VecDeque<OperationCell>>,
+    rd_pdg: HashMap<usize, VecDeque<OperationCell>>,
+    wr_pdg: HashMap<usize, VecDeque<OperationCell>>,
     use_ipip: bool,
+    flush: bool,
 }
 
 // An interface to the target architecture
@@ -1134,13 +1137,13 @@ impl Arch {
                 if let Some(id) = {
                     op.peek_prog(self.program.as_mut())
                         .then_some(true)
-                        .and_then(|_| self.pe_store.try_push(op.kind()))
+                        .and_then(|_| self.pe_store.try_push(op.kind(), false))
                 } {
                     op.alloc_prog(self.program.as_mut());
 
-                    trace!(target: "rtl", "{:?} queued", op);
+                    self.rd_pdg.entry(id).or_default().push_front(op);
+                    trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
 
-                    self.queued.entry(id).or_default().push(op);
                     None
                 } else {
                     Some(op)
@@ -1154,7 +1157,7 @@ impl Arch {
 
         // Flush if there's nothing else to do or use_ipip
         if (ret.is_empty() && self.events.is_empty()) || self.use_ipip {
-            self.probe_for_exec(Some(PeFlush::ByFlush));
+            self.probe_for_exec(Some(PeFlush::Force));
         }
 
         ret
@@ -1162,8 +1165,8 @@ impl Arch {
 
     pub fn done(&mut self) -> Option<OperationCell> {
         trace!(target: "rtl", "Events: {:?}", self.events);
-        trace!(target: "rtl", "queued: {:?}", self.queued);
         trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
+        trace!(target: "rtl", "queued: {:?}", self.queued);
         trace!(target: "rtl", "wr_pdg: {:?}", self.wr_pdg);
 
         let isc_sim::Event {
@@ -1173,31 +1176,30 @@ impl Arch {
         self.cycle = at_cycle;
 
         match event_type {
-            isc_sim::EventType::BatchStart { pe_id, issued } => {
-                self.queued.entry(pe_id).and_modify(|fifo| {
-                    let batch = fifo.drain(0..issued).collect::<Vec<_>>();
-                    batch.last().unwrap().set_flush(true);
-                    self.rd_pdg
-                        .entry(pe_id)
-                        .or_default()
-                        .extend(batch.into_iter().inspect(|op| {
-                            op.add_prog(self.program.as_mut());
-                        }))
-                });
-                None
-            }
             isc_sim::EventType::RdUnlock(_, id) => {
                 // update associated pe state
                 self.pe_store.rd_unlock(id);
-                let mut op = self.rd_pdg.get_mut(&id).unwrap().pop().unwrap();
+                let mut op = self.rd_pdg.get_mut(&id).unwrap().pop_back().unwrap();
+                op.add_prog(self.program.as_mut());
                 op.free_rd();
-                self.wr_pdg.entry(id).or_default().push(op);
+                self.queued.entry(id).or_default().push_front(op);
+                None
+            }
+            isc_sim::EventType::BatchStart { pe_id, issued } => {
+                self.queued.entry(pe_id).and_modify(|fifo| {
+                    let mut batch = fifo.split_off(fifo.len() - issued);
+                    if self.flush {
+                        batch.front_mut().unwrap().to_flush();
+                    }
+                    let fifo = self.wr_pdg.entry(pe_id).or_default();
+                    batch.into_iter().for_each(|e| fifo.push_front(e));
+                });
                 None
             }
             isc_sim::EventType::WrUnlock(_, id) => {
                 // update associated pe state
                 self.pe_store.wr_unlock(id);
-                let mut op = self.wr_pdg.get_mut(&id).unwrap().pop().unwrap();
+                let mut op = self.wr_pdg.get_mut(&id).unwrap().pop_back().unwrap();
                 op.free_wr();
                 Some(op)
             }
@@ -1226,7 +1228,13 @@ impl Arch {
                     |isc_sim::Event {
                          at_cycle: _,
                          event_type: ev,
-                     }| !matches!(ev, isc_sim::EventType::ReqTimeout(_, _)),
+                     }| {
+                        !matches!(
+                            ev,
+                            isc_sim::EventType::ReqTimeout(_, _)
+                                | isc_sim::EventType::DelTimeout(_, _)
+                        )
+                    },
                 ),
         );
     }
@@ -1237,15 +1245,15 @@ impl Arch {
         let params = program.params();
         let op_cfg = program.op_cfg();
         let mut pe_store = PeStore::from(params.pe_cfg.clone());
-        if op_cfg.fill_batch_fifo {
-            pe_store.set_fifo_limit(params.total_pbs_nb);
-        } else {
-            pe_store.set_fifo_to_batch_limit();
-        }
 
         if op_cfg.min_batch_size {
             pe_store.set_min_batch_limit();
         }
+
+        if !op_cfg.fill_batch_fifo {
+            pe_store.set_fifo_to_batch_limit();
+        }
+
         Arch {
             pe_store,
             program: Some(program.clone()),
@@ -1255,6 +1263,7 @@ impl Arch {
             queued: HashMap::new(),
             rd_pdg: HashMap::new(),
             wr_pdg: HashMap::new(),
+            flush: op_cfg.flush,
         }
     }
 }

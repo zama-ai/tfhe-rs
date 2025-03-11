@@ -66,6 +66,7 @@ pub(crate) enum EventType {
     RdUnlock(InstructionKind, usize),
     WrUnlock(InstructionKind, usize),
     ReqTimeout(InstructionKind, usize),
+    DelTimeout(InstructionKind, usize),
     BatchStart { pe_id: usize, issued: usize },
     QuantumEnd,
     BpipTimeout,
@@ -137,16 +138,23 @@ pub enum Query {
     Retire,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+enum TraceEvent {
+    Query { cmd: Query, slot: pool::Slot },
+    Timeout,
+    ReqTimeout(usize),
+    DelTimeout,
+}
+
 /// Generate a detailed execution trace that could be read afterward
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Trace {
     timestamp: usize,
-    cmd: Query,
-    slot: pool::Slot,
+    event: TraceEvent,
 }
 
 impl std::fmt::Display for Trace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "@{}::{:?} -> {:?}", self.timestamp, self.cmd, self.slot)
+        write!(f, "@{}::{:?}", self.timestamp, self.event)
     }
 }
