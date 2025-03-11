@@ -120,6 +120,22 @@ where
         Self::new_(value, bits_per_block, None, Some(padding_bit))
     }
 
+    /// Creates a block decomposer that will return `block_count` blocks
+    ///
+    /// * If T is signed, extra block will be sign extended
+    pub fn with_block_count(value: T, bits_per_block: u32, block_count: usize) -> Self {
+        let mut decomposer = Self::new(value, bits_per_block);
+        let block_count: u32 = block_count.try_into().unwrap();
+        // If the new number of bits is less than the actual number of bits, it means
+        // data will be truncated
+        //
+        // If the new number of bits is greater than the actual number of bits, it means
+        // the right shift used internally will correctly sign extend for us
+        let num_bits_valid = block_count * bits_per_block;
+        decomposer.num_bits_valid = num_bits_valid;
+        decomposer
+    }
+
     pub fn new(value: T, bits_per_block: u32) -> Self {
         Self::new_(value, bits_per_block, None, None)
     }
@@ -245,7 +261,8 @@ where
     T: Recomposable,
 {
     pub fn value(&self) -> T {
-        if self.bit_pos >= T::BITS as u32 {
+        let is_signed = (T::ONE << (T::BITS as u32 - 1)) < T::ZERO;
+        if self.bit_pos >= (T::BITS as u32 - u32::from(is_signed)) {
             self.data
         } else {
             let valid_mask = (T::ONE << self.bit_pos) - T::ONE;
@@ -357,6 +374,49 @@ mod tests {
         // We expect the last block padded with 0s as we force that
         let expected_blocks = vec![7, 7, 3];
         assert_eq!(expected_blocks, blocks);
+    }
+
+    #[test]
+    fn test_bit_block_decomposer_with_block_count() {
+        let bits_per_block = 3;
+        let expected_blocks = [0, 0, 6, 7, 7, 7, 7, 7, 7];
+        let value = i8::MIN;
+        for block_count in 1..expected_blocks.len() {
+            let blocks = BlockDecomposer::with_block_count(value, bits_per_block, block_count)
+                .iter_as::<u64>()
+                .collect::<Vec<_>>();
+            assert_eq!(expected_blocks[..block_count], blocks);
+        }
+
+        let bits_per_block = 3;
+        let expected_blocks = [7, 7, 1, 0, 0, 0, 0, 0, 0];
+        let value = i8::MAX;
+        for block_count in 1..expected_blocks.len() {
+            let blocks = BlockDecomposer::with_block_count(value, bits_per_block, block_count)
+                .iter_as::<u64>()
+                .collect::<Vec<_>>();
+            assert_eq!(expected_blocks[..block_count], blocks);
+        }
+
+        let bits_per_block = 2;
+        let expected_blocks = [0, 0, 0, 2, 3, 3, 3, 3, 3];
+        let value = i8::MIN;
+        for block_count in 1..expected_blocks.len() {
+            let blocks = BlockDecomposer::with_block_count(value, bits_per_block, block_count)
+                .iter_as::<u64>()
+                .collect::<Vec<_>>();
+            assert_eq!(expected_blocks[..block_count], blocks);
+        }
+
+        let bits_per_block = 2;
+        let expected_blocks = [3, 3, 3, 1, 0, 0, 0, 0, 0, 0];
+        let value = i8::MAX;
+        for block_count in 1..expected_blocks.len() {
+            let blocks = BlockDecomposer::with_block_count(value, bits_per_block, block_count)
+                .iter_as::<u64>()
+                .collect::<Vec<_>>();
+            assert_eq!(expected_blocks[..block_count], blocks);
+        }
     }
 
     #[test]
