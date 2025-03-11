@@ -11,7 +11,9 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  SLACKIFY_MARKDOWN: true
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  PULL_REQUEST_MD_LINK: ""
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
@@ -136,12 +138,17 @@ jobs:
     if: ${{ always() && needs.cuda-tests-linux.result != 'skipped' && failure() }}
     continue-on-error: true
     steps:
+      - name: Set pull-request URL
+        if: env.SECRETS_AVAILABLE == 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+
       - name: Send message
         if: env.SECRETS_AVAILABLE == 'true'
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Integer GPU signed integer tests with classical PBS finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Integer GPU signed integer tests with classical PBS finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: Teardown instance (cuda-signed-classic-tests)
