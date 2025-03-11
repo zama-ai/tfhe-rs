@@ -23,6 +23,11 @@ use std::ops::{
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
 
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 impl<Id> std::iter::Sum<Self> for FheUint<Id>
 where
     Id: FheUintId,
@@ -94,7 +99,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu IterSum")
             }
         })
     }
@@ -191,7 +196,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu IterSum")
             }
         })
     }
@@ -241,7 +246,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Max")
             }
         })
     }
@@ -291,7 +296,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                todo!("Hpu Min")
             }
         })
     }
@@ -351,16 +356,26 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                // let hpu_lhs = self.ciphertext.on_hpu(device);
-                // let hpu_rhs = rhs.ciphertext.on_hpu(device);
-                // // ciphertext.0.iop_ct(name, rhs.ciphertext.0);
-                // let iop_name = tfhe_hpu_backend::asm::IOpName::from_str("CMP_EQ").unwrap();
-                // // These clones are cheap are they are just Arc
-                // let hpu_result = hpu_lhs.0.clone().iop_ct(iop_name, hpu_rhs.0.clone());
-                // let hpu_result = HpuRadixCiphertext(hpu_result);
-                // FheUint::new(hpu_result, device.tag.clone())
-                todo!()
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_EQ;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -403,7 +418,25 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                todo!("hpu")
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_NEQ;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -471,8 +504,26 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_LT;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -514,8 +565,26 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_LTE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -557,8 +626,26 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_GT;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -600,8 +687,26 @@ where
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_GTE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
             }
         })
     }
@@ -691,7 +796,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Div")
             }
         })
     }
@@ -1071,7 +1176,7 @@ generic_integer_impl_operation!(
                 }),
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                todo!("Hpu Div")
                 }
             })
         }
@@ -1126,7 +1231,7 @@ generic_integer_impl_operation!(
                 }),
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    todo!("Hpu DivRem")
                 }
             })
         }
@@ -1243,7 +1348,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        todo!("Hpu Shl")
                     }
                 }
             })
@@ -1291,7 +1396,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        todo!("Hpu Shr")
                     }
                 }
             })
@@ -1339,7 +1444,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        todo!("Hpu Rotl")
                     }
                 }
             })
@@ -1387,7 +1492,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        todo!("Hpu Rotr")
                     }
                 }
             })
@@ -1744,7 +1849,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Div")
             }
         })
     }
@@ -1796,7 +1901,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Div")
             }
         })
     }
@@ -1913,7 +2018,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Shr")
             }
         })
     }
@@ -1972,7 +2077,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Rotl")
             }
         })
     }
@@ -2031,7 +2136,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Rotr")
             }
         })
     }
@@ -2114,7 +2219,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Neg")
             }
         })
     }
@@ -2187,7 +2292,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                todo!("Hpu Not")
             }
         })
     }

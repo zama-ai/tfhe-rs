@@ -172,28 +172,28 @@ macro_rules! impl_hlapi_showcase {
             assert_eq!(dec_bw_xor_ab, clear_bw_xor_ab,
                  "Error with ^ operation get {}, expect {}",dec_bw_xor_ab, clear_bw_xor_ab);
 
-            // // CMP_GTE ---------------------------------------------------------
-            // // Generate random inputs value and compute expected result
-            // let in_a = rng.gen_range(0..$user_type::max_value());
-            // let in_b = rng.gen_range(0..$user_type::max_value());
+            // CMP_GTE ---------------------------------------------------------
+            // Generate random inputs value and compute expected result
+            let in_a = rng.gen_range(0..$user_type::max_value());
+            let in_b = rng.gen_range(0..$user_type::max_value());
 
-            // let clear_cmp_gte_ab = in_a >= in_b;
+            let clear_cmp_gte_ab = in_a >= in_b;
 
-            // // Encrypt input value
-            // let fhe_a = $fhe_type::encrypt(in_a, cks);
-            // let fhe_b = $fhe_type::encrypt(in_b, cks);
+            // Encrypt input value
+            let fhe_a = $fhe_type::encrypt(in_a, cks);
+            let fhe_b = $fhe_type::encrypt(in_b, cks);
 
-            // // Triggered operation on HPU through hl_api
-            // let fhe_cmp_gte_ab = fhe_a >= fhe_b;
+            // Triggered operation on HPU through hl_api
+            let fhe_cmp_gte_ab = fhe_a.ge(fhe_b);
 
-            // // Decrypt values
-            // let dec_cmp_gte_ab: $user_type = fhe_cmp_gte_ab.decrypt(cks);
+            // Decrypt values
+            let dec_cmp_gte_ab: bool = fhe_cmp_gte_ab.decrypt(cks);
 
-            // // Display result and check
-            // println!(" {} >= {} = fhe({}), clear({})", in_a, in_b, dec_cmp_gte_ab, clear_cmp_gte_ab);
+            // Display result and check
+            println!(" {} >= {} = fhe({}), clear({})", in_a, in_b, dec_cmp_gte_ab, clear_cmp_gte_ab);
 
-            // assert_eq!(dec_cmp_gte_ab, clear_cmp_gte_ab,
-            //      "Error with >= operation get {}, expect {}",dec_cmp_gte_ab, clear_cmp_gte_ab);
+            assert_eq!(dec_cmp_gte_ab, clear_cmp_gte_ab,
+                 "Error with >= operation get {}, expect {}",dec_cmp_gte_ab, clear_cmp_gte_ab);
         }
         };
     };
