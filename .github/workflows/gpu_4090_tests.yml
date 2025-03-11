@@ -82,4 +82,4 @@ jobs:
         uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "CUDA RTX 4090 tests finished with status: ${{ job.status }} on '${{ env.BRANCH }}'. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "CUDA RTX 4090 tests finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
