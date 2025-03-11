@@ -1,5 +1,6 @@
 use asm::dop::{
-    DOpPbs, DOpPbsF, DOpPbsMl2, DOpPbsMl2F, DOpPbsMl4, DOpPbsMl4F, DOpPbsMl8, DOpPbsMl8F, ToAsm,
+    DOpPbs, DOpPbsF, DOpPbsMl2, DOpPbsMl2F, DOpPbsMl4, DOpPbsMl4F, DOpPbsMl8, DOpPbsMl8F, IsFlush,
+    ToAsm,
 };
 use asm::PbsLut;
 use tracing::instrument;
@@ -149,11 +150,12 @@ impl Pool {
         let dst_id = ArgId::from_dst(&dop);
         let srca_id = ArgId::from_srca(&dop);
         let srcb_id = ArgId::from_srcb(&dop);
+        let flush = dop.is_flush();
 
         // 1. Compute (wr_lock, rd_lock)
         // RdLock -> #instruction before us that need to READ into our destination
         // WrLock -> #instruction before us that need to Write into one of our sources
-        let (wr_lock, rd_lock) = if op_kind == InstructionKind::Sync {
+        let (wr_lock, rd_lock, issue_lock) = if op_kind == InstructionKind::Sync {
             // Count vld instruction that match with sync_id
             let filter = Filter {
                 vld: Some(true),
@@ -161,7 +163,7 @@ impl Pool {
                 ..Default::default()
             };
             let sync_lock = self.idx_matchs(filter).len();
-            (sync_lock, 0)
+            (sync_lock, 0, 0)
         } else {
             // Count vld instruction where our dst match on their srcs
             let filter = Filter {
@@ -180,7 +182,24 @@ impl Pool {
                 ..Default::default()
             };
             let wr_lock = self.idx_matchs(filter).len();
-            (wr_lock, rd_lock)
+
+            // Count vld instruction that were not issued and are not flushes if
+            // this is a flush and vice-versa. Only for PBSs.
+            let issue_lock = if op_kind == InstructionKind::Pbs {
+                let filter = Filter {
+                    vld: Some(true),
+                    rd_pdg: Some(true),
+                    pdg: Some(false),
+                    flush: Some(!flush),
+                    kind: Some(InstructionKind::Pbs),
+                    ..Default::default()
+                };
+                self.idx_matchs(filter).len()
+            } else {
+                0
+            };
+
+            (wr_lock, rd_lock, issue_lock)
         };
 
         // 2. Create new slot and insert it in store
@@ -190,12 +209,14 @@ impl Pool {
                 dst_id,
                 srca_id,
                 srcb_id,
+                flush,
                 op: dop,
             },
             state: State {
                 sync_id,
                 rd_lock,
                 wr_lock,
+                issue_lock,
                 vld: true,
                 rd_pdg: true,
                 pdg: false,
@@ -226,16 +247,26 @@ impl Pool {
                 // Sync are handle with custom logic -> Issue them, directly release the slot
                 IssueEvt::Sync(slot)
             } else {
+                if slot.inst.kind == InstructionKind::Pbs {
+                    let filter = Filter {
+                        vld: Some(true),
+                        rd_pdg: Some(true),
+                        pdg: Some(false),
+                        flush: Some(!slot.inst.flush),
+                        kind: Some(InstructionKind::Pbs),
+                        ..Default::default()
+                    };
+                    self.idx_matchs(filter).into_iter().for_each(|idx| {
+                        tracing::trace!("Issue decrement -> {:?}", self.store[idx]);
+                        self.store[idx].state.issue_lock =
+                            self.store[idx].state.issue_lock.saturating_sub(1);
+                    });
+                }
+
                 // Update slot and insert back
                 slot.state.pdg = true;
                 let kind_1h = slot.inst.kind;
-                let flush = matches!(
-                    slot.inst.op,
-                    asm::DOp::PBS_F(_)
-                        | asm::DOp::PBS_ML2_F(_)
-                        | asm::DOp::PBS_ML4_F(_)
-                        | asm::DOp::PBS_ML8_F(_)
-                );
+                let flush = slot.inst.flush;
                 let trace_slot = slot.clone();
                 self.store.push(slot);
                 IssueEvt::DOp {
@@ -326,6 +357,7 @@ impl Pool {
                     .map(|dst| (dst.mode != DOpMode::Unused) && (elem.inst.dst_id == dst))
                     .unwrap_or(false)
             })
+            .filter(|(_, elem)| filter.flush.map(|f| f == elem.inst.flush).unwrap_or(true))
             .map(|(idx, _)| idx)
             .collect::<Vec<_>>()
     }
@@ -456,6 +488,7 @@ pub(crate) struct Instruction {
     dst_id: ArgId,
     srca_id: ArgId,
     srcb_id: ArgId,
+    flush: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -465,13 +498,15 @@ pub(crate) struct State {
     rd_lock: usize,
     // WrLock -> #instruction before us that need to Write into one of our sources
     wr_lock: usize,
+    // IssueLock -> #instruction before us that need to be issued
+    issue_lock: usize,
     vld: bool,
     rd_pdg: bool,
     pdg: bool,
 }
 impl State {
     fn lock_rdy(&self) -> bool {
-        (self.rd_lock | self.wr_lock) == 0
+        (self.rd_lock | self.wr_lock | self.issue_lock) == 0
     }
 }
 
@@ -492,4 +527,5 @@ struct Filter {
     dst_on_srcs: Option<ArgId>,
     srcs_on_dst: Option<(ArgId, ArgId)>,
     dst_on_dst: Option<ArgId>,
+    flush: Option<bool>,
 }

@@ -109,7 +109,10 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
             ofst + data.len() <= self.cut_coefs,
             "Invalid write size. Write stop beyond the HugeMemory boundaries"
         );
-        let cut = self.cut_mem.get_mut(cut_id).expect("Invalid cut_id");
+        let cut = self
+            .cut_mem
+            .get_mut(cut_id)
+            .unwrap_or_else(|| panic!("Invalid cut_id: {cut_id}"));
 
         // Underlying memory is view as bytes memory
         // Extract byte ofst and byte length

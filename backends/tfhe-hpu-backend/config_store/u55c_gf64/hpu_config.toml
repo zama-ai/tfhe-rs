@@ -69,11 +69,14 @@
 [firmware.op_cfg.default]
   fill_batch_fifo = true
   min_batch_size = false
+  flush = false
 
 [firmware.op_cfg.by_op.MUL]
   fill_batch_fifo = false
   min_batch_size = true
+  flush = false
 
 [firmware.op_cfg.by_op.MULS]
   fill_batch_fifo = false
   min_batch_size = true
+  flush = false

@@ -30,6 +30,8 @@ use modules::{DdrMem, HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
+use serde_json;
+
 pub struct HpuSim {
     config: HpuConfig,
     params: MockupParameters,
@@ -557,9 +559,9 @@ impl HpuSim {
                 let trace = self.isc.reset_trace();
                 trace.iter().for_each(|pt| tracing::trace!("{pt}"));
                 if let Some(mut trace_file) = self.options.report_trace((&iop).into()) {
-                    trace
-                        .into_iter()
-                        .for_each(|pt| writeln!(trace_file, "{pt}").unwrap());
+                    let json_string =
+                        serde_json::to_string(&trace).expect("Could not serialize trace");
+                    writeln!(trace_file, "{}", json_string).unwrap();
                 }
             }
         }
