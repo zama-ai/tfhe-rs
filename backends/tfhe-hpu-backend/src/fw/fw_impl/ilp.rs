@@ -805,15 +805,9 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
             .pbs(&cmp_reduce, false)
     });
 
-    // Compute cst for destination MSB and interpret reduce for LSB
-    let cst_0 = prog.new_cst(0);
+    // interprete reduce with expected cmp
     let cmp = reduce.unwrap().pbs(&cmp_op, false);
-
     dst[0] <<= cmp;
-    dst[1..].iter_mut().for_each(|d| {
-        let mut d = d.clone();
-        d <<= cst_0.clone();
-    });
 }
 
 // For the kogge stone add/sub
