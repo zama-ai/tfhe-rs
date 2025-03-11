@@ -6,6 +6,8 @@ pub struct OpCfg {
     pub fill_batch_fifo: bool,
     /// Uses the minimum batch size in the firmware generation
     pub min_batch_size: bool,
+    /// Whether to emit flushes or not
+    pub flush: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

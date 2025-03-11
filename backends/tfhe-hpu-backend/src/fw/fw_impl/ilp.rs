@@ -3,7 +3,7 @@
 //!
 //! In this version of the Fw focus is done on Instruction Level Parallelism
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::io::Write;
 use std::ops::Deref;
 
@@ -12,7 +12,7 @@ use crate::asm::{self, OperandKind, Pbs};
 use crate::fw::program::Program;
 use crate::fw::FwParameters;
 use itertools::Itertools;
-use tracing::{instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 
 use crate::asm::iop::opcode::*;
 use crate::{new_pbs, pbs_by_name};
@@ -23,11 +23,13 @@ crate::impl_fw!("Ilp" [
     SUB => fw_impl::ilp::iop_sub;
     SUBK => fw_impl::ilp::iop_sub_kogge;
     MUL => fw_impl::ilp::iop_mul;
+    MULL => fw_impl::ilp::iop_mul_legacy;
 
     ADDS => fw_impl::ilp::iop_adds;
     SUBS => fw_impl::ilp::iop_subs;
     SSUB => fw_impl::ilp::iop_ssub;
     MULS => fw_impl::ilp::iop_muls;
+    MULSL => fw_impl::ilp::iop_muls_legacy;
 
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
@@ -326,6 +328,22 @@ pub fn iop_mul(prog: &mut Program) {
     iop_mulx(prog, dst, src_a, src_b).add_to_prog(prog);
 }
 
+#[instrument(level = "info", skip(prog))]
+pub fn iop_mul_legacy(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("MUL Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic mulx function
+    iop_mulx_legacy(prog, &mut dst, &src_a, &src_b);
+}
+
 pub fn iop_muls(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -339,6 +357,21 @@ pub fn iop_muls(prog: &mut Program) {
     prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
     // Deferred implementation to generic mulx function
     iop_mulx(prog, dst, src_a, src_b).add_to_prog(prog);
+}
+
+pub fn iop_muls_legacy(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("MULS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic mulx function
+    iop_mulx_legacy(prog, &mut dst, &src_a, &src_b);
 }
 
 /// Generic mul operation
@@ -453,6 +486,214 @@ pub fn iop_mulx(
     }
 
     Rtl::from(dst)
+}
+
+/// Generic mul operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+#[instrument(level = "info", skip(prog))]
+pub fn iop_mulx_legacy(
+    prog: &mut Program,
+    dst: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let blk_w = props.blk_w();
+
+    // Wrapped required lookup table in MetaVar
+    let pbs_msg = new_pbs!(prog, "MsgOnly");
+    let pbs_carry = new_pbs!(prog, "CarryInMsg");
+    let pbs_mul_lsb = new_pbs!(prog, "MultCarryMsgLsb");
+    let pbs_mul_msb = new_pbs!(prog, "MultCarryMsgMsb");
+
+    // Compute list of partial product for each blk ---------------------------------
+    // First compute the list of required partial product. Filter out product with
+    // degree higher than output one
+    // NB: Targeted multiplication is nBits*nBits -> nBits [i.e. LSB only]
+    let pp_deg_idx = (0..blk_w)
+        .flat_map(|blk| {
+            itertools::iproduct!(0..blk_w, 0..blk_w)
+                .filter(move |(i, j)| i + j == blk)
+                .map(move |(i, j)| (blk, i, j))
+        })
+        .collect::<Vec<_>>();
+
+    // Compute all partial product by chunk
+    // And store result in a Deque with associated weight (i.e. blk)
+    let mut pp_vars = VecDeque::new();
+
+    for pp in pp_deg_idx.chunks(props.pbs_batch_w) {
+        // Pack
+        let pack = pp
+            .iter()
+            .map(|(w, i, j)| {
+                let mac = src_a[*i].mac(tfhe_params.msg_range() as u8, &src_b[*j]);
+                debug!(target: "Fw", "@{w}[{i}, {j}] -> {mac:?}",);
+                (w, mac)
+            })
+            .collect::<Vec<_>>();
+
+        // Pbs Mul
+        // Reserve twice as pbs_w since 2 pbs could be generated for a given block
+        prog.reg_bulk_reserve(2 * props.pbs_batch_w);
+        pack.into_iter().for_each(|(w, pp)| {
+            let lsb = pp.pbs(&pbs_mul_lsb, false);
+            debug!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
+            pp_vars.push_back((*w, lsb));
+
+            // Extract msb if needed
+            if *w < (blk_w - 1) {
+                // Force allocation of new reg to allow lsb/msb pbs to run in //
+                let msb = pp.pbs(&pbs_mul_msb, false);
+                debug!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
+                pp_vars.push_back((*w + 1, msb));
+            }
+        });
+    }
+
+    // Merged partial product together ---------------------------------------------
+    let mut acc_wh = vec![Vec::with_capacity(props.nu); blk_w];
+    let mut pdg_acc = Vec::new();
+    let mut pdg_pbs = Vec::new();
+
+    // Use to writeback in order and prevent digits drop during propagation
+    let mut wb_idx = 0;
+
+    pp_vars
+        .make_contiguous()
+        .sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
+
+    while let Some((w, var)) = pp_vars.pop_front() {
+        acc_wh[w].push(var);
+
+        // Trace internal state
+        trace!(target: "Fw", "{:#<80}","");
+        trace!(target: "Fw", "pp_vars[{}] -> {pp_vars:?}", pp_vars.len(),);
+        trace!(target: "Fw", "pdg_acc[{}] -> {pdg_acc:?}", pdg_acc.len(),);
+        trace!(target: "Fw", "pdg_pbs[{}] -> {pdg_pbs:?}", pdg_pbs.len(),);
+
+        // For each acc_wh slot check flushing condition
+        trace!(target: "Fw", "Acc_wh: Check flushing condition {:#<20}","");
+        for (w, acc) in acc_wh.iter_mut().enumerate() {
+            if w < wb_idx {
+                // Skip position w if already commited
+                assert_eq!(0, acc.len(), "Error committed incomplete digit");
+                continue;
+            }
+            // Check if other deg_w var are in the pp_vars store or in pbs_pipe
+            let winf_in_pipe = pp_vars.iter().filter(|(d, _)| *d <= w).count()
+                + pdg_pbs.iter().filter(|(d, _)| *d <= w).count()
+                + pdg_acc.iter().filter(|(d, _)| *d <= w).count();
+
+            trace!(
+                target: "Fw",
+                "acc {w}: [len:{}; winf:{winf_in_pipe}] -> {:?}",
+                acc.len(),
+                acc
+            );
+
+            // Trigger Add if acc warehouse is full of if no more deg_w (or previous) is in pipe
+            if (acc.len() == props.nu) || ((winf_in_pipe == 0) && (!acc.is_empty())) {
+                trace!(target: "Fw", "Flush acc_wh[{w}]",);
+                let mut acc_chunks = std::mem::take(acc);
+                match acc_chunks.len() {
+                    1 => {
+                        // Try to commit directly
+                        // Skipped acc reduction tree
+                        if wb_idx == w {
+                            // Finish computation for digit @w
+                            acc_chunks[0].reg_alloc_mv();
+                            debug!(target:"Fw", "Commit {w} <- {:?}", acc_chunks[0]);
+                            dst[w] <<= acc_chunks.swap_remove(0);
+                            wb_idx += 1;
+                        } else {
+                            // not my turn, enqueue back
+                            debug!(target:"Fw", "{w}::{wb_idx}: insert backed in pp_vars {:?}", acc_chunks[0]);
+                            pp_vars.push_back((w, acc_chunks.swap_remove(0)));
+                        }
+                    }
+                    _ => {
+                        // Go through the acc reduction tree
+                        pdg_acc.push((w, acc_chunks));
+                    }
+                }
+            }
+        }
+
+        trace!(
+            target: "Fw",
+            "pdg_acc[{}], pp_vars[{}]: flush pdg_acc",
+            pdg_acc.len(),
+            pp_vars.len()
+        );
+        while let Some((w, acc_chunks)) = pdg_acc.pop() {
+            debug!(target: "Fw", "Reduce @{w}[{}] <- {acc_chunks:?}",acc_chunks.len());
+            // Hand-writter tree reduction for up to 5
+            match acc_chunks.len() {
+                1 => {
+                    unreachable!("This case must not go through acc reduction tree. In should have take the fast pass in acc_wh flushing.");
+                }
+
+                2 => {
+                    let sum = &acc_chunks[0] + &acc_chunks[1];
+                    pdg_pbs.push((w, sum));
+                }
+
+                3 => {
+                    let sum_a = &acc_chunks[0] + &acc_chunks[1];
+                    let sum_b = &sum_a + &acc_chunks[2];
+                    pdg_pbs.push((w, sum_b));
+                }
+
+                4 => {
+                    let sum_a = &acc_chunks[0] + &acc_chunks[1];
+                    let mut sum_b = &acc_chunks[2] + &acc_chunks[3];
+                    sum_b += sum_a;
+                    pdg_pbs.push((w, sum_b));
+                }
+                5 => {
+                    let sum_a = &acc_chunks[0] + &acc_chunks[1];
+                    let sum_b = &acc_chunks[2] + &acc_chunks[3];
+                    let mut sum_c = &sum_b + &acc_chunks[4];
+                    sum_c += sum_a;
+                    pdg_pbs.push((w, sum_c));
+                }
+                _ => panic!("Currently only support nu <= 5"),
+            }
+        }
+
+        if pdg_pbs.len() == props.pbs_batch_w || (pp_vars.is_empty()) {
+            trace!(target: "Fw", "pdg_pbs[{}] <- {pdg_pbs:?}", pdg_pbs.len());
+            prog.reg_bulk_reserve(pdg_pbs.len());
+            while let Some((w, var)) = pdg_pbs.pop() {
+                let lsb = var.pbs(&pbs_msg, false);
+                debug!(target: "Fw", "Pbs generate @{w} -> {lsb:?}");
+                // TODO These explicit flush enhance perf for large MUL but degrade them for small
+                // one Find a proper way to arbitrait their used
+                // Furthermore, it induce error with current ISC without LD/ST ordering
+                // lsb.heap_alloc_mv(true);
+                pp_vars.push_back((w, lsb));
+
+                // Extract msb if needed
+                if w < (blk_w - 1) {
+                    // Force allocation of new reg to allow carry/msg pbs to run in //
+                    let msb = var.pbs(&pbs_carry, false);
+                    debug!(target: "Fw", "Pbs generate @{} -> {msb:?}", w + 1);
+                    // TODO These explicit flush enhance perf for large MUL but degrade them for
+                    // small one Find a proper way to arbitrait their used
+                    // Furthermore, it induce error with current ISC without LD/ST ordering
+                    // msb.heap_alloc_mv(true);
+                    pp_vars.push_back((w + 1, msb));
+                }
+            }
+            // Compute LSB ASAP
+            pp_vars
+                .make_contiguous()
+                .sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
+        }
+    }
 }
 
 #[instrument(level = "info", skip(prog))]

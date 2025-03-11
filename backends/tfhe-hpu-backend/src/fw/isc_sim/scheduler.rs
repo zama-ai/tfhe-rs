@@ -98,12 +98,22 @@ impl Scheduler {
                     // update associated pe state
                     self.pe_store.rd_unlock(id);
                     self.rd_unlock.push(kind);
+
+                    // Update the pe
+                    let evts = self.pe_store.probe_for_exec_id(id, self.sim_cycles, None);
+                    evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
+
                     true
                 }
                 EventType::WrUnlock(kind, id) => {
                     // update associated pe state
                     self.pe_store.wr_unlock(id);
                     self.wr_unlock.push(kind);
+
+                    // Update the pe
+                    let evts = self.pe_store.probe_for_exec_id(id, self.sim_cycles, None);
+                    evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
+
                     true
                 }
                 EventType::ReqTimeout(kind, _id) => {
@@ -111,17 +121,21 @@ impl Scheduler {
                         InstructionKind::Pbs => {
                             // Register Bpip timeout
                             if let Some(timeout) = bpip_timeout {
-                                if 0 == self
-                                    .evt_pdg
-                                    .iter()
-                                    .filter(|evt| evt.event_type == EventType::BpipTimeout)
-                                    .count()
-                                {
-                                    self.evt_pdg.push(Event::new(
-                                        EventType::BpipTimeout,
-                                        self.sim_cycles + timeout as usize,
-                                    ));
-                                }
+                                // delete the timeout timer
+                                self.evt_pdg = std::mem::take(&mut self.evt_pdg)
+                                    .into_iter()
+                                    .filter(|ev| ev.event_type != EventType::BpipTimeout)
+                                    .collect();
+
+                                // And re-start it
+                                let timeout_stamp = self.sim_cycles + timeout as usize;
+                                self.evt_pdg
+                                    .push(Event::new(EventType::BpipTimeout, timeout_stamp));
+
+                                self.trace.push(Trace {
+                                    timestamp: self.sim_cycles,
+                                    event: TraceEvent::ReqTimeout(timeout_stamp),
+                                });
                             }
                         }
                         _ => panic!("Unexpected unit required a timeout registration {:?}", kind),
@@ -131,42 +145,40 @@ impl Scheduler {
                 EventType::BatchStart {
                     pe_id: _,
                     issued: _,
-                } => {
-                    // Reset the timer on the timeout in the queue
-                    if let Some(timeout) = bpip_timeout {
-                        let mut new_heap = BinaryHeap::new();
-                        std::mem::swap(&mut new_heap, &mut self.evt_pdg);
-                        self.evt_pdg = new_heap
-                            .into_iter()
-                            .map(|mut ev| {
-                                if ev.event_type == EventType::BpipTimeout {
-                                    ev.at_cycle = self.sim_cycles + timeout as usize;
-                                    ev
-                                } else {
-                                    ev
-                                }
-                            })
-                            .collect();
-                    }
-                    false
-                }
+                } => false,
                 EventType::QuantumEnd => {
                     break;
+                }
+                EventType::DelTimeout(kind, _) => {
+                    assert!(
+                        kind == InstructionKind::Pbs,
+                        "Unexpected unit requiring a timeout deletion {kind:?}"
+                    );
+
+                    // delete the timeout timer
+                    self.evt_pdg = std::mem::take(&mut self.evt_pdg)
+                        .into_iter()
+                        .filter(|ev| ev.event_type != EventType::BpipTimeout)
+                        .collect();
+
+                    self.trace.push(Trace {
+                        timestamp: self.sim_cycles,
+                        event: TraceEvent::DelTimeout,
+                    });
+
+                    false
                 }
                 EventType::BpipTimeout => {
                     // Trigger issue on pe store with batch_flush flag
                     let evts = self
                         .pe_store
-                        .probe_for_exec(self.sim_cycles, Some(pe::Flush::ByTimeout));
+                        .probe_for_exec(self.sim_cycles, Some(pe::Flush::Timeout));
                     evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
 
-                    // Register next timeout event
-                    if let Some(timeout) = bpip_timeout {
-                        self.evt_pdg.push(Event::new(
-                            EventType::BpipTimeout,
-                            self.sim_cycles + timeout as usize,
-                        ));
-                    }
+                    self.trace.push(Trace {
+                        timestamp: self.sim_cycles,
+                        event: TraceEvent::Timeout,
+                    });
                     true
                 }
                 EventType::Query => self.query(),
@@ -175,9 +187,17 @@ impl Scheduler {
             // Register next Query event
             // NB: Register new query event only if something usefull has append. Other-wise wait
             // for the next registered event
-            if trigger_query {
-                self.evt_pdg
-                    .push(Event::new(EventType::Query, self.sim_cycles + QUERY_CYCLE));
+            if trigger_query
+                && !self.evt_pdg.iter().any(
+                    |Event {
+                         at_cycle: _,
+                         event_type,
+                     }| *event_type == EventType::Query,
+                )
+            {
+                // Queries should be issued periodically at every QUERY_CYCLE
+                let next_query = ((self.sim_cycles + QUERY_CYCLE) / QUERY_CYCLE) * QUERY_CYCLE;
+                self.evt_pdg.push(Event::new(EventType::Query, next_query));
             }
         }
 
@@ -235,8 +255,10 @@ impl Scheduler {
 
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,
-                cmd: Query::RdUnlock,
-                slot: slot.clone(),
+                event: TraceEvent::Query {
+                    cmd: Query::RdUnlock,
+                    slot: slot.clone(),
+                },
             });
 
             self.ack_rd_unlock(kind_1h);
@@ -249,8 +271,10 @@ impl Scheduler {
 
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,
-                cmd: Query::Retire,
-                slot,
+                event: TraceEvent::Query {
+                    cmd: Query::Retire,
+                    slot,
+                },
             });
             true
         } else if !self.pool.is_full() && !self.dop_pdg.is_empty() {
@@ -262,10 +286,14 @@ impl Scheduler {
             let slot = self.pool.refill(self.sync_id, dop);
             self.sync_id = nxt_sync_id;
 
+            tracing::trace!("Refill: {:?}", slot);
+
             self.trace.push(Trace {
                 timestamp: self.sim_cycles,
-                cmd: Query::Refill,
-                slot: slot.clone(),
+                event: TraceEvent::Query {
+                    cmd: Query::Refill,
+                    slot: slot.clone(),
+                },
             });
             true
         } else {
@@ -274,6 +302,8 @@ impl Scheduler {
             match self.pool.issue(pe_avail) {
                 pool::IssueEvt::None => {
                     tracing::trace!("{}", self.pool);
+                    tracing::trace!("{:?}", self.pe_store);
+
                     false
                 }
                 pool::IssueEvt::DOp {
@@ -281,18 +311,23 @@ impl Scheduler {
                     flush,
                     slot,
                 } => {
-                    // Push token in associated pe
-                    self.pe_store.push(kind_1h);
+                    tracing::trace!("Issue: {:?}", slot);
 
-                    // Probe for execution and registered generated events
-                    let evts = self
-                        .pe_store
-                        .probe_for_exec(self.sim_cycles, flush.then_some(pe::Flush::ByFlush));
-                    evts.into_iter().for_each(|evt| self.evt_pdg.push(evt));
+                    // Push token in associated pe
+                    self.pe_store.push(kind_1h, flush);
+
+                    // Flush the PE if this is a flush instruction
+                    self.pe_store
+                        .probe_for_exec(self.sim_cycles, None)
+                        .into_iter()
+                        .for_each(|evt| self.evt_pdg.push(evt));
+
                     self.trace.push(Trace {
                         timestamp: self.sim_cycles,
-                        cmd: Query::Issue,
-                        slot,
+                        event: TraceEvent::Query {
+                            cmd: Query::Issue,
+                            slot,
+                        },
                     });
                     true
                 }
@@ -300,8 +335,10 @@ impl Scheduler {
                     self.dop_exec.push(slot.inst.op.clone());
                     self.trace.push(Trace {
                         timestamp: self.sim_cycles,
-                        cmd: Query::Issue,
-                        slot,
+                        event: TraceEvent::Query {
+                            cmd: Query::Issue,
+                            slot,
+                        },
                     });
                     true
                 }
@@ -328,16 +365,23 @@ impl Scheduler {
     pub fn dop_report(&self) -> DOpRpt {
         let mut map = HashMap::new();
 
-        self.trace
-            .iter()
-            .filter(|pt| pt.cmd == Query::Issue)
-            .for_each(|pt| {
-                if let Some(entry) = map.get_mut(&pt.slot.inst.kind) {
+        self.trace.iter().for_each(|pt| {
+            if let Trace {
+                timestamp: _,
+                event:
+                    TraceEvent::Query {
+                        cmd: Query::Issue,
+                        slot,
+                    },
+            } = pt
+            {
+                if let Some(entry) = map.get_mut(&slot.inst.kind) {
                     *entry += 1;
                 } else {
-                    map.insert(pt.slot.inst.kind, 1);
+                    map.insert(slot.inst.kind, 1);
                 }
-            });
+            }
+        });
         DOpRpt(map)
     }
 

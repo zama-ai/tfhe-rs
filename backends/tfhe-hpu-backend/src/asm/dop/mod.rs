@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 use crate::{dop, impl_dop, impl_dop_parser};
-pub use arg::{FromAsm, ParsingError, ToAsm};
+pub use arg::{FromAsm, IsFlush, ParsingError, ToAsm, ToFlush};
 pub use field::{
     ImmId, MemId, MulFactor, PbsGid, PeArithInsn, PeArithMsgInsn, PeMemInsn, PePbsInsn, PeSyncInsn,
     RegId, SyncId,
@@ -36,10 +36,10 @@ dop!(
     ["ST", opcode::Opcode::ST(), PeMemInsn{st}]
 
     // Pbs operation
-    ["PBS", opcode::Opcode::PBS(1), PePbsInsn],
-    ["PBS_ML2", opcode::Opcode::PBS(2), PePbsInsn],
-    ["PBS_ML4", opcode::Opcode::PBS(4), PePbsInsn],
-    ["PBS_ML8", opcode::Opcode::PBS(8), PePbsInsn],
+    ["PBS", opcode::Opcode::PBS(1), PePbsInsn, "_F"],
+    ["PBS_ML2", opcode::Opcode::PBS(2), PePbsInsn, "_F"],
+    ["PBS_ML4", opcode::Opcode::PBS(4), PePbsInsn, "_F"],
+    ["PBS_ML8", opcode::Opcode::PBS(8), PePbsInsn, "_F"],
 
     // Pbs flush operation
     ["PBS_F", opcode::Opcode::PBS_F(1), PePbsInsn],
