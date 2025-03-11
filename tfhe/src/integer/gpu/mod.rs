@@ -243,12 +243,16 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     assert_eq!(
         streams.gpu_indexes[0],
         lwe_array.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         scalar_input.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first scalar pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        scalar_input.gpu_index(0).get(),
     );
     let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut lwe_array_noise_levels = lwe_array
@@ -303,17 +307,23 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     assert_eq!(
         streams.gpu_indexes[0],
         lwe_array.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lwe array pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -396,17 +406,23 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     assert_eq!(
         streams.gpu_indexes[0],
         glwe_array_out.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first glwe output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        glwe_array_out.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         lwe_array_in.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array_in.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         fp_keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first fp_ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        fp_keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_compress_radix_ciphertext_64(
@@ -474,17 +490,23 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     assert_eq!(
         streams.gpu_indexes[0],
         lwe_array_out.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         glwe_in.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        glwe_in.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     scratch_cuda_integer_decompress_radix_ciphertext_64(
@@ -541,12 +563,16 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
@@ -627,22 +653,30 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -759,22 +793,30 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -890,22 +932,30 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         clear_blocks.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first clear input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        clear_blocks.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_degrees = radix_lwe.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -992,27 +1042,37 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -1143,27 +1203,37 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         scalar_blocks.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first scalar input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        scalar_blocks.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -1271,17 +1341,23 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_input.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_input_degrees = radix_lwe_input
@@ -1368,17 +1444,23 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_input.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
@@ -1496,32 +1578,44 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     assert_eq!(
         streams.gpu_indexes[0],
         lhs_input.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         rhs_input.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         carry_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first carry_out pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        carry_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         carry_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first carry_in pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        carry_in.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
@@ -1626,7 +1720,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    input: &mut CudaRadixCiphertext,
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -1646,34 +1740,31 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
+    let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -1715,7 +1806,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1728,7 +1819,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    input: &mut CudaRadixCiphertext,
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -1748,34 +1839,31 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
+    let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -1817,7 +1905,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1830,7 +1918,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    input: &mut CudaRadixCiphertext,
     shift: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -1849,34 +1937,31 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.noise_level.0)
-        .collect();
+    let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels =
+        input.info.blocks.iter().map(|b| b.noise_level.0).collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -1895,7 +1980,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
-        radix_lwe_left.d_blocks.lwe_ciphertext_count().0 as u32,
+        input.d_blocks.lwe_ciphertext_count().0 as u32,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
@@ -1918,7 +2003,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1931,7 +2016,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -1952,39 +2037,42 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_shift.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first shift pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
 
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -2041,7 +2129,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2051,7 +2139,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
 ///   is required
 pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
     radix_shift: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -2072,39 +2160,42 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_shift.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first shift pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_shift.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
 
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -2161,7 +2252,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2174,8 +2265,8 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
-    radix_shift: &CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
+    radix_rotation: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -2195,52 +2286,60 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_rotation.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rotation pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_rotation.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
 
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
 
-    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut radix_shift_noise_levels = radix_shift
+    let mut radix_shift_degrees = radix_rotation
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_shift_noise_levels = radix_rotation
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
-        radix_shift,
+        radix_rotation,
         &mut radix_shift_degrees,
         &mut radix_shift_noise_levels,
     );
@@ -2284,7 +2383,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2297,8 +2396,8 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
-    radix_shift: &CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
+    radix_rotation: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     message_modulus: MessageModulus,
@@ -2318,52 +2417,60 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_shift.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_rotation.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rotation pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_rotation.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
 
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
 
-    let mut radix_shift_degrees = radix_shift.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut radix_shift_noise_levels = radix_shift
+    let mut radix_shift_degrees = radix_rotation
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut radix_shift_noise_levels = radix_rotation
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let cuda_ffi_radix_shift = prepare_cuda_radix_ffi(
-        radix_shift,
+        radix_rotation,
         &mut radix_shift_degrees,
         &mut radix_shift_noise_levels,
     );
@@ -2407,7 +2514,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2440,7 +2547,9 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2451,27 +2560,44 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
             .0
             .d_vec
             .gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first condition pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_condition
+            .0
+            .ciphertext
+            .d_blocks
+            .0
+            .d_vec
+            .gpu_index(0)
+            .get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_true.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first true pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_true.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_false.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first false pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_false.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -2597,7 +2723,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
     n: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -2617,34 +2743,35 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -2685,7 +2812,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2698,7 +2825,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     B: Numeric,
 >(
     streams: &CudaStreams,
-    radix_lwe_left: &mut CudaRadixCiphertext,
+    radix_input: &mut CudaRadixCiphertext,
     n: u32,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
@@ -2718,34 +2845,35 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        radix_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    let mut radix_lwe_left_degrees = radix_lwe_left
-        .info
-        .blocks
-        .iter()
-        .map(|b| b.degree.0)
-        .collect();
-    let mut radix_lwe_left_noise_levels = radix_lwe_left
+    let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut radix_lwe_left_noise_levels = radix_input
         .info
         .blocks
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
     let mut cuda_ffi_radix_lwe_left = prepare_cuda_radix_ffi(
-        radix_lwe_left,
+        radix_input,
         &mut radix_lwe_left_degrees,
         &mut radix_lwe_left_noise_levels,
     );
@@ -2786,7 +2914,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
-    update_noise_degree(radix_lwe_left, &cuda_ffi_radix_lwe_left);
+    update_noise_degree(radix_input, &cuda_ffi_radix_lwe_left);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2820,22 +2948,30 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     assert_eq!(
         streams.gpu_indexes[0],
         result.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        result.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_list.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_list.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -2924,22 +3060,30 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     assert_eq!(
         streams.gpu_indexes[0],
         input.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         output.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
@@ -3028,22 +3172,30 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     assert_eq!(
         streams.gpu_indexes[0],
         input.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         output.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
@@ -3135,27 +3287,37 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     assert_eq!(
         streams.gpu_indexes[0],
         input_1.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input 1 pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input_1.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         input_2.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input 2 pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input_2.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         output.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
@@ -3252,32 +3414,44 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     assert_eq!(
         streams.gpu_indexes[0],
         quotient.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first quotient pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        quotient.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         remainder.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first remainder pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        remainder.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         numerator.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first numerator pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        numerator.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         divisor.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first divisor pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        divisor.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3399,22 +3573,30 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     assert_eq!(
         streams.gpu_indexes[0],
         generates_or_propagates.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first generates_or_propagates pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        generates_or_propagates.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         output.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
@@ -3485,7 +3667,9 @@ pub unsafe fn reverse_blocks_inplace_async(
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_output.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_output.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     if radix_lwe_output.d_blocks.lwe_ciphertext_count().0 > 1 {
         let mut radix_lwe_output_degrees = radix_lwe_output
@@ -3553,17 +3737,30 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_left.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_left.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_right.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
@@ -3694,7 +3891,23 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     assert_eq!(
         streams.gpu_indexes[0],
         ct.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        ct.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -3769,22 +3982,30 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
@@ -3893,22 +4114,30 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         radix_lwe_in.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        radix_lwe_in.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         bootstrapping_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
         keyswitch_key.gpu_index(0),
-        "GPU error: all data should reside on the same GPU."
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
     );
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
