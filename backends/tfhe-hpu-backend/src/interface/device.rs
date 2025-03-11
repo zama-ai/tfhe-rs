@@ -170,13 +170,17 @@ impl HpuDevice {
 /// Only here to expose function to the user. Associated logic is handled by the backend
 impl HpuDevice {
     /// Construct an Hpu variable from a vector of HpuLweCiphertext
-    pub fn new_var_from(&self, ct: Vec<HpuLweCiphertextOwned<u64>>) -> HpuVarWrapped {
+    pub fn new_var_from(
+        &self,
+        ct: Vec<HpuLweCiphertextOwned<u64>>,
+        mode: crate::asm::iop::VarMode,
+    ) -> HpuVarWrapped {
         HpuVarWrapped::new_from(
             self.ct_mem.clone(),
             self.cmd_api.clone(),
             self.params.clone(),
             ct,
-            crate::asm::iop::VarMode::Native,
+            mode,
         )
     }
 }
