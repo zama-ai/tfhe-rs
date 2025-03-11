@@ -25,6 +25,11 @@ use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 use tfhe_versionable::Versionize;
 
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 /// The FHE boolean data type.
 ///
 /// # Example
@@ -455,8 +460,28 @@ where
                 FheUint::new(inner, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+            InternalServerKey::Hpu(device) => {
+                let hpu_then = ct_then.ciphertext.on_hpu(device);
+                let hpu_else = ct_else.ciphertext.on_hpu(device);
+                let hpu_cond = self.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ELSE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheUint::new(hpu_result, device.tag.clone())
             }
         })
     }

@@ -31,7 +31,7 @@ impl HpuRadixCiphertext {
             .map(|blk| HpuLweCiphertextOwned::from_with(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
-        Self(device.new_var_from(hpu_ct))
+        Self(device.new_var_from(hpu_ct, VarMode::Native))
     }
 
     /// Create a Cpu radix ciphertext copy from a Hpu one.
@@ -56,6 +56,19 @@ impl HpuRadixCiphertext {
             })
             .collect::<Vec<_>>();
         RadixCiphertext { blocks: cpu_ct }
+    }
+
+    /// Create a Hpu Radix ciphertext based on a Cpu one.
+    /// No xfer with Fpga occured until operation is request on HpuRadixCiphertext
+    /// TODO Rework the way to iterate over RadixCihpertext
+    pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
+        let params = device.params();
+
+        let hpu_ct = vec![HpuLweCiphertextOwned::from_with(
+            cpu_ct.0.ct.as_view(),
+            params.clone(),
+        )];
+        Self(device.new_var_from(hpu_ct, VarMode::Bool))
     }
 
     /// Create a Cpu boolean block

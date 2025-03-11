@@ -12,6 +12,9 @@ use crate::Device;
 use serde::{Deserializer, Serializer};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
+#[cfg(feature = "hpu")]
+use crate::high_level_api::keys::HpuTaggedDevice;
+
 /// Enum that manages the current inner representation of a boolean.
 pub(in crate::high_level_api) enum InnerBoolean {
     Cpu(BooleanBlock),
@@ -172,6 +175,24 @@ impl InnerBoolean {
                 }
             }
         }
+    }
+
+    #[cfg(feature = "hpu")]
+    pub(crate) fn on_hpu(
+        &self,
+        device: &HpuTaggedDevice,
+    ) -> MaybeCloned<'_, crate::integer::hpu::ciphertext::HpuRadixCiphertext> {
+        #[allow(clippy::match_wildcard_for_single_variants)]
+        let cpu_radix = match self {
+            Self::Hpu(hpu_radix) => return MaybeCloned::Borrowed(hpu_radix),
+            _ => self.on_cpu(),
+        };
+
+        let hpu_ct = crate::integer::hpu::ciphertext::HpuRadixCiphertext::from_boolean_ciphertext(
+            &cpu_radix,
+            &device.device,
+        );
+        MaybeCloned::Cloned(hpu_ct)
     }
 
     pub(crate) fn as_cpu_mut(&mut self) -> &mut BooleanBlock {
