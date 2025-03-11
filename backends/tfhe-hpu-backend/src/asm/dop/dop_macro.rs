@@ -77,6 +77,8 @@ macro_rules! impl_dop {
                         })
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeArithInsn, PeArithHex);
         }
     };
@@ -102,6 +104,8 @@ macro_rules! impl_dop {
                         })
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>] {}
             impl_dop_parser!($asm, $opcode, PeArithInsn, PeArithHex);
         }
     };
@@ -130,6 +134,8 @@ macro_rules! impl_dop {
                     &mut self.0.msg_cst
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeArithMsgInsn, PeArithMsgHex);
         }
     };
@@ -167,6 +173,8 @@ macro_rules! impl_dop {
                     &mut self.0.slot
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
         }
     };
@@ -203,6 +211,8 @@ macro_rules! impl_dop {
                     &mut self.0.slot
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
         }
     };
@@ -228,6 +238,12 @@ macro_rules! impl_dop {
                         })
                 }
             }
+
+            impl IsFlush for [<DOp $asm:camel>] {
+                fn is_flush(&self) -> bool {
+                    $opcode.is_flush()
+                }
+            }
             impl_dop_parser!($asm, $opcode, PePbsInsn, PePbsHex);
         }
     };
@@ -250,7 +266,10 @@ macro_rules! impl_dop {
                         sid: sid.unwrap_or(SyncId(0))
                         })
                 }
+
             }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
         }
     };
@@ -259,7 +278,7 @@ macro_rules! impl_dop {
 #[macro_export]
 macro_rules! dop {
     (
-        $([$asm: literal, $opcode: expr, $type: ty $({$fmt: tt})?] $(,)?)*
+        $([$asm: literal, $opcode: expr, $type: ty $({$fmt: tt})? $(,$flush: literal)?] $(,)?)*
     ) => {
         ::paste::paste! {
             type AsmCallback = fn(&[arg::Arg]) -> Result<DOp, ParsingError>;
@@ -272,11 +291,22 @@ macro_rules! dop {
             /// Aggregate DOp concrete type in one enumeration
             // #[derive(Debug, Clone)]
             #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-            #[enum_dispatch(ToAsm, ToHex)]
+            #[enum_dispatch(ToAsm, ToHex, IsFlush)]
             #[allow(non_camel_case_types)]
             pub enum DOp{
                     // $([< $asm:upper >]($type),)*
                     $([< $asm:upper >]([< DOp $asm:camel>]),)*
+            }
+
+            impl ToFlush for DOp {
+                fn to_flush(&self) -> Self {
+                    match self {
+                        $(
+                            DOp::[< $asm:upper >](inner) => DOp::[< $asm:upper $($flush)?>]
+                                ([< DOp $asm:camel $($flush:camel)? >](inner.0.to_flush())),
+                        )*
+                    }
+                }
             }
 
             impl DOp {

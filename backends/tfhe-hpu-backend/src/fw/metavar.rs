@@ -8,6 +8,7 @@ use super::*;
 
 use crate::asm::dop::DOp;
 use crate::asm::{self, DigitParameters, ImmId, PbsLut};
+use crate::fw::program::StmtLink;
 use tracing::{debug, error, trace};
 
 use std::cell::RefCell;
@@ -468,7 +469,7 @@ impl MetaVarCell {
         lut: &MetaVarCell,
         flush: bool,
         tfhe_params: &DigitParameters,
-    ) {
+    ) -> StmtLink {
         assert!(
             src.is_in(PosKind::REG | PosKind::MEM),
             "Pbs src must be of kind Reg|Mem MetaVar"
@@ -552,7 +553,7 @@ impl MetaVarCell {
                 _ => panic!("PbsF with {} entries lut are not supported", pbs.lut_nb()),
             }
         };
-        dst.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
+        let stmtlink = dst.0.borrow_mut().prog.push_stmt(asm);
 
         dst_slice
             .iter()
@@ -569,6 +570,8 @@ impl MetaVarCell {
         );
 
         dst_slice.iter().for_each(|d| d.check_degree());
+
+        stmtlink
     }
 
     pub fn pbs_assign(&mut self, lut: &MetaVarCell, flush: bool) {
@@ -624,7 +627,12 @@ impl MetaVarCell {
 
 /// Implement mac operator
 impl MetaVarCell {
-    pub(super) fn mac_raw(&self, rhs_0: &MetaVarCell, mul_factor: u8, rhs_1: &MetaVarCell) {
+    pub(super) fn mac_raw(
+        &self,
+        rhs_0: &MetaVarCell,
+        mul_factor: u8,
+        rhs_1: &MetaVarCell,
+    ) -> StmtLink {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -667,8 +675,8 @@ impl MetaVarCell {
                 )
                 .into();
 
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 self.updt_degree(degree);
+                rhs_0.0.borrow_mut().prog.push_stmt(asm)
             }
             (false, true) => {
                 // (Ct * Const) + Imm
@@ -698,13 +706,11 @@ impl MetaVarCell {
                         tfhe_params.msg_mask()
                     }
                 };
-                self.0
-                    .borrow()
-                    .prog
-                    .borrow_mut()
-                    .stmts
-                    .push_stmt(asm::dop::DOpAdds::new(dst_rid, dst_rid, msg_cst).into());
                 self.updt_degree(degree);
+                self.0
+                    .borrow_mut()
+                    .prog
+                    .push_stmt(asm::dop::DOpAdds::new(dst_rid, dst_rid, msg_cst).into())
             }
             (true, false) => {
                 // (Imm x Const) + Ct
@@ -724,8 +730,8 @@ impl MetaVarCell {
                             asm::dop::DOpAdds::new(dst_rid, rhs_rid, asm::ImmId::Cst(msg_cst))
                                 .into();
 
-                        rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                         self.updt_degree(degree);
+                        rhs_0.0.borrow_mut().prog.push_stmt(asm)
                     }
                     asm::ImmId::Var { .. } => {
                         // TODO add a warning, since it's not the native pattern expected by MAC ?
@@ -751,6 +757,7 @@ impl MetaVarCell {
                         let imm = cst_a + (cst_b * mul_factor as u16);
                         self.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
                         self.updt_degree(imm as usize);
+                        StmtLink::empty(self.0.borrow().prog.clone())
                     }
                     (ImmId::Var { .. }, _) => {
                         // Move templated constant in register and recurse
@@ -885,7 +892,12 @@ impl ShlAssign for MetaVarCell {
 
 /// Implement raw addition and derive Add/AddAsign from it
 impl MetaVarCell {
-    pub(super) fn add_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell, upd_degree: bool) {
+    pub(super) fn add_raw(
+        &self,
+        rhs_0: &MetaVarCell,
+        rhs_1: &MetaVarCell,
+        upd_degree: bool,
+    ) -> StmtLink {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -904,7 +916,7 @@ impl MetaVarCell {
         let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
         let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
-        match (rhs_0_imm, rhs_1_imm) {
+        let link = match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
                 // Ct x Ct
                 // -> dst must be in ALU
@@ -915,10 +927,10 @@ impl MetaVarCell {
 
                 let asm = asm::dop::DOpAdd::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
 
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+                rhs_0.0.borrow_mut().prog.push_stmt(asm)
             }
             (false, true) => {
                 // Ct x Imm
@@ -937,10 +949,10 @@ impl MetaVarCell {
                 };
 
                 let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+                rhs_0.0.borrow_mut().prog.push_stmt(asm)
             }
             (true, false) => {
                 // Imm x Ct
@@ -959,11 +971,12 @@ impl MetaVarCell {
                     }
                 };
 
-                let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+
+                let asm = asm::dop::DOpAdds::new(dst_rid, rhs_rid, msg_cst).into();
+                rhs_0.0.borrow_mut().prog.push_stmt(asm)
             }
             (true, true) => {
                 // Imm x Imm -> Check if this could be a compiled time constant
@@ -975,6 +988,7 @@ impl MetaVarCell {
                         if upd_degree {
                             self.updt_degree(imm as usize);
                         }
+                        StmtLink::empty(self.0.borrow().prog.clone())
                     }
                     (ImmId::Var { .. }, _) => {
                         // Move templated constant in register and recurse
@@ -1004,7 +1018,7 @@ impl MetaVarCell {
                     }
                 }
             }
-        }
+        };
         trace!(
             target: "MetaOp",
             "AddRaw:: {:?} <= {:?}, {:?}",
@@ -1013,6 +1027,7 @@ impl MetaVarCell {
             rhs_1.0.borrow()
         );
         self.check_degree();
+        link
     }
 }
 
@@ -1040,7 +1055,12 @@ impl AddAssign for MetaVarCell {
 
 /// Implement raw substraction and derive Sub/SubAssign from it
 impl MetaVarCell {
-    pub(super) fn sub_raw(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell, upd_degree: bool) {
+    pub(super) fn sub_raw(
+        &self,
+        rhs_0: &MetaVarCell,
+        rhs_1: &MetaVarCell,
+        upd_degree: bool,
+    ) -> StmtLink {
         // Check operand type
         assert!(
             rhs_0.is_in(PosKind::REG | PosKind::MEM | PosKind::IMM),
@@ -1059,7 +1079,7 @@ impl MetaVarCell {
         let rhs_0_imm = rhs_0.is_in(PosKind::IMM);
         let rhs_1_imm = rhs_1.is_in(PosKind::IMM);
 
-        match (rhs_0_imm, rhs_1_imm) {
+        let link = match (rhs_0_imm, rhs_1_imm) {
             (false, false) => {
                 // Ct x Ct
                 // -> dst must be in ALU
@@ -1068,11 +1088,12 @@ impl MetaVarCell {
                 let rhs_rid = (rhs_0.as_reg().unwrap(), rhs_1.as_reg().unwrap());
                 let degree = rhs_0.get_degree() - rhs_1.get_degree();
 
-                let asm = asm::dop::DOpSub::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
-                rhs_0.0.borrow().prog.borrow_mut().stmts.push_stmt(asm);
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+
+                let asm = asm::dop::DOpSub::new(dst_rid, rhs_rid.0, rhs_rid.1).into();
+                rhs_0.0.borrow_mut().prog.push_stmt(asm)
             }
             (false, true) => {
                 // Ct x Imm
@@ -1090,16 +1111,14 @@ impl MetaVarCell {
                     }
                 };
 
-                rhs_0
-                    .0
-                    .borrow()
-                    .prog
-                    .borrow_mut()
-                    .stmts
-                    .push_stmt(asm::dop::DOpSubs::new(dst_rid, rhs_rid, msg_cst).into());
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+                rhs_0
+                    .0
+                    .borrow_mut()
+                    .prog
+                    .push_stmt(asm::dop::DOpSubs::new(dst_rid, rhs_rid, msg_cst).into())
             }
             (true, false) => {
                 // Imm x Ct
@@ -1117,16 +1136,15 @@ impl MetaVarCell {
                     }
                 };
 
-                rhs_0
-                    .0
-                    .borrow()
-                    .prog
-                    .borrow_mut()
-                    .stmts
-                    .push_stmt(asm::dop::DOpSsub::new(dst_rid, rhs_rid, msg_cst).into());
                 if upd_degree {
                     self.updt_degree(degree);
                 }
+
+                rhs_0
+                    .0
+                    .borrow_mut()
+                    .prog
+                    .push_stmt(asm::dop::DOpSsub::new(dst_rid, rhs_rid, msg_cst).into())
             }
             (true, true) => {
                 // Imm x Imm -> Check if this could be a compiled time constant
@@ -1136,6 +1154,7 @@ impl MetaVarCell {
                         let imm = cst_a - cst_b;
                         self.updt_pos(Some(VarPos::Imm(ImmId::Cst(imm))));
                         self.updt_degree(imm as usize);
+                        StmtLink::empty(self.0.borrow().prog.clone())
                     }
                     (ImmId::Var { .. }, _) => {
                         // Move templated constant in register and recurse
@@ -1165,7 +1184,7 @@ impl MetaVarCell {
                     }
                 }
             }
-        }
+        };
         trace!(
             target: "MetaOp",
             "SubRaw:: {:?} <= {:?}, {:?}",
@@ -1174,6 +1193,7 @@ impl MetaVarCell {
             rhs_1.0.borrow()
         );
         self.check_degree();
+        link
     }
 }
 

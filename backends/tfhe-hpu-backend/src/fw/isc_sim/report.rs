@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::InstructionKind;
 
-use super::pe::{Pe, PeCommon, PeStats, PeStore};
+use super::pe::{Pe, PeStats, PeStore};
 
 #[derive(Debug)]
 pub struct TimeRpt {
