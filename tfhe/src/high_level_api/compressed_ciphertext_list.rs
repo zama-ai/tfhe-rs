@@ -78,6 +78,8 @@ impl HlCompressible for FheBool {
                 let kind = DataKind::Boolean;
                 messages.push((ToBeCompressed::Cuda(cuda_bool.0.ciphertext), kind));
             }
+            #[cfg(feature = "hpu")]
+            InnerBoolean::Hpu(_) => panic!("HPU does not support compression"),
         }
     }
 }

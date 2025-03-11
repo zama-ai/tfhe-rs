@@ -17,6 +17,8 @@ pub(in crate::high_level_api) enum InnerBoolean {
     Cpu(BooleanBlock),
     #[cfg(feature = "gpu")]
     Cuda(crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock),
+    #[cfg(feature = "hpu")]
+    Hpu(crate::integer::hpu::ciphertext::HpuRadixCiphertext),
 }
 
 impl Clone for InnerBoolean {
@@ -27,6 +29,8 @@ impl Clone for InnerBoolean {
             Self::Cuda(inner) => {
                 with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
             }
+            #[cfg(feature = "hpu")]
+            Self::Hpu(inner) => Self::Hpu(inner.clone()),
         }
     }
 }
@@ -39,6 +43,8 @@ impl serde::Serialize for InnerBoolean {
             Self::Cpu(cpu_ct) => cpu_ct.serialize(serializer),
             #[cfg(feature = "gpu")]
             Self::Cuda(_) => self.on_cpu().serialize(serializer),
+            #[cfg(feature = "hpu")]
+            Self::Hpu(_) => self.on_cpu().serialize(serializer),
         }
     }
 }
@@ -106,12 +112,21 @@ impl From<crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock> for 
     }
 }
 
+#[cfg(feature = "hpu")]
+impl From<crate::integer::hpu::ciphertext::HpuRadixCiphertext> for InnerBoolean {
+    fn from(value: crate::integer::hpu::ciphertext::HpuRadixCiphertext) -> Self {
+        Self::Hpu(value)
+    }
+}
+
 impl InnerBoolean {
     pub(crate) fn current_device(&self) -> Device {
         match self {
             Self::Cpu(_) => Device::Cpu,
             #[cfg(feature = "gpu")]
             Self::Cuda(_) => Device::CudaGpu,
+            #[cfg(feature = "hpu")]
+            Self::Hpu(_) => Device::Hpu,
         }
     }
 
@@ -126,6 +141,8 @@ impl InnerBoolean {
                     MaybeCloned::Cloned(ct.to_boolean_block(streams))
                 })
             }
+            #[cfg(feature = "hpu")]
+            Self::Hpu(ct) => MaybeCloned::Cloned(ct.to_boolean_block()),
         }
     }
 
@@ -160,7 +177,7 @@ impl InnerBoolean {
     pub(crate) fn as_cpu_mut(&mut self) -> &mut BooleanBlock {
         match self {
             Self::Cpu(block) => block,
-            #[cfg(feature = "gpu")]
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
             _ => {
                 self.move_to_device(Device::Cpu);
                 self.as_cpu_mut()
