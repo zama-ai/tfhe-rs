@@ -68,6 +68,12 @@ pub const IOP_CT_SCALAR: ConstIOpProto<1, 1> = ConstIOpProto {
     imm: 1,
 };
 
+pub const IOP_CMP: ConstIOpProto<1, 2> = ConstIOpProto {
+    dst: [VarMode::Bool; 1],
+    src: [VarMode::Native; 2],
+    imm: 0,
+};
+
 use crate::iop;
 use arg::IOpFormat;
 use lazy_static::lazy_static;
@@ -87,11 +93,11 @@ iop!(
     [IOP_CT_CT -> "BW_AND", opcode::BW_AND],
     [IOP_CT_CT -> "BW_OR", opcode::BW_OR],
     [IOP_CT_CT -> "BW_XOR", opcode::BW_XOR],
-    [IOP_CT_CT -> "CMP_GT", opcode::CMP_GT],
-    [IOP_CT_CT -> "CMP_GTE", opcode::CMP_GTE],
-    [IOP_CT_CT -> "CMP_LT", opcode::CMP_LT],
-    [IOP_CT_CT -> "CMP_LTE", opcode::CMP_LTE],
-    [IOP_CT_CT -> "CMP_EQ", opcode::CMP_EQ],
-    [IOP_CT_CT -> "CMP_NEQ", opcode::CMP_NEQ],
+    [IOP_CMP -> "CMP_GT", opcode::CMP_GT],
+    [IOP_CMP -> "CMP_GTE", opcode::CMP_GTE],
+    [IOP_CMP -> "CMP_LT", opcode::CMP_LT],
+    [IOP_CMP -> "CMP_LTE", opcode::CMP_LTE],
+    [IOP_CMP -> "CMP_EQ", opcode::CMP_EQ],
+    [IOP_CMP -> "CMP_NEQ", opcode::CMP_NEQ],
     [IOP_CT_CT_BOOL -> "IF_THEN_ELSE", opcode::IF_THEN_ELSE],
 );
