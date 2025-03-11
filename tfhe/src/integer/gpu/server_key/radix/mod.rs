@@ -187,10 +187,9 @@ impl CudaServerKey {
             PBSOrder::BootstrapKeyswitch => self.key_switching_key.output_key_lwe_size(),
         };
 
-        let decomposer = BlockDecomposer::new(scalar, self.message_modulus.0.ilog2())
-            .iter_as::<u64>()
-            .chain(std::iter::repeat(0))
-            .take(num_blocks);
+        let decomposer =
+            BlockDecomposer::with_block_count(scalar, self.message_modulus.0.ilog2(), num_blocks)
+                .iter_as::<u64>();
         let mut cpu_lwe_list = LweCiphertextList::new(
             0,
             lwe_size,

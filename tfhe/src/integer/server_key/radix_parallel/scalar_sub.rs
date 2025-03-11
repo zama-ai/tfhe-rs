@@ -640,16 +640,13 @@ impl ServerKey {
 
         const INPUT_CARRY: bool = true;
         let flipped_scalar = !scalar;
-        let decomposed_flipped_scalar =
-            BlockDecomposer::new(flipped_scalar, self.message_modulus().0.ilog2())
-                .iter_as::<u8>()
-                .chain(std::iter::repeat(if scalar < Scalar::ZERO {
-                    0
-                } else {
-                    (self.message_modulus().0 - 1) as u8
-                }))
-                .take(lhs.blocks.len())
-                .collect::<Vec<_>>();
+        let decomposed_flipped_scalar = BlockDecomposer::with_block_count(
+            flipped_scalar,
+            self.message_modulus().0.ilog2(),
+            lhs.blocks.len(),
+        )
+        .iter_as::<u8>()
+        .collect::<Vec<_>>();
         let maybe_overflow = self.add_assign_scalar_blocks_parallelized(
             lhs,
             decomposed_flipped_scalar,

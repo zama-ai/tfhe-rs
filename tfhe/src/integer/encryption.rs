@@ -92,9 +92,7 @@ where
 // We need to concretize the iterator type to be able to pass callbacks consuming the iterator,
 // having an opaque return impl Iterator does not allow to take callbacks at this moment, not sure
 // the Fn(impl Trait) syntax can be made to work nicely with the rest of the language
-pub(crate) type ClearRadixBlockIterator<T> = std::iter::Take<
-    std::iter::Chain<std::iter::Map<BlockDecomposer<T>, fn(T) -> u64>, std::iter::Repeat<u64>>,
->;
+pub(crate) type ClearRadixBlockIterator<T> = std::iter::Map<BlockDecomposer<T>, fn(T) -> u64>;
 
 pub(crate) fn create_clear_radix_block_iterator<T>(
     message: T,
@@ -105,12 +103,7 @@ where
     T: DecomposableInto<u64>,
 {
     let bits_in_block = message_modulus.0.ilog2();
-    let decomposer = BlockDecomposer::new(message, bits_in_block);
-
-    decomposer
-        .iter_as::<u64>()
-        .chain(std::iter::repeat(0u64))
-        .take(num_blocks)
+    BlockDecomposer::with_block_count(message, bits_in_block, num_blocks).iter_as::<u64>()
 }
 
 pub(crate) fn encrypt_crt<BlockKey, Block, CrtCiphertextType, F>(
