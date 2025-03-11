@@ -120,6 +120,8 @@ impl FheBool {
             InnerBoolean::Cpu(ct) => ct.into_raw_parts(),
             #[cfg(feature = "gpu")]
             InnerBoolean::Cuda(_) => unreachable!(),
+            #[cfg(feature = "hpu")]
+            InnerBoolean::Hpu(_) => unreachable!(),
         }
     }
 

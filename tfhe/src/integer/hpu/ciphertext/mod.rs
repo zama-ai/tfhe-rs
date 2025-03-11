@@ -3,7 +3,7 @@ use tfhe_hpu_backend::prelude::*;
 
 use crate::core_crypto::hpu::from_with::FromWith;
 use crate::core_crypto::prelude::LweCiphertextOwned;
-use crate::integer::RadixCiphertext;
+use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{Ciphertext, ClassicPBSParameters};
 
@@ -56,6 +56,22 @@ impl HpuRadixCiphertext {
             })
             .collect::<Vec<_>>();
         RadixCiphertext { blocks: cpu_ct }
+    }
+
+    /// Create a Cpu boolean block
+    /// Warn: This function panic if the underlying RadixCiphertext don't fullfill required properties
+    pub fn to_boolean_block(&self) -> BooleanBlock {
+        assert!(
+            self.0.is_boolean(),
+            "Error try to extract boolean value from invalid ciphertext"
+        );
+        let boolean_ct = self
+            .to_radix_ciphertext()
+            .blocks
+            .into_iter()
+            .next()
+            .unwrap();
+        BooleanBlock::new_unchecked(boolean_ct)
     }
 }
 
