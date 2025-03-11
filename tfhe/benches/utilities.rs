@@ -596,6 +596,7 @@ pub mod integer_utils {
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     #[cfg(feature = "gpu")]
     use tfhe::integer::gpu::CudaServerKey;
+    #[cfg(feature = "gpu")]
     use tfhe::integer::ClientKey;
 
     /// Number of streaming multiprocessors (SM) available on Nvidia H100 GPU
