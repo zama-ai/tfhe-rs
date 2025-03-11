@@ -245,6 +245,11 @@ impl HpuVarWrapped {
             }
         }
     }
+
+    /// Check if inner value depicts a boolean
+    pub fn is_boolean(&self) -> bool {
+        self.mode == VarMode::Bool
+    }
 }
 
 // TODO remove this

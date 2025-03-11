@@ -421,7 +421,8 @@ impl IOp {
     // Compute table entry
     // Based on dst_alignement for the lut blk and opcode for inner offset
     pub fn fw_entry(&self) -> usize {
-        self.header.dst_align.0 as usize * 0x100 + self.header.opcode.0 as usize
+        std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize * 0x100
+            + self.header.opcode.0 as usize
     }
     pub fn dst(&self) -> &OperandBundle {
         &self.dst
