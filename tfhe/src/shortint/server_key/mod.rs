@@ -26,6 +26,9 @@ pub use bivariate_pbs::{
 };
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 pub use modulus_switch_noise_reduction::*;
+pub(crate) use modulus_switched_compression::{
+    decompress_and_apply_lookup_table, switch_modulus_and_compress,
+};
 pub(crate) use scalar_mul::unchecked_scalar_mul_assign;
 
 #[cfg(test)]

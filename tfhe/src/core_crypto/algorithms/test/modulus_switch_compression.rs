@@ -7,7 +7,7 @@ const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send>(
+fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> + CastFrom<u64>>(
     params: ClassicTestParams<Scalar>,
 ) {
     let ClassicTestParams {
@@ -43,7 +43,7 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send>(
             );
 
             // Can be stored using much less space than the standard lwe ciphertexts
-            let compressed = CompressedModulusSwitchedLweCiphertext::compress(
+            let compressed = CompressedModulusSwitchedLweCiphertext::<u64>::compress(
                 &lwe,
                 params.polynomial_size.to_blind_rotation_input_modulus_log(),
             );
@@ -63,11 +63,11 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send>(
     }
 }
 
-fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>>(
+fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<u64> + CastFrom<u64>>(
     ct: &LweCiphertext<Vec<Scalar>>,
     log_modulus: CiphertextModulusLog,
 ) {
-    let a = CompressedModulusSwitchedLweCiphertext::compress(ct, log_modulus);
+    let a = CompressedModulusSwitchedLweCiphertext::<u64>::compress(ct, log_modulus);
 
     let b = a.extract();
 
@@ -76,7 +76,9 @@ fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usiz
     }
 }
 
-fn assert_ms_multi_bit_compression<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize>>(
+fn assert_ms_multi_bit_compression<
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + CastInto<u64>,
+>(
     ct: &LweCiphertext<Vec<Scalar>>,
     log_modulus: CiphertextModulusLog,
     grouping_factor: LweBskGroupingFactor,
@@ -87,8 +89,11 @@ fn assert_ms_multi_bit_compression<Scalar: UnsignedTorus + CastInto<usize> + Cas
         log_modulus,
     };
 
-    let b =
-        CompressedModulusSwitchedMultiBitLweCiphertext::compress(ct, log_modulus, grouping_factor);
+    let b = CompressedModulusSwitchedMultiBitLweCiphertext::<u64>::compress(
+        ct,
+        log_modulus,
+        grouping_factor,
+    );
 
     let c = b.extract();
 
