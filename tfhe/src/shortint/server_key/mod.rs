@@ -142,11 +142,14 @@ impl Display for CheckError {
 impl std::error::Error for CheckError {}
 
 #[derive(Clone, Debug, PartialEq, Versionize)]
-#[versionize(convert = "SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>")]
-pub enum ShortintBootstrappingKey {
+#[versionize(convert = "SerializableShortintBootstrappingKey<InputScalar, ABox<[tfhe_fft::c64]>>")]
+pub enum ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     Classic {
         bsk: FourierLweBootstrapKeyOwned,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<InputScalar>>,
     },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKeyOwned,
@@ -156,12 +159,15 @@ pub enum ShortintBootstrappingKey {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
-#[serde(bound(deserialize = "C: IntoContainerOwned"))]
+#[serde(bound(deserialize = "C: IntoContainerOwned, InputScalar: for<'a> Deserialize<'a>"))]
 #[versionize(SerializableShortintBootstrappingKeyVersions)]
-pub enum SerializableShortintBootstrappingKey<C: Container<Element = tfhe_fft::c64>> {
+pub enum SerializableShortintBootstrappingKey<InputScalar, C: Container<Element = tfhe_fft::c64>>
+where
+    InputScalar: UnsignedInteger,
+{
     Classic {
         bsk: FourierLweBootstrapKey<C>,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<InputScalar>>,
     },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
@@ -169,7 +175,11 @@ pub enum SerializableShortintBootstrappingKey<C: Container<Element = tfhe_fft::c
     },
 }
 
-impl<C: Container<Element = tfhe_fft::c64>> SerializableShortintBootstrappingKey<C> {
+impl<InputScalar, C: Container<Element = tfhe_fft::c64>>
+    SerializableShortintBootstrappingKey<InputScalar, C>
+where
+    InputScalar: UnsignedInteger,
+{
     /// Returns `true` if the serializable shortint bootstrapping key is [`Classic`].
     ///
     /// [`Classic`]: SerializableShortintBootstrappingKey::Classic
@@ -179,10 +189,12 @@ impl<C: Container<Element = tfhe_fft::c64>> SerializableShortintBootstrappingKey
     }
 }
 
-impl<'a> From<&'a ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<&'a [tfhe_fft::c64]>
+impl<'a, InputScalar> From<&'a ShortintBootstrappingKey<InputScalar>>
+    for SerializableShortintBootstrappingKey<InputScalar, &'a [tfhe_fft::c64]>
+where
+    InputScalar: UnsignedInteger,
 {
-    fn from(value: &'a ShortintBootstrappingKey) -> Self {
+    fn from(value: &'a ShortintBootstrappingKey<InputScalar>) -> Self {
         match value {
             ShortintBootstrappingKey::Classic {
                 bsk,
@@ -203,10 +215,12 @@ impl<'a> From<&'a ShortintBootstrappingKey>
     }
 }
 
-impl From<ShortintBootstrappingKey>
-    for SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>
+impl<InputScalar> From<ShortintBootstrappingKey<InputScalar>>
+    for SerializableShortintBootstrappingKey<InputScalar, ABox<[tfhe_fft::c64]>>
+where
+    InputScalar: UnsignedInteger,
 {
-    fn from(value: ShortintBootstrappingKey) -> Self {
+    fn from(value: ShortintBootstrappingKey<InputScalar>) -> Self {
         match value {
             ShortintBootstrappingKey::Classic {
                 bsk,
@@ -227,7 +241,10 @@ impl From<ShortintBootstrappingKey>
     }
 }
 
-impl Serialize for ShortintBootstrappingKey {
+impl<InputScalar> Serialize for ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger + Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -236,10 +253,14 @@ impl Serialize for ShortintBootstrappingKey {
     }
 }
 
-impl From<SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>>
-    for ShortintBootstrappingKey
+impl<InputScalar> From<SerializableShortintBootstrappingKey<InputScalar, ABox<[tfhe_fft::c64]>>>
+    for ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
 {
-    fn from(value: SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>) -> Self {
+    fn from(
+        value: SerializableShortintBootstrappingKey<InputScalar, ABox<[tfhe_fft::c64]>>,
+    ) -> Self {
         match value {
             SerializableShortintBootstrappingKey::Classic {
                 bsk,
@@ -272,7 +293,10 @@ impl From<SerializableShortintBootstrappingKey<ABox<[tfhe_fft::c64]>>>
     }
 }
 
-impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
+impl<'de, InputScalar> Deserialize<'de> for ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger + for<'a> Deserialize<'a>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -282,7 +306,10 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
     }
 }
 
-impl ShortintBootstrappingKey {
+impl<InputScalar> ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     pub fn input_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic { bsk, .. } => bsk.input_lwe_dimension(),
@@ -1355,14 +1382,16 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 }
 
-pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
-    bootstrapping_key: &ShortintBootstrappingKey,
+pub(crate) fn apply_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     in_buffer: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
-    InputCont: Container<Element = u64>,
-    OutputCont: ContainerMut<Element = u64>,
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
 {
     let input_improved_before_ms;
 
@@ -1385,15 +1414,16 @@ pub(crate) fn apply_blind_rotate<InputCont, OutputCont>(
     apply_blind_rotate_no_ms_noise_reduction(bootstrapping_key, &input_blind_rotate, acc, buffers);
 }
 
-pub(crate) fn apply_modulus_switch_noise_reduction<InputCont>(
-    modulus_switch_noise_reduction_key: &ModulusSwitchNoiseReductionKey,
+pub(crate) fn apply_modulus_switch_noise_reduction<InputScalar, InputCont>(
+    modulus_switch_noise_reduction_key: &ModulusSwitchNoiseReductionKey<InputScalar>,
     log_modulus: CiphertextModulusLog,
     in_buffer: &LweCiphertext<InputCont>,
-) -> LweCiphertext<Vec<u64>>
+) -> LweCiphertext<Vec<InputScalar>>
 where
-    InputCont: Container<Element = u64>,
+    InputScalar: UnsignedInteger,
+    InputCont: Container<Element = InputScalar>,
 {
-    let mut input: LweCiphertext<Vec<u64>> = LweCiphertext::from_container(
+    let mut input: LweCiphertext<Vec<_>> = LweCiphertext::from_container(
         in_buffer.as_ref().to_owned(),
         in_buffer.ciphertext_modulus(),
     );
@@ -1403,14 +1433,21 @@ where
     input
 }
 
-pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<InputCont, OutputCont>(
-    bootstrapping_key: &ShortintBootstrappingKey,
+pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
+    InputScalar,
+    InputCont,
+    OutputScalar,
+    OutputCont,
+>(
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     in_buffer: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
-    InputCont: Container<Element = u64>,
-    OutputCont: ContainerMut<Element = u64>,
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
 {
     #[cfg(feature = "pbs-stats")]
     let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -1452,15 +1489,17 @@ pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<InputCont, OutputCont>(
     }
 }
 
-pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
-    bootstrapping_key: &ShortintBootstrappingKey,
+pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar, OutputCont>(
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     in_buffer: &LweCiphertext<InputCont>,
     out_buffer: &mut LweCiphertext<OutputCont>,
-    acc: &GlweCiphertext<Vec<u64>>,
+    acc: &GlweCiphertext<Vec<OutputScalar>>,
     buffers: &mut ComputationBuffers,
 ) where
-    InputCont: Container<Element = u64>,
-    OutputCont: ContainerMut<Element = u64>,
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
 {
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
@@ -1469,15 +1508,22 @@ pub(crate) fn apply_programmable_bootstrap<InputCont, OutputCont>(
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
 }
 
-pub(crate) fn apply_programmable_bootstrap_no_ms_noise_reduction<InputCont, OutputCont>(
-    bootstrapping_key: &ShortintBootstrappingKey,
+pub(crate) fn apply_programmable_bootstrap_no_ms_noise_reduction<
+    InputScalar,
+    InputCont,
+    OutputScalar,
+    OutputCont,
+>(
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     in_buffer: &LweCiphertext<InputCont>,
     out_buffer: &mut LweCiphertext<OutputCont>,
-    acc: &GlweCiphertext<Vec<u64>>,
+    acc: &GlweCiphertext<Vec<OutputScalar>>,
     buffers: &mut ComputationBuffers,
 ) where
-    InputCont: Container<Element = u64>,
-    OutputCont: ContainerMut<Element = u64>,
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
 {
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
@@ -1620,7 +1666,10 @@ impl From<&PBSParameters> for PBSConformanceParams {
     }
 }
 
-impl ParameterSetConformant for ShortintBootstrappingKey {
+impl<InputScalar> ParameterSetConformant for ShortintBootstrappingKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     type ParameterSet = PBSConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
