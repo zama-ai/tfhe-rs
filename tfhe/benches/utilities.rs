@@ -4,10 +4,14 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::{env, fs};
 #[cfg(feature = "gpu")]
-use tfhe::core_crypto::gpu::vec::GpuIndex;
+use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
 use tfhe::core_crypto::prelude::*;
+#[cfg(all(feature = "gpu", feature = "integer"))]
+use tfhe::integer::gpu::CudaServerKey;
+#[cfg(all(feature = "gpu", feature = "integer"))]
+use tfhe::integer::ClientKey;
 
 #[cfg(feature = "boolean")]
 pub mod boolean_utils {
@@ -676,42 +680,50 @@ pub fn cuda_local_streams(num_block: usize, throughput_elements: usize) -> Vec<C
         .collect::<Vec<_>>()
 }
 
-    #[allow(dead_code)]
-    #[cfg(feature = "gpu")]
-    pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
-        let gpu_count = get_number_of_gpus() as usize;
-        let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
-        for i in 0..gpu_count {
-            let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
-            gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
+#[allow(dead_code)]
+#[cfg(all(feature = "gpu", feature = "integer"))]
+pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
+    let gpu_count = get_number_of_gpus() as usize;
+    let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
+    for i in 0..gpu_count {
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+        gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
+    }
+    gpu_sks_vec
+}
+
+// TODO Implement cuda_local_keys(cks) for core_crypto feature to support multi-gpu
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+pub struct CudaIndexes<T: Numeric> {
+    pub d_input: CudaVec<T>,
+    pub d_output: CudaVec<T>,
+    pub d_lut: CudaVec<T>,
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+impl<T: Numeric> CudaIndexes<T> {
+    pub fn new(indexes: &[T], stream: &CudaStreams, stream_index: u32) -> Self {
+        let length = indexes.len();
+        let mut d_input = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+        let mut d_output = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+        let mut d_lut = unsafe { CudaVec::<T>::new_async(length, stream, stream_index) };
+        unsafe {
+            d_input.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
+            d_output.copy_from_cpu_async(indexes.as_ref(), stream, 0);
+            d_lut.copy_from_cpu_async(indexes.as_ref(), stream, stream_index);
         }
-        gpu_sks_vec
-    }
-    #[allow(dead_code)]
-    pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
+        stream.synchronize();
 
-    #[allow(dead_code)]
-    pub enum BenchmarkType {
-        Latency,
-        Throughput,
-    }
-
-    #[allow(dead_code)]
-    impl BenchmarkType {
-        pub fn from_env() -> Result<Self, String> {
-            let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
-            match raw_value.to_lowercase().as_str() {
-                "latency" => Ok(BenchmarkType::Latency),
-                "throughput" => Ok(BenchmarkType::Throughput),
-                _ => Err(format!("benchmark type '{raw_value}' is not supported")),
-            }
+        Self {
+            d_input,
+            d_output,
+            d_lut,
         }
     }
-
-
-#[allow(unused_imports)]
-#[cfg(feature = "integer")]
-pub use integer_utils::*;
+}
 
 // Empty main to please clippy.
 #[allow(dead_code)]

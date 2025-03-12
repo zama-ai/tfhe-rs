@@ -287,11 +287,11 @@ fn keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                             input_cts
                                 .par_iter()
                                 .zip(output_cts.par_iter_mut())
-                                .for_each(|(input_ct, mut output_ct)| {
+                                .for_each(|(input_ct, output_ct)| {
                                     keyswitch_lwe_ciphertext(
                                         &ksk_big_to_small,
-                                        &input_ct,
-                                        &mut output_ct,
+                                        input_ct,
+                                        output_ct,
                                     );
                                 })
                         },
@@ -459,8 +459,8 @@ fn packing_keyswitch<Scalar, F>(
                             input_lwe_lists
                                 .par_iter()
                                 .zip(output_glwes.par_iter_mut())
-                                .for_each(|(input_lwe_list, mut output_glwe)| {
-                                    ks_op(&pksk, &input_lwe_list, &mut output_glwe);
+                                .for_each(|(input_lwe_list, output_glwe)| {
+                                    ks_op(&pksk, input_lwe_list, output_glwe);
                                 })
                         },
                         criterion::BatchSize::SmallInput,
@@ -486,24 +486,24 @@ fn packing_keyswitch<Scalar, F>(
 mod cuda {
     use crate::benchmark_parameters_64bits;
     use crate::utilities::{
-        throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord, OperatorType,
-        BENCH_TYPE,
+        throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord, CudaIndexes,
+        OperatorType, BENCH_TYPE,
     };
     use criterion::{black_box, Criterion, Throughput};
-    use rayon::iter::{IntoParallelRefIterator, IntoParallelRefMutIterator};
+    use rayon::prelude::*;
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+    use tfhe::core_crypto::gpu::vec::GpuIndex;
     use tfhe::core_crypto::gpu::{
         cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext,
         CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
 
-    fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
@@ -572,16 +572,8 @@ mod cuda {
                     let mut output_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&output_ct, &streams);
 
-                    let h_indexes = &[Scalar::ZERO];
-                    let mut d_input_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &streams, 0) };
-                    let mut d_output_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &streams, 0) };
-                    unsafe {
-                        d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams, 0);
-                        d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &streams, 0);
-                    }
-                    streams.synchronize();
+                    let h_indexes = [Scalar::ZERO];
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
                     {
@@ -591,8 +583,8 @@ mod cuda {
                                     &ksk_big_to_small_gpu,
                                     &ct_gpu,
                                     &mut output_ct_gpu,
-                                    &d_input_indexes,
-                                    &d_output_indexes,
+                                    &cuda_indexes.d_input,
+                                    &cuda_indexes.d_output,
                                     &streams,
                                 );
                                 black_box(&mut ct_gpu);
@@ -630,23 +622,27 @@ mod cuda {
                                 })
                                 .collect::<Vec<_>>();
 
+                            let h_indexes =
+                                (0..elements).map(CastFrom::cast_from).collect::<Vec<_>>();
+                            let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
+
                             // TODO Add multi-stream support
-                            (input_cts, output_cts)
+                            (input_cts, output_cts, cuda_indexes)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(input_cts, mut output_cts)| {
+                            |(input_cts, mut output_cts, cuda_indexes)| {
                                 input_cts
                                     .par_iter()
                                     .zip(output_cts.par_iter_mut())
-                                    .for_each(|(input_ct, mut output_ct)| {
+                                    .for_each(|(input_ct, output_ct)| {
                                         cuda_keyswitch_lwe_ciphertext(
                                             &ksk_big_to_small_gpu,
-                                            &input_ct,
-                                            &mut output_ct,
-                                            &d_input_indexes,
-                                            &d_output_indexes,
+                                            input_ct,
+                                            output_ct,
+                                            &cuda_indexes.d_input,
+                                            &cuda_indexes.d_output,
                                             &streams,
                                         );
                                     })
@@ -670,7 +666,9 @@ mod cuda {
         }
     }
 
-    fn cuda_packing_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    fn cuda_packing_keyswitch<
+        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize,
+    >(
         criterion: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
@@ -804,11 +802,11 @@ mod cuda {
                                 input_lwe_lists
                                     .par_iter()
                                     .zip(output_glwe_lists.par_iter_mut())
-                                    .for_each(|(input_lwe_list, mut output_glwe_list)| {
+                                    .for_each(|(input_lwe_list, output_glwe_list)| {
                                         cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext(
                                             &cuda_pksk,
-                                            &input_lwe_list,
-                                            &mut output_glwe_list,
+                                            input_lwe_list,
+                                            output_glwe_list,
                                             &streams,
                                         );
                                     })

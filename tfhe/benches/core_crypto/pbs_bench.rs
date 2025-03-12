@@ -354,13 +354,13 @@ fn mem_optimized_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
                                 .for_each(
                                     |(
                                          (
-                                             (input_ct,  mut output_ct),
+                                             (input_ct,  output_ct),
                                              accumulator),
                                          buffer,
                                      )| {
                                         programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                            &input_ct,
-                                            &mut output_ct,
+                                            input_ct,
+                                            output_ct,
                                             &accumulator.as_view(),
                                             &fourier_bsk,
                                             fft.as_view(),
@@ -592,13 +592,13 @@ fn mem_optimized_batched_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize
                                 .for_each(
                                     |(
                                          (
-                                             (input_ct_list,  mut output_ct_list),
+                                             (input_ct_list, output_ct_list),
                                              accumulator),
                                          buffer,
                                      )| {
                                         batch_programmable_bootstrap_lwe_ciphertext_mem_optimized(
-                                            &input_ct_list,
-                                            &mut output_ct_list,
+                                            input_ct_list,
+                                            output_ct_list,
                                             &accumulator.as_view(),
                                             &fourier_bsk,
                                             fft.as_view(),
@@ -772,10 +772,10 @@ fn multi_bit_pbs<
                                 .par_iter()
                                 .zip(output_pbs_cts.par_iter_mut())
                                 .zip(accumulators.par_iter())
-                                .for_each(|((input_ks_ct, mut output_pbs_ct), accumulator)| {
+                                .for_each(|((input_ks_ct, output_pbs_ct), accumulator)| {
                                     multi_bit_programmable_bootstrap_lwe_ciphertext(
-                                        &input_ks_ct,
-                                        &mut output_pbs_ct,
+                                        input_ks_ct,
+                                        output_pbs_ct,
                                         &accumulator.as_view(),
                                         &multi_bit_bsk,
                                         ThreadCount(thread_count),
@@ -1028,14 +1028,14 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
                                 .for_each(
                                     |(
                                          (
-                                             (input_ct,  mut output_ct),
+                                             (input_ct,  output_ct),
                                              accumulator),
                                          buffer,
                                      )| {
                                         programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
-                                            &input_ct,
-                                            &mut output_ct,
-                                            &accumulator,
+                                            input_ct,
+                                            output_ct,
+                                            accumulator,
                                             &nbsk,
                                             ntt.as_view(),
                                             buffer.stack(),
@@ -1066,24 +1066,24 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
 mod cuda {
     use super::{benchmark_parameters_64bits, multi_bit_benchmark_parameters_64bits};
     use crate::utilities::{
-        throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord, EnvConfig,
+        throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord, CudaIndexes,
         OperatorType, BENCH_TYPE, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
     use criterion::{black_box, Criterion, Throughput};
-    use rayon::iter::{IntoParallelRefIterator, IntoParallelRefMutIterator};
+    use rayon::prelude::*;
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
+    use tfhe::core_crypto::gpu::vec::GpuIndex;
     use tfhe::core_crypto::gpu::{
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
         cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
 
-    fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
+    fn cuda_pbs<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>)],
     ) {
@@ -1166,18 +1166,9 @@ mod cuda {
                     );
                     let mut out_pbs_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
-                    let h_indexes = &[Scalar::ZERO];
-                    let mut d_input_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    let mut d_output_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    unsafe {
-                        d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                        d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                        d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                    }
-                    stream.synchronize();
+
+                    let h_indexes = [Scalar::ZERO];
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
 
                     bench_id = format!("{bench_name}::{name}");
                     {
@@ -1187,9 +1178,9 @@ mod cuda {
                                     &lwe_ciphertext_in_gpu,
                                     &mut out_pbs_ct_gpu,
                                     &accumulator_gpu,
-                                    &d_lut_indexes,
-                                    &d_output_indexes,
-                                    &d_input_indexes,
+                                    &cuda_indexes.d_lut,
+                                    &cuda_indexes.d_output,
+                                    &cuda_indexes.d_input,
                                     LweCiphertextCount(1),
                                     &bsk_gpu,
                                     &stream,
@@ -1246,43 +1237,29 @@ mod cuda {
                                 })
                                 .collect::<Vec<_>>();
 
-                            let h_indexes = &[Scalar::ZERO];
-                            let mut d_input_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            let mut d_output_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            let mut d_lut_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            unsafe {
-                                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                                d_output_indexes.copy_from_cpu_async(
-                                    h_indexes.as_ref(),
-                                    &stream,
-                                    0,
-                                );
-                                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                            }
-                            stream.synchronize();
+                            let h_indexes =
+                                (0..elements).map(CastFrom::cast_from).collect::<Vec<_>>();
+                            let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
 
                             // TODO Add multi-stream support
-                            (input_cts, output_cts, accumulators)
+                            (input_cts, output_cts, accumulators, cuda_indexes)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(input_cts, mut output_cts, accumulators)| {
+                            |(input_cts, mut output_cts, accumulators, cuda_indexes)| {
                                 input_cts
                                     .par_iter()
                                     .zip(output_cts.par_iter_mut())
                                     .zip(accumulators.par_iter())
-                                    .for_each(|((input_ct, mut output_ct), accumulator)| {
+                                    .for_each(|((input_ct, output_ct), accumulator)| {
                                         cuda_programmable_bootstrap_lwe_ciphertext(
-                                            &input_ct,
-                                            &mut output_ct,
-                                            &accumulator,
-                                            &d_lut_indexes,
-                                            &d_output_indexes,
-                                            &d_input_indexes,
+                                            input_ct,
+                                            output_ct,
+                                            accumulator,
+                                            &cuda_indexes.d_lut,
+                                            &cuda_indexes.d_output,
+                                            &cuda_indexes.d_input,
                                             LweCiphertextCount(1),
                                             &bsk_gpu,
                                             &stream,
@@ -1309,7 +1286,13 @@ mod cuda {
     }
 
     fn cuda_multi_bit_pbs<
-        Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Default + Serialize + Sync,
+        Scalar: UnsignedTorus
+            + CastInto<usize>
+            + CastFrom<usize>
+            + CastFrom<u64>
+            + Default
+            + Serialize
+            + Sync,
     >(
         c: &mut Criterion,
         parameters: &[(String, CryptoParametersRecord<Scalar>, LweBskGroupingFactor)],
@@ -1397,18 +1380,9 @@ mod cuda {
                     );
                     let mut out_pbs_ct_gpu =
                         CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
-                    let h_indexes = &[Scalar::ZERO];
-                    let mut d_input_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    let mut d_output_indexes =
-                        unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                    unsafe {
-                        d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                        d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                        d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                    }
-                    stream.synchronize();
+
+                    let h_indexes = [Scalar::ZERO];
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
 
                     bench_id = format!("{bench_name}::{name}");
                     bench_group.bench_function(&bench_id, |b| {
@@ -1417,9 +1391,9 @@ mod cuda {
                                 &lwe_ciphertext_in_gpu,
                                 &mut out_pbs_ct_gpu,
                                 &accumulator_gpu,
-                                &d_lut_indexes,
-                                &d_output_indexes,
-                                &d_input_indexes,
+                                &cuda_indexes.d_lut,
+                                &cuda_indexes.d_output,
+                                &cuda_indexes.d_input,
                                 &multi_bit_bsk_gpu,
                                 &stream,
                             );
@@ -1474,43 +1448,29 @@ mod cuda {
                                 })
                                 .collect::<Vec<_>>();
 
-                            let h_indexes = &[Scalar::ZERO];
-                            let mut d_input_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            let mut d_output_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            let mut d_lut_indexes =
-                                unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-                            unsafe {
-                                d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                                d_output_indexes.copy_from_cpu_async(
-                                    h_indexes.as_ref(),
-                                    &stream,
-                                    0,
-                                );
-                                d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-                            }
-                            stream.synchronize();
+                            let h_indexes =
+                                (0..elements).map(CastFrom::cast_from).collect::<Vec<_>>();
+                            let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
 
                             // TODO Add multi-stream support
-                            (input_cts, output_cts, accumulators)
+                            (input_cts, output_cts, accumulators, cuda_indexes)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(input_cts, mut output_cts, accumulators)| {
+                            |(input_cts, mut output_cts, accumulators, cuda_indexes)| {
                                 input_cts
                                     .par_iter()
                                     .zip(output_cts.par_iter_mut())
                                     .zip(accumulators.par_iter())
-                                    .for_each(|((input_ct, mut output_ct), accumulator)| {
+                                    .for_each(|((input_ct, output_ct), accumulator)| {
                                         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
-                                            &input_ct,
-                                            &mut output_ct,
-                                            &accumulator,
-                                            &d_lut_indexes,
-                                            &d_output_indexes,
-                                            &d_input_indexes,
+                                            input_ct,
+                                            output_ct,
+                                            accumulator,
+                                            &cuda_indexes.d_lut,
+                                            &cuda_indexes.d_output,
+                                            &cuda_indexes.d_input,
                                             &multi_bit_bsk_gpu,
                                             &stream,
                                         );
@@ -1579,7 +1539,7 @@ fn go_through_gpu_bench_groups() {
 
 #[cfg(not(feature = "gpu"))]
 fn go_through_cpu_bench_groups() {
-    pbs_group();
+    // pbs_group();
     multi_bit_pbs_group();
 }
 
