@@ -820,11 +820,11 @@ pub fn iop_cmpx(
 
     let reduce = merged.into_iter().reduce(|acc, x| {
         x.mac(tfhe_params.msg_range() as u8, &acc)
-            .pbs(&cmp_reduce, false)
+            .pbs(&cmp_reduce, true)
     });
 
     // interprete reduce with expected cmp
-    let cmp = reduce.unwrap().pbs(&cmp_op, false);
+    let cmp = reduce.unwrap().pbs(&cmp_op, true);
     dst.mv_assign(&cmp);
 }
 
