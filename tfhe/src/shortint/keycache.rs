@@ -10,6 +10,9 @@ use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
+// TODO correct version for HPU parameters set
+// and thus remove this stmt
+use v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_HPU_PK_KS_PBS_GAUSSIAN_2M64;
 
 use super::atomic_pattern::AtomicPatternParameters;
 
