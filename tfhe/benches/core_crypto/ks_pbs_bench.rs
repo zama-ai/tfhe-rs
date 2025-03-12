@@ -455,7 +455,7 @@ mod cuda {
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
+                &output_lwe_secret_key,
                 Plaintext(Scalar::ZERO),
                 params.lwe_noise_distribution.unwrap(),
                 params.ciphertext_modulus.unwrap(),
@@ -613,7 +613,7 @@ mod cuda {
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
-                &input_lwe_secret_key,
+                &output_lwe_secret_key,
                 Plaintext(Scalar::ZERO),
                 params.lwe_noise_distribution.unwrap(),
                 params.ciphertext_modulus.unwrap(),
