@@ -159,6 +159,16 @@ __host__ void are_all_comparisons_block_true(
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out, accumulator, bsks,
           ksks, lut, 1);
+      // Reset max_value_lut_indexes before returning, otherwise if the lut is
+      // reused the lut indexes will be wrong
+      Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
+      memset(h_lut_indexes, 0, num_chunks * sizeof(Torus));
+      cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
+                               h_lut_indexes, num_chunks * sizeof(Torus),
+                               streams[0], gpu_indexes[0]);
+      is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      free(h_lut_indexes);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
