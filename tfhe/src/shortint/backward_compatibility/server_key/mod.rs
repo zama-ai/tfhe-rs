@@ -1,7 +1,7 @@
 pub mod modulus_switch_noise_reduction;
 
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{Container, PBSOrder};
+use crate::core_crypto::prelude::{Container, PBSOrder, UnsignedInteger};
 use crate::shortint::atomic_pattern::{AtomicPatternServerKey, StandardAtomicPatternServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::server_key::*;
@@ -23,12 +23,15 @@ pub enum SerializableShortintBootstrappingKeyV0<C: Container<Element = tfhe_fft:
     },
 }
 
-impl<C: Container<Element = tfhe_fft::c64>> Upgrade<SerializableShortintBootstrappingKey<C>>
+impl<InputScalar, C: Container<Element = tfhe_fft::c64>>
+    Upgrade<SerializableShortintBootstrappingKey<InputScalar, C>>
     for SerializableShortintBootstrappingKeyV0<C>
+where
+    InputScalar: UnsignedInteger,
 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<SerializableShortintBootstrappingKey<C>, Self::Error> {
+    fn upgrade(self) -> Result<SerializableShortintBootstrappingKey<InputScalar, C>, Self::Error> {
         Ok(match self {
             Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic {
                 bsk,
@@ -46,9 +49,14 @@ impl<C: Container<Element = tfhe_fft::c64>> Upgrade<SerializableShortintBootstra
 }
 
 #[derive(VersionsDispatch)]
-pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = tfhe_fft::c64>> {
+pub enum SerializableShortintBootstrappingKeyVersions<
+    InputScalar,
+    C: Container<Element = tfhe_fft::c64>,
+> where
+    InputScalar: UnsignedInteger,
+{
     V0(SerializableShortintBootstrappingKeyV0<C>),
-    V1(SerializableShortintBootstrappingKey<C>),
+    V1(SerializableShortintBootstrappingKey<InputScalar, C>),
 }
 
 impl Deprecable for ServerKey {
@@ -58,14 +66,14 @@ impl Deprecable for ServerKey {
 
 #[derive(Version)]
 pub struct ServerKeyV1 {
-    pub key_switching_key: LweKeyswitchKeyOwned<u64>,
-    pub bootstrapping_key: ShortintBootstrappingKey,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub max_degree: MaxDegree,
-    pub max_noise_level: MaxNoiseLevel,
-    pub ciphertext_modulus: CiphertextModulus,
-    pub pbs_order: PBSOrder,
+    key_switching_key: LweKeyswitchKeyOwned<u64>,
+    bootstrapping_key: ShortintBootstrappingKey<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    max_degree: MaxDegree,
+    max_noise_level: MaxNoiseLevel,
+    ciphertext_modulus: CiphertextModulus,
+    pbs_order: PBSOrder,
 }
 
 impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {

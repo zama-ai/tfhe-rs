@@ -33,7 +33,7 @@ use tfhe_versionable::Versionize;
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
     pub(super) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-    pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
     pub(super) message_modulus: MessageModulus,
     pub(super) carry_modulus: CarryModulus,
     pub(super) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
@@ -131,7 +131,7 @@ impl NoiseSquashingKey {
 
     pub fn from_raw_parts(
         bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         output_ciphertext_modulus: CoreCiphertextModulus<u128>,
@@ -149,7 +149,7 @@ impl NoiseSquashingKey {
         self,
     ) -> (
         Fourier128LweBootstrapKeyOwned,
-        Option<ModulusSwitchNoiseReductionKey>,
+        Option<ModulusSwitchNoiseReductionKey<u64>>,
         MessageModulus,
         CarryModulus,
         CoreCiphertextModulus<u128>,

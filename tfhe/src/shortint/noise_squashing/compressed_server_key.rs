@@ -18,7 +18,7 @@ use tfhe_versionable::Versionize;
 #[versionize(CompressedNoiseSquashingKeyVersions)]
 pub struct CompressedNoiseSquashingKey {
     bootstrapping_key: SeededLweBootstrapKeyOwned<u128>,
-    modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey>,
+    modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey<u64>>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
