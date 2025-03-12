@@ -1,5 +1,5 @@
 # Run core crypto benchmarks on an instance with CUDA and return parsed results to Slab CI bot.
-name: Core crypto GPU benchmarks
+name: Cuda - Core crypto benchmarks
 
 on:
   workflow_dispatch:
@@ -83,6 +83,7 @@ jobs:
       - name: Run benchmarks with AVX512
         run: |
           make bench_pbs_gpu
+          make bench_pbs128_gpu
           make bench_ks_gpu
 
       - name: Parse results

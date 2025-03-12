@@ -957,7 +957,6 @@ mod cuda {
             let mut out_pbs_ct_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
             let h_indexes = &[Scalar::ZERO];
-            stream.synchronize();
             let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
             let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
             let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
