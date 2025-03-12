@@ -62,6 +62,12 @@ class ADDS(BaseInstruction):
     def args(self):
         return f'R{self.dst_rid} R{self.src_rid} R{self.msg_cst["Cst"]}'
 
+class SUB(BaseInstruction):
+    def __init__(self, d):
+        self.__dict__ = d
+
+    def args(self):
+        return f'R{self.dst_rid} R{self.src0_rid} R{self.src1_rid}'
 
 class SSUB(BaseInstruction):
     def __init__(self, d):
