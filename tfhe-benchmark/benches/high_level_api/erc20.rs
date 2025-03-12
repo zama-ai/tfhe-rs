@@ -17,6 +17,9 @@ use tfhe::prelude::*;
 use tfhe::GpuIndex;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
 
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
 /// and cmuxes based on the comparison result
@@ -121,6 +124,28 @@ where
     );
 
     (new_from_amount, new_to_amount)
+}
+
+#[cfg(feature = "hpu")]
+/// This one use a dedicated IOp inside Hpu
+fn transfer_hpu<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: FheHpu,
+{
+    let src = HpuHandle {
+        native: vec![from_amount, to_amount, amount],
+        boolean: vec![],
+        imm: vec![],
+    };
+    let mut res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_20, src);
+    // Iop erc_20 return new_from, new_to
+    let new_to = res_handle.native.pop().unwrap();
+    let new_from = res_handle.native.pop().unwrap();
+    (new_from, new_to)
 }
 
 #[cfg(feature = "pbs-stats")]
@@ -375,7 +400,7 @@ use pbs_stats::print_transfer_pbs_counts;
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::get_number_of_gpus;
 
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn main() {
     let params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
@@ -602,6 +627,101 @@ fn main() {
         );
         group.finish();
     }
+
+    c.final_summary();
+}
+
+#[cfg(feature = "hpu")]
+fn main() {
+    let cks = {
+        // Hpu is enable, start benchmark on Hpu hw accelerator
+        use tfhe::{set_server_key, Config};
+        use tfhe_hpu_backend::prelude::*;
+
+        // Use environnement variable to construct path to configuration file
+        let config_path = ShellString::new(
+            "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+        );
+        let hpu_device = HpuDevice::from_config(&config_path.expand());
+
+        let config = Config::from_hpu_device(&hpu_device);
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        set_server_key((hpu_device, compressed_sks));
+        cks
+    };
+
+    let mut c = Criterion::default().sample_size(10).configure_from_args();
+
+    let bench_name = "hlapi::hpu::erc20::transfer";
+
+    // FheUint64 PBS counts
+    // We don't run multiple times since every input is encrypted
+    // PBS count is always the same
+    #[cfg(feature = "pbs-stats")]
+    {
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+    }
+
+    // FheUint64 latency
+    {
+        let mut group = c.benchmark_group(bench_name);
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        // Erc20 optimized instruction only available on Hpu
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_optim",
+            transfer_hpu::<FheUint64>,
+        );
+        group.finish();
+    }
+
+    // FheUint64 Throughput
+    // {
+    //     let mut group = c.benchmark_group(bench_name);
+    //     bench_transfer_throughput(
+    //         &mut group,
+    //         &cks,
+    //         bench_name,
+    //         "FheUint64",
+    //         "whitepaper",
+    //         transfer_whitepaper::<FheUint64>,
+    //     );
+    //     // Erc20 optimized instruction only available on Hpu
+    //     bench_transfer_throughput(
+    //         &mut group,
+    //         &cks,
+    //         bench_name,
+    //         "FheUint64",
+    //         "hpu_optim",
+    //         transfer_hpu::<FheUint64>,
+    //     );
+    //     group.finish();
+    // }
 
     c.final_summary();
 }
