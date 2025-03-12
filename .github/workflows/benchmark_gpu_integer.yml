@@ -26,6 +26,7 @@ on:
           - integer_multi_bit
           - integer_compression
           - pbs
+          - pbs128
           - ks
       op_flavor:
         description: "Operations set to run"
