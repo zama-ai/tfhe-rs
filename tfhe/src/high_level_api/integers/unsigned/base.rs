@@ -25,6 +25,11 @@ use crate::GpuIndex;
 use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
 
+#[cfg(feature = "hpu")]
+use crate::high_level_api::traits::{FheHpu, HpuHandle};
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
     NumberOfBlocks(usize, usize),
@@ -153,6 +158,50 @@ where
 {
     fn wait(&self) {
         self.ciphertext.wait()
+    }
+}
+
+#[cfg(feature = "hpu")]
+impl<Id> FheHpu for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn iop_exec(iop: &hpu_asm::AsmIOpcode, src: HpuHandle<&Self>) -> HpuHandle<Self> {
+        use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Hpu(device) => {
+                let mut srcs = Vec::new();
+                for n in src.native.iter() {
+                    srcs.push(n.ciphertext.on_hpu(device).clone());
+                }
+                for b in src.boolean.iter() {
+                    srcs.push(b.ciphertext.on_hpu(device).clone());
+                }
+
+                let (opcode, proto) = {
+                    (
+                        iop.opcode(),
+                        &iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
+                HpuHandle {
+                    native: hpu_res
+                        .iter()
+                        .filter(|x| !x.0.is_boolean())
+                        .map(|x| FheUint::new(x.clone(), device.tag.clone()))
+                        .collect::<Vec<_>>(),
+                    boolean: hpu_res
+                        .iter()
+                        .filter(|x| x.0.is_boolean())
+                        .map(|x| FheBool::new(x.clone(), device.tag.clone()))
+                        .collect::<Vec<_>>(),
+                    imm: Vec::new(),
+                }
+            }
+            _ => panic!("FheHw only supported on Hpu device"),
+        })
     }
 }
 
