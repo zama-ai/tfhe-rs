@@ -224,3 +224,22 @@ pub trait AddAssignSizeOnGpu<Rhs = Self> {
 pub trait FheWait {
     fn wait(&self);
 }
+
+/// Trait used to have a generic way of starting custom Hpu IOp
+#[cfg(feature = "hpu")]
+pub struct HpuHandle<T> {
+    pub native: Vec<T>,
+    pub boolean: Vec<FheBool>,
+    pub imm: Vec<u128>,
+}
+
+#[cfg(feature = "hpu")]
+pub trait FheHpu
+where
+    Self: Sized,
+{
+    fn iop_exec(
+        iop: &tfhe_hpu_backend::prelude::hpu_asm::AsmIOpcode,
+        src: HpuHandle<&Self>,
+    ) -> HpuHandle<Self>;
+}
