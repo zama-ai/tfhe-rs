@@ -25,7 +25,7 @@ use tfhe_versionable::Versionize;
 pub enum ShortintCompressedBootstrappingKey {
     Classic {
         bsk: SeededLweBootstrapKeyOwned<u64>,
-        modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey>,
+        modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey<u64>>,
     },
     MultiBit {
         seeded_bsk: SeededLweMultiBitBootstrapKeyOwned<u64>,

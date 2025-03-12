@@ -123,7 +123,7 @@ use tfhe_versionable::Versionize;
 /// );
 ///
 /// // Can be stored using much less space than the standard lwe ciphertexts
-/// let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::compress(
+/// let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::<u64>::compress(
 ///     &lwe_ciphertext_in,
 ///     log_modulus,
 ///     grouping_factor,
