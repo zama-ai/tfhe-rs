@@ -1,18 +1,20 @@
 use super::{PBSConformanceParams, PbsTypeConformanceParams};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::{CompressionSeed, DynamicDistribution};
+use crate::core_crypto::commons::math::random::{CompressionSeed, DynamicDistribution, Uniform};
 use crate::core_crypto::commons::parameters::{
     LweDimension, NoiseEstimationMeasureBound, PlaintextCount, RSigmaFactor,
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key;
-use crate::core_crypto::prelude::{CiphertextModulusLog, Variance};
+use crate::core_crypto::prelude::{
+    CiphertextModulus as CoreCiphertextModulus, CiphertextModulusLog, Variance,
+};
 use crate::shortint::backward_compatibility::server_key::modulus_switch_noise_reduction::*;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
-use crate::shortint::CiphertextModulus;
+
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
@@ -52,14 +54,20 @@ impl TryFrom<&PBSConformanceParams> for ModulusSwitchNoiseReductionKeyConformanc
 /// [improve_lwe_ciphertext_modulus_switch_noise_for_binary_key](crate::core_crypto::algorithms::modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key)
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(ModulusSwitchNoiseReductionKeyVersions)]
-pub struct ModulusSwitchNoiseReductionKey {
-    pub modulus_switch_zeros: LweCiphertextListOwned<u64>,
+pub struct ModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
+    pub modulus_switch_zeros: LweCiphertextListOwned<InputScalar>,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
     pub ms_input_variance: Variance,
 }
 
-impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
+impl<InputScalar> ParameterSetConformant for ModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
@@ -90,13 +98,16 @@ impl ParameterSetConformant for ModulusSwitchNoiseReductionKey {
     }
 }
 
-impl ModulusSwitchNoiseReductionKey {
+impl<InputScalar> ModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     pub fn improve_modulus_switch_noise<Cont>(
         &self,
         input: &mut LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,
     ) where
-        Cont: ContainerMut<Element = u64>,
+        Cont: ContainerMut<Element = InputScalar>,
     {
         improve_lwe_ciphertext_modulus_switch_noise_for_binary_key(
             input,
@@ -111,14 +122,20 @@ impl ModulusSwitchNoiseReductionKey {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchNoiseReductionKeyVersions)]
-pub struct CompressedModulusSwitchNoiseReductionKey {
-    pub modulus_switch_zeros: SeededLweCiphertextListOwned<u64>,
+pub struct CompressedModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
+    pub modulus_switch_zeros: SeededLweCiphertextListOwned<InputScalar>,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
     pub ms_input_variance: Variance,
 }
 
-impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
+impl<InputScalar> ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
     type ParameterSet = ModulusSwitchNoiseReductionKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
@@ -149,13 +166,16 @@ impl ParameterSetConformant for CompressedModulusSwitchNoiseReductionKey {
     }
 }
 
-impl ModulusSwitchNoiseReductionKey {
-    pub fn new<KeyCont: Container<Element = u64> + Sync>(
+impl<InputScalar> ModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: Encryptable<Uniform, DynamicDistribution<InputScalar>>,
+{
+    pub fn new<KeyCont: Container<Element = InputScalar> + Sync>(
         modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
         secret_key: &LweSecretKey<KeyCont>,
         engine: &mut ShortintEngine,
-        ciphertext_modulus: CiphertextModulus,
-        lwe_noise_distribution: DynamicDistribution<u64>,
+        ciphertext_modulus: CoreCiphertextModulus<InputScalar>,
+        lwe_noise_distribution: DynamicDistribution<InputScalar>,
     ) -> Self {
         let ModulusSwitchNoiseReductionParams {
             modulus_switch_zeros_count: count,
@@ -167,9 +187,9 @@ impl ModulusSwitchNoiseReductionKey {
         let lwe_size = secret_key.lwe_dimension().to_lwe_size();
 
         let mut modulus_switch_zeros =
-            LweCiphertextList::new(0, lwe_size, count, ciphertext_modulus);
+            LweCiphertextList::new(InputScalar::ZERO, lwe_size, count, ciphertext_modulus);
 
-        let plaintext_list = PlaintextList::new(0, PlaintextCount(count.0));
+        let plaintext_list = PlaintextList::new(InputScalar::ZERO, PlaintextCount(count.0));
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
@@ -200,13 +220,16 @@ impl ModulusSwitchNoiseReductionKey {
     }
 }
 
-impl CompressedModulusSwitchNoiseReductionKey {
-    pub fn new<KeyCont: Container<Element = u64> + Sync>(
+impl<InputScalar> CompressedModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: Encryptable<Uniform, DynamicDistribution<InputScalar>>,
+{
+    pub fn new<KeyCont: Container<Element = InputScalar> + Sync>(
         modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
         secret_key: &LweSecretKey<KeyCont>,
         engine: &mut ShortintEngine,
-        ciphertext_modulus: CiphertextModulus,
-        lwe_noise_distribution: DynamicDistribution<u64>,
+        ciphertext_modulus: CoreCiphertextModulus<InputScalar>,
+        lwe_noise_distribution: DynamicDistribution<InputScalar>,
         compression_seed: CompressionSeed,
     ) -> Self {
         let ModulusSwitchNoiseReductionParams {
@@ -218,10 +241,15 @@ impl CompressedModulusSwitchNoiseReductionKey {
 
         let lwe_size = secret_key.lwe_dimension().to_lwe_size();
 
-        let mut modulus_switch_zeros =
-            SeededLweCiphertextList::new(0, lwe_size, count, compression_seed, ciphertext_modulus);
+        let mut modulus_switch_zeros = SeededLweCiphertextList::new(
+            InputScalar::ZERO,
+            lwe_size,
+            count,
+            compression_seed,
+            ciphertext_modulus,
+        );
 
-        let plaintext_list = PlaintextList::new(0, PlaintextCount(count.0));
+        let plaintext_list = PlaintextList::new(InputScalar::ZERO, PlaintextCount(count.0));
 
         // Parallelism allowed
         #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
@@ -250,8 +278,13 @@ impl CompressedModulusSwitchNoiseReductionKey {
             ms_input_variance,
         }
     }
+}
 
-    pub fn decompress(&self) -> ModulusSwitchNoiseReductionKey {
+impl<InputScalar> CompressedModulusSwitchNoiseReductionKey<InputScalar>
+where
+    InputScalar: UnsignedTorus,
+{
+    pub fn decompress(&self) -> ModulusSwitchNoiseReductionKey<InputScalar> {
         ModulusSwitchNoiseReductionKey {
             modulus_switch_zeros: self
                 .modulus_switch_zeros
