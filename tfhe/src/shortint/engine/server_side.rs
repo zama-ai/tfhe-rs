@@ -115,7 +115,7 @@ impl ShortintEngine {
         pbs_params_base: PBSParameters,
         in_key: &LweSecretKey<InKeycont>,
         out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> ShortintBootstrappingKey {
+    ) -> ShortintBootstrappingKey<u64> {
         match pbs_params_base {
             PBSParameters::PBS(pbs_params) => {
                 let bsk = self.new_classic_bootstrapping_key(

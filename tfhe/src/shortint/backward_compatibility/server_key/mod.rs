@@ -1,7 +1,7 @@
 pub mod modulus_switch_noise_reduction;
 
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::Container;
+use crate::core_crypto::prelude::{Container, UnsignedInteger};
 use crate::shortint::server_key::*;
 use std::convert::Infallible;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
@@ -16,12 +16,15 @@ pub enum SerializableShortintBootstrappingKeyV0<C: Container<Element = tfhe_fft:
     },
 }
 
-impl<C: Container<Element = tfhe_fft::c64>> Upgrade<SerializableShortintBootstrappingKey<C>>
+impl<InputScalar, C: Container<Element = tfhe_fft::c64>>
+    Upgrade<SerializableShortintBootstrappingKey<InputScalar, C>>
     for SerializableShortintBootstrappingKeyV0<C>
+where
+    InputScalar: UnsignedInteger,
 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<SerializableShortintBootstrappingKey<C>, Self::Error> {
+    fn upgrade(self) -> Result<SerializableShortintBootstrappingKey<InputScalar, C>, Self::Error> {
         Ok(match self {
             Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic {
                 bsk,
@@ -39,9 +42,14 @@ impl<C: Container<Element = tfhe_fft::c64>> Upgrade<SerializableShortintBootstra
 }
 
 #[derive(VersionsDispatch)]
-pub enum SerializableShortintBootstrappingKeyVersions<C: Container<Element = tfhe_fft::c64>> {
+pub enum SerializableShortintBootstrappingKeyVersions<
+    InputScalar,
+    C: Container<Element = tfhe_fft::c64>,
+> where
+    InputScalar: UnsignedInteger,
+{
     V0(SerializableShortintBootstrappingKeyV0<C>),
-    V1(SerializableShortintBootstrappingKey<C>),
+    V1(SerializableShortintBootstrappingKey<InputScalar, C>),
 }
 
 impl Deprecable for ServerKey {
