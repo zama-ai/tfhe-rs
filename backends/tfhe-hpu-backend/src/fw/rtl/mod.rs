@@ -231,6 +231,10 @@ impl VarCell {
         var.set_driver(Some((new_op.clone(), 0)));
         var
     }
+
+    pub fn from_vec(v: Vec<MetaVarCell>) -> Vec<VarCell> {
+        v.into_iter().map(VarCell::from).collect()
+    }
 }
 
 impl Default for VarCell {
@@ -243,6 +247,14 @@ impl From<MetaVarCell> for VarCell {
     fn from(meta: MetaVarCell) -> VarCell {
         let var = VarCell::new();
         var.set_meta(meta);
+        var
+    }
+}
+
+impl From<&MetaVarCell> for VarCell {
+    fn from(meta: &MetaVarCell) -> VarCell {
+        let var = VarCell::new();
+        var.set_meta(meta.clone());
         var
     }
 }
@@ -1368,6 +1380,13 @@ impl Rtl {
 
     pub fn estimate(self, prog: &Program) -> usize {
         self.raw_add(prog).0
+    }
+}
+
+impl std::ops::Add<Rtl> for Rtl {
+    type Output = Rtl;
+    fn add(self, rhs: Rtl) -> Self::Output {
+        self.into_iter().chain(rhs).collect::<Vec<_>>().into()
     }
 }
 

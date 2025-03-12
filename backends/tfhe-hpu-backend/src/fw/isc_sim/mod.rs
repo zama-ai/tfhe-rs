@@ -144,6 +144,7 @@ enum TraceEvent {
     Timeout,
     ReqTimeout(usize),
     DelTimeout,
+    BatchStart { pe_id: usize, issued: usize },
 }
 
 /// Generate a detailed execution trace that could be read afterward
