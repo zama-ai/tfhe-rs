@@ -1490,17 +1490,15 @@ pub fn iop_erc_20(prog: &mut Program) {
 
     // Fuse real_amount computation and new_from, new_to
     // First compute a batch of real_amount in advance
-    let mut real_amount_work = (0..props.blk_w()).map(|x| x);
+    let mut real_amount_work = (0..props.blk_w()).map(|x| x).peekable();
+    let mut upfront_work = real_amount_work.by_ref().take(props.pbs_batch_w).peekable();
     prog.push_comment(format!(" ==> Compute some real_amount in advance"));
-    let mut real_amount = real_amount_work
-        .by_ref()
-        .take(props.pbs_batch_w)
-        .map(|blk| {
-            let mut val_cond = enough_fund.mac(tfhe_params.msg_range() as u8, &src_amount[blk]);
-            val_cond.pbs_assign(&pbs_if_false_zeroed, false);
-            val_cond
-        })
-        .collect::<VecDeque<_>>();
+    let mut real_amount = VecDeque::new();
+    while let Some(blk) = upfront_work.next() {
+        let mut val_cond = enough_fund.mac(tfhe_params.msg_range() as u8, &src_amount[blk]);
+        val_cond.pbs_assign(&pbs_if_false_zeroed, upfront_work.peek().is_none());
+        real_amount.push_back(val_cond);
+    }
 
     let mut add_carry: Option<metavar::MetaVarCell> = None;
 
@@ -1556,7 +1554,7 @@ pub fn iop_erc_20(prog: &mut Program) {
             sub_carry = Some(sub_msg.pbs(&pbs_carry, false));
         }
         // Force allocation of new reg to allow carry/msg pbs to run in //
-        let sub_msg = sub_msg.pbs(&pbs_msg, false);
+        let sub_msg = sub_msg.pbs(&pbs_msg, true);
 
         // Store result
         dst_to[blk] <<= add_msg;
