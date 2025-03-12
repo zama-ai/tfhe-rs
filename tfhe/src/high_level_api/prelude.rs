@@ -12,6 +12,8 @@ pub use crate::high_level_api::traits::{
     OverflowingAdd, OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign, ScalarIfThenElse, SquashNoise, Tagged,
 };
+#[cfg(feature = "hpu")]
+pub use crate::high_level_api::traits::{FheHpu, HpuHandle};
 
 pub use crate::conformance::ParameterSetConformant;
 pub use crate::core_crypto::prelude::{CastFrom, CastInto};
