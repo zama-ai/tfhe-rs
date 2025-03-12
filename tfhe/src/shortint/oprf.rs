@@ -60,7 +60,7 @@ pub fn create_random_from_seed_modulus_switched(
 }
 
 pub(crate) fn generate_pseudo_random_from_pbs(
-    bootstrapping_key: &ShortintBootstrappingKey,
+    bootstrapping_key: &ShortintBootstrappingKey<u64>,
     seed: Seed,
     random_bits_count: u64,
     full_bits_count: u64,

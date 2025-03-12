@@ -36,7 +36,7 @@ use crate::shortint::{
 #[versionize(StandardAtomicPatternServerKeyVersions)]
 pub struct StandardAtomicPatternServerKey {
     pub key_switching_key: LweKeyswitchKeyOwned<u64>,
-    pub bootstrapping_key: ShortintBootstrappingKey,
+    pub bootstrapping_key: ShortintBootstrappingKey<u64>,
     pub pbs_order: PBSOrder,
 }
 
@@ -100,7 +100,7 @@ impl StandardAtomicPatternServerKey {
 
     pub fn from_raw_parts(
         key_switching_key: LweKeyswitchKeyOwned<u64>,
-        bootstrapping_key: ShortintBootstrappingKey,
+        bootstrapping_key: ShortintBootstrappingKey<u64>,
         pbs_order: PBSOrder,
     ) -> Self {
         assert_eq!(
