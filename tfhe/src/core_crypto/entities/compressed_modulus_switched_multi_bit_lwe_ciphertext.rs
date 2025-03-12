@@ -168,27 +168,31 @@ use tfhe_versionable::Versionize;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedMultiBitLweCiphertextVersions)]
 pub struct CompressedModulusSwitchedMultiBitLweCiphertext<
-    Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
+    PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>,
 > {
-    body: usize,
-    packed_mask: PackedIntegers<usize>,
-    packed_diffs: Option<PackedIntegers<usize>>,
+    body: PackingScalar,
+    packed_mask: PackedIntegers<PackingScalar>,
+    packed_diffs: Option<PackedIntegers<PackingScalar>>,
     lwe_dimension: LweDimension,
-    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    uncompressed_ciphertext_modulus: CiphertextModulus<PackingScalar>,
     grouping_factor: LweBskGroupingFactor,
 }
 
-impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
-    CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>
+impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
+    CompressedModulusSwitchedMultiBitLweCiphertext<PackingScalar>
 {
     pub(crate) fn from_raw_parts(
-        body: usize,
-        packed_mask: PackedIntegers<usize>,
-        packed_diffs: Option<PackedIntegers<usize>>,
+        body: PackingScalar,
+        packed_mask: PackedIntegers<PackingScalar>,
+        packed_diffs: Option<PackedIntegers<PackingScalar>>,
         lwe_dimension: LweDimension,
-        uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+        uncompressed_ciphertext_modulus: CiphertextModulus<PackingScalar>,
         grouping_factor: LweBskGroupingFactor,
     ) -> Self {
+        assert_ne!(
+            grouping_factor.0, 0,
+            "Multibit grouping factor should not be 0"
+        );
         assert_eq!(
             packed_mask.initial_len() % grouping_factor.0,
             0,
@@ -235,11 +239,11 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     pub(crate) fn into_raw_parts(
         self,
     ) -> (
-        usize,
-        PackedIntegers<usize>,
-        Option<PackedIntegers<usize>>,
+        PackingScalar,
+        PackedIntegers<PackingScalar>,
+        Option<PackedIntegers<PackingScalar>>,
         LweDimension,
-        CiphertextModulus<Scalar>,
+        CiphertextModulus<PackingScalar>,
         LweBskGroupingFactor,
     ) {
         let Self {
@@ -263,12 +267,23 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
     /// Compresses a ciphertext by reducing its modulus
     /// This operation adds a lot of noise
-    pub fn compress<Cont: Container<Element = Scalar>>(
+    pub fn compress<Scalar, Cont>(
         ct: &LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,
         grouping_factor: LweBskGroupingFactor,
-    ) -> Self {
-        let uncompressed_ciphertext_modulus = ct.ciphertext_modulus();
+    ) -> Self
+    where
+        Scalar: UnsignedInteger + CastInto<PackingScalar> + CastFrom<usize>,
+        Cont: Container<Element = Scalar>,
+        PackingScalar::Signed: Ord + CastInto<PackingScalar>,
+    {
+        let uncompressed_ciphertext_modulus =
+            ct.ciphertext_modulus().try_to().unwrap_or_else(|_| {
+                panic!(
+                "The ciphertext modulus (={}) for modulus switch compression does not fit in the \
+                 PackingScalar (={})",
+                ct.ciphertext_modulus(), PackingScalar::BITS)
+            });
 
         assert!(
             ct.ciphertext_modulus().is_power_of_two(),
@@ -284,7 +299,8 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         assert!(
             log_modulus.0 <= uncompressed_ciphertext_modulus_log,
-            "The log_modulus (={}) for modulus switch compression must be smaller than the uncompressed ciphertext_modulus_log (={})",
+            "The log_modulus (={}) for modulus switch compression must be smaller than the \
+             uncompressed ciphertext_modulus_log (={})",
             log_modulus.0,
             uncompressed_ciphertext_modulus_log,
         );
@@ -293,7 +309,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         let body = modulus_switch(*input_lwe_body.data, log_modulus).cast_into();
 
-        let modulus_switched: Vec<usize> = input_lwe_mask
+        let modulus_switched: Vec<_> = input_lwe_mask
             .as_ref()
             .iter()
             .map(|a| modulus_switch(*a, log_modulus).cast_into())
@@ -309,7 +325,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
                     continue;
                 }
 
-                let mut sum_then_mod_switched = 0;
+                let mut sum_then_mod_switched = PackingScalar::ZERO;
 
                 let mut monomial_degree = Scalar::ZERO;
 
@@ -317,22 +333,22 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
                     .iter()
                     .zip_eq(selection_bit(grouping_factor, ggsw_idx))
                 {
-                    let selection_bit: Scalar = Scalar::cast_from(selection_bit);
+                    let selection_bit = Scalar::cast_from(selection_bit);
 
                     monomial_degree =
                         monomial_degree.wrapping_add(selection_bit.wrapping_mul(mask_element));
 
-                    let modulus_switched =
+                    let modulus_switched: PackingScalar =
                         modulus_switch(selection_bit.wrapping_mul(mask_element), log_modulus)
                             .cast_into();
 
                     sum_then_mod_switched = sum_then_mod_switched.wrapping_add(modulus_switched);
                 }
 
-                let mod_switched_then_sum: usize =
+                let mod_switched_then_sum: PackingScalar =
                     modulus_switch(monomial_degree, log_modulus).cast_into();
 
-                sum_then_mod_switched %= 1 << log_modulus.0;
+                sum_then_mod_switched %= PackingScalar::ONE << log_modulus.0;
 
                 let diff = mod_switched_then_sum.wrapping_sub(sum_then_mod_switched);
 
@@ -342,33 +358,34 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         let packed_mask = PackedIntegers::pack(&modulus_switched, log_modulus);
 
-        let packed_diffs = if diffs.iter().all(|a| *a == 0) {
+        let packed_diffs = if diffs.iter().all(|a| *a == PackingScalar::ZERO) {
             None
         } else {
             // We need some space to store integer in 2 complement representation
             // We must have -half_space <= value < half_space
             // <=> half_space >= -value and half_space >= value + 1
             // <=> half_space >= max(-value, value + 1)
-            let half_needed_space = diffs
+            let half_needed_space: PackingScalar = diffs
                 .iter()
-                .map(|a| *a as isize)
-                .map(|a| (a + 1).max(-a))
+                .map(|a| PackingScalar::Signed::cast_from(*a))
+                .map(|a| (a + PackingScalar::Signed::ONE).max(-a))
                 .max()
-                .unwrap() as usize;
+                .unwrap()
+                .cast_into();
 
             let half_needed_space_ceil_log = half_needed_space.ceil_ilog2();
 
             let used_space_log = half_needed_space_ceil_log + 1;
 
-            let diffs_two_complement: Vec<usize> = diffs
+            let diffs_two_complement: Vec<_> = diffs
                 .iter()
-                .map(|a| *a as isize)
+                .map(|a| PackingScalar::Signed::cast_from(*a))
                 .map(|a| {
                     // put into two complement representation on used_space_log bits
-                    if a >= 0 {
-                        a as usize
+                    if a >= PackingScalar::Signed::ZERO {
+                        a.cast_into()
                     } else {
-                        ((1_isize << used_space_log) + a) as usize
+                        ((PackingScalar::Signed::ONE << used_space_log as usize) + a).cast_into()
                     }
                 })
                 .collect();
@@ -393,7 +410,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> FromCompressionMultiBitModulusSwitchedCt {
-        let masks: Vec<usize> = self.packed_mask.unpack().collect();
+        let masks: Vec<usize> = self.packed_mask.unpack().map(|a| a.cast_into()).collect();
 
         assert_eq!(
             masks.len() % self.grouping_factor.0,
@@ -406,7 +423,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         let mut diffs_two_complement: Vec<usize> = vec![];
 
         if let Some(packed_diffs) = &self.packed_diffs {
-            diffs_two_complement = packed_diffs.unpack().collect()
+            diffs_two_complement = packed_diffs.unpack().map(|a| a.cast_into()).collect()
         }
 
         let diffs = |a: usize| {
@@ -452,7 +469,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         }
 
         FromCompressionMultiBitModulusSwitchedCt {
-            switched_modulus_input_lwe_body: self.body,
+            switched_modulus_input_lwe_body: self.body.cast_into(),
             switched_modulus_input_mask_per_group,
             grouping_factor: self.grouping_factor,
             lwe_dimension: self.lwe_dimension,
@@ -505,7 +522,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
 
         let lwe_dim = lwe_dimension.0;
 
-        body >> packed_mask.log_modulus().0 == 0
+        *body >> packed_mask.log_modulus().0 == Scalar::ZERO
             && packed_mask.is_conformant(&lwe_dim)
             && packed_diffs
                 .as_ref()
@@ -542,7 +559,7 @@ mod test {
         // We don't care about the exact content here
         rand::thread_rng().fill(lwe.as_mut());
 
-        let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::compress(
+        let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::<u64>::compress(
             &lwe,
             CiphertextModulusLog(log_modulus),
             grouping_factor,
