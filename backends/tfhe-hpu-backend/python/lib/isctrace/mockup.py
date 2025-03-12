@@ -48,6 +48,13 @@ class ReqTimeout:
     def to_analysis(self):
         return analysis.ReqTimeout(self.timestamp)
 
+class BatchStart:
+    def __init__(self, d):
+        self.pe_id = d['pe_id']
+        self.issued = d['issued']
+    def to_analysis(self):
+        return analysis.BatchStart(self.pe_id, self.issued)
+
 class NamedEvent:
     def __init__(self, name):
         self.name = name
