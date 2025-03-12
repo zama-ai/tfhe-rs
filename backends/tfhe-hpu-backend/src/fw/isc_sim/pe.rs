@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use serde::{Deserialize, Serialize};
 
 use crate::prelude::HpuParameters;
@@ -79,7 +81,7 @@ pub(crate) struct Pe {
     // The current limit to start execution. Can be less than batch_size.max
     batch_limit: usize,
     // Flush state of the instructions currently in the PE+Queue
-    in_fifo: Vec<bool>,
+    in_fifo: VecDeque<bool>,
     // Instructions in the FIFO that are reading from the regfile
     reading: usize,
     // Instructions in the FIFO that have finished reading but not yet executing
@@ -122,7 +124,7 @@ impl Pe {
     }
 
     fn push(&mut self, flush: bool) {
-        self.in_fifo.push(flush);
+        self.in_fifo.push_back(flush);
         assert!(
             self.in_fifo.len() <= self.fifo_limit,
             "Pushed above the PE fifo limit"
@@ -138,7 +140,7 @@ impl Pe {
     fn wr_unlock(&mut self) {
         assert!(0 < self.executing, "WrUnlock request on a non-busy PE");
         self.executing -= 1;
-        self.in_fifo.pop();
+        self.in_fifo.pop_front();
     }
 
     fn probe_for_exec(
@@ -166,10 +168,10 @@ impl Pe {
 
         if !self.is_busy() {
             // Check if a batch can be issued
-            let issued = self.in_fifo[0..self.waiting]
-                .iter()
+            let issued = (0..self.waiting)
+                .map(|i| self.in_fifo[i])
                 // Check if there's a forced flush queued
-                .position(|c| *c)
+                .position(|c| c)
                 .and_then(|p| {
                     if self.opportunistic {
                         // In opportunistic mode, we flush everything that is
@@ -404,7 +406,7 @@ impl From<PeConfig> for Pe {
                 .unwrap_or(usize::MAX)
                 .saturating_add(in_limit.unwrap_or(usize::MAX)),
             batch_limit: batch_size.max,
-            in_fifo: Vec::new(),
+            in_fifo: VecDeque::new(),
             ..Default::default()
         }
     }
