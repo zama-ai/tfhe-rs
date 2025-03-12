@@ -142,10 +142,13 @@ impl Scheduler {
                     };
                     false
                 }
-                EventType::BatchStart {
-                    pe_id: _,
-                    issued: _,
-                } => false,
+                EventType::BatchStart { pe_id, issued } => {
+                    self.trace.push(Trace {
+                        timestamp: self.sim_cycles,
+                        event: TraceEvent::BatchStart { pe_id, issued },
+                    });
+                    false
+                }
                 EventType::QuantumEnd => {
                     break;
                 }

@@ -86,3 +86,8 @@
   fill_batch_fifo = false
   min_batch_size = true
   flush = true
+
+[firmware.op_cfg.by_op.ERC_20]
+  fill_batch_fifo = false
+  min_batch_size = true
+  flush = false

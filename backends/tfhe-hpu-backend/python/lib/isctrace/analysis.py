@@ -60,7 +60,7 @@ class ReqTimeout(BaseEvent):
         self.timestamp = stamp
     def as_dict(self):
         ret = super().as_dict()
-        ret.update({'reset_time': self.timestamp})
+        ret.update({'data': f"{self.__dict__}"})
         return ret
 
 class Timeout(BaseEvent):
@@ -70,6 +70,15 @@ class Timeout(BaseEvent):
 class DelTimeout(BaseEvent):
     def __init__(self):
         pass
+
+class BatchStart(BaseEvent):
+    def __init__(self, pe_id, issued):
+        self.pe_id = pe_id
+        self.issued = issued
+    def as_dict(self):
+        ret = super().as_dict()
+        ret.update({'data': f"{self.__dict__}"})
+        return ret
 
 """
 A trace event
