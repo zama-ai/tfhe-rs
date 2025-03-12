@@ -22,14 +22,14 @@ crate::impl_fw!("Ilp" [
     ADDK => fw_impl::ilp::iop_add_kogge;
     SUB => fw_impl::ilp::iop_sub;
     SUBK => fw_impl::ilp::iop_sub_kogge;
-    MUL => fw_impl::ilp::iop_mul;
-    MULL => fw_impl::ilp::iop_mul_legacy;
+    MUL => fw_impl::ilp::iop_mul_legacy;
+    MULF => fw_impl::ilp::iop_mul;
 
     ADDS => fw_impl::ilp::iop_adds;
     SUBS => fw_impl::ilp::iop_subs;
     SSUB => fw_impl::ilp::iop_ssub;
-    MULS => fw_impl::ilp::iop_muls;
-    MULSL => fw_impl::ilp::iop_muls_legacy;
+    MULS => fw_impl::ilp::iop_muls_legacy;
+    MULSF => fw_impl::ilp::iop_muls;
 
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
