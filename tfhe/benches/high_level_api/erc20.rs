@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{write_to_json, OperatorType};
-use criterion::measurement::WallTime;
+use criterion::{black_box, measurement::WallTime};
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
@@ -12,6 +12,9 @@ use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
+
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
 
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
@@ -107,6 +110,28 @@ where
     (new_from_amount, new_to_amount)
 }
 
+#[cfg(feature = "hpu")]
+/// This one use a dedicated IOp inside Hpu
+fn transfer_hpu<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: FheHpu,
+{
+    let src = HpuHandle {
+        native: vec![from_amount, to_amount, amount],
+        boolean: vec![],
+        imm: vec![],
+    };
+    let mut res_handle = FheHpu::iop_exec(&hpu_asm::iop::IOP_ERC_20, src);
+    // Iop erc_20 return new_from, new_to
+    let new_to = res_handle.native.pop().unwrap();
+    let new_from = res_handle.native.pop().unwrap();
+    (new_from, new_to)
+}
+
 #[cfg(feature = "pbs-stats")]
 mod pbs_stats {
     use super::*;
@@ -181,6 +206,7 @@ fn bench_transfer_latency<FheType, F>(
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey>,
+    FheType: FheWait,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
 {
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
@@ -192,16 +218,25 @@ fn bench_transfer_latency<FheType, F>(
         let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         b.iter(|| {
-            let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
+            let (new_from, new_to) = transfer_func(&from_amount, &to_amount, &amount);
+            new_from.wait();
+            black_box(new_from);
+            new_to.wait();
+            black_box(new_to);
         })
     });
 
     let params = client_key.computation_parameters();
+    let params_name = if cfg!(feature = "hpu") {
+        "hpu_parameters".to_string()
+    } else {
+        params.name()
+    };
 
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params.name(),
+        params_name,
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -218,6 +253,7 @@ fn bench_transfer_throughput<FheType, F>(
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    FheType: FheWait,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     let mut rng = thread_rng();
@@ -240,22 +276,51 @@ fn bench_transfer_throughput<FheType, F>(
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
                 .collect::<Vec<_>>();
 
+            #[cfg(not(feature = "hpu"))]
             b.iter(|| {
                 from_amounts
                     .par_iter()
                     .zip(to_amounts.par_iter().zip(amounts.par_iter()))
                     .for_each(|(from_amount, (to_amount, amount))| {
-                        let (_, _) = transfer_func(from_amount, to_amount, amount);
+                        let (new_from, new_to) = transfer_func(from_amount, to_amount, amount);
+                        new_from.wait();
+                        black_box(new_from);
+                        new_to.wait();
+                        black_box(new_to);
                     })
-            })
+            });
+
+            #[cfg(feature = "hpu")]
+            b.iter(|| {
+                let (last_new_from, last_new_to) = std::iter::zip(
+                    from_amounts.iter(),
+                    std::iter::zip(to_amounts.iter(), amounts.iter()),
+                )
+                .map(|(from_amount, (to_amount, amount))| {
+                    transfer_func(from_amount, to_amount, amount)
+                })
+                .last()
+                .unwrap();
+
+                // Wait on last result to enforce all computation is over
+                last_new_from.wait();
+                black_box(last_new_from);
+                last_new_to.wait();
+                black_box(last_new_to);
+            });
         });
 
         let params = client_key.computation_parameters();
+        let params_name = if cfg!(feature = "hpu") {
+            "hpu_parameters".to_string()
+        } else {
+            params.name()
+        };
 
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params.name(),
+            params_name,
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
@@ -270,22 +335,53 @@ use pbs_stats::print_transfer_pbs_counts;
 use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
 fn main() {
-    #[cfg(not(feature = "gpu"))]
-    let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     #[cfg(feature = "gpu")]
-    let params = PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+    let cks = {
+        let params = PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+        let config = ConfigBuilder::with_custom_parameters(params).build();
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
 
-    let config = ConfigBuilder::with_custom_parameters(params).build();
-    let cks = ClientKey::generate(config);
-    let compressed_sks = CompressedServerKey::new(&cks);
+        let sks = compressed_sks.decompress_to_gpu();
 
-    #[cfg(not(feature = "gpu"))]
-    let sks = compressed_sks.decompress();
-    #[cfg(feature = "gpu")]
-    let sks = compressed_sks.decompress_to_gpu();
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+        cks
+    };
 
-    rayon::broadcast(|_| set_server_key(sks.clone()));
-    set_server_key(sks);
+    #[cfg(feature = "hpu")]
+    let cks = {
+        // Hpu is enable, start benchmark on Hpu hw accelerator
+        use tfhe::{set_server_key, Config};
+        use tfhe_hpu_backend::prelude::*;
+
+        // Use environnement variable to construct path to configuration file
+        let config_path = ShellString::new(
+            "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+        );
+        let hpu_device = HpuDevice::from_config(&config_path.expand());
+
+        let config = Config::from_hpu_device(&hpu_device);
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        set_server_key((hpu_device, compressed_sks));
+        cks
+    };
+
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+    let cks = {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let config = ConfigBuilder::with_custom_parameters(params).build();
+        let cks = ClientKey::generate(config);
+        let compressed_sks = CompressedServerKey::new(&cks);
+
+        let sks = compressed_sks.decompress();
+
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+        cks
+    };
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
@@ -314,6 +410,8 @@ fn main() {
     {
         let bench_name = if cfg!(feature = "gpu") {
             "hlapi::cuda::erc20::transfer_latency"
+        } else if cfg!(feature = "hpu") {
+            "hlapi::hpu::erc20::transfer_latency"
         } else {
             "hlapi::erc20::transfer_latency"
         };
@@ -327,6 +425,7 @@ fn main() {
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_latency(
             &mut group,
             &cks,
@@ -335,6 +434,7 @@ fn main() {
             "no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_latency(
             &mut group,
             &cks,
@@ -343,6 +443,7 @@ fn main() {
             "overflow",
             transfer_overflow::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_latency(
             &mut group,
             &cks,
@@ -352,13 +453,26 @@ fn main() {
             transfer_safe::<FheUint64>,
         );
 
+        // Erc20 optimized instruction only available on Hpu
+        #[cfg(feature = "hpu")]
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_optim",
+            transfer_hpu::<FheUint64>,
+        );
         group.finish();
     }
 
     // FheUint64 Throughput
+    #[cfg(not(feature = "hpu"))]
     {
         let bench_name = if cfg!(feature = "gpu") {
             "hlapi::cuda::erc20::transfer_throughput"
+        } else if cfg!(feature = "hpu") {
+            "hlapi::hpu::erc20::transfer_throughput"
         } else {
             "hlapi::erc20::transfer_throughput"
         };
@@ -372,6 +486,7 @@ fn main() {
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_throughput(
             &mut group,
             &cks,
@@ -380,6 +495,7 @@ fn main() {
             "no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_throughput(
             &mut group,
             &cks,
@@ -388,6 +504,7 @@ fn main() {
             "overflow",
             transfer_overflow::<FheUint64>,
         );
+        #[cfg(not(feature = "hpu"))]
         bench_transfer_throughput(
             &mut group,
             &cks,
@@ -395,6 +512,16 @@ fn main() {
             "FheUint64",
             "safe",
             transfer_safe::<FheUint64>,
+        );
+        // Erc20 optimized instruction only available on Hpu
+        #[cfg(feature = "hpu")]
+        bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_optim",
+            transfer_hpu::<FheUint64>,
         );
         group.finish();
     }
