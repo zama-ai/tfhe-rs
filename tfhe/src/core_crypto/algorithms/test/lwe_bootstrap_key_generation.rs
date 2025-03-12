@@ -6,8 +6,8 @@ use crate::core_crypto::commons::math::random::{
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension,
-    PolynomialSize,
+    ChunkSize, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweDimension,
+    LweDimension, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools::new_secret_random_generator;
 use crate::core_crypto::entities::*;
@@ -17,7 +17,7 @@ const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
+fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
     ciphertext_modulus: CiphertextModulus<T>,
 ) {
     for _ in 0..NB_TESTS {
@@ -144,29 +144,76 @@ fn test_parallel_and_seeded_bsk_gen_equivalence<T: UnsignedTorus + Sync + Send>(
         let par_decompressed_bsk = parallel_seeded_bsk.par_decompress_into_lwe_bootstrap_key();
 
         assert_eq!(ser_decompressed_bsk, par_decompressed_bsk);
+
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+            mask_seed,
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
+        );
+
+        let chunk_generator = LweBootstrapKeyChunkGenerator::new(
+            &mut encryption_generator,
+            ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
+            lwe_dim,
+            glwe_dim.to_glwe_size(),
+            poly_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            &lwe_sk,
+            &glwe_sk,
+            noise_distribution,
+            false,
+        );
+
+        let chunks = chunk_generator.collect::<Vec<_>>();
+        let assembled_bsk = allocate_and_assemble_lwe_bootstrap_key_from_chunks(chunks.as_slice());
+        assert_eq!(assembled_bsk, sequential_bsk);
+
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+            mask_seed,
+            &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
+        );
+
+        let par_chunk_generator = LweBootstrapKeyChunkGenerator::new(
+            &mut encryption_generator,
+            ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
+            lwe_dim,
+            glwe_dim.to_glwe_size(),
+            poly_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            &lwe_sk,
+            &glwe_sk,
+            noise_distribution,
+            true,
+        );
+        let chunks = par_chunk_generator.collect::<Vec<_>>();
+        let assembled_bsk = allocate_and_assemble_lwe_bootstrap_key_from_chunks(chunks.as_slice());
+        assert_eq!(assembled_bsk, sequential_bsk);
     }
 }
 
 #[test]
-fn test_parallel_and_seeded_bsk_gen_equivalence_u32_native_mod() {
-    test_parallel_and_seeded_bsk_gen_equivalence::<u32>(CiphertextModulus::new_native());
+fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence_u32_native_mod() {
+    test_parallel_and_seeded_and_chunked_bsk_gen_equivalence::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_parallel_and_seeded_bsk_gen_equivalence_u32_custom_mod() {
-    test_parallel_and_seeded_bsk_gen_equivalence::<u32>(
+fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence_u32_custom_mod() {
+    test_parallel_and_seeded_and_chunked_bsk_gen_equivalence::<u32>(
         CiphertextModulus::try_new_power_of_2(31).unwrap(),
     );
 }
 
 #[test]
-fn test_parallel_and_seeded_bsk_gen_equivalence_u64_native_mod() {
-    test_parallel_and_seeded_bsk_gen_equivalence::<u64>(CiphertextModulus::new_native());
+fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence_u64_native_mod() {
+    test_parallel_and_seeded_and_chunked_bsk_gen_equivalence::<u64>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_parallel_and_seeded_bsk_gen_equivalence_u64_custom_mod() {
-    test_parallel_and_seeded_bsk_gen_equivalence::<u64>(
+fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence_u64_custom_mod() {
+    test_parallel_and_seeded_and_chunked_bsk_gen_equivalence::<u64>(
         CiphertextModulus::try_new_power_of_2(63).unwrap(),
     );
 }

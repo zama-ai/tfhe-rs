@@ -388,3 +388,8 @@ pub struct RSigmaFactor(pub f64);
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseEstimationMeasureBoundVersions)]
 pub struct NoiseEstimationMeasureBound(pub f64);
+
+/// The size of a chunk in a chunked key.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(ChunkSizeVersions)]
+pub struct ChunkSize(pub usize);

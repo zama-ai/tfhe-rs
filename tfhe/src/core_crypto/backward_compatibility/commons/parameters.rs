@@ -182,3 +182,8 @@ pub enum RSigmaFactorVersions {
 pub enum NoiseEstimationMeasureBoundVersions {
     V0(NoiseEstimationMeasureBound),
 }
+
+#[derive(VersionsDispatch)]
+pub enum ChunkSizeVersions {
+    V0(ChunkSize),
+}

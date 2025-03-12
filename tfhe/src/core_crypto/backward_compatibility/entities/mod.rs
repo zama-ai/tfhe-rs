@@ -9,6 +9,7 @@ pub mod glwe_ciphertext_list;
 pub mod glwe_secret_key;
 pub mod gsw_ciphertext;
 pub mod lwe_bootstrap_key;
+pub mod lwe_bootstrap_key_chunk;
 pub mod lwe_ciphertext;
 pub mod lwe_ciphertext_list;
 pub mod lwe_compact_ciphertext_list;
