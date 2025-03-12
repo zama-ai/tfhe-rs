@@ -69,7 +69,7 @@ jobs:
   run-benchmarks:
     name: Run benchmarks
     needs: parse-inputs
-    uses: ./.github/workflows/benchmark_gpu_integer_common.yml
+    uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
       profile: ${{ needs.parse-inputs.outputs.profile }}
       hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
