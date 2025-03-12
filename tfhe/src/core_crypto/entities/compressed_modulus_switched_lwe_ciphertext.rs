@@ -45,7 +45,7 @@ use crate::core_crypto::prelude::*;
 /// );
 ///
 /// // Can be stored using much less space than the standard lwe ciphertexts
-/// let compressed = CompressedModulusSwitchedLweCiphertext::compress(
+/// let compressed = CompressedModulusSwitchedLweCiphertext::<u64>::compress(
 ///     &lwe,
 ///     CiphertextModulusLog(log_modulus as usize),
 /// );

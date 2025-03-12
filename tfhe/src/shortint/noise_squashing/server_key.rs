@@ -24,7 +24,7 @@ use tfhe_versionable::Versionize;
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
     bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-    modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
     params: NoiseSquashingParameters,
 }
 
