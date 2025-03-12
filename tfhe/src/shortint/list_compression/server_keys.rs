@@ -27,7 +27,7 @@ pub struct CompressionKey {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DecompressionKeyVersions)]
 pub struct DecompressionKey {
-    pub blind_rotate_key: ShortintBootstrappingKey,
+    pub blind_rotate_key: ShortintBootstrappingKey<u64>,
     pub lwe_per_glwe: LweCiphertextCount,
 }
 
