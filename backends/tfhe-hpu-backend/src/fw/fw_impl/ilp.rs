@@ -42,7 +42,10 @@ crate::impl_fw!("Ilp" [
     CMP_EQ  => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpEq::default().into())});
     CMP_NEQ => (|prog| {fw_impl::ilp::iop_cmp(prog, asm::dop::PbsCmpNeq::default().into())});
 
+    IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
+
+    ERC_20 => fw_impl::ilp::iop_erc_20;
 
 ]);
 
@@ -744,6 +747,21 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
         "CMP_{cmp_op} Operand::Dst Operand::Src Operand::Src"
     ));
 
+    // Deferred implementation to generic cmpx function
+    iop_cmpx(prog, &mut dst[0], &src_a, &src_b, cmp_op);
+}
+
+/// Generic Cmp operation
+/// One destination block and two sources operands
+/// Source could be Operand or Immediat
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_cmpx(
+    prog: &mut Program,
+    dst: &mut metavar::MetaVarCell,
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+    cmp_op: Pbs,
+) {
     let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
@@ -754,7 +772,7 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
     let cmp_reduce = new_pbs!(prog, "CmpReduce");
 
     // Pack A and B elements by pairs
-    let packed = std::iter::zip(src_a.as_slice().chunks(2), src_b.as_slice().chunks(2))
+    let packed = std::iter::zip(src_a.chunks(2), src_b.chunks(2))
         .map(|(a, b)| {
             let pack_a = if a.len() > 1 {
                 // Reset noise for future block merge through sub
@@ -807,7 +825,7 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
 
     // interprete reduce with expected cmp
     let cmp = reduce.unwrap().pbs(&cmp_op, false);
-    dst[0] <<= cmp;
+    dst.mv_assign(&cmp);
 }
 
 // For the kogge stone add/sub
@@ -1335,6 +1353,47 @@ impl VecVarCellDeg {
 }
 
 #[instrument(level = "trace", skip(prog))]
+pub fn iop_if_then_zero(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Cond -> Operand
+    // second operand must be a FheBool and have only one blk
+    let cond = {
+        let mut cond_blk = prog.iop_template_var(OperandKind::Src, 1);
+        cond_blk.truncate(1);
+        cond_blk.pop().unwrap()
+    };
+
+    // Add Comment header
+    prog.push_comment("IF_THEN_ZERO Operand::Dst Operand::Src Operand::Src[Condition]".to_string());
+
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+
+    // Wrapped required lookup table in MetaVar
+    let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
+
+    itertools::izip!(dst, src)
+        .chunks(props.pbs_batch_w)
+        .into_iter()
+        .for_each(|chunk| {
+            // Pack (cond, src)
+            let chunk_pack = chunk
+                .into_iter()
+                .map(|(d, src)| (d, cond.mac(tfhe_params.msg_range() as u8, &src)))
+                .collect::<Vec<_>>();
+
+            chunk_pack.into_iter().for_each(|(mut d, mut cond_src)| {
+                cond_src.pbs_assign(&pbs_if_false_zeroed, false);
+                d <<= cond_src;
+            });
+        });
+}
+
+#[instrument(level = "info", skip(prog))]
 pub fn iop_if_then_else(prog: &mut Program) {
     // Allocate metavariables:
     // Dest -> Operand
@@ -1386,4 +1445,121 @@ pub fn iop_if_then_else(prog: &mut Program) {
                     d <<= &cond_a + &cond_b;
                 });
         });
+}
+
+/// Implement erc_20 fund xfer
+/// Targeted algorithm is as follow:
+/// 1. Check that from has enough funds
+/// 2. Compute real_amount to xfer (i.e. amount or 0)
+/// 3. Compute new amount (from - new_amount, to + new_amount)
+#[instrument(level = "info", skip(prog))]
+pub fn iop_erc_20(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst_from = prog.iop_template_var(OperandKind::Dst, 0);
+    let mut dst_to = prog.iop_template_var(OperandKind::Dst, 1);
+    // Src -> Operand
+    let src_from = prog.iop_template_var(OperandKind::Src, 0);
+    let src_to = prog.iop_template_var(OperandKind::Src, 1);
+    // Src Amount -> Operand
+    let src_amount = prog.iop_template_var(OperandKind::Src, 2);
+
+    // Add Comment header
+    prog.push_comment("ERC_20 (new_from, new_to) <- (from, to, amount)".to_string());
+
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+
+    // Wrapped required lookup table in MetaVar
+    let pbs_msg = new_pbs!(prog, "MsgOnly");
+    let pbs_carry = new_pbs!(prog, "CarryInMsg");
+    let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
+
+    // Check if from has enough funds
+    let enough_fund = {
+        let mut dst = prog.new_var();
+        iop_cmpx(
+            prog,
+            &mut dst,
+            &src_from,
+            &src_amount,
+            asm::dop::PbsCmpGte::default().into(),
+        );
+        dst
+    };
+
+    // Fuse real_amount computation and new_from, new_to
+    // First compute a batch of real_amount in advance
+    let mut real_amount_work = (0..props.blk_w()).map(|x| x);
+    prog.push_comment(format!(" ==> Compute some real_amount in advance"));
+    let mut real_amount = real_amount_work
+        .by_ref()
+        .take(props.pbs_batch_w)
+        .map(|blk| {
+            let mut val_cond = enough_fund.mac(tfhe_params.msg_range() as u8, &src_amount[blk]);
+            val_cond.pbs_assign(&pbs_if_false_zeroed, false);
+            val_cond
+        })
+        .collect::<VecDeque<_>>();
+
+    let mut add_carry: Option<metavar::MetaVarCell> = None;
+
+    let mut sub_z_cor: Option<usize> = None;
+    let mut sub_carry: Option<metavar::MetaVarCell> = None;
+
+    (0..prog.params().blk_w()).for_each(|blk| {
+        prog.push_comment(format!(" ==> Work on output block {blk}"));
+
+        // Compte next real_amount if any
+        if let Some(work) = real_amount_work.next() {
+            let mut val_cond = enough_fund.mac(tfhe_params.msg_range() as u8, &src_amount[work]);
+            val_cond.pbs_assign(&pbs_if_false_zeroed, false);
+            real_amount.push_back(val_cond);
+        }
+        let amount_blk = real_amount.pop_front().unwrap();
+
+        // Add
+        let mut add_msg = &src_to[blk] + &amount_blk;
+        if let Some(cin) = &add_carry {
+            add_msg += cin.clone();
+        }
+        if blk < (props.blk_w() - 1) {
+            add_carry = Some(add_msg.pbs(&pbs_carry, false));
+        }
+        // Force allocation of new reg to allow carry/msg pbs to run in //
+        let add_msg = add_msg.pbs(&pbs_msg, false);
+
+        // Sub
+        // Compute -b
+        let neg_from = if let Some(z) = &sub_z_cor {
+            prog.new_imm(tfhe_params.msg_range() - *z)
+        } else {
+            prog.new_imm(tfhe_params.msg_range())
+        };
+        let amount_neg = &neg_from - &amount_blk;
+
+        sub_z_cor = Some(
+            amount_blk
+                .get_degree()
+                .div_ceil(tfhe_params.msg_range())
+                .max(1),
+        );
+
+        // Compute a + (-b)
+        let mut sub_msg = &src_from[blk] + &amount_neg;
+
+        // Handle input/output carry and extract msg
+        if let Some(cin) = &sub_carry {
+            sub_msg += cin.clone();
+        }
+        if blk < (props.blk_w() - 1) {
+            sub_carry = Some(sub_msg.pbs(&pbs_carry, false));
+        }
+        // Force allocation of new reg to allow carry/msg pbs to run in //
+        let sub_msg = sub_msg.pbs(&pbs_msg, false);
+
+        // Store result
+        dst_to[blk] <<= add_msg;
+        dst_from[blk] <<= sub_msg;
+    });
 }

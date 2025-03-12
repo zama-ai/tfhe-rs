@@ -132,20 +132,18 @@ macro_rules! hpu_testcase {
                     let res_fhe = res_hpu
                         .iter()
                         .map(|x| x.to_radix_ciphertext()).collect::<Vec<_>>();
-                    let res_vec = res_fhe
+                    let res = res_fhe
                         .iter()
                         .map(|x| cks.decrypt_radix(x))
                         .collect::<Vec<$user_type>>();
-                    let res = res_vec[0];
 
                     let exp_res = {
                         let $ct = &srcs_clear;
                         let $imm = imms.iter().map(|x| *x as $user_type).collect::<Vec<_>>();
-                        ($behav as $user_type)
+                        ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
                     };
-                    println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x} [exp {:<8x}] {{Delta: 0b {:b} }}", iop, srcs_clear, imms, res, exp_res, res ^ exp_res);
-
-                    res == exp_res
+                        println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
+                    std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x== y).fold(true, |acc, val| acc & val)
                 }).fold(true, |acc, val| acc & val)
             }
         )*
@@ -156,51 +154,67 @@ macro_rules! hpu_testcase {
 // Define testcase implementation for all supported IOp
 // Alu IOp with Ct x Imm
 hpu_testcase!("ADDS" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_add(imm[0])));
+    |ct, imm| vec![ct[0].wrapping_add(imm[0])]);
 hpu_testcase!("SUBS" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_sub(imm[0])));
+    |ct, imm| vec![ct[0].wrapping_sub(imm[0])]);
 hpu_testcase!("SSUB" => [u8, u16, u32, u64, u128]
-    |ct, imm| (imm[0].wrapping_sub(ct[0])));
+    |ct, imm| vec![imm[0].wrapping_sub(ct[0])]);
 hpu_testcase!("MULS" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_mul(imm[0])));
+    |ct, imm| vec![ct[0].wrapping_mul(imm[0])]);
 
 // Alu IOp with Ct x Ct
 hpu_testcase!("ADD" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_add(ct[1])));
+    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
 hpu_testcase!("ADDK" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_add(ct[1])));
+    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
 hpu_testcase!("SUB" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_sub(ct[1])));
+    |ct, imm| vec![ct[0].wrapping_sub(ct[1])]);
 hpu_testcase!("SUBK" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_sub(ct[1])));
+    |ct, imm| vec![ct[0].wrapping_sub(ct[1])]);
 hpu_testcase!("MUL" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0].wrapping_mul(ct[1])));
+    |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
 
 // Bitwise IOp
 hpu_testcase!("BW_AND" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] & ct[1]));
+    |ct, imm| vec![ct[0] & ct[1]]);
 hpu_testcase!("BW_OR" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] | ct[1]));
+    |ct, imm| vec![ct[0] | ct[1]]);
 hpu_testcase!("BW_XOR" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] ^ ct[1]));
+    |ct, imm| vec![ct[0] ^ ct[1]]);
 
 // Comparaison IOp
 hpu_testcase!("CMP_GT" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] > ct[1]));
+    |ct, imm| vec![ct[0] > ct[1]]);
 hpu_testcase!("CMP_GTE" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] >= ct[1]));
+    |ct, imm| vec![ct[0] >= ct[1]]);
 hpu_testcase!("CMP_LT" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] < ct[1]));
+    |ct, imm| vec![ct[0] < ct[1]]);
 hpu_testcase!("CMP_LTE" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] <= ct[1]));
+    |ct, imm| vec![ct[0] <= ct[1]]);
 hpu_testcase!("CMP_EQ" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] == ct[1]));
+    |ct, imm| vec![ct[0] == ct[1]]);
 hpu_testcase!("CMP_NEQ" => [u8, u16, u32, u64, u128]
-    |ct, imm| (ct[0] != ct[1]));
+    |ct, imm| vec![ct[0] != ct[1]]);
 
 // Ternary IOp
+hpu_testcase!("IF_THEN_ZERO" => [u8, u16, u32, u64, u128]
+    |ct, imm| vec![if ct[1] != 0 {ct[0]} else { 0}]);
 hpu_testcase!("IF_THEN_ELSE" => [u8, u16, u32, u64, u128]
-    |ct, imm| if ct[2] != 0 {ct[0]} else { ct[1]});
+    |ct, imm| vec![if ct[2] != 0 {ct[0]} else { ct[1]}]);
+
+// ERC 20 found xfer
+hpu_testcase!("ERC_20" => [u8, u16, u32, u64, u128]
+    |ct, imm| {
+        let from = ct[0];
+        let to = ct[1];
+        let amount = ct[2];
+        // TODO enhance this to prevent overflow
+        if from >= amount {
+            vec![from - amount, to.wrapping_add(amount)]
+            } else {
+                vec![from, to]
+            }
+});
 
 // Define a set of test bundle for various size
 // 8bit ciphertext -----------------------------------------
@@ -240,7 +254,13 @@ crate::hpu_testbundle!("cmp"::8 => [
 
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("ternary"::8 => [
+    "if_then_zero",
     "if_then_else"
+]);
+
+#[cfg(feature = "hpu")]
+crate::hpu_testbundle!("algo"::8 => [
+    "erc_20"
 ]);
 
 // 16bit ciphertext -----------------------------------------
@@ -280,7 +300,13 @@ crate::hpu_testbundle!("cmp"::16 => [
 
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("ternary"::16 => [
+    "if_then_zero",
     "if_then_else"
+]);
+
+#[cfg(feature = "hpu")]
+crate::hpu_testbundle!("algo"::16 => [
+    "erc_20"
 ]);
 
 // 32bit ciphertext -----------------------------------------
@@ -320,7 +346,13 @@ crate::hpu_testbundle!("cmp"::32 => [
 
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("ternary"::32 => [
+    "if_then_zero",
     "if_then_else"
+]);
+
+#[cfg(feature = "hpu")]
+crate::hpu_testbundle!("algo"::32 => [
+    "erc_20"
 ]);
 
 // 64bit ciphertext -----------------------------------------
@@ -360,7 +392,13 @@ crate::hpu_testbundle!("cmp"::64 => [
 
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("ternary"::64 => [
+    "if_then_zero",
     "if_then_else"
+]);
+
+#[cfg(feature = "hpu")]
+crate::hpu_testbundle!("algo"::64 => [
+    "erc_20"
 ]);
 
 // 128bit ciphertext -----------------------------------------
@@ -400,5 +438,11 @@ crate::hpu_testbundle!("cmp"::128 => [
 
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("ternary"::128 => [
+    "if_then_zero",
     "if_then_else"
+]);
+
+#[cfg(feature = "hpu")]
+crate::hpu_testbundle!("algo"::128 => [
+    "erc_20"
 ]);
