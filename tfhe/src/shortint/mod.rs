@@ -73,9 +73,9 @@ pub use client_key::ClientKey;
 pub(crate) use encoding::{PaddingBit, ShortintEncoding};
 pub use key_switching_key::{CompressedKeySwitchingKey, KeySwitchingKey, KeySwitchingKeyView};
 pub use parameters::{
-    AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice,
-    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
-    WopbsParameters,
+    AtomicPatternKind, AtomicPatternParameters, CarryModulus, CiphertextModulus,
+    ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel, MessageModulus,
+    MultiBitPBSParameters, PBSParameters, ShortintParameterSet, WopbsParameters,
 };
 pub use public_key::{
     CompactPrivateKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey, PublicKey,

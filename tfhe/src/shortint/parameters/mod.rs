@@ -48,7 +48,7 @@ pub mod v1_1;
 pub use aliases::*;
 pub use v1_1 as current_params;
 
-pub use super::atomic_pattern::AtomicPatternKind;
+pub use super::atomic_pattern::{AtomicPatternKind, AtomicPatternParameters};
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParams;
