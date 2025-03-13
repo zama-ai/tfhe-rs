@@ -186,7 +186,7 @@ fn main() {
     bench_fhe_uint16(&mut c, &cks);
     bench_fhe_uint32(&mut c, &cks);
     bench_fhe_uint64(&mut c, &cks);
-    // bench_fhe_uint128(&mut c, &cks);
+    bench_fhe_uint128(&mut c, &cks);
 
     c.final_summary();
 }
