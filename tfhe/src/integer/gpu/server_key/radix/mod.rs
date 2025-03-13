@@ -72,7 +72,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let gpu_index = 0;
@@ -81,7 +80,6 @@ impl CudaServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ctxt: CudaUnsignedRadixCiphertext =
@@ -124,7 +122,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let gpu_index = 0;
@@ -133,7 +130,6 @@ impl CudaServerKey {
     /// let num_blocks = 4;
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ctxt: CudaUnsignedRadixCiphertext =
@@ -436,7 +432,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 4;
@@ -445,7 +440,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ct1: CudaUnsignedRadixCiphertext =
@@ -459,7 +453,6 @@ impl CudaServerKey {
     /// let ct_res = d_ct_res.to_radix_ciphertext(&streams);
     /// assert_eq!(ct_res.blocks().len(), 6);
     ///
-    /// # // TODO GPU DRIFT UPDATE
     /// // Decrypt
     /// let res: u64 = cks.decrypt(&ct_res);
     /// assert_eq!(
@@ -532,7 +525,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 4;
@@ -541,7 +533,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ct1: CudaUnsignedRadixCiphertext =
@@ -616,7 +607,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 4;
@@ -625,7 +615,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ct1: CudaUnsignedRadixCiphertext =
@@ -700,7 +689,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 4;
@@ -709,7 +697,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let d_ct1: CudaUnsignedRadixCiphertext =
@@ -1112,12 +1099,10 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::gen_keys_gpu;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::{
-    /// # // TODO GPU DRIFT UPDATE
     ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     /// };
     /// {
-    /// # // TODO GPU DRIFT UPDATE
     ///     // Generate the client key and the server key:
     ///     let (cks, sks) =
     ///         gen_keys(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
@@ -1154,7 +1139,6 @@ impl CudaServerKey {
     ///     }
     /// }
     /// {
-    /// # // TODO GPU DRIFT UPDATE
     ///     // Generate the client key and the server key:
     ///     let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64);
     ///     let gpu_index = 0;
@@ -1561,7 +1545,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::IntegerCiphertext;
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 4;
@@ -1569,7 +1552,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let msg = -2i8;
@@ -1669,7 +1651,6 @@ impl CudaServerKey {
     /// use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::{gen_keys_radix, IntegerCiphertext};
-    /// # // TODO GPU DRIFT UPDATE
     /// use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     ///
     /// let num_blocks = 8;
@@ -1677,7 +1658,6 @@ impl CudaServerKey {
     /// let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     ///
     /// // Generate the client key and the server key:
-    /// # // TODO GPU DRIFT UPDATE
     /// let (cks, sks) = gen_keys_radix_gpu(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, num_blocks, &streams);
     ///
     /// let msg = u16::MAX;

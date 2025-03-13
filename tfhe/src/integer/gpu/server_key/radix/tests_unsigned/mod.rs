@@ -27,6 +27,7 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
+use crate::shortint::parameters::v1_1::*;
 use std::sync::Arc;
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parameterized_test{
@@ -46,9 +47,9 @@ macro_rules! create_gpu_parameterized_test{
             // TODO GPU DRIFT UPDATE
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
-            V1_0_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
-            V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
+            V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         });
     };
 }

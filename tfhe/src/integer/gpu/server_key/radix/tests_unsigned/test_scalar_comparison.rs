@@ -9,9 +9,10 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_scalar_comp
     test_unchecked_scalar_minmax,
 };
 use crate::integer::U256;
-use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::*;
 use rand::Rng;
+use crate::shortint::parameters::v1_1::V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+
 /// This macro generates the tests for a given scalar comparison fn
 ///
 /// All our comparison function have 2 variants:
@@ -49,13 +50,13 @@ macro_rules! define_gpu_scalar_comparison_test_functions {
                 // TODO GPU DRIFT UPDATE
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             });
             create_gpu_parameterized_test!([<integer_default_scalar_ $comparison_name$clear_type:lower>]{
                 // TODO GPU DRIFT UPDATE
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
                 PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+                V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
             });
         }
     };
@@ -330,25 +331,25 @@ create_gpu_parameterized_test!(integer_unchecked_scalar_min_u256 {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
 create_gpu_parameterized_test!(integer_unchecked_scalar_max_u256 {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
 create_gpu_parameterized_test!(integer_scalar_min_u256 {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
 create_gpu_parameterized_test!(integer_scalar_max_u256 {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
 
 define_gpu_scalar_comparison_test_functions!(eq, U256);
@@ -362,11 +363,11 @@ create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
 create_gpu_parameterized_test!(integer_unchecked_scalar_comparisons_edge_one_block {
     // TODO GPU DRIFT UPDATE
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    V1_0_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 });
