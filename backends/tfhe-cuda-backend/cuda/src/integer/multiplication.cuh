@@ -597,6 +597,12 @@ __host__ void host_integer_mult_radix_kb(
     size_t b_id = i % num_blocks;
     vector_result_sb->degrees[i] = (b_id >= r_id) ? message_modulus - 1 : 0;
   }
+  auto terms_degree_msb = &vector_result_sb->degrees[num_blocks * num_blocks];
+  for (int i = 0; i < num_blocks * num_blocks; i++) {
+    size_t r_id = i / num_blocks;
+    size_t b_id = i % num_blocks;
+    terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
+  }
   host_integer_partial_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb, bsks,
       ksks, mem_ptr->sum_ciphertexts_mem, num_blocks, 2 * num_blocks,
