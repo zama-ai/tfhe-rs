@@ -1,5 +1,4 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::AtomicPattern;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::radix::{
@@ -7,6 +6,7 @@ use crate::integer::gpu::server_key::radix::{
     LweCiphertextCount,
 };
 use crate::integer::gpu::server_key::CudaServerKey;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::parameters::{Degree, NoiseLevel};
 
 impl CudaServerKey {

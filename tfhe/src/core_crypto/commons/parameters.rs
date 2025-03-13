@@ -4,7 +4,7 @@
 //! These types have 0 overhead compared to the type being wrapped.
 
 use serde::{Deserialize, Serialize};
-use tfhe_versionable::{NotVersioned, Versionize};
+use tfhe_versionable::Versionize;
 
 pub use super::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::backward_compatibility::commons::parameters::*;
@@ -311,12 +311,6 @@ pub enum PBSOrder {
     /// The PBS is computed first and a keyswitch is applied to get back to the small LWE secret
     /// key realm.
     BootstrapKeyswitch = 1,
-}
-
-// TODO: doc comment
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, NotVersioned)]
-pub enum AtomicPattern {
-    Classical(PBSOrder),
 }
 
 pub use crate::core_crypto::commons::math::random::DynamicDistribution;

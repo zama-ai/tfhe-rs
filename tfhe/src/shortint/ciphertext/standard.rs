@@ -3,9 +3,8 @@ use super::super::parameters::CiphertextConformanceParams;
 use super::common::*;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
-    allocate_and_trivially_encrypt_new_lwe_ciphertext, AtomicPattern, LweSize,
-};
+use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
 use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{CiphertextModulus, PaddingBit, ShortintEncoding};

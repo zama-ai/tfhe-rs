@@ -3,6 +3,7 @@ use tfhe_versionable::Versionize;
 use self::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextListVersions;
 use crate::shortint::parameters::CompressedCiphertextConformanceParams;
 use crate::shortint::{CarryModulus, MessageModulus};

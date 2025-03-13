@@ -1,3 +1,6 @@
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
+use crate::integer::server_key::TwosComplementNegation;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{CarryModulus, MessageModulus};
 use itertools::Itertools;

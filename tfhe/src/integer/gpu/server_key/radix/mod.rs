@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
-    AtomicPattern, ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
+    ContiguousEntityContainerMut, LweBskGroupingFactor, LweCiphertextCount,
 };
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -20,6 +20,7 @@ use crate::integer::gpu::{
     propagate_single_carry_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
 use crate::shortint::server_key::{

@@ -3,7 +3,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{
-    glwe_ciphertext_size, glwe_mask_size, AtomicPattern, CiphertextModulus, CiphertextModulusLog,
+    glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
     GlweCiphertextCount, LweCiphertextCount, PolynomialSize,
 };
 use crate::integer::ciphertext::DataKind;
@@ -14,6 +14,7 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
 };
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::prelude::GlweDimension;
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};

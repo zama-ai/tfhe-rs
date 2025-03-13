@@ -1,7 +1,7 @@
 use crate::core_crypto::entities::{
     LweCiphertextConformanceParams, MsDecompressionType, MultiBitBootstrapKeyConformanceParams,
 };
-use crate::core_crypto::prelude::AtomicPattern;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, DecompositionBaseLog,

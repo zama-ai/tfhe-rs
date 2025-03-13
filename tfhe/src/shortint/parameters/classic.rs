@@ -1,6 +1,5 @@
-use crate::core_crypto::prelude::{
-    AtomicPattern, LweCiphertextConformanceParams, MsDecompressionType,
-};
+use crate::core_crypto::prelude::{LweCiphertextConformanceParams, MsDecompressionType};
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::backward_compatibility::parameters::ClassicPBSParametersVersions;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextConformanceParams, CiphertextModulus, DecompositionBaseLog,
