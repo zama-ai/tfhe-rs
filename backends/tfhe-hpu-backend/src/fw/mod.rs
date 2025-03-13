@@ -34,6 +34,7 @@ pub struct FwParameters {
     pub pe_cfg: isc_sim::PeConfigStore,
     pub op_cfg: rtl::config::RtlCfg,
     pub cur_op_cfg: rtl::config::OpCfg,
+    pub op_name: Option<String>,
 }
 
 impl FwParameters {
@@ -50,6 +51,7 @@ impl FwParameters {
     }
 
     pub fn set_op(&mut self, opname: &str) {
+        self.op_name = Some(opname.into());
         self.cur_op_cfg = self.op_cfg.get(opname);
     }
 
