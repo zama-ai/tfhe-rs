@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tfhe::core_crypto::fft_impl::common::automorphism_modulus_switch;
-use tfhe::core_crypto::prelude::automorphism_base_blind_rotate::{blind_rotate, Travs};
+use tfhe::core_crypto::prelude::automorphism_base_blind_rotate::{blind_rotate, TravBsk, Travs};
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, LweDimension, PolynomialSize,
@@ -53,46 +53,17 @@ fn automorphism(c: &mut Criterion) {
         &mut encryption_generator,
     );
 
-    let bsks: Vec<_> = lwe_secret_key
-        .as_ref()
-        .iter()
-        .copied()
-        .map(|sk_bit| {
-            let mut ggsw = GgswCiphertext::new(
-                0u64,
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-                ciphertext_modulus,
-            );
-
-            encrypt_monomial_ggsw_ciphertext(
-                &glwe_secret_key,
-                &glwe_secret_key,
-                &mut ggsw,
-                Cleartext(1),
-                sk_bit as usize,
-                glwe_noise_distribution,
-                &mut encryption_generator,
-            );
-
-            let mut fourier_ggsw = FourierGgswCiphertext::new(
-                glwe_size,
-                polynomial_size,
-                decomp_base_log,
-                decomp_level_count,
-            );
-
-            convert_polynomials_list_to_fourier(
-                &ggsw.as_polynomial_list(),
-                fourier_ggsw.as_mut_polynomial_list(),
-                polynomial_size,
-            );
-
-            fourier_ggsw
-        })
-        .collect();
+    let bsks = TravBsk::new(
+        base as usize,
+        &lwe_secret_key,
+        &glwe_secret_key,
+        5,
+        decomp_base_log,
+        decomp_level_count,
+        ciphertext_modulus,
+        glwe_noise_distribution,
+        &mut encryption_generator,
+    );
 
     let mut lut = vec![0; polynomial_size.0];
 
@@ -142,7 +113,7 @@ fn automorphism(c: &mut Criterion) {
             blind_rotate(
                 b,
                 &ais,
-                bsks.as_slice(),
+                &bsks,
                 base,
                 &travs,
                 acc.as_mut_view(),

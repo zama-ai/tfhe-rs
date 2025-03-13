@@ -1,5 +1,7 @@
 use super::automorphism_base_decomposition::{BaseDecomposer, Decomposition};
+use crate::core_crypto::commons::math::random::{Distribution, Uniform};
 use crate::core_crypto::entities::automorphism::Automorphism;
+use crate::core_crypto::prelude::automorphism_base_decomposition::compute_power;
 use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_monic_monomial_div;
 use crate::core_crypto::prelude::*;
 use aligned_vec::ABox;
@@ -92,8 +94,8 @@ impl Travs {
 
         let mut power = base;
 
-        for _i in 1..=window_size as usize {
-            // power = base^_i
+        for _power_jump in 1..=window_size as usize {
+            // power = base^_power_jump
             for change_sign in [false, true] {
                 let power = if change_sign {
                     2 * polynomial_size.0 - power
@@ -124,18 +126,122 @@ impl Travs {
     }
 }
 
+pub struct TravBsk {
+    pub window_size: u16,
+    ak: Vec<Vec<FourierGgswCiphertext<ABox<[c64]>>>>,
+}
+
+impl TravBsk {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new<D>(
+        base: usize,
+        lwe_secret_key: &LweSecretKey<Vec<u64>>,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        window_size: u16,
+        decomp_base_log: DecompositionBaseLog,
+        decomp_level_count: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus<u64>,
+        glwe_noise_distribution: D,
+        encryption_random_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    ) -> Self
+    where
+        D: Distribution,
+        u64: Encryptable<Uniform, D>,
+    {
+        let polynomial_size = glwe_secret_key.polynomial_size();
+        let glwe_size = glwe_secret_key.glwe_dimension().to_glwe_size();
+
+        let mut autom_glwe_sk = glwe_secret_key.clone();
+
+        let ak: Vec<_> = lwe_secret_key
+            .as_ref()
+            .iter()
+            .copied()
+            .map(|sk_bit| {
+                let mut ak = vec![];
+
+                let mut power = 1;
+
+                for _power_jump in 0..=window_size {
+                    for change_sign in [false, true] {
+                        let power = if change_sign {
+                            2 * polynomial_size.0 - power
+                        } else {
+                            power
+                        };
+
+                        let automorphism = Automorphism::new(power, polynomial_size);
+
+                        automorphism.apply_to_glwe_secret_key(glwe_secret_key, &mut autom_glwe_sk);
+
+                        let mut ggsw = GgswCiphertext::new(
+                            0u64,
+                            glwe_size,
+                            polynomial_size,
+                            decomp_base_log,
+                            decomp_level_count,
+                            ciphertext_modulus,
+                        );
+
+                        encrypt_monomial_ggsw_ciphertext(
+                            &autom_glwe_sk,
+                            glwe_secret_key,
+                            &mut ggsw,
+                            Cleartext(1),
+                            sk_bit as usize,
+                            glwe_noise_distribution,
+                            encryption_random_generator,
+                        );
+
+                        let mut fourier_ggsw = FourierGgswCiphertext::new(
+                            glwe_size,
+                            polynomial_size,
+                            decomp_base_log,
+                            decomp_level_count,
+                        );
+
+                        convert_polynomials_list_to_fourier(
+                            &ggsw.as_polynomial_list(),
+                            fourier_ggsw.as_mut_polynomial_list(),
+                            polynomial_size,
+                        );
+
+                        ak.push(fourier_ggsw);
+                    }
+                    power = (power * base) % (2 * polynomial_size.0);
+                }
+
+                ak
+            })
+            .collect();
+
+        Self { window_size, ak }
+    }
+
+    fn get(
+        &self,
+        sk_index: usize,
+        diff: u16,
+        change_sign: bool,
+    ) -> Option<&FourierGgswCiphertext<ABox<[c64]>>> {
+        self.ak[sk_index].get(2 * (diff as usize) + change_sign as usize)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn blind_rotate(
     b: u64,
     ais: &[u64],
-    bsks: &[FourierGgswCiphertext<ABox<[c64]>>],
+    bsks: &TravBsk,
     base: u64,
     trav: &Travs,
-    mut lut: GlweCiphertextMutView<'_, u64>,
+    lut: GlweCiphertextMutView<'_, u64>,
     polynomial_size: PolynomialSize,
     glwe_size: GlweSize,
 ) {
-    assert_eq!(ais.len(), bsks.len());
+    let mut accumulator = lut;
+
+    assert_eq!(ais.len(), bsks.ak.len());
 
     let ciphertext_modulus = CiphertextModulus::new_native();
 
@@ -163,7 +269,8 @@ pub fn blind_rotate(
 
     let monomial_degree = MonomialDegree(b as usize);
 
-    lut.as_mut_polynomial_list()
+    accumulator
+        .as_mut_polynomial_list()
         .iter_mut()
         .for_each(|mut poly| {
             tmp_poly.as_mut().copy_from_slice(poly.as_ref());
@@ -178,6 +285,8 @@ pub fn blind_rotate(
 
     let mu = polynomial_size.0 / 2;
 
+    let m = polynomial_size.0 * 2;
+
     for (
         i,
         Decomposition {
@@ -186,34 +295,43 @@ pub fn blind_rotate(
         },
     ) in ai_s.iter().rev()
     {
-        let ggsw = &bsks[*i];
-
-        let diff = (mu + previous_base_power as usize - *base_power as usize) % mu;
+        let mut diff = (mu + previous_base_power as usize - *base_power as usize) % mu;
 
         let sign_changed = *negative != previous_negative;
 
-        match (diff as u16, sign_changed) {
-            (0, false) => {}
-            (mut diff, sign_changed) => {
-                while window_size < diff {
-                    let autom = trav.get(window_size, false);
+        loop {
+            if let Some(ggsw) = bsks.get(*i, diff as u16, sign_changed) {
+                let power = compute_power(base, diff as u64, m as u64) as usize;
 
-                    autom.apply(&mut lut, &mut temp_accumulator);
+                let power = if sign_changed { m - power } else { power };
 
-                    diff -= window_size;
-                }
+                let automorphism = Automorphism::new(power, polynomial_size);
 
-                let autom = trav.get(diff, sign_changed);
+                automorphism.apply_to_glwe_ciphertext(&accumulator, &mut temp_accumulator);
 
-                autom.apply(&mut lut, &mut temp_accumulator);
+                accumulator.as_mut().fill(0);
+
+                add_external_product_assign(&mut accumulator, ggsw, &temp_accumulator);
+
+                break;
+            }
+
+            assert!(0 < diff);
+
+            if window_size < diff as u16 {
+                let autom = trav.get(window_size, false);
+
+                autom.apply(&mut accumulator, &mut temp_accumulator);
+
+                diff -= window_size as usize;
+            } else {
+                let autom = trav.get(diff as u16, false);
+
+                autom.apply(&mut accumulator, &mut temp_accumulator);
+
+                diff = 0;
             }
         }
-
-        temp_accumulator.as_mut().fill(0);
-
-        add_external_product_assign(&mut temp_accumulator, ggsw, &lut);
-
-        lut.as_mut().copy_from_slice(temp_accumulator.as_ref());
 
         previous_negative = *negative;
         previous_base_power = *base_power;
@@ -225,14 +343,14 @@ pub fn blind_rotate(
             while window_size < diff {
                 let autom = trav.get(window_size, false);
 
-                autom.apply(&mut lut, &mut temp_accumulator);
+                autom.apply(&mut accumulator, &mut temp_accumulator);
 
                 diff -= window_size;
             }
 
             let autom = trav.get(diff, sign_changed);
 
-            autom.apply(&mut lut, &mut temp_accumulator);
+            autom.apply(&mut accumulator, &mut temp_accumulator);
         }
     }
 }
@@ -271,7 +389,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let lwe_dimension = LweDimension(800);
+        let lwe_dimension = LweDimension(100);
 
         let glwe_size = GlweSize(2);
         let polynomial_size = PolynomialSize(2048);
@@ -314,46 +432,17 @@ mod tests {
             &mut rsc.encryption_random_generator,
         );
 
-        let bsks: Vec<_> = lwe_secret_key
-            .as_ref()
-            .iter()
-            .copied()
-            .map(|sk_bit| {
-                let mut ggsw = GgswCiphertext::new(
-                    0u64,
-                    glwe_size,
-                    polynomial_size,
-                    decomp_base_log,
-                    decomp_level_count,
-                    ciphertext_modulus,
-                );
-
-                encrypt_monomial_ggsw_ciphertext(
-                    &glwe_secret_key,
-                    &glwe_secret_key,
-                    &mut ggsw,
-                    Cleartext(1),
-                    sk_bit as usize,
-                    glwe_noise_distribution,
-                    &mut rsc.encryption_random_generator,
-                );
-
-                let mut fourier_ggsw = FourierGgswCiphertext::new(
-                    glwe_size,
-                    polynomial_size,
-                    decomp_base_log,
-                    decomp_level_count,
-                );
-
-                convert_polynomials_list_to_fourier(
-                    &ggsw.as_polynomial_list(),
-                    fourier_ggsw.as_mut_polynomial_list(),
-                    polynomial_size,
-                );
-
-                fourier_ggsw
-            })
-            .collect();
+        let bsks = TravBsk::new(
+            base as usize,
+            &lwe_secret_key,
+            &glwe_secret_key,
+            2,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            glwe_noise_distribution,
+            &mut rsc.encryption_random_generator,
+        );
 
         let lwe = allocate_and_encrypt_new_lwe_ciphertext(
             &lwe_secret_key,
@@ -387,12 +476,12 @@ mod tests {
             ciphertext_modulus,
         );
 
-        let mut acc = lut_glwe.clone();
+        let mut acc = lut_glwe;
 
         blind_rotate(
             b,
             &ais,
-            bsks.as_slice(),
+            &bsks,
             base,
             &travs,
             acc.as_mut_view(),
