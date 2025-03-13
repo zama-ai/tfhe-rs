@@ -1,13 +1,17 @@
+use super::server_key::ShortintBootstrappingKey;
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
     keyswitch_lwe_ciphertext, lwe_ciphertext_plaintext_add_assign, CiphertextModulus,
-    CiphertextModulusLog, LweCiphertext, LweSize, Plaintext,
+    CiphertextModulusLog, LweCiphertext, LweCiphertextOwned, LweSize, Plaintext,
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{AtomicPatternKind, NoiseLevel};
-use crate::shortint::server_key::apply_programmable_bootstrap_no_ms_noise_reduction;
+use crate::shortint::server_key::{
+    apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_no_encode,
+    LookupTableSize,
+};
 use crate::shortint::{PBSOrder, ServerKey};
 use tfhe_csprng::seeders::Seed;
 
@@ -54,6 +58,64 @@ pub fn create_random_from_seed_modulus_switched(
 
     ct
 }
+
+pub(crate) fn generate_pseudo_random_from_pbs(
+    bootstrapping_key: &ShortintBootstrappingKey,
+    seed: Seed,
+    random_bits_count: u64,
+    full_bits_count: u64,
+    ciphertext_modulus: CiphertextModulus<u64>,
+) -> LweCiphertextOwned<u64> {
+    assert!(
+        random_bits_count <= full_bits_count,
+        "The number of random bits asked for (={random_bits_count}) is bigger than full_bits_count (={full_bits_count})"
+    );
+
+    let in_lwe_size = bootstrapping_key.input_lwe_dimension().to_lwe_size();
+
+    let seeded = create_random_from_seed_modulus_switched(
+        seed,
+        in_lwe_size,
+        bootstrapping_key
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log(),
+        ciphertext_modulus,
+    );
+
+    let p = 1 << random_bits_count;
+
+    let delta = 1_u64 << (64 - full_bits_count);
+
+    let poly_delta = 2 * bootstrapping_key.polynomial_size().0 as u64 / p;
+
+    let lut_size = LookupTableSize::new(
+        bootstrapping_key.glwe_size(),
+        bootstrapping_key.polynomial_size(),
+    );
+    let acc = generate_lookup_table_no_encode(lut_size, ciphertext_modulus, |x| {
+        (2 * (x / poly_delta) + 1) * delta / 2
+    });
+
+    let out_lwe_size = bootstrapping_key.output_lwe_dimension().to_lwe_size();
+
+    let mut ct = LweCiphertext::new(0, out_lwe_size, ciphertext_modulus);
+
+    ShortintEngine::with_thread_local_mut(|engine| {
+        let buffers = engine.get_computation_buffers();
+
+        apply_programmable_bootstrap_no_ms_noise_reduction(
+            bootstrapping_key,
+            &seeded,
+            &mut ct,
+            &acc,
+            buffers,
+        );
+    });
+
+    lwe_ciphertext_plaintext_add_assign(&mut ct, Plaintext((p - 1) * delta / 2));
+    ct
+}
+
 impl ServerKey {
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
     /// `2^random_bits_count` must be smaller than the message modulus
