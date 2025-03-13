@@ -264,6 +264,14 @@ path = "benches/utilities.rs"
 harness = false
 required-features = ["boolean", "shortint", "integer", "internal-keycache"]
 
+
+[[bench]]
+name = "automorphism_bench"
+path = "benches/core_crypto/automorphism_blind_rotate.rs"
+harness = false
+required-features = []
+
+
 # Examples used as tools
 
 [[example]]
