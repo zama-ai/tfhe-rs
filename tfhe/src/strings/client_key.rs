@@ -50,29 +50,12 @@ where
     pub fn trivial_encrypt_ascii(&self, str: &str, padding: Option<u32>) -> FheString {
         let ck = self.inner.borrow();
 
-        assert!(str.is_ascii() & !str.contains('\0'));
-
-        let padded = padding.is_some_and(|p| p != 0);
-
-        let num_blocks = self.num_ascii_blocks();
-
-        let mut enc_string: Vec<_> = str
-            .bytes()
-            .map(|char| FheAsciiChar {
-                enc_char: ck.create_trivial_radix(char, num_blocks),
-            })
-            .collect();
-
-        // Optional padding
-        if let Some(count) = padding {
-            let null = (0..count).map(|_| FheAsciiChar {
-                enc_char: ck.create_trivial_radix(0u8, num_blocks),
-            });
-
-            enc_string.extend(null);
-        }
-
-        FheString { enc_string, padded }
+        super::ciphertext::trivial_encrypt_ascii(
+            &ck.key,
+            &crate::shortint::ClientKey::create_trivial,
+            str,
+            padding,
+        )
     }
 
     /// Encrypts an ASCII string, optionally padding it with the specified amount of 0s, and returns
