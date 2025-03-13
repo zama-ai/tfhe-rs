@@ -27,7 +27,6 @@ use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::*;
 pub use crate::integer::server_key::radix_parallel::MatchValues;
 use crate::integer::{BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, U256};
-use crate::shortint::parameters::v1_1::*;
 use std::sync::Arc;
 // Macro to generate tests for all parameter sets
 macro_rules! create_gpu_parameterized_test{

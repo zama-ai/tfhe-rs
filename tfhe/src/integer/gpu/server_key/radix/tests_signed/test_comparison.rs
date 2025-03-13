@@ -6,6 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_comparison::{
     test_signed_default_function, test_signed_default_minmax, test_signed_unchecked_function,
     test_signed_unchecked_minmax,
 };
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
 
 /// This macro generates the tests for a given comparison fn

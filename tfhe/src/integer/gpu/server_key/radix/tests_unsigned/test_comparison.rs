@@ -8,8 +8,8 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::test_comparison:
     test_default_function, test_default_minmax, test_unchecked_function, test_unchecked_minmax,
 };
 use crate::integer::U256;
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
-use crate::shortint::parameters::v1_1::V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
 /// This macro generates the tests for a given comparison fn
 ///

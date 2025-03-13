@@ -44,7 +44,7 @@ pub mod v1_1;
 
 // TODO, what do we do about this one ?
 pub use aliases::*;
-pub use v1_0 as current_params;
+pub use {v1_0 as current_params, v1_1 as current_params_gpu};
 
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
