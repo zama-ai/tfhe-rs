@@ -376,6 +376,10 @@ pub mod shortint_utils {
 #[allow(unused_imports)]
 #[cfg(feature = "shortint")]
 pub use shortint_utils::*;
+use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
+use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
@@ -692,7 +696,141 @@ pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
     gpu_sks_vec
 }
 
-// TODO Implement cuda_local_keys(cks) for core_crypto feature to support multi-gpu
+#[allow(dead_code)]
+pub struct CpuKeys<T: UnsignedInteger, C: Container>
+where
+    C::Element: UnsignedInteger,
+{
+    ksk: Option<LweKeyswitchKeyOwned<T>>,
+    pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
+    bsk: Option<LweBootstrapKey<C>>,
+    multi_bit_bsk: Option<LweMultiBitBootstrapKey<C>>,
+}
+
+#[allow(dead_code)]
+impl<T: UnsignedInteger, C: Container> CpuKeys<T, C>
+where
+    C::Element: UnsignedInteger,
+{
+    pub fn builder() -> CpuKeysBuilder<T, C> {
+        CpuKeysBuilder::new()
+    }
+}
+
+#[allow(dead_code)]
+pub struct CpuKeysBuilder<T: UnsignedInteger, C: Container>
+where
+    C::Element: UnsignedInteger,
+{
+    ksk: Option<LweKeyswitchKeyOwned<T>>,
+    pksk: Option<LwePackingKeyswitchKeyOwned<T>>,
+    bsk: Option<LweBootstrapKey<C>>,
+    multi_bit_bsk: Option<LweMultiBitBootstrapKey<C>>,
+}
+
+#[allow(dead_code)]
+impl<T: UnsignedInteger, C: Container> CpuKeysBuilder<T, C>
+where
+    C::Element: UnsignedInteger,
+{
+    pub fn new() -> CpuKeysBuilder<T, C> {
+        Self {
+            ksk: None,
+            pksk: None,
+            bsk: None,
+            multi_bit_bsk: None,
+        }
+    }
+
+    pub fn keyswitch_key(mut self, ksk: LweKeyswitchKeyOwned<T>) -> CpuKeysBuilder<T, C> {
+        self.ksk = Some(ksk);
+        self
+    }
+
+    pub fn packing_keyswitch_key(
+        mut self,
+        pksk: LwePackingKeyswitchKeyOwned<T>,
+    ) -> CpuKeysBuilder<T, C> {
+        self.pksk = Some(pksk);
+        self
+    }
+
+    pub fn bootstrap_key(mut self, bsk: LweBootstrapKey<C>) -> CpuKeysBuilder<T, C> {
+        self.bsk = Some(bsk);
+        self
+    }
+
+    pub fn multi_bit_bootstrap_key(
+        mut self,
+        mb_bsk: LweMultiBitBootstrapKey<C>,
+    ) -> CpuKeysBuilder<T, C> {
+        self.multi_bit_bsk = Some(mb_bsk);
+        self
+    }
+
+    pub fn build(self) -> CpuKeys<T, C> {
+        CpuKeys {
+            ksk: self.ksk,
+            pksk: self.pksk,
+            bsk: self.bsk,
+            multi_bit_bsk: self.multi_bit_bsk,
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+pub struct CudaLocalKeys<T: UnsignedInteger> {
+    pub ksk: Option<CudaLweKeyswitchKey<T>>,
+    pub pksk: Option<CudaLwePackingKeyswitchKey<T>>,
+    pub bsk: Option<CudaLweBootstrapKey>,
+    pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey>,
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+impl<T: UnsignedInteger> CudaLocalKeys<T> {
+    pub fn from_cpu_keys<C: Container>(cpu_keys: &CpuKeys<T, C>, stream: &CudaStreams) -> Self
+    where
+        C::Element: UnsignedInteger,
+    {
+        Self {
+            ksk: cpu_keys
+                .ksk
+                .as_ref()
+                .map(|ksk| CudaLweKeyswitchKey::from_lwe_keyswitch_key(ksk, stream)),
+            pksk: cpu_keys.pksk.as_ref().map(|pksk| {
+                CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(pksk, stream)
+            }),
+            bsk: cpu_keys
+                .bsk
+                .as_ref()
+                .map(|bsk| CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, stream)),
+            multi_bit_bsk: cpu_keys.multi_bit_bsk.as_ref().map(|mb_bsk| {
+                CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(mb_bsk, stream)
+            }),
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "gpu")]
+pub fn cuda_local_keys_core<T: UnsignedInteger, C: Container>(
+    cpu_keys: &CpuKeys<T, C>,
+) -> Vec<CudaLocalKeys<T>>
+where
+    C::Element: UnsignedInteger,
+{
+    // FIXME Should we use the same function name as above and distinguish via not(feature =
+    // "integer")
+    let gpu_count = get_number_of_gpus() as usize;
+    let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
+    for i in 0..gpu_count {
+        let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
+        gpu_keys_vec.push(CudaLocalKeys::from_cpu_keys(cpu_keys, &stream));
+    }
+    gpu_keys_vec
+}
 
 #[allow(dead_code)]
 #[cfg(feature = "gpu")]

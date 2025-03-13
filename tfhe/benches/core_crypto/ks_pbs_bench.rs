@@ -247,7 +247,8 @@ fn ks_pbs<Scalar: UnsignedTorus + CastInto<usize> + Serialize>(
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let elements = throughput_num_threads(1, 1);
+                let blocks: usize = 1;
+                let elements = throughput_num_threads(blocks, 1);
                 println!("Number of elements: {elements}"); // DEBUG
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -503,7 +504,8 @@ fn multi_bit_ks_pbs<
             }
             BenchmarkType::Throughput => {
                 bench_id = format!("{bench_name}::throughput::{name}");
-                let elements = throughput_num_threads(1, 1);
+                let blocks: usize = 1;
+                let elements = throughput_num_threads(blocks, 1);
                 println!("Number of elements: {elements}"); // DEBUG
                 bench_group.throughput(Throughput::Elements(elements));
                 bench_group.bench_function(&bench_id, |b| {
@@ -607,21 +609,18 @@ fn multi_bit_ks_pbs<
 mod cuda {
     use super::{benchmark_parameters, multi_bit_benchmark_parameters};
     use crate::utilities::{
-        throughput_num_threads, write_to_json, BenchmarkType, CryptoParametersRecord, CudaIndexes,
+        cuda_local_keys_core, cuda_local_streams, throughput_num_threads, write_to_json,
+        BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes, CudaLocalKeys,
         OperatorType, BENCH_TYPE, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE,
     };
     use criterion::{black_box, Criterion, Throughput};
     use rayon::prelude::*;
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-    use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-    use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
-    use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
-    use tfhe::core_crypto::gpu::vec::GpuIndex;
     use tfhe::core_crypto::gpu::{
         cuda_keyswitch_lwe_ciphertext, cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
-        cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
+        cuda_programmable_bootstrap_lwe_ciphertext, get_number_of_gpus, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
 
@@ -642,9 +641,6 @@ mod cuda {
             EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
         let mut secret_generator =
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
-
-        let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
 
         for (name, params) in parameters.iter() {
             if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
@@ -674,8 +670,6 @@ mod cuda {
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
-            let ksk_big_to_small_gpu =
-                CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &stream);
 
             let bsk = LweBootstrapKey::new(
                 Scalar::ZERO,
@@ -686,12 +680,19 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let cpu_keys: CpuKeys<_, _> = CpuKeysBuilder::new()
+                .keyswitch_key(ksk_big_to_small)
+                .bootstrap_key(bsk)
+                .build();
 
             let bench_id;
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
+                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, &streams);
+
                     // Allocate a new LweCiphertext and encrypt our plaintext
                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
                         &output_lwe_secret_key,
@@ -701,7 +702,7 @@ mod cuda {
                         &mut encryption_generator,
                     );
                     let input_ks_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &streams);
 
                     let output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
                         Scalar::ZERO,
@@ -709,7 +710,7 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_ks_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &streams);
 
                     let accumulator = GlweCiphertext::new(
                         Scalar::ZERO,
@@ -718,7 +719,7 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let accumulator_gpu =
-                        CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+                        CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &streams);
 
                     // Allocate the LweCiphertext to store the result of the PBS
                     let output_pbs_ct = LweCiphertext::new(
@@ -727,22 +728,22 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_pbs_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&output_pbs_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&output_pbs_ct, &streams);
 
                     let h_indexes = [Scalar::ZERO];
-                    let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
                                 cuda_keyswitch_lwe_ciphertext(
-                                    &ksk_big_to_small_gpu,
+                                    gpu_keys.ksk.as_ref().unwrap(),
                                     &input_ks_ct_gpu,
                                     &mut output_ks_ct_gpu,
                                     &cuda_indexes.d_input,
                                     &cuda_indexes.d_output,
-                                    &stream,
+                                    &streams,
                                 );
                                 cuda_programmable_bootstrap_lwe_ciphertext(
                                     &output_ks_ct_gpu,
@@ -752,8 +753,8 @@ mod cuda {
                                     &cuda_indexes.d_output,
                                     &cuda_indexes.d_input,
                                     LweCiphertextCount(1),
-                                    &bsk_gpu,
-                                    &stream,
+                                    gpu_keys.bsk.as_ref().unwrap(),
+                                    &streams,
                                 );
                                 black_box(&mut output_pbs_ct_gpu);
                             })
@@ -761,13 +762,18 @@ mod cuda {
                     }
                 }
                 BenchmarkType::Throughput => {
+                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys);
+                    let gpu_count = get_number_of_gpus() as usize;
+
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    let elements = throughput_num_threads(1, 1);
+                    let blocks: usize = 1;
+                    let elements = throughput_num_threads(blocks, 1); // TODO Tronquer le nombre d'éléments par un mulitple du gpu_count
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(blocks, elements as usize);
                             let input_ks_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
                                         &output_lwe_secret_key,
                                         Plaintext(Scalar::ZERO),
@@ -777,13 +783,13 @@ mod cuda {
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &input_ks_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             let output_ks_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let output_ks_ct = LweCiphertext::new(
                                         Scalar::ZERO,
                                         input_lwe_secret_key.lwe_dimension().to_lwe_size(),
@@ -792,13 +798,13 @@ mod cuda {
 
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &output_ks_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             let accumulators = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let accumulator = GlweCiphertext::new(
                                         Scalar::ZERO,
                                         params.glwe_dimension.unwrap().to_glwe_size(),
@@ -807,14 +813,14 @@ mod cuda {
                                     );
                                     CudaGlweCiphertextList::from_glwe_ciphertext(
                                         &accumulator,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             // Allocate the LweCiphertext to store the result of the PBS
                             let output_pbs_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let output_pbs_ct = LweCiphertext::new(
                                         Scalar::ZERO,
                                         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
@@ -823,22 +829,26 @@ mod cuda {
 
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &output_pbs_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            let h_indexes =
-                                (0..elements).map(CastFrom::cast_from).collect::<Vec<_>>();
-                            let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
+                            let h_indexes = (0..(elements / gpu_count as u64))
+                                .map(CastFrom::cast_from)
+                                .collect::<Vec<_>>();
+                            let cuda_indexes_vec = (0..gpu_count)
+                                .map(|i| CudaIndexes::new(&h_indexes, &local_streams[i], i as u32))
+                                .collect::<Vec<_>>();
+                            local_streams.iter().for_each(|stream| stream.synchronize());
 
-                            // TODO Add multi-stream support
                             (
                                 input_ks_cts,
                                 output_ks_cts,
                                 output_pbs_cts,
                                 accumulators,
-                                cuda_indexes,
+                                cuda_indexes_vec,
+                                local_streams,
                             )
                         };
 
@@ -849,36 +859,45 @@ mod cuda {
                                 mut output_ks_cts,
                                 mut output_pbs_cts,
                                 accumulators,
-                                cuda_indexes,
+                                cuda_indexes_vec,
+                                local_streams,
                             )| {
                                 input_ks_cts
                                     .par_iter()
                                     .zip(output_ks_cts.par_iter_mut())
                                     .zip(output_pbs_cts.par_iter_mut())
                                     .zip(accumulators.par_iter())
+                                    .zip(local_streams.par_iter())
+                                    .enumerate()
                                     .for_each(
                                         |(
-                                            ((input_ks_ct, output_ks_ct), output_pbs_ct),
-                                            accumulator,
+                                            i,
+                                            (
+                                                (
+                                                    ((input_ks_ct, output_ks_ct), output_pbs_ct),
+                                                    accumulator,
+                                                ),
+                                                local_stream,
+                                            ),
                                         )| {
                                             cuda_keyswitch_lwe_ciphertext(
-                                                &ksk_big_to_small_gpu,
+                                                gpu_keys_vec[i % gpu_count].ksk.as_ref().unwrap(),
                                                 input_ks_ct,
                                                 output_ks_ct,
-                                                &cuda_indexes.d_input,
-                                                &cuda_indexes.d_output,
-                                                &stream,
+                                                &cuda_indexes_vec[i % gpu_count].d_input,
+                                                &cuda_indexes_vec[i % gpu_count].d_output,
+                                                local_stream,
                                             );
                                             cuda_programmable_bootstrap_lwe_ciphertext(
                                                 output_ks_ct,
                                                 output_pbs_ct,
                                                 accumulator,
-                                                &cuda_indexes.d_lut,
-                                                &cuda_indexes.d_output,
-                                                &cuda_indexes.d_input,
+                                                &cuda_indexes_vec[i % gpu_count].d_lut,
+                                                &cuda_indexes_vec[i % gpu_count].d_output,
+                                                &cuda_indexes_vec[i % gpu_count].d_input,
                                                 LweCiphertextCount(1),
-                                                &bsk_gpu,
-                                                &stream,
+                                                gpu_keys_vec[i % gpu_count].bsk.as_ref().unwrap(),
+                                                local_stream,
                                             );
                                         },
                                     )
@@ -922,9 +941,6 @@ mod cuda {
         let mut secret_generator =
             SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 
-        let gpu_index = 0;
-        let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-
         for (name, params, grouping_factor) in parameters.iter() {
             if params.polynomial_size.unwrap().0 > GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE {
                 println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
@@ -953,8 +969,6 @@ mod cuda {
                 CiphertextModulus::new_native(),
                 &mut encryption_generator,
             );
-            let ksk_big_to_small_gpu =
-                CudaLweKeyswitchKey::from_lwe_keyswitch_key(&ksk_big_to_small, &stream);
 
             let multi_bit_bsk = LweMultiBitBootstrapKey::new(
                 Scalar::ZERO,
@@ -966,15 +980,19 @@ mod cuda {
                 *grouping_factor,
                 params.ciphertext_modulus.unwrap(),
             );
-            let multi_bit_bsk_gpu = CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(
-                &multi_bit_bsk,
-                &stream,
-            );
+
+            let cpu_keys: CpuKeys<_, _> = CpuKeysBuilder::new()
+                .keyswitch_key(ksk_big_to_small)
+                .multi_bit_bootstrap_key(multi_bit_bsk)
+                .build();
 
             let bench_id;
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
+                    let streams = CudaStreams::new_multi_gpu();
+                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, &streams);
+
                     // Allocate a new LweCiphertext and encrypt our plaintext
                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
                         &output_lwe_secret_key,
@@ -984,7 +1002,7 @@ mod cuda {
                         &mut encryption_generator,
                     );
                     let input_ks_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&input_ks_ct, &streams);
 
                     let output_ks_ct: LweCiphertextOwned<Scalar> = LweCiphertext::new(
                         Scalar::ZERO,
@@ -992,7 +1010,7 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_ks_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&output_ks_ct, &streams);
 
                     let accumulator = GlweCiphertext::new(
                         Scalar::ZERO,
@@ -1001,7 +1019,7 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let accumulator_gpu =
-                        CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
+                        CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &streams);
 
                     // Allocate the LweCiphertext to store the result of the PBS
                     let output_pbs_ct = LweCiphertext::new(
@@ -1010,21 +1028,21 @@ mod cuda {
                         params.ciphertext_modulus.unwrap(),
                     );
                     let mut output_pbs_ct_gpu =
-                        CudaLweCiphertextList::from_lwe_ciphertext(&output_pbs_ct, &stream);
+                        CudaLweCiphertextList::from_lwe_ciphertext(&output_pbs_ct, &streams);
 
                     let h_indexes = [Scalar::ZERO];
-                    let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
+                    let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
 
                     bench_id = format!("{bench_name}::{name}");
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
                             cuda_keyswitch_lwe_ciphertext(
-                                &ksk_big_to_small_gpu,
+                                gpu_keys.ksk.as_ref().unwrap(),
                                 &input_ks_ct_gpu,
                                 &mut output_ks_ct_gpu,
                                 &cuda_indexes.d_input,
                                 &cuda_indexes.d_output,
-                                &stream,
+                                &streams,
                             );
                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
                                 &output_ks_ct_gpu,
@@ -1033,21 +1051,26 @@ mod cuda {
                                 &cuda_indexes.d_lut,
                                 &cuda_indexes.d_output,
                                 &cuda_indexes.d_input,
-                                &multi_bit_bsk_gpu,
-                                &stream,
+                                gpu_keys.multi_bit_bsk.as_ref().unwrap(),
+                                &streams,
                             );
                             black_box(&mut output_ks_ct_gpu);
                         })
                     });
                 }
                 BenchmarkType::Throughput => {
+                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys);
+                    let gpu_count = get_number_of_gpus() as usize;
+
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    let elements = throughput_num_threads(1, 1);
+                    let blocks: usize = 1;
+                    let elements = throughput_num_threads(blocks, 1);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let local_streams = cuda_local_streams(blocks, elements as usize);
                             let input_ks_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let input_ks_ct = allocate_and_encrypt_new_lwe_ciphertext(
                                         &output_lwe_secret_key,
                                         Plaintext(Scalar::ZERO),
@@ -1057,13 +1080,13 @@ mod cuda {
                                     );
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &input_ks_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             let output_ks_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let output_ks_ct = LweCiphertext::new(
                                         Scalar::ZERO,
                                         input_lwe_secret_key.lwe_dimension().to_lwe_size(),
@@ -1072,13 +1095,13 @@ mod cuda {
 
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &output_ks_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             let accumulators = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let accumulator = GlweCiphertext::new(
                                         Scalar::ZERO,
                                         params.glwe_dimension.unwrap().to_glwe_size(),
@@ -1087,14 +1110,14 @@ mod cuda {
                                     );
                                     CudaGlweCiphertextList::from_glwe_ciphertext(
                                         &accumulator,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
                             // Allocate the LweCiphertext to store the result of the PBS
                             let output_pbs_cts = (0..elements)
-                                .map(|_| {
+                                .map(|i| {
                                     let output_pbs_ct = LweCiphertext::new(
                                         Scalar::ZERO,
                                         output_lwe_secret_key.lwe_dimension().to_lwe_size(),
@@ -1103,22 +1126,26 @@ mod cuda {
 
                                     CudaLweCiphertextList::from_lwe_ciphertext(
                                         &output_pbs_ct,
-                                        &stream,
+                                        &local_streams[i as usize],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            let h_indexes =
-                                (0..elements).map(CastFrom::cast_from).collect::<Vec<_>>();
-                            let cuda_indexes = CudaIndexes::new(&h_indexes, &stream, 0);
+                            let h_indexes = (0..(elements / gpu_count as u64))
+                                .map(CastFrom::cast_from)
+                                .collect::<Vec<_>>();
+                            let cuda_indexes_vec = (0..gpu_count)
+                                .map(|i| CudaIndexes::new(&h_indexes, &local_streams[i], i as u32))
+                                .collect::<Vec<_>>();
+                            local_streams.iter().for_each(|stream| stream.synchronize());
 
-                            // TODO Add multi-stream support
                             (
                                 input_ks_cts,
                                 output_ks_cts,
                                 output_pbs_cts,
                                 accumulators,
-                                cuda_indexes,
+                                cuda_indexes_vec,
+                                local_streams,
                             )
                         };
 
@@ -1129,35 +1156,47 @@ mod cuda {
                                 mut output_ks_cts,
                                 mut output_pbs_cts,
                                 accumulators,
-                                cuda_indexes,
+                                cuda_indexes_vec,
+                                local_streams,
                             )| {
                                 input_ks_cts
                                     .par_iter()
                                     .zip(output_ks_cts.par_iter_mut())
                                     .zip(output_pbs_cts.par_iter_mut())
                                     .zip(accumulators.par_iter())
+                                    .zip(local_streams.par_iter())
+                                    .enumerate()
                                     .for_each(
                                         |(
-                                            ((input_ks_ct, output_ks_ct), output_pbs_ct),
-                                            accumulator,
+                                            i,
+                                            (
+                                                (
+                                                    ((input_ks_ct, output_ks_ct), output_pbs_ct),
+                                                    accumulator,
+                                                ),
+                                                local_stream,
+                                            ),
                                         )| {
                                             cuda_keyswitch_lwe_ciphertext(
-                                                &ksk_big_to_small_gpu,
+                                                gpu_keys_vec[i % gpu_count].ksk.as_ref().unwrap(),
                                                 input_ks_ct,
                                                 output_ks_ct,
-                                                &cuda_indexes.d_input,
-                                                &cuda_indexes.d_output,
-                                                &stream,
+                                                &cuda_indexes_vec[i % gpu_count].d_input,
+                                                &cuda_indexes_vec[i % gpu_count].d_output,
+                                                local_stream,
                                             );
                                             cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
                                                 output_ks_ct,
                                                 output_pbs_ct,
                                                 accumulator,
-                                                &cuda_indexes.d_lut,
-                                                &cuda_indexes.d_output,
-                                                &cuda_indexes.d_input,
-                                                &multi_bit_bsk_gpu,
-                                                &stream,
+                                                &cuda_indexes_vec[i % gpu_count].d_lut,
+                                                &cuda_indexes_vec[i % gpu_count].d_output,
+                                                &cuda_indexes_vec[i % gpu_count].d_input,
+                                                gpu_keys_vec[i % gpu_count]
+                                                    .multi_bit_bsk
+                                                    .as_ref()
+                                                    .unwrap(),
+                                                local_stream,
                                             );
                                         },
                                     )
