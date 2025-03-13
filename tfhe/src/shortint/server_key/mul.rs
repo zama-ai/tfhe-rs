@@ -21,8 +21,8 @@ impl ServerKey {
     /// // Generate the client key and the server key
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
     ///
-    /// let clear_1 = 1;
-    /// let clear_2 = 1;
+    /// let clear_1 = 2;
+    /// let clear_2 = 3;
     ///
     /// // Encrypt two messages
     /// let ct_1 = cks.encrypt(clear_1);
