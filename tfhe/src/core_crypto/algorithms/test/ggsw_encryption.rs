@@ -63,6 +63,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
 
         encrypt_constant_ggsw_ciphertext(
             &glwe_secret_key,
+            &glwe_secret_key,
             &mut ser_ggsw,
             cleartext,
             glwe_noise_distribution,
@@ -87,6 +88,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         par_encrypt_constant_ggsw_ciphertext(
+            &glwe_secret_key,
             &glwe_secret_key,
             &mut par_ggsw,
             cleartext,
@@ -216,6 +218,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
 
             encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
+                &glwe_sk,
                 &mut ggsw,
                 cleartext,
                 glwe_noise_distribution,
@@ -283,6 +286,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
             let cleartext = Cleartext(msg);
 
             par_encrypt_constant_ggsw_ciphertext(
+                &glwe_sk,
                 &glwe_sk,
                 &mut ggsw,
                 cleartext,

@@ -533,6 +533,7 @@ pub fn test_cmux_tree() {
             );
             encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
+                &glwe_sk,
                 &mut ggsw,
                 single_bit_msg,
                 noise_distribution,

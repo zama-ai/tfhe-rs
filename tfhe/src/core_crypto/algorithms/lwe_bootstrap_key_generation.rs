@@ -128,6 +128,7 @@ pub fn generate_lwe_bootstrap_key<
     {
         encrypt_constant_ggsw_ciphertext(
             output_glwe_secret_key,
+            output_glwe_secret_key,
             &mut ggsw,
             Cleartext(input_key_element.cast_into()),
             noise_distribution,
@@ -302,6 +303,7 @@ pub fn par_generate_lwe_bootstrap_key<
         .zip(gen_iter)
         .for_each(|((mut ggsw, &input_key_element), mut generator)| {
             par_encrypt_constant_ggsw_ciphertext(
+                output_glwe_secret_key,
                 output_glwe_secret_key,
                 &mut ggsw,
                 Cleartext(input_key_element.cast_into()),

@@ -330,6 +330,7 @@ mod tests {
 
                 encrypt_monomial_ggsw_ciphertext(
                     &glwe_secret_key,
+                    &glwe_secret_key,
                     &mut ggsw,
                     Cleartext(1),
                     sk_bit as usize,
