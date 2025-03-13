@@ -552,9 +552,8 @@ template <typename Torus> struct int_radix_lut {
     free(h_lwe_indexes_out);
 
     if (!mem_reuse) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_lwe_before_ks);
-      delete tmp_lwe_before_ks;
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     tmp_lwe_before_ks);
       for (int i = 0; i < buffer.size(); i++) {
         switch (params.pbs_type) {
         case MULTI_BIT:
@@ -570,6 +569,7 @@ template <typename Torus> struct int_radix_lut {
         }
         cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
+      delete tmp_lwe_before_ks;
       buffer.clear();
 
       multi_gpu_release_async(streams, gpu_indexes, lwe_array_in_vec);
@@ -811,28 +811,30 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_bits);
-    delete tmp_bits;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_shift_bits);
-    delete tmp_shift_bits;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
-    delete tmp_rotated;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_input_bits_a);
-    delete tmp_input_bits_a;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_input_bits_b);
-    delete tmp_input_bits_b;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_mux_inputs);
-    delete tmp_mux_inputs;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_bits);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_shift_bits);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_rotated);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_input_bits_a);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_input_bits_b);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_mux_inputs);
 
     bit_extract_luts->release(streams, gpu_indexes, gpu_count);
     bit_extract_luts_with_offset_2->release(streams, gpu_indexes, gpu_count);
     mux_lut->release(streams, gpu_indexes, gpu_count);
     cleaning_lut->release(streams, gpu_indexes, gpu_count);
 
-    delete (bit_extract_luts);
-    delete (bit_extract_luts_with_offset_2);
-    delete (mux_lut);
-    delete (cleaning_lut);
+    delete tmp_bits;
+    delete tmp_shift_bits;
+    delete tmp_rotated;
+    delete tmp_input_bits_a;
+    delete tmp_input_bits_b;
+    delete tmp_mux_inputs;
+    delete bit_extract_luts;
+    delete bit_extract_luts_with_offset_2;
+    delete mux_lut;
+    delete cleaning_lut;
   }
 };
 
@@ -905,13 +907,14 @@ template <typename Torus> struct int_fullprop_buffer {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_small_lwe_vector);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_big_lwe_vector);
     lut->release(streams, gpu_indexes, 1);
-    delete lut;
-
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_small_lwe_vector);
     delete tmp_small_lwe_vector;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_big_lwe_vector);
     delete tmp_big_lwe_vector;
+    delete lut;
   }
 };
 
@@ -1247,14 +1250,17 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     cuda_drop_async(d_smart_copy_out, streams[0], gpu_indexes[0]);
 
     if (!mem_reuse) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], new_blocks);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_blocks);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], old_blocks);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     small_lwe_vector);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       delete new_blocks;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], old_blocks);
       delete old_blocks;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], small_lwe_vector);
       delete small_lwe_vector;
     }
-    release_radix_ciphertext(streams[0], gpu_indexes[0], new_blocks_copy);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_blocks_copy);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     delete new_blocks_copy;
   }
 };
@@ -1309,10 +1315,10 @@ template <typename Torus> struct int_seq_group_prop_memory {
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             group_resolved_carries);
-    delete group_resolved_carries;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   group_resolved_carries);
     lut_sequential_algorithm->release(streams, gpu_indexes, gpu_count);
+    delete group_resolved_carries;
     delete lut_sequential_algorithm;
   };
 };
@@ -1535,16 +1541,16 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             shifted_blocks_and_states);
-    delete shifted_blocks_and_states;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], shifted_blocks);
-    delete shifted_blocks;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], block_states);
-    delete block_states;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   shifted_blocks_and_states);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], shifted_blocks);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], block_states);
 
     luts_array_first_step->release(streams, gpu_indexes, gpu_count);
     delete luts_array_first_step;
+    delete shifted_blocks_and_states;
+    delete shifted_blocks;
+    delete block_states;
   };
 };
 
@@ -1817,16 +1823,13 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    release_radix_ciphertext(streams[0], gpu_indexes[0], propagation_cum_sums);
-    delete propagation_cum_sums;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], simulators);
-    delete simulators;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], grouping_pgns);
-    delete grouping_pgns;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], prepared_blocks);
-    delete prepared_blocks;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], resolved_carries);
-    delete resolved_carries;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   propagation_cum_sums);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], simulators);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], grouping_pgns);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], prepared_blocks);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   resolved_carries);
 
     cuda_drop_async(scalar_array_cum_sum, streams[0], gpu_indexes[0]);
 
@@ -1840,6 +1843,11 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       delete hs_group_prop_mem;
     }
 
+    delete propagation_cum_sums;
+    delete simulators;
+    delete grouping_pgns;
+    delete prepared_blocks;
+    delete resolved_carries;
     delete luts_array_second_step;
   };
 };
@@ -2073,17 +2081,17 @@ template <typename Torus> struct int_sc_prop_memory {
 
     shifted_blocks_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], output_flag);
-    delete output_flag;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], output_flag);
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
+    delete output_flag;
     delete lut_message_extract;
 
     if (requested_flag == outputFlag::FLAG_OVERFLOW) { // In case of overflow
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], last_lhs);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], last_rhs);
       lut_overflow_flag_prep->release(streams, gpu_indexes, gpu_count);
       delete lut_overflow_flag_prep;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], last_lhs);
       delete last_lhs;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], last_rhs);
       delete last_rhs;
     }
 
@@ -2283,16 +2291,16 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
 
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             shifted_blocks_and_borrow_states);
-    delete shifted_blocks_and_borrow_states;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], shifted_blocks);
-    delete shifted_blocks;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], borrow_states);
-    delete borrow_states;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   shifted_blocks_and_borrow_states);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], shifted_blocks);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], borrow_states);
 
     luts_array_first_step->release(streams, gpu_indexes, gpu_count);
     delete luts_array_first_step;
+    delete shifted_blocks_and_borrow_states;
+    delete shifted_blocks;
+    delete borrow_states;
   };
 };
 
@@ -2432,11 +2440,11 @@ template <typename Torus> struct int_borrow_prop_memory {
 
     shifted_blocks_borrow_state_mem->release(streams, gpu_indexes, gpu_count);
     prop_simu_group_carries_mem->release(streams, gpu_indexes, gpu_count);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_block);
-    delete overflow_block;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], overflow_block);
 
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
     delete lut_message_extract;
+    delete overflow_block;
     if (compute_overflow) {
       lut_borrow_flag->release(streams, gpu_indexes, gpu_count);
       delete lut_borrow_flag;
@@ -2500,7 +2508,8 @@ template <typename Torus> struct int_zero_out_if_buffer {
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     delete tmp;
     for (uint j = 0; j < active_gpu_count; j++) {
       cuda_destroy_stream(true_streams[j], gpu_indexes[j]);
@@ -2647,17 +2656,19 @@ template <typename Torus> struct int_mul_memory {
 
       return;
     }
-    release_radix_ciphertext(streams[0], gpu_indexes[0], vector_result_sb);
-    delete vector_result_sb;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], block_mul_res);
-    delete block_mul_res;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], small_lwe_vector);
-    delete small_lwe_vector;
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   vector_result_sb);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], block_mul_res);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   small_lwe_vector);
 
     luts_array->release(streams, gpu_indexes, gpu_count);
     sum_ciphertexts_mem->release(streams, gpu_indexes, gpu_count);
     sc_prop_mem->release(streams, gpu_indexes, gpu_count);
 
+    delete vector_result_sb;
+    delete block_mul_res;
+    delete small_lwe_vector;
     delete luts_array;
     delete sum_ciphertexts_mem;
     delete sc_prop_mem;
@@ -2855,7 +2866,8 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     lut_buffers_bivariate.clear();
 
     if (!reuse_memory) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_rotated);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       delete tmp_rotated;
     }
   }
@@ -3025,6 +3037,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     }
     free(local_streams_1);
     free(local_streams_2);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_rotated);
     for (auto &buffer : lut_buffers_bivariate) {
       buffer->release(streams, gpu_indexes, gpu_count);
       delete buffer;
@@ -3036,7 +3049,6 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
     lut_buffers_bivariate.clear();
     lut_buffers_univariate.clear();
 
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_rotated);
     delete tmp_rotated;
   }
 };
@@ -3139,11 +3151,13 @@ template <typename Torus> struct int_cmux_buffer {
     delete message_extract_lut;
 
     if (allocate_gpu_memory) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], buffer_in);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], buffer_in);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], buffer_out);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     condition_array);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       delete buffer_in;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], buffer_out);
       delete buffer_out;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], condition_array);
       delete condition_array;
     }
   }
@@ -3202,12 +3216,12 @@ template <typename Torus> struct int_are_all_block_true_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_out);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_block_accumulated);
     is_max_value->release(streams, gpu_indexes, gpu_count);
-    delete (is_max_value);
-
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_out);
+    delete is_max_value;
     delete tmp_out;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_block_accumulated);
     delete tmp_block_accumulated;
   }
 };
@@ -3374,6 +3388,8 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_x);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_y);
     tree_inner_leaf_lut->release(streams, gpu_indexes, gpu_count);
     delete tree_inner_leaf_lut;
     tree_last_leaf_lut->release(streams, gpu_indexes, gpu_count);
@@ -3381,9 +3397,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     tree_last_leaf_scalar_lut->release(streams, gpu_indexes, gpu_count);
     delete tree_last_leaf_scalar_lut;
 
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_x);
     delete tmp_x;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_y);
     delete tmp_y;
   }
 };
@@ -3454,16 +3468,16 @@ template <typename Torus> struct int_comparison_diff_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_packed);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_signs_a);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_signs_b);
     tree_buffer->release(streams, gpu_indexes, gpu_count);
     delete tree_buffer;
     reduce_signs_lut->release(streams, gpu_indexes, gpu_count);
     delete reduce_signs_lut;
 
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_packed);
     delete tmp_packed;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_signs_a);
     delete tmp_signs_a;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_signs_b);
     delete tmp_signs_b;
   }
 };
@@ -3677,25 +3691,28 @@ template <typename Torus> struct int_comparison_buffer {
     default:
       PANIC("Unsupported comparison operation.")
     }
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_lwe_array_out);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_block_comparisons);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_packed_input);
     identity_lut->release(streams, gpu_indexes, gpu_count);
     delete identity_lut;
     is_zero_lut->release(streams, gpu_indexes, gpu_count);
     delete is_zero_lut;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_lwe_array_out);
     delete tmp_lwe_array_out;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_block_comparisons);
     delete tmp_block_comparisons;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_packed_input);
     delete tmp_packed_input;
 
     if (is_signed) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0],
-                               tmp_trivial_sign_block);
-      delete tmp_trivial_sign_block;
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     tmp_trivial_sign_block);
       signed_lut->release(streams, gpu_indexes, gpu_count);
-      delete (signed_lut);
+      delete signed_lut;
       signed_msb_lut->release(streams, gpu_indexes, gpu_count);
-      delete (signed_msb_lut);
+      delete signed_msb_lut;
+      delete tmp_trivial_sign_block;
     }
     for (uint j = 0; j < active_gpu_count; j++) {
       cuda_destroy_stream(lsb_streams[j], gpu_indexes[j]);
@@ -4138,6 +4155,35 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     delete overflow_sub_mem;
     delete comparison_buffer;
 
+    // drop temporary buffers
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], remainder1);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], remainder2);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   numerator_block_stack);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   numerator_block_1);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_radix);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   interesting_remainder1);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   interesting_remainder2);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   interesting_divisor);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   divisor_ms_blocks);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_remainder);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   subtraction_overflowed);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   did_not_overflow);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], overflow_sum);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   overflow_sum_radix);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_1);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   at_least_one_upper_block_is_non_zero);
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   cleaned_merged_interesting_remainder);
     // release and delete lookup tables
 
     // masking_luts_1 and masking_luts_2
@@ -4198,29 +4244,24 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(sub_streams_3);
     free(sub_streams_4);
 
-    // drop temporary buffers
-    release_radix_ciphertext(streams[0], gpu_indexes[0], remainder1);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], remainder2);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], numerator_block_stack);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], numerator_block_1);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_radix);
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             interesting_remainder1);
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             interesting_remainder2);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], interesting_divisor);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], divisor_ms_blocks);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], new_remainder);
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             subtraction_overflowed);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], did_not_overflow);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_sum);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], overflow_sum_radix);
-    release_radix_ciphertext(streams[0], gpu_indexes[0], tmp_1);
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             at_least_one_upper_block_is_non_zero);
-    release_radix_ciphertext(streams[0], gpu_indexes[0],
-                             cleaned_merged_interesting_remainder);
+    // Delete temporary buffers
+    delete remainder1;
+    delete remainder2;
+    delete numerator_block_stack;
+    delete numerator_block_1;
+    delete tmp_radix;
+    delete interesting_remainder1;
+    delete interesting_remainder2;
+    delete interesting_divisor;
+    delete divisor_ms_blocks;
+    delete new_remainder;
+    delete subtraction_overflowed;
+    delete did_not_overflow;
+    delete overflow_sum;
+    delete overflow_sum_radix;
+    delete tmp_1;
+    delete at_least_one_upper_block_is_non_zero;
+    delete cleaned_merged_interesting_remainder;
 
     for (int i = 0; i < max_indexes_to_erase; i++) {
       cuda_drop_async(first_indexes_for_overflow_sub[i], streams[0],
@@ -4515,17 +4556,19 @@ template <typename Torus> struct int_scalar_mul_buffer {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   all_shifted_buffer);
     sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
     sc_prop_mem->release(streams, gpu_indexes, gpu_count);
     delete sum_ciphertexts_vec_mem;
     delete sc_prop_mem;
-    release_radix_ciphertext(streams[0], gpu_indexes[0], all_shifted_buffer);
     delete all_shifted_buffer;
     if (!anticipated_buffers_drop) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], preshifted_buffer);
-      delete preshifted_buffer;
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     preshifted_buffer);
       logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
-      delete (logical_scalar_shift_buffer);
+      delete logical_scalar_shift_buffer;
+      delete preshifted_buffer;
     }
   }
 };
@@ -4578,7 +4621,8 @@ template <typename Torus> struct int_abs_buffer {
     delete bitxor_mem;
 
     if (allocate_gpu_memory) {
-      release_radix_ciphertext(streams[0], gpu_indexes[0], mask);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], mask);
+      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       delete mask;
     }
   }
@@ -4737,6 +4781,17 @@ template <typename Torus> struct int_div_rem_memory {
       delete cmux_quotient_mem;
       delete cmux_remainder_mem;
 
+      // drop temporary buffers
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     positive_numerator);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     positive_divisor);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     sign_bits_are_different);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     negated_quotient);
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                     negated_remainder);
       // release lookup tables
       compare_signed_bits_lut->release(streams, gpu_indexes, gpu_count);
       delete compare_signed_bits_lut;
@@ -4751,17 +4806,11 @@ template <typename Torus> struct int_div_rem_memory {
       free(sub_streams_2);
       free(sub_streams_3);
 
-      // drop temporary buffers
-      release_radix_ciphertext(streams[0], gpu_indexes[0], positive_numerator);
+      // delete temporary buffers
       delete positive_numerator;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], positive_divisor);
       delete positive_divisor;
-      release_radix_ciphertext(streams[0], gpu_indexes[0],
-                               sign_bits_are_different);
       delete sign_bits_are_different;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], negated_quotient);
       delete negated_quotient;
-      release_radix_ciphertext(streams[0], gpu_indexes[0], negated_remainder);
       delete negated_remainder;
     }
   }
