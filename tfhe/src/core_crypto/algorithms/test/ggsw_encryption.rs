@@ -1,4 +1,5 @@
 use super::*;
+use crate::core_crypto::algorithms::polynomial_algorithms::polynomial_wrapping_monic_monomial_mul_assign;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::commons::math::decomposition::DecompositionLevel;
 use crate::core_crypto::commons::math::random::{CompressionSeed, Uniform};
@@ -64,6 +65,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
 
         encrypt_constant_ggsw_ciphertext(
             &glwe_secret_key,
+            &glwe_secret_key,
             &mut ser_ggsw,
             cleartext,
             glwe_noise_distribution,
@@ -88,6 +90,7 @@ fn test_parallel_and_seeded_ggsw_encryption_equivalence<Scalar>(
         );
 
         par_encrypt_constant_ggsw_ciphertext(
+            &glwe_secret_key,
             &glwe_secret_key,
             &mut par_ggsw,
             cleartext,
@@ -217,6 +220,7 @@ fn ggsw_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(params: ClassicTestPar
 
             encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
+                &glwe_sk,
                 &mut ggsw,
                 cleartext,
                 glwe_noise_distribution,
@@ -285,6 +289,7 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 
             par_encrypt_constant_ggsw_ciphertext(
                 &glwe_sk,
+                &glwe_sk,
                 &mut ggsw,
                 cleartext,
                 glwe_noise_distribution,
@@ -309,6 +314,349 @@ fn ggsw_par_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus + Send + Sync>(
 }
 
 create_parameterized_test_with_non_native_parameters!(ggsw_par_encrypt_decrypt_custom_mod);
+
+/// The GGSW encrypts each input key polynomial under the output key.
+/// The external product of such a GGSW (encrypting the constant `1`) with a GLWE ciphertext under
+/// the input key yields a GLWE ciphertext under the output key encrypting the same message
+/// This test checks exactly that. Restricted to keys sharing the same parameters
+/// (only the content differ), which is all a `GgswCiphertext` can currently represent.
+fn ggsw_ext_product_in_key_neq_out_key<Scalar: UnsignedTorus>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    // computations
+    let glwe_dimension = GlweDimension(1);
+    let polynomial_size = PolynomialSize(512);
+    let decomp_base_log = DecompositionBaseLog(24);
+    let decomp_level_count = DecompositionLevelCount(1);
+    let glwe_noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0));
+    let glwe_size = glwe_dimension.to_glwe_size();
+
+    let msg_bits = 4usize;
+    let delta = Scalar::ONE << (Scalar::BITS - msg_bits);
+    let msg_modulus = Scalar::ONE << msg_bits;
+
+    let mut rsc = TestResources::new();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
+    buffers.resize(
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
+            .unaligned_bytes_required()
+            .max(
+                add_external_product_assign_mem_optimized_requirement::<Scalar>(
+                    glwe_size,
+                    polynomial_size,
+                    fft,
+                )
+                .unaligned_bytes_required(),
+            ),
+    );
+
+    let signed_decomposer =
+        SignedDecomposer::new(DecompositionBaseLog(msg_bits), DecompositionLevelCount(1));
+
+    for _ in 0..NB_TESTS {
+        // Two independent keys with the same parameters: only the key values differ.
+        let in_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            glwe_dimension,
+            polynomial_size,
+            &mut rsc.secret_random_generator,
+        );
+        let out_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            glwe_dimension,
+            polynomial_size,
+            &mut rsc.secret_random_generator,
+        );
+
+        let mut ggsw = GgswCiphertext::new(
+            Scalar::ZERO,
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+        );
+        encrypt_constant_ggsw_ciphertext(
+            &in_glwe_secret_key,
+            &out_glwe_secret_key,
+            &mut ggsw,
+            Cleartext(Scalar::ONE),
+            glwe_noise_distribution,
+            &mut rsc.encryption_random_generator,
+        );
+
+        let mut fourier_ggsw = FourierGgswCiphertext::new(
+            glwe_size,
+            polynomial_size,
+            decomp_base_log,
+            decomp_level_count,
+        );
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+            &ggsw,
+            &mut fourier_ggsw,
+            fft,
+            buffers.stack(),
+        );
+
+        // Random input message, encrypted under the INPUT key.
+        let mut input_plaintext_list =
+            PlaintextList::new(Scalar::ZERO, PlaintextCount(polynomial_size.0));
+        input_plaintext_list.iter_mut().for_each(|x| {
+            *x.0 = test_tools::random_uint_between(Scalar::ZERO..msg_modulus) * delta
+        });
+
+        let mut glwe_in =
+            GlweCiphertext::new(Scalar::ZERO, glwe_size, polynomial_size, ciphertext_modulus);
+        encrypt_glwe_ciphertext(
+            &in_glwe_secret_key,
+            &mut glwe_in,
+            &input_plaintext_list,
+            glwe_noise_distribution,
+            &mut rsc.encryption_random_generator,
+        );
+
+        // `glwe_out` starts at zero and receives the external product.
+        let mut glwe_out =
+            GlweCiphertext::new(Scalar::ZERO, glwe_size, polynomial_size, ciphertext_modulus);
+        add_external_product_assign_mem_optimized(
+            &mut glwe_out,
+            &fourier_ggsw,
+            &glwe_in,
+            fft,
+            buffers.stack(),
+        );
+
+        // Decrypting the result under the OUTPUT key must recover the input message.
+        let mut output_plaintext_list =
+            PlaintextList::new(Scalar::ZERO, PlaintextCount(polynomial_size.0));
+        decrypt_glwe_ciphertext(&out_glwe_secret_key, &glwe_out, &mut output_plaintext_list);
+        output_plaintext_list
+            .iter_mut()
+            .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+
+        assert_eq!(
+            output_plaintext_list.as_ref(),
+            input_plaintext_list.as_ref()
+        );
+    }
+}
+
+#[test]
+fn ggsw_ext_product_in_key_neq_out_key_u32_native_mod() {
+    ggsw_ext_product_in_key_neq_out_key::<u32>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn ggsw_ext_product_in_key_neq_out_key_u64_native_mod() {
+    ggsw_ext_product_in_key_neq_out_key::<u64>(CiphertextModulus::new_native());
+}
+
+/// Test the monomial GGSW encryption of polynomials in the form `mu * X^power` by doing an external
+/// product with GLWE(P). The expected result is `GLWE(mu * X^power * P)`.
+///
+/// Also test that sequential and parallel ggsw encryption are equal.
+fn ggsw_monomial_encrypt_ext_product<Scalar: UnsignedTorus + Sync + Send>(
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) {
+    // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
+    // computations
+    let glwe_dimension = GlweDimension(1);
+    let polynomial_size = PolynomialSize(512);
+    let decomp_base_log = DecompositionBaseLog(24);
+    let decomp_level_count = DecompositionLevelCount(1);
+    let glwe_noise_distribution = DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.0));
+    let glwe_size = glwe_dimension.to_glwe_size();
+
+    let msg_bits = 4usize;
+    let delta = Scalar::ONE << (Scalar::BITS - msg_bits);
+    let mu_values = [
+        Scalar::ONE,
+        Scalar::TWO,
+        Scalar::TWO.wrapping_add(Scalar::ONE),
+        Scalar::TWO.wrapping_add(Scalar::TWO),
+        Scalar::ONE.wrapping_neg(),
+    ];
+
+    // Largest `mu` is 4, so keep `message < msg_modulus / 4` to guarantee `mu * message` stays in
+    // `[0, msg_modulus)`.
+    let msg_modulus_reduced = Scalar::ONE << (msg_bits - 2);
+
+    let powers = [0, 1, polynomial_size.0 / 2, polynomial_size.0 - 1];
+
+    let mut rsc = TestResources::new();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
+    buffers.resize(
+        convert_standard_ggsw_ciphertext_to_fourier_mem_optimized_requirement(fft)
+            .unaligned_bytes_required()
+            .max(
+                add_external_product_assign_mem_optimized_requirement::<Scalar>(
+                    glwe_size,
+                    polynomial_size,
+                    fft,
+                )
+                .unaligned_bytes_required(),
+            ),
+    );
+
+    let signed_decomposer =
+        SignedDecomposer::new(DecompositionBaseLog(msg_bits), DecompositionLevelCount(1));
+
+    for power in powers {
+        for &mu in &mu_values {
+            for _ in 0..NB_TESTS {
+                let glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+                    glwe_dimension,
+                    polynomial_size,
+                    &mut rsc.secret_random_generator,
+                );
+
+                // Encrypt the monomial GGSW twice from identically seeded generators
+                // (sequential and parallel) and check they match bit-for-bit.
+                let main_seed = rsc.seeder.seed();
+                let compression_seed: CompressionSeed = rsc.seeder.seed().into();
+
+                let mut ggsw = GgswCiphertext::new(
+                    Scalar::ZERO,
+                    glwe_size,
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    ciphertext_modulus,
+                );
+                let mut deterministic_seeder =
+                    DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+                let mut encryption_generator =
+                    EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+                        compression_seed.clone(),
+                        &mut deterministic_seeder,
+                    );
+                encrypt_monomial_ggsw_ciphertext(
+                    &glwe_secret_key,
+                    &glwe_secret_key,
+                    &mut ggsw,
+                    Cleartext(mu),
+                    power,
+                    glwe_noise_distribution,
+                    &mut encryption_generator,
+                );
+
+                // Check that parallel encryption gives the same result
+                {
+                    let mut par_ggsw = GgswCiphertext::new(
+                        Scalar::ZERO,
+                        glwe_size,
+                        polynomial_size,
+                        decomp_base_log,
+                        decomp_level_count,
+                        ciphertext_modulus,
+                    );
+                    let mut deterministic_seeder =
+                        DeterministicSeeder::<DefaultRandomGenerator>::new(main_seed);
+                    let mut encryption_generator = EncryptionRandomGenerator::<
+                        DefaultRandomGenerator,
+                    >::new(
+                        compression_seed, &mut deterministic_seeder
+                    );
+                    par_encrypt_monomial_ggsw_ciphertext(
+                        &glwe_secret_key,
+                        &glwe_secret_key,
+                        &mut par_ggsw,
+                        Cleartext(mu),
+                        power,
+                        glwe_noise_distribution,
+                        &mut encryption_generator,
+                    );
+
+                    assert_eq!(ggsw, par_ggsw);
+                }
+
+                let mut fourier_ggsw = FourierGgswCiphertext::new(
+                    glwe_size,
+                    polynomial_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                );
+                convert_standard_ggsw_ciphertext_to_fourier_mem_optimized(
+                    &ggsw,
+                    &mut fourier_ggsw,
+                    fft,
+                    buffers.stack(),
+                );
+
+                let mut input_plaintext_list =
+                    PlaintextList::new(Scalar::ZERO, PlaintextCount(polynomial_size.0));
+                input_plaintext_list.iter_mut().for_each(|x| {
+                    *x.0 =
+                        test_tools::random_uint_between(Scalar::ZERO..msg_modulus_reduced) * delta
+                });
+
+                let mut glwe_in = GlweCiphertext::new(
+                    Scalar::ZERO,
+                    glwe_size,
+                    polynomial_size,
+                    ciphertext_modulus,
+                );
+                encrypt_glwe_ciphertext(
+                    &glwe_secret_key,
+                    &mut glwe_in,
+                    &input_plaintext_list,
+                    glwe_noise_distribution,
+                    &mut rsc.encryption_random_generator,
+                );
+
+                let mut glwe_out = GlweCiphertext::new(
+                    Scalar::ZERO,
+                    glwe_size,
+                    polynomial_size,
+                    ciphertext_modulus,
+                );
+                add_external_product_assign_mem_optimized(
+                    &mut glwe_out,
+                    &fourier_ggsw,
+                    &glwe_in,
+                    fft,
+                    buffers.stack(),
+                );
+
+                let mut output_plaintext_list =
+                    PlaintextList::new(Scalar::ZERO, PlaintextCount(polynomial_size.0));
+                decrypt_glwe_ciphertext(&glwe_secret_key, &glwe_out, &mut output_plaintext_list);
+                output_plaintext_list
+                    .iter_mut()
+                    .for_each(|x| *x.0 = signed_decomposer.closest_representable(*x.0));
+
+                // Expected result: in_polynomial * mu * X^power
+                let mut expected =
+                    Polynomial::from_container(input_plaintext_list.as_ref().to_vec());
+                polynomial_wrapping_monic_monomial_mul_assign(&mut expected, MonomialDegree(power));
+
+                expected
+                    .as_mut()
+                    .iter_mut()
+                    .for_each(|x| *x = x.wrapping_mul(mu));
+
+                assert_eq!(output_plaintext_list.as_ref(), expected.as_ref());
+            }
+        }
+    }
+}
+
+#[test]
+fn ggsw_monomial_encrypt_ext_product_u32_native_mod() {
+    ggsw_monomial_encrypt_ext_product::<u32>(CiphertextModulus::new_native());
+}
+
+#[test]
+fn ggsw_monomial_encrypt_ext_product_u64_native_mod() {
+    ggsw_monomial_encrypt_ext_product::<u64>(CiphertextModulus::new_native());
+}
 
 fn ggsw_seeded_encrypt_decrypt_custom_mod<Scalar: UnsignedTorus>(
     params: ClassicTestParams<Scalar>,
@@ -507,6 +855,7 @@ fn ggsw_ciphertext_list_encryption_fork_config_exhaustion() {
     for (child_index, mut child) in children_iterator.enumerate() {
         encrypt_constant_ggsw_ciphertext(
             &glwe_secret_key,
+            &glwe_secret_key,
             &mut ggsw,
             Cleartext(0u64),
             glwe_noise_distribution,
@@ -579,6 +928,7 @@ fn ggsw_ciphertext_encryption_fork_config_exhaustion() {
         );
 
         encrypt_monomial_ggsw_level_matrix(
+            &glwe_secret_key,
             &glwe_secret_key,
             &mut level_matrix,
             factor,
