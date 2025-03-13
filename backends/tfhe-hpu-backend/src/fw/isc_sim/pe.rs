@@ -322,12 +322,6 @@ impl PeStore {
         self.0[pe_id].1.wr_unlock()
     }
 
-    pub(crate) fn is_busy(&self) -> bool {
-        self.0
-            .iter()
-            .fold(false, |acc, (_, next)| acc | next.is_busy())
-    }
-
     pub(crate) fn pending(&self) -> usize {
         self.0.iter().map(|(_, pe)| pe.pending()).sum::<usize>()
     }

@@ -630,6 +630,7 @@ impl HpuBackend {
             op_cfg: config.firmware.op_cfg.clone(),
             cur_op_cfg: config.firmware.op_cfg.default(),
             pe_cfg,
+            op_name: None,
         };
 
         // Check that required number of integer_w don't overflow the lookup table space
