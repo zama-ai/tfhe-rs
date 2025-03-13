@@ -346,6 +346,10 @@ impl Program {
         self.inner.borrow().params.op_cfg()
     }
 
+    pub fn op_name(&self) -> Option<String> {
+        self.inner.borrow().params.op_name.clone()
+    }
+
     pub fn set_op(&mut self, opname: &str) {
         self.inner.borrow_mut().params.set_op(opname);
     }

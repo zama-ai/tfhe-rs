@@ -8,6 +8,8 @@ pub struct OpCfg {
     pub min_batch_size: bool,
     /// Whether to emit flushes or not
     pub flush: bool,
+    /// Whether to use latency tiers when scheduling
+    pub use_tiers: bool,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
