@@ -135,7 +135,7 @@ __host__ void are_all_comparisons_block_true(
             polynomial_size, message_modulus, carry_modulus,
             is_equal_to_num_blocks_lut_f);
 
-        Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
+        Torus *h_lut_indexes = is_max_value_lut->h_lut_indexes;
         for (int index = 0; index < num_chunks; index++) {
           if (index == num_chunks - 1) {
             h_lut_indexes[index] = 1;
@@ -147,8 +147,6 @@ __host__ void are_all_comparisons_block_true(
                                  h_lut_indexes, num_chunks * sizeof(Torus),
                                  streams[0], gpu_indexes[0]);
         is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
-        cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-        free(h_lut_indexes);
       }
       lut = is_max_value_lut;
     }
@@ -161,14 +159,13 @@ __host__ void are_all_comparisons_block_true(
           ksks, lut, 1);
       // Reset max_value_lut_indexes before returning, otherwise if the lut is
       // reused the lut indexes will be wrong
-      Torus *h_lut_indexes = (Torus *)malloc(num_chunks * sizeof(Torus));
-      memset(h_lut_indexes, 0, num_chunks * sizeof(Torus));
+      memset(is_max_value_lut->h_lut_indexes, 0,
+             is_max_value_lut->num_blocks * sizeof(Torus));
       cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
-                               h_lut_indexes, num_chunks * sizeof(Torus),
+                               is_max_value_lut->h_lut_indexes,
+                               is_max_value_lut->num_blocks * sizeof(Torus),
                                streams[0], gpu_indexes[0]);
       is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-      free(h_lut_indexes);
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
     } else {

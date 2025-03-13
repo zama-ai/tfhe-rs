@@ -147,6 +147,7 @@ template <typename Torus> struct int_radix_lut {
   // done at the moment
   std::vector<Torus *> lut_vec;
   std::vector<Torus *> lut_indexes_vec;
+  Torus *h_lut_indexes;
   // All tmp lwe arrays and index arrays for lwe contain the total
   // amount of blocks to be computed on, there is no split between GPUs
   // for the moment
@@ -274,6 +275,7 @@ template <typename Torus> struct int_radix_lut {
           streams[0], gpu_indexes[0], tmp_lwe_before_ks, num_radix_blocks,
           params.big_lwe_dimension);
     }
+    h_lut_indexes = (Torus *)(calloc(num_radix_blocks, sizeof(Torus)));
     degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
@@ -357,6 +359,7 @@ template <typename Torus> struct int_radix_lut {
                              gpu_indexes[0]);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
            num_radix_blocks * sizeof(Torus));
+    h_lut_indexes = (Torus *)(calloc(num_radix_blocks, sizeof(Torus)));
     degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
@@ -468,6 +471,7 @@ template <typename Torus> struct int_radix_lut {
           streams[0], gpu_indexes[0], tmp_lwe_before_ks, num_radix_blocks,
           params.big_lwe_dimension);
     }
+    h_lut_indexes = (Torus *)(calloc(num_radix_blocks, sizeof(Torus)));
     degrees = (uint64_t *)malloc(num_many_lut * num_luts * sizeof(uint64_t));
     max_degrees = (uint64_t *)malloc(num_luts * sizeof(uint64_t));
   }
@@ -482,10 +486,10 @@ template <typename Torus> struct int_radix_lut {
     return &lut[idx * lut_size];
   }
 
-  // Return a pointer to idx-ith degree at gpu_index's global memory
+  // Return a pointer to idx-ith degree
   Torus *get_degree(size_t idx) { return &degrees[num_many_lut * idx]; }
 
-  // Return a pointer to idx-ith max degree at gpu_index's global memory
+  // Return a pointer to idx-ith max degree
   Torus *get_max_degree(size_t idx) { return &max_degrees[idx]; }
 
   // Return a pointer to idx-ith lut indexes at gpu_index's global memory
@@ -583,6 +587,7 @@ template <typename Torus> struct int_radix_lut {
       lwe_after_pbs_vec.clear();
       lwe_trivial_indexes_vec.clear();
     }
+    free(h_lut_indexes);
     free(degrees);
     free(max_degrees);
   }
@@ -622,8 +627,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
        * we have bits_per_blocks LUTs that should be used for all bits in all
        * blocks
        */
-      Torus *h_lut_indexes =
-          (Torus *)malloc(num_radix_blocks * bits_per_block * sizeof(Torus));
+      Torus *h_lut_indexes = lut->h_lut_indexes;
       for (int j = 0; j < num_radix_blocks; j++) {
         for (int i = 0; i < bits_per_block; i++)
           h_lut_indexes[i + j * bits_per_block] = i;
@@ -660,7 +664,6 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                            h_lwe_indexes_out);
 
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-      free(h_lut_indexes);
       free(h_lwe_indexes_in);
       free(h_lwe_indexes_out);
     }
@@ -1508,8 +1511,8 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
     // Generate the indexes to switch between luts within the pbs
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus *h_lut_indexes = (Torus *)malloc(lut_indexes_size);
 
+    Torus *h_lut_indexes = luts_array_first_step->h_lut_indexes;
     for (int index = 0; index < num_radix_blocks; index++) {
       uint32_t grouping_index = index / grouping_size;
       bool is_in_first_grouping = (grouping_index == 0);
@@ -1535,8 +1538,6 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
     // Do I need to do something else for the multi-gpu?
 
     luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
-
-    free(h_lut_indexes);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2006,8 +2007,7 @@ template <typename Torus> struct int_sc_prop_memory {
           lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_overflow_last);
 
-      Torus *h_lut_indexes =
-          (Torus *)malloc((num_radix_blocks + 1) * sizeof(Torus));
+      Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
       for (int index = 0; index < num_radix_blocks + 1; index++) {
         if (index < num_radix_blocks) {
           h_lut_indexes[index] = 0;
@@ -2020,7 +2020,6 @@ template <typename Torus> struct int_sc_prop_memory {
           (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0]);
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
-      free(h_lut_indexes);
     }
     if (requested_flag == outputFlag::FLAG_CARRY) { // Carry case
 
@@ -2034,8 +2033,7 @@ template <typename Torus> struct int_sc_prop_memory {
           lut_message_extract->get_max_degree(1), glwe_dimension,
           polynomial_size, message_modulus, carry_modulus, f_carry_last);
 
-      Torus *h_lut_indexes =
-          (Torus *)malloc((num_radix_blocks + 1) * sizeof(Torus));
+      Torus *h_lut_indexes = lut_message_extract->h_lut_indexes;
       for (int index = 0; index < num_radix_blocks + 1; index++) {
         if (index < num_radix_blocks) {
           h_lut_indexes[index] = 0;
@@ -2048,7 +2046,6 @@ template <typename Torus> struct int_sc_prop_memory {
           (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0]);
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
-      free(h_lut_indexes);
     }
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
@@ -2248,7 +2245,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
 
     // Generate the indexes to switch between luts within the pbs
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus *h_lut_indexes = (Torus *)malloc(lut_indexes_size);
+    Torus *h_lut_indexes = luts_array_first_step->h_lut_indexes;
 
     for (int index = 0; index < num_radix_blocks; index++) {
       uint32_t grouping_index = index / grouping_size;
@@ -2274,8 +2271,6 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     // Do I need to do something else for the multi-gpu?
 
     luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
-
-    free(h_lut_indexes);
   };
 
   // needed for the division to update the lut indexes
@@ -3124,8 +3119,7 @@ template <typename Torus> struct int_cmux_buffer {
           message_extract_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           message_extract_lut_f);
-      Torus *h_lut_indexes =
-          (Torus *)malloc(2 * num_radix_blocks * sizeof(Torus));
+      Torus *h_lut_indexes = predicate_lut->h_lut_indexes;
       for (int index = 0; index < 2 * num_radix_blocks; index++) {
         if (index < num_radix_blocks) {
           h_lut_indexes[index] = 0;
@@ -3139,7 +3133,6 @@ template <typename Torus> struct int_cmux_buffer {
 
       predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
       message_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
-      free(h_lut_indexes);
     }
   }
 

@@ -437,13 +437,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
     }
-    Torus lut_indexes[luts_message_carry->num_blocks];
-    cuda_memcpy_async_to_cpu(&lut_indexes,
-                             luts_message_carry->get_lut_indexes(0, 0),
-                             luts_message_carry->num_blocks * sizeof(Torus),
-                             streams[0], gpu_indexes[0]);
     for (uint i = 0; i < total_count; i++) {
-      new_blocks->degrees[i] = luts_message_carry->degrees[lut_indexes[i]];
+      auto degrees_index = luts_message_carry->h_lut_indexes[i];
+      new_blocks->degrees[i] = luts_message_carry->degrees[degrees_index];
       new_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
     }
 
