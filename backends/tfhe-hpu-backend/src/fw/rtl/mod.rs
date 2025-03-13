@@ -12,11 +12,14 @@ use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
 use super::program::{AtomicRegType, Program, StmtLink};
 use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
+use config::OpCfg;
 use enum_dispatch::enum_dispatch;
+use itertools::Itertools;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fmt::Debug;
+use std::io::Seek;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
@@ -34,9 +37,10 @@ pub struct LoadStats {
 }
 
 // Encodes an operation priority when scheduling
-// Order first by load_stats then by uid
+// Order first by depth, then by most registers, then by uid
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 struct Prio {
+    latency_tier: usize,
     depth: usize,
     reg_balance: usize,
     uid: usize,
@@ -46,6 +50,7 @@ impl From<&OperationCell> for Prio {
     fn from(value: &OperationCell) -> Self {
         let stats = value.borrow().load_stats().unwrap_or_default();
         Prio {
+            latency_tier: value.latency_tier(),
             depth: stats.depth,
             uid: *value.borrow().uid(),
             reg_balance: value.borrow().src().len(),
@@ -850,6 +855,17 @@ pub enum Operation {
     ST(StOp),
 }
 
+// Divide the operations into latency tiers to help the scheduler decide the
+// best order.
+impl Operation {
+    pub fn latency_tier(&self) -> usize {
+        match self {
+            Operation::PBS(_) => 0,
+            _ => 1,
+        }
+    }
+}
+
 // All pointers are reference counted pointers in the tree, both drivers and
 // loads. This is because the FW when building the tree will hold only end
 // variables, while when scheduling we'll hold source variables. While
@@ -876,6 +892,9 @@ impl OperationCell {
     }
     fn kind(&self) -> InstructionKind {
         self.0.borrow().kind()
+    }
+    fn latency_tier(&self) -> usize {
+        self.0.borrow().latency_tier()
     }
 
     fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
@@ -1033,6 +1052,21 @@ impl OperationCell {
     fn copy_name(&self) -> String {
         String::from(self.borrow().name())
     }
+    #[cfg(feature = "rtl_graph")]
+    fn get_heads(&self) -> HashSet<OperationCell> {
+        let heads: HashSet<_> = self
+            .borrow()
+            .src()
+            .iter()
+            .filter_map(|s| s.copy_driver())
+            .flat_map(|d| d.0.get_heads())
+            .collect();
+        if heads.len() > 0 {
+            heads
+        } else {
+            [self.clone()].into_iter().collect()
+        }
+    }
     // -----------------------------------------------------------------------
     // }}}
 }
@@ -1131,7 +1165,7 @@ struct Arch {
     rd_pdg: HashMap<usize, VecDeque<OperationCell>>,
     wr_pdg: HashMap<usize, VecDeque<OperationCell>>,
     use_ipip: bool,
-    flush: bool,
+    cfg: OpCfg,
 }
 
 // An interface to the target architecture
@@ -1142,21 +1176,40 @@ struct Arch {
 impl Arch {
     // interface
     pub fn try_dispatch(&mut self, op: BinaryHeap<OperationCell>) -> BinaryHeap<OperationCell> {
+        // Postpone scheduling high latency operations until there's no other
+        // option to keep everything going. This is very heuristic, so this
+        // behavior could be turned off on an iop basis.
+        let mut max_tier = if self.cfg.use_tiers {
+            self.max_tier().unwrap_or(0)
+        } else {
+            0
+        };
+
         let ret = op
             .into_sorted_vec()
             .into_iter()
             .filter_map(|mut op| {
-                if let Some(id) = {
-                    op.peek_prog(self.program.as_mut())
-                        .then_some(true)
-                        .and_then(|_| self.pe_store.try_push(op.kind(), false))
-                } {
-                    op.alloc_prog(self.program.as_mut());
+                if op.latency_tier() >= max_tier {
+                    if let Some(id) = {
+                        op.peek_prog(self.program.as_mut())
+                            .then_some(true)
+                            .and_then(|_| self.pe_store.try_push(op.kind(), false))
+                    } {
+                        max_tier = if self.cfg.use_tiers {
+                            max_tier.max(op.latency_tier())
+                        } else {
+                            0
+                        };
 
-                    self.rd_pdg.entry(id).or_default().push_front(op);
-                    trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
+                        op.alloc_prog(self.program.as_mut());
 
-                    None
+                        self.rd_pdg.entry(id).or_default().push_front(op);
+                        trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
+
+                        None
+                    } else {
+                        Some(op)
+                    }
                 } else {
                     Some(op)
                 }
@@ -1173,6 +1226,16 @@ impl Arch {
         }
 
         ret
+    }
+
+    pub fn max_tier(&self) -> Option<usize> {
+        self.rd_pdg
+            .values()
+            .chain(self.queued.values())
+            .chain(self.wr_pdg.values())
+            .flatten()
+            .map(|op| op.latency_tier())
+            .max()
     }
 
     pub fn done(&mut self) -> Option<OperationCell> {
@@ -1200,7 +1263,7 @@ impl Arch {
             isc_sim::EventType::BatchStart { pe_id, issued } => {
                 self.queued.entry(pe_id).and_modify(|fifo| {
                     let mut batch = fifo.split_off(fifo.len() - issued);
-                    if self.flush {
+                    if self.cfg.flush {
                         batch.front_mut().unwrap().to_flush();
                     }
                     let fifo = self.wr_pdg.entry(pe_id).or_default();
@@ -1220,7 +1283,9 @@ impl Arch {
     }
 
     pub fn busy(&self) -> bool {
-        self.pe_store.is_busy() || (!self.events.is_empty()) || (self.pe_store.pending() != 0)
+        (!self.events.is_empty())
+            || (self.pe_store.pending() != 0)
+            || (self.rd_pdg.iter().any(|x| x.1.len() > 0))
     }
 
     pub fn cycle(&self) -> usize {
@@ -1275,7 +1340,7 @@ impl Arch {
             queued: HashMap::new(),
             rd_pdg: HashMap::new(),
             wr_pdg: HashMap::new(),
-            flush: op_cfg.flush,
+            cfg: op_cfg,
         }
     }
 }
@@ -1346,7 +1411,7 @@ impl Rtl {
         let mut arch = Arch::from(prog);
         let mut todo: BinaryHeap<_> = Rtl::find_roots(&mut self.0).into_iter().collect();
 
-        self.write_dot(0);
+        self.write_dot(prog, 0);
         trace!(target: "rtl", "todo: {:?}", &todo);
 
         while (!todo.is_empty()) || arch.busy() {
@@ -1360,7 +1425,7 @@ impl Rtl {
                 let new = op.remove();
                 trace!(target: "rtl", "new ready op {:?}", &new);
                 todo.extend(new.into_iter());
-                self.write_dot(arch.cycle());
+                self.write_dot(prog, arch.cycle());
             }
         }
 
@@ -1423,8 +1488,10 @@ use std::borrow::Cow;
 
 impl Rtl {
     #[cfg(feature = "rtl_graph")]
-    fn write_dot(&self, cycle: usize) {
+    fn write_dot(&self, prog: &Program, cycle: usize) {
         Graph::new(
+            prog.op_name().unwrap_or("default".into()),
+            prog.params().blk_w(),
             cycle,
             self.0
                 .iter()
@@ -1435,20 +1502,38 @@ impl Rtl {
         .write();
     }
     #[cfg(not(feature = "rtl_graph"))]
-    fn write_dot(&self, _: usize) {}
+    fn write_dot(&self, _prog: &Program, _: usize) {}
 }
 
 #[cfg(feature = "rtl_graph")]
 struct Graph {
+    name: String,
+    width: usize,
     cycle: usize,
+    heads: HashSet<OperationCell>,
     nodes: HashSet<OperationCell>,
 }
 
 #[cfg(feature = "rtl_graph")]
+use std::io::Write;
+#[cfg(feature = "rtl_graph")]
 impl Graph {
     pub fn write(&self) {
-        let mut fid = std::fs::File::create(format!("operation{}.dot", self.cycle)).unwrap();
+        let dir = format!("graph/{}/{}", self.width, self.name);
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&dir)
+            .unwrap();
+        let mut fid = std::fs::File::create(format!("{}/cycle{}.dot", &dir, self.cycle)).unwrap();
         dot2::render(self, &mut fid).unwrap();
+        // Append rank information
+        fid.seek_relative(-2).expect("Seek failed");
+        let head_str = self
+            .heads
+            .iter()
+            .map(|x| format!("N{}", x.copy_uid()))
+            .join(";");
+        writeln!(fid, "{{ rank=same; {} }}\n}}", head_str).expect("Write failed");
     }
 
     pub fn get_nodes(roots: &[OperationCell]) -> HashSet<OperationCell> {
@@ -1459,9 +1544,19 @@ impl Graph {
             .collect()
     }
 
-    pub fn new(cycle: usize, roots: &[OperationCell]) -> Graph {
+    pub fn get_heads(roots: &[OperationCell]) -> HashSet<OperationCell> {
+        roots
+            .iter()
+            .flat_map(|g| g.get_heads().into_iter())
+            .collect()
+    }
+
+    pub fn new(name: String, width: usize, cycle: usize, roots: &[OperationCell]) -> Graph {
         Graph {
+            name,
+            width,
             cycle,
+            heads: Graph::get_heads(roots),
             nodes: Graph::get_nodes(roots),
         }
     }
