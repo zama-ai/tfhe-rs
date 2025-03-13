@@ -6,6 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_mul::{
     signed_default_mul_test, signed_unchecked_mul_test,
 };
 use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_unchecked_mul);

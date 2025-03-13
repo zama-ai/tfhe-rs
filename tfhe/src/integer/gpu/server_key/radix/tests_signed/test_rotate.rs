@@ -7,6 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_rotate::{
     signed_unchecked_rotate_left_test, signed_unchecked_rotate_right_test,
 };
 use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_unchecked_rotate_left);
