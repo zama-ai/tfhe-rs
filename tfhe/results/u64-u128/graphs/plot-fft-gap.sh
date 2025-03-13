@@ -74,8 +74,10 @@ if (file_exists(f)) {
     }
 
     # (k+1)l
-    set xrange [1:11]
-    set yrange [1e-34:1e-31]
+    #~ set xrange [1:11]
+    set xrange [1:15]
+    #~ set yrange [1e-34:1e-31]
+    set yrange [1e-65:1e-62]
     #~ do for [k=1:4] {
     # TODO fix the noise model param's
     if (gf == 2) {
