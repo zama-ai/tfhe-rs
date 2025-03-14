@@ -2,6 +2,7 @@ use super::*;
 use crate::asm::{AsmIOpcode, DOp, IOpcode};
 
 pub mod ilp;
+pub mod llt;
 
 /// Utility macro to define new FW implementation
 #[macro_export]
