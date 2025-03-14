@@ -808,15 +808,34 @@ pub fn iop_cmpx_rtl(
         })
         .collect::<Vec<_>>();
 
-    let merged = packed
+    let mut merged = packed
         .into_iter()
         .map(|(a, b)| &(&a - &b).single_pbs(&cmp_sign) + 1)
         .collect::<Vec<_>>();
 
-    merged
-        .into_iter()
-        .reduce(|acc, x| acc.mac(tfhe_params.msg_range(), &x).single_pbs(&cmp_reduce))
-        .unwrap()
+    while merged.len() > 2 {
+        merged = merged
+            .into_iter()
+            .chunks(2)
+            .into_iter()
+            .map(|mut chunk| {
+                let left = chunk.next();
+                let right = chunk.next();
+                match (left, right) {
+                    (Some(l), None) => l,
+                    (Some(l), Some(r)) => {
+                        l.mac(tfhe_params.msg_range(), &r).single_pbs(&cmp_reduce)
+                    }
+                    _ => panic!("Chunk misbehaved"),
+                }
+            })
+            .collect()
+    }
+
+    assert!(merged.len() == 2);
+
+    merged[0]
+        .mac(tfhe_params.msg_range(), &merged[1])
         .single_pbs(&cmp_op)
 }
 
