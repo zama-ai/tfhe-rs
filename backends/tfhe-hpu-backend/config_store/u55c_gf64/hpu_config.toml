@@ -73,13 +73,13 @@
   use_tiers = false
   flush = true
 
-[firmware.op_cfg.by_op.MULF]
+[firmware.op_cfg.by_op.MUL]
   fill_batch_fifo = false
   min_batch_size = true
   use_tiers = false
   flush = true
 
-[firmware.op_cfg.by_op.MULSF]
+[firmware.op_cfg.by_op.MULS]
   fill_batch_fifo = false
   min_batch_size = true
   use_tiers = false
