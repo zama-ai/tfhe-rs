@@ -14,12 +14,10 @@ use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
 use config::OpCfg;
 use enum_dispatch::enum_dispatch;
-use itertools::Itertools;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::fmt::Debug;
-use std::io::Seek;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
@@ -1285,7 +1283,7 @@ impl Arch {
     pub fn busy(&self) -> bool {
         (!self.events.is_empty())
             || (self.pe_store.pending() != 0)
-            || (self.rd_pdg.iter().any(|x| x.1.len() > 0))
+            || (self.rd_pdg.iter().any(|x| !x.1.is_empty()))
     }
 
     pub fn cycle(&self) -> usize {

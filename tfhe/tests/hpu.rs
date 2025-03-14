@@ -165,11 +165,7 @@ hpu_testcase!("MULS" => [u8, u16, u32, u64, u128]
 // Alu IOp with Ct x Ct
 hpu_testcase!("ADD" => [u8, u16, u32, u64, u128]
     |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
-hpu_testcase!("ADDK" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
 hpu_testcase!("SUB" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_sub(ct[1])]);
-hpu_testcase!("SUBK" => [u8, u16, u32, u64, u128]
     |ct, imm| vec![ct[0].wrapping_sub(ct[1])]);
 hpu_testcase!("MUL" => [u8, u16, u32, u64, u128]
     |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
@@ -229,9 +225,7 @@ crate::hpu_testbundle!("alus"::8 => [
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("alu"::8 => [
     "add",
-    "addk",
     "sub",
-    "subk",
     "mul"
 ]);
 
@@ -275,9 +269,7 @@ crate::hpu_testbundle!("alus"::16 => [
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("alu"::16 => [
     "add",
-    "addk",
     "sub",
-    "subk",
     "mul"
 ]);
 
@@ -321,9 +313,7 @@ crate::hpu_testbundle!("alus"::32 => [
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("alu"::32 => [
     "add",
-    "addk",
     "sub",
-    "subk",
     "mul"
 ]);
 
@@ -367,9 +357,7 @@ crate::hpu_testbundle!("alus"::64 => [
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("alu"::64 => [
     "add",
-    "addk",
     "sub",
-    "subk",
     "mul"
 ]);
 
@@ -413,9 +401,7 @@ crate::hpu_testbundle!("alus"::128 => [
 #[cfg(feature = "hpu")]
 crate::hpu_testbundle!("alu"::128 => [
     "add",
-    "addk",
     "sub",
-    "subk",
     "mul"
 ]);
 

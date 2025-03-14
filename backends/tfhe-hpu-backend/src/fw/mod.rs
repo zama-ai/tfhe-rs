@@ -13,7 +13,7 @@ pub mod rtl;
 
 use crate::asm;
 use enum_dispatch::enum_dispatch;
-use strum_macros::{EnumDiscriminants, EnumString};
+use strum_macros::{EnumDiscriminants, EnumIter, EnumString, VariantNames};
 
 /// Parameters that reflect the targeted architecture
 /// Used to generate fw customized for the targeted architecture
@@ -83,17 +83,20 @@ pub trait Fw {
 
 /// Gather available Fw in a enum for selection at runtime by user
 #[enum_dispatch(Fw)]
-#[derive(EnumDiscriminants)]
+#[derive(EnumDiscriminants, VariantNames)]
 #[strum_discriminants(name(FwName))]
+#[strum_discriminants(derive(EnumIter))]
 #[strum_discriminants(derive(EnumString))]
 pub enum AvlblFw {
     Ilp(fw_impl::ilp::Ilp),
+    Llt(fw_impl::llt::Llt),
 }
 
 impl AvlblFw {
     pub fn new(kind: &FwName) -> Self {
         match kind {
             FwName::Ilp => Self::Ilp(Default::default()),
+            FwName::Llt => Self::Llt(Default::default()),
         }
     }
 }

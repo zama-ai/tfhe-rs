@@ -83,6 +83,10 @@ pub struct Args {
     /// Use trivial encrypt ciphertext
     #[clap(long, value_parser)]
     pub trivial: bool,
+
+    /// Override the firmware implementation used
+    #[clap(long, value_parser)]
+    pub fw_impl: Option<String>,
 }
 
 #[derive(Debug)]
@@ -146,8 +150,14 @@ pub fn main() {
         set_hpu_io_dump(dump_path);
     }
 
+    // Override some configuration settings
+    let mut hpu_config = HpuConfig::from_toml(args.config.expand().as_str());
+    if let Some(name) = args.fw_impl {
+        hpu_config.firmware.implementation = name;
+    }
+
     // Instanciate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::from_config(&args.config.expand());
+    let hpu_device = HpuDevice::new(hpu_config);
 
     // Force key seeder if seed specified by user
     if let Some(seed) = args.seed {
