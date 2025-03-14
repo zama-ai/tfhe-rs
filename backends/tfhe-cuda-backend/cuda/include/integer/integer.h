@@ -231,8 +231,8 @@ void cuda_scalar_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, void const *scalar_blocks,
-    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
-    uint32_t num_scalar_blocks);
+    void const *h_scalar_blocks, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks, uint32_t num_scalar_blocks);
 
 void cleanup_cuda_integer_comparison(void *const *streams,
                                      uint32_t const *gpu_indexes,

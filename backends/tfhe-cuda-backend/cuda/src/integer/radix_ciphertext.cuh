@@ -161,7 +161,8 @@ template <typename Torus>
 __host__ void set_trivial_radix_ciphertext_async(
     cudaStream_t stream, uint32_t gpu_index,
     CudaRadixCiphertextFFI *lwe_array_out, Torus const *scalar_array,
-    uint32_t num_scalar_blocks, Torus message_modulus, Torus carry_modulus) {
+    Torus const *h_scalar_array, uint32_t num_scalar_blocks,
+    Torus message_modulus, Torus carry_modulus) {
 
   if (num_scalar_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num scalar blocks should be lower or equal to the "
@@ -189,13 +190,8 @@ __host__ void set_trivial_radix_ciphertext_async(
       (Torus *)lwe_array_out->ptr, scalar_array, num_scalar_blocks,
       lwe_array_out->lwe_dimension, delta);
   check_cuda_error(cudaGetLastError());
-  Torus scalar_array_cpu[num_scalar_blocks];
-  cuda_memcpy_async_to_cpu(&scalar_array_cpu, scalar_array,
-                           num_scalar_blocks * sizeof(Torus), stream,
-                           gpu_index);
-  cuda_synchronize_stream(stream, gpu_index);
   for (uint i = 0; i < num_scalar_blocks; i++) {
-    lwe_array_out->degrees[i] = scalar_array_cpu[i];
+    lwe_array_out->degrees[i] = h_scalar_array[i];
   }
 }
 

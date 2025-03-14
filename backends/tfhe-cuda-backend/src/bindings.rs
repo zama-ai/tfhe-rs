@@ -585,6 +585,7 @@ unsafe extern "C" {
         lwe_array_out: *mut CudaRadixCiphertextFFI,
         lwe_array_in: *const CudaRadixCiphertextFFI,
         scalar_blocks: *const ffi::c_void,
+        h_scalar_blocks: *const ffi::c_void,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
