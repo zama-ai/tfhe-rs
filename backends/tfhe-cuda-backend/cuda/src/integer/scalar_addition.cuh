@@ -27,8 +27,8 @@ template <typename Torus>
 __host__ void host_integer_radix_scalar_addition_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
-    Torus const *scalar_input, uint32_t num_scalars, uint32_t message_modulus,
-    uint32_t carry_modulus) {
+    Torus const *scalar_input, Torus const *h_scalar_input,
+    uint32_t num_scalars, uint32_t message_modulus, uint32_t carry_modulus) {
   if (lwe_array->num_radix_blocks < num_scalars)
     PANIC("Cuda error: num scalars should be smaller or equal to input num "
           "radix blocks")
@@ -51,12 +51,8 @@ __host__ void host_integer_radix_scalar_addition_inplace(
                                       num_scalars, lwe_array->lwe_dimension,
                                       delta);
   check_cuda_error(cudaGetLastError());
-  Torus scalar_input_cpu[num_scalars];
-  cuda_memcpy_async_to_cpu(&scalar_input_cpu, scalar_input,
-                           num_scalars * sizeof(Torus), streams[0],
-                           gpu_indexes[0]);
   for (uint i = 0; i < num_scalars; i++) {
-    lwe_array->degrees[i] = lwe_array->degrees[i] + scalar_input_cpu[i];
+    lwe_array->degrees[i] = lwe_array->degrees[i] + h_scalar_input[i];
   }
 }
 

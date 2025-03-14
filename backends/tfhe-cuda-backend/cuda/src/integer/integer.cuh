@@ -1299,11 +1299,10 @@ void host_compute_propagation_simulators_and_group_carries(
       propagation_cum_sums, bsks, ksks, luts_array_second_step,
       num_radix_blocks);
 
-  auto scalar_array_cum_sum = mem->scalar_array_cum_sum;
-
   host_integer_radix_scalar_addition_inplace<Torus>(
       streams, gpu_indexes, gpu_count, propagation_cum_sums,
-      scalar_array_cum_sum, num_radix_blocks, message_modulus, carry_modulus);
+      mem->scalar_array_cum_sum, mem->h_scalar_array_cum_sum, num_radix_blocks,
+      message_modulus, carry_modulus);
 
   uint32_t modulus_sup = message_modulus * carry_modulus;
   auto nbits = sizeof(Torus) * 8;
