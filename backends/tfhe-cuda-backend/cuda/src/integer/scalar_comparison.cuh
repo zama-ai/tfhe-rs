@@ -87,7 +87,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
@@ -255,10 +255,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
   } else {
     if (num_radix_blocks == 1) {
       std::pair<bool, bool> invert_flags = get_invert_flags(mem_ptr->op);
-      Torus scalar = 0;
-      cuda_memcpy_async_to_cpu(&scalar, scalar_blocks, sizeof(Torus),
-                               streams[0], gpu_indexes[0]);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      Torus scalar = h_scalar_blocks[0];
       auto one_block_lut_f = [invert_flags, scalar](Torus x) -> Torus {
         Torus x_0;
         Torus x_1;
@@ -332,7 +329,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
@@ -551,10 +548,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
   } else {
     if (num_radix_blocks == 1) {
       std::pair<bool, bool> invert_flags = get_invert_flags(mem_ptr->op);
-      Torus scalar = 0;
-      cuda_memcpy_async_to_cpu(&scalar, scalar_blocks, sizeof(Torus),
-                               streams[0], gpu_indexes[0]);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      Torus scalar = h_scalar_blocks[0];
       auto one_block_lut_f = [invert_flags, scalar,
                               message_modulus](Torus x) -> Torus {
         Torus x_0;
@@ -629,11 +623,13 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
       as_radix_ciphertext_slice<Torus>(&encrypted_sign_block, lwe_array_in,
                                        num_radix_blocks - 1, num_radix_blocks);
       Torus const *scalar_sign_block = scalar_blocks + (num_scalar_blocks - 1);
+      Torus const *h_scalar_sign_block =
+          h_scalar_blocks + (num_scalar_blocks - 1);
 
       auto trivial_sign_block = mem_ptr->tmp_trivial_sign_block;
       set_trivial_radix_ciphertext_async<Torus>(
           msb_streams[0], gpu_indexes[0], trivial_sign_block, scalar_sign_block,
-          1, message_modulus, carry_modulus);
+          h_scalar_sign_block, 1, message_modulus, carry_modulus);
 
       integer_radix_apply_bivariate_lookup_table_kb<Torus>(
           msb_streams, gpu_indexes, gpu_count, &lwe_array_sign_out,
@@ -659,7 +655,7 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr,
+    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
     std::function<Torus(Torus)> sign_handler_f, void *const *bsks,
     Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
 
@@ -673,13 +669,13 @@ __host__ void host_integer_radix_scalar_difference_check_kb(
     // is signed and scalar is positive
     integer_radix_signed_scalar_difference_check_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in,
-        scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks, num_radix_blocks,
-        num_scalar_blocks);
+        scalar_blocks, h_scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks,
+        num_radix_blocks, num_scalar_blocks);
   } else {
     integer_radix_unsigned_scalar_difference_check_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in,
-        scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks, num_radix_blocks,
-        num_scalar_blocks);
+        scalar_blocks, h_scalar_blocks, mem_ptr, sign_handler_f, bsks, ksks,
+        num_radix_blocks, num_scalar_blocks);
   }
 }
 
@@ -688,8 +684,9 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in, Torus const *scalar_blocks,
-    int_comparison_buffer<Torus> *mem_ptr, void *const *bsks,
-    Torus *const *ksks, uint32_t num_radix_blocks, uint32_t num_scalar_blocks) {
+    Torus const *h_scalar_blocks, int_comparison_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks, uint32_t num_radix_blocks,
+    uint32_t num_scalar_blocks) {
 
   if (lwe_array_out->lwe_dimension != lwe_array_in->lwe_dimension)
     PANIC("Cuda error: input and output lwe dimensions must be the same")
@@ -707,8 +704,8 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
   auto sign = mem_ptr->tmp_lwe_array_out;
   host_integer_radix_scalar_difference_check_kb<Torus>(
       streams, gpu_indexes, gpu_count, sign, lwe_array_in, scalar_blocks,
-      mem_ptr, mem_ptr->identity_lut_f, bsks, ksks, num_radix_blocks,
-      num_scalar_blocks);
+      h_scalar_blocks, mem_ptr, mem_ptr->identity_lut_f, bsks, ksks,
+      num_radix_blocks, num_scalar_blocks);
 
   // There is no optimized CMUX for scalars, so we convert to a trivial
   // ciphertext
@@ -717,7 +714,8 @@ __host__ void host_integer_radix_scalar_maxmin_kb(
 
   set_trivial_radix_ciphertext_async<Torus>(
       streams[0], gpu_indexes[0], lwe_array_right, scalar_blocks,
-      num_scalar_blocks, params.message_modulus, params.carry_modulus);
+      h_scalar_blocks, num_scalar_blocks, params.message_modulus,
+      params.carry_modulus);
 
   // Selector
   // CMUX for Max or Min
