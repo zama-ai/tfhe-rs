@@ -7,9 +7,11 @@ use crate::fw::{Fw, FwParameters};
 use crate::{asm, ffi};
 use rtl::FromRtl;
 
+use itertools::Itertools;
 use std::collections::VecDeque;
 use std::str::FromStr;
 use std::sync::{mpsc, Arc, Mutex};
+use strum::VariantNames;
 
 use tracing::{debug, info, trace};
 
@@ -612,9 +614,18 @@ impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
-        // TODO Add RTL register for the nu value
         let pe_cfg = PeConfigStore::from(&self.params);
-        let mut fw = crate::fw::fw_impl::ilp::Ilp::default();
+        let fw_name =
+            crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {
+                panic!(
+                    "Unknown firmware name {}, list of possible firmware names: {}",
+                    config.firmware.implementation,
+                    crate::fw::AvlblFw::VARIANTS.iter().join(",")
+                );
+            });
+        let mut fw = crate::fw::AvlblFw::new(&fw_name);
+
+        // TODO Add RTL register for the nu value
         let mut fw_params = FwParameters {
             register: self.params.regf_params.reg_nb,
             isc_depth: self.params.isc_params.depth,

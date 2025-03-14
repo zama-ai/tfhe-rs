@@ -126,6 +126,9 @@ pub struct FwConfig {
 
     /// A per IOP configuration
     pub op_cfg: RtlCfg,
+
+    /// Defines the firmware implementation to use
+    pub implementation: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
