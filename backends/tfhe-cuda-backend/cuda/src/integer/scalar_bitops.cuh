@@ -9,8 +9,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, Torus const *clear_blocks,
-    uint32_t num_clear_blocks, int_bitop_buffer<Torus> *mem_ptr,
-    void *const *bsks, Torus *const *ksks) {
+    Torus const *h_clear_blocks, uint32_t num_clear_blocks,
+    int_bitop_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks) {
 
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")
@@ -33,19 +33,15 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     // We have all possible LUTs pre-computed and we use the decomposed scalar
     // as index to recover the right one
     uint64_t degrees[num_clear_blocks];
-    uint64_t clear_degrees[num_clear_blocks];
-    cuda_memcpy_async_to_cpu(&clear_degrees, clear_blocks,
-                             num_clear_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0]);
     if (mem_ptr->op == BITOP_TYPE::SCALAR_BITAND) {
-      update_degrees_after_scalar_bitand(degrees, clear_degrees, input->degrees,
-                                         num_clear_blocks);
+      update_degrees_after_scalar_bitand(degrees, h_clear_blocks,
+                                         input->degrees, num_clear_blocks);
     } else if (mem_ptr->op == BITOP_TYPE::SCALAR_BITOR) {
-      update_degrees_after_scalar_bitor(degrees, clear_degrees, input->degrees,
+      update_degrees_after_scalar_bitor(degrees, h_clear_blocks, input->degrees,
                                         num_clear_blocks);
     } else if (mem_ptr->op == SCALAR_BITXOR) {
-      update_degrees_after_scalar_bitxor(degrees, clear_degrees, input->degrees,
-                                         num_clear_blocks);
+      update_degrees_after_scalar_bitxor(degrees, h_clear_blocks,
+                                         input->degrees, num_clear_blocks);
     }
     cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
                                  num_clear_blocks * sizeof(Torus), streams[0],

@@ -588,13 +588,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
-  Torus lut_indexes[lut->num_blocks];
-  cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
-                           lut->num_blocks * sizeof(Torus), streams[0],
-                           gpu_indexes[0]);
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
+    lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 }
@@ -694,13 +689,9 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
-  Torus lut_indexes[lut->num_blocks];
-  cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
-                           lut->num_blocks * sizeof(Torus), streams[0],
-                           gpu_indexes[0]);
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i % lut->num_blocks]];
+    lwe_array_out->degrees[i] =
+        lut->degrees[lut->h_lut_indexes[i % lut->num_blocks]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 }
@@ -812,13 +803,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
-  Torus lut_indexes[lut->num_blocks];
-  cuda_memcpy_async_to_cpu(&lut_indexes, lut->get_lut_indexes(0, 0),
-                           lut->num_blocks * sizeof(Torus), streams[0],
-                           gpu_indexes[0]);
-  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   for (uint i = 0; i < num_radix_blocks; i++) {
-    lwe_array_out->degrees[i] = lut->degrees[lut_indexes[i]];
+    lwe_array_out->degrees[i] = lut->degrees[lut->h_lut_indexes[i]];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
   }
 }
@@ -1310,11 +1296,10 @@ void host_compute_propagation_simulators_and_group_carries(
       propagation_cum_sums, bsks, ksks, luts_array_second_step,
       num_radix_blocks);
 
-  auto scalar_array_cum_sum = mem->scalar_array_cum_sum;
-
   host_integer_radix_scalar_addition_inplace<Torus>(
       streams, gpu_indexes, gpu_count, propagation_cum_sums,
-      scalar_array_cum_sum, num_radix_blocks, message_modulus, carry_modulus);
+      mem->scalar_array_cum_sum, mem->h_scalar_array_cum_sum, num_radix_blocks,
+      message_modulus, carry_modulus);
 
   uint32_t modulus_sup = message_modulus * carry_modulus;
   auto nbits = sizeof(Torus) * 8;
@@ -1426,12 +1411,8 @@ void host_full_propagate_inplace(cudaStream_t const *streams,
     copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                              &cur_input_block, 0, 1,
                                              mem_ptr->tmp_big_lwe_vector, 0, 1);
-    Torus lut_indexes[mem_ptr->lut->num_blocks];
-    cuda_memcpy_async_to_cpu(&lut_indexes, mem_ptr->lut->get_lut_indexes(0, 0),
-                             mem_ptr->lut->num_blocks * sizeof(Torus),
-                             streams[0], gpu_indexes[0]);
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-    input_blocks->degrees[i] = mem_ptr->lut->degrees[lut_indexes[0]];
+    input_blocks->degrees[i] =
+        mem_ptr->lut->degrees[mem_ptr->lut->h_lut_indexes[0]];
     input_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
 
     if (i < num_blocks - 1) {
