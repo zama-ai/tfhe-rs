@@ -258,8 +258,8 @@ void cuda_scalar_bitop_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_input, void const *clear_blocks,
-    uint32_t num_clear_blocks, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks);
+    void const *h_clear_blocks, uint32_t num_clear_blocks, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks);
 
 void cleanup_cuda_integer_bitop(void *const *streams,
                                 uint32_t const *gpu_indexes, uint32_t gpu_count,
