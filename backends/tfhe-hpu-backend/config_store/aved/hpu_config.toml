@@ -101,4 +101,4 @@
   fill_batch_fifo = false
   min_batch_size = true
   use_tiers = true
-  flush = false
+  flush = true
