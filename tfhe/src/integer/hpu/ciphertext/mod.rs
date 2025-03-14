@@ -226,8 +226,8 @@ macro_rules! map_scalar_ct {
     };
 }
 
-map_ct_ct!(IOP_ADDK -> "Add");
-map_ct_ct!(IOP_SUBK -> "Sub");
+map_ct_ct!(IOP_ADD -> "Add");
+map_ct_ct!(IOP_SUB -> "Sub");
 map_ct_ct!(IOP_MUL  -> "Mul");
 map_ct_ct!(IOP_BW_AND -> "BitAnd");
 map_ct_ct!(IOP_BW_OR  -> "BitOr");

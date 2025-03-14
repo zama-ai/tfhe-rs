@@ -53,12 +53,20 @@ pub struct Args {
     use_ipip: bool,
 
     /// Try to fill the batch fifo
-    #[clap(long, value_parser, default_value_t = false)]
+    #[clap(long, value_parser, default_value_t = true)]
     fill_batch_fifo: bool,
 
     /// Use the minimum batch size for a PE
     #[clap(long, value_parser, default_value_t = false)]
     min_batch_size: bool,
+
+    /// Use the minimum batch size for a PE
+    #[clap(long, value_parser, default_value_t = false)]
+    use_tiers: bool,
+
+    /// Flush PBS batches to force a specific scheduling
+    #[clap(long, value_parser, default_value_t = true)]
+    flush: bool,
 
     /// Integer bit width
     #[clap(long, value_parser, default_value_t = 8)]
@@ -138,9 +146,12 @@ fn main() -> Result<(), anyhow::Error> {
         op_cfg: RtlCfg::from(OpCfg {
             fill_batch_fifo: args.fill_batch_fifo,
             min_batch_size: args.min_batch_size,
+            use_tiers: args.use_tiers,
+            flush: args.flush,
         }),
         cur_op_cfg: OpCfg::default(),
         pe_cfg,
+        op_name: Default::default(),
     };
     println!("Fw parameters after override with CLI: {fw_params:?}");
 

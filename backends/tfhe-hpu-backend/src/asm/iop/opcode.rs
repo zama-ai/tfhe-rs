@@ -23,16 +23,12 @@ pub const ADDS: u8 = 0xA0;
 pub const SUBS: u8 = 0xA1;
 pub const SSUB: u8 = 0xA2;
 pub const MULS: u8 = 0xA3;
-pub const MULSF: u8 = 0xA4;
 
 // Ct x Ct -------------------------------------------------------------------
 // Arith operations
 pub const ADD: u8 = 0xE0;
-pub const ADDK: u8 = 0xE1;
 pub const SUB: u8 = 0xE2;
-pub const SUBK: u8 = 0xE3;
 pub const MUL: u8 = 0xE4;
-pub const MULF: u8 = 0xE5;
 
 // BW operations
 pub const BW_AND: u8 = 0xD0;
