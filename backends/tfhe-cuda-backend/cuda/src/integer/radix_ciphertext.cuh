@@ -56,6 +56,7 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   output_radix->num_radix_blocks = end_input_lwe_index - start_input_lwe_index;
+  output_radix->max_num_radix_blocks = input_radix->max_num_radix_blocks;
   output_radix->lwe_dimension = input_radix->lwe_dimension;
   Torus *in_ptr = (Torus *)input_radix->ptr;
   output_radix->ptr = (void *)(in_ptr + start_input_lwe_index * lwe_size);

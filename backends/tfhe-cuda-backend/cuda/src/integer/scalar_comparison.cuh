@@ -131,10 +131,14 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
   if (num_scalar_blocks == 0) {
     // We only have to compare blocks with zero
     // means scalar is zero
-    host_compare_with_zero_equality<Torus>(
+    host_compare_blocks_with_zero<Torus>(
         streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
         lwe_array_in, mem_ptr, bsks, ksks, num_radix_blocks,
         mem_ptr->is_zero_lut);
+    are_all_comparisons_block_true<Torus>(
+        streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
+        mem_ptr->tmp_lwe_array_out, mem_ptr, bsks, ksks,
+        mem_ptr->tmp_lwe_array_out->num_radix_blocks);
 
     auto scalar_last_leaf_lut_f = [sign_handler_f](Torus x) -> Torus {
       x = (x == 1 ? IS_EQUAL : IS_SUPERIOR);
@@ -217,9 +221,13 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
         num_lsb_radix_blocks);
     //////////////
     // msb
-    host_compare_with_zero_equality<Torus>(
+    host_compare_blocks_with_zero<Torus>(
         msb_streams, gpu_indexes, gpu_count, &lwe_array_msb_out, &msb, mem_ptr,
         bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
+    are_all_comparisons_block_true<Torus>(
+        msb_streams, gpu_indexes, gpu_count, &lwe_array_msb_out,
+        &lwe_array_msb_out, mem_ptr, bsks, ksks,
+        lwe_array_msb_out.num_radix_blocks);
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(lsb_streams[j], gpu_indexes[j]);
       cuda_synchronize_stream(msb_streams[j], gpu_indexes[j]);
@@ -372,9 +380,12 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // We only have to compare blocks with zero
     // means scalar is zero
     auto are_all_msb_zeros = mem_ptr->tmp_lwe_array_out;
-    host_compare_with_zero_equality<Torus>(
+    host_compare_blocks_with_zero<Torus>(
         streams, gpu_indexes, gpu_count, are_all_msb_zeros, lwe_array_in,
         mem_ptr, bsks, ksks, num_radix_blocks, mem_ptr->is_zero_lut);
+    are_all_comparisons_block_true<Torus>(
+        streams, gpu_indexes, gpu_count, are_all_msb_zeros, are_all_msb_zeros,
+        mem_ptr, bsks, ksks, are_all_msb_zeros->num_radix_blocks);
     CudaRadixCiphertextFFI sign_block;
     as_radix_ciphertext_slice<Torus>(&sign_block, lwe_array_in,
                                      num_radix_blocks - 1, num_radix_blocks);
@@ -485,9 +496,13 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     // msb
     // We remove the last block (which is the sign)
     auto are_all_msb_zeros = lwe_array_msb_out;
-    host_compare_with_zero_equality<Torus>(
+    host_compare_blocks_with_zero<Torus>(
         msb_streams, gpu_indexes, gpu_count, &are_all_msb_zeros, &msb, mem_ptr,
         bsks, ksks, num_msb_radix_blocks, mem_ptr->is_zero_lut);
+    are_all_comparisons_block_true<Torus>(
+        msb_streams, gpu_indexes, gpu_count, &are_all_msb_zeros,
+        &are_all_msb_zeros, mem_ptr, bsks, ksks,
+        are_all_msb_zeros.num_radix_blocks);
 
     auto sign_bit_pos = (int)log2(message_modulus) - 1;
 
@@ -813,9 +828,9 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
       PANIC("Cuda error: integer operation not supported")
     }
 
-    host_compare_with_zero_equality<Torus>(msb_streams, gpu_indexes, gpu_count,
-                                           &msb_out, &msb_in, mem_ptr, bsks,
-                                           ksks, num_msb_radix_blocks, msb_lut);
+    host_compare_blocks_with_zero<Torus>(msb_streams, gpu_indexes, gpu_count,
+                                         &msb_out, &msb_in, mem_ptr, bsks, ksks,
+                                         num_msb_radix_blocks, msb_lut);
   }
 
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
