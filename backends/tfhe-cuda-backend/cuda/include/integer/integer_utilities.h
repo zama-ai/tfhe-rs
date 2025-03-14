@@ -4821,16 +4821,16 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
                                  uint64_t *lwe_array_2_degrees,
                                  uint32_t num_radix_blocks);
 void update_degrees_after_scalar_bitand(uint64_t *output_degrees,
-                                        uint64_t *clear_degrees,
-                                        uint64_t *input_degrees,
+                                        uint64_t const *clear_degrees,
+                                        uint64_t const *input_degrees,
                                         uint32_t num_clear_blocks);
 void update_degrees_after_scalar_bitor(uint64_t *output_degrees,
-                                       uint64_t *clear_degrees,
-                                       uint64_t *input_degrees,
+                                       uint64_t const *clear_degrees,
+                                       uint64_t const *input_degrees,
                                        uint32_t num_clear_blocks);
 void update_degrees_after_scalar_bitxor(uint64_t *output_degrees,
-                                        uint64_t *clear_degrees,
-                                        uint64_t *input_degrees,
+                                        uint64_t const *clear_degrees,
+                                        uint64_t const *input_degrees,
                                         uint32_t num_clear_blocks);
 std::pair<bool, bool> get_invert_flags(COMPARISON_TYPE compare);
 void reverseArray(uint64_t arr[], size_t n);
