@@ -225,18 +225,29 @@ pbs!(
 
 ["CmpGt" => 12 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_SUPERIOR => 1,
-            _ => 0,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_SUPERIOR, _) => 1,
+                _ => 0,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
 ]],
 ["CmpGte" => 13 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_SUPERIOR | CMP_EQUAL => 1,
-            _ => 0,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_SUPERIOR, _) |
+                (CMP_EQUAL, CMP_EQUAL) => 1,
+                _ => 0,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
@@ -244,36 +255,57 @@ pbs!(
 // Could be merge with Gt/Gte
 ["CmpLt" => 14 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_INFERIOR => 1,
-            _ => 0,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_INFERIOR, _) => 1,
+                _ => 0,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
 ]],
 ["CmpLte" => 15 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_INFERIOR | CMP_EQUAL => 1,
-            _ => 0,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_EQUAL, CMP_EQUAL) |
+                (CMP_INFERIOR, _) => 1,
+                _ => 0,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
 ]],
 ["CmpEq" => 16 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_EQUAL => 1,
-            _ => 0,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_EQUAL, CMP_EQUAL) => 1,
+                _ => 0,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
 ]],
 ["CmpNeq" => 17 [
     @0 =>{
-        |params: &DigitParameters, val | match val & params.msg_mask() {
-            CMP_EQUAL => 0,
-            _ => 1,
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field, msg_field) {
+                (CMP_EQUAL, CMP_EQUAL) => 0,
+                _ => 1,
+            }
         };
         |_params: &DigitParameters, _deg| 1;
     }
