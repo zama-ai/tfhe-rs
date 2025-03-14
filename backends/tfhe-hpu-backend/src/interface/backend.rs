@@ -164,18 +164,24 @@ impl HpuBackend {
             rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
         );
 
-        let workq_addr = if cfg!(not(feature="hw-aved")) {
+        let workq_addr = if cfg!(not(feature = "hw-aved")) {
             (*regmap
-            .register()
-            .get("WorkAck::workq")
-            .expect("Unknow register, check regmap definition")
-            .offset()) as u64} else {0};
-        let ackq_addr =  if cfg!(not(feature="hw-aved")) {
+                .register()
+                .get("WorkAck::workq")
+                .expect("Unknow register, check regmap definition")
+                .offset()) as u64
+        } else {
+            0
+        };
+        let ackq_addr = if cfg!(not(feature = "hw-aved")) {
             (*regmap
-            .register()
-            .get("WorkAck::ackq")
-            .expect("Unknow register, check regmap definition")
-            .offset()) as u64} else {0};
+                .register()
+                .get("WorkAck::ackq")
+                .expect("Unknow register, check regmap definition")
+                .offset()) as u64
+        } else {
+            0
+        };
 
         // Allocate memory for Bsk
         let bsk_props = {
