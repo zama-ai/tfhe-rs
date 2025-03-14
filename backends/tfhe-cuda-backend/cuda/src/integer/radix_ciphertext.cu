@@ -12,7 +12,7 @@ void release_radix_ciphertext(cudaStream_t const stream,
 void reset_radix_ciphertext_blocks(CudaRadixCiphertextFFI *data,
                                    uint32_t new_num_blocks) {
   if (new_num_blocks > data->max_num_radix_blocks)
-    PANIC("Cuda error: new num blocks should be lower or equal to previous num "
-          "blocks")
+    PANIC("Cuda error: new num blocks should be lower or equal than the "
+          "radix' maximum number of blocks")
   data->num_radix_blocks = new_num_blocks;
 }

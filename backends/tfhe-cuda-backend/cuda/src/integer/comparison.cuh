@@ -169,6 +169,7 @@ __host__ void are_all_comparisons_block_true(
       is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
       free(h_lut_indexes);
+      reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
     } else {
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -254,11 +255,8 @@ __host__ void is_at_least_one_comparisons_block_true(
   }
 }
 
-// FIXME This function should be improved as it outputs a single LWE ciphertext
-//  but requires the output to have enough blocks allocated to compute
-//  intermediate values
 template <typename Torus>
-__host__ void host_compare_with_zero_equality(
+__host__ void host_compare_blocks_with_zero(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
     CudaRadixCiphertextFFI const *lwe_array_in,
@@ -320,11 +318,9 @@ __host__ void host_compare_with_zero_equality(
   }
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      streams, gpu_indexes, gpu_count, sum, sum, bsks, ksks, zero_comparison,
-      num_sum_blocks);
-  are_all_comparisons_block_true<Torus>(streams, gpu_indexes, gpu_count,
-                                        lwe_array_out, sum, mem_ptr, bsks, ksks,
-                                        num_sum_blocks);
+      streams, gpu_indexes, gpu_count, lwe_array_out, sum, bsks, ksks,
+      zero_comparison, num_sum_blocks);
+  reset_radix_ciphertext_blocks(lwe_array_out, num_sum_blocks);
 }
 
 template <typename Torus>

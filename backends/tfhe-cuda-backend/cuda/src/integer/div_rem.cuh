@@ -70,7 +70,6 @@ __host__ void host_unsigned_integer_div_rem_kb(
   auto did_not_overflow = mem_ptr->did_not_overflow;
   auto overflow_sum = mem_ptr->overflow_sum;
   auto overflow_sum_radix = mem_ptr->overflow_sum_radix;
-  auto tmp_1 = mem_ptr->tmp_1;
   auto at_least_one_upper_block_is_non_zero =
       mem_ptr->at_least_one_upper_block_is_non_zero;
   auto cleaned_merged_interesting_remainder =
@@ -334,16 +333,17 @@ __host__ void host_unsigned_integer_div_rem_kb(
         // We could call unchecked_scalar_ne
         // But we are in the special case where scalar == 0
         // So we can skip some stuff
-        host_compare_with_zero_equality<Torus>(
-            streams, gpu_indexes, gpu_count, tmp_1, trivial_blocks,
+        host_compare_blocks_with_zero<Torus>(
+            streams, gpu_indexes, gpu_count, mem_ptr->tmp_1, trivial_blocks,
             mem_ptr->comparison_buffer, bsks, ksks,
             trivial_blocks->num_radix_blocks,
             mem_ptr->comparison_buffer->eq_buffer->is_non_zero_lut);
 
         is_at_least_one_comparisons_block_true<Torus>(
             streams, gpu_indexes, gpu_count,
-            at_least_one_upper_block_is_non_zero, tmp_1,
-            mem_ptr->comparison_buffer, bsks, ksks, tmp_1->num_radix_blocks);
+            at_least_one_upper_block_is_non_zero, mem_ptr->tmp_1,
+            mem_ptr->comparison_buffer, bsks, ksks,
+            mem_ptr->tmp_1->num_radix_blocks);
       }
     };
 
