@@ -29,12 +29,12 @@ crate::impl_fw!("Llt" [
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
     BW_XOR => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwXor::default().into())});
 
-    CMP_GT  => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpGtMrg::default().into())});
-    CMP_GTE => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpGteMrg::default().into())});
-    CMP_LT  => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpLtMrg::default().into())});
-    CMP_LTE => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpLteMrg::default().into())});
-    CMP_EQ  => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpEqMrg::default().into())});
-    CMP_NEQ => (|prog| {fw_impl::llt::iop_cmp(prog, asm::dop::PbsCmpNeqMrg::default().into())});
+    CMP_GT  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGtMrg"), pbs_by_name!("CmpGt"))});
+    CMP_GTE => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpGteMrg"), pbs_by_name!("CmpGte"))});
+    CMP_LT  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLtMrg"), pbs_by_name!("CmpLt"))});
+    CMP_LTE => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpLteMrg"), pbs_by_name!("CmpLte"))});
+    CMP_EQ  => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpEqMrg"), pbs_by_name!("CmpEq"))});
+    CMP_NEQ => (|prog| {fw_impl::llt::iop_cmp(prog, pbs_by_name!("CmpNeqMrg"), pbs_by_name!("CmpNeq"))});
 
     IF_THEN_ZERO => fw_impl::ilp::iop_if_then_zero;
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
@@ -94,7 +94,7 @@ pub fn iop_sub(prog: &mut Program) {
 }
 
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
+pub fn iop_cmp(prog: &mut Program, mrg_op: Pbs, cmp_op: Pbs) {
     // Dest -> Operand
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
@@ -108,7 +108,7 @@ pub fn iop_cmp(prog: &mut Program, cmp_op: Pbs) {
     ));
 
     // Deferred implementation to generic cmpx function
-    iop_cmpx(prog, &dst[0], &src_a, &src_b, cmp_op);
+    iop_cmpx(prog, &dst[0], &src_a, &src_b, mrg_op, cmp_op);
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -186,6 +186,7 @@ pub fn iop_erc_20(prog: &mut Program) {
             src_from.clone(),
             src_amount.clone(),
             pbs_by_name!("CmpGteMrg"),
+            pbs_by_name!("CmpGte"),
         );
 
         let src_amount = src_amount
@@ -393,12 +394,13 @@ pub fn iop_cmpx(
     dst: &metavar::MetaVarCell,
     src_a: &[metavar::MetaVarCell],
     src_b: &[metavar::MetaVarCell],
-    cmp_op: Pbs,
+    mrg_lut: Pbs,
+    cmp_lut: Pbs,
 ) {
     let mut dst = VarCell::from(dst);
     let src_a = src_a.iter().map(VarCell::from).collect();
     let src_b = src_b.iter().map(VarCell::from).collect();
-    dst <<= &iop_cmpx_rtl(prog, src_a, src_b, cmp_op);
+    dst <<= &iop_cmpx_rtl(prog, src_a, src_b, mrg_lut, cmp_lut);
     Rtl::from(vec![dst]).add_to_prog(prog);
 }
 
@@ -410,7 +412,8 @@ pub fn iop_cmpx_rtl(
     prog: &mut Program,
     src_a: Vec<VarCell>,
     src_b: Vec<VarCell>,
-    cmp_op: Pbs,
+    mrg_lut: Pbs,
+    cmp_lut: Pbs,
 ) -> VarCell {
     let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
@@ -465,11 +468,13 @@ pub fn iop_cmpx_rtl(
             .collect()
     }
 
-    assert!(merged.len() == 2);
-
-    merged[0]
-        .mac(tfhe_params.msg_range(), &merged[1])
-        .single_pbs(&cmp_op)
+    match merged.len() {
+        2 => merged[0]
+            .mac(tfhe_params.msg_range(), &merged[1])
+            .single_pbs(&mrg_lut),
+        1 => merged[0].single_pbs(&cmp_lut),
+        _ => panic!("Fix your bugs!"),
+    }
 }
 
 fn bw_inv(prog: &mut Program, b: Vec<VarCell>) -> Vec<VarCell> {
