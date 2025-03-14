@@ -1564,6 +1564,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
   CudaRadixCiphertextFFI *resolved_carries;
 
   Torus *scalar_array_cum_sum;
+  Torus *h_scalar_array_cum_sum;
 
   int_radix_lut<Torus> *luts_array_second_step;
 
@@ -1614,6 +1615,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
     cuda_memset_async(scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus),
                       streams[0], gpu_indexes[0]);
+    h_scalar_array_cum_sum = new Torus[num_radix_blocks]();
 
     // create lut objects for step 2
     Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
@@ -1744,9 +1746,6 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     Torus *h_second_lut_indexes = (Torus *)malloc(lut_indexes_size);
 
-    Torus *h_scalar_array_cum_sum =
-        (Torus *)malloc(num_radix_blocks * sizeof(Torus));
-
     for (int index = 0; index < num_radix_blocks; index++) {
       uint32_t grouping_index = index / grouping_size;
       bool is_in_first_grouping = (grouping_index == 0);
@@ -1802,7 +1801,6 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
           big_lwe_size_bytes, true);
     }
 
-    free(h_scalar_array_cum_sum);
     free(h_second_lut_indexes);
   };
 
@@ -1850,6 +1848,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     delete prepared_blocks;
     delete resolved_carries;
     delete luts_array_second_step;
+    delete[] h_scalar_array_cum_sum;
   };
 };
 
