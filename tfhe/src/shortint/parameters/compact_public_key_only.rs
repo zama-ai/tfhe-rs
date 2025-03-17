@@ -37,6 +37,7 @@ impl From<AtomicPatternKind> for CompactCiphertextListExpansionKind {
     fn from(value: AtomicPatternKind) -> Self {
         match value {
             AtomicPatternKind::Classical(pbsorder) => Self::NoCasting(pbsorder),
+            AtomicPatternKind::KeySwitch32 => Self::NoCasting(PBSOrder::KeyswitchBootstrap),
         }
     }
 }
@@ -177,8 +178,12 @@ impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
 
     fn try_from(value: AtomicPatternParameters) -> Result<Self, Self::Error> {
         match value {
-            AtomicPatternParameters::Classical(pbsparameters) => {
-                let params: ShortintParameterSet = pbsparameters.into();
+            AtomicPatternParameters::Classical(parameters) => {
+                let params: ShortintParameterSet = parameters.into();
+                params.try_into()
+            }
+            AtomicPatternParameters::KeySwitch32(parameters) => {
+                let params: ShortintParameterSet = parameters.into();
                 params.try_into()
             }
         }
