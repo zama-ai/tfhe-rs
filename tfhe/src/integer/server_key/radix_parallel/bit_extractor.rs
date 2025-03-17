@@ -115,11 +115,6 @@ impl<'a> BitExtractor<'a> {
         }
     }
 
-    pub(crate) fn prepare_all_bits(&mut self) {
-        let num_blocks = self.input_blocks.len();
-        self.prepare_n_bits(num_blocks * self.bits_per_block)
-    }
-
     /// Extract the remaining `n` bits in parallel from the current source blocks
     /// and place them into the internal buffer
     ///
