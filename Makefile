@@ -404,7 +404,7 @@ clippy_tasks: install_rs_check_toolchain
 
 .PHONY: clippy_trivium # Run clippy lints on Trivium app
 clippy_trivium: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
@@ -874,12 +874,12 @@ test_examples: test_sha256_bool test_regex_engine
 
 .PHONY: test_trivium # Run tests for trivium
 test_trivium: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-trivium -- --test-threads=1 trivium::
 
 .PHONY: test_kreyvium # Run tests for kreyvium
 test_kreyvium: install_rs_build_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-trivium -- --test-threads=1 kreyvium::
 
 .PHONY: test_tfhe_csprng # Run tfhe-csprng tests

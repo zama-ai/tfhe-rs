@@ -6,7 +6,6 @@ members = [
     "tfhe-ntt",
     "tfhe-zk-pok",
     "tasks",
-    "apps/trivium",
     "tfhe-csprng",
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
@@ -14,7 +13,11 @@ members = [
     "tests",
 ]
 
-exclude = ["tests/backward_compatibility_tests", "utils/tfhe-lints"]
+exclude = [
+    "tests/backward_compatibility_tests",
+    "utils/tfhe-lints",
+    "apps/trivium",
+]
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
 bytemuck = "1.14.3"
