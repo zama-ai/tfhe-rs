@@ -49,6 +49,7 @@ pub use aliases::*;
 pub use v1_1 as current_params;
 
 pub use super::atomic_pattern::AtomicPatternKind;
+use super::atomic_pattern::AtomicPatternParameters;
 use super::backward_compatibility::parameters::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionParamsVersions;
 pub use super::ciphertext::{Degree, MaxNoiseLevel, NoiseLevel};
 use super::server_key::PBSConformanceParams;
@@ -374,6 +375,18 @@ impl ShortintParameterSet {
         Ok(Self {
             inner: ShortintParameterSetInner::PBSAndWopbs(pbs_params, wopbs_params),
         })
+    }
+
+    pub const fn ap_parameters(&self) -> Option<AtomicPatternParameters> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => {
+                Some(AtomicPatternParameters::Classical(params))
+            }
+            ShortintParameterSetInner::WopbsOnly(_) => None,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => {
+                Some(AtomicPatternParameters::Classical(params))
+            }
+        }
     }
 
     pub const fn pbs_parameters(&self) -> Option<PBSParameters> {
