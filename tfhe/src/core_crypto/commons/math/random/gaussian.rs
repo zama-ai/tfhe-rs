@@ -30,7 +30,7 @@ impl Gaussian<f64> {
         }
     }
 
-    pub fn standard_dev(&self) -> StandardDev {
+    pub const fn standard_dev(&self) -> StandardDev {
         StandardDev(self.std)
     }
 }

@@ -5,12 +5,15 @@ use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
 };
-use crate::core_crypto::commons::traits::Container;
+use crate::core_crypto::commons::traits::{CastInto, Container, UnsignedInteger};
 use crate::core_crypto::entities::*;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
+use crate::shortint::parameters::{
+    CoreCiphertextModulus, EncryptionKeyChoice, KeySwitch32PBSParameters,
+    ShortintKeySwitchingParameters,
+};
 use crate::shortint::server_key::{
     CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
     ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
@@ -82,6 +85,41 @@ impl ShortintEngine {
         }
     }
 
+    pub fn new_bootstrapping_key_ks32<
+        InKeycont: Container<Element = u32> + Sync,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        pbs_params: KeySwitch32PBSParameters,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+    ) -> ShortintBootstrappingKey<u32> {
+        let bsk = self.new_classic_bootstrapping_key(
+            in_key,
+            out_key,
+            pbs_params.glwe_noise_distribution,
+            pbs_params.pbs_base_log,
+            pbs_params.pbs_level,
+            pbs_params.ciphertext_modulus,
+        );
+        let modulus_switch_noise_reduction_key = pbs_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    in_key,
+                    self,
+                    CoreCiphertextModulus::new_native(),
+                    pbs_params.lwe_noise_distribution,
+                )
+            });
+
+        ShortintBootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
+        }
+    }
+
     pub fn new_bootstrapping_key<
         InKeycont: Container<Element = u64> + Sync,
         OutKeyCont: Container<Element = u64> + Sync,
@@ -147,7 +185,8 @@ impl ShortintEngine {
     }
 
     pub fn new_classic_bootstrapping_key<
-        InKeycont: Container<Element = u64>,
+        InputScalar: UnsignedInteger + CastInto<u64>,
+        InKeycont: Container<Element = InputScalar>,
         OutKeyCont: Container<Element = u64> + Sync,
     >(
         &mut self,
