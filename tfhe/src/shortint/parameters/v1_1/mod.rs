@@ -5,6 +5,7 @@
 pub mod classic;
 pub mod compact_public_key_only;
 pub mod key_switching;
+pub mod ks32;
 pub mod list_compression;
 pub mod multi_bit;
 pub mod noise_squashing;
@@ -22,6 +23,7 @@ pub use classic::tuniform::p_fail_2_minus_40::ks_pbs::*;
 pub use classic::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use compact_public_key_only::p_fail_2_minus_128::ks_pbs::*;
 pub use key_switching::p_fail_2_minus_128::ks_pbs::*;
+pub use ks32::tuniform::p_fail_2_minus_128::ks_pbs::*;
 pub use list_compression::p_fail_2_minus_128::*;
 pub use list_compression::p_fail_2_minus_64::*;
 pub use multi_bit::gaussian::p_fail_2_minus_128::ks_pbs::*;
