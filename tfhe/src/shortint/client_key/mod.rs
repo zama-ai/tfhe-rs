@@ -523,6 +523,8 @@ impl ClientKey {
             AtomicPatternKind::Classical(PBSOrder::BootstrapKeyswitch) => {
                 self.small_lwe_secret_key()
             }
+            // KS32 AP is always KeyswitchBootstrap
+            AtomicPatternKind::KeySwitch32 => self.large_lwe_secret_key(),
         };
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }

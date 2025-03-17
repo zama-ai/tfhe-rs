@@ -18,8 +18,8 @@ use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::{
-    CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchNoiseReductionParams,
-    PBSParameters,
+    CarryModulus, CoreCiphertextModulus, KeySwitch32PBSParameters, MessageModulus,
+    ModulusSwitchNoiseReductionParams, PBSParameters,
 };
 use crate::shortint::server_key::{
     ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
@@ -366,6 +366,45 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyCon
     }
 }
 
+impl TryFrom<(KeySwitch32PBSParameters, NoiseSquashingParameters)>
+    for NoiseSquashingKeyConformanceParams
+{
+    type Error = crate::Error;
+
+    fn try_from(
+        (pbs_params, noise_squashing_params): (KeySwitch32PBSParameters, NoiseSquashingParameters),
+    ) -> Result<Self, Self::Error> {
+        if pbs_params.message_modulus() != noise_squashing_params.message_modulus
+            || pbs_params.carry_modulus() != noise_squashing_params.carry_modulus
+        {
+            return Err(crate::Error::new(format!(
+                "Incompatible MessageModulus (PBS {:?}, NoiseSquashing {:?}) \
+                or CarryModulus (PBS {:?}, NoiseSquashing {:?}) \
+                when creating NoiseSquashingKeyConformanceParams",
+                pbs_params.message_modulus(),
+                noise_squashing_params.message_modulus,
+                pbs_params.carry_modulus(),
+                noise_squashing_params.carry_modulus
+            )));
+        }
+
+        Ok(Self {
+            bootstrapping_key_params: LweBootstrapKeyConformanceParams {
+                input_lwe_dimension: pbs_params.lwe_dimension(),
+                output_glwe_size: noise_squashing_params.glwe_dimension.to_glwe_size(),
+                polynomial_size: noise_squashing_params.polynomial_size,
+                decomp_base_log: noise_squashing_params.decomp_base_log,
+                decomp_level_count: noise_squashing_params.decomp_level_count,
+                ciphertext_modulus: noise_squashing_params.ciphertext_modulus,
+            },
+            modulus_switch_noise_reduction_params: noise_squashing_params
+                .modulus_switch_noise_reduction_params,
+            message_modulus: noise_squashing_params.message_modulus,
+            carry_modulus: noise_squashing_params.carry_modulus,
+        })
+    }
+}
+
 impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
     for NoiseSquashingKeyConformanceParams
 {
@@ -376,6 +415,9 @@ impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
     ) -> Result<Self, Self::Error> {
         match ap_params {
             AtomicPatternParameters::Classical(pbs_params) => {
+                (pbs_params, noise_squashing_params).try_into()
+            }
+            AtomicPatternParameters::KeySwitch32(pbs_params) => {
                 (pbs_params, noise_squashing_params).try_into()
             }
         }
