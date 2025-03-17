@@ -376,6 +376,18 @@ impl ShortintParameterSet {
         })
     }
 
+    pub const fn ap_parameters(&self) -> Option<AtomicPatternParameters> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => {
+                Some(AtomicPatternParameters::Classical(params))
+            }
+            ShortintParameterSetInner::WopbsOnly(_) => None,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => {
+                Some(AtomicPatternParameters::Classical(params))
+            }
+        }
+    }
+
     pub const fn pbs_parameters(&self) -> Option<PBSParameters> {
         match self.inner {
             ShortintParameterSetInner::PBSOnly(params) => Some(params),
