@@ -464,7 +464,7 @@ impl ParameterSetConformant for CompressedServerKey {
 
         let pbs_key_ok = bootstrapping_key.is_conformant(&params);
 
-        let param: LweKeyswitchKeyConformanceParams = parameter_set.into();
+        let param: LweKeyswitchKeyConformanceParams<u64> = parameter_set.into();
 
         let ks_key_ok = key_switching_key.is_conformant(&param);
 

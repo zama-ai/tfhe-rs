@@ -85,7 +85,7 @@ use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
 use super::ciphertext::unchecked_create_trivial_with_lwe_size;
-use super::parameters::ModulusSwitchNoiseReductionParams;
+use super::parameters::{KeySwitch32PBSParameters, ModulusSwitchNoiseReductionParams};
 use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
@@ -1667,6 +1667,22 @@ impl From<&PBSParameters> for PBSConformanceParams {
                         lwe_bsk_grouping_factor: multi_bit_pbs_parameters.grouping_factor,
                     }
                 }
+            },
+        }
+    }
+}
+
+impl From<&KeySwitch32PBSParameters> for PBSConformanceParams {
+    fn from(value: &KeySwitch32PBSParameters) -> Self {
+        Self {
+            in_lwe_dimension: value.lwe_dimension(),
+            out_glwe_dimension: value.glwe_dimension(),
+            out_polynomial_size: value.polynomial_size(),
+            base_log: value.pbs_base_log(),
+            level: value.pbs_level(),
+            ciphertext_modulus: value.ciphertext_modulus(),
+            pbs_type: PbsTypeConformanceParams::Classic {
+                modulus_switch_noise_reduction: value.modulus_switch_noise_reduction_params,
             },
         }
     }
