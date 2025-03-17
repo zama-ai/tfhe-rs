@@ -411,6 +411,9 @@ impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
             AtomicPatternParameters::Standard(pbs_params) => {
                 (pbs_params, noise_squashing_params).try_into()
             }
+            AtomicPatternParameters::KeySwitch32(_) => Err(crate::Error::from(
+                "Noise squashing is not supported by the KS32 Atomic Pattern",
+            )),
         }
     }
 }
