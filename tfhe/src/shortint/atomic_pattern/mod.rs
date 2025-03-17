@@ -17,12 +17,13 @@ use crate::core_crypto::prelude::{
 
 use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
+use super::engine::ShortintEngine;
 use super::server_key::{
     apply_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
     ManyLookupTableOwned,
 };
 use super::{
-    CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, MaxNoiseLevel,
+    CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, ClientKey, MaxNoiseLevel,
     MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters, ShortintParameterSet,
 };
 
@@ -183,6 +184,18 @@ impl<T: AtomicPattern> AtomicPattern for &T {
 #[versionize(AtomicPatternServerKeyVersions)]
 pub enum AtomicPatternServerKey {
     Standard(StandardAtomicPatternServerKey),
+}
+
+impl AtomicPatternServerKey {
+    pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
+        let params = &cks.parameters;
+
+        match params.ap_parameters().unwrap() {
+            AtomicPatternParameters::Standard(_) => {
+                Self::Standard(StandardAtomicPatternServerKey::new(cks, engine))
+            }
+        }
+    }
 }
 
 impl AtomicPattern for AtomicPatternServerKey {
