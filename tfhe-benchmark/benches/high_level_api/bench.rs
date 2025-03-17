@@ -45,15 +45,31 @@ where
     });
     name.clear();
 
-    // write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| {
-    //     b.iter(|| black_box((&lhs).overflowing_add(&rhs)))
-    // });
-    // name.clear();
+    #[cfg(not(feature = "hpu"))]
+    {
+        write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = lhs.overflowing_add(&rhs);
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
+    }
 
-    // write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| b.iter(|| black_box(lhs.overflowing_sub(&rhs))));
-    // name.clear();
+    #[cfg(not(feature = "hpu"))]
+    {
+        write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = lhs.overflowing_sub(&rhs);
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
+    }
 
     write!(name, "sub({type_name}, {type_name})").unwrap();
     bench_group.bench_function(&name, |b| {
@@ -105,21 +121,48 @@ where
     });
     name.clear();
 
-    // write!(name, "shl({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs << &rhs)));
-    // name.clear();
+    #[cfg(not(feature = "hpu"))]
+    {
+        write!(name, "shl({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = &lhs << &rhs;
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
 
-    // write!(name, "shr({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| b.iter(|| black_box(&lhs >> &rhs)));
-    // name.clear();
+        write!(name, "shr({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = &lhs >> &rhs;
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
 
-    // write!(name, "rotl({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_left(&rhs))));
-    // name.clear();
+        write!(name, "rotl({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = (&lhs).rotate_left(&rhs);
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
 
-    // write!(name, "rotr({type_name}, {type_name})").unwrap();
-    // bench_group.bench_function(&name, |b| b.iter(|| black_box((&lhs).rotate_right(&rhs))));
-    // name.clear();
+        write!(name, "rotr({type_name}, {type_name})").unwrap();
+        bench_group.bench_function(&name, |b| {
+            b.iter(|| {
+                let res = (&lhs).rotate_right(&rhs);
+                res.wait();
+                black_box(res)
+            })
+        });
+        name.clear();
+    }
 }
 
 macro_rules! bench_type {
