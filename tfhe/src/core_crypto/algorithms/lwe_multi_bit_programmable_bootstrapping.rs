@@ -305,7 +305,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
+pub fn multi_bit_blind_rotate_assign<InputScalar, InputCont, OutputScalar, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
@@ -313,9 +313,10 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
     deterministic_execution: bool,
 ) where
     // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = Scalar>,
-    OutputCont: ContainerMut<Element = Scalar>,
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
+    OutputScalar: UnsignedTorus + Sync,
+    InputCont: Container<Element = InputScalar>,
+    OutputCont: ContainerMut<Element = OutputScalar>,
     KeyCont: Container<Element = c64> + Sync,
 {
     assert_eq!(
@@ -325,14 +326,6 @@ pub fn multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         input.lwe_size().to_lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
     );
 
     let grouping_factor = multi_bit_bsk.grouping_factor();
