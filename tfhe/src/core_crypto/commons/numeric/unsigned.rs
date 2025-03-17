@@ -97,6 +97,8 @@ pub trait UnsignedInteger:
         // ilog2 returns the rounded down log2
         self.ilog2() + u32::from(!self.is_power_of_two())
     }
+    #[must_use]
+    fn to_le(self) -> Self;
     /// Integer division rounding up.
     #[must_use]
     fn div_ceil(self, divisor: Self) -> Self;
@@ -242,6 +244,10 @@ macro_rules! implement {
             #[inline]
             fn ilog2(self) -> u32 {
                 self.ilog2()
+            }
+            #[inline]
+            fn to_le(self) -> Self {
+                self.to_le()
             }
             #[inline]
             fn div_ceil(self, divisor: Self) -> Self {
