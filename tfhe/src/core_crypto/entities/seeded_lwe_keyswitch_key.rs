@@ -426,7 +426,7 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
 }
 
 impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweKeyswitchKey<C> {
-    type ParameterSet = LweKeyswitchKeyConformanceParams;
+    type ParameterSet = LweKeyswitchKeyConformanceParams<u64>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
