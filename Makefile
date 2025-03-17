@@ -1106,6 +1106,12 @@ clippy_bench_gpu: install_rs_check_toolchain
 		--features=gpu,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
+.PHONY: clippy_bench_hpu # Run clippy lints on tfhe-benchmark
+clippy_bench_hpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=hpu,shortint,integer,internal-keycache,pbs-stats\
+		-p tfhe-benchmark -- --no-deps -D warnings
+
 .PHONY: print_doc_bench_parameters # Print parameters used in doc benchmarks
 print_doc_bench_parameters:
 	RUSTFLAGS="" cargo run --example print_doc_bench_parameters \

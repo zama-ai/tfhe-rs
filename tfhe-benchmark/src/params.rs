@@ -393,6 +393,11 @@ mod integer_params {
     use std::vec::IntoIter;
     use tfhe::shortint::PBSParameters;
 
+    #[cfg(feature = "hpu")]
+    // TODO correct version for HPU parameters set
+    // and thus remove this stmt
+    use crate::shortint::parameters::v1_0::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
     /// in radix decomposition
@@ -410,7 +415,11 @@ mod integer_params {
                     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
                         .into(),
                 ];
-                #[cfg(not(feature = "gpu"))]
+
+                #[cfg(feature = "hpu")]
+                panic!("Hpu doesn't implement MultiBit");
+
+                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
                 let params = vec![
                     BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
                 ];
@@ -422,7 +431,13 @@ mod integer_params {
             } else {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
-                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
+                #[cfg(feature = "hpu")]
+                let params =
+                    // FIXME Add aliasing for Hpu parameters
+                    vec![V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
+                #[cfg(not(feature = "hpu"))]
+                let params = 
+                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
