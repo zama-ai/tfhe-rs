@@ -108,7 +108,7 @@ pub fn iop_cmp(prog: &mut Program, mrg_op: Pbs, cmp_op: Pbs) {
     ));
 
     // Deferred implementation to generic cmpx function
-    iop_cmpx(prog, &dst[0], &src_a, &src_b, mrg_op, cmp_op);
+    iop_cmpx(prog, &dst[0], &src_a, &src_b, mrg_op, cmp_op).add_to_prog(prog);
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -396,12 +396,12 @@ pub fn iop_cmpx(
     src_b: &[metavar::MetaVarCell],
     mrg_lut: Pbs,
     cmp_lut: Pbs,
-) {
+) -> Rtl {
     let mut dst = VarCell::from(dst);
     let src_a = src_a.iter().map(VarCell::from).collect();
     let src_b = src_b.iter().map(VarCell::from).collect();
     dst <<= &iop_cmpx_rtl(prog, src_a, src_b, mrg_lut, cmp_lut);
-    Rtl::from(vec![dst]).add_to_prog(prog);
+    Rtl::from(vec![dst])
 }
 
 /// Generic Cmp operation

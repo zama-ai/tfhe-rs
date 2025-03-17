@@ -1557,7 +1557,9 @@ struct Graph {
 }
 
 #[cfg(feature = "rtl_graph")]
-use std::io::Write;
+use itertools::Itertools;
+#[cfg(feature = "rtl_graph")]
+use std::io::{Seek, Write};
 #[cfg(feature = "rtl_graph")]
 impl Graph {
     pub fn write(&self) {
