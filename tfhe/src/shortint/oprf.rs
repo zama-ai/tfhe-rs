@@ -5,8 +5,9 @@ use super::server_key::{
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
-    lwe_ciphertext_plaintext_add_assign, CiphertextModulus, CiphertextModulusLog, LweCiphertext,
-    LweCiphertextOwned, LweSize, Plaintext,
+    lwe_ciphertext_plaintext_add_assign, CastFrom, CastInto, CiphertextModulus,
+    CiphertextModulusLog, LweCiphertext, LweCiphertextOwned, LweSize, Plaintext, UnsignedInteger,
+    UnsignedTorus,
 };
 use crate::shortint::atomic_pattern::AtomicPatternOperations;
 use crate::shortint::ciphertext::Degree;
@@ -15,7 +16,10 @@ use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::generate_lookup_table_no_encode;
 use tfhe_csprng::seeders::Seed;
 
-pub fn sha3_hash(values: &mut [u64], seed: Seed) {
+pub fn sha3_hash<Scalar>(values: &mut [Scalar], seed: Seed)
+where
+    Scalar: UnsignedInteger,
+{
     use sha3::digest::{ExtendableOutput, Update, XofReader};
 
     let mut hasher = sha3::Shake256::default();
@@ -27,29 +31,34 @@ pub fn sha3_hash(values: &mut [u64], seed: Seed) {
     let mut reader = hasher.finalize_xof();
 
     for value in values {
-        let mut bytes = [0u8; 8];
-        reader.read(&mut bytes);
-        *value = u64::from_le_bytes(bytes);
+        let bytes = bytemuck::bytes_of_mut(value);
+        reader.read(bytes);
     }
 }
-pub fn create_random_from_seed(
+pub fn create_random_from_seed<Scalar>(
     seed: Seed,
     lwe_size: LweSize,
-    ciphertext_modulus: CiphertextModulus<u64>,
-) -> LweCiphertext<Vec<u64>> {
-    let mut ct = LweCiphertext::new(0, lwe_size, ciphertext_modulus);
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> LweCiphertext<Vec<Scalar>>
+where
+    Scalar: UnsignedInteger,
+{
+    let mut ct = LweCiphertext::new(Scalar::ZERO, lwe_size, ciphertext_modulus);
 
     sha3_hash(ct.get_mut_mask().as_mut(), seed);
 
     ct
 }
 
-pub fn create_random_from_seed_modulus_switched(
+pub fn create_random_from_seed_modulus_switched<Scalar>(
     seed: Seed,
     lwe_size: LweSize,
     log_modulus: CiphertextModulusLog,
-    ciphertext_modulus: CiphertextModulus<u64>,
-) -> LweCiphertext<Vec<u64>> {
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+) -> LweCiphertext<Vec<Scalar>>
+where
+    Scalar: UnsignedInteger,
+{
     let mut ct = create_random_from_seed(seed, lwe_size, ciphertext_modulus);
 
     for i in ct.as_mut() {
@@ -59,13 +68,16 @@ pub fn create_random_from_seed_modulus_switched(
     ct
 }
 
-pub(crate) fn generate_pseudo_random_from_pbs(
-    bootstrapping_key: &ShortintBootstrappingKey<u64>,
+pub(crate) fn generate_pseudo_random_from_pbs<InputScalar>(
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     seed: Seed,
     random_bits_count: u64,
     full_bits_count: u64,
     ciphertext_modulus: CiphertextModulus<u64>,
-) -> LweCiphertextOwned<u64> {
+) -> LweCiphertextOwned<u64>
+where
+    InputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+{
     assert!(
         random_bits_count <= full_bits_count,
         "The number of random bits asked for (={random_bits_count}) is bigger than full_bits_count (={full_bits_count})"
@@ -79,7 +91,7 @@ pub(crate) fn generate_pseudo_random_from_pbs(
         bootstrapping_key
             .polynomial_size()
             .to_blind_rotation_input_modulus_log(),
-        ciphertext_modulus,
+        CiphertextModulus::new_native(),
     );
 
     let p = 1 << random_bits_count;
