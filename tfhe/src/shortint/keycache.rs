@@ -12,7 +12,7 @@ use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 // TODO correct version for HPU parameters set
 // and thus remove this stmt
-use v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_HPU_PK_KS_PBS_GAUSSIAN_2M64;
+use crate::shortint::parameters::v1_0::V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
 named_params_impl!( ShortintParameterSet =>
     V1_1_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
@@ -392,8 +392,6 @@ named_params_impl!( ShortintParameterSet =>
     LEGACY_WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_7_CARRY_0_KS_PBS,
     LEGACY_WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_7_CARRY_1_KS_PBS,
     LEGACY_WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_8_CARRY_0_KS_PBS,
-    // HPU
-    V1_0_PARAM_MESSAGE_2_CARRY_2_HPU_PK_KS_PBS_GAUSSIAN_2M64,
 
     // Coverage
     #[cfg(tarpaulin)]
@@ -408,6 +406,9 @@ named_params_impl!( ShortintParameterSet =>
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64,
     #[cfg(tarpaulin)]
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
+
+    #[cfg(feature = "hpu")]
+    V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 );
 
 impl NamedParam for ClassicPBSParameters {
