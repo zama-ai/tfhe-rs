@@ -25,6 +25,7 @@ mod sum;
 mod count_zeros_ones;
 pub(crate) mod ilog2;
 mod reverse_bits;
+mod scalar_dot_prod;
 mod slice;
 #[cfg(test)]
 pub(crate) mod tests_cases_unsigned;
@@ -110,7 +111,7 @@ impl ServerKey {
         // Extract message blocks and carry blocks from the
         // input block slice.
         // Carries Vec has one less block than message Vec
-        let extract_message_and_carry_blocks = |blocks: &[crate::shortint::Ciphertext]| {
+        let extract_message_and_carry_blocks = |blocks: &[Ciphertext]| {
             let num_blocks = blocks.len();
 
             rayon::join(
@@ -161,7 +162,12 @@ impl ServerKey {
                 .map(|block| block.degree.get());
 
             let mut start_index = 0;
-            if maybe_highest_degree.is_some_and(|degree| degree > self.key.max_degree.get()) {
+            if maybe_highest_degree.is_some_and(|degree| degree > self.key.max_degree.get())
+                || blocks[1..]
+                    .iter()
+                    // We need to be able to add a carry, which is a fresh ciphertext
+                    .any(|b| b.noise_level().get() >= self.key.max_noise_level.get() - 1)
+            {
                 // At least one of the blocks than can receive a carry, won't be able too
                 // so we need to do a first 'partial' round
                 let (mut message_blocks, carry_blocks) = extract_message_and_carry_blocks(blocks);
