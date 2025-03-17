@@ -12,6 +12,7 @@ use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
 use super::program::{AtomicRegType, Program, StmtLink};
 use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
+use config::FlushBehaviour;
 use config::OpCfg;
 use enum_dispatch::enum_dispatch;
 use std::cell::{Ref, RefCell, RefMut};
@@ -862,6 +863,10 @@ impl Operation {
             _ => 1,
         }
     }
+
+    fn is_pbs(&self) -> bool {
+        matches!(self, Operation::PBS(_))
+    }
 }
 
 // All pointers are reference counted pointers in the tree, both drivers and
@@ -893,6 +898,9 @@ impl OperationCell {
     }
     fn latency_tier(&self) -> usize {
         self.0.borrow().latency_tier()
+    }
+    fn is_pbs(&self) -> bool {
+        self.0.borrow().is_pbs()
     }
 
     fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
@@ -1164,6 +1172,7 @@ struct Arch {
     wr_pdg: HashMap<usize, VecDeque<OperationCell>>,
     use_ipip: bool,
     cfg: OpCfg,
+    timeout: Option<usize>,
 }
 
 // An interface to the target architecture
@@ -1214,14 +1223,24 @@ impl Arch {
             })
             .collect::<BinaryHeap<_>>();
 
-        if !self.use_ipip {
-            self.probe_for_exec(None);
-        }
-
-        // Flush if there's nothing else to do or use_ipip
-        if (ret.is_empty() && self.events.is_empty()) || self.use_ipip {
-            self.probe_for_exec(Some(PeFlush::Force));
-        }
+        // Select the flush behavior
+        match (self.use_ipip, self.cfg.flush_behaviour) {
+            (true, _) | (false, FlushBehaviour::Opportunist) => {
+                self.probe_for_exec(Some(PeFlush::Force));
+            }
+            (false, FlushBehaviour::NoPBS) => {
+                let flush = (!ret.iter().any(|i| i.is_pbs())).then_some(PeFlush::Force);
+                self.probe_for_exec(flush);
+            }
+            (false, FlushBehaviour::Patient) => {
+                self.probe_for_exec(None);
+                let flush = (ret.is_empty() && self.events.is_empty()).then_some(PeFlush::Force);
+                self.probe_for_exec(flush);
+            }
+            (false, FlushBehaviour::Timeout(_)) => {
+                self.probe_for_exec(None);
+            }
+        };
 
         ret
     }
@@ -1245,7 +1264,20 @@ impl Arch {
         let isc_sim::Event {
             at_cycle,
             event_type,
-        } = self.events.pop().expect("Event queue is empty");
+        } = {
+            let mut event = self.events.pop();
+            if self.timeout.is_some()
+                && self.timeout.unwrap() < event.as_ref().map(|x| x.at_cycle).unwrap_or(usize::MAX)
+            {
+                self.probe_for_exec(Some(PeFlush::Timeout));
+                self.timeout = None;
+                if event.is_some() {
+                    self.events.push(event.unwrap());
+                }
+                event = self.events.pop();
+            }
+            event.expect("Event queue is empty")
+        };
         self.cycle = at_cycle;
 
         match event_type {
@@ -1276,7 +1308,7 @@ impl Arch {
                 op.free_wr();
                 Some(op)
             }
-            _ => panic!("Received an unexpected event"),
+            _ => panic!("Received an unexpected event: {:?}", event_type),
         }
     }
 
@@ -1304,11 +1336,22 @@ impl Arch {
                          at_cycle: _,
                          event_type: ev,
                      }| {
-                        !matches!(
-                            ev,
-                            isc_sim::EventType::ReqTimeout(_, _)
-                                | isc_sim::EventType::DelTimeout(_, _)
-                        )
+                        match (self.cfg.flush_behaviour, ev) {
+                            (
+                                FlushBehaviour::Timeout(timeout),
+                                isc_sim::EventType::ReqTimeout(_, _),
+                            ) => {
+                                self.timeout = Some(self.cycle + timeout);
+                                false
+                            }
+                            (FlushBehaviour::Timeout(_), isc_sim::EventType::DelTimeout(_, _)) => {
+                                self.timeout = None;
+                                false
+                            }
+                            (_, isc_sim::EventType::ReqTimeout(_, _))
+                            | (_, isc_sim::EventType::DelTimeout(_, _)) => false,
+                            _ => true,
+                        }
                     },
                 ),
         );
@@ -1339,6 +1382,7 @@ impl Arch {
             rd_pdg: HashMap::new(),
             wr_pdg: HashMap::new(),
             cfg: op_cfg,
+            timeout: None,
         }
     }
 }
