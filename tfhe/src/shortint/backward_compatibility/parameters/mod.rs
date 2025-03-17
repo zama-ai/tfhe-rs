@@ -10,6 +10,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::shortint::parameters::{ShortintParameterSetInner, SupportedCompactPkeZkScheme};
 use crate::shortint::*;
+use parameters::KeySwitch32PBSParameters;
 use std::convert::Infallible;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
@@ -102,4 +103,9 @@ pub enum WopbsParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum SupportedCompactPkeZkSchemeVersions {
     V0(SupportedCompactPkeZkScheme),
+}
+
+#[derive(VersionsDispatch)]
+pub enum KeySwitch32PBSParametersVersions {
+    V0(KeySwitch32PBSParameters),
 }
