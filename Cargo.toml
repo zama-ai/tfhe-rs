@@ -6,7 +6,6 @@ members = [
     "tfhe-ntt",
     "tfhe-zk-pok",
     "tasks",
-    "apps/trivium",
     "tfhe-csprng",
     "backends/tfhe-cuda-backend",
     "utils/tfhe-versionable",
