@@ -267,6 +267,21 @@ impl<T: UnsignedInteger> DynamicDistribution<T> {
     }
 }
 
+impl DynamicDistribution<u32> {
+    pub const fn to_u64_distribution(self) -> DynamicDistribution<u64> {
+        // Depending on how the Scalar type is used, converting it from u32 to u64
+        // might affect the underlying distribution in subtle ways. When adding support for
+        // new distributions, make sure that the result is still correct.
+        match self {
+            Self::Gaussian(gaussian) => DynamicDistribution::Gaussian(gaussian),
+            Self::TUniform(tuniform) => {
+                // Ok because an u32 bound is always also a valid u64 bound
+                DynamicDistribution::new_t_uniform(tuniform.bound_log2())
+            }
+        }
+    }
+}
+
 impl<T: UnsignedInteger> std::fmt::Display for DynamicDistribution<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

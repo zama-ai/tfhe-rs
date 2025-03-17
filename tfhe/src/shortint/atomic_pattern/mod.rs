@@ -4,6 +4,7 @@
 //! For example, in TFHE the standard atomic pattern is the chain of n linear operations, a
 //! Keyswitch and a PBS.
 
+pub mod ks32;
 pub mod standard;
 
 use std::any::Any;
@@ -20,15 +21,19 @@ use crate::core_crypto::prelude::{
 use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
 use super::engine::ShortintEngine;
+use super::parameters::{DynamicDistribution, KeySwitch32PBSParameters};
+use super::prelude::{DecompositionBaseLog, DecompositionLevelCount};
 use super::server_key::{
     apply_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
     ManyLookupTableOwned,
 };
 use super::{
-    CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, ClientKey, MaxNoiseLevel,
-    MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters, ShortintParameterSet,
+    CarryModulus, Ciphertext, CiphertextModulus, ClassicPBSParameters, ClientKey,
+    EncryptionKeyChoice, MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PBSOrder,
+    PBSParameters,
 };
 
+pub use ks32::*;
 pub use standard::*;
 
 /// A choice of atomic pattern
@@ -41,6 +46,12 @@ pub enum AtomicPatternKind {
     /// - PBS order (KS -> Bootstrap or Bootstrap -> Keyswitch)
     /// - PBS kind (classic or multibit)
     Standard(PBSOrder),
+    /// Similar to the standard AP, but the KeySwitch also changes the scalar type to u32,
+    /// supporting modulus smaller or equal to $$2^{32}$$.
+    ///
+    /// This allows to reduce the size of the keyswitching key. This AP only supports the KS -> PBS
+    /// order.
+    KeySwitch32,
 }
 
 /// The set of operations needed to implement an Atomic Pattern.
@@ -240,6 +251,7 @@ impl<T: AtomicPattern> AtomicPattern for &T {
 #[allow(clippy::large_enum_variant)] // The most common variant should be `Standard` so we optimize for it
 pub enum AtomicPatternServerKey {
     Standard(StandardAtomicPatternServerKey),
+    KeySwitch32(KS32AtomicPatternServerKey),
     #[serde(skip)]
     Dynamic(Box<dyn private::DynamicAtomicPattern>),
 }
@@ -252,6 +264,9 @@ impl AtomicPatternServerKey {
             AtomicPatternParameters::Standard(_) => {
                 Self::Standard(StandardAtomicPatternServerKey::new(cks, engine))
             }
+            AtomicPatternParameters::KeySwitch32(_) => {
+                Self::KeySwitch32(KS32AtomicPatternServerKey::new(cks, engine))
+            }
         }
     }
 }
@@ -260,6 +275,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn ciphertext_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Standard(ap) => ap.ciphertext_lwe_dimension(),
+            Self::KeySwitch32(ap) => ap.ciphertext_lwe_dimension(),
             Self::Dynamic(ap) => ap.ciphertext_lwe_dimension(),
         }
     }
@@ -267,6 +283,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Standard(ap) => ap.ciphertext_modulus(),
+            Self::KeySwitch32(ap) => ap.ciphertext_modulus(),
             Self::Dynamic(ap) => ap.ciphertext_modulus(),
         }
     }
@@ -274,6 +291,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn ciphertext_decompression_method(&self) -> MsDecompressionType {
         match self {
             Self::Standard(ap) => ap.ciphertext_decompression_method(),
+            Self::KeySwitch32(ap) => ap.ciphertext_decompression_method(),
             Self::Dynamic(ap) => ap.ciphertext_decompression_method(),
         }
     }
@@ -281,6 +299,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         match self {
             Self::Standard(ap) => ap.apply_lookup_table_assign(ct, acc),
+            Self::KeySwitch32(ap) => ap.apply_lookup_table_assign(ct, acc),
             Self::Dynamic(ap) => ap.apply_lookup_table_assign(ct, acc),
         }
     }
@@ -292,6 +311,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     ) -> Vec<Ciphertext> {
         match self {
             Self::Standard(ap) => ap.apply_many_lookup_table(ct, lut),
+            Self::KeySwitch32(ap) => ap.apply_many_lookup_table(ct, lut),
             Self::Dynamic(ap) => ap.apply_many_lookup_table(ct, lut),
         }
     }
@@ -299,6 +319,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn lookup_table_size(&self) -> LookupTableSize {
         match self {
             Self::Standard(ap) => ap.lookup_table_size(),
+            Self::KeySwitch32(ap) => ap.lookup_table_size(),
             Self::Dynamic(ap) => ap.lookup_table_size(),
         }
     }
@@ -306,6 +327,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn kind(&self) -> AtomicPatternKind {
         match self {
             Self::Standard(ap) => ap.kind(),
+            Self::KeySwitch32(ap) => ap.kind(),
             Self::Dynamic(ap) => ap.kind(),
         }
     }
@@ -313,6 +335,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn deterministic_execution(&self) -> bool {
         match self {
             Self::Standard(ap) => ap.deterministic_execution(),
+            Self::KeySwitch32(ap) => ap.deterministic_execution(),
             Self::Dynamic(ap) => ap.deterministic_execution(),
         }
     }
@@ -327,6 +350,9 @@ impl AtomicPattern for AtomicPatternServerKey {
             Self::Standard(ap) => {
                 ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
             }
+            Self::KeySwitch32(ap) => {
+                ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
+            }
             Self::Dynamic(ap) => {
                 ap.generate_oblivious_pseudo_random(seed, random_bits_count, full_bits_count)
             }
@@ -336,6 +362,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
         match self {
             Self::Standard(ap) => ap.switch_modulus_and_compress(ct),
+            Self::KeySwitch32(ap) => ap.switch_modulus_and_compress(ct),
             Self::Dynamic(ap) => ap.switch_modulus_and_compress(ct),
         }
     }
@@ -347,6 +374,7 @@ impl AtomicPattern for AtomicPatternServerKey {
     ) -> Ciphertext {
         match self {
             Self::Standard(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
+            Self::KeySwitch32(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
             Self::Dynamic(ap) => ap.decompress_and_apply_lookup_table(compressed_ct, lut),
         }
     }
@@ -356,6 +384,7 @@ impl AtomicPatternMut for AtomicPatternServerKey {
     fn set_deterministic_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             Self::Standard(ap) => ap.set_deterministic_execution(new_deterministic_execution),
+            Self::KeySwitch32(ap) => ap.set_deterministic_execution(new_deterministic_execution),
             Self::Dynamic(ap) => ap.set_deterministic_execution(new_deterministic_execution),
         }
     }
@@ -366,6 +395,7 @@ impl AtomicPatternMut for AtomicPatternServerKey {
 #[versionize(AtomicPatternParametersVersions)]
 pub enum AtomicPatternParameters {
     Standard(PBSParameters),
+    KeySwitch32(KeySwitch32PBSParameters),
 }
 
 impl From<PBSParameters> for AtomicPatternParameters {
@@ -386,54 +416,110 @@ impl From<MultiBitPBSParameters> for AtomicPatternParameters {
     }
 }
 
-impl From<AtomicPatternParameters> for ShortintParameterSet {
-    fn from(value: AtomicPatternParameters) -> Self {
-        match value {
-            AtomicPatternParameters::Standard(parameters) => parameters.into(),
-        }
+impl From<KeySwitch32PBSParameters> for AtomicPatternParameters {
+    fn from(value: KeySwitch32PBSParameters) -> Self {
+        Self::KeySwitch32(value)
     }
 }
 
 impl AtomicPatternParameters {
-    pub fn message_modulus(&self) -> MessageModulus {
+    pub const fn message_modulus(&self) -> MessageModulus {
         match self {
             Self::Standard(parameters) => parameters.message_modulus(),
+            Self::KeySwitch32(parameters) => parameters.message_modulus(),
         }
     }
 
-    pub fn carry_modulus(&self) -> CarryModulus {
+    pub const fn carry_modulus(&self) -> CarryModulus {
         match self {
             Self::Standard(parameters) => parameters.carry_modulus(),
+            Self::KeySwitch32(parameters) => parameters.carry_modulus(),
         }
     }
 
-    pub fn max_noise_level(&self) -> MaxNoiseLevel {
+    pub const fn max_noise_level(&self) -> MaxNoiseLevel {
         match self {
             Self::Standard(parameters) => parameters.max_noise_level(),
+            Self::KeySwitch32(parameters) => parameters.max_noise_level(),
         }
     }
 
-    pub fn ciphertext_modulus(&self) -> CiphertextModulus {
+    pub const fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        match self {
+            Self::Standard(parameters) => parameters.encryption_key_choice(),
+            Self::KeySwitch32(parameters) => parameters.encryption_key_choice(),
+        }
+    }
+
+    pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Standard(parameters) => parameters.ciphertext_modulus(),
+            Self::KeySwitch32(parameters) => parameters.ciphertext_modulus(),
         }
     }
 
-    pub fn lwe_dimension(&self) -> LweDimension {
+    pub const fn lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Standard(parameters) => parameters.lwe_dimension(),
+            Self::KeySwitch32(parameters) => parameters.lwe_dimension(),
         }
     }
 
-    pub fn glwe_dimension(&self) -> GlweDimension {
+    pub const fn glwe_dimension(&self) -> GlweDimension {
         match self {
             Self::Standard(parameters) => parameters.glwe_dimension(),
+            Self::KeySwitch32(parameters) => parameters.glwe_dimension(),
         }
     }
 
-    pub fn polynomial_size(&self) -> PolynomialSize {
+    pub const fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self {
+            Self::Standard(parameters) => parameters.lwe_noise_distribution(),
+            Self::KeySwitch32(parameters) => {
+                parameters.lwe_noise_distribution().to_u64_distribution()
+            }
+        }
+    }
+
+    pub const fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self {
+            Self::Standard(parameters) => parameters.glwe_noise_distribution(),
+            Self::KeySwitch32(parameters) => parameters.glwe_noise_distribution(),
+        }
+    }
+
+    pub const fn polynomial_size(&self) -> PolynomialSize {
         match self {
             Self::Standard(parameters) => parameters.polynomial_size(),
+            Self::KeySwitch32(parameters) => parameters.polynomial_size(),
+        }
+    }
+
+    pub const fn pbs_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            Self::Standard(parameters) => parameters.pbs_base_log(),
+            Self::KeySwitch32(parameters) => parameters.pbs_base_log(),
+        }
+    }
+
+    pub const fn pbs_level(&self) -> DecompositionLevelCount {
+        match self {
+            Self::Standard(parameters) => parameters.pbs_level(),
+            Self::KeySwitch32(parameters) => parameters.pbs_level(),
+        }
+    }
+
+    pub const fn ks_base_log(&self) -> DecompositionBaseLog {
+        match self {
+            Self::Standard(parameters) => parameters.ks_base_log(),
+            Self::KeySwitch32(parameters) => parameters.ks_base_log(),
+        }
+    }
+
+    pub const fn ks_level(&self) -> DecompositionLevelCount {
+        match self {
+            Self::Standard(parameters) => parameters.ks_level(),
+            Self::KeySwitch32(parameters) => parameters.ks_level(),
         }
     }
 }
@@ -446,6 +532,9 @@ impl ParameterSetConformant for AtomicPatternServerKey {
             (Self::Standard(ap), AtomicPatternParameters::Standard(params)) => {
                 ap.is_conformant(params)
             }
+            (Self::KeySwitch32(ap), AtomicPatternParameters::KeySwitch32(params)) => {
+                ap.is_conformant(params)
+            }
             _ => false,
         }
     }
@@ -454,5 +543,11 @@ impl ParameterSetConformant for AtomicPatternServerKey {
 impl From<StandardAtomicPatternServerKey> for AtomicPatternServerKey {
     fn from(value: StandardAtomicPatternServerKey) -> Self {
         Self::Standard(value)
+    }
+}
+
+impl From<KS32AtomicPatternServerKey> for AtomicPatternServerKey {
+    fn from(value: KS32AtomicPatternServerKey) -> Self {
+        Self::KeySwitch32(value)
     }
 }
