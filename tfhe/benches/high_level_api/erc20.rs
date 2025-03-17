@@ -227,16 +227,10 @@ fn bench_transfer_latency<FheType, F>(
     });
 
     let params = client_key.computation_parameters();
-    let params_name = if cfg!(feature = "hpu") {
-        "hpu_parameters".to_string()
-    } else {
-        params.name()
-    };
-
     write_to_json::<u64, _>(
         &bench_id,
         params,
-        params_name,
+        params.name(),
         "erc20-transfer",
         &OperatorType::Atomic,
         64,
@@ -311,16 +305,10 @@ fn bench_transfer_throughput<FheType, F>(
         });
 
         let params = client_key.computation_parameters();
-        let params_name = if cfg!(feature = "hpu") {
-            "hpu_parameters".to_string()
-        } else {
-            params.name()
-        };
-
         write_to_json::<u64, _>(
             &bench_id,
             params,
-            params_name,
+            params.name(),
             "erc20-transfer",
             &OperatorType::Atomic,
             64,
