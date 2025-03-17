@@ -6,6 +6,8 @@ pub struct OpCfg {
     pub fill_batch_fifo: bool,
     /// Uses the minimum batch size in the firmware generation
     pub min_batch_size: bool,
+    /// The current flush behavior if flushing
+    pub flush_behaviour: FlushBehaviour,
     /// Whether to emit flushes or not
     pub flush: bool,
     /// Whether to use latency tiers when scheduling
@@ -16,6 +18,15 @@ pub struct OpCfg {
 pub struct RtlCfg {
     by_op: HashMap<String, OpCfg>,
     default: OpCfg,
+}
+
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, Default)]
+pub enum FlushBehaviour {
+    #[default]
+    Patient,
+    NoPBS,
+    Opportunist,
+    Timeout(usize),
 }
 
 impl RtlCfg {
