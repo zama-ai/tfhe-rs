@@ -71,22 +71,26 @@
   fill_batch_fifo = true
   min_batch_size = false
   use_tiers = false
+  flush_behaviour = "Patient"
   flush = true
 
 [firmware.op_cfg.by_op.MUL]
   fill_batch_fifo = false
-  min_batch_size = true
+  min_batch_size = false
   use_tiers = false
+  flush_behaviour = "Patient"
   flush = true
 
 [firmware.op_cfg.by_op.MULS]
   fill_batch_fifo = false
-  min_batch_size = true
+  min_batch_size = false
   use_tiers = false
+  flush_behaviour = "Patient"
   flush = true
 
 [firmware.op_cfg.by_op.ERC_20]
   fill_batch_fifo = false
   min_batch_size = true
   use_tiers = true
+  flush_behaviour = "Patient"
   flush = true
