@@ -1057,7 +1057,7 @@ impl CompressedKeySwitchingKey {
 }
 
 pub struct KeySwitchingKeyConformanceParams {
-    pub keyswitch_key_conformance_params: LweKeyswitchKeyConformanceParams,
+    pub keyswitch_key_conformance_params: LweKeyswitchKeyConformanceParams<u64>,
     pub cast_rshift: i8,
     pub destination_key: EncryptionKeyChoice,
 }
