@@ -8,11 +8,11 @@ use super::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext, keyswitch_lwe_ciphertext,
-    multi_bit_deterministic_blind_rotate_assign, CompressedModulusSwitchedLweCiphertext,
-    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, GlweCiphertext,
-    LweCiphertext, LweCiphertextOwned, LweDimension, LweKeyswitchKeyConformanceParams,
-    LweKeyswitchKeyOwned, MonomialDegree, MsDecompressionType,
+    allocate_and_generate_new_lwe_keyswitch_key, extract_lwe_sample_from_glwe_ciphertext,
+    keyswitch_lwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
+    CompressedModulusSwitchedLweCiphertext, CompressedModulusSwitchedMultiBitLweCiphertext,
+    ComputationBuffers, GlweCiphertext, LweCiphertext, LweCiphertextOwned, LweDimension,
+    LweKeyswitchKeyConformanceParams, LweKeyswitchKeyOwned, MonomialDegree, MsDecompressionType,
 };
 use crate::shortint::ciphertext::{
     CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext, NoiseLevel,
@@ -26,7 +26,7 @@ use crate::shortint::server_key::{
     ShortintBootstrappingKey,
 };
 use crate::shortint::{
-    Ciphertext, CiphertextModulus, EncryptionKeyChoice, PBSOrder, PBSParameters,
+    Ciphertext, CiphertextModulus, ClientKey, EncryptionKeyChoice, PBSOrder, PBSParameters,
 };
 
 /// The definition of the server key elements used in the [`Classical`] atomic pattern
@@ -69,6 +69,35 @@ impl ParameterSetConformant for ClassicalAtomicPatternServerKey {
 }
 
 impl ClassicalAtomicPatternServerKey {
+    pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
+        let params = &cks.parameters;
+
+        let pbs_params_base = params.pbs_parameters().unwrap();
+
+        let in_key = &cks.small_lwe_secret_key();
+
+        let out_key = &cks.glwe_secret_key;
+
+        let bootstrapping_key_base = engine.new_bootstrapping_key(pbs_params_base, in_key, out_key);
+
+        // Creation of the key switching key
+        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
+            &cks.large_lwe_secret_key(),
+            &cks.small_lwe_secret_key(),
+            params.ks_base_log(),
+            params.ks_level(),
+            params.lwe_noise_distribution(),
+            params.ciphertext_modulus(),
+            &mut engine.encryption_generator,
+        );
+
+        Self::from_raw_parts(
+            key_switching_key,
+            bootstrapping_key_base,
+            pbs_params_base.encryption_key_choice().into(),
+        )
+    }
+
     pub fn from_raw_parts(
         key_switching_key: LweKeyswitchKeyOwned<u64>,
         bootstrapping_key: ShortintBootstrappingKey,
