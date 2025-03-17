@@ -76,7 +76,7 @@ pub use pbs_stats::*;
 
 use super::atomic_pattern::{
     AtomicPattern, AtomicPatternMut, AtomicPatternParameters, AtomicPatternServerKey,
-    ClassicalAtomicPatternServerKey,
+    StandardAtomicPatternServerKey,
 };
 use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
@@ -485,7 +485,7 @@ impl TryFrom<ServerKey> for StandardServerKey {
 
     fn try_from(value: ServerKey) -> Result<Self, Self::Error> {
         let atomic_pattern = match value.atomic_pattern {
-            AtomicPatternServerKey::Classical(ap) => ap,
+            AtomicPatternServerKey::Standard(ap) => ap,
         };
 
         Ok(Self {
@@ -504,7 +504,7 @@ impl<'key> TryFrom<ServerKeyView<'key>> for StandardServerKeyView<'key> {
 
     fn try_from(value: ServerKeyView<'key>) -> Result<Self, Self::Error> {
         let atomic_pattern = match value.atomic_pattern {
-            AtomicPatternServerKey::Classical(ap) => ap,
+            AtomicPatternServerKey::Standard(ap) => ap,
         };
 
         Ok(Self {

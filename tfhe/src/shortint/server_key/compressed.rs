@@ -8,7 +8,7 @@ use super::{
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
-use crate::shortint::atomic_pattern::ClassicalAtomicPatternServerKey;
+use crate::shortint::atomic_pattern::StandardAtomicPatternServerKey;
 use crate::shortint::backward_compatibility::server_key::{
     CompressedServerKeyVersions, ShortintCompressedBootstrappingKeyVersions,
 };
@@ -263,7 +263,7 @@ impl CompressedServerKey {
         let ciphertext_modulus = *ciphertext_modulus;
         let pbs_order = *pbs_order;
 
-        let atomic_pattern = ClassicalAtomicPatternServerKey::from_raw_parts(
+        let atomic_pattern = StandardAtomicPatternServerKey::from_raw_parts(
             key_switching_key,
             bootstrapping_key,
             pbs_order,

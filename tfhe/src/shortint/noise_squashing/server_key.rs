@@ -375,7 +375,7 @@ impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
         (ap_params, noise_squashing_params): (AtomicPatternParameters, NoiseSquashingParameters),
     ) -> Result<Self, Self::Error> {
         match ap_params {
-            AtomicPatternParameters::Classical(pbs_params) => {
+            AtomicPatternParameters::Standard(pbs_params) => {
                 (pbs_params, noise_squashing_params).try_into()
             }
         }

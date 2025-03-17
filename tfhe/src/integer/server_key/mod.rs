@@ -324,7 +324,7 @@ impl ParameterSetConformant for CompressedServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
-        let AtomicPatternParameters::Classical(parameters) = *parameter_set else {
+        let AtomicPatternParameters::Standard(parameters) = *parameter_set else {
             // Server key compression is only supported for classical AP
             return false;
         };

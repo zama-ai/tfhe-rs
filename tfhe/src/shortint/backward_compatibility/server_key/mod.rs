@@ -2,7 +2,7 @@ pub mod modulus_switch_noise_reduction;
 
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{Container, PBSOrder};
-use crate::shortint::atomic_pattern::{AtomicPatternServerKey, ClassicalAtomicPatternServerKey};
+use crate::shortint::atomic_pattern::{AtomicPatternServerKey, StandardAtomicPatternServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::server_key::*;
 use crate::shortint::{CarryModulus, CiphertextModulus, MaxNoiseLevel, MessageModulus};
@@ -72,14 +72,14 @@ impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
-        let classical_ap = ClassicalAtomicPatternServerKey::from_raw_parts(
+        let std_ap = StandardAtomicPatternServerKey::from_raw_parts(
             self.key_switching_key,
             self.bootstrapping_key,
             self.pbs_order,
         );
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternServerKey>() {
-            let ap = AtomicPatternServerKey::Classical(classical_ap);
+            let ap = AtomicPatternServerKey::Standard(std_ap);
             let sk = ServerKey::from_raw_parts(
                 ap,
                 self.message_modulus,

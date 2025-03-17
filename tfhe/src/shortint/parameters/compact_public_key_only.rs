@@ -177,7 +177,7 @@ impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
 
     fn try_from(value: AtomicPatternParameters) -> Result<Self, Self::Error> {
         match value {
-            AtomicPatternParameters::Classical(pbsparameters) => {
+            AtomicPatternParameters::Standard(pbsparameters) => {
                 let params: ShortintParameterSet = pbsparameters.into();
                 params.try_into()
             }

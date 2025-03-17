@@ -7,7 +7,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::shortint::atomic_pattern::ClassicalAtomicPatternServerKey;
+use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
@@ -69,36 +69,11 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> ServerKey {
-        let params = &cks.parameters;
-
-        let pbs_params_base = params.pbs_parameters().unwrap();
-
-        let in_key = &cks.small_lwe_secret_key();
-
-        let out_key = &cks.glwe_secret_key;
-
-        let bootstrapping_key_base = self.new_bootstrapping_key(pbs_params_base, in_key, out_key);
-
-        // Creation of the key switching key
-        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key(),
-            &cks.small_lwe_secret_key(),
-            params.ks_base_log(),
-            params.ks_level(),
-            params.lwe_noise_distribution(),
-            params.ciphertext_modulus(),
-            &mut self.encryption_generator,
-        );
-
-        let atomic_pattern = ClassicalAtomicPatternServerKey::from_raw_parts(
-            key_switching_key,
-            bootstrapping_key_base,
-            pbs_params_base.encryption_key_choice().into(),
-        );
+        let ap_key = AtomicPatternServerKey::new(cks, self);
 
         // Pack the keys in the server key set:
         ServerKey {
-            atomic_pattern: atomic_pattern.into(),
+            atomic_pattern: ap_key,
             message_modulus: cks.parameters.message_modulus(),
             carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
