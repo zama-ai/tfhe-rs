@@ -1,5 +1,6 @@
 use super::super::math::fft::{Fft128, Fft128View};
 use super::ggsw::{cmux, cmux_scratch};
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::backward_compatibility::fft_impl::Fourier128LweBootstrapKeyVersions;
@@ -14,8 +15,10 @@ use crate::core_crypto::commons::traits::{
     Container, ContiguousEntityContainer, ContiguousEntityContainerMut, Split,
 };
 use crate::core_crypto::commons::utils::izip;
+use crate::core_crypto::entities::ggsw_ciphertext::fourier_ggsw_ciphertext_size;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
@@ -462,5 +465,43 @@ where
     fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {
         let _ = fft;
         Ok(StackReq::empty())
+    }
+}
+
+impl<Cont> ParameterSetConformant for Fourier128LweBootstrapKey<Cont>
+where
+    Cont: ContainerMut<Element = f64>,
+{
+    type ParameterSet = LweBootstrapKeyConformanceParams<u128>;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            polynomial_size,
+            input_lwe_dimension,
+            glwe_size,
+            decomposition_base_log,
+            decomposition_level_count,
+        } = self;
+
+        let expected_container_len = parameter_set.input_lwe_dimension.0
+            * fourier_ggsw_ciphertext_size(
+                parameter_set.output_glwe_size,
+                parameter_set.polynomial_size.to_fourier_polynomial_size(),
+                parameter_set.decomp_level_count,
+            );
+
+        data_re0.container_len() == expected_container_len
+            && data_re1.container_len() == expected_container_len
+            && data_im0.container_len() == expected_container_len
+            && data_im1.container_len() == expected_container_len
+            && *polynomial_size == parameter_set.polynomial_size
+            && *input_lwe_dimension == parameter_set.input_lwe_dimension
+            && *glwe_size == parameter_set.output_glwe_size
+            && *decomposition_base_log == parameter_set.decomp_base_log
+            && *decomposition_level_count == parameter_set.decomp_level_count
     }
 }
