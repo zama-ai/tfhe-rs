@@ -3014,7 +3014,10 @@ mod hpu {
                             |(srcs, imms)| {
                                 let res =
                                     HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs, &imms);
-                                black_box(res);
+                                res.into_iter().for_each(|ct| {
+                                    ct.wait();
+                                    black_box(ct);
+                                });
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -3080,7 +3083,10 @@ mod hpu {
                                 })
                                 .last()
                                 .unwrap();
-                            black_box(last_res)
+                            last_res.into_iter().for_each(|ct| {
+                                ct.wait();
+                                black_box(ct);
+                            });
                         })
                     });
                 }
