@@ -107,7 +107,10 @@ impl<Id> FheInt<Id>
 where
     Id: FheIntId,
 {
-    pub(in crate::high_level_api) fn new(ciphertext: impl Into<SignedRadixCiphertext>, tag: Tag) -> Self {
+    pub(in crate::high_level_api) fn new(
+        ciphertext: impl Into<SignedRadixCiphertext>,
+        tag: Tag,
+    ) -> Self {
         Self {
             ciphertext: ciphertext.into(),
             id: Id::default(),

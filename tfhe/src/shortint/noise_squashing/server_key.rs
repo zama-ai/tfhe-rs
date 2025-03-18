@@ -1,4 +1,5 @@
 use super::NoiseSquashingPrivateKey;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
@@ -9,23 +10,29 @@ use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
 };
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::{CarryModulus, MessageModulus, PBSOrder};
-use crate::shortint::server_key::{ModulusSwitchNoiseReductionKey, ServerKey};
+use crate::shortint::parameters::{
+    CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchNoiseReductionParams,
+    PBSOrder, PBSParameters,
+};
+use crate::shortint::server_key::{
+    ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
+};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
-    bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-    modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
-    params: NoiseSquashingParameters,
+    pub(super) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
+    pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    pub(super) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
 impl ClientKey {
@@ -80,7 +87,9 @@ impl ClientKey {
         NoiseSquashingKey {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
-            params: noise_squashing_private_key.noise_squashing_parameters(),
+            output_ciphertext_modulus: noise_squashing_private_key
+                .noise_squashing_parameters()
+                .ciphertext_modulus,
         }
     }
 }
@@ -143,7 +152,7 @@ impl NoiseSquashingKey {
         };
 
         let output_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
-        let output_ciphertext_modulus = self.params.ciphertext_modulus;
+        let output_ciphertext_modulus = self.output_ciphertext_modulus;
 
         let mut res = SquashedNoiseCiphertext::new_zero(
             output_lwe_size,

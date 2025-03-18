@@ -13,7 +13,9 @@ mod tests;
 pub use base::{FheInt, FheIntId};
 pub use compressed::CompressedFheInt;
 pub(in crate::high_level_api) use compressed::CompressedSignedRadixCiphertext;
-pub(in crate::high_level_api) use inner::{SignedRadixCiphertext, SignedRadixCiphertextVersionOwned};
+pub(in crate::high_level_api) use inner::{
+    SignedRadixCiphertext, SignedRadixCiphertextVersionOwned,
+};
 
 expand_pub_use_fhe_type!(
     pub use static_{
