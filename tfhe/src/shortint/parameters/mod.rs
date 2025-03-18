@@ -96,7 +96,7 @@ pub struct CarryModulus(pub u64);
 /// Determines in what ring computations are made
 pub type CiphertextModulus = CoreCiphertextModulus<u64>;
 
-impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams {
+impl From<&PBSConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
     fn from(value: &PBSConformanceParams) -> Self {
         Self {
             decomp_base_log: value.base_log,

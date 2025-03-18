@@ -419,7 +419,7 @@ impl ParameterSetConformant for ShortintCompressedBootstrappingKey {
                     _ => false,
                 };
 
-                let param: LweBootstrapKeyConformanceParams = parameter_set.into();
+                let param: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
 
                 bsk.is_conformant(&param) && modulus_switch_noise_reduction_key_conformant
             }
