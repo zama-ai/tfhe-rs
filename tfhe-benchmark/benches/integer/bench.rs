@@ -2993,7 +2993,11 @@ mod hpu {
 
                                     let clear = rng
                                         .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                        & ((1_u128 << bw) - 1);
+                                        & if bw < u128::BITS as usize {
+                                            (1_u128 << bw) - 1
+                                        } else {
+                                            !0_u128
+                                        };
                                     let fhe = cks.encrypt_radix(clear, block);
                                     HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
                                 })
@@ -3044,7 +3048,11 @@ mod hpu {
 
                                         let clear = rng
                                             .gen_range(0..u128::cast_from(max_value_for_bit_size))
-                                            & ((1_u128 << bw) - 1);
+                                            & if bw < u128::BITS as usize {
+                                                (1_u128 << bw) - 1
+                                            } else {
+                                                !0_u128
+                                            };
                                         let fhe = cks.encrypt_radix(clear, block);
                                         HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
                                     })
