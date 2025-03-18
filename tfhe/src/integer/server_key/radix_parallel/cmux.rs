@@ -1,6 +1,7 @@
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::{RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use rayon::prelude::*;
 
 pub trait ServerKeyDefaultCMux<TrueCt, FalseCt> {
@@ -98,6 +99,203 @@ where
 
         let [true_ct, false_ct] = ct_refs;
         self.unchecked_if_then_else_parallelized(condition, true_ct, false_ct)
+    }
+}
+
+impl<Scalar> ServerKeyDefaultCMux<&RadixCiphertext, Scalar> for ServerKey
+where
+    Scalar: DecomposableInto<u64>,
+{
+    type Output = RadixCiphertext;
+
+    /// FHE "if then else" selection.
+    ///
+    /// Returns a new ciphertext that encrypts the same value
+    /// as either true_ct or a clear false_value depending on the value of condition:
+    ///
+    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
+    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_value.
+    ///
+    /// To ensure correct results, condition must encrypt either 0 or 1
+    /// (e.g result from a comparison).
+    ///
+    /// Note that while the returned ciphertext encrypts the same value as
+    /// true_ct, it won't exactly be true_ct.
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::prelude::*;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
+    ///
+    /// let a = 126i8;
+    /// let b = -55i8;
+    ///
+    /// let ct_a = cks.encrypt_signed(a);
+    ///
+    /// let condition = sks.scalar_lt_parallelized(&ct_a, 66);
+    ///
+    /// let ct_res = sks.if_then_else_parallelized(&condition, &ct_a, b);
+    ///
+    /// // Decrypt:
+    /// let dec: i8 = cks.decrypt_signed(&ct_res);
+    /// assert_eq!(if a < 66 { a } else { b }, dec);
+    /// assert_ne!(ct_a, ct_res);
+    /// ```
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &RadixCiphertext,
+        false_value: Scalar,
+    ) -> Self::Output {
+        let mut tmp_true_ct;
+
+        let true_ct_ref = if true_ct.block_carries_are_empty() {
+            true_ct
+        } else {
+            tmp_true_ct = true_ct.clone();
+            self.full_propagate_parallelized(&mut tmp_true_ct);
+            &tmp_true_ct
+        };
+
+        self.unchecked_left_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+    }
+}
+
+impl<Scalar> ServerKeyDefaultCMux<Scalar, &RadixCiphertext> for ServerKey
+where
+    Scalar: DecomposableInto<u64>,
+{
+    type Output = RadixCiphertext;
+
+    /// FHE "if then else" selection.
+    ///
+    /// Returns a new ciphertext that encrypts the same value
+    /// as either true_ct or a clear false_value depending on the value of condition:
+    ///
+    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
+    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_value.
+    ///
+    /// To ensure correct results, condition must encrypt either 0 or 1
+    /// (e.g result from a comparison).
+    ///
+    /// Note that while the returned ciphertext encrypts the same value as
+    /// true_ct, it won't exactly be true_ct.
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::prelude::*;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
+    ///
+    /// let a = 126u8;
+    /// let b = 55u8;
+    ///
+    /// let ct_b = cks.encrypt(b);
+    ///
+    /// let condition = sks.scalar_lt_parallelized(&ct_b, 66);
+    ///
+    /// let ct_res = sks.if_then_else_parallelized(&condition, a, &ct_b);
+    ///
+    /// // Decrypt:
+    /// let dec: u8 = cks.decrypt(&ct_res);
+    /// assert_eq!(if b < 66 { a } else { b }, dec);
+    /// assert_ne!(ct_b, ct_res);
+    /// ```
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &RadixCiphertext,
+    ) -> Self::Output {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
+    }
+}
+
+impl<Scalar> ServerKeyDefaultCMux<&SignedRadixCiphertext, Scalar> for ServerKey
+where
+    Scalar: DecomposableInto<u64>,
+{
+    type Output = SignedRadixCiphertext;
+
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &SignedRadixCiphertext,
+        false_value: Scalar,
+    ) -> Self::Output {
+        let mut tmp_true_ct;
+
+        let true_ct_ref = if true_ct.block_carries_are_empty() {
+            true_ct
+        } else {
+            tmp_true_ct = true_ct.clone();
+            self.full_propagate_parallelized(&mut tmp_true_ct);
+            &tmp_true_ct
+        };
+
+        self.unchecked_left_scalar_if_then_else_parallelized(condition, true_ct_ref, false_value)
+    }
+}
+
+impl<Scalar> ServerKeyDefaultCMux<Scalar, &SignedRadixCiphertext> for ServerKey
+where
+    Scalar: DecomposableInto<u64>,
+{
+    type Output = SignedRadixCiphertext;
+
+    /// FHE "if then else" selection.
+    ///
+    /// Returns a new ciphertext that encrypts the same value
+    /// as either true_ct or a clear false_value depending on the value of condition:
+    ///
+    /// - If condition == 1, the returned ciphertext will encrypt the same value as true_ct.
+    /// - If condition == 0, the returned ciphertext will encrypt the same value as false_value.
+    ///
+    /// To ensure correct results, condition must encrypt either 0 or 1
+    /// (e.g result from a comparison).
+    ///
+    /// Note that while the returned ciphertext encrypts the same value as
+    /// true_ct, it won't exactly be true_ct.
+    ///
+    /// ```rust
+    /// use tfhe::integer::gen_keys_radix;
+    /// use tfhe::integer::prelude::*;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    ///
+    /// // We have 4 * 2 = 8 bits of message
+    /// let size = 4;
+    /// let (cks, sks) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, size);
+    ///
+    /// let a = 126i8;
+    /// let b = -55i8;
+    ///
+    /// let ct_b = cks.encrypt_signed(b);
+    ///
+    /// let condition = sks.scalar_lt_parallelized(&ct_b, 66);
+    ///
+    /// let ct_res = sks.if_then_else_parallelized(&condition, a, &ct_b);
+    ///
+    /// // Decrypt:
+    /// let dec: i8 = cks.decrypt_signed(&ct_res);
+    /// assert_eq!(if b < 66 { a } else { b }, dec);
+    /// assert_ne!(ct_b, ct_res);
+    /// ```
+    fn if_then_else_parallelized(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_ct: &SignedRadixCiphertext,
+    ) -> Self::Output {
+        let inverted_condition = self.boolean_bitnot(condition);
+        self.if_then_else_parallelized(&inverted_condition, false_ct, true_value)
     }
 }
 
@@ -211,6 +409,140 @@ impl ServerKey {
             |x| x == 1,
             do_clean_message,
         )
+    }
+
+    fn unchecked_left_scalar_if_then_else_parallelized<T, Scalar>(
+        &self,
+        condition: &BooleanBlock,
+        true_ct: &T,
+        false_value: Scalar,
+    ) -> T
+    where
+        T: IntegerRadixCiphertext,
+        Scalar: DecomposableInto<u64>,
+    {
+        let luts = BlockDecomposer::with_block_count(
+            false_value,
+            self.message_modulus().0.ilog2(),
+            true_ct.blocks().len(),
+        )
+        .iter_as::<u64>()
+        .map(|scalar_block| {
+            self.key.generate_lookup_table(|block_condition| {
+                let block = block_condition / 2;
+                let condition = block_condition % 2;
+                if condition == 1 {
+                    block
+                } else {
+                    scalar_block
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+
+        let result_blocks = true_ct
+            .blocks()
+            .par_iter()
+            .zip(luts.par_iter())
+            .map(|(block, lut)| {
+                let mut result_block = self.key.scalar_mul(block, 2);
+                self.key.add_assign(&mut result_block, &condition.0);
+                self.key.apply_lookup_table_assign(&mut result_block, lut);
+                result_block
+            })
+            .collect();
+
+        T::from_blocks(result_blocks)
+    }
+
+    pub fn scalar_cmux_parallelized<Scalar, T>(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_value: Scalar,
+        n_blocks: usize,
+    ) -> T
+    where
+        Scalar: DecomposableInto<u64>,
+        T: IntegerRadixCiphertext,
+    {
+        self.scalar_if_then_else_parallelized(condition, true_value, false_value, n_blocks)
+    }
+
+    pub fn scalar_select_parallelized<Scalar, T>(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_value: Scalar,
+        n_blocks: usize,
+    ) -> T
+    where
+        Scalar: DecomposableInto<u64>,
+        T: IntegerRadixCiphertext,
+    {
+        self.scalar_if_then_else_parallelized(condition, true_value, false_value, n_blocks)
+    }
+
+    pub fn scalar_if_then_else_parallelized<Scalar, T>(
+        &self,
+        condition: &BooleanBlock,
+        true_value: Scalar,
+        false_value: Scalar,
+        n_blocks: usize,
+    ) -> T
+    where
+        Scalar: DecomposableInto<u64>,
+        T: IntegerRadixCiphertext,
+    {
+        let true_iter = BlockDecomposer::with_block_count(
+            true_value,
+            self.message_modulus().0.ilog2(),
+            n_blocks,
+        )
+        .iter_as::<u64>();
+        let false_iter = BlockDecomposer::with_block_count(
+            false_value,
+            self.message_modulus().0.ilog2(),
+            n_blocks,
+        )
+        .iter_as::<u64>();
+
+        // How may LUTs we can do at once using the many lut technique, considering
+        // the condition is a boolean
+        let max_num_many_luts = ((self.message_modulus().0 * self.carry_modulus().0) / 2) as usize;
+        let num_many_luts = n_blocks.div_ceil(max_num_many_luts);
+        let owned_fn_buffer = true_iter
+            .zip(false_iter)
+            .map(|(true_scalar_block, false_scalar_block)| {
+                move |condition: u64| {
+                    if condition == 1 {
+                        true_scalar_block
+                    } else {
+                        false_scalar_block
+                    }
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut luts = Vec::with_capacity(num_many_luts);
+        let mut ref_fn_buffer = Vec::with_capacity(max_num_many_luts);
+        for func_chunk in owned_fn_buffer.chunks(max_num_many_luts) {
+            ref_fn_buffer.clear();
+            for func in func_chunk {
+                ref_fn_buffer.push(func as &dyn Fn(u64) -> u64);
+            }
+
+            luts.push(
+                self.key
+                    .generate_many_lookup_table(ref_fn_buffer.as_slice()),
+            );
+        }
+
+        let result_blocks = luts
+            .par_iter()
+            .flat_map(|lut| self.key.apply_many_lookup_table(&condition.0, lut))
+            .collect();
+
+        T::from_blocks(result_blocks)
     }
 
     pub fn unchecked_cmux<T>(&self, condition: &BooleanBlock, true_ct: &T, false_ct: &T) -> T
