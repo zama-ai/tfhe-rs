@@ -231,7 +231,6 @@ impl CudaServerKey {
                 );
             }
         }
-
         result
     }
 
