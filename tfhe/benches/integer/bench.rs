@@ -1397,6 +1397,7 @@ mod cuda {
     use crate::utilities::{cuda_local_keys, cuda_local_streams};
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
+    use std::os::unix::thread;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -1489,12 +1490,14 @@ mod cuda {
                         b.iter_batched(
                             setup_encrypted_values,
                             |(mut cts, local_streams)| {
-                                cts.par_iter_mut()
-                                    .zip(local_streams.par_iter())
-                                    .enumerate()
-                                    .for_each(|(i, (ct_0, local_stream))| {
-                                        unary_op(&gpu_sks_vec[i % gpu_count], ct_0, local_stream);
-                                    })
+                                cts.par_iter_mut().enumerate().for_each(|(i, ct_0)| {
+                                    let thread_id = rayon::current_thread_index().unwrap_or(0);
+                                    unary_op(
+                                        &gpu_sks_vec[i % gpu_count],
+                                        ct_0,
+                                        &local_streams[thread_id],
+                                    );
+                                })
                             },
                             criterion::BatchSize::SmallInput,
                         )
