@@ -14,6 +14,7 @@
 #include "utils/helper.cuh"
 #include "utils/helper_multi_gpu.cuh"
 #include "utils/kernel_dimensions.cuh"
+#include <algorithm>
 #include <functional>
 
 // function rotates right  radix ciphertext with specific value

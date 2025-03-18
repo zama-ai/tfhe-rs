@@ -51,8 +51,8 @@ void as_radix_ciphertext_slice(CudaRadixCiphertextFFI *output_radix,
       end_input_lwe_index - start_input_lwe_index)
     PANIC("Cuda error: input radix should have more blocks than the specified "
           "range")
-  if (start_input_lwe_index >= end_input_lwe_index)
-    PANIC("Cuda error: slice range should be non negative")
+  if (start_input_lwe_index > end_input_lwe_index)
+    PANIC("Cuda error: slice range should be positive")
 
   auto lwe_size = input_radix->lwe_dimension + 1;
   output_radix->num_radix_blocks = end_input_lwe_index - start_input_lwe_index;

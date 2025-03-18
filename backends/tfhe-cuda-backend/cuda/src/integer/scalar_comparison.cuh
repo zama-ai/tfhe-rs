@@ -98,15 +98,12 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
           "than the number of blocks to operate on")
 
   auto params = mem_ptr->params;
-  auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
   auto diff_buffer = mem_ptr->diff_buffer;
-
-  size_t big_lwe_size = big_lwe_dimension + 1;
 
   // Reducing the signs is the bottleneck of the comparison algorithms,
   // however if the scalar case there is an improvement:
@@ -346,15 +343,12 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
           "than the number of blocks to operate on")
 
   auto params = mem_ptr->params;
-  auto big_lwe_dimension = params.big_lwe_dimension;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
   auto diff_buffer = mem_ptr->diff_buffer;
-
-  size_t big_lwe_size = big_lwe_dimension + 1;
 
   // Reducing the signs is the bottleneck of the comparison algorithms,
   // however if the scalar case there is an improvement:
@@ -770,10 +764,9 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
                                      lwe_array_in->num_radix_blocks);
 
   CudaRadixCiphertextFFI msb_out;
-  if (num_halved_lsb_radix_blocks < lwe_array_in->num_radix_blocks)
-    as_radix_ciphertext_slice<Torus>(&msb_out, mem_ptr->tmp_lwe_array_out,
-                                     num_halved_lsb_radix_blocks,
-                                     lwe_array_in->num_radix_blocks);
+  as_radix_ciphertext_slice<Torus>(&msb_out, mem_ptr->tmp_lwe_array_out,
+                                   num_halved_lsb_radix_blocks,
+                                   lwe_array_in->num_radix_blocks);
 
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
@@ -831,6 +824,9 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
     host_compare_blocks_with_zero<Torus>(msb_streams, gpu_indexes, gpu_count,
                                          &msb_out, &msb_in, mem_ptr, bsks, ksks,
                                          num_msb_radix_blocks, msb_lut);
+    are_all_comparisons_block_true<Torus>(msb_streams, gpu_indexes, gpu_count,
+                                          &msb_out, &msb_out, mem_ptr, bsks,
+                                          ksks, msb_out.num_radix_blocks);
   }
 
   for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
