@@ -4,9 +4,6 @@
 use crate::ffi;
 use crossbeam::queue::ArrayQueue;
 
-/// Define the maximum windows size used for pool defragmentation
-pub const ALLOC_MAX_DEFRAG_WIN: usize = 2048;
-
 /// Define the rate of WARNING on allocation retry
 pub const ALLOC_RETRY_WARN_RATE: std::time::Duration = std::time::Duration::from_secs(1);
 
@@ -187,31 +184,25 @@ impl CiphertextMemory {
     pub fn get_bundle(&self, bundle_size: usize) -> CiphertextBundle {
         // Implement sliding windows search for contiguous block
         // TODO enhance this algorithm. Currently it's a naive implementation
-        let max_windows_size = std::cmp::min(self.pool.capacity(), ALLOC_MAX_DEFRAG_WIN);
-        let mut win_slots = Vec::with_capacity(max_windows_size);
+        let mut win_slots = Vec::with_capacity(self.pool.capacity());
 
         // Check for contiguousnes and extend the window if necessary
         loop {
-            // Not contiguous extend the windows or exit if reach the full capacity
-            if win_slots.len() == win_slots.capacity() {
-                panic!("Reach maximum allocation windows size without managing to get a valid CiphertextBundle. Check memory usage of your program")
-            } else {
-                let mut retry = std::time::Duration::from_micros(0);
-                let retry_rate = std::time::Duration::from_micros(self.retry_rate_us);
-                let slot = loop {
-                    if let Some(slot) = self.pool.pop() {
-                        break slot;
-                    } else {
-                        std::thread::sleep(retry_rate);
-                        retry += retry_rate;
-                        if retry >= ALLOC_RETRY_WARN_RATE {
-                            tracing::warn!("Allocation struggle more than {retry:?} to get ciphertext from pool. Check that your algorithm memory allocation and associated Hpu configuration");
-                            retry = std::time::Duration::from_micros(0)
-                        }
+            let mut retry = std::time::Duration::from_micros(0);
+            let retry_rate = std::time::Duration::from_micros(self.retry_rate_us);
+            let slot = loop {
+                if let Some(slot) = self.pool.pop() {
+                    break slot;
+                } else {
+                    std::thread::sleep(retry_rate);
+                    retry += retry_rate;
+                    if retry >= ALLOC_RETRY_WARN_RATE {
+                        tracing::warn!("Allocation struggle more than {retry:?} to get ciphertext from pool. Check that your algorithm memory allocation and associated Hpu configuration");
+                        retry = std::time::Duration::from_micros(0)
                     }
-                };
-                win_slots.push(slot);
-            }
+                }
+            };
+            win_slots.push(slot);
             if win_slots.len() < bundle_size {
                 continue;
             }
