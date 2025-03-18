@@ -4,7 +4,7 @@ use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
-use crate::high_level_api::integers::signed::inner::RadixCiphertext;
+use crate::high_level_api::integers::signed::inner::SignedRadixCiphertext;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{
@@ -414,10 +414,13 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                         &*self.ciphertext.on_gpu(streams), rhs, streams
                                     )
                                 });
-                                let (q, r) = (RadixCiphertext::Cuda(inner_q), RadixCiphertext::Cuda(inner_r));
+                                let (q, r) = (
+                                    SignedRadixCiphertext::Cuda(inner_q),
+                                    SignedRadixCiphertext::Cuda(inner_r),
+                                );
                                 (
                                     <$concrete_type>::new(q, cuda_key.tag.clone()),
-                                    <$concrete_type>::new(r, cuda_key.tag.clone())
+                                    <$concrete_type>::new(r, cuda_key.tag.clone()),
                                 )
                             }
                         })
@@ -492,7 +495,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -501,7 +504,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -542,7 +545,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -551,7 +554,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -585,7 +588,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -594,7 +597,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -635,7 +638,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -644,7 +647,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -678,7 +681,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -687,7 +690,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -728,7 +731,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -737,7 +740,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -771,7 +774,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -780,7 +783,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -821,7 +824,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -830,7 +833,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -864,7 +867,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -873,7 +876,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -914,7 +917,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -923,7 +926,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -957,7 +960,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
 
                 #[cfg(feature = "gpu")]
@@ -967,7 +970,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1008,7 +1011,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
 
                 #[cfg(feature = "gpu")]
@@ -1018,7 +1021,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1052,7 +1055,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1061,7 +1064,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1102,7 +1105,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1111,7 +1114,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1145,7 +1148,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1154,7 +1157,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1195,7 +1198,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1204,7 +1207,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1238,7 +1241,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1247,7 +1250,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1288,7 +1291,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1297,7 +1300,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1331,7 +1334,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1340,7 +1343,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1381,7 +1384,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1390,7 +1393,7 @@ generic_integer_impl_scalar_operation!(
                             &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1424,7 +1427,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1433,7 +1436,7 @@ generic_integer_impl_scalar_operation!(
                             &lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1474,7 +1477,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1483,7 +1486,7 @@ generic_integer_impl_scalar_operation!(
                             &lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1517,7 +1520,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1526,7 +1529,7 @@ generic_integer_impl_scalar_operation!(
                             &lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1567,7 +1570,7 @@ generic_integer_impl_scalar_operation!(
                     let inner_result = cpu_key
                         .pbs_key()
                         .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
+                    SignedRadixCiphertext::Cpu(inner_result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
@@ -1576,7 +1579,7 @@ generic_integer_impl_scalar_operation!(
                             &lhs.ciphertext.on_gpu(streams), rhs, streams
                         )
                     });
-                    RadixCiphertext::Cuda(inner_result)
+                    SignedRadixCiphertext::Cuda(inner_result)
                 }
             })
         }
@@ -1701,7 +1704,7 @@ generic_integer_impl_scalar_left_operation!(
                     cpu_key
                         .pbs_key()
                         .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
-                    RadixCiphertext::Cpu(result)
+                    SignedRadixCiphertext::Cpu(result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_cuda_key) => {
@@ -1756,7 +1759,7 @@ generic_integer_impl_scalar_left_operation!(
                     cpu_key
                         .pbs_key()
                         .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
-                    RadixCiphertext::Cpu(result)
+                    SignedRadixCiphertext::Cpu(result)
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(_cuda_key) => {
