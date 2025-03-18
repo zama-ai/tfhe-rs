@@ -74,6 +74,9 @@ __host__ void scalar_compare_radix_blocks_kb(
       streams, gpu_indexes, gpu_count, lwe_array_out, subtracted_blocks, bsks,
       ksks, sign_lut, num_radix_blocks);
 
+  // FIXME: without this sync signed scalar eq tests fail, I don't understand
+  // the reason
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   // Add one
   // Here Lhs can have the following values: (-1) % (message modulus * carry
   // modulus), 0, 1 So the output values after the addition will be: 0, 1, 2
