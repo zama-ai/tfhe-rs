@@ -111,9 +111,9 @@ gpu-profile = ["gpu", "tfhe-cuda-backend/profile"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
-hpu-xrt = ["tfhe-hpu-backend/hw-xrt"]
-hpu-aved = ["tfhe-hpu-backend/hw-aved"]
-hpu-debug = ["tfhe-hpu-backend/io-dump"]
+hpu-xrt = ["hpu", "tfhe-hpu-backend/hw-xrt"]
+hpu-aved = ["hpu", "tfhe-hpu-backend/hw-aved"]
+hpu-debug = ["hpu", "tfhe-hpu-backend/io-dump"]
 # End Fpga Hpu features
 
 # Adds more FheUint/FheInt types to the HL
