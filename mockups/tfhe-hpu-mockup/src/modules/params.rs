@@ -16,6 +16,7 @@ pub struct MockupOptions {
     pub dump_reg: bool,
     pub report_out: Option<String>,
     pub report_trace: bool,
+    pub nops: bool,
 }
 
 impl MockupOptions {
