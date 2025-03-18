@@ -105,9 +105,9 @@ gpu = ["dep:tfhe-cuda-backend"]
 zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer", "ntt-gf64-ru64-8"]
-hpu-xrt = ["tfhe-hpu-backend/hw-xrt"]
-hpu-aved = ["tfhe-hpu-backend/hw-aved"]
-hpu-debug = ["tfhe-hpu-backend/io-dump"]
+hpu-xrt = ["hpu", "tfhe-hpu-backend/hw-xrt"]
+hpu-aved = ["hpu", "tfhe-hpu-backend/hw-aved"]
+hpu-debug = ["hpu", "tfhe-hpu-backend/io-dump"]
 # End Fpga Hpu features
 
 pbs-stats = []
