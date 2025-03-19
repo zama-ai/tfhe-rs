@@ -400,10 +400,10 @@ impl ServerKey {
     ///
     ///```rust
     /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::v1_0::V1_0_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128;
+    /// use tfhe::shortint::parameters::v1_1::V1_1_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128;
     ///
     /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (cks, sks) = gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     ///
     /// let msg = 2;
     ///

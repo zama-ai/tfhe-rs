@@ -4,7 +4,7 @@ use crate::high_level_api::tests::{setup_cpu, setup_default_cpu};
 use crate::high_level_api::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
 use crate::integer::U256;
 use crate::safe_serialization::{DeserializationConfig, SerializationConfig};
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::{
     ClientKey, CompactCiphertextList, CompactCiphertextListConformanceParams, CompactPublicKey,
@@ -45,7 +45,7 @@ fn test_integer_compressed() {
 #[test]
 fn test_integer_compressed_small() {
     let config =
-        ConfigBuilder::with_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
             .build();
     let (client_key, _) = generate_keys(config);
 
@@ -89,7 +89,7 @@ fn test_uint32_shift() {
 #[test]
 fn test_uint32_shift_multibit() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        .use_custom_parameters(TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
         .build();
 
     let (client_key, server_key) = generate_keys(config);
@@ -113,7 +113,7 @@ fn test_uint32_rotate() {
 #[test]
 fn test_multi_bit_rotate() {
     let client_key = setup_cpu(Some(
-        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     ));
     super::test_case_uint32_rotate(&client_key);
 }
@@ -127,7 +127,7 @@ fn test_uint32_div_rem() {
 #[test]
 fn test_multi_div_rem() {
     let client_key = setup_cpu(Some(
-        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     ));
     super::test_case_uint32_div_rem(&client_key);
 }
@@ -135,7 +135,7 @@ fn test_multi_div_rem() {
 #[test]
 fn test_small_uint128() {
     let config =
-        ConfigBuilder::with_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
             .build();
 
     let (cks, sks) = generate_keys(config);
@@ -183,7 +183,7 @@ fn test_decompressed_public_key_encrypt() {
 #[test]
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -201,7 +201,7 @@ fn test_compact_public_key_big() {
 #[test]
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64)
+        .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -482,9 +482,9 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
 
 #[test]
 fn test_cpk_encrypt_cast_compute_hl() {
-    let param_pke_only = V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_ksk = V1_0_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let num_block = 4usize;
 
@@ -531,9 +531,9 @@ fn test_cpk_encrypt_cast_compute_hl() {
 
 #[test]
 fn test_compressed_cpk_encrypt_cast_compute_hl() {
-    let param_pke_only = V1_0_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param_pke_only = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let param_fhe = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let param_ksk = V1_0_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param_ksk = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let num_block = 4usize;
 

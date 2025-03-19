@@ -4,7 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExec
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
 };
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use std::sync::Arc;
 

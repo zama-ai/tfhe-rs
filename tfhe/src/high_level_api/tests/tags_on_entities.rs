@@ -152,7 +152,7 @@ fn test_tag_propagation_zk_pok() {
 fn test_tag_propagation_gpu() {
     test_tag_propagation(
         Device::CudaGpu,
-        // TODO GPU DRIFT_UPDATE
+        // TODO GPU DRIFT UPDATE
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         None,
         Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),

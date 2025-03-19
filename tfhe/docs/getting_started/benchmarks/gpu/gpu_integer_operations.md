@@ -6,7 +6,7 @@ This document details the GPU performance benchmarks of homomorphic operations o
 All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
 {% endhint %}
 
-The cryptographic parameters `PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS` were used.
+The cryptographic parameters `PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS` were used.
 
 ## 1xH100
 Below come the results for the execution on a single H100.

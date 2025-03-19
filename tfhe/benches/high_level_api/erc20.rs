@@ -273,7 +273,7 @@ fn main() {
     #[cfg(not(feature = "gpu"))]
     let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     #[cfg(feature = "gpu")]
-    let params = PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS;
+    let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
 
     let config = ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);

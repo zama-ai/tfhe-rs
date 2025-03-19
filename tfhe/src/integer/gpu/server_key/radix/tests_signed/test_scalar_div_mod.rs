@@ -3,7 +3,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 };
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_scalar_div_mod::signed_unchecked_scalar_div_rem_test;
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_scalar_div_rem);

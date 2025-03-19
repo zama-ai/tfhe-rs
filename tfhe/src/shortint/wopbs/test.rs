@@ -1,6 +1,6 @@
 use crate::shortint::keycache::KEY_CACHE_WOPBS;
-use crate::shortint::parameters::current_params::*;
 use crate::shortint::parameters::parameters_wopbs::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{gen_keys, ClassicPBSParameters};
@@ -23,10 +23,10 @@ macro_rules! create_parameterized_test{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            (V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
-            (V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
-            (V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
-            (V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
+            (TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS),
+            (TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            (TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_3_CARRY_3_KS_PBS),
+            (TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_4_CARRY_4_KS_PBS)
         });
     };
 }
@@ -70,7 +70,7 @@ macro_rules! create_parameterized_test{
     ($name:ident)=> {
         create_parameterized_test!($name
         {
-            (V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+            (TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, LEGACY_WOPBS_PARAM_MESSAGE_2_CARRY_2_KS_PBS)
         });
     };
 }

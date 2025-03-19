@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_scalar_bitwis
     signed_default_scalar_bitand_test, signed_default_scalar_bitor_test,
     signed_default_scalar_bitxor_test,
 };
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_default_scalar_bitand);

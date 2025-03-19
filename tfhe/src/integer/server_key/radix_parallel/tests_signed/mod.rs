@@ -31,7 +31,7 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::IntegerKeyKind;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use rand::prelude::ThreadRng;

@@ -14,7 +14,7 @@ use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey}
 use crate::prelude::CastFrom;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 use super::{nb_tests_for_params, CpuFunctionExecutor, FunctionExecutor, PBSParameters, NB_CTXT};

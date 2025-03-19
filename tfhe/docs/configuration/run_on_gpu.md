@@ -18,7 +18,7 @@ This guide explains how to update your existing program to leverage GPU accelera
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.0.0", features = ["boolean", "shortint", "integer", "gpu"] }
+tfhe = { version = "~1.1.0", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 {% hint style="success" %}
@@ -184,7 +184,7 @@ The way to do it is very similar to how it's done on the CPU. The following exam
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
@@ -193,7 +193,7 @@ use tfhe::{
 
 fn main() {
     let config =
-        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS)
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
             .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
             .build();
 
