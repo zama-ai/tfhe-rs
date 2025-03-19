@@ -29,6 +29,36 @@ pub enum FlushBehaviour {
     Timeout(usize),
 }
 
+impl From<String> for FlushBehaviour {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "Patient" => FlushBehaviour::Patient,
+            "NoPBS" => FlushBehaviour::NoPBS,
+            "Opportunist" => FlushBehaviour::Opportunist,
+            // Try to parse the string as a number for the Timeout variant
+            _ => {
+                if let Ok(timeout) = s.parse::<usize>() {
+                    FlushBehaviour::Timeout(timeout)
+                } else {
+                    // Default case if parsing fails, you can handle it as needed
+                    FlushBehaviour::Patient
+                }
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for FlushBehaviour {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FlushBehaviour::Patient => write!(f, "Patient"),
+            FlushBehaviour::NoPBS => write!(f, "NoPBS"),
+            FlushBehaviour::Opportunist => write!(f, "Opportunist"),
+            FlushBehaviour::Timeout(val) => write!(f, "Timeout({val}_ms)"),
+        }
+    }
+}
+
 impl RtlCfg {
     pub fn new(default: OpCfg) -> Self {
         Self {
