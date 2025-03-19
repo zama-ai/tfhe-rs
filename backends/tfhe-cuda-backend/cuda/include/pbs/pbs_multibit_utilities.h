@@ -5,12 +5,12 @@
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
-    uint32_t polynomial_size, int max_shared_memory);
+    uint32_t polynomial_size, uint32_t max_shared_memory);
 
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, int max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory);
 
 #if CUDA_ARCH >= 900
 template <typename Torus>

@@ -299,7 +299,7 @@ __host__ void scratch_programmable_bootstrap_128(
       get_buffer_size_partial_sm_programmable_bootstrap<__uint128_t>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
@@ -359,7 +359,7 @@ __host__ void execute_step_one_128(
     uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm) {
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
@@ -401,7 +401,7 @@ __host__ void execute_step_two_128(
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);

@@ -3760,7 +3760,6 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   void init_temporary_buffers(cudaStream_t const *streams,
                               uint32_t const *gpu_indexes, uint32_t gpu_count,
                               uint32_t num_blocks) {
-    uint32_t big_lwe_size = params.big_lwe_dimension + 1;
 
     // non boolean temporary arrays, with `num_blocks` blocks
     remainder1 = new CudaRadixCiphertextFFI;

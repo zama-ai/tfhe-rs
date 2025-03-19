@@ -262,7 +262,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus>
 uint64_t get_buffer_size_programmable_bootstrap(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t input_lwe_ciphertext_count, int max_shared_memory) {
+    uint32_t input_lwe_ciphertext_count, uint32_t max_shared_memory) {
 
   uint64_t full_sm_step_one =
       get_buffer_size_full_sm_programmable_bootstrap_step_one<Torus>(
@@ -316,7 +316,7 @@ __host__ void scratch_programmable_bootstrap(
   uint64_t partial_sm =
       get_buffer_size_partial_sm_programmable_bootstrap<Torus>(polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
@@ -372,7 +372,7 @@ __host__ void execute_step_one(
     uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm) {
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
@@ -414,7 +414,7 @@ __host__ void execute_step_two(
     uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);

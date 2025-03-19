@@ -67,7 +67,7 @@ get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size, int max_shared_memory);
+    uint32_t polynomial_size, uint32_t max_shared_memory);
 
 template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer;
 
@@ -400,7 +400,7 @@ bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t polynomial_size,
                                                    uint32_t level_count,
                                                    uint32_t num_samples,
-                                                   int max_shared_memory);
+                                                   uint32_t max_shared_memory);
 
 template <typename Torus>
 void cuda_programmable_bootstrap_cg_lwe_ciphertext_vector(
