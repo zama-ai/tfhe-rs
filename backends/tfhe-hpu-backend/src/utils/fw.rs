@@ -5,11 +5,8 @@
 use std::path::Path;
 use tfhe_hpu_backend::asm;
 use tfhe_hpu_backend::fw::isc_sim::PeConfigStore;
-use tfhe_hpu_backend::fw::{
-    self,
-    rtl::config::{OpCfg, RtlCfg},
-    Fw, FwParameters,
-};
+use tfhe_hpu_backend::fw::rtl::config::{FlushBehaviour, OpCfg, RtlCfg};
+use tfhe_hpu_backend::fw::{self, Fw, FwParameters};
 
 /// Define CLI arguments
 use clap::Parser;
@@ -67,6 +64,15 @@ pub struct Args {
     /// Flush PBS batches to force a specific scheduling
     #[clap(long, value_parser, default_value_t = true)]
     flush: bool,
+
+    /// Flush PBS batches behaviour
+    /// Available options are
+    /// Patient,
+    /// NoPBS,
+    /// Opportunist,
+    /// Timeout(usize),
+    #[clap(long, value_parser, default_value = "Patient")]
+    flush_behaviour: FlushBehaviour,
 
     /// Integer bit width
     #[clap(long, value_parser, default_value_t = 8)]
@@ -148,6 +154,7 @@ fn main() -> Result<(), anyhow::Error> {
             min_batch_size: args.min_batch_size,
             use_tiers: args.use_tiers,
             flush: args.flush,
+            flush_behaviour: args.flush_behaviour,
         }),
         cur_op_cfg: OpCfg::default(),
         pe_cfg,
