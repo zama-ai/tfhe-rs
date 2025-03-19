@@ -505,7 +505,6 @@ __host__ void host_integer_div_rem_kb(
   auto num_blocks = quotient->num_radix_blocks;
   if (is_signed) {
     auto radix_params = int_mem_ptr->params;
-    uint32_t big_lwe_size = radix_params.big_lwe_dimension + 1;
 
     // temporary memory
     auto positive_numerator = int_mem_ptr->positive_numerator;

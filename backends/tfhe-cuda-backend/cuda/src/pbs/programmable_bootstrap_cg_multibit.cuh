@@ -227,7 +227,7 @@ __host__ void scratch_cg_multi_bit_programmable_bootstrap(
       get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   if (max_shared_memory < full_sm_keybundle) {
     check_cuda_error(cudaFuncSetAttribute(
         device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>,
@@ -312,7 +312,7 @@ __host__ void execute_cg_external_product_loop(
   uint64_t no_dm = 0;
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
@@ -409,7 +409,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
     int glwe_dimension, int level_count, int num_samples,
-    int max_shared_memory) {
+    uint32_t max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -460,7 +460,7 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size(
 template <typename Torus>
 __host__ bool supports_cooperative_groups_on_multibit_programmable_bootstrap(
     int glwe_dimension, int polynomial_size, int level_count, int num_samples,
-    int max_shared_memory) {
+    uint32_t max_shared_memory) {
   switch (polynomial_size) {
   case 256:
     return verify_cuda_programmable_bootstrap_cg_multi_bit_grid_size<

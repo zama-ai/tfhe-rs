@@ -206,7 +206,7 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
   cuda_set_device(gpu_index);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
           Torus>(polynomial_size, max_shared_memory);
@@ -305,7 +305,7 @@ __host__ void execute_tbc_external_product_loop(
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_multibit_programmable_bootstrap<
           Torus>(polynomial_size, max_shared_memory);
@@ -426,7 +426,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
-    uint32_t polynomial_size, int max_shared_memory) {
+    uint32_t polynomial_size, uint32_t max_shared_memory) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_multibit_programmable_bootstrap<Torus>(
           polynomial_size);
@@ -443,7 +443,7 @@ bool supports_distributed_shared_memory_on_multibit_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, int max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters())
     return false;
@@ -518,5 +518,5 @@ __host__ bool supports_thread_block_clusters_on_multibit_programmable_bootstrap(
 
 template bool
 supports_distributed_shared_memory_on_multibit_programmable_bootstrap<uint64_t>(
-    uint32_t polynomial_size, int max_shared_memory);
+    uint32_t polynomial_size, uint32_t max_shared_memory);
 #endif // FASTMULTIBIT_PBS_H

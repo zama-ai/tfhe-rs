@@ -118,7 +118,7 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
   int gridSize = total_polynomials;
   int blockSize = polynomial_size / choose_opt_amortized(polynomial_size);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   double2 *buffer;
   switch (polynomial_size) {

@@ -9,7 +9,7 @@
 
 bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
-    uint32_t num_samples, int max_shared_memory) {
+    uint32_t num_samples, uint32_t max_shared_memory) {
   return supports_cooperative_groups_on_multibit_programmable_bootstrap<
       uint64_t>(glwe_dimension, polynomial_size, level_count, num_samples,
                 max_shared_memory);
@@ -18,7 +18,7 @@ bool has_support_to_cuda_programmable_bootstrap_cg_multi_bit(
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, int max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory) {
 #if CUDA_ARCH >= 900
   switch (polynomial_size) {
   case 256:
@@ -449,7 +449,7 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
           polynomial_size);
 
   int max_blocks_per_sm;
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
   if (max_shared_memory < full_sm_keybundle)
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
@@ -532,7 +532,7 @@ cuda_cg_multi_bit_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
 template bool
 has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, int max_shared_memory);
+    uint32_t level_count, uint32_t max_shared_memory);
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>

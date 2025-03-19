@@ -145,7 +145,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
 
   cuda_memcpy_async_to_gpu(d_bsk, h_bsk, buffer_size, stream, gpu_index);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
   double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
   switch (polynomial_size) {

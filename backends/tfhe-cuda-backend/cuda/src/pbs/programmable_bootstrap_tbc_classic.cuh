@@ -203,7 +203,7 @@ __host__ void scratch_programmable_bootstrap_tbc(
 
   cuda_set_device(gpu_index);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   bool supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
           Torus>(polynomial_size, max_shared_memory);
@@ -266,7 +266,7 @@ __host__ void host_programmable_bootstrap_tbc(
     uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
-  int max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto supports_dsm =
       supports_distributed_shared_memory_on_classic_programmable_bootstrap<
           Torus>(polynomial_size, max_shared_memory);
@@ -344,7 +344,7 @@ __host__ void host_programmable_bootstrap_tbc(
 template <typename Torus, class params>
 __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
     int glwe_dimension, int level_count, int num_samples,
-    int max_shared_memory) {
+    uint32_t max_shared_memory) {
 
   // If Cooperative Groups is not supported, no need to check anything else
   if (!cuda_check_support_cooperative_groups())
@@ -388,7 +388,7 @@ __host__ bool verify_cuda_programmable_bootstrap_tbc_grid_size(
 
 template <typename Torus>
 bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
-    uint32_t polynomial_size, int max_shared_memory) {
+    uint32_t polynomial_size, uint32_t max_shared_memory) {
   uint64_t minimum_sm =
       get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap<Torus>(
           polynomial_size);
@@ -405,7 +405,7 @@ bool supports_distributed_shared_memory_on_classic_programmable_bootstrap(
 template <typename Torus, class params>
 __host__ bool supports_thread_block_clusters_on_classic_programmable_bootstrap(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
-    uint32_t level_count, int max_shared_memory) {
+    uint32_t level_count, uint32_t max_shared_memory) {
 
   if (!cuda_check_support_thread_block_clusters() || num_samples > 128)
     return false;

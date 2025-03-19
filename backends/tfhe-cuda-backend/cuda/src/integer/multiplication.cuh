@@ -251,7 +251,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   /// Here it is important to query the default max shared memory on device 0
   /// instead of cuda_get_max_shared_memory,
   /// to avoid bugs with tree_add_chunks trying to use too much shared memory
-  int max_shared_memory = 0;
+  auto max_shared_memory = 0;
   check_cuda_error(cudaDeviceGetAttribute(
       &max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock, 0));
 
