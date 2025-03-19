@@ -78,7 +78,7 @@ fn main() {
             "cuda/include/integer/compression/compression.h",
             "cuda/include/integer/integer.h",
             "cuda/include/zk/zk.h",
-            "cuda/include/keyswitch.h",
+            "cuda/include/keyswitch/keyswitch.h",
             "cuda/include/keyswitch/ks_enums.h",
             "cuda/include/linear_algebra.h",
             "cuda/include/fft/fft128.h",

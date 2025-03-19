@@ -60,6 +60,19 @@ unsafe extern "C" {
         log_modulus: u32,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_glwe_sample_extract_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        glwe_array_in: *const ffi::c_void,
+        nth_array: *const u32,
+        num_nths: u32,
+        lwe_per_glwe: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+    );
+}
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
@@ -1415,6 +1428,34 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cuda_packing_keyswitch_lwe_list_to_glwe_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        glwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        fp_ksk_array: *const ffi::c_void,
+        fp_ks_buffer: *mut i8,
+        input_lwe_dimension: u32,
+        output_glwe_dimension: u32,
+        output_polynomial_size: u32,
+        base_log: u32,
+        level_count: u32,
+        num_lwes: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_packing_keyswitch_lwe_list_to_glwe_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        fp_ks_buffer: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        num_lwes: u32,
+        allocate_gpu_memory: bool,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_packing_keyswitch_lwe_list_to_glwe_128(
         stream: *mut ffi::c_void,
         gpu_index: u32,
         glwe_array_out: *mut ffi::c_void,

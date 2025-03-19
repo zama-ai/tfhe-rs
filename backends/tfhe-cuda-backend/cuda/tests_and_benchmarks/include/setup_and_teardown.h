@@ -1,10 +1,10 @@
 #ifndef SETUP_AND_TEARDOWN_H
 #define SETUP_AND_TEARDOWN_H
 
+#include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.h"
 #include "pbs/programmable_bootstrap_multibit.h"
 #include <device.h>
-#include <keyswitch.h>
 #include <utils.h>
 
 void programmable_bootstrap_classical_setup(

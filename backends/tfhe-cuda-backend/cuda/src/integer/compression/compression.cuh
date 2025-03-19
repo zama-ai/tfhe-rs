@@ -2,8 +2,8 @@
 #define CUDA_INTEGER_COMPRESSION_CUH
 
 #include "ciphertext.h"
-#include "crypto/fast_packing_keyswitch.cuh"
 #include "crypto/keyswitch.cuh"
+#include "crypto/packing_keyswitch.cuh"
 #include "device.h"
 #include "integer/compression/compression.h"
 #include "integer/compression/compression_utilities.h"
@@ -116,7 +116,7 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   while (rem_lwes > 0) {
     auto chunk_size = min(rem_lwes, mem_ptr->lwe_per_glwe);
 
-    host_fast_packing_keyswitch_lwe_list_to_glwe<Torus, ulonglong4>(
+    host_packing_keyswitch_lwe_list_to_glwe<Torus>(
         streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
         fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
         compression_params.polynomial_size, compression_params.ks_base_log,

@@ -28,7 +28,7 @@ template <typename Torus> uint64_t get_shared_mem_size_tgemm() {
 // Initialize decomposition by performing rounding
 // and decomposing one level of an array of Torus LWEs. Only
 // decomposes the mask elements of the incoming LWEs.
-template <typename Torus, typename TorusVec>
+template <typename Torus>
 __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
                                          uint32_t lwe_dimension,
                                          uint32_t num_lwe, uint32_t base_log,
@@ -63,7 +63,7 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
 // Continue decomposiion of an array of Torus elements in place. Supposes
 // that the array contains already decomposed elements and
 // computes the new decomposed level in place.
-template <typename Torus, typename TorusVec>
+template <typename Torus>
 __global__ void
 decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
                                  uint32_t num_lwe, uint32_t base_log,
@@ -101,7 +101,7 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
 // This code is adapted by generalizing the 1d block-tiling
 // kernel from https://github.com/siboehm/SGEMM_CUDA
 // to any matrix dimension
-template <typename Torus, typename TorusVec>
+template <typename Torus>
 __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
                       int stride_B, Torus *C) {
 
@@ -251,8 +251,8 @@ __global__ void polynomial_accumulate_monic_monomial_mul_many_neg_and_add_C(
         degree, coeffIdx, polynomial_size, 1, true);
 }
 
-template <typename Torus, typename TorusVec>
-__host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
+template <typename Torus>
+__host__ void host_packing_keyswitch_lwe_list_to_glwe(
     cudaStream_t stream, uint32_t gpu_index, Torus *glwe_out,
     Torus const *lwe_array_in, Torus const *fp_ksk_array, int8_t *fp_ks_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -296,10 +296,8 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
   dim3 threads_decomp(BLOCK_SIZE_DECOMP, BLOCK_SIZE_DECOMP);
 
   // decompose first level
-  decompose_vectorize_init<Torus, TorusVec>
-      <<<grid_decomp, threads_decomp, 0, stream>>>(lwe_array_in, d_mem_0,
-                                                   lwe_dimension, num_lwes,
-                                                   base_log, level_count);
+  decompose_vectorize_init<Torus><<<grid_decomp, threads_decomp, 0, stream>>>(
+      lwe_array_in, d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
   check_cuda_error(cudaGetLastError());
 
   // gemm to ks the individual LWEs to GLWEs
@@ -310,7 +308,7 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
   auto stride_KSK_buffer = glwe_accumulator_size * level_count;
 
   uint32_t shared_mem_size = get_shared_mem_size_tgemm<Torus>();
-  tgemm<Torus, TorusVec><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+  tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
       num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0, fp_ksk_array,
       stride_KSK_buffer, d_mem_1);
   check_cuda_error(cudaGetLastError());
@@ -318,15 +316,14 @@ __host__ void host_fast_packing_keyswitch_lwe_list_to_glwe(
   auto ksk_block_size = glwe_accumulator_size;
 
   for (int li = 1; li < level_count; ++li) {
-    decompose_vectorize_step_inplace<Torus, TorusVec>
+    decompose_vectorize_step_inplace<Torus>
         <<<grid_decomp, threads_decomp, 0, stream>>>(
             d_mem_0, lwe_dimension, num_lwes, base_log, level_count);
     check_cuda_error(cudaGetLastError());
 
-    tgemm<Torus, TorusVec>
-        <<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
-            num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
-            fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
+    tgemm<Torus><<<grid_gemm, threads_gemm, shared_mem_size, stream>>>(
+        num_lwes, glwe_accumulator_size, lwe_dimension, d_mem_0,
+        fp_ksk_array + li * ksk_block_size, stride_KSK_buffer, d_mem_1);
     check_cuda_error(cudaGetLastError());
   }
 

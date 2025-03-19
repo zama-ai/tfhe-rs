@@ -4,7 +4,7 @@
 #include "integer.h"
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
-#include "keyswitch.h"
+#include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
 #include <cmath>
 #include <functional>

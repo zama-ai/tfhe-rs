@@ -367,7 +367,7 @@ pub unsafe fn convert_lwe_keyswitch_key_async<T: UnsignedInteger>(
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
+pub unsafe fn packing_keyswitch_list_64_async<T: UnsignedInteger>(
     streams: &CudaStreams,
     glwe_array_out: &mut CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
@@ -391,6 +391,58 @@ pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
         true,
     );
     cuda_packing_keyswitch_lwe_list_to_glwe_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        glwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        packing_keyswitch_key.as_c_ptr(0),
+        fp_ks_buffer,
+        input_lwe_dimension.0 as u32,
+        output_glwe_dimension.0 as u32,
+        output_polynomial_size.0 as u32,
+        base_log.0 as u32,
+        l_gadget.0 as u32,
+        num_lwes.0 as u32,
+    );
+    cleanup_packing_keyswitch_lwe_list_to_glwe(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(fp_ks_buffer),
+        true,
+    );
+}
+
+/// Applies packing keyswitch on a vector of 128-bit LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn packing_keyswitch_list_128_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    glwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    input_lwe_dimension: LweDimension,
+    output_glwe_dimension: GlweDimension,
+    output_polynomial_size: PolynomialSize,
+    packing_keyswitch_key: &CudaVec<T>,
+    base_log: DecompositionBaseLog,
+    l_gadget: DecompositionLevelCount,
+    num_lwes: LweCiphertextCount,
+) {
+    let mut fp_ks_buffer: *mut i8 = std::ptr::null_mut();
+    scratch_packing_keyswitch_lwe_list_to_glwe_128(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(fp_ks_buffer),
+        input_lwe_dimension.0 as u32,
+        output_glwe_dimension.0 as u32,
+        output_polynomial_size.0 as u32,
+        num_lwes.0 as u32,
+        true,
+    );
+    cuda_packing_keyswitch_lwe_list_to_glwe_128(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         glwe_array_out.as_mut_c_ptr(0),
@@ -440,7 +492,7 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
                 l_gadget.0 as u32,
                 polynomial_size.0 as u32,
             );
-        } else {
+        } else if size_of::<T>() == 8 {
             cuda_convert_lwe_programmable_bootstrap_key_64(
                 stream_ptr,
                 streams.gpu_indexes[i].get(),
@@ -451,6 +503,8 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
                 l_gadget.0 as u32,
                 polynomial_size.0 as u32,
             );
+        } else {
+            panic!("Unsupported torus size for bsk conversion")
         }
     }
 }
@@ -504,17 +558,33 @@ pub unsafe fn extract_lwe_samples_from_glwe_ciphertext_list_async<T: UnsignedInt
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
 ) {
-    cuda_glwe_sample_extract_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        glwe_array_in.as_c_ptr(0),
-        nth_array.as_c_ptr(0).cast::<u32>(),
-        num_nths,
-        lwe_per_glwe,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-    );
+    if size_of::<T>() == 16 {
+        cuda_glwe_sample_extract_128(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            glwe_array_in.as_c_ptr(0),
+            nth_array.as_c_ptr(0).cast::<u32>(),
+            num_nths,
+            lwe_per_glwe,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+        );
+    } else if size_of::<T>() == 8 {
+        cuda_glwe_sample_extract_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            glwe_array_in.as_c_ptr(0),
+            nth_array.as_c_ptr(0).cast::<u32>(),
+            num_nths,
+            lwe_per_glwe,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+        );
+    } else {
+        panic!("Unsupported torus size for glwe sample extraction")
+    }
 }
 
 /// # Safety

@@ -31,6 +31,18 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
     uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
     uint32_t num_lwes);
 
+void scratch_packing_keyswitch_lwe_list_to_glwe_128(
+    void *stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_lwes, bool allocate_gpu_memory);
+
+void cuda_packing_keyswitch_lwe_list_to_glwe_128(
+    void *stream, uint32_t gpu_index, void *glwe_array_out,
+    void const *lwe_array_in, void const *fp_ksk_array, int8_t *fp_ks_buffer,
+    uint32_t input_lwe_dimension, uint32_t output_glwe_dimension,
+    uint32_t output_polynomial_size, uint32_t base_log, uint32_t level_count,
+    uint32_t num_lwes);
+
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 uint32_t gpu_index,
                                                 int8_t **fp_ks_buffer,

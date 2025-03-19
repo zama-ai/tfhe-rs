@@ -96,3 +96,45 @@ void cuda_improve_noise_modulus_switch_64(
       static_cast<const uint64_t *>(encrypted_zeros), lwe_size, num_lwes,
       num_zeros, input_variance, r_sigma, bound, log_modulus);
 }
+
+void cuda_glwe_sample_extract_128(
+    void *stream, uint32_t gpu_index, void *lwe_array_out,
+    void const *glwe_array_in, uint32_t const *nth_array, uint32_t num_nths,
+    uint32_t lwe_per_glwe, uint32_t glwe_dimension, uint32_t polynomial_size) {
+
+  switch (polynomial_size) {
+  case 256:
+    host_sample_extract<__uint128_t, AmortizedDegree<256>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
+        (uint32_t const *)nth_array, num_nths, lwe_per_glwe, glwe_dimension);
+    break;
+  case 512:
+    host_sample_extract<__uint128_t, AmortizedDegree<512>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
+        (uint32_t const *)nth_array, num_nths, lwe_per_glwe, glwe_dimension);
+    break;
+  case 1024:
+    host_sample_extract<__uint128_t, AmortizedDegree<1024>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
+        (uint32_t const *)nth_array, num_nths, lwe_per_glwe, glwe_dimension);
+    break;
+  case 2048:
+    host_sample_extract<__uint128_t, AmortizedDegree<2048>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
+        (uint32_t const *)nth_array, num_nths, lwe_per_glwe, glwe_dimension);
+    break;
+  case 4096:
+    host_sample_extract<__uint128_t, AmortizedDegree<4096>>(
+        static_cast<cudaStream_t>(stream), gpu_index,
+        (__uint128_t *)lwe_array_out, (__uint128_t const *)glwe_array_in,
+        (uint32_t const *)nth_array, num_nths, lwe_per_glwe, glwe_dimension);
+    break;
+  default:
+    PANIC("Cuda error: unsupported polynomial size. Supported "
+          "N's are powers of two in the interval [256..4096].")
+  }
+}
