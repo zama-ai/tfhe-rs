@@ -37,12 +37,13 @@ use crate::core_crypto::entities::*;
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 ///
 /// // Create the LweSecretKey
-/// let input_lwe_secret_key =
+/// let input_lwe_secret_key: LweSecretKeyOwned<u64> =
 ///     allocate_and_generate_new_binary_lwe_secret_key(input_lwe_dimension, &mut secret_generator);
-/// let output_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-///     output_lwe_dimension,
-///     &mut secret_generator,
-/// );
+/// let output_lwe_secret_key: LweSecretKeyOwned<u64> =
+///     allocate_and_generate_new_binary_lwe_secret_key(
+///         output_lwe_dimension,
+///         &mut secret_generator,
+///     );
 ///
 /// let mut ksk = LweKeyswitchKey::new(
 ///     0u64,
@@ -64,7 +65,8 @@ use crate::core_crypto::entities::*;
 /// assert!(!ksk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn generate_lwe_keyswitch_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -77,11 +79,12 @@ pub fn generate_lwe_keyswitch_key<
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    KSKeyCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    KSKeyCont: ContainerMut<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     let ciphertext_modulus = lwe_keyswitch_key.ciphertext_modulus();
@@ -106,7 +109,8 @@ pub fn generate_lwe_keyswitch_key<
 }
 
 pub fn generate_lwe_keyswitch_key_native_mod_compatible<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -119,11 +123,12 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    KSKeyCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    KSKeyCont: ContainerMut<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     assert!(
@@ -140,6 +145,13 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_sk.lwe_dimension()
     );
+    assert!(
+        lwe_keyswitch_key.decomposition_base_log().0
+            * lwe_keyswitch_key.decomposition_level_count().0
+            <= OutputScalar::BITS,
+        "This operation only supports a DecompositionBaseLog and DecompositionLevelCount product \
+        smaller than the OutputScalar bit count."
+    );
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
@@ -148,7 +160,7 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
-        PlaintextListOwned::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
+        PlaintextListOwned::new(OutputScalar::ZERO, PlaintextCount(decomp_level_count.0));
 
     // Iterate over the input key elements and the destination lwe_keyswitch_key memory
     for (input_key_element, mut keyswitch_key_block) in input_lwe_sk
@@ -165,9 +177,13 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
             // Here  we take the decomposition term from the native torus, bring it to the torus we
             // are working with by dividing by the scaling factor and the encryption will take care
             // of mapping that back to the native torus
-            *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                .to_recomposition_summand()
-                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+            *message.0 = DecompositionTerm::new(
+                level,
+                decomp_base_log,
+                CastInto::<OutputScalar>::cast_into(*input_key_element),
+            )
+            .to_recomposition_summand()
+            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
         encrypt_lwe_ciphertext_list(
@@ -181,7 +197,8 @@ pub fn generate_lwe_keyswitch_key_native_mod_compatible<
 }
 
 pub fn generate_lwe_keyswitch_key_other_mod<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -194,11 +211,12 @@ pub fn generate_lwe_keyswitch_key_other_mod<
     noise_distribution: NoiseDistribution,
     generator: &mut EncryptionRandomGenerator<Gen>,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    KSKeyCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    KSKeyCont: ContainerMut<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     assert!(
@@ -215,6 +233,13 @@ pub fn generate_lwe_keyswitch_key_other_mod<
         lwe_keyswitch_key.output_key_lwe_dimension(),
         output_lwe_sk.lwe_dimension()
     );
+    assert!(
+        lwe_keyswitch_key.decomposition_base_log().0
+            * lwe_keyswitch_key.decomposition_level_count().0
+            <= OutputScalar::BITS,
+        "This operation only supports a DecompositionBaseLog and DecompositionLevelCount product \
+        smaller than the OutputScalar bit count."
+    );
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
@@ -223,7 +248,7 @@ pub fn generate_lwe_keyswitch_key_other_mod<
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
-        PlaintextListOwned::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
+        PlaintextListOwned::new(OutputScalar::ZERO, PlaintextCount(decomp_level_count.0));
 
     // Iterate over the input key elements and the destination lwe_keyswitch_key memory
     for (input_key_element, mut keyswitch_key_block) in input_lwe_sk
@@ -243,7 +268,7 @@ pub fn generate_lwe_keyswitch_key_other_mod<
             *message.0 = DecompositionTermNonNative::new(
                 level,
                 decomp_base_log,
-                *input_key_element,
+                CastInto::<OutputScalar>::cast_into(*input_key_element),
                 ciphertext_modulus,
             )
             .to_approximate_recomposition_summand();
@@ -264,7 +289,8 @@ pub fn generate_lwe_keyswitch_key_other_mod<
 ///
 /// See [`keyswitch_lwe_ciphertext`] for usage.
 pub fn allocate_and_generate_new_lwe_keyswitch_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -275,18 +301,19 @@ pub fn allocate_and_generate_new_lwe_keyswitch_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     generator: &mut EncryptionRandomGenerator<Gen>,
-) -> LweKeyswitchKeyOwned<Scalar>
+) -> LweKeyswitchKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
     Gen: ByteRandomGenerator,
 {
     let mut new_lwe_keyswitch_key = LweKeyswitchKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         decomp_base_log,
         decomp_level_count,
         input_lwe_sk.lwe_dimension(),
