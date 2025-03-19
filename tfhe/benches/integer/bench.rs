@@ -5,8 +5,8 @@ mod oprf;
 mod utilities;
 
 use crate::utilities::{
-    throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
-    ParamsAndNumBlocksIter, BENCH_TYPE,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
+    ParamsAndNumBlocksIter,
 };
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
@@ -17,6 +17,7 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey, U256};
 use tfhe::keycache::NamedParam;
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 /// The type used to hold scalar values
 /// It must be as big as the largest bit size tested
@@ -118,7 +119,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
 
         let bench_id;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
@@ -290,7 +291,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
         let bench_id;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
@@ -457,7 +458,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         let bench_id;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
                 bench_group.bench_function(&bench_id, |b| {
@@ -585,7 +586,7 @@ fn if_then_else_parallelized(c: &mut Criterion) {
 
         let bench_id;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {
@@ -698,7 +699,7 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
         for len in [5, 10, 20] {
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
                     bench_group.bench_function(&bench_id, |b| {
@@ -1394,7 +1395,7 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::{cuda_local_keys, cuda_local_streams};
+    use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
@@ -1426,7 +1427,7 @@ mod cuda {
 
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -1544,7 +1545,7 @@ mod cuda {
 
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
@@ -1686,7 +1687,7 @@ mod cuda {
 
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
@@ -1816,7 +1817,7 @@ mod cuda {
 
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     let stream = CudaStreams::new_multi_gpu();
 
@@ -1964,7 +1965,7 @@ mod cuda {
 
             let bench_id;
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
 
@@ -2923,7 +2924,6 @@ use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 criterion_group!(
     smart_ops,
@@ -3326,8 +3326,6 @@ fn go_through_cpu_bench_groups(val: &str) {
 }
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
-
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             #[cfg(feature = "gpu")]
