@@ -18,10 +18,13 @@ on:
         required: true
       op_flavor: # Use a comma separated values to generate an array
         type: string
-        required: true
+        default: default
       bench_type:
         type: string
         default: latency
+      params_type:
+        type: string
+        default: multi_bit
       all_precisions:
         type: boolean
         default: false
@@ -63,6 +66,7 @@ jobs:
       command: ${{ steps.set_command.outputs.command }}
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
       bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+      params_type: ${{ steps.set_params_type.outputs.params_type }}
     steps:
       - name: Set single command
         if: ${{ !contains(inputs.command, ',')}}
@@ -94,6 +98,14 @@ jobs:
             echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
           fi
 
+      - name: Set parameters types
+        run: |
+          if [[ "${{ inputs.params_type }}" == "both" ]]; then
+            echo "PARAMS_TYPE=[\"classical\", \"multi_bit\"]" >> "${GITHUB_ENV}"
+          else
+            echo "PARAMS_TYPE=[\"${{ inputs.params_type }}\"]" >> "${GITHUB_ENV}"
+          fi
+
       - name: Set command output
         id: set_command
         run: |
@@ -108,6 +120,11 @@ jobs:
         id: set_bench_type
         run: |
           echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set parameters types output
+        id: set_params_type
+        run: |
+          echo "params_type=${{ toJSON(env.PARAMS_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: Setup instance (cuda-${{ inputs.profile }}-benchmarks)
@@ -136,7 +153,8 @@ jobs:
       # This will allow to fallback on permanent instances running on Hyperstack.
       - name: Use permanent remote instance
         id: use-permanent-instance
-        if: steps.start-remote-instance.outcome == 'failure' &&
+        if: env.SECRETS_AVAILABLE == 'true' &&
+          steps.start-remote-instance.outcome == 'failure' &&
           inputs.profile == 'single-h100'
         run: |
           echo "runner_group=h100x1" >> "$GITHUB_OUTPUT"
@@ -169,7 +187,7 @@ jobs:
 
   cuda-benchmarks:
     name: Cuda benchmarks (${{ inputs.profile }})
-    needs: [ prepare-matrix, setup-instance, install-dependencies ]
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
     continue-on-error: true
@@ -180,6 +198,8 @@ jobs:
         command: ${{ fromJSON(needs.prepare-matrix.outputs.command) }}
         op_flavor: ${{ fromJSON(needs.prepare-matrix.outputs.op_flavor) }}
         bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
+        params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
+        # explicit include-based build matrix, of known valid options
         include:
           - cuda: "12.2"
             gcc: 11
@@ -231,7 +251,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} bench_${{ matrix.command }}_gpu
+          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} BENCH_PARAM_TYPE=${{ matrix.params_type }} bench_${{ matrix.command }}_gpu
 
       - name: Parse results
         run: |
@@ -250,7 +270,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
         with:
-          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}
+          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ inputs.profile }}_${{ matrix.bench_type }}_${{ matrix.params_type }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo

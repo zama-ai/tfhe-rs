@@ -28,6 +28,7 @@ on:
           - pbs
           - pbs128
           - ks
+          - ks_pbs
       op_flavor:
         description: "Operations set to run"
         type: choice
@@ -47,6 +48,14 @@ on:
         options:
           - latency
           - throughput
+          - both
+      params_type:
+        description: "Parameters type"
+        type: choice
+        default: multi_bit
+        options:
+          - classical
+          - multi_bit
           - both
 
 jobs:
@@ -76,5 +85,6 @@ jobs:
       command: ${{ inputs.command }}
       op_flavor: ${{ inputs.op_flavor }}
       bench_type: ${{ inputs.bench_type }}
+      params_type: ${{ inputs.params_type }}
       all_precisions: ${{ inputs.all_precisions }}
     secrets: inherit
