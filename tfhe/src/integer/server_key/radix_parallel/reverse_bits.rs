@@ -69,7 +69,7 @@ mod tests {
     use crate::integer::{IntegerKeyKind, RadixClientKey};
     #[cfg(tarpaulin)]
     use crate::shortint::parameters::coverage_parameters::*;
-    use crate::shortint::parameters::current_params::*;
+    use crate::shortint::parameters::test_params::*;
     use crate::shortint::parameters::*;
     use rand::prelude::*;
     use std::sync::Arc;

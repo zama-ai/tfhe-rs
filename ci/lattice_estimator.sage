@@ -19,17 +19,16 @@ SECURITY_LEVEL_THRESHOLD_SOFT = 132
 SECURITY_LEVEL_THRESHOLD_HARD = 128
 
 
-def check_security(filename):
+def check_security(filepath):
     """
     Run lattice estimator to determine if a parameters set is secure or not.
 
-    :param filename: name of the file containing parameters set
+    :param filepath: path of the file containing parameters set
 
     :return: :class:`list` of parameters to update
     """
-    filepath = pathlib.Path("ci", filename)
-    load(filepath)
     print(f"Parsing parameters in {filepath}")
+    load(filepath)
 
     to_update = []
     to_watch = []
@@ -92,14 +91,14 @@ if __name__ == "__main__":
     params_to_update = []
     params_to_watch = []
 
-    for params_filename in (
-        "boolean_parameters_lattice_estimator.sage",
-        "shortint_classic_parameters_lattice_estimator.sage",
-        "shortint_multi_bit_parameters_lattice_estimator.sage",
-        "shortint_cpke_parameters_lattice_estimator.sage",
-        "shortint_list_compression_parameters_lattice_estimator.sage",
-    ):
-        to_update, to_watch = check_security(params_filename)
+    this_file = pathlib.Path(__file__).resolve()
+    this_file_sage_source = this_file if this_file.suffix == ".sage" else this_file.with_suffix("")
+    parent_dir = this_file.parent
+    parameter_files = sorted(list(parent_dir.glob("*.sage")))
+    parameter_files.remove(this_file_sage_source)
+
+    for params_file in parameter_files:
+        to_update, to_watch = check_security(params_file)
         params_to_update.extend(to_update)
         params_to_watch.extend(to_watch)
 

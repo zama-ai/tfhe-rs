@@ -103,11 +103,11 @@ impl ShortintEncoding<u64> {
 
 #[test]
 fn test_pow_2_encoding_ci_run_filter() {
-    use crate::shortint::parameters::current_params::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     use crate::shortint::parameters::CiphertextModulus;
     const CIPHERTEXT_MODULUS: u64 = 1u64 << 62;
 
-    let mut params = V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    let mut params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     params.carry_modulus = CarryModulus(1);
     params.ciphertext_modulus = CiphertextModulus::new(CIPHERTEXT_MODULUS as u128);
 

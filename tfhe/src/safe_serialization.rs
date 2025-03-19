@@ -501,9 +501,9 @@ mod test_shortint {
     use tfhe_versionable::Versionize;
 
     use crate::named::Named;
-    use crate::shortint::parameters::current_params::{
-        V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    use crate::shortint::parameters::test_params::{
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     };
     use crate::shortint::{gen_keys, Ciphertext};
 
@@ -511,7 +511,7 @@ mod test_shortint {
 
     #[test]
     fn safe_deserialization_ct_unversioned() {
-        let (ck, _sk) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
 
@@ -529,14 +529,14 @@ mod test_shortint {
         assert!(DeserializationConfig::new(1 << 20)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
+                &TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
             )
             .is_err());
 
         let ct2 = DeserializationConfig::new(1 << 20)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
+                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
             )
             .unwrap();
 
@@ -546,7 +546,7 @@ mod test_shortint {
 
     #[test]
     fn safe_deserialization_ct_versioned() {
-        let (ck, _sk) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
 
@@ -564,14 +564,14 @@ mod test_shortint {
         assert!(DeserializationConfig::new(1 << 20,)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
+                &TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128.to_shortint_conformance_param()
             )
             .is_err());
 
         let ct2 = DeserializationConfig::new(1 << 20)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
+                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
             )
             .unwrap();
 
@@ -581,7 +581,7 @@ mod test_shortint {
 
     #[test]
     fn safe_deserialization_ct_unlimited_size() {
-        let (ck, _sk) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
 
@@ -599,7 +599,7 @@ mod test_shortint {
         let ct2 = DeserializationConfig::new_with_unlimited_size()
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
+                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
             )
             .unwrap();
 
@@ -609,7 +609,7 @@ mod test_shortint {
 
     #[test]
     fn safe_deserialization_size_limit() {
-        let (ck, _sk) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+        let (ck, _sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
         let msg = 2_u64;
 
@@ -627,7 +627,7 @@ mod test_shortint {
         let ct2 = DeserializationConfig::new(size)
             .deserialize_from::<Ciphertext>(
                 buffer.as_slice(),
-                &V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
+                &TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.to_shortint_conformance_param(),
             )
             .unwrap();
 

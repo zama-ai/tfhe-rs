@@ -248,23 +248,27 @@ impl DecompressionKey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::shortint::parameters::current_params::*;
+    use crate::shortint::parameters::test_params::*;
     use crate::shortint::{gen_keys, ClientKey, ShortintParameterSet};
     use rayon::iter::IntoParallelIterator;
 
     #[test]
     fn test_packing_ci_run_filter() {
-        for params in [
-            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+        for (params, comp_params) in [
+            (
+                TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            (
+                TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
         ] {
             // Generate the client key and the server key:
             let (cks, _sks) = gen_keys::<ShortintParameterSet>(params);
 
             let private_compression_key: crate::shortint::list_compression::CompressionPrivateKeys =
-                cks.new_compression_private_key(
-                    V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                );
+                cks.new_compression_private_key(comp_params);
 
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);

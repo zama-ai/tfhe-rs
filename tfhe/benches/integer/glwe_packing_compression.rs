@@ -169,7 +169,7 @@ mod cuda {
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
-    use tfhe::shortint::parameters::current_params::*;
+    use tfhe::shortint::parameters::*;
 
     fn gpu_glwe_packing(c: &mut Criterion) {
         let bench_name = "integer::cuda::packing_compression";
@@ -180,8 +180,8 @@ mod cuda {
 
         let stream = CudaStreams::new_multi_gpu();
 
-        let param = V1_0_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let param = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_param = COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let log_message_modulus = param.message_modulus.0.ilog2() as usize;
 

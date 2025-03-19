@@ -9,9 +9,11 @@ use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::current_params::{
     VEC_ALL_CLASSIC_PBS_PARAMETERS, VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS,
     VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
+    VEC_ALL_NOISE_SQUASHING_PARAMETERS,
 };
 use tfhe::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, CompressionParameters, ShortintParameterSet,
+    CompactPublicKeyEncryptionParameters, CompressionParameters, NoiseSquashingParameters,
+    ShortintParameterSet,
 };
 
 pub trait ParamDetails<T: UnsignedInteger> {
@@ -127,6 +129,33 @@ impl ParamDetails<u64> for CompressionParameters {
     }
 }
 
+impl ParamDetails<u128> for NoiseSquashingParameters {
+    fn lwe_dimension(&self) -> LweDimension {
+        panic!("lwe_dimension not applicable for NoiseSquashingParameters")
+    }
+
+    fn glwe_dimension(&self) -> GlweDimension {
+        self.glwe_dimension
+    }
+
+    fn lwe_noise_distribution(&self) -> DynamicDistribution<u128> {
+        panic!("lwe_noise_distribution not applicable for NoiseSquashingParameters")
+    }
+
+    fn glwe_noise_distribution(&self) -> DynamicDistribution<u128> {
+        self.glwe_noise_distribution
+    }
+
+    fn polynomial_size(&self) -> PolynomialSize {
+        self.polynomial_size
+    }
+
+    fn log_ciphertext_modulus(&self) -> usize {
+        assert!(self.ciphertext_modulus.is_native_modulus());
+        u128::BITS as usize
+    }
+}
+
 #[derive(Eq, PartialEq, Hash)]
 enum ParametersFormat {
     Lwe,
@@ -146,6 +175,18 @@ struct ParamGroupKey {
     parameters_format: ParametersFormat,
 }
 
+fn format_modulus_as_string(log_ciphertext_modulus: usize) -> String {
+    if log_ciphertext_modulus > 128 {
+        panic!("Exponent too large");
+    }
+    if log_ciphertext_modulus == 128 {
+        // What are you gonna do, call the police ?
+        return "340282366920938463463374607431768211456".to_string();
+    }
+
+    format!("{}", 1u128 << log_ciphertext_modulus)
+}
+
 ///Function to print in the lattice_estimator format the parameters
 /// Format:   LWE.Parameters(n=722, q=2^32, Xs=ND.UniformMod(2),
 /// Xe=ND.DiscreteGaussian(56139.60810663548), tag='test_lattice_estimator')
@@ -159,13 +200,25 @@ pub fn format_lwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamDe
                 param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
 
             format!(
-                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
-                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), 2.0_f64.powf(modular_std_dev), similar_params.join("_lwe', '"))
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
+                Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
+                name,
+                param.lwe_dimension().0,
+                format_modulus_as_string(param.log_ciphertext_modulus()),
+                2.0_f64.powf(modular_std_dev),
+                similar_params.join("_lwe', '")
+            )
         }
         DynamicDistribution::TUniform(distrib) => {
             format!(
-                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
-                name, param.lwe_dimension().0, (1u128<<param.log_ciphertext_modulus() as u128), tuniform_equivalent_gaussian_std_dev(&distrib), similar_params.join("_lwe', '"))
+                "{}_LWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
+                Xe=ND.DiscreteGaussian({}),\n tag=('{}_lwe',) \n)\n\n",
+                name,
+                param.lwe_dimension().0,
+                format_modulus_as_string(param.log_ciphertext_modulus()),
+                tuniform_equivalent_gaussian_std_dev(&distrib),
+                similar_params.join("_lwe', '")
+            )
         }
     }
 }
@@ -183,13 +236,31 @@ pub fn format_glwe_parameters_to_lattice_estimator<U: UnsignedInteger, T: ParamD
                 param.log_ciphertext_modulus() as f64 + distrib.standard_dev().0.log2();
 
             format!(
-                "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
-                name, param.glwe_dimension().to_equivalent_lwe_dimension(param.polynomial_size()).0, 1u128<<param.log_ciphertext_modulus() as u128, 2.0_f64.powf(modular_std_dev), similar_params.join("_glwe', '"))
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q = {},\n Xs=ND.Uniform(0,1), \n \
+                Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
+                name,
+                param
+                    .glwe_dimension()
+                    .to_equivalent_lwe_dimension(param.polynomial_size())
+                    .0,
+                format_modulus_as_string(param.log_ciphertext_modulus()),
+                2.0_f64.powf(modular_std_dev),
+                similar_params.join("_glwe', '")
+            )
         }
         DynamicDistribution::TUniform(distrib) => {
             format!(
-                "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
-                name, param.glwe_dimension().to_equivalent_lwe_dimension(param.polynomial_size()).0, 1u128<<param.log_ciphertext_modulus() as u128, tuniform_equivalent_gaussian_std_dev(&distrib), similar_params.join("_glwe', '"))
+                "{}_GLWE = LWE.Parameters(\n n = {},\n q ={},\n Xs=ND.Uniform(0,1), \n \
+                Xe=ND.DiscreteGaussian({}),\n tag=('{}_glwe',) \n)\n\n",
+                name,
+                param
+                    .glwe_dimension()
+                    .to_equivalent_lwe_dimension(param.polynomial_size())
+                    .0,
+                format_modulus_as_string(param.log_ciphertext_modulus()),
+                tuniform_equivalent_gaussian_std_dev(&distrib),
+                similar_params.join("_glwe', '")
+            )
         }
     }
 }
@@ -352,6 +423,16 @@ fn main() {
     write_all_params_in_file(
         "shortint_list_compression_parameters_lattice_estimator.sage",
         &comp_params,
+        ParametersFormat::Glwe,
+    );
+
+    let noise_squasing_params: Vec<_> = VEC_ALL_NOISE_SQUASHING_PARAMETERS
+        .into_iter()
+        .map(|p| (*p.0, Some(p.1)))
+        .collect();
+    write_all_params_in_file(
+        "shortint_noise_squashing_parameters_lattice_estimator.sage",
+        &noise_squasing_params,
         ParametersFormat::Glwe,
     );
 

@@ -156,32 +156,37 @@ impl CompressedCiphertextList {
 mod tests {
     use super::*;
     use crate::integer::{gen_keys, IntegerKeyKind};
+    use crate::shortint::parameters::test_params::{
+        TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
     use crate::shortint::ShortintParameterSet;
-    use crate::shortint::parameters::current_params::classic::tuniform::p_fail_2_minus_128::ks_pbs::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use crate::shortint::parameters::current_params::list_compression::p_fail_2_minus_128::V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use crate::shortint::parameters::current_params::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     use itertools::Itertools;
     use rand::Rng;
 
     const NB_TESTS: usize = 10;
     const NB_OPERATOR_TESTS: usize = 10;
     const NUM_BLOCKS: usize = 32;
-    const MAX_NB_MESSAGES: usize = 2 * V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-        .lwe_per_glwe
-        .0
-        / NUM_BLOCKS;
 
     #[test]
     fn test_ciphertext_compression() {
-        for params in [
-            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+        for (params, comp_params) in [
+            (
+                TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            (
+                TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
         ] {
             let (cks, sks) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
 
-            let private_compression_key = cks.new_compression_private_key(
-                V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            );
+            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
+
+            let private_compression_key = cks.new_compression_private_key(comp_params);
 
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);
@@ -194,7 +199,7 @@ mod tests {
                 // Unsigned
                 let modulus = message_modulus.pow(NUM_BLOCKS as u32);
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<u128>() % modulus)
                         .collect::<Vec<_>>();
@@ -223,7 +228,7 @@ mod tests {
                 // Signed
                 let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<i128>() % modulus)
                         .collect::<Vec<_>>();
@@ -251,7 +256,7 @@ mod tests {
 
                 // Boolean
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<i64>() % 2 != 0)
                         .collect::<Vec<_>>();
@@ -286,7 +291,7 @@ mod tests {
                 for _ in 0..NB_OPERATOR_TESTS {
                     let mut builder = CompressedCiphertextListBuilder::new();
 
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let mut messages = vec![];
                     for _ in 0..nb_messages {
                         let case_selector = rng.gen_range(0..3);

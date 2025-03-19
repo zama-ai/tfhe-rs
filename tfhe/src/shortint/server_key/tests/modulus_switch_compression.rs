@@ -1,6 +1,6 @@
 use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::{NoiseLevel, PBSParameters};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;

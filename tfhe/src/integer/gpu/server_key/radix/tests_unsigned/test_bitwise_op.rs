@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
     default_bitand_test, default_bitnot_test, default_bitor_test, default_bitxor_test,
     unchecked_bitand_test, unchecked_bitnot_test, unchecked_bitor_test, unchecked_bitxor_test,
 };
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_unchecked_bitnot);
