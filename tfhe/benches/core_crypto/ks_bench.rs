@@ -497,7 +497,7 @@ mod cuda {
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::{
-        cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext,
+        cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64,
         get_number_of_gpus, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
@@ -796,7 +796,7 @@ mod cuda {
                     {
                         bench_group.bench_function(&bench_id, |b| {
                             b.iter(|| {
-                                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext(
+                                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
                                     gpu_keys.pksk.as_ref().unwrap(),
                                     &d_input_lwe_list,
                                     &mut d_output_glwe,
@@ -879,7 +879,7 @@ mod cuda {
                                             ((i, input_lwe_list), output_glwe_list),
                                             local_stream,
                                         )| {
-                                            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext(
+                                            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
                                                 gpu_keys_vec[i].pksk.as_ref().unwrap(),
                                                 input_lwe_list,
                                                 output_glwe_list,

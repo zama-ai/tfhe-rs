@@ -3,7 +3,7 @@
 #include "cuda/include/integer/compression/compression.h"
 #include "cuda/include/integer/integer.h"
 #include "cuda/include/zk/zk.h"
-#include "cuda/include/keyswitch.h"
+#include "cuda/include/keyswitch/keyswitch.h"
 #include "cuda/include/keyswitch/ks_enums.h"
 #include "cuda/include/linear_algebra.h"
 #include "cuda/include/fft/fft128.h"

@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async;
+use crate::core_crypto::gpu::algorithms::lwe_packing_keyswitch::cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
@@ -104,7 +104,7 @@ where
             );
 
             unsafe {
-                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async(
+                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async(
                     &pksk,
                     &d_input_lwe,
                     &mut d_output_glwe,
@@ -197,7 +197,7 @@ where
             );
 
             unsafe {
-                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_async(
+                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64_async(
                     &pksk,
                     &d_input_lwe_list,
                     &mut d_output_glwe,
