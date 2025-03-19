@@ -175,23 +175,23 @@ impl KeySwitchingKey {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::v1_0::{
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    /// use tfhe::shortint::parameters::v1_1::{
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     /// ```
     pub fn new<'input_key, InputEncryptionKey>(
@@ -323,23 +323,23 @@ impl KeySwitchingKey {
     /// # Example (the following code won't actually run because this function is private)
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::v1_0::{
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    /// use tfhe::shortint::parameters::v1_1::{
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     ///
     /// let cleartext = 1;
@@ -465,23 +465,23 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     /// # Example (the following code won't actually run because this function is private)
     ///
     /// ```rust
-    /// use tfhe::shortint::parameters::v1_0::{
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    ///     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    /// use tfhe::shortint::parameters::v1_1::{
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
     /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
-    /// let (ck1, sk1) = gen_keys(V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
-    /// let (ck2, sk2) = gen_keys(V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck1, sk1) = gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+    /// let (ck2, sk2) = gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
     ///
     /// // Generate the server key:
     /// let ksk = KeySwitchingKey::new(
     ///     (&ck1, Some(&sk1)),
     ///     (&ck2, &sk2),
-    ///     V1_0_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
+    ///     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     /// );
     ///
     /// let cleartext = 1;

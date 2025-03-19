@@ -118,11 +118,11 @@ mod tests {
     use crate::integer::keycache::KEY_CACHE;
     use crate::integer::tests::create_parameterized_test;
     use crate::integer::IntegerKeyKind;
-    use crate::shortint::parameters::current_params::V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128;
     use crate::shortint::parameters::ClassicPBSParameters;
 
     create_parameterized_test!(integer_public_key_decompression_small {
-        V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
     });
 
     fn integer_public_key_decompression_small(param: ClassicPBSParameters) {

@@ -9,7 +9,7 @@ use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, I256};
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::distributions::Standard;
 use rand::prelude::*;
@@ -268,14 +268,14 @@ macro_rules! define_signed_scalar_comparison_test_functions {
             create_parameterized_test!([<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
-                V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 
-                V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+                TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
@@ -283,7 +283,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
             create_parameterized_test!([<integer_signed_smart_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
-                V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -292,7 +292,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 // of message so the overflow behaviour is not the same, leading to false negatives
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
@@ -300,7 +300,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
             create_parameterized_test!([<integer_signed_default_scalar_ $comparison_name _parallelized_  $clear_type>]
             {
 
-                V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+                TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
 
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -309,7 +309,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 // of message so the overflow behaviour is not the same, leading to false negatives
 
                 // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-                V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+                TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
                 #[cfg(tarpaulin)]
                 COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS
             });
@@ -614,58 +614,58 @@ mod no_coverage {
     }
 
     create_parameterized_test!(integer_signed_unchecked_scalar_max_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
     create_parameterized_test!(integer_signed_unchecked_scalar_min_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        V1_0_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
     create_parameterized_test!(integer_signed_smart_scalar_max_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
     create_parameterized_test!(integer_signed_smart_scalar_min_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
     create_parameterized_test!(integer_signed_scalar_max_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
     create_parameterized_test!(integer_signed_scalar_min_parallelized_i128 {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as default test might overflow values
         // and when using 3_3 to represent 256 we actually have more than 256 bits
         // of message so the overflow behaviour is not the same, leading to false negatives
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64
     });
 
     define_signed_scalar_comparison_test_functions!(eq, i128);
@@ -676,13 +676,13 @@ mod no_coverage {
     define_signed_scalar_comparison_test_functions!(ge, i128);
 
     create_parameterized_test!(integer_signed_is_scalar_out_of_bounds {
-        V1_0_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         // We don't use PARAM_MESSAGE_3_CARRY_3_KS_PBS,
         // as the test relies on the ciphertext to encrypt 128bits
         // but with param 3_3 we actually encrypt more that 128bits
         // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-        V1_0_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
+        TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
     });
 }
 

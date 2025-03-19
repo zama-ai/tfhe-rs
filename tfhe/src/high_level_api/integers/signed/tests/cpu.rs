@@ -4,11 +4,11 @@ use crate::prelude::{
     CiphertextList, FheDecrypt, FheEncrypt, FheTryEncrypt, FheTryTrivialEncrypt,
     ParameterSetConformant,
 };
-use crate::shortint::parameters::current_params::{
-    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
-    V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+use crate::shortint::parameters::test_params::{
+    TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+    TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128,
+    TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
 };
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::{
@@ -35,7 +35,7 @@ fn test_integer_compressed_small() {
     let mut rng = thread_rng();
 
     let config =
-        ConfigBuilder::with_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
             .build();
     let (client_key, _) = generate_keys(config);
 
@@ -67,7 +67,7 @@ fn test_int64_rotate() {
 #[test]
 fn test_multi_bit_rotate() {
     let client_key = setup_cpu(Some(
-        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     ));
     super::test_case_int64_rotate(&client_key);
 }
@@ -81,7 +81,7 @@ fn test_int32_div_rem() {
 #[test]
 fn test_multi_div_rem() {
     let client_key = setup_cpu(Some(
-        V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     ));
     super::test_case_int32_div_rem(&client_key);
 }
@@ -126,7 +126,7 @@ fn test_trivial_fhe_int8() {
 #[test]
 fn test_trivial_fhe_int256_small() {
     let config =
-        ConfigBuilder::with_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
             .build();
     let (client_key, sks) = generate_keys(config);
 
@@ -140,7 +140,7 @@ fn test_trivial_fhe_int256_small() {
 #[test]
 fn test_compact_public_key_big() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128)
+        .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128)
         .build();
     let (client_key, _) = generate_keys(config);
 
@@ -158,7 +158,7 @@ fn test_compact_public_key_big() {
 #[test]
 fn test_compact_public_key_small() {
     let config = ConfigBuilder::default()
-        .use_custom_parameters(V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128)
+        .use_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128)
         .build();
     let (client_key, _) = generate_keys(config);
 

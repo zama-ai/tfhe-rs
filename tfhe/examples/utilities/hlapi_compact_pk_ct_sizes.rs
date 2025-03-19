@@ -9,9 +9,10 @@ use std::path::Path;
 use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::current_params::{
-    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128,
+use tfhe::shortint::parameters::{
+    PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use tfhe::shortint::PBSParameters;
 use tfhe::{
@@ -40,67 +41,13 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
     let operator = OperatorType::Atomic;
 
     {
-        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
-            .build();
-        let (client_key, _) = generate_keys(config);
-        let test_name = format!("hlapi_sizes_{}_cpk", params.name());
-
-        let params: PBSParameters = params.into();
-
-        println!("Sizes for: {} and 32 bits", params.name());
-
-        let public_key = CompactPublicKey::new(&client_key);
-
-        let cpk_size = bincode::serialize(&public_key).unwrap().len();
-
-        println!("PK size: {cpk_size} bytes");
-        write_result(&mut file, &test_name, cpk_size);
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CPK",
-            &operator,
-            0,
-            vec![],
-        );
-
-        let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_32_bits", params.name());
-
-        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| rng.gen::<u32>()).collect();
-
-        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
-            .extend(vec_inputs.iter().copied())
-            .build();
-        let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
-
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
-
-        write_result(&mut file, &test_name, cctl_size);
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CCTL",
-            &operator,
-            0,
-            vec![],
-        );
-
-        let expander = encrypted_inputs.expand().unwrap();
-        for (i, input) in vec_inputs.into_iter().enumerate() {
-            let expanded: FheUint32 = expander.get(i).unwrap().unwrap();
-            let clear: u32 = expanded.decrypt(&client_key);
-            assert_eq!(clear, input);
-        }
-    }
-
-    {
-        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128;
-        let config = ConfigBuilder::default()
-            .use_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
             .build();
         let (client_key, _) = generate_keys(config);
         let test_name = format!("hlapi_sizes_{}_cpk", params.name());
@@ -157,57 +104,13 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
 
     // 256 bits
     {
-        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128;
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let config = ConfigBuilder::default()
             .use_custom_parameters(params)
-            .build();
-        let (client_key, _) = generate_keys(config);
-
-        let params: PBSParameters = params.into();
-
-        println!("Sizes for: {} and 256 bits", params.name());
-
-        let public_key = CompactPublicKey::new(&client_key);
-
-        println!(
-            "PK size: {} bytes",
-            bincode::serialize(&public_key).unwrap().len()
-        );
-
-        let test_name = format!("hlapi_sizes_{}_cctl_{NB_CTXT}_len_256_bits", params.name());
-
-        let vec_inputs: Vec<_> = (0..NB_CTXT).map(|_| U256::from(rng.gen::<u32>())).collect();
-
-        let encrypted_inputs = CompactCiphertextList::builder(&public_key)
-            .extend(vec_inputs.iter().copied())
-            .build();
-        let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
-
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
-
-        write_result(&mut file, &test_name, cctl_size);
-        write_to_json::<u64, _>(
-            &test_name,
-            params,
-            params.name(),
-            "CCTL",
-            &operator,
-            0,
-            vec![],
-        );
-
-        let expander = encrypted_inputs.expand().unwrap();
-        for (i, input) in vec_inputs.into_iter().enumerate() {
-            let expanded: FheUint256 = expander.get(i).unwrap().unwrap();
-            let clear: U256 = expanded.decrypt(&client_key);
-            assert_eq!(clear, input);
-        }
-    }
-
-    {
-        let params = V1_0_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128;
-        let config = ConfigBuilder::default()
-            .use_custom_parameters(params)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
             .build();
         let (client_key, _) = generate_keys(config);
 

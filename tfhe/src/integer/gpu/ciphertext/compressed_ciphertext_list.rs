@@ -142,14 +142,12 @@ impl CudaCompressedCiphertextList {
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::shortint::parameters::{
-    /// # // TODO GPU DRIFT UPDATE
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    ///     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ///     COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
     /// };
     ///
-    /// # // TODO GPU DRIFT UPDATE
-    /// let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    /// let compression_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// let block_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// let compression_params = COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// let num_blocks = 32;
     /// let streams = CudaStreams::new_multi_gpu();
     ///
@@ -269,14 +267,13 @@ impl CompressedCiphertextList {
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
     /// use tfhe::integer::ClientKey;
     /// use tfhe::shortint::parameters::{
-    /// # // TODO GPU DRIFT UPDATE
-    ///     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    ///     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    ///     COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     /// };
     ///
-    /// # // TODO GPU DRIFT UPDATE
-    /// let block_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-    /// let compression_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    /// let block_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    /// let compression_params =
+    ///     COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     /// let num_blocks = 32;
     /// let streams = CudaStreams::new_multi_gpu();
     ///
@@ -520,12 +517,7 @@ mod tests {
     use crate::integer::ciphertext::CompressedCiphertextListBuilder;
     use crate::integer::gpu::gen_keys_radix_gpu;
     use crate::integer::{ClientKey, RadixCiphertext, RadixClientKey};
-    use crate::shortint::parameters::{
-        // TODO GPU DRIFT UPDATE
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    };
+    use crate::shortint::parameters::*;
     use crate::shortint::ShortintParameterSet;
     use rand::Rng;
 
@@ -537,9 +529,8 @@ mod tests {
         const NUM_BLOCKS: usize = 32;
         let streams = CudaStreams::new_multi_gpu();
 
-        // TODO GPU DRIFT UPDATE
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
-        let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+        let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let cks = ClientKey::new(params);
 
@@ -562,16 +553,12 @@ mod tests {
 
         // How many uints of NUM_BLOCKS we have to push in the list to ensure it
         // internally has more than one packed GLWE
-        // TODO GPU DRIFT UPDATE
-        const MAX_NB_MESSAGES: usize = 1 + 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
-            .lwe_per_glwe
-            .0
-            / NUM_BLOCKS;
+        let max_nb_messages: usize = 1 + 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
 
         let mut rng = rand::thread_rng();
         let message_modulus: u128 = radix_cks.parameters().message_modulus().0 as u128;
         let modulus = message_modulus.pow(NUM_BLOCKS as u32);
-        let messages = (0..MAX_NB_MESSAGES)
+        let messages = (0..max_nb_messages)
             .map(|_| rng.gen::<u128>() % modulus)
             .collect::<Vec<_>>();
 
@@ -687,27 +674,27 @@ mod tests {
         const NUM_BLOCKS: usize = 32;
         let streams = CudaStreams::new_multi_gpu();
 
-        for params in [
-            // TODO GPU DRIFT UPDATE
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-            PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+        for (params, comp_params) in [
+            (
+                // TODO GPU DRIFT UPDATE
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            ),
+            (
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
         ] {
             let (radix_cks, sks) =
                 gen_keys_radix_gpu::<ShortintParameterSet>(params, NUM_BLOCKS, &streams);
             let cks = radix_cks.as_ref();
 
-            // TODO GPU DRIFT UPDATE
-            let private_compression_key =
-                cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64);
+            let private_compression_key = cks.new_compression_private_key(comp_params);
 
             let (cuda_compression_key, cuda_decompression_key) = radix_cks
                 .new_cuda_compression_decompression_keys(&private_compression_key, &streams);
 
-            // TODO GPU DRIFT UPDATE
-            const MAX_NB_MESSAGES: usize = 2 * COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
-                .lwe_per_glwe
-                .0
-                / NUM_BLOCKS;
+            let max_nb_messages: usize = 2 * comp_params.lwe_per_glwe.0 / NUM_BLOCKS;
 
             let mut rng = rand::thread_rng();
 
@@ -717,7 +704,7 @@ mod tests {
                 // Unsigned
                 let modulus = message_modulus.pow(NUM_BLOCKS as u32);
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<u128>() % modulus)
                         .collect::<Vec<_>>();
@@ -757,7 +744,7 @@ mod tests {
                 // Signed
                 let modulus = message_modulus.pow((NUM_BLOCKS - 1) as u32) as i128;
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<i128>() % modulus)
                         .collect::<Vec<_>>();
@@ -796,7 +783,7 @@ mod tests {
 
                 // Boolean
                 for _ in 0..NB_OPERATOR_TESTS {
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let messages = (0..nb_messages)
                         .map(|_| rng.gen::<i64>() % 2 != 0)
                         .collect::<Vec<_>>();
@@ -845,7 +832,7 @@ mod tests {
                 for _ in 0..NB_OPERATOR_TESTS {
                     let mut builder = CudaCompressedCiphertextListBuilder::new();
 
-                    let nb_messages = rng.gen_range(1..=MAX_NB_MESSAGES as u64);
+                    let nb_messages = rng.gen_range(1..=max_nb_messages as u64);
                     let mut messages = vec![];
                     for _ in 0..nb_messages {
                         let case_selector = rng.gen_range(0..3);

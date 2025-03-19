@@ -1,6 +1,6 @@
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::{
-    PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -16,9 +16,9 @@ pub fn main() {
     println!("CUDA GPU Integer parameters:\n");
     println!(
         "{}",
-        PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.name()
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name()
     );
-    println!("{PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64:?}");
+    println!("{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:?}");
 
     println!("\n\n===========================================================================\n\n");
 
@@ -32,7 +32,7 @@ pub fn main() {
     println!("\n===========================================================================\n\n");
 
     println!("CUDA GPU PBS parameters:\n");
-    let param = PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+    let param = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     let bits = (param.message_modulus.0 * param.carry_modulus.0).ilog2();
     println!("Precision {bits} bits");
     println!("{}", param.name());

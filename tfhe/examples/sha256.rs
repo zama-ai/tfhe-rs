@@ -4,9 +4,9 @@ use std::io::{stdin, Read};
 use std::mem::MaybeUninit;
 use std::{array, iter};
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::v1_0::{
-    V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+use tfhe::shortint::parameters::v1_1::{
+    V1_1_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V1_1_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device, FheUint32};
 
@@ -190,10 +190,10 @@ fn main() -> Result<(), std::io::Error> {
     let config = match args.multibit {
         None => ConfigBuilder::default(),
         Some(2) => ConfigBuilder::with_custom_parameters(
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_1_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         ),
         Some(3) => ConfigBuilder::with_custom_parameters(
-            V1_0_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            V1_1_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
         ),
         Some(v) => {
             panic!("Invalid multibit setting {v}");

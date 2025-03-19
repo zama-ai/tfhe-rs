@@ -7,7 +7,7 @@ use crate::integer::{
     BooleanBlock, IntegerKeyKind, IntegerRadixCiphertext, RadixCiphertext, RadixClientKey,
     ServerKey,
 };
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use std::ops::Range;

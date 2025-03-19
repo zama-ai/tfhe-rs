@@ -6,7 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_ilog2::{
     default_checked_ilog2_test, default_ilog2_test, default_leading_ones_test,
     default_leading_zeros_test, default_trailing_ones_test, default_trailing_zeros_test,
 };
-use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_default_trailing_zeros);
