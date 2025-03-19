@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{
-    throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
+    init_bench_type, throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType,
     ParamsAndNumBlocksIter, BENCH_TYPE,
 };
 use criterion::{criterion_group, Criterion, Throughput};
@@ -14,6 +14,7 @@ use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::prelude::*;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey, SignedRadixCiphertext, I256};
 use tfhe::keycache::NamedParam;
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
     let clearlow = rng.gen::<u128>();
@@ -3023,7 +3024,6 @@ use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 #[cfg(feature = "gpu")]
 fn go_through_gpu_bench_groups(val: &str) {
@@ -3068,7 +3068,7 @@ fn go_through_cpu_bench_groups(val: &str) {
 }
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+    init_bench_type();
 
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
