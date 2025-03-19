@@ -81,7 +81,23 @@ jobs:
           BRANCH="$(make backward_compat_branch)"
           echo "branch=${BRANCH}" >> "${GITHUB_OUTPUT}"
 
+      - name: Get backward compat branch head SHA
+        id: backward_compat_sha
+        env:
+          REPO_URL: "https://github.com/zama-ai/tfhe-backward-compat-data"
+        run: |
+          SHA=$(git ls-remote ${{ env.REPO_URL }} refs/heads/${{ steps.backward_compat_branch.outputs.branch }} | awk '{print $1}')
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Retrieve data from cache
+        id: retrieve-data-cache
+        uses: actions/cache/restore@d4323d4df104b026a6aa633fdb11d772146be0bf #v4.2.2
+        with:
+          path: tests/tfhe-backward-compat-data
+          key: ${{ steps.backward_compat_branch.outputs.branch }}_${{ steps.backward_compat_sha.outputs.sha }}
+
       - name: Clone test data
+        if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
@@ -93,6 +109,14 @@ jobs:
       - name: Run backward compatibility tests
         run: |
           make test_backward_compatibility_ci
+
+      - name: Store data in cache
+        if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@d4323d4df104b026a6aa633fdb11d772146be0bf #v4.2.2
+        with:
+          path: tests/tfhe-backward-compat-data
+          key: ${{ steps.backward_compat_branch.outputs.branch }}_${{ steps.backward_compat_sha.outputs.sha }}
 
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
