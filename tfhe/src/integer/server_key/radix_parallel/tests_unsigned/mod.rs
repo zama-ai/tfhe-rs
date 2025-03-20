@@ -1,6 +1,8 @@
 mod modulus_switch_compression;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
+mod test_block_rotate;
+mod test_block_shift;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 mod test_count_zeros_ones;
@@ -125,6 +127,23 @@ pub(crate) fn rotate_left_helper(value: u64, n: u32, actual_bit_size: u32) -> u6
     (rotated & mask) | ((rotated & shifted_mask) >> actual_bit_size)
 }
 
+pub(crate) fn block_rotate_left_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian so rotating them to the left
+    // means rotating bits to the right
+    rotate_right_helper(value, n * bits_per_block, num_blocks * bits_per_block)
+}
+
 /// helper function to do a rotate right when the type used to store
 /// the value is bigger than the actual intended bit size
 pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
@@ -149,6 +168,57 @@ pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u
     let rotated = value.rotate_right(n);
 
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
+}
+
+pub(crate) fn block_rotate_right_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so rotating them to the right
+    // means rotating bits to the left
+    rotate_left_helper(value, n * bits_per_block, num_blocks * bits_per_block)
+}
+
+pub(crate) fn block_shift_right_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the right
+    // means shifting bits to the left
+    value.checked_shl(n * bits_per_block).unwrap() % (1u64 << (bits_per_block * num_blocks))
+}
+
+pub(crate) fn block_shift_left_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the left
+    // means shifting bits to the right
+    value.checked_shr(n * bits_per_block).unwrap()
 }
 
 pub(crate) fn overflowing_sub_under_modulus<T: UnsignedInteger>(
