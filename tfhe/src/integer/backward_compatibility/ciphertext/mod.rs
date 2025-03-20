@@ -6,7 +6,7 @@ use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
     CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
     CompressedModulusSwitchedRadixCiphertextGeneric,
-    CompressedModulusSwitchedSignedRadixCiphertext, DataKind,
+    CompressedModulusSwitchedSignedRadixCiphertext, DataKind, SquashedNoiseIntegerCiphertext,
 };
 use crate::integer::BooleanBlock;
 #[cfg(feature = "zk-pok")]
@@ -98,4 +98,9 @@ pub type CompressedModulusSwitchedRadixCiphertextTFHE06 =
 #[derive(VersionsDispatch)]
 pub enum CompressedCiphertextListVersions {
     V0(CompressedCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SquashedNoiseIntegerCiphertextVersions {
+    V0(SquashedNoiseIntegerCiphertext),
 }

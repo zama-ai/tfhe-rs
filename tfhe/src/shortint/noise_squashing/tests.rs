@@ -47,6 +47,9 @@ fn test_noise_squashing_ci_run_filter() {
             decompressed_noise_squashing_key.squash_ciphertext_noise(&packed, sks);
         let squashed_noise_ct = noise_squashing_key.squash_ciphertext_noise(&packed, sks);
 
+        assert_eq!(squashed_noise_ct.degree(), packed.degree);
+        assert_eq!(squashed_noise_ct_from_compressed.degree(), packed.degree);
+
         let recovered_from_compressed = noise_squashing_private_key
             .decrypt_squashed_noise_ciphertext(&squashed_noise_ct_from_compressed);
         let recovered =

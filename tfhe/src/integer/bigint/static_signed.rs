@@ -460,6 +460,23 @@ impl<const N: usize> CastFrom<u64> for StaticSignedBigInt<N> {
     }
 }
 
+impl<const N: usize> CastFrom<u128> for StaticSignedBigInt<N> {
+    fn cast_from(input: u128) -> Self {
+        let mut converted = [u64::ZERO; N];
+        if N == 0 {
+            return Self(converted);
+        }
+
+        converted[0] = input as u64;
+        if N == 1 {
+            return Self(converted);
+        }
+
+        converted[1] = (input >> 64) as u64;
+        Self(converted)
+    }
+}
+
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u8 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
         input.0[0] as Self
@@ -481,6 +498,13 @@ impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u32 {
 impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u64 {
     fn cast_from(input: StaticSignedBigInt<N>) -> Self {
         input.0[0]
+    }
+}
+
+impl<const N: usize> CastFrom<StaticSignedBigInt<N>> for u128 {
+    fn cast_from(input: StaticSignedBigInt<N>) -> Self {
+        let inner = &input.0;
+        inner[0] as u128 | ((inner[1] as u128) << 64)
     }
 }
 
