@@ -1,8 +1,9 @@
 use crate::core_crypto::prelude::{Cleartext, SignedNumeric, UnsignedNumeric};
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
+use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::radix::scalar_sub::TwosComplementNegation;
-use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
+use crate::integer::{BooleanBlock, CheckError, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::{Ciphertext, PaddingBit};
 use rayon::prelude::*;
 
@@ -112,6 +113,99 @@ impl ServerKey {
         }
 
         self.scalar_add_assign_parallelized(ct, scalar.twos_complement_negation());
+    }
+
+    pub fn unchecked_left_scalar_sub<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T
+    where
+        Scalar: DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+    {
+        // a - b <=> a + (-b)
+        let mut neg_rhs = self.unchecked_neg(rhs);
+        self.unchecked_scalar_add_assign(&mut neg_rhs, scalar);
+        neg_rhs
+    }
+
+    pub fn is_left_scalar_sub_possible<Scalar, T>(
+        &self,
+        scalar: Scalar,
+        rhs: &T,
+    ) -> Result<(), CheckError>
+    where
+        Scalar: DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+    {
+        // We do scalar - ct by doing scalar + (-ct)
+        // So we first have to check `-ct` is possible
+        // then that adding scalar to it is possible
+        self.is_neg_possible(rhs)?;
+        let neg_degree_iter =
+            NegatedDegreeIter::new(rhs.blocks().iter().map(|b| (b.degree, b.message_modulus)));
+        let block_metadata_iter = rhs
+            .blocks()
+            .iter()
+            .zip(neg_degree_iter)
+            .map(|(block, neg_degree)| (neg_degree, block.message_modulus, block.carry_modulus));
+
+        self.is_scalar_add_possible_impl(block_metadata_iter, scalar)
+    }
+
+    pub fn smart_left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &mut T) -> T
+    where
+        Scalar: DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+    {
+        if self.is_neg_possible(rhs).is_err() {
+            self.full_propagate_parallelized(rhs);
+            self.unchecked_left_scalar_sub(scalar, rhs)
+        } else {
+            // a - b <=> a + (-b)
+            let mut neg_rhs = self.unchecked_neg(rhs);
+            if self.is_scalar_add_possible(&neg_rhs, scalar).is_err() {
+                // since adding scalar does not increase the nose, only the
+                // degree can be problematic
+                self.full_propagate_parallelized(&mut neg_rhs);
+            }
+            self.unchecked_scalar_add_assign(&mut neg_rhs, scalar);
+            neg_rhs
+        }
+    }
+
+    pub fn left_scalar_sub_parallelized<Scalar, T>(&self, scalar: Scalar, rhs: &T) -> T
+    where
+        Scalar: DecomposableInto<u8>,
+        T: IntegerRadixCiphertext,
+    {
+        if rhs.block_carries_are_empty() {
+            // a - b <=> a + (-b) <=> a + (!b + 1) <=> !b + a + 1
+            let mut flipped_ct = self.bitnot(rhs);
+            let scalar_blocks = BlockDecomposer::with_block_count(
+                scalar,
+                self.message_modulus().0.ilog2(),
+                rhs.blocks().len(),
+            )
+            .iter_as::<u8>()
+            .collect();
+            let (input_carry, compute_overflow) = (true, false);
+            self.add_assign_scalar_blocks_parallelized(
+                &mut flipped_ct,
+                scalar_blocks,
+                input_carry,
+                compute_overflow,
+            );
+            flipped_ct
+        } else {
+            // We could clone rhs and full_propagate, then do the same thing as when the
+            // rhs's carries are clean. This would cost 2 full_propagate, but the second one
+            // would be less expensive because it happens in a scalar_add.
+            //
+            // However, we chose to all the smart version on the cloned_rhs, as maybe the carries
+            // are not so bad that the smart version will be able to avoid the first full_prop
+            let mut tmp_rhs = rhs.clone();
+            let mut res = self.smart_left_scalar_sub_parallelized(scalar, &mut tmp_rhs);
+            self.full_propagate_parallelized(&mut res);
+            res
+        }
     }
 
     pub fn unsigned_overflowing_scalar_sub_assign_parallelized<T>(

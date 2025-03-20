@@ -17,7 +17,6 @@ use crate::high_level_api::traits::{
 };
 use crate::integer::bigint::{U1024, U2048, U512};
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::IntegerCiphertext;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 use crate::integer::U256;
@@ -1938,16 +1937,9 @@ generic_integer_impl_scalar_left_operation!(
     rust_trait: Sub(sub),
     implem: {
         |lhs, rhs: &FheUint<_>| {
-            // `-` is not commutative, so we resort to converting to trivial
-            // which should give same perf
             global_state::with_internal_keys(|key| match key {
                 InternalServerKey::Cpu(cpu_key) => {
-                    let mut result = cpu_key
-                        .pbs_key()
-                        .create_trivial_radix(lhs, rhs.ciphertext.on_cpu().blocks().len());
-                    cpu_key
-                        .pbs_key()
-                        .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
+                    let result = cpu_key.pbs_key().left_scalar_sub_parallelized(lhs, &*rhs.ciphertext.on_cpu());
                     RadixCiphertext::Cpu(result)
                 },
                 #[cfg(feature = "gpu")]
