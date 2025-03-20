@@ -74,11 +74,7 @@ impl From<FwParameters> for asm::DigitParameters {
 #[enum_dispatch]
 pub trait Fw {
     /// Expand a program of IOp into a program of DOp
-    fn expand(
-        &mut self,
-        params: &FwParameters,
-        iopcode: &asm::AsmIOpcode,
-    ) -> asm::Program<asm::DOp>;
+    fn expand(&self, params: &FwParameters, iopcode: &asm::AsmIOpcode) -> asm::Program<asm::DOp>;
 }
 
 /// Gather available Fw in a enum for selection at runtime by user
