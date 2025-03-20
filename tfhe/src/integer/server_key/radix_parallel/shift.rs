@@ -11,6 +11,17 @@ pub(super) enum BarrelShifterOperation {
     RightRotate,
 }
 
+impl BarrelShifterOperation {
+    pub(super) fn invert_direction(self) -> Self {
+        match self {
+            Self::LeftRotate => Self::RightRotate,
+            Self::LeftShift => Self::RightShift,
+            Self::RightShift => Self::LeftShift,
+            Self::RightRotate => Self::LeftRotate,
+        }
+    }
+}
+
 impl ServerKey {
     //======================================================================
     //                Shift Right
@@ -335,7 +346,8 @@ impl ServerKey {
                 ct,
                 &mut shift_bit_extractor,
                 0..max_num_bits_that_tell_shift as usize,
-                operation,
+                // Our blocks are stored in little endian order
+                operation.invert_direction(),
             );
 
             *ct = result;
@@ -710,7 +722,9 @@ impl ServerKey {
             // We already did the first block rotation so we start at 1
             // And do + 1 as the range is exclusive
             1..max_num_bits_that_tell_shift - num_bits_already_done as usize + 1,
-            operation,
+            // blocks are in little endian order which is the opposite
+            // of how bits are textually represented
+            operation.invert_direction(),
         )
     }
 

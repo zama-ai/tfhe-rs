@@ -124,9 +124,16 @@ impl ServerKey {
             ManyLutStrategy::Classical(luts)
         };
 
-        // For signed data, we do an arithmetic right shift, so the padding block
-        // depends on the sign bit
-        let padding_block_lut = if T::IS_SIGNED && operation == BarrelShifterOperation::RightShift {
+        // Even though, we are considering blocks, our `T` here is a radix in little endian order
+        // meaning that doing a left shift of blocks is like doing a right shift of bits
+        // thus, we make the left shift pad blocks with a block that depends on the sign bit value
+        // to have an arithmetic shift right bit shift when doing a left block shift.
+        //
+        // This is easier have the special case hardcoded than adding an extra argument
+        //
+        // Also if this is not the wanted behaviour, simply cast the signed radix to unsigned
+        // before calling this function
+        let padding_block_lut = if T::IS_SIGNED && operation == BarrelShifterOperation::LeftShift {
             let lut = self.key.generate_lookup_table(|shift_bit_and_last_block| {
                 let last_block = shift_bit_and_last_block % self.message_modulus().0;
                 let shift_bit = shift_bit_and_last_block >> self.message_modulus().0.ilog2();
@@ -175,15 +182,12 @@ impl ServerKey {
                     });
                 }
 
-                if T::IS_SIGNED && operation == BarrelShifterOperation::RightShift {
+                if let Some(lut) = padding_block_lut.as_ref() {
                     s.spawn(|_| {
                         let mut tmp = self
                             .key
                             .unchecked_add(&shift_bit, ct.blocks().last().unwrap());
-                        self.key.apply_lookup_table_assign(
-                            &mut tmp,
-                            padding_block_lut.as_ref().unwrap(),
-                        );
+                        self.key.apply_lookup_table_assign(&mut tmp, lut);
 
                         padding_block = tmp;
                     });
@@ -198,23 +202,23 @@ impl ServerKey {
             // align carries
             match operation {
                 BarrelShifterOperation::LeftShift => {
-                    messages_and_carries.rotate_right(1 << d);
-                    for block_that_wrapped in &mut messages_and_carries[..1 << d] {
+                    messages_and_carries.rotate_left(1 << d);
+                    for block_that_wrapped in &mut messages_and_carries[num_blocks - (1 << d)..] {
                         block_that_wrapped[CARRY_INDEX].clone_from(&padding_block);
                     }
                 }
                 BarrelShifterOperation::RightShift => {
-                    messages_and_carries.rotate_left(1 << d);
-                    let blocks_that_wrapped = &mut messages_and_carries[num_blocks - (1 << d)..];
+                    messages_and_carries.rotate_right(1 << d);
+                    let blocks_that_wrapped = &mut messages_and_carries[..1 << d];
                     for block_that_wrapped in blocks_that_wrapped {
                         block_that_wrapped[CARRY_INDEX].clone_from(&padding_block);
                     }
                 }
                 BarrelShifterOperation::LeftRotate => {
-                    messages_and_carries.rotate_right(1 << d);
+                    messages_and_carries.rotate_left(1 << d);
                 }
                 BarrelShifterOperation::RightRotate => {
-                    messages_and_carries.rotate_left(1 << d);
+                    messages_and_carries.rotate_right(1 << d);
                 }
             }
 
@@ -250,12 +254,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let message_bits_per_block = self.key.message_modulus.0.ilog2() as u64;
-        let carry_bits_per_block = self.key.carry_modulus.0.ilog2() as u64;
         let num_blocks = ct.blocks().len();
-
-        // 1 bit for the shift control
-        // 1 another for many lut setting
-        assert!(carry_bits_per_block >= 2);
 
         let mut max_num_bits_that_tell_shift = num_blocks.ilog2() as u64;
         // This effectively means, that if the block parameters
@@ -274,10 +273,10 @@ impl ServerKey {
             &amount.blocks,
             self,
             message_bits_per_block as usize,
-            2,
+            // Put each extracted bits in the first bit of the carry space
+            message_bits_per_block as usize,
         );
-        shift_bit_extractor.prepare_all_bits();
-
+        shift_bit_extractor.prepare_n_bits(max_num_bits_that_tell_shift as usize);
         self.block_barrel_shifter_impl(
             ct,
             &mut shift_bit_extractor,
@@ -307,6 +306,11 @@ impl ServerKey {
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightShift)
     }
 
+    /// shift blocks to the left
+    ///
+    /// Note that as shifting blocks to the left is equivalent to shifting bits to the right
+    /// this will perform an 'arithmetic' shift when left shifting a SignedRadixInteger
+    /// If this is not the wanted behaviour, you can first cast the input to unsigned radix
     pub fn unchecked_block_shift_left<T>(&self, ct: &T, amount: &RadixCiphertext) -> T
     where
         T: IntegerRadixCiphertext,
@@ -344,6 +348,11 @@ impl ServerKey {
         self.block_barrel_shifter(ct, amount, BarrelShifterOperation::RightShift)
     }
 
+    /// shift blocks to the left
+    ///
+    /// Note that as shifting blocks to the left is equivalent to shifting bits to the right
+    /// this will perform an 'arithmetic' shift when left shifting a SignedRadixInteger
+    /// If this is not the wanted behaviour, you can first cast the input to unsigned radix
     pub fn smart_block_shift_left<T>(&self, ct: &mut T, amount: &RadixCiphertext) -> T
     where
         T: IntegerRadixCiphertext,
@@ -399,6 +408,11 @@ impl ServerKey {
         self.block_barrel_shifter(lhs, amount, BarrelShifterOperation::RightShift)
     }
 
+    /// shift blocks to the left
+    ///
+    /// Note that as shifting blocks to the left is equivalent to shifting bits to the right
+    /// this will perform an 'arithmetic' shift when left shifting a SignedRadixInteger
+    /// If this is not the wanted behaviour, you can first cast the input to unsigned radix
     pub fn block_shift_left<T>(&self, ct: &T, amount: &RadixCiphertext) -> T
     where
         T: IntegerRadixCiphertext,
