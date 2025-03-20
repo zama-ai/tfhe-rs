@@ -6,6 +6,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::test_vector_compar
     default_all_eq_slices_test_case, unchecked_all_eq_slices_test_case,
 };
 use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_all_eq_slices_test_case);

@@ -4,6 +4,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
 use crate::integer::gpu::CudaServerKey;
 use crate::integer::server_key::radix_parallel::tests_signed::test_div_rem::signed_unchecked_div_rem_test;
 use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::current_params_gpu::*;
 use crate::shortint::parameters::*;
 
 create_gpu_parameterized_test!(integer_signed_unchecked_div_rem);
