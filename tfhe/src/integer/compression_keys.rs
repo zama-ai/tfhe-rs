@@ -61,6 +61,17 @@ impl CompressedCompressionKey {
             key: self.key.decompress(),
         }
     }
+
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::CompressedCompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(
+        key: crate::shortint::list_compression::CompressedCompressionKey,
+    ) -> Self {
+        Self { key }
+    }
 }
 
 impl CompressedDecompressionKey {
@@ -68,6 +79,17 @@ impl CompressedDecompressionKey {
         DecompressionKey {
             key: self.key.decompress(),
         }
+    }
+
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::CompressedDecompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(
+        key: crate::shortint::list_compression::CompressedDecompressionKey,
+    ) -> Self {
+        Self { key }
     }
 }
 
