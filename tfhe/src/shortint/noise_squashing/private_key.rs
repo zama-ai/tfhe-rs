@@ -19,8 +19,19 @@ pub struct NoiseSquashingPrivateKey {
 }
 
 impl NoiseSquashingPrivateKey {
-    pub fn new(client_key: &ClientKey, params: NoiseSquashingParameters) -> Self {
-        client_key.new_noise_squashing_private_key(params)
+    pub fn new(params: NoiseSquashingParameters) -> Self {
+        let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut engine.secret_generator,
+            )
+        });
+
+        Self {
+            post_noise_squashing_secret_key,
+            params,
+        }
     }
 
     pub fn decrypt_squashed_noise_ciphertext(&self, ciphertext: &SquashedNoiseCiphertext) -> u128 {
@@ -50,20 +61,8 @@ impl NoiseSquashingPrivateKey {
 
 impl ClientKey {
     pub fn new_noise_squashing_private_key(
-        &self,
         params: NoiseSquashingParameters,
     ) -> NoiseSquashingPrivateKey {
-        let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
-
-        NoiseSquashingPrivateKey {
-            post_noise_squashing_secret_key,
-            params,
-        }
+        NoiseSquashingPrivateKey::new(params)
     }
 }

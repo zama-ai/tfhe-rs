@@ -9,7 +9,6 @@ fn test_noise_squashing_ci_run_filter() {
     let keycache_entry = KEY_CACHE.get_from_param(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
     let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
     let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
-        cks,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     );
     let noise_squashing_key = NoiseSquashingKey::new(cks, &noise_squashing_private_key);
