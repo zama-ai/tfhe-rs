@@ -15,6 +15,8 @@ use strum::VariantNames;
 
 use tracing::{debug, info, trace};
 
+use rayon::prelude::*;
+
 pub struct HpuBackend {
     // Low-level hardware handling
     hpu_hw: ffi::HpuHw,
@@ -676,7 +678,7 @@ impl HpuBackend {
             // Generate Fw for standard operation
             // -> All operation with an associated alias
             let mut id_fw = asm::iop::IOP_LIST
-                .iter()
+                .par_iter()
                 .map(|iop| {
                     let opcode = iop.opcode();
                     let prog = fw.expand(&fw_params, iop);
