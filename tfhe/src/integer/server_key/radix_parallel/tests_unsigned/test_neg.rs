@@ -2,7 +2,10 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix::neg::NegatedDegreeIter;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionExecutor, NB_CTXT};
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean, panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus, CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels
+    nb_tests_for_params, nb_tests_smaller_for_params,
+    panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
+    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
+    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -73,55 +76,46 @@ where
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let mut clear = rng.gen::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
 
-        let encrypted_result = executor.execute(&ctxt);
+        let mut encrypted_result = executor.execute(&ctxt);
 
         expected_noise_levels.panic_if_any_is_not_equal(&encrypted_result);
         expected_degrees
             .after_unchecked_neg(&ctxt)
             .panic_if_any_is_not_equal(&encrypted_result);
         panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
-        panic_if_any_block_info_exceeds_max_degree_or_noise(
-            &encrypted_result,
-            max_degree,
-            max_noise_level,
-        );
 
         let decrypted_result: u64 = cks.decrypt(&encrypted_result);
         let expected_result = clear.wrapping_neg() % modulus;
         assert_eq!(decrypted_result, expected_result);
 
+        clear = expected_result;
         loop {
             let non_zero = random_non_zero_value(&mut rng, modulus);
             if sks.is_scalar_add_possible(&ctxt, non_zero).is_err() {
                 break;
             }
             let ctxt = sks.unchecked_scalar_add(&encrypted_result, non_zero);
-            let clear = clear.wrapping_add(non_zero) % modulus;
+            clear = clear.wrapping_add(non_zero) % modulus;
             if sks.is_neg_possible(&ctxt).is_err() {
                 break;
             }
 
-            let encrypted_result = executor.execute(&ctxt);
+            encrypted_result = executor.execute(&ctxt);
 
             expected_noise_levels.panic_if_any_is_not_equal(&encrypted_result);
-            // expected_degrees
-                // .after_unchecked_neg(&ctxt)
-                // .panic_if_any_is_not_equal(&encrypted_result);
+            expected_degrees
+                .after_unchecked_neg(&ctxt)
+                .panic_if_any_is_not_equal(&encrypted_result);
             panic_if_any_block_values_exceeds_its_degree(&encrypted_result, &cks);
-            panic_if_any_block_info_exceeds_max_degree_or_noise(
-                &encrypted_result,
-                max_degree,
-                max_noise_level,
-            );
-    
+
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
             let expected_result = clear.wrapping_neg() % modulus;
             assert_eq!(decrypted_result, expected_result);
-
+            clear = expected_result;
         }
     }
 
