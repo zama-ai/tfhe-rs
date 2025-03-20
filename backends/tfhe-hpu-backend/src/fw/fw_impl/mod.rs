@@ -23,7 +23,7 @@ macro_rules! impl_fw {
             }
 
             impl Fw for [<$name:camel>]{
-                fn expand(&mut self, params: &FwParameters, iopcode: &AsmIOpcode) -> asm::Program<DOp> {
+                fn expand(&self, params: &FwParameters, iopcode: &AsmIOpcode) -> asm::Program<DOp> {
                     let mut prog = program::Program::new(params);
                     match IOpcode::from(iopcode) {
                         $(
