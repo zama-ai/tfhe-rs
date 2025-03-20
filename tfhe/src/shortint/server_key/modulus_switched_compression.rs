@@ -1,20 +1,136 @@
-use super::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertext;
+use crate::core_crypto::prelude::{
+    extract_lwe_sample_from_glwe_ciphertext, ComputationBuffers, MonomialDegree,
+};
+use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::ciphertext::{
+    CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext,
+};
+use crate::shortint::server_key::{GenericServerKey, LookupTableOwned};
+use crate::shortint::Ciphertext;
+
 use super::{
     apply_modulus_switch_noise_reduction, apply_programmable_bootstrap_no_ms_noise_reduction,
-    extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
-    GlweCiphertext, ShortintBootstrappingKey,
+    multi_bit_deterministic_blind_rotate_assign, CastFrom, CastInto,
+    CompressedModulusSwitchedLweCiphertext, CompressedModulusSwitchedMultiBitLweCiphertext,
+    GlweCiphertext, LweCiphertextMutView, LweCiphertextView, ShortintBootstrappingKey,
+    UnsignedInteger, UnsignedTorus,
 };
-use crate::core_crypto::commons::parameters::MonomialDegree;
-use crate::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
-use crate::core_crypto::prelude::{keyswitch_lwe_ciphertext, LweCiphertext};
-use crate::shortint::ciphertext::{
-    CompressedModulusSwitchedCiphertext, InternalCompressedModulusSwitchedCiphertext, NoiseLevel,
-};
-use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::LookupTableOwned;
-use crate::shortint::{Ciphertext, PBSOrder, ServerKey};
 
-impl ServerKey {
+pub(crate) fn switch_modulus_and_compress<Scalar>(
+    ciphertext: LweCiphertextView<Scalar>,
+    bootstrapping_key: &ShortintBootstrappingKey<Scalar>,
+) -> InternalCompressedModulusSwitchedCiphertext
+where
+    Scalar: UnsignedInteger + CastFrom<usize> + CastInto<u64>,
+{
+    match bootstrapping_key {
+        ShortintBootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
+        } => {
+            let log_modulus = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
+
+            let compressed = modulus_switch_noise_reduction_key.as_ref().map_or_else(
+                || CompressedModulusSwitchedLweCiphertext::compress(&ciphertext, log_modulus),
+                |modulus_switch_noise_reduction_key| {
+                    let input_improved_before_ms = apply_modulus_switch_noise_reduction(
+                        modulus_switch_noise_reduction_key,
+                        log_modulus,
+                        &ciphertext,
+                    );
+
+                    CompressedModulusSwitchedLweCiphertext::compress(
+                        &input_improved_before_ms,
+                        log_modulus,
+                    )
+                },
+            );
+
+            InternalCompressedModulusSwitchedCiphertext::Classic(compressed)
+        }
+        ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
+            InternalCompressedModulusSwitchedCiphertext::MultiBit(
+                CompressedModulusSwitchedMultiBitLweCiphertext::compress(
+                    &ciphertext,
+                    bootstrapping_key
+                        .polynomial_size()
+                        .to_blind_rotation_input_modulus_log(),
+                    fourier_bsk.grouping_factor(),
+                ),
+            )
+        }
+    }
+}
+
+pub(crate) fn decompress_and_apply_lookup_table<InputScalar, OutputScalar>(
+    compressed_ct: &CompressedModulusSwitchedCiphertext,
+    acc: &GlweCiphertext<Vec<OutputScalar>>,
+    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
+    ciphertext_buffer: &mut LweCiphertextMutView<OutputScalar>,
+    buffers: &mut ComputationBuffers,
+) where
+    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + CastFrom<u64> + Sync,
+    OutputScalar: UnsignedTorus + CastFrom<usize> + CastInto<usize>,
+{
+    match &bootstrapping_key {
+        ShortintBootstrappingKey::Classic { .. } => {
+            let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
+                InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
+                InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {
+                    panic!(
+                        "Compression was done targeting a MultiBit bootstrap decompression, \
+cannot decompress with a Classic bootstrapping key"
+                    )
+                }
+            };
+            apply_programmable_bootstrap_no_ms_noise_reduction(
+                bootstrapping_key,
+                &ct,
+                ciphertext_buffer,
+                acc,
+                buffers,
+            );
+        }
+        ShortintBootstrappingKey::MultiBit {
+            fourier_bsk,
+            thread_count,
+            deterministic_execution: _,
+        } => {
+            let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
+                InternalCompressedModulusSwitchedCiphertext::MultiBit(a) => a.extract(),
+                InternalCompressedModulusSwitchedCiphertext::Classic(_) => {
+                    panic!(
+                        "Compression was done targeting a Classic bootstrap decompression, \
+cannot decompress with a MultiBit bootstrapping key"
+                    )
+                }
+            };
+
+            let mut local_accumulator = GlweCiphertext::new(
+                OutputScalar::ZERO,
+                acc.glwe_size(),
+                acc.polynomial_size(),
+                acc.ciphertext_modulus(),
+            );
+            local_accumulator.as_mut().copy_from_slice(acc.as_ref());
+
+            multi_bit_deterministic_blind_rotate_assign(
+                &ct,
+                &mut local_accumulator,
+                fourier_bsk,
+                *thread_count,
+            );
+
+            extract_lwe_sample_from_glwe_ciphertext(
+                &local_accumulator,
+                ciphertext_buffer,
+                MonomialDegree(0),
+            );
+        }
+    }
+}
+
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compresses a ciphertext to have a smaller serialization size
     ///
     /// See [`CompressedModulusSwitchedCiphertext#example`] for usage
@@ -22,75 +138,7 @@ impl ServerKey {
         &self,
         ct: &Ciphertext,
     ) -> CompressedModulusSwitchedCiphertext {
-        let compressed_modulus_switched_lwe_ciphertext =
-            ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffers, _) = engine.get_buffers(self);
-                match self.pbs_order {
-                    PBSOrder::KeyswitchBootstrap => {
-                        keyswitch_lwe_ciphertext(
-                            &self.key_switching_key,
-                            &ct.ct,
-                            &mut ciphertext_buffers.buffer_lwe_after_ks,
-                        );
-                    }
-                    PBSOrder::BootstrapKeyswitch => ciphertext_buffers
-                        .buffer_lwe_after_ks
-                        .as_mut()
-                        .copy_from_slice(ct.ct.as_ref()),
-                }
-
-                match &self.bootstrapping_key {
-                    ShortintBootstrappingKey::Classic {
-                        bsk,
-                        modulus_switch_noise_reduction_key,
-                    } => {
-                        let log_modulus =
-                            bsk.polynomial_size().to_blind_rotation_input_modulus_log();
-
-                        let input_improved_before_ms;
-
-                        let input_modulus_switch = if let Some(modulus_switch_noise_reduction_key) =
-                            modulus_switch_noise_reduction_key
-                        {
-                            input_improved_before_ms = apply_modulus_switch_noise_reduction(
-                                modulus_switch_noise_reduction_key,
-                                log_modulus,
-                                &ciphertext_buffers.buffer_lwe_after_ks,
-                            );
-
-                            input_improved_before_ms.as_view()
-                        } else {
-                            ciphertext_buffers.buffer_lwe_after_ks.as_view()
-                        };
-
-                        InternalCompressedModulusSwitchedCiphertext::Classic(
-                            CompressedModulusSwitchedLweCiphertext::compress(
-                                &input_modulus_switch,
-                                log_modulus,
-                            ),
-                        )
-                    }
-                    ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-                        InternalCompressedModulusSwitchedCiphertext::MultiBit(
-                            CompressedModulusSwitchedMultiBitLweCiphertext::compress(
-                                &ciphertext_buffers.buffer_lwe_after_ks,
-                                self.bootstrapping_key
-                                    .polynomial_size()
-                                    .to_blind_rotation_input_modulus_log(),
-                                fourier_bsk.grouping_factor(),
-                            ),
-                        )
-                    }
-                }
-            });
-
-        CompressedModulusSwitchedCiphertext {
-            compressed_modulus_switched_lwe_ciphertext,
-            degree: ct.degree,
-            message_modulus: ct.message_modulus,
-            carry_modulus: ct.carry_modulus,
-            pbs_order: ct.pbs_order,
-        }
+        self.atomic_pattern.switch_modulus_and_compress(ct)
     }
 
     /// Decompresses a compressed ciphertext
@@ -144,86 +192,7 @@ impl ServerKey {
         compressed_ct: &CompressedModulusSwitchedCiphertext,
         acc: &LookupTableOwned,
     ) -> Ciphertext {
-        let mut output = LweCiphertext::from_container(
-            vec![0; self.ciphertext_lwe_dimension().to_lwe_size().0],
-            self.ciphertext_modulus,
-        );
-
-        ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
-
-            match &self.bootstrapping_key {
-                ShortintBootstrappingKey::Classic { .. } => {
-                    let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
-                        InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
-                        InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {
-                            panic!("Compression was done targeting a MultiBit bootstrap decompression, cannot decompress with a Classic bootstrapping key")
-                        }
-                    };
-                    apply_programmable_bootstrap_no_ms_noise_reduction(
-                        &self.bootstrapping_key,
-                        &ct,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        &acc.acc,
-                        buffers,
-                    );
-                }
-                ShortintBootstrappingKey::MultiBit {
-                    fourier_bsk,
-                    thread_count,
-                    deterministic_execution: _,
-                } => {
-                    let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
-                        InternalCompressedModulusSwitchedCiphertext::MultiBit(a) => a.extract(),
-                        InternalCompressedModulusSwitchedCiphertext::Classic(_) => {
-                            panic!("Compression was done targeting a Classic bootstrap decompression, cannot decompress with a MultiBit bootstrapping key")
-                        }
-                    };
-
-                    let mut local_accumulator = GlweCiphertext::new(
-                        0,
-                        acc.acc.glwe_size(),
-                        acc.acc.polynomial_size(),
-                        acc.acc.ciphertext_modulus(),
-                    );
-                    local_accumulator.as_mut().copy_from_slice(acc.acc.as_ref());
-
-                    multi_bit_deterministic_blind_rotate_assign(
-                        &ct,
-                        &mut local_accumulator,
-                        fourier_bsk,
-                        *thread_count,
-                    );
-
-                    extract_lwe_sample_from_glwe_ciphertext(
-                        &local_accumulator,
-                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
-                        MonomialDegree(0),
-                    );
-                }
-            }
-
-            match self.pbs_order {
-                PBSOrder::KeyswitchBootstrap => output
-                    .as_mut()
-                    .copy_from_slice(ciphertext_buffers.buffer_lwe_after_pbs.into_container()),
-                PBSOrder::BootstrapKeyswitch => {
-                    keyswitch_lwe_ciphertext(
-                        &self.key_switching_key,
-                        &ciphertext_buffers.buffer_lwe_after_pbs,
-                        &mut output,
-                    );
-                }
-            }
-        });
-
-        Ciphertext::new(
-            output,
-            acc.degree,
-            NoiseLevel::NOMINAL,
-            compressed_ct.message_modulus,
-            compressed_ct.carry_modulus,
-            compressed_ct.pbs_order,
-        )
+        self.atomic_pattern
+            .decompress_and_apply_lookup_table(compressed_ct, acc)
     }
 }

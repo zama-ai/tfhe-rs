@@ -21,11 +21,11 @@ use crate::integer::gpu::{
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::{
-    fill_accumulator, fill_accumulator_no_encoding, fill_many_lut_accumulator,
-};
+use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
+use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::server_key::{
-    BivariateLookupTableOwned, LookupTableOwned, ManyLookupTableOwned,
+    generate_lookup_table, BivariateLookupTableOwned, LookupTableOwned, LookupTableSize,
+    ManyLookupTableOwned,
 };
 use crate::shortint::{PBSOrder, PaddingBit, ShortintEncoding};
 
@@ -203,7 +203,7 @@ impl CudaServerKey {
                 degree: Degree::new(block_value),
                 message_modulus: self.message_modulus,
                 carry_modulus: self.carry_modulus,
-                pbs_order: self.pbs_order,
+                atomic_pattern: AtomicPatternKind::Classical(self.pbs_order),
                 noise_level: NoiseLevel::ZERO,
             });
         }
@@ -782,20 +782,16 @@ impl CudaServerKey {
                 (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
             }
         };
-        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
-        let max_value = fill_accumulator(
-            &mut acc,
-            polynomial_size,
-            glwe_size,
+
+        let size = LookupTableSize::new(glwe_size, polynomial_size);
+
+        generate_lookup_table(
+            size,
+            self.ciphertext_modulus,
             self.message_modulus,
             self.carry_modulus,
             f,
-        );
-
-        LookupTableOwned {
-            acc,
-            degree: Degree::new(max_value),
-        }
+        )
     }
     pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
     where

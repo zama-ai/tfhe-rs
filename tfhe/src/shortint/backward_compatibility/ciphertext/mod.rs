@@ -4,7 +4,7 @@ use crate::core_crypto::prelude::{
     CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
 };
 use crate::shortint::ciphertext::*;
-use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+use crate::shortint::parameters::{AtomicPatternKind, CompactCiphertextListExpansionKind};
 use crate::shortint::{CarryModulus, MessageModulus};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
@@ -110,11 +110,11 @@ pub struct CompressedModulusSwitchedCiphertextV0 {
     pub(crate) pbs_order: PBSOrder,
 }
 
-impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV0 {
+impl Upgrade<CompressedModulusSwitchedCiphertextV1> for CompressedModulusSwitchedCiphertextV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
-        Ok(CompressedModulusSwitchedCiphertext {
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertextV1, Self::Error> {
+        Ok(CompressedModulusSwitchedCiphertextV1 {
             compressed_modulus_switched_lwe_ciphertext:
                 InternalCompressedModulusSwitchedCiphertext::Classic(
                     self.compressed_modulus_switched_lwe_ciphertext,
@@ -127,10 +127,37 @@ impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedC
     }
 }
 
+#[derive(Version)]
+pub struct CompressedModulusSwitchedCiphertextV1 {
+    pub(crate) compressed_modulus_switched_lwe_ciphertext:
+        InternalCompressedModulusSwitchedCiphertext,
+    pub(crate) degree: Degree,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
+    pub(crate) pbs_order: PBSOrder,
+}
+
+impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
+        Ok(CompressedModulusSwitchedCiphertext {
+            compressed_modulus_switched_lwe_ciphertext: self
+                .compressed_modulus_switched_lwe_ciphertext,
+
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            atomic_pattern: AtomicPatternKind::Classical(self.pbs_order),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedModulusSwitchedCiphertextVersions {
     V0(CompressedModulusSwitchedCiphertextV0),
-    V1(CompressedModulusSwitchedCiphertext),
+    V1(CompressedModulusSwitchedCiphertextV1),
+    V2(CompressedModulusSwitchedCiphertext),
 }
 
 #[derive(VersionsDispatch)]
