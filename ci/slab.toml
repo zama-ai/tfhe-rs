@@ -1,18 +1,18 @@
 [backend.aws.cpu-big]
 region = "eu-west-3"
-image_id = "ami-026259079be0efbca"
+image_id = "ami-0449b775abf884686"
 instance_type = "m6i.32xlarge"
 user = "ubuntu"
 
 [backend.aws.cpu-big_fallback]
 region = "us-east-1"
-image_id = "ami-04e3bb9aebb6786df"
+image_id = "ami-0c6e54f3be8d03234"
 instance_type = "m6i.32xlarge"
 user = "ubuntu"
 
 [backend.aws.cpu-small]
 region = "eu-west-3"
-image_id = "ami-026259079be0efbca"
+image_id = "ami-0449b775abf884686"
 instance_type = "m6i.4xlarge"
 user = "ubuntu"
 
