@@ -1,6 +1,7 @@
 use crate::shortint::parameters::{
     current_params, ClassicPBSParameters, CompactPublicKeyEncryptionParameters,
-    CompressionParameters, MultiBitPBSParameters, ShortintKeySwitchingParameters,
+    CompressionParameters, MultiBitPBSParameters, NoiseSquashingParameters,
+    ShortintKeySwitchingParameters,
 };
 
 use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
@@ -41,6 +42,7 @@ use current_params::multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::{
     V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64,
 };
+use current_params::noise_squashing::p_fail_2_minus_128::V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 // Aliases
 
 // Compute Gaussian
@@ -104,6 +106,10 @@ pub const PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: CompactPublicKeyEnc
 // PKE To Compute Keyswitch
 pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySwitchingParameters =
     V1_1_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+// Noise squashing
+pub const NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: NoiseSquashingParameters =
+    V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
 // GPU 2^-64
 // GPU TUniform
