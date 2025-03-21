@@ -1,13 +1,18 @@
+use super::private_key::NoiseSquashingCompressionPrivateKey;
 use super::CompressionPrivateKeys;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
-    CompressionKeyVersions, DecompressionKeyVersions,
+    CompressionKeyVersions, DecompressionKeyVersions, NoiseSquashingCompressionKeyVersions,
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{CompressionParameters, PolynomialSize};
+use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
+use crate::shortint::parameters::{
+    CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    PolynomialSize,
+};
 use crate::shortint::server_key::{
     PBSConformanceParams, PbsTypeConformanceParams, ShortintBootstrappingKey,
 };
@@ -198,5 +203,102 @@ impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
                 modulus_switch_noise_reduction: None,
             },
         }
+    }
+}
+
+/// A compression key used to compress a list of [`SquashedNoiseCiphertext`]
+///
+/// [`SquashedNoiseCiphertext`]: crate::shortint::ciphertext::SquashedNoiseCiphertext
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
+#[versionize(NoiseSquashingCompressionKeyVersions)]
+pub struct NoiseSquashingCompressionKey {
+    pub packing_key_switching_key: LwePackingKeyswitchKey<Vec<u128>>,
+    pub lwe_per_glwe: LweCiphertextCount,
+}
+
+impl NoiseSquashingPrivateKey {
+    pub fn new_noise_squashing_compression_key(
+        &self,
+        private_compression_key: &NoiseSquashingCompressionPrivateKey,
+    ) -> NoiseSquashingCompressionKey {
+        let params = &private_compression_key.params;
+
+        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_lwe_packing_keyswitch_key(
+                &self.post_noise_squashing_secret_key().as_lwe_secret_key(),
+                &private_compression_key.post_packing_secret_key,
+                params.packing_ks_base_log,
+                params.packing_ks_level,
+                params.packing_ks_key_noise_distribution,
+                params.ciphertext_modulus,
+                &mut engine.encryption_generator,
+            )
+        });
+
+        NoiseSquashingCompressionKey {
+            packing_key_switching_key,
+            lwe_per_glwe: params.lwe_per_glwe,
+        }
+    }
+}
+
+pub struct NoiseSquashingCompressionKeyConformanceParams {
+    pub packing_ks_level: DecompositionLevelCount,
+    pub packing_ks_base_log: DecompositionBaseLog,
+    pub packing_ks_polynomial_size: PolynomialSize,
+    pub packing_ks_glwe_dimension: GlweDimension,
+    pub lwe_per_glwe: LweCiphertextCount,
+    pub uncompressed_polynomial_size: PolynomialSize,
+    pub uncompressed_glwe_dimension: GlweDimension,
+    pub cipherext_modulus: CiphertextModulus<u128>,
+}
+
+impl
+    From<(
+        NoiseSquashingParameters,
+        NoiseSquashingCompressionParameters,
+    )> for NoiseSquashingCompressionKeyConformanceParams
+{
+    fn from(
+        (squashing_params, compression_params): (
+            NoiseSquashingParameters,
+            NoiseSquashingCompressionParameters,
+        ),
+    ) -> Self {
+        Self {
+            packing_ks_level: compression_params.packing_ks_level,
+            packing_ks_base_log: compression_params.packing_ks_base_log,
+            packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size,
+            packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+            uncompressed_polynomial_size: squashing_params.polynomial_size,
+            uncompressed_glwe_dimension: squashing_params.glwe_dimension,
+            cipherext_modulus: squashing_params.ciphertext_modulus,
+        }
+    }
+}
+
+impl ParameterSetConformant for NoiseSquashingCompressionKey {
+    type ParameterSet = NoiseSquashingCompressionKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+        } = self;
+
+        let params = LwePackingKeyswitchKeyConformanceParams {
+            decomp_base_log: parameter_set.packing_ks_base_log,
+            decomp_level_count: parameter_set.packing_ks_level,
+            input_lwe_dimension: parameter_set
+                .uncompressed_glwe_dimension
+                .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
+            output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
+            output_polynomial_size: parameter_set.packing_ks_polynomial_size,
+            ciphertext_modulus: parameter_set.cipherext_modulus,
+        };
+
+        packing_key_switching_key.is_conformant(&params)
+            && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }
 }

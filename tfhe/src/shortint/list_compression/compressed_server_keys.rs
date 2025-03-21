@@ -1,5 +1,7 @@
+use super::server_keys::NoiseSquashingCompressionKeyConformanceParams;
 use super::{
     CompressionKey, CompressionKeyConformanceParams, CompressionPrivateKeys, DecompressionKey,
+    NoiseSquashingCompressionKey,
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
@@ -12,6 +14,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::backward_compatibility::list_compression::{
     CompressedCompressionKeyVersions, CompressedDecompressionKeyVersions,
+    CompressedNoiseSquashingCompressionKeyVersions,
 };
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
@@ -177,5 +180,51 @@ impl ParameterSetConformant for CompressedDecompressionKey {
         let params: LweBootstrapKeyConformanceParams<_> = (&params).into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedNoiseSquashingCompressionKeyVersions)]
+pub struct CompressedNoiseSquashingCompressionKey {
+    pub packing_key_switching_key: SeededLwePackingKeyswitchKey<Vec<u128>>,
+    pub lwe_per_glwe: LweCiphertextCount,
+}
+
+impl CompressedNoiseSquashingCompressionKey {
+    pub fn decompress(&self) -> NoiseSquashingCompressionKey {
+        let packing_key_switching_key = self
+            .packing_key_switching_key
+            .as_view()
+            .decompress_into_lwe_packing_keyswitch_key();
+
+        NoiseSquashingCompressionKey {
+            packing_key_switching_key,
+            lwe_per_glwe: self.lwe_per_glwe,
+        }
+    }
+}
+
+impl ParameterSetConformant for CompressedNoiseSquashingCompressionKey {
+    type ParameterSet = NoiseSquashingCompressionKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+        } = self;
+
+        let params = LwePackingKeyswitchKeyConformanceParams {
+            decomp_base_log: parameter_set.packing_ks_base_log,
+            decomp_level_count: parameter_set.packing_ks_level,
+            input_lwe_dimension: parameter_set
+                .uncompressed_glwe_dimension
+                .to_equivalent_lwe_dimension(parameter_set.uncompressed_polynomial_size),
+            output_glwe_size: parameter_set.packing_ks_glwe_dimension.to_glwe_size(),
+            output_polynomial_size: parameter_set.packing_ks_polynomial_size,
+            ciphertext_modulus: parameter_set.cipherext_modulus,
+        };
+
+        packing_key_switching_key.is_conformant(&params)
+            && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }
 }

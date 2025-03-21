@@ -70,7 +70,7 @@ pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use ks32::KeySwitch32PBSParameters;
 pub use multi_bit::MultiBitPBSParameters;
-pub use noise_squashing::NoiseSquashingParameters;
+pub use noise_squashing::{NoiseSquashingCompressionParameters, NoiseSquashingParameters};
 pub use parameters_wopbs::*;
 #[cfg(test)]
 pub use test_params::TestParameters;

@@ -116,7 +116,11 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         let log_modulus = self.log_modulus.0;
 
         // log_modulus lowest bits set to 1
-        let mask = (Scalar::ONE << log_modulus) - Scalar::ONE;
+        let mask = if log_modulus < Scalar::BITS {
+            (Scalar::ONE << log_modulus) - Scalar::ONE
+        } else {
+            Scalar::MAX
+        };
 
         (0..self.initial_len).map(move |i| {
             let start = i * log_modulus;
