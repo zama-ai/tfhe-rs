@@ -7,7 +7,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
 
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
@@ -145,13 +145,10 @@ where
         d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
     }
 
-    cuda_programmable_bootstrap_lwe_ciphertext(
+    cuda_programmable_bootstrap_128_lwe_ciphertext(
         &d_lwe_ciphertext_in,
         &mut d_out_pbs_ct,
         &d_accumulator,
-        &d_test_vector_indexes,
-        &d_output_indexes,
-        &d_input_indexes,
         LweCiphertextCount(num_blocks),
         &d_bsk,
         &stream,
