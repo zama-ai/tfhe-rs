@@ -2,8 +2,9 @@ use tfhe_versionable::deprecation::{Deprecable, Deprecated};
 use tfhe_versionable::VersionsDispatch;
 
 use crate::shortint::list_compression::{
-    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
-    DecompressionKey,
+    CompressedCompressionKey, CompressedDecompressionKey, CompressedNoiseSquashingCompressionKey,
+    CompressionKey, CompressionPrivateKeys, DecompressionKey, NoiseSquashingCompressionKey,
+    NoiseSquashingCompressionPrivateKey,
 };
 
 #[derive(VersionsDispatch)]
@@ -42,4 +43,19 @@ pub enum CompressedDecompressionKeyVersions {
 #[derive(VersionsDispatch)]
 pub enum CompressionPrivateKeysVersions {
     V0(CompressionPrivateKeys),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingCompressionKeyVersions {
+    V0(NoiseSquashingCompressionKey),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingCompressionPrivateKeyVersions {
+    V0(NoiseSquashingCompressionPrivateKey),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedNoiseSquashingCompressionKeyVersions {
+    V0(CompressedNoiseSquashingCompressionKey),
 }
