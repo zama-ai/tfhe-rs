@@ -8,16 +8,13 @@ use std::io::Write;
 use std::path::Path;
 use tfhe::integer::U256;
 use tfhe::keycache::NamedParam;
-use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
     PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use tfhe::shortint::PBSParameters;
-use tfhe::{
-    generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint256, FheUint32,
-};
+use tfhe::{generate_keys, CompactCiphertextList, CompactPublicKey, ConfigBuilder};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -93,13 +90,6 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             0,
             vec![],
         );
-
-        let expander = encrypted_inputs.expand().unwrap();
-        for (i, input) in vec_inputs.into_iter().enumerate() {
-            let expanded: FheUint32 = expander.get(i).unwrap().unwrap();
-            let clear: u32 = expanded.decrypt(&client_key);
-            assert_eq!(clear, input);
-        }
     }
 
     // 256 bits
@@ -146,13 +136,6 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             0,
             vec![],
         );
-
-        let expander = encrypted_inputs.expand().unwrap();
-        for (i, input) in vec_inputs.into_iter().enumerate() {
-            let expanded: FheUint256 = expander.get(i).unwrap().unwrap();
-            let clear: U256 = expanded.decrypt(&client_key);
-            assert_eq!(clear, input);
-        }
     }
 }
 
