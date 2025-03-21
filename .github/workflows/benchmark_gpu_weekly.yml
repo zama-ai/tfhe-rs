@@ -8,7 +8,7 @@ on:
 
 jobs:
   run-benchmarks-1-h100:
-    name: Run benchmarks (1xH100)
+    name: Run integer benchmarks (1xH100)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -21,7 +21,7 @@ jobs:
     secrets: inherit
 
   run-benchmarks-2-h100:
-    name: Run benchmarks (2xH100)
+    name: Run integer benchmarks (2xH100)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -34,7 +34,7 @@ jobs:
     secrets: inherit
 
   run-benchmarks-8-h100:
-    name: Run benchmarks (8xH100)
+    name: Run integer benchmarks (8xH100)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -47,7 +47,7 @@ jobs:
     secrets: inherit
 
   run-benchmarks-l40:
-    name: Run benchmarks (L40)
+    name: Run integer benchmarks (L40)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
@@ -57,4 +57,15 @@ jobs:
       op_flavor: default
       bench_type: latency
       all_precisions: true
+    secrets: inherit
+
+  run-benchmarks-1-h100-core-crypto:
+    name: Run core-crypto benchmarks (1xH100)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    with:
+      profile: single-h100
+      hardware_name: n3-H100x1
+      command: pbs,pbs128,ks,ks_pbs
+      bench_type: latency
     secrets: inherit

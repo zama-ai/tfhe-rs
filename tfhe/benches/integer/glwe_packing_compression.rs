@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{
-    throughput_num_threads, write_to_json, BenchmarkType, OperatorType, BENCH_TYPE,
+    init_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType, BENCH_TYPE,
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
@@ -14,6 +14,7 @@ use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn cpu_glwe_packing(c: &mut Criterion) {
     let bench_name = "integer::packing_compression";
@@ -362,10 +363,9 @@ criterion_group!(cpu_glwe_packing2, cpu_glwe_packing);
 
 #[cfg(feature = "gpu")]
 use cuda::gpu_glwe_packing2;
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+    init_bench_type();
 
     #[cfg(feature = "gpu")]
     gpu_glwe_packing2();
