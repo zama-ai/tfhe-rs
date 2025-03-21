@@ -164,8 +164,8 @@ mod cuda {
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-    use tfhe::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+    use tfhe::core_crypto::gpu::vec::GpuIndex;
+    use tfhe::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::parameters::{
         DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
@@ -258,28 +258,15 @@ mod cuda {
             ciphertext_modulus,
         );
         let mut out_pbs_ct_gpu = CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &stream);
-        let h_indexes = &[Scalar::ZERO];
-        let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-        let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-        let mut d_lut_indexes = unsafe { CudaVec::<Scalar>::new_async(1, &stream, 0) };
-        unsafe {
-            d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-            d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-            d_lut_indexes.copy_from_cpu_async(h_indexes.as_ref(), &stream, 0);
-        }
-        stream.synchronize();
 
         let id = format!("{bench_name}::{params_name}");
         {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
-                    cuda_programmable_bootstrap_lwe_ciphertext(
+                    cuda_programmable_bootstrap_128_lwe_ciphertext(
                         &lwe_ciphertext_in_gpu,
                         &mut out_pbs_ct_gpu,
                         &accumulator_gpu,
-                        &d_lut_indexes,
-                        &d_output_indexes,
-                        &d_input_indexes,
                         LweCiphertextCount(1),
                         &bsk_gpu,
                         &stream,
