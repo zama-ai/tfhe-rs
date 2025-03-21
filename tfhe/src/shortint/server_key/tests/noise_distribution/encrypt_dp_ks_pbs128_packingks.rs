@@ -387,7 +387,7 @@ fn noise_check_encrypt_dp_ks_classic_pbs128_noise<P>(
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
     let mut noise_samples_after_pbs128 = vec![];
 
-    let sample_count_per_msg = 10;
+    let sample_count_per_msg = 1000;
 
     for _ in 0..cleartext_modulus {
         let current_noise_samples_after_pbs128: Vec<_> = (0..sample_count_per_msg)
