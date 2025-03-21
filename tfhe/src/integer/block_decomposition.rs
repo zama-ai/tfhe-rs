@@ -1,4 +1,4 @@
-use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric};
+use crate::core_crypto::prelude::{CastFrom, CastInto, Numeric, SignedNumeric};
 use crate::integer::bigint::static_signed::StaticSignedBigInt;
 use crate::integer::bigint::static_unsigned::StaticUnsignedBigInt;
 use core::ops::{AddAssign, BitAnd, ShlAssign, ShrAssign};
@@ -87,6 +87,65 @@ impl<const N: usize> RecomposableFrom<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticUnsignedBigInt<N> {}
+
+pub trait RecomposableSignedInteger:
+    RecomposableFrom<u64>
+    + std::ops::Neg<Output = Self>
+    + std::ops::Shr<u32, Output = Self>
+    + std::ops::BitOrAssign<Self>
+    + std::ops::BitOr<Self, Output = Self>
+    + std::ops::Mul<Self, Output = Self>
+    + CastFrom<Self>
+    + SignedNumeric
+{
+}
+
+impl RecomposableSignedInteger for i8 {}
+impl RecomposableSignedInteger for i16 {}
+impl RecomposableSignedInteger for i32 {}
+impl RecomposableSignedInteger for i64 {}
+impl RecomposableSignedInteger for i128 {}
+
+impl<const N: usize> RecomposableSignedInteger for StaticSignedBigInt<N> {}
+
+pub trait SignExtendable:
+    std::ops::Shl<u32, Output = Self>
+    + std::ops::Shr<u32, Output = Self>
+    + std::ops::BitAnd<Self, Output = Self>
+    + std::ops::BitOr<Self, Output = Self>
+    + std::ops::Mul<Self, Output = Self>
+    + SignedNumeric
+{
+}
+
+impl<T> SignExtendable for T where T: RecomposableSignedInteger {}
+
+/// This function takes a signed integer of type `T` for which `num_bits_set`
+/// have been set.
+///
+/// It will set the most significant bits to the value of the bit
+/// at pos `num_bits_set - 1`.
+///
+/// This is used to correctly decrypt a signed radix ciphertext into a clear type
+/// that has more bits than the original ciphertext.
+///
+/// This is like doing i8 as i16, i16 as i64, i16 as i8, etc
+pub(in crate::integer) fn sign_extend_partial_number<T>(unpadded_value: T, num_bits_set: u32) -> T
+where
+    T: SignExtendable,
+{
+    if num_bits_set >= T::BITS as u32 {
+        return unpadded_value;
+    }
+    let sign_bit_pos = num_bits_set - 1;
+    let sign_bit = (unpadded_value >> sign_bit_pos) & T::ONE;
+
+    // Creates a padding mask
+    // where bits above num_bits_set
+    // are 1s if sign bit is `1` else `0`
+    let padding = (T::MAX * sign_bit) << num_bits_set;
+    padding | unpadded_value
+}
 
 #[derive(Copy, Clone)]
 #[repr(u32)]
@@ -260,25 +319,6 @@ impl<T> BlockRecomposer<T>
 where
     T: Recomposable,
 {
-    pub fn value(&self) -> T {
-        let is_signed = (T::ONE << (T::BITS as u32 - 1)) < T::ZERO;
-        if self.bit_pos >= (T::BITS as u32 - u32::from(is_signed)) {
-            self.data
-        } else {
-            let valid_mask = (T::ONE << self.bit_pos) - T::ONE;
-            self.data & valid_mask
-        }
-    }
-
-    pub fn unmasked_value(&self) -> T {
-        self.data
-    }
-}
-
-impl<T> BlockRecomposer<T>
-where
-    T: Recomposable,
-{
     pub fn new(bits_per_block: u32) -> Self {
         let num_bits_in_block = bits_per_block;
         let bit_pos = 0;
@@ -292,12 +332,21 @@ where
             bit_pos,
         }
     }
-}
 
-impl<T> BlockRecomposer<T>
-where
-    T: Recomposable,
-{
+    pub fn value(&self) -> T {
+        let is_signed = (T::ONE << (T::BITS as u32 - 1)) < T::ZERO;
+        if self.bit_pos >= (T::BITS as u32 - u32::from(is_signed)) {
+            self.data
+        } else {
+            let valid_mask = (T::ONE << self.bit_pos) - T::ONE;
+            self.data & valid_mask
+        }
+    }
+
+    pub fn unmasked_value(&self) -> T {
+        self.data
+    }
+
     pub fn add_unmasked<V>(&mut self, block: V) -> bool
     where
         T: CastFrom<V>,
@@ -327,6 +376,34 @@ where
         self.bit_pos += self.num_bits_in_block;
 
         true
+    }
+
+    pub(crate) fn recompose_unsigned<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
+    where
+        T: RecomposableFrom<U>,
+    {
+        let mut recomposer = Self::new(bits_in_block);
+        for limb in input {
+            if !recomposer.add_unmasked(limb) {
+                break;
+            }
+        }
+
+        recomposer.value()
+    }
+
+    pub(crate) fn recompose_signed<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
+    where
+        T: RecomposableFrom<U> + SignExtendable,
+    {
+        let mut recomposer = Self::new(bits_in_block);
+        for limb in input {
+            if !recomposer.add_unmasked(limb) {
+                break;
+            }
+        }
+
+        sign_extend_partial_number(recomposer.value(), recomposer.bit_pos)
     }
 }
 

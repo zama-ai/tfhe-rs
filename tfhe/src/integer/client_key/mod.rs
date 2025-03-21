@@ -9,14 +9,14 @@ pub(crate) mod secret_encryption_key;
 pub(crate) mod utils;
 
 use super::backward_compatibility::client_key::ClientKeyVersions;
-use super::block_decomposition::{DecomposableInto, RecomposableFrom};
 use super::ciphertext::{
     CompressedRadixCiphertext, CompressedSignedRadixCiphertext, RadixCiphertext,
     SignedRadixCiphertext,
 };
-use crate::core_crypto::prelude::{CastFrom, SignedNumeric, UnsignedNumeric};
-use crate::integer::bigint::static_signed::StaticSignedBigInt;
-use crate::integer::block_decomposition::BlockRecomposer;
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::integer::block_decomposition::{
+    BlockRecomposer, DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+};
 use crate::integer::ciphertext::boolean_value::BooleanBlock;
 use crate::integer::ciphertext::{CompressedCrtCiphertext, CrtCiphertext};
 use crate::integer::client_key::utils::i_crt;
@@ -32,53 +32,6 @@ pub use radix::RadixClientKey;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
-
-pub trait RecomposableSignedInteger:
-    RecomposableFrom<u64>
-    + std::ops::Neg<Output = Self>
-    + std::ops::Shr<u32, Output = Self>
-    + std::ops::BitOrAssign<Self>
-    + std::ops::BitOr<Self, Output = Self>
-    + std::ops::Mul<Self, Output = Self>
-    + CastFrom<Self>
-    + SignedNumeric
-{
-}
-
-impl RecomposableSignedInteger for i8 {}
-impl RecomposableSignedInteger for i16 {}
-impl RecomposableSignedInteger for i32 {}
-impl RecomposableSignedInteger for i64 {}
-impl RecomposableSignedInteger for i128 {}
-
-impl<const N: usize> RecomposableSignedInteger for StaticSignedBigInt<N> {}
-
-/// This function takes a signed integer of type `T` for which `num_bits_set`
-/// have been set.
-///
-/// It will set the most significant bits to the value of the bit
-/// at pos `num_bits_set - 1`.
-///
-/// This is used to correctly decrypt a signed radix ciphertext into a clear type
-/// that has more bits than the original ciphertext.
-///
-/// This is like doing i8 as i16, i16 as i64, i6 as i8, etc
-pub(in crate::integer) fn sign_extend_partial_number<T>(unpadded_value: T, num_bits_set: u32) -> T
-where
-    T: RecomposableSignedInteger,
-{
-    if num_bits_set >= T::BITS as u32 {
-        return unpadded_value;
-    }
-    let sign_bit_pos = num_bits_set - 1;
-    let sign_bit = (unpadded_value >> sign_bit_pos) & T::ONE;
-
-    // Creates a padding mask
-    // where bits above num_bits_set
-    // are 1s if sign bit is `1` else `0`
-    let padding = (T::MAX * sign_bit) << num_bits_set;
-    padding | unpadded_value
-}
 
 /// A structure containing the client key, which must be kept secret.
 ///
@@ -381,18 +334,8 @@ impl ClientKey {
         }
 
         let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
-        let mut recomposer = BlockRecomposer::<T>::new(bits_in_block);
-
-        for encrypted_block in blocks {
-            let decrypted_block = decrypt_block(&self.key, encrypted_block);
-            if !recomposer.add_unmasked(decrypted_block) {
-                // End of T::BITS reached no need to try more
-                // recomposition
-                break;
-            }
-        }
-
-        recomposer.value()
+        let decrypted_block_iter = blocks.iter().map(|block| decrypt_block(&self.key, block));
+        BlockRecomposer::recompose_unsigned(decrypted_block_iter, bits_in_block)
     }
 
     pub fn encrypt_signed_radix<T>(&self, message: T, num_blocks: usize) -> SignedRadixCiphertext
@@ -470,15 +413,16 @@ impl ClientKey {
         let message_modulus = self.parameters().message_modulus().0;
         assert!(message_modulus.is_power_of_two());
 
-        // Decrypting a signed value is the same as decrypting an unsigned value
-        // but, in the signed case,
-        // we have to take care of the case when the clear type T has more bits
-        // than what the ciphertext encrypts.
-        let unpadded_value = self.decrypt_radix_impl(&ctxt.blocks, decrypt_block);
+        if ctxt.blocks.is_empty() {
+            return T::ZERO;
+        }
 
-        let num_bits_in_message = message_modulus.ilog2();
-        let num_bits_in_ctxt = num_bits_in_message * ctxt.blocks.len() as u32;
-        sign_extend_partial_number(unpadded_value, num_bits_in_ctxt)
+        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
+        let decrypted_block_iter = ctxt
+            .blocks
+            .iter()
+            .map(|block| decrypt_block(&self.key, block));
+        BlockRecomposer::recompose_signed(decrypted_block_iter, bits_in_block)
     }
 
     /// Encrypts one block.
