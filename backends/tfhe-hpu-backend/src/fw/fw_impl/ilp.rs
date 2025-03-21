@@ -102,7 +102,7 @@ pub fn iop_addx(
             carry = Some(msg.pbs(&pbs_carry, false));
         }
         // Force allocation of new reg to allow carry/msg pbs to run in //
-        let msg = msg.pbs(&pbs_msg, false);
+        let msg = msg.pbs(&pbs_msg, true);
 
         // Store result
         dst[blk].mv_assign(&msg);
@@ -192,7 +192,7 @@ pub fn iop_subx(
             carry = Some(msg.pbs(&pbs_carry, false));
         }
         // Force allocation of new reg to allow carry/msg pbs to run in //
-        let msg = msg.pbs(&pbs_msg, false);
+        let msg = msg.pbs(&pbs_msg, true);
 
         // Store result
         dst[blk] <<= msg;
@@ -256,7 +256,7 @@ pub fn iop_ssub(prog: &mut Program) {
             carry = Some(msg.pbs(&pbs_carry, false));
         }
         // Force allocation of new reg to allow carry/msg pbs to run in //
-        let msg = msg.pbs(&pbs_msg, false);
+        let msg = msg.pbs(&pbs_msg, true);
 
         // Store result
         dst[blk] <<= msg;
@@ -521,15 +521,16 @@ pub fn iop_bw(prog: &mut Program, bw_op: Pbs) {
     let bw_op = prog.var_from(Some(metavar::VarPos::Pbs(bw_op)));
 
     itertools::izip!(dst, src_a, src_b)
+        .enumerate()
         .chunks(props.pbs_batch_w)
         .into_iter()
         .for_each(|chunk| {
             let chunk_pack = chunk
                 .into_iter()
-                .map(|(d, a, b)| (d, a.mac(tfhe_params.msg_range() as u8, &b)))
+                .map(|(pos, (d, a, b))| (pos, d, a.mac(tfhe_params.msg_range() as u8, &b)))
                 .collect::<Vec<_>>();
-            chunk_pack.into_iter().for_each(|(mut d, mut pack)| {
-                pack.pbs_assign(&bw_op, false);
+            chunk_pack.into_iter().for_each(|(pos, mut d, mut pack)| {
+                pack.pbs_assign(&bw_op, pos == props.blk_w() - 1);
                 d <<= pack;
             });
         });
@@ -575,7 +576,8 @@ pub fn iop_cmpx(
 
     // Pack A and B elements by pairs
     let packed = std::iter::zip(src_a.chunks(2), src_b.chunks(2))
-        .map(|(a, b)| {
+        .enumerate()
+        .map(|(pos, (a, b))| {
             let pack_a = if a.len() > 1 {
                 // Reset noise for future block merge through sub
                 a[1].mac(tfhe_params.msg_range() as u8, &a[0])
@@ -586,7 +588,7 @@ pub fn iop_cmpx(
 
             let pack_b = if b.len() > 1 {
                 b[1].mac(tfhe_params.msg_range() as u8, &b[0])
-                    .pbs(&pbs_none, false)
+                    .pbs(&pbs_none, pos == (props.blk_w() / 2) - 1)
             } else {
                 b[0].clone()
             };
@@ -597,19 +599,20 @@ pub fn iop_cmpx(
     let cst_1 = prog.new_imm(1);
     let merged = packed
         .into_iter()
+        .enumerate()
         .chunks(props.pbs_batch_w)
         .into_iter()
         .flat_map(|chunk| {
             let chunk = chunk
-                .map(|(mut a, b)| {
+                .map(|(pos, (mut a, b))| {
                     a -= b;
-                    a
+                    (pos, a)
                 })
                 .collect::<Vec<_>>();
             let chunk = chunk
                 .into_iter()
-                .map(|mut a| {
-                    a.pbs_assign(&cmp_sign, false);
+                .map(|(pos, mut a)| {
+                    a.pbs_assign(&cmp_sign, pos == (props.blk_w() / 2) - 1);
                     a
                 })
                 .collect::<Vec<_>>();
@@ -655,19 +658,22 @@ pub fn iop_if_then_zero(prog: &mut Program) {
     let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
 
     itertools::izip!(dst, src)
+        .enumerate()
         .chunks(props.pbs_batch_w)
         .into_iter()
         .for_each(|chunk| {
             // Pack (cond, src)
             let chunk_pack = chunk
                 .into_iter()
-                .map(|(d, src)| (d, cond.mac(tfhe_params.msg_range() as u8, &src)))
+                .map(|(pos, (d, src))| (pos, d, cond.mac(tfhe_params.msg_range() as u8, &src)))
                 .collect::<Vec<_>>();
 
-            chunk_pack.into_iter().for_each(|(mut d, mut cond_src)| {
-                cond_src.pbs_assign(&pbs_if_false_zeroed, false);
-                d <<= cond_src;
-            });
+            chunk_pack
+                .into_iter()
+                .for_each(|(pos, mut d, mut cond_src)| {
+                    cond_src.pbs_assign(&pbs_if_false_zeroed, pos == props.blk_w() - 1);
+                    d <<= cond_src;
+                });
         });
 }
 
@@ -701,14 +707,16 @@ pub fn iop_if_then_else(prog: &mut Program) {
     let pbs_if_false_zeroed = new_pbs!(prog, "IfFalseZeroed");
 
     itertools::izip!(dst, src_a, src_b)
+        .enumerate()
         .chunks(props.pbs_batch_w)
         .into_iter()
         .for_each(|chunk| {
             // Pack (cond, a), (cond, b)
             let chunk_pack = chunk
                 .into_iter()
-                .map(|(d, a, b)| {
+                .map(|(pos, (d, a, b))| {
                     (
+                        pos,
                         d,
                         cond.mac(tfhe_params.msg_range() as u8, &a),
                         cond.mac(tfhe_params.msg_range() as u8, &b),
@@ -717,9 +725,9 @@ pub fn iop_if_then_else(prog: &mut Program) {
                 .collect::<Vec<_>>();
             chunk_pack
                 .into_iter()
-                .for_each(|(mut d, mut cond_a, mut cond_b)| {
+                .for_each(|(pos, mut d, mut cond_a, mut cond_b)| {
                     cond_a.pbs_assign(&pbs_if_false_zeroed, false);
-                    cond_b.pbs_assign(&pbs_if_true_zeroed, false);
+                    cond_b.pbs_assign(&pbs_if_true_zeroed, pos == props.blk_w() - 1);
                     d <<= &cond_a + &cond_b;
                 });
         });
