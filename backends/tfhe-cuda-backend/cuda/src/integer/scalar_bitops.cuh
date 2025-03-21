@@ -10,7 +10,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     uint32_t gpu_count, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input, Torus const *clear_blocks,
     Torus const *h_clear_blocks, uint32_t num_clear_blocks,
-    int_bitop_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks) {
+    int_bitop_buffer<Torus> *mem_ptr, void *const *bsks, Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   if (output->num_radix_blocks != input->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be equal")
@@ -49,8 +50,8 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        streams, gpu_indexes, gpu_count, output, input, bsks, ksks, lut,
-        num_clear_blocks);
+        streams, gpu_indexes, gpu_count, output, input, bsks, ksks,
+        ms_noise_reduction_key, lut, num_clear_blocks);
     memcpy(output->degrees, degrees, num_clear_blocks * sizeof(uint64_t));
 
     if (op == SCALAR_BITAND && num_clear_blocks < num_radix_blocks) {

@@ -3,6 +3,9 @@ pub mod client_key;
 pub mod list_compression;
 pub mod server_key;
 
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
+};
 use crate::core_crypto::gpu::slice::{CudaSlice, CudaSliceMut};
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
@@ -303,6 +306,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     num_scalars: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -325,6 +329,10 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = lwe_array.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut lwe_array_degrees = lwe_array.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut lwe_array_noise_levels = lwe_array
@@ -368,6 +376,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         polynomial_size.0 as u32,
         message_modulus.0 as u32,
         num_scalars,
@@ -649,6 +658,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -678,6 +688,13 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_left
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
@@ -751,6 +768,7 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
         is_boolean_right,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         mem_ptr,
         polynomial_size.0 as u32,
         num_blocks,
@@ -789,6 +807,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -818,6 +837,13 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_left
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_lwe_left
         .info
@@ -890,6 +916,7 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_bitop(
         streams.ptr.as_ptr(),
@@ -929,6 +956,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -958,6 +986,10 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_degrees = radix_lwe.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_noise_levels = radix_lwe
@@ -1004,6 +1036,7 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_bitop(
         streams.ptr.as_ptr(),
@@ -1040,6 +1073,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1076,6 +1110,14 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = radix_lwe_left
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -1163,6 +1205,7 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
 
     cleanup_cuda_integer_comparison(
@@ -1202,6 +1245,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     signed_with_positive_scalar: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1238,6 +1282,13 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_in
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -1307,6 +1358,7 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         num_scalar_blocks,
     );
 
@@ -1341,6 +1393,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1363,6 +1416,13 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_input_degrees = radix_lwe_input
         .info
@@ -1406,6 +1466,7 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
         &mut cuda_ffi_radix_lwe_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         bootstrapping_key.ptr.as_ptr(),
         num_blocks,
     );
@@ -1444,6 +1505,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1466,6 +1528,14 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = radix_lwe_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut radix_lwe_input_degrees = radix_lwe_input
@@ -1538,6 +1608,7 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         requested_flag as u32,
         uses_carry,
     );
@@ -1578,6 +1649,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     grouping_factor: LweBskGroupingFactor,
     requested_flag: OutputFlag,
     uses_carry: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1621,6 +1693,11 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = lhs_input.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
@@ -1701,6 +1778,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         requested_flag as u32,
         uses_carry,
     );
@@ -1741,6 +1819,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1763,6 +1842,11 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -1803,6 +1887,7 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
         streams.ptr.as_ptr(),
@@ -1840,6 +1925,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1862,6 +1948,11 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -1902,6 +1993,7 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_logical_scalar_shift(
         streams.ptr.as_ptr(),
@@ -1938,6 +2030,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -1960,6 +2053,11 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels =
@@ -2000,6 +2098,7 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_arithmetic_scalar_shift(
         streams.ptr.as_ptr(),
@@ -2038,6 +2137,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2067,6 +2167,12 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2126,6 +2232,7 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -2161,6 +2268,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2190,6 +2298,12 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2249,6 +2363,7 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -2287,6 +2402,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2316,6 +2432,12 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2380,6 +2502,7 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -2418,6 +2541,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     is_signed: bool,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2447,6 +2571,12 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2511,6 +2641,7 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_shift_and_rotate(
         streams.ptr.as_ptr(),
@@ -2547,6 +2678,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2603,6 +2735,13 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_out
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
         .blocks
@@ -2707,6 +2846,7 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_cmux(
         streams.ptr.as_ptr(),
@@ -2744,6 +2884,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2766,6 +2907,13 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2809,6 +2957,7 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
         streams.ptr.as_ptr(),
@@ -2846,6 +2995,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2868,6 +3018,13 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_input
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_left_degrees = radix_input.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut radix_lwe_left_noise_levels = radix_input
@@ -2911,6 +3068,7 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_scalar_rotate(
         streams.ptr.as_ptr(),
@@ -2948,6 +3106,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     num_radixes: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -2977,6 +3136,10 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_list.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut result_degrees = result.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut result_noise_levels = result.info.blocks.iter().map(|b| b.noise_level.0).collect();
@@ -3023,6 +3186,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
         streams.ptr.as_ptr(),
@@ -3060,6 +3224,8 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3089,6 +3255,9 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -3133,6 +3302,7 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         &cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         bootstrapping_key.ptr.as_ptr(),
     );
     cleanup_cuda_apply_univariate_lut_kb_64(
@@ -3172,6 +3342,8 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     grouping_factor: LweBskGroupingFactor,
     num_many_lut: u32,
     lut_stride: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3201,6 +3373,9 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -3246,6 +3421,7 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
         &cuda_ffi_input,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         bootstrapping_key.ptr.as_ptr(),
         num_many_lut,
         lut_stride,
@@ -3287,6 +3463,8 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
     shift: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3323,6 +3501,10 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -3375,6 +3557,7 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
         &cuda_ffi_input_2,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         bootstrapping_key.ptr.as_ptr(),
         num_blocks,
         shift,
@@ -3414,6 +3597,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3457,6 +3641,10 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut quotient_degrees = quotient.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut quotient_noise_levels = quotient
@@ -3533,6 +3721,7 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_div_rem(
         streams.ptr.as_ptr(),
@@ -3573,6 +3762,8 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3602,6 +3793,10 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
         output,
@@ -3647,6 +3842,7 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
         &mut cuda_ffi_generates_or_propagates,
         mem_ptr,
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         bootstrapping_key.ptr.as_ptr(),
         num_blocks,
     );
@@ -3737,6 +3933,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     grouping_factor: LweBskGroupingFactor,
     compute_overflow: bool,
     uses_input_borrow: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3766,6 +3963,13 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_left
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let mut radix_lwe_left_degrees = radix_lwe_left
@@ -3855,6 +4059,7 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         compute_overflow as u32,
         uses_input_borrow,
     );
@@ -3891,6 +4096,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     num_blocks: u32,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3913,6 +4119,11 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+
+    let ct_modulus = ct.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut ct_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
     let mut ct_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
@@ -3947,6 +4158,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         true,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
     );
     cleanup_cuda_integer_abs_inplace(
         streams.ptr.as_ptr(),
@@ -3982,6 +4194,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4011,6 +4224,13 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_in
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
@@ -4076,6 +4296,7 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
 
@@ -4114,6 +4335,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     pbs_base_log: DecompositionBaseLog,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4143,6 +4365,13 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         streams.gpu_indexes[0].get(),
         keyswitch_key.gpu_index(0).get(),
     );
+    let ct_modulus = radix_lwe_in
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
     let mut radix_lwe_out_degrees = radix_lwe_out
         .info
         .blocks
@@ -4208,6 +4437,7 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
+        &ms_noise_reduction_key_ffi,
         radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
 

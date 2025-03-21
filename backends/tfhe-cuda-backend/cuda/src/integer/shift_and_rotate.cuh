@@ -29,7 +29,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
     CudaRadixCiphertextFFI const *lwe_shift,
     int_shift_and_rotate_buffer<Torus> *mem, void *const *bsks,
-    Torus *const *ksks) {
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
   cuda_set_device(gpu_indexes[0]);
 
   if (lwe_array->num_radix_blocks != lwe_shift->num_radix_blocks)
@@ -56,8 +57,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // Extract all bits
   auto bits = mem->tmp_bits;
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, bits, lwe_array, bsks,
-                        ksks, num_radix_blocks * bits_per_block,
-                        num_radix_blocks, mem->bit_extract_luts);
+                        ksks, ms_noise_reduction_key,
+                        num_radix_blocks * bits_per_block, num_radix_blocks,
+                        mem->bit_extract_luts);
 
   // Extract shift bits
   auto shift_bits = mem->tmp_shift_bits;
@@ -77,8 +79,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
   // so that it is already aligned to the correct position of the cmux input
   // and we reduce noise growth
   extract_n_bits<Torus>(streams, gpu_indexes, gpu_count, shift_bits, lwe_shift,
-                        bsks, ksks, max_num_bits_that_tell_shift,
-                        num_radix_blocks, mem->bit_extract_luts_with_offset_2);
+                        bsks, ksks, ms_noise_reduction_key,
+                        max_num_bits_that_tell_shift, num_radix_blocks,
+                        mem->bit_extract_luts_with_offset_2);
 
   // If signed, do an "arithmetic shift" by padding with the sign bit
   CudaRadixCiphertextFFI last_bit;
@@ -164,7 +167,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // control_bit|b|a
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, input_bits_a, mux_inputs, bsks, ksks,
-        mux_lut, total_nb_bits);
+        ms_noise_reduction_key, mux_lut, total_nb_bits);
   }
 
   // Initializes the output
@@ -195,7 +198,7 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     auto cleaning_lut = mem->cleaning_lut;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, lwe_array, lwe_array, bsks, ksks,
-        cleaning_lut, num_radix_blocks);
+        ms_noise_reduction_key, cleaning_lut, num_radix_blocks);
   }
 }
 #endif

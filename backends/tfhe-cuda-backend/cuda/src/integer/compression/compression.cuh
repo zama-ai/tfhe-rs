@@ -313,7 +313,7 @@ __host__ void host_integer_decompress(
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, d_lwe_array_out,
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
-        lut->lwe_indexes_in, d_bsks, lut->buffer,
+        lut->lwe_indexes_in, d_bsks, nullptr, lut->buffer,
         encryption_params.glwe_dimension,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,
@@ -340,7 +340,7 @@ __host__ void host_integer_decompress(
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
-        lwe_array_in_vec, lwe_trivial_indexes_vec, d_bsks, lut->buffer,
+        lwe_array_in_vec, lwe_trivial_indexes_vec, d_bsks, nullptr, lut->buffer,
         encryption_params.glwe_dimension,
         compression_params.small_lwe_dimension,
         encryption_params.polynomial_size, encryption_params.pbs_base_log,

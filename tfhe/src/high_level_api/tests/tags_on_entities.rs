@@ -6,11 +6,7 @@ use crate::shortint::parameters::{
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-#[cfg(feature = "gpu")]
-use crate::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-};
+
 use crate::{
     set_server_key, ClientKey, CompactCiphertextList, CompactCiphertextListExpander,
     CompactPublicKey, CompressedCiphertextList, CompressedCiphertextListBuilder, CompressedFheBool,
@@ -152,12 +148,11 @@ fn test_tag_propagation_zk_pok() {
 fn test_tag_propagation_gpu() {
     test_tag_propagation(
         Device::CudaGpu,
-        // TODO GPU DRIFT UPDATE
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         None,
-        Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64),
+        Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
         Some((
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+            PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
             PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )),
     )

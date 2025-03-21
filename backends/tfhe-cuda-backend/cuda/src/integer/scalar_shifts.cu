@@ -27,12 +27,13 @@ void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
 void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array, uint32_t shift, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    void *const *bsks, void *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   host_integer_radix_logical_scalar_shift_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array, shift,
       (int_logical_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks), lwe_array->num_radix_blocks);
+      (uint64_t **)(ksks), ms_noise_reduction_key, lwe_array->num_radix_blocks);
 }
 
 void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
@@ -65,12 +66,13 @@ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
 void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array, uint32_t shift, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks) {
+    void *const *bsks, void *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
 
   host_integer_radix_arithmetic_scalar_shift_kb_inplace<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array, shift,
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)mem_ptr, bsks,
-      (uint64_t **)(ksks));
+      (uint64_t **)(ksks), ms_noise_reduction_key);
 }
 
 void cleanup_cuda_integer_radix_logical_scalar_shift(

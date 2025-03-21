@@ -11,7 +11,7 @@ use crate::core_crypto::prelude::{CastInto, LweCiphertextCount, UnsignedTorus};
 ///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+    input: &mut CudaLweCiphertextList<Scalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     lut_indexes: &CudaVec<Scalar>,
@@ -125,27 +125,32 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
         lut_indexes.gpu_index(0).get(),
     );
 
+    let lwe_dimension = input.lwe_dimension();
+    let ct_modulus = input.ciphertext_modulus().raw_modulus_float();
+
     programmable_bootstrap_async(
         streams,
         &mut output.0.d_vec,
         output_indexes,
         &accumulator.0.d_vec,
         lut_indexes,
-        &input.0.d_vec,
+        &mut input.0.d_vec,
         input_indexes,
         &bsk.d_vec,
-        input.lwe_dimension(),
+        lwe_dimension,
         bsk.glwe_dimension(),
         bsk.polynomial_size(),
         bsk.decomp_base_log(),
         bsk.decomp_level_count(),
         num_samples.0 as u32,
+        bsk.d_ms_noise_reduction_key.as_ref(),
+        ct_modulus,
     );
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+    input: &mut CudaLweCiphertextList<Scalar>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     lut_indexes: &CudaVec<Scalar>,

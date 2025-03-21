@@ -858,7 +858,8 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
             // Allocate a new LweCiphertext and encrypt our plaintext
             let lwe_ciphertext_in = allocate_and_encrypt_new_lwe_ciphertext(
@@ -868,7 +869,7 @@ mod cuda {
                 params.ciphertext_modulus.unwrap(),
                 &mut encryption_generator,
             );
-            let lwe_ciphertext_in_gpu =
+            let mut lwe_ciphertext_in_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext(&lwe_ciphertext_in, &stream);
 
             let accumulator = GlweCiphertext::new(
@@ -904,7 +905,7 @@ mod cuda {
                 bench_group.bench_function(&id, |b| {
                     b.iter(|| {
                         cuda_programmable_bootstrap_lwe_ciphertext(
-                            &lwe_ciphertext_in_gpu,
+                            &mut lwe_ciphertext_in_gpu,
                             &mut out_pbs_ct_gpu,
                             &accumulator_gpu,
                             &d_lut_indexes,
@@ -1109,7 +1110,8 @@ mod cuda {
                 params.lwe_dimension.unwrap(),
                 params.ciphertext_modulus.unwrap(),
             );
-            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, &stream);
+
+            let bsk_gpu = CudaLweBootstrapKey::from_lwe_bootstrap_key(&bsk, None, &stream);
 
             const NUM_CTS: usize = 8192;
             let plaintext_list = PlaintextList::new(Scalar::ZERO, PlaintextCount(NUM_CTS));
@@ -1141,7 +1143,7 @@ mod cuda {
                 LweCiphertextCount(NUM_CTS),
                 params.ciphertext_modulus.unwrap(),
             );
-            let lwe_ciphertext_in_gpu =
+            let mut lwe_ciphertext_in_gpu =
                 CudaLweCiphertextList::from_lwe_ciphertext_list(&input_lwe_list, &stream);
 
             let accumulator = GlweCiphertext::new(
@@ -1177,7 +1179,7 @@ mod cuda {
             bench_group.bench_function(&id, |b| {
                 b.iter(|| {
                     cuda_programmable_bootstrap_lwe_ciphertext(
-                        &lwe_ciphertext_in_gpu,
+                        &mut lwe_ciphertext_in_gpu,
                         &mut out_pbs_ct_gpu,
                         &accumulator_gpu,
                         &d_lut_indexes,
