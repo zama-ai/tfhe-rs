@@ -1,8 +1,9 @@
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweCiphertextCount, MessageModulus,
-    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound, NoiseSquashingParameters,
-    PolynomialSize, RSigmaFactor, Variance,
+    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound,
+    NoiseSquashingCompressionParameters, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
+    Variance,
 };
 
 pub const V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
@@ -21,4 +22,17 @@ pub const V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CoreCiphertextModulus::<u128>::new_native(),
+};
+
+pub const V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingCompressionParameters = NoiseSquashingCompressionParameters {
+    packing_ks_level: DecompositionLevelCount(1),
+    packing_ks_base_log: DecompositionBaseLog(61),
+    packing_ks_polynomial_size: PolynomialSize(1024),
+    packing_ks_glwe_dimension: GlweDimension(6),
+    lwe_per_glwe: LweCiphertextCount(128),
+    packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(3),
+    ciphertext_modulus: CoreCiphertextModulus::<u128>::new_native(),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
 };

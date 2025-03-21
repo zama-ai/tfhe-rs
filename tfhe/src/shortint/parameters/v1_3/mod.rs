@@ -45,8 +45,8 @@ pub use hpu::*;
 
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingParameters,
-    ShortintKeySwitchingParameters,
+    KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 
 /// All [`ClassicPBSParameters`] in this module.
@@ -1692,6 +1692,15 @@ pub const VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS: [(
 pub const VEC_ALL_NOISE_SQUASHING_PARAMETERS: [(&NoiseSquashingParameters, &str); 1] = [(
     &V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     "V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
+)];
+
+/// All [`NoiseSquashingCompressionParameters`] in this module.
+pub const VEC_ALL_NOISE_SQUASHING_COMPRESSION_PARAMETERS: [(
+    &NoiseSquashingCompressionParameters,
+    &str,
+); 1] = [(
+    &V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    "V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
 )];
 
 pub const VEC_ALL_KS32_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
