@@ -631,7 +631,7 @@ impl HpuBackend {
                     crate::fw::AvlblFw::VARIANTS.iter().join(",")
                 );
             });
-        let mut fw = crate::fw::AvlblFw::new(&fw_name);
+        let fw = crate::fw::AvlblFw::new(&fw_name);
 
         // TODO Add RTL register for the nu value
         let mut fw_params = FwParameters {
