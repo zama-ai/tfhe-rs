@@ -76,7 +76,7 @@ pub struct Args {
 
     /// Integer bit width
     #[clap(long, value_parser, default_value_t = 8)]
-    integer_width: usize,
+    integer_w: usize,
 
     // Override params --------------------------------------------------
     // Quick way to override parameters through ClI instead of editing the
@@ -146,7 +146,7 @@ fn main() -> Result<(), anyhow::Error> {
         msg_w: params.pbs_params.message_width,
         carry_w: params.pbs_params.carry_width,
         nu: args.nu,
-        integer_w: args.integer_width,
+        integer_w: args.integer_w,
         use_ipip: args.use_ipip,
         kogge_cfg: args.kogge_cfg.expand(),
         op_cfg: RtlCfg::from(OpCfg {
@@ -169,7 +169,7 @@ fn main() -> Result<(), anyhow::Error> {
     };
 
     for iop in expand_list.iter() {
-        let base_file = format!("{}_{}b.dop", iop.to_string().trim(), args.integer_width);
+        let base_file = format!("{}_{}b.dop", iop.to_string().trim(), args.integer_w);
 
         let asm_p = dirpath.join(Path::new(&format!("{base_file}.asm")));
         let hex_p = dirpath.join(Path::new(&format!("{base_file}.hex")));
