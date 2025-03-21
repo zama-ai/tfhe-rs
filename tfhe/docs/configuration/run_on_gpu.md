@@ -184,7 +184,7 @@ The way to do it is very similar to how it's done on the CPU. The following exam
 ```rust
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
+    COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
@@ -194,7 +194,7 @@ use tfhe::{
 fn main() {
     let config =
         tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
-            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
+            .enable_compression(COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
             .build();
 
     let ck = tfhe::ClientKey::generate(config);
