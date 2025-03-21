@@ -323,8 +323,10 @@ impl<Scalar: UnsignedInteger> SeededLweBootstrapKeyOwned<Scalar> {
     }
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweBootstrapKey<C> {
-    type ParameterSet = LweBootstrapKeyConformanceParams;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for SeededLweBootstrapKey<C>
+{
+    type ParameterSet = LweBootstrapKeyConformanceParams<Scalar>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { ggsw_list } = self;

@@ -174,7 +174,7 @@ impl ParameterSetConformant for CompressedDecompressionKey {
 
         let params: PBSConformanceParams = parameter_set.into();
 
-        let params: LweBootstrapKeyConformanceParams = (&params).into();
+        let params: LweBootstrapKeyConformanceParams<_> = (&params).into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }

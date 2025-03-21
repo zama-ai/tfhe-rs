@@ -15,8 +15,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
-use crate::integer::client_key::RecomposableSignedInteger;
+use crate::integer::block_decomposition::{
+    DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };

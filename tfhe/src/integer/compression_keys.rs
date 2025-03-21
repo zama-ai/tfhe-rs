@@ -36,23 +36,33 @@ pub struct CompressedDecompressionKey {
 }
 
 impl Named for CompressionPrivateKeys {
-    const NAME: &'static str = "high_level_api::CompressionPrivateKeys";
+    const NAME: &'static str = "integer::CompressionPrivateKeys";
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] =
+        &["high_level_api::CompressionPrivateKeys"];
 }
 
 impl Named for CompressionKey {
-    const NAME: &'static str = "high_level_api::CompressionKey";
+    const NAME: &'static str = "integer::CompressionKey";
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] =
+        &["high_level_api::CompressionKey"];
 }
 
 impl Named for DecompressionKey {
-    const NAME: &'static str = "high_level_api::DecompressionKey";
+    const NAME: &'static str = "integer::DecompressionKey";
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] =
+        &["high_level_api::DecompressionKey"];
 }
 
 impl Named for CompressedCompressionKey {
-    const NAME: &'static str = "high_level_api::CompressedCompressionKey";
+    const NAME: &'static str = "integer::CompressedCompressionKey";
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] =
+        &["high_level_api::CompressedCompressionKey"];
 }
 
 impl Named for CompressedDecompressionKey {
-    const NAME: &'static str = "high_level_api::CompressedDecompressionKey";
+    const NAME: &'static str = "integer::CompressedDecompressionKey";
+    const BACKWARD_COMPATIBILITY_ALIASES: &'static [&'static str] =
+        &["high_level_api::CompressedDecompressionKey"];
 }
 
 impl CompressedCompressionKey {
@@ -61,6 +71,17 @@ impl CompressedCompressionKey {
             key: self.key.decompress(),
         }
     }
+
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::CompressedCompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(
+        key: crate::shortint::list_compression::CompressedCompressionKey,
+    ) -> Self {
+        Self { key }
+    }
 }
 
 impl CompressedDecompressionKey {
@@ -68,6 +89,17 @@ impl CompressedDecompressionKey {
         DecompressionKey {
             key: self.key.decompress(),
         }
+    }
+
+    pub fn into_raw_parts(self) -> crate::shortint::list_compression::CompressedDecompressionKey {
+        let Self { key } = self;
+        key
+    }
+
+    pub fn from_raw_parts(
+        key: crate::shortint::list_compression::CompressedDecompressionKey,
+    ) -> Self {
+        Self { key }
     }
 }
 

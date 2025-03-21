@@ -1,13 +1,13 @@
 use tfhe_versionable::Versionize;
 
-use super::inner::RadixCiphertext;
+use super::inner::SignedRadixCiphertext;
 use crate::backward_compatibility::integers::FheIntVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheUint, FheUintId, IntegerId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
-use crate::integer::client_key::RecomposableSignedInteger;
+use crate::integer::block_decomposition::RecomposableSignedInteger;
 use crate::integer::parameters::RadixCiphertextConformanceParams;
 use crate::named::Named;
 use crate::prelude::CastFrom;
@@ -36,7 +36,7 @@ pub trait FheIntId: IntegerId {}
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(FheIntVersions)]
 pub struct FheInt<Id: FheIntId> {
-    pub(in crate::high_level_api) ciphertext: RadixCiphertext,
+    pub(in crate::high_level_api) ciphertext: SignedRadixCiphertext,
     pub(in crate::high_level_api) id: Id,
     pub(crate) tag: Tag,
 }
@@ -107,7 +107,10 @@ impl<Id> FheInt<Id>
 where
     Id: FheIntId,
 {
-    pub(in crate::high_level_api) fn new(ciphertext: impl Into<RadixCiphertext>, tag: Tag) -> Self {
+    pub(in crate::high_level_api) fn new(
+        ciphertext: impl Into<SignedRadixCiphertext>,
+        tag: Tag,
+    ) -> Self {
         Self {
             ciphertext: ciphertext.into(),
             id: Id::default(),

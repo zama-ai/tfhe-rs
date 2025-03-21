@@ -6,7 +6,7 @@ use crate::core_crypto::algorithms::polynomial_algorithms::*;
 use crate::core_crypto::backward_compatibility::fft_impl::FourierLweBootstrapKeyVersions;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
+use crate::core_crypto::commons::numeric::{CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, MonomialDegree,
     PolynomialSize,
@@ -620,17 +620,18 @@ where
     }
 }
 
-pub struct LweBootstrapKeyConformanceParams {
+#[derive(Clone, Copy)]
+pub struct LweBootstrapKeyConformanceParams<Scalar: UnsignedInteger> {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub input_lwe_dimension: LweDimension,
     pub output_glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
 impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrapKey<C> {
-    type ParameterSet = LweBootstrapKeyConformanceParams;
+    type ParameterSet = LweBootstrapKeyConformanceParams<u64>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {

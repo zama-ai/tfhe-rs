@@ -1,7 +1,6 @@
 use crate::core_crypto::prelude::SignedNumeric;
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::ciphertext::SignedRadixCiphertext;
-use crate::integer::client_key::RecomposableSignedInteger;
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NB_CTXT};

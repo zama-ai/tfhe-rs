@@ -1,9 +1,11 @@
 //! Definition of the client key for radix decomposition
 
-use super::{ClientKey, RecomposableSignedInteger, SecretEncryptionKeyView};
+use super::{ClientKey, SecretEncryptionKeyView};
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::integer::backward_compatibility::client_key::RadixClientKeyVersions;
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::block_decomposition::{
+    DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+};
 use crate::integer::ciphertext::{RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionPrivateKeys,

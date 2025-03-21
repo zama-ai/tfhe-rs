@@ -12,8 +12,9 @@ use crate::array::traits::{
 };
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
-use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
-use crate::integer::client_key::RecomposableSignedInteger;
+use crate::integer::block_decomposition::{
+    DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
+};
 use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
 use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
 use crate::integer::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};

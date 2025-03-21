@@ -19,7 +19,7 @@ use crate::shortint::{Ciphertext, ServerKey};
 use crate::Tag;
 use serde::{Deserialize, Serialize};
 
-use self::signed::RadixCiphertext as SignedRadixCiphertext;
+use self::signed::SignedRadixCiphertext;
 use self::unsigned::RadixCiphertext as UnsignedRadixCiphertext;
 
 // Manual impl

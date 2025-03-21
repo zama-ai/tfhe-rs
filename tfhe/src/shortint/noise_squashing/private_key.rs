@@ -3,7 +3,6 @@ use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKeyOwned;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingPrivateKeyVersions;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
-use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
@@ -19,8 +18,19 @@ pub struct NoiseSquashingPrivateKey {
 }
 
 impl NoiseSquashingPrivateKey {
-    pub fn new(client_key: &ClientKey, params: NoiseSquashingParameters) -> Self {
-        client_key.new_noise_squashing_private_key(params)
+    pub fn new(params: NoiseSquashingParameters) -> Self {
+        let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.glwe_dimension,
+                params.polynomial_size,
+                &mut engine.secret_generator,
+            )
+        });
+
+        Self {
+            post_noise_squashing_secret_key,
+            params,
+        }
     }
 
     pub fn decrypt_squashed_noise_ciphertext(&self, ciphertext: &SquashedNoiseCiphertext) -> u128 {
@@ -45,25 +55,5 @@ impl NoiseSquashingPrivateKey {
 
     pub fn noise_squashing_parameters(&self) -> NoiseSquashingParameters {
         self.params
-    }
-}
-
-impl ClientKey {
-    pub fn new_noise_squashing_private_key(
-        &self,
-        params: NoiseSquashingParameters,
-    ) -> NoiseSquashingPrivateKey {
-        let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
-
-        NoiseSquashingPrivateKey {
-            post_noise_squashing_secret_key,
-            params,
-        }
     }
 }

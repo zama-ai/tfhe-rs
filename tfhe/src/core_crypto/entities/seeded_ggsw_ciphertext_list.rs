@@ -472,16 +472,16 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         Self: 'this;
 }
 
-pub struct GgswCiphertextListConformanceParams {
+pub struct GgswCiphertextListConformanceParams<Scalar: UnsignedInteger> {
     pub len: usize,
     pub glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams {
+impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams<u64> {
     type Error = ();
 
     fn try_from(value: &MultiBitBootstrapKeyConformanceParams) -> Result<Self, ()> {
@@ -502,8 +502,10 @@ impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConfo
     }
 }
 
-impl From<&LweBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams {
-    fn from(value: &LweBootstrapKeyConformanceParams) -> Self {
+impl<Scalar: UnsignedInteger> From<&LweBootstrapKeyConformanceParams<Scalar>>
+    for GgswCiphertextListConformanceParams<Scalar>
+{
+    fn from(value: &LweBootstrapKeyConformanceParams<Scalar>) -> Self {
         Self {
             len: value.input_lwe_dimension.0,
             glwe_size: value.output_glwe_size,
@@ -515,8 +517,10 @@ impl From<&LweBootstrapKeyConformanceParams> for GgswCiphertextListConformancePa
     }
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for SeededGgswCiphertextList<C> {
-    type ParameterSet = GgswCiphertextListConformanceParams;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for SeededGgswCiphertextList<C>
+{
+    type ParameterSet = GgswCiphertextListConformanceParams<Scalar>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {

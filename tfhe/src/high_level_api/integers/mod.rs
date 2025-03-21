@@ -31,8 +31,7 @@ expand_pub_use_fhe_type!(
 );
 
 pub(in crate::high_level_api) use signed::{
-    CompressedSignedRadixCiphertext, FheIntId,
-    RadixCiphertextVersionOwned as SignedRadixCiphertextVersionOwned,
+    CompressedSignedRadixCiphertext, FheIntId, SignedRadixCiphertextVersionOwned,
 };
 pub(in crate::high_level_api) use unsigned::{
     CompressedRadixCiphertext, FheUintId,

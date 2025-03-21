@@ -1,4 +1,5 @@
 use super::NoiseSquashingPrivateKey;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
@@ -9,23 +10,29 @@ use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
 };
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::{CarryModulus, MessageModulus, PBSOrder};
-use crate::shortint::server_key::{ModulusSwitchNoiseReductionKey, ServerKey};
+use crate::shortint::parameters::{
+    CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchNoiseReductionParams,
+    PBSOrder, PBSParameters,
+};
+use crate::shortint::server_key::{
+    ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
+};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
-    bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-    modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
-    params: NoiseSquashingParameters,
+    pub(super) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
+    pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    pub(super) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
 impl ClientKey {
@@ -80,7 +87,9 @@ impl ClientKey {
         NoiseSquashingKey {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
-            params: noise_squashing_private_key.noise_squashing_parameters(),
+            output_ciphertext_modulus: noise_squashing_private_key
+                .noise_squashing_parameters()
+                .ciphertext_modulus,
         }
     }
 }
@@ -94,6 +103,26 @@ impl NoiseSquashingKey {
     }
 
     pub fn squash_ciphertext_noise(
+        &self,
+        ciphertext: &Ciphertext,
+        src_server_key: &ServerKey,
+    ) -> SquashedNoiseCiphertext {
+        let ct_noise_level = ciphertext.noise_level();
+        assert!(
+            src_server_key
+                .max_noise_level
+                .validate(ct_noise_level)
+                .is_ok(),
+            "squash_ciphertext_noise requires the input Ciphertext to have at most {:?} noise \
+                got {:?}.",
+            src_server_key.max_noise_level,
+            ct_noise_level
+        );
+
+        self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key)
+    }
+
+    pub fn unchecked_squash_ciphertext_noise(
         &self,
         ciphertext: &Ciphertext,
         src_server_key: &ServerKey,
@@ -143,7 +172,7 @@ impl NoiseSquashingKey {
         };
 
         let output_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
-        let output_ciphertext_modulus = self.params.ciphertext_modulus;
+        let output_ciphertext_modulus = self.output_ciphertext_modulus;
 
         let mut res = SquashedNoiseCiphertext::new_zero(
             output_lwe_size,
@@ -202,5 +231,70 @@ impl NoiseSquashingKey {
         res.set_degree(ciphertext.degree);
 
         res
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NoiseSquashingKeyConformanceParams {
+    pub bootstrapping_key_params: LweBootstrapKeyConformanceParams<u128>,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+}
+
+impl From<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyConformanceParams {
+    fn from(
+        (pbs_params, noise_squashing_params): (PBSParameters, NoiseSquashingParameters),
+    ) -> Self {
+        Self {
+            bootstrapping_key_params: LweBootstrapKeyConformanceParams {
+                input_lwe_dimension: pbs_params.lwe_dimension(),
+                output_glwe_size: noise_squashing_params.glwe_dimension.to_glwe_size(),
+                polynomial_size: noise_squashing_params.polynomial_size,
+                decomp_base_log: noise_squashing_params.decomp_base_log,
+                decomp_level_count: noise_squashing_params.decomp_level_count,
+                ciphertext_modulus: noise_squashing_params.ciphertext_modulus,
+            },
+
+            modulus_switch_noise_reduction_params: noise_squashing_params
+                .modulus_switch_noise_reduction_params,
+        }
+    }
+}
+
+impl ParameterSetConformant for NoiseSquashingKey {
+    type ParameterSet = NoiseSquashingKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            bootstrapping_key,
+            modulus_switch_noise_reduction_key,
+            output_ciphertext_modulus,
+        } = self;
+
+        let Self::ParameterSet {
+            bootstrapping_key_params: expected_bootstrapping_key_params,
+            modulus_switch_noise_reduction_params: expected_modulus_switch_noise_reduction_params,
+        } = parameter_set;
+
+        let modulus_switch_key_ok = match (
+            modulus_switch_noise_reduction_key,
+            expected_modulus_switch_noise_reduction_params,
+        ) {
+            (None, None) => true,
+            (None, Some(_)) => false,
+            (Some(_), None) => false,
+            (Some(key), Some(params)) => {
+                let mod_switch_conformance_params =
+                    ModulusSwitchNoiseReductionKeyConformanceParams {
+                        modulus_switch_noise_reduction_params: *params,
+                        lwe_dimension: bootstrapping_key.input_lwe_dimension(),
+                    };
+
+                key.is_conformant(&mod_switch_conformance_params)
+            }
+        };
+
+        modulus_switch_key_ok
+            && bootstrapping_key.is_conformant(expected_bootstrapping_key_params)
+            && *output_ciphertext_modulus == expected_bootstrapping_key_params.ciphertext_modulus
     }
 }

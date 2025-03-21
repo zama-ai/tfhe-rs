@@ -4,8 +4,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::client_key::RecomposableSignedInteger;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt};

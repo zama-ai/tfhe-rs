@@ -11,8 +11,7 @@ use crate::high_level_api::array::{
 };
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
-use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::client_key::RecomposableSignedInteger;
+use crate::integer::block_decomposition::{DecomposableInto, RecomposableSignedInteger};
 use crate::integer::SignedRadixCiphertext;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::{ClientKey, Device, Error};

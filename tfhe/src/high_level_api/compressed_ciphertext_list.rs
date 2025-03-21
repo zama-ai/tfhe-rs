@@ -48,13 +48,13 @@ impl<Id: FheUintId> HlCompressible for FheUint<Id> {
 impl<Id: FheIntId> HlCompressible for FheInt<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
         match self.ciphertext {
-            crate::high_level_api::integers::signed::RadixCiphertext::Cpu(cpu_radix) => {
+            crate::high_level_api::integers::signed::SignedRadixCiphertext::Cpu(cpu_radix) => {
                 let blocks = cpu_radix.blocks;
                 let kind = DataKind::Signed(blocks.len());
                 messages.push((ToBeCompressed::Cpu(blocks), kind));
             }
             #[cfg(feature = "gpu")]
-            crate::high_level_api::integers::signed::RadixCiphertext::Cuda(gpu_radix) => {
+            crate::high_level_api::integers::signed::SignedRadixCiphertext::Cuda(gpu_radix) => {
                 let blocks = gpu_radix.ciphertext;
                 let kind = DataKind::Signed(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
