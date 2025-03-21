@@ -70,7 +70,7 @@ pub use coverage_parameters::*;
 pub use key_switching::ShortintKeySwitchingParameters;
 pub use ks32::KeySwitch32PBSParameters;
 pub use multi_bit::MultiBitPBSParameters;
-pub use noise_squashing::NoiseSquashingParameters;
+pub use noise_squashing::{NoiseSquashingCompressionParameters, NoiseSquashingParameters};
 pub use parameters_wopbs::*;
 #[cfg(test)]
 pub use test_params::TestParameters;
@@ -151,6 +151,17 @@ pub struct CompressedCiphertextConformanceParams {
     pub degree: Degree,
     pub noise_level: NoiseLevel,
     pub atomic_pattern: AtomicPatternKind,
+}
+
+/// Structure to store the expected properties of a compressed squashed noise ciphertext
+/// Can be used on a server to check if client inputs are well formed before running a computation
+/// on them
+#[derive(Copy, Clone)]
+pub struct CompressedSquashedNoiseCiphertextConformanceParams {
+    pub ct_params: GlweCiphertextConformanceParams<u128>,
+    pub lwe_per_glwe: LweCiphertextCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
 }
 
 /// Structure to store the expected properties of a ciphertext list
