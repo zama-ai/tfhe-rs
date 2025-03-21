@@ -175,7 +175,7 @@ fn main() -> Result<(), anyhow::Error> {
         let hex_p = dirpath.join(Path::new(&format!("{base_file}.hex")));
 
         // Instanciate Fw and start translation ----------------------------------------
-        let mut fw = fw::AvlblFw::new(&args.fw_kind);
+        let fw = fw::AvlblFw::new(&args.fw_kind);
         let prog = fw.expand(&fw_params, iop);
         prog.write_asm(&asm_p.as_os_str().to_str().unwrap())?;
         prog.write_hex(&hex_p.as_os_str().to_str().unwrap())?;
