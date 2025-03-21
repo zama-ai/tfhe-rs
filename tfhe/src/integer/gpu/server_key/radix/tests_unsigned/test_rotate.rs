@@ -2,7 +2,7 @@ use crate::integer::gpu::server_key::radix::tests_unsigned::{
     create_gpu_parameterized_test, GpuFunctionExecutor,
 };
 use crate::integer::gpu::CudaServerKey;
-use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{
+use crate::integer::server_key::radix_parallel::tests_unsigned::test_rotate::{
     default_rotate_left_test, default_rotate_right_test, unchecked_rotate_left_test,
     unchecked_rotate_right_test,
 };

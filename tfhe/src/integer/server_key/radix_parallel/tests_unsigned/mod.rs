@@ -1,6 +1,8 @@
 mod modulus_switch_compression;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
+mod test_block_rotate;
+mod test_block_shift;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 mod test_count_zeros_ones;
@@ -125,6 +127,23 @@ pub(crate) fn rotate_left_helper(value: u64, n: u32, actual_bit_size: u32) -> u6
     (rotated & mask) | ((rotated & shifted_mask) >> actual_bit_size)
 }
 
+pub(crate) fn block_rotate_left_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian so rotating them to the left
+    // means rotating bits to the right
+    rotate_right_helper(value, n * bits_per_block, num_blocks * bits_per_block)
+}
+
 /// helper function to do a rotate right when the type used to store
 /// the value is bigger than the actual intended bit size
 pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u64 {
@@ -149,6 +168,57 @@ pub(crate) fn rotate_right_helper(value: u64, n: u32, actual_bit_size: u32) -> u
     let rotated = value.rotate_right(n);
 
     (rotated & mask) | ((rotated & shifted_mask) >> (u64::BITS - actual_bit_size))
+}
+
+pub(crate) fn block_rotate_right_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so rotating them to the right
+    // means rotating bits to the left
+    rotate_left_helper(value, n * bits_per_block, num_blocks * bits_per_block)
+}
+
+pub(crate) fn block_shift_right_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the right
+    // means shifting bits to the left
+    value.checked_shl(n * bits_per_block).unwrap() % (1u64 << (bits_per_block * num_blocks))
+}
+
+pub(crate) fn block_shift_left_helper(
+    value: u64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> u64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the left
+    // means shifting bits to the right
+    value.checked_shr(n * bits_per_block).unwrap()
 }
 
 pub(crate) fn overflowing_sub_under_modulus<T: UnsignedInteger>(
@@ -431,86 +501,6 @@ impl ExpectedDegrees {
         }
     }
 }
-
-// left/right shifts
-create_parameterized_test!(
-    integer_unchecked_left_shift {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_unchecked_right_shift {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-// left/right rotations
-create_parameterized_test!(
-    integer_unchecked_rotate_left {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-create_parameterized_test!(
-    integer_unchecked_rotate_right {
-        coverage => {
-            COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
-            COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
-        },
-        no_coverage => {
-            // This algorithm requires 3 bits
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
-            // 2M128 is too slow for 4_4, it is estimated to be 2x slower
-            TEST_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
-        }
-    }
-);
-// left/right rotations
 create_parameterized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
 create_parameterized_test!(
     integer_full_propagate {
@@ -630,38 +620,6 @@ where
 //=============================================================================
 // Unchecked Tests
 //=============================================================================
-
-fn integer_unchecked_left_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_shift_parallelized);
-    unchecked_left_shift_test(param, executor);
-}
-
-fn integer_unchecked_right_shift<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_right_shift_parallelized);
-    unchecked_right_shift_test(param, executor);
-}
-
-fn integer_unchecked_rotate_left<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_rotate_left_parallelized);
-    unchecked_rotate_left_test(param, executor);
-}
-
-fn integer_unchecked_rotate_right<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_rotate_right_parallelized);
-    unchecked_rotate_right_test(param, executor);
-}
 
 #[test]
 #[cfg(not(tarpaulin))]

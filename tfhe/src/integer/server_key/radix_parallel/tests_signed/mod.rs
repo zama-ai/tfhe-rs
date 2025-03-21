@@ -2,6 +2,7 @@ mod modulus_switch_compression;
 pub(crate) mod test_abs;
 pub(crate) mod test_add;
 pub(crate) mod test_bitwise_op;
+mod test_block_shift;
 pub(crate) mod test_cmux;
 pub(crate) mod test_comparison;
 mod test_count_zeros_ones;
@@ -494,6 +495,48 @@ pub(crate) fn rotate_right_helper(value: i64, n: u32, actual_bit_size: u32) -> i
     pad <<= actual_bit_size; // only bits above actual_bit_size should be set
 
     pad | tmp
+}
+
+pub(crate) fn block_shift_right_helper(
+    value: i64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> i64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the right
+    // means shifting bits to the left
+
+    let n_bits = bits_per_block * num_blocks;
+    let partial = value.checked_shl(n * bits_per_block).unwrap();
+    // First left shift such as the sign bit of our actual value
+    // is at the position of the sign bit of the i64
+    // Then right shift back to the original position
+    //
+    // This will both clean the extra parts and apply the arithmetic shift
+    (partial << (i64::BITS - n_bits)) >> (i64::BITS - n_bits)
+}
+
+pub(crate) fn block_shift_left_helper(
+    value: i64,
+    n: u32,
+    num_blocks: u32,
+    bits_per_block: u32,
+) -> i64 {
+    let mut max_num_bits_that_tell_shift = num_blocks.ilog2();
+    if !num_blocks.is_power_of_two() {
+        max_num_bits_that_tell_shift += 1;
+    }
+
+    let n = n % (1 << max_num_bits_that_tell_shift);
+    // blocks are stored in little endian, so shifting them to the left
+    // means shifting bits to the right
+    value.checked_shr(n * bits_per_block).unwrap()
 }
 
 /// Returns an array filled with random values such that:
