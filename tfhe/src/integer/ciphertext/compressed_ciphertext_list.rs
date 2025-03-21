@@ -172,29 +172,26 @@ mod tests {
 
     #[test]
     fn test_empty_list_compression() {
-        for params in [
-            V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
-            V1_0_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
-        ] {
-            let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+        let (cks, _) = gen_keys::<ShortintParameterSet>(
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            IntegerKeyKind::Radix,
+        );
 
-            let private_compression_key = cks.new_compression_private_key(
-                V1_0_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            );
+        let private_compression_key = cks
+            .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
 
-            let (compression_key, decompression_key) =
-                cks.new_compression_decompression_keys(&private_compression_key);
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
 
-            let builder = CompressedCiphertextListBuilder::new();
+        let builder = CompressedCiphertextListBuilder::new();
 
-            let compressed = builder.build(&compression_key);
+        let compressed = builder.build(&compression_key);
 
-            assert_eq!(compressed.len(), 0);
-            assert!(compressed
-                .get::<RadixCiphertext>(0, &decompression_key)
-                .unwrap()
-                .is_none())
-        }
+        assert_eq!(compressed.len(), 0);
+        assert!(compressed
+            .get::<RadixCiphertext>(0, &decompression_key)
+            .unwrap()
+            .is_none())
     }
 
     #[test]

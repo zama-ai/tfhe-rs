@@ -3,10 +3,15 @@ use tfhe_versionable::Versionize;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_binary_glwe_secret_key, GlweSecretKeyOwned,
 };
-use crate::shortint::backward_compatibility::list_compression::CompressionPrivateKeysVersions;
+use crate::shortint::backward_compatibility::list_compression::{
+    CompressionPrivateKeysVersions, NoiseSquashingCompressionPrivateKeyVersions,
+};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::list_compression::CompressionParameters;
+use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
+use crate::shortint::parameters::list_compression::{
+    CompressionParameters, NoiseSquashingCompressionParameters,
+};
 use crate::shortint::EncryptionKeyChoice;
 use std::fmt::Debug;
 
@@ -43,5 +48,35 @@ impl ClientKey {
             post_packing_ks_key,
             params,
         }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(NoiseSquashingCompressionPrivateKeyVersions)]
+pub struct NoiseSquashingCompressionPrivateKey {
+    pub post_packing_ks_key: GlweSecretKeyOwned<u128>,
+    pub params: NoiseSquashingCompressionParameters,
+}
+
+impl NoiseSquashingCompressionPrivateKey {
+    pub fn new(params: NoiseSquashingCompressionParameters) -> Self {
+        let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
+            allocate_and_generate_new_binary_glwe_secret_key(
+                params.packing_ks_glwe_dimension,
+                params.packing_ks_polynomial_size,
+                &mut engine.secret_generator,
+            )
+        });
+
+        Self {
+            post_packing_ks_key,
+            params,
+        }
+    }
+
+    /// Convert the compression private key into a [`NoiseSquashingPrivateKey`] that can be used to
+    /// decrypt the compressed ciphertexts
+    pub fn into_noise_squashing_private_key(self) -> NoiseSquashingPrivateKey {
+        self.into()
     }
 }
