@@ -102,8 +102,7 @@ For example, if you made changes in `tfhe/src/integer/*`, you can test them with
 ## 4. Committing
 
 **TFHE-rs** follows the conventional commit specification to maintain a consistent commit history, essential for Semantic Versioning ([semver.org](https://semver.org/)).
-Commit messages are automatically checked in CI and will be rejected if they do not comply, so make sure that you follow the commit conventions detailed on [this page]
-(https://www.conventionalcommits.org/en/v1.0.0/).
+Commit messages are automatically checked in CI and will be rejected if they do not comply, so make sure that you follow the commit conventions detailed on [this page](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ## 5. Rebasing
 
@@ -145,12 +144,15 @@ sequenceDiagram
     Reviewer -->> GitHub: Merge if pipeline green
 ```
 
-> [!Note]
->Useful details:
->* pipeline is triggered by humans
->* review team is located in Paris timezone, pipeline launch will most likely happen during office hours
->* direct changes to CI related files are not allowed for external contributors
->* run `make pcc` to fix any build errors before pushing commits
+{% hint style="info" %}
+
+## Useful details:
+
+- pipeline is triggered by humans
+- review team is located in Paris timezone, pipeline launch will most likely happen during office hours
+- direct changes to CI related files are not allowed for external contributors
+- run `make pcc` to fix any build errors before pushing commits
+{% endhint %}
 
 ## 8. Data versioning
 

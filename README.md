@@ -206,6 +206,7 @@ If you want to work within the IND-CPA security model, which is less strict than
 The default parameters used in the High-Level API with the GPU backend are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at $p_{error} \le 2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [2].
 
 [1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
+
 [2] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
 
 #### Side-channel attacks
