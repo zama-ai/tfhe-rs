@@ -219,9 +219,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
   if (terms->num_radix_blocks == 0)
     return;
-  if (terms->num_radix_blocks == radix_lwe_out->num_radix_blocks) {
-    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
-                                       radix_lwe_out, terms);
+  if (num_radix_in_vec == 1) {
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             radix_lwe_out, 0, num_radix_blocks,
+                                             terms, 0, num_radix_blocks);
     return;
   }
   if (old_blocks != terms) {
