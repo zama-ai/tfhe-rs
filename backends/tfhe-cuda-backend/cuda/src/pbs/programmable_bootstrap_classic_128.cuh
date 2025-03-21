@@ -21,9 +21,7 @@ template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one_128(
         const Torus *__restrict__ lut_vector,
-        const Torus *__restrict__ lut_vector_indexes,
         const Torus *__restrict__ lwe_array_in,
-        const Torus *__restrict__ lwe_input_indexes,
         const double *__restrict__ bootstrapping_key, Torus *global_accumulator,
         double *global_join_buffer, uint32_t lwe_iteration,
         uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -56,11 +54,9 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
+      &lwe_array_in[blockIdx.x * (lwe_dimension + 1)];
 
-  const Torus *block_lut_vector =
-      &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
-                  (glwe_dimension + 1)];
+  const Torus *block_lut_vector = lut_vector;
 
   Torus *global_slice =
       global_accumulator +
@@ -148,15 +144,11 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_two_128(
-        Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-        const Torus *__restrict__ lut_vector,
-        const Torus *__restrict__ lut_vector_indexes,
-        const double *__restrict__ bootstrapping_key, Torus *global_accumulator,
-        double *global_join_buffer, uint32_t lwe_iteration,
-        uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-        uint32_t level_count, int8_t *device_mem,
-        uint64_t device_memory_size_per_block, uint32_t num_many_lut,
-        uint32_t lut_stride) {
+        Torus *lwe_array_out, const double *__restrict__ bootstrapping_key,
+        Torus *global_accumulator, double *global_join_buffer,
+        uint32_t lwe_iteration, uint32_t lwe_dimension,
+        uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
+        int8_t *device_mem, uint64_t device_memory_size_per_block) {
 
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -231,8 +223,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   if (lwe_iteration + 1 == lwe_dimension) {
     // Last iteration
     auto block_lwe_array_out =
-        &lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                           (glwe_dimension * polynomial_size + 1) +
+        &lwe_array_out[blockIdx.x * (glwe_dimension * polynomial_size + 1) +
                        blockIdx.y * polynomial_size];
 
     if (blockIdx.y < glwe_dimension) {
@@ -240,37 +231,8 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       // but we do the computation at block 0 to avoid waiting for extra blocks,
       // in case they're not synchronized
       sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
-      if (num_many_lut > 1) {
-        for (int i = 1; i < num_many_lut; i++) {
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  blockIdx.y * polynomial_size];
-
-          sample_extract_mask<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 1, i * lut_stride);
-        }
-      }
     } else if (blockIdx.y == glwe_dimension) {
       sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
-      if (num_many_lut > 1) {
-        for (int i = 1; i < num_many_lut; i++) {
-
-          auto next_lwe_array_out =
-              lwe_array_out +
-              (i * gridDim.x * (glwe_dimension * polynomial_size + 1));
-          auto next_block_lwe_array_out =
-              &next_lwe_array_out[lwe_output_indexes[blockIdx.x] *
-                                      (glwe_dimension * polynomial_size + 1) +
-                                  blockIdx.y * polynomial_size];
-
-          sample_extract_body<Torus, params>(next_block_lwe_array_out,
-                                             accumulator, 0, i * lut_stride);
-        }
-      }
     }
   } else {
     // Persist the updated accumulator
@@ -351,8 +313,7 @@ __host__ void scratch_programmable_bootstrap_128(
 template <class params>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
-    __uint128_t const *lut_vector_indexes, __uint128_t const *lwe_array_in,
-    __uint128_t const *lwe_input_indexes, double const *bootstrapping_key,
+    __uint128_t const *lwe_array_in, double const *bootstrapping_key,
     __uint128_t *global_accumulator, double *global_join_buffer,
     uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -367,24 +328,21 @@ __host__ void execute_step_one_128(
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_one_128<__uint128_t, params, NOSM>
         <<<grid, thds, 0, stream>>>(
-            lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, full_dm);
+            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_one_128<__uint128_t, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream>>>(
-            lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, partial_dm);
+            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, partial_dm);
   } else {
     device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM>
         <<<grid, thds, full_sm, stream>>>(
-            lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, 0);
+            lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, 0);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -392,14 +350,12 @@ __host__ void execute_step_one_128(
 template <class params>
 __host__ void execute_step_two_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lwe_output_indexes, __uint128_t const *lut_vector,
-    __uint128_t const *lut_vector_indexes, double const *bootstrapping_key,
-    __uint128_t *global_accumulator, double *global_join_buffer,
-    uint32_t input_lwe_ciphertext_count, uint32_t lwe_dimension,
-    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, int8_t *d_mem, int lwe_iteration, uint64_t partial_sm,
-    uint64_t partial_dm, uint64_t full_sm, uint64_t full_dm,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    double const *bootstrapping_key, __uint128_t *global_accumulator,
+    double *global_join_buffer, uint32_t input_lwe_ciphertext_count,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count, int8_t *d_mem, int lwe_iteration,
+    uint64_t partial_sm, uint64_t partial_dm, uint64_t full_sm,
+    uint64_t full_dm) {
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   cuda_set_device(gpu_index);
@@ -409,24 +365,21 @@ __host__ void execute_step_two_128(
   if (max_shared_memory < partial_sm) {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM>
         <<<grid, thds, 0, stream>>>(
-            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, full_dm, num_many_lut, lut_stride);
+            lwe_array_out, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM>
         <<<grid, thds, partial_sm, stream>>>(
-            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, partial_dm, num_many_lut, lut_stride);
+            lwe_array_out, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, partial_dm);
   } else {
     device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM>
         <<<grid, thds, full_sm, stream>>>(
-            lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, 0, num_many_lut, lut_stride);
+            lwe_array_out, bootstrapping_key, global_accumulator,
+            global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
+            base_log, level_count, d_mem, 0);
   }
   check_cuda_error(cudaGetLastError());
 }
@@ -437,13 +390,11 @@ __host__ void execute_step_two_128(
 template <class params>
 __host__ void host_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
-    __uint128_t const *lwe_output_indexes, __uint128_t const *lut_vector,
-    __uint128_t const *lut_vector_indexes, __uint128_t const *lwe_array_in,
-    __uint128_t const *lwe_input_indexes, double const *bootstrapping_key,
-    pbs_buffer_128<CLASSICAL> *pbs_buffer, uint32_t glwe_dimension,
-    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
-    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    __uint128_t const *lut_vector, __uint128_t const *lwe_array_in,
+    double const *bootstrapping_key, pbs_buffer_128<CLASSICAL> *pbs_buffer,
+    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count) {
   cuda_set_device(gpu_index);
 
   // With SM each block corresponds to either the mask or body, no need to
@@ -470,18 +421,16 @@ __host__ void host_programmable_bootstrap_128(
 
   for (int i = 0; i < lwe_dimension; i++) {
     execute_step_one_128<params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+        stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
+        global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
+        lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
+        d_mem, i, partial_sm, partial_dm_step_one, full_sm_step_one,
+        full_dm_step_one);
     execute_step_two_128<params>(
-        stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
-        lut_vector_indexes, bootstrapping_key, global_accumulator,
+        stream, gpu_index, lwe_array_out, bootstrapping_key, global_accumulator,
         global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
         glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
-        num_many_lut, lut_stride);
+        partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two);
   }
 }
 

@@ -6,12 +6,11 @@ use crate::core_crypto::algorithms::test::{
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
-use crate::core_crypto::gpu::{cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::core_crypto::gpu::vec::GpuIndex;
+use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
 
 use crate::core_crypto::keycache::KeyCacheAccess;
 use crate::core_crypto::prelude::*;
-use itertools::Itertools;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -86,7 +85,6 @@ where
 
     // Our input message
     let input_message: Scalar = 3usize.cast_into();
-    let number_of_messages = 1;
     // Delta used to encode 4 bits of message + a bit of padding on Scalar
     let delta: Scalar = (Scalar::ONE << (Scalar::BITS - 1)) / message_modulus;
 
@@ -124,34 +122,11 @@ where
 
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
-    let mut test_vector_indexes: Vec<Scalar> = vec![Scalar::ZERO; number_of_messages];
-    for (i, ind) in test_vector_indexes.iter_mut().enumerate() {
-        *ind = <usize as CastInto<Scalar>>::cast_into(i);
-    }
-    let mut d_test_vector_indexes =
-        unsafe { CudaVec::<Scalar>::new_async(number_of_messages, &stream, 0) };
-    unsafe { d_test_vector_indexes.copy_from_cpu_async(&test_vector_indexes, &stream, 0) };
-
     let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
-    let lwe_indexes_usize: Vec<usize> = (0..num_blocks).collect_vec();
-    let lwe_indexes = lwe_indexes_usize
-        .iter()
-        .map(|&x| <usize as CastInto<Scalar>>::cast_into(x))
-        .collect_vec();
-    let mut d_output_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
-    let mut d_input_indexes = unsafe { CudaVec::<Scalar>::new_async(num_blocks, &stream, 0) };
-    unsafe {
-        d_input_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
-        d_output_indexes.copy_from_cpu_async(&lwe_indexes, &stream, 0);
-    }
-
-    cuda_programmable_bootstrap_lwe_ciphertext(
+    cuda_programmable_bootstrap_128_lwe_ciphertext(
         &d_lwe_ciphertext_in,
         &mut d_out_pbs_ct,
         &d_accumulator,
-        &d_test_vector_indexes,
-        &d_output_indexes,
-        &d_input_indexes,
         LweCiphertextCount(num_blocks),
         &d_bsk,
         &stream,

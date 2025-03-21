@@ -122,83 +122,99 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
 
-    if size_of::<T>() == 16 {
-        scratch_cuda_programmable_bootstrap_128(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
-            num_samples,
-            true,
-        );
+    scratch_cuda_programmable_bootstrap_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        level.0 as u32,
+        num_samples,
+        true,
+    );
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            lwe_out_indexes.as_c_ptr(0),
-            test_vector.as_c_ptr(0),
-            test_vector_indexes.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
-            lwe_in_indexes.as_c_ptr(0),
-            bootstrapping_key.as_c_ptr(0),
-            pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
-            num_samples,
-            num_many_lut,
-            lut_stride,
-        );
+    cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_out_indexes.as_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        test_vector_indexes.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        lwe_in_indexes.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
+        pbs_buffer,
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        base_log.0 as u32,
+        level.0 as u32,
+        num_samples,
+        num_many_lut,
+        lut_stride,
+    );
 
-        cleanup_cuda_programmable_bootstrap_128(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
-    } else {
-        scratch_cuda_programmable_bootstrap_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            level.0 as u32,
-            num_samples,
-            true,
-        );
+    cleanup_cuda_programmable_bootstrap(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
+}
 
-        cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            lwe_array_out.as_mut_c_ptr(0),
-            lwe_out_indexes.as_c_ptr(0),
-            test_vector.as_c_ptr(0),
-            test_vector_indexes.as_c_ptr(0),
-            lwe_array_in.as_c_ptr(0),
-            lwe_in_indexes.as_c_ptr(0),
-            bootstrapping_key.as_c_ptr(0),
-            pbs_buffer,
-            lwe_dimension.0 as u32,
-            glwe_dimension.0 as u32,
-            polynomial_size.0 as u32,
-            base_log.0 as u32,
-            level.0 as u32,
-            num_samples,
-            num_many_lut,
-            lut_stride,
-        );
+/// Programmable bootstrap on a vector of 128 bit LWE ciphertexts
+///
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    test_vector: &CudaVec<T>,
+    lwe_array_in: &CudaVec<T>,
+    bootstrapping_key: &CudaVec<f64>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    base_log: DecompositionBaseLog,
+    level: DecompositionLevelCount,
+    num_samples: u32,
+) {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
 
-        cleanup_cuda_programmable_bootstrap(
-            streams.ptr[0],
-            streams.gpu_indexes[0].get(),
-            std::ptr::addr_of_mut!(pbs_buffer),
-        );
-    }
+    scratch_cuda_programmable_bootstrap_128(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        level.0 as u32,
+        num_samples,
+        true,
+    );
+
+    cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        test_vector.as_c_ptr(0),
+        lwe_array_in.as_c_ptr(0),
+        bootstrapping_key.as_c_ptr(0),
+        pbs_buffer,
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        base_log.0 as u32,
+        level.0 as u32,
+        num_samples,
+    );
+
+    cleanup_cuda_programmable_bootstrap_128(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        std::ptr::addr_of_mut!(pbs_buffer),
+    );
 }
 
 /// Programmable multi-bit bootstrap on a vector of LWE ciphertexts
