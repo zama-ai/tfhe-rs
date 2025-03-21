@@ -461,8 +461,10 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         Self: 'this;
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for SeededLwePackingKeyswitchKey<C> {
-    type ParameterSet = LwePackingKeyswitchKeyConformanceParams;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for SeededLwePackingKeyswitchKey<C>
+{
+    type ParameterSet = LwePackingKeyswitchKeyConformanceParams<Scalar>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
