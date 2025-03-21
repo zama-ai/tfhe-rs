@@ -11,7 +11,7 @@ In `integer`, the encrypted data is split amongst many ciphertexts encrypted wit
 This crate implements two ways to represent an integer:
 
 * the Radix representation
-* the CRT (Chinese Reminder Theorem) representation
+* the CRT (Chinese Remainder Theorem) representation
 
 ### Radix-based integers.
 
