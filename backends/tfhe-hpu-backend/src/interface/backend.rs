@@ -140,7 +140,7 @@ impl HpuBackend {
             *bpip_use_reg.offset() as u64,
             bpip_use_reg.from_field(
                 [
-                    ("use_bpip", config.rtl.bpip_used as u32),
+                    ("use_bpip", config.rtl.bpip_use as u32),
                     ("use_opportunism", config.rtl.bpip_use_opportunism as u32),
                 ]
                 .into(),
@@ -653,7 +653,7 @@ impl HpuBackend {
             carry_w: self.params.pbs_params.carry_width,
             nu: 5,
             integer_w: 0,
-            use_ipip: !config.rtl.bpip_used,
+            use_ipip: !config.rtl.bpip_use,
             kogge_cfg: config.firmware.kogge_cfg.expand(),
             op_cfg: config.firmware.op_cfg.clone(),
             cur_op_cfg: config.firmware.op_cfg.default(),

@@ -82,3 +82,20 @@ offset= 0x2000
   write_access="WriteNotify"
   duplicate=["_pc0","_pc1","_pc2","_pc3","_pc4","_pc5","_pc6","_pc7","_pc8","_pc9","_pc10","_pc11","_pc12","_pc13","_pc14","_pc15"]
 
+[section.runtime_3in3.register.pep_bskif_req_info_0]
+  description="PEP: BSK_IF: requester info 0"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.req_br_loop_rp   = { size_b=16, offset_b=0  , default={Cst=0}, description="PEP BSK_IF requester BSK read pointer"}
+  field.req_br_loop_wp   = { size_b=16, offset_b=16 , default={Cst=0}, description="PEP BSK_IF requester BSK write pointer"}
+
+[section.runtime_3in3.register.pep_bskif_req_info_1]
+  description="PEP: BSK_IF: requester info 0"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.req_prf_br_loop  = { size_b=16, offset_b=0  , default={Cst=0}, description="PEP BSK_IF requester BSK prefetch pointer"}
+  field.req_parity       = { size_b=1,  offset_b=16 , default={Cst=0}, description="PEP BSK_IF requester BSK pointer parity"}
+  field.req_assigned     = { size_b=1,  offset_b=31 , default={Cst=0}, description="PEP BSK_IF requester assignment"}
+
