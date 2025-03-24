@@ -7,7 +7,7 @@ use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, SeededLweBoot
 use crate::shortint::backward_compatibility::noise_squashing::CompressedNoiseSquashingKeyVersions;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::CoreCiphertextModulus;
+use crate::shortint::parameters::{CarryModulus, CoreCiphertextModulus, MessageModulus};
 use crate::shortint::server_key::{
     CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams,
 };
@@ -19,6 +19,8 @@ use tfhe_versionable::Versionize;
 pub struct CompressedNoiseSquashingKey {
     bootstrapping_key: SeededLweBootstrapKeyOwned<u128>,
     modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
@@ -31,6 +33,29 @@ impl ClientKey {
             .parameters
             .pbs_parameters()
             .expect("NoiseSquashingKey generation requires PBSParameters");
+
+        assert_eq!(
+            pbs_parameters.message_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .message_modulus,
+            "Mismatched MessageModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
+            pbs_parameters.message_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .message_modulus
+        );
+        assert_eq!(
+            pbs_parameters.carry_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .carry_modulus,
+            "Mismatched CarryModulus between ClientKey {:?} and NoiseSquashingPrivateKey {:?}.",
+            pbs_parameters.carry_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .carry_modulus
+        );
 
         let noise_squashing_parameters = noise_squashing_private_key.noise_squashing_parameters();
 
@@ -66,9 +91,9 @@ impl ClientKey {
         CompressedNoiseSquashingKey {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
-            output_ciphertext_modulus: noise_squashing_private_key
-                .noise_squashing_parameters()
-                .ciphertext_modulus,
+            output_ciphertext_modulus: noise_squashing_parameters.ciphertext_modulus,
+            message_modulus: noise_squashing_parameters.message_modulus,
+            carry_modulus: noise_squashing_parameters.carry_modulus,
         }
     }
 }
@@ -109,6 +134,8 @@ impl CompressedNoiseSquashingKey {
         NoiseSquashingKey {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
             output_ciphertext_modulus: self.output_ciphertext_modulus,
         }
     }
@@ -121,12 +148,16 @@ impl ParameterSetConformant for CompressedNoiseSquashingKey {
         let Self {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
             output_ciphertext_modulus,
         } = self;
 
         let Self::ParameterSet {
             bootstrapping_key_params: expected_bootstrapping_key_params,
             modulus_switch_noise_reduction_params: expected_modulus_switch_noise_reduction_params,
+            message_modulus: expected_message_modulus,
+            carry_modulus: expected_carry_modulus,
         } = parameter_set;
 
         let modulus_switch_key_ok = match (
@@ -150,5 +181,7 @@ impl ParameterSetConformant for CompressedNoiseSquashingKey {
         modulus_switch_key_ok
             && bootstrapping_key.is_conformant(expected_bootstrapping_key_params)
             && *output_ciphertext_modulus == expected_bootstrapping_key_params.ciphertext_modulus
+            && *message_modulus == *expected_message_modulus
+            && *carry_modulus == *expected_carry_modulus
     }
 }

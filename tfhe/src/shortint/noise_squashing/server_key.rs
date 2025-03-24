@@ -32,6 +32,8 @@ use tfhe_versionable::Versionize;
 pub struct NoiseSquashingKey {
     pub(super) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
     pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+    pub(super) message_modulus: MessageModulus,
+    pub(super) carry_modulus: CarryModulus,
     pub(super) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
@@ -87,9 +89,9 @@ impl ClientKey {
         NoiseSquashingKey {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
-            output_ciphertext_modulus: noise_squashing_private_key
-                .noise_squashing_parameters()
-                .ciphertext_modulus,
+            output_ciphertext_modulus: noise_squashing_parameters.ciphertext_modulus,
+            message_modulus: noise_squashing_parameters.message_modulus,
+            carry_modulus: noise_squashing_parameters.carry_modulus,
         }
     }
 }
@@ -118,6 +120,16 @@ impl NoiseSquashingKey {
             src_server_key.max_noise_level,
             ct_noise_level
         );
+        assert_eq!(
+            ciphertext.message_modulus, self.message_modulus,
+            "Mismatched MessageModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
+            ciphertext.message_modulus, self.message_modulus,
+        );
+        assert_eq!(
+            ciphertext.carry_modulus, self.carry_modulus,
+            "Mismatched CarryModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
+            ciphertext.carry_modulus, self.carry_modulus,
+        );
 
         self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key)
     }
@@ -127,14 +139,6 @@ impl NoiseSquashingKey {
         ciphertext: &Ciphertext,
         src_server_key: &ServerKey,
     ) -> SquashedNoiseCiphertext {
-        // The output ciphertext does not have the notion of CarryModulus as we won't do
-        // shortint-like computations on it, however we need to properly indicate how many bits can
-        // contain data, so we take:
-        // Output MessageModulus = Input MessageModulus * CarryModulus
-
-        let output_message_modulus =
-            MessageModulus(ciphertext.message_modulus.0 * ciphertext.carry_modulus.0);
-
         let mut lwe_before_noise_squashing = match src_server_key.pbs_order {
             // Under the big key, first need to keyswitch
             PBSOrder::KeyswitchBootstrap => {
@@ -172,12 +176,15 @@ impl NoiseSquashingKey {
         };
 
         let output_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
+        let output_message_modulus = self.message_modulus;
+        let output_carry_modulus = self.carry_modulus;
         let output_ciphertext_modulus = self.output_ciphertext_modulus;
 
         let mut res = SquashedNoiseCiphertext::new_zero(
             output_lwe_size,
             output_ciphertext_modulus,
             output_message_modulus,
+            output_carry_modulus,
         );
 
         let bsk_glwe_size = self.bootstrapping_key.glwe_size();
@@ -201,14 +208,16 @@ impl NoiseSquashingKey {
         let delta = compute_delta(
             output_ciphertext_modulus,
             output_message_modulus,
-            CarryModulus(1),
+            output_carry_modulus,
             PaddingBit::Yes,
         );
+
+        let output_cleartext_space = output_message_modulus.0 * output_carry_modulus.0;
 
         let id_lut = generate_programmable_bootstrap_glwe_lut(
             bsk_polynomial_size,
             bsk_glwe_size,
-            output_message_modulus.0.try_into().unwrap(),
+            output_cleartext_space.try_into().unwrap(),
             output_ciphertext_modulus,
             delta,
             |x| x,
@@ -238,13 +247,31 @@ impl NoiseSquashingKey {
 pub struct NoiseSquashingKeyConformanceParams {
     pub bootstrapping_key_params: LweBootstrapKeyConformanceParams<u128>,
     pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
 }
 
-impl From<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyConformanceParams {
-    fn from(
+impl TryFrom<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyConformanceParams {
+    type Error = crate::Error;
+
+    fn try_from(
         (pbs_params, noise_squashing_params): (PBSParameters, NoiseSquashingParameters),
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Self::Error> {
+        if pbs_params.message_modulus() != noise_squashing_params.message_modulus
+            || pbs_params.carry_modulus() != noise_squashing_params.carry_modulus
+        {
+            return Err(crate::Error::new(format!(
+                "Incompatible MessageModulus (PBS {:?}, NoiseSquashing {:?}) \
+                or CarryModulus (PBS {:?}, NoiseSquashing {:?}) \
+                when creating NoiseSquashingKeyConformanceParams",
+                pbs_params.message_modulus(),
+                noise_squashing_params.message_modulus,
+                pbs_params.carry_modulus(),
+                noise_squashing_params.carry_modulus
+            )));
+        }
+
+        Ok(Self {
             bootstrapping_key_params: LweBootstrapKeyConformanceParams {
                 input_lwe_dimension: pbs_params.lwe_dimension(),
                 output_glwe_size: noise_squashing_params.glwe_dimension.to_glwe_size(),
@@ -253,10 +280,11 @@ impl From<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyConfor
                 decomp_level_count: noise_squashing_params.decomp_level_count,
                 ciphertext_modulus: noise_squashing_params.ciphertext_modulus,
             },
-
             modulus_switch_noise_reduction_params: noise_squashing_params
                 .modulus_switch_noise_reduction_params,
-        }
+            message_modulus: noise_squashing_params.message_modulus,
+            carry_modulus: noise_squashing_params.carry_modulus,
+        })
     }
 }
 
@@ -267,12 +295,16 @@ impl ParameterSetConformant for NoiseSquashingKey {
         let Self {
             bootstrapping_key,
             modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
             output_ciphertext_modulus,
         } = self;
 
         let Self::ParameterSet {
             bootstrapping_key_params: expected_bootstrapping_key_params,
             modulus_switch_noise_reduction_params: expected_modulus_switch_noise_reduction_params,
+            message_modulus: expected_message_modulus,
+            carry_modulus: expected_carry_modulus,
         } = parameter_set;
 
         let modulus_switch_key_ok = match (
@@ -296,5 +328,7 @@ impl ParameterSetConformant for NoiseSquashingKey {
         modulus_switch_key_ok
             && bootstrapping_key.is_conformant(expected_bootstrapping_key_params)
             && *output_ciphertext_modulus == expected_bootstrapping_key_params.ciphertext_modulus
+            && *message_modulus == *expected_message_modulus
+            && *carry_modulus == *expected_carry_modulus
     }
 }
