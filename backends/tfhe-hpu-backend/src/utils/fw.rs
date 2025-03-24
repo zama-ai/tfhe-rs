@@ -10,11 +10,20 @@ use tfhe_hpu_backend::fw::{self, Fw, FwParameters};
 
 /// Define CLI arguments
 use clap::Parser;
-use tfhe_hpu_backend::prelude::{HpuParameters, ShellString};
+use tfhe_hpu_backend::prelude::{HpuConfig, HpuParameters, ShellString};
 #[derive(clap::Parser, Debug, Clone)]
 #[clap(long_about = "Translate IOp or Stream of IOps in DOps stream")]
 pub struct Args {
     // Configuration -----------------------------------------------------
+    /// Toml top-level configuration file
+    /// Enable to retrieved runtime configuration register
+    #[clap(
+        long,
+        value_parser,
+        default_value = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml"
+    )]
+    pub config: ShellString,
+
     /// Hpu rtl parameters
     /// Enable to retrieved the associated tfhe-rs parameters and other Rtl parameters
     #[clap(
@@ -123,7 +132,8 @@ fn main() -> Result<(), anyhow::Error> {
     let dirpath = Path::new(&args.out_folder);
     std::fs::create_dir_all(dirpath).unwrap();
 
-    // Load parameters from configuration file ------------------------------------
+    // Load config/parameters from configuration file ------------------------------------
+    let config = HpuConfig::from_toml(args.config.expand().as_str());
     let params = {
         let mut rtl_params = HpuParameters::from_toml(&args.params.expand());
 
@@ -136,7 +146,7 @@ fn main() -> Result<(), anyhow::Error> {
         }
         rtl_params
     };
-    let pe_cfg = PeConfigStore::from(&params);
+    let pe_cfg = PeConfigStore::from((&params, &config));
     let fw_params = FwParameters {
         register: params.regf_params.reg_nb,
         isc_depth: params.isc_params.depth,
