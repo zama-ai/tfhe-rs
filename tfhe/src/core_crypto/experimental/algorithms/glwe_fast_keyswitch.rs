@@ -336,3 +336,34 @@ pub fn glwe_fast_keyswitch_requirement<Scalar>(
     let substack0 = StackReq::any_of(&[substack1.and(standard_scratch), fft.backward_scratch()]);
     substack0.and(fourier_scratch)
 }
+
+pub fn glwe_fast_keyswitch_wrapper<Scalar, OutputGlweCont, InputGlweCont, GlweKskCont>(
+    out: &mut GlweCiphertext<OutputGlweCont>,
+    pseudo_ggsw: &FourierPseudoGgswCiphertext<GlweKskCont>,
+    glwe: &GlweCiphertext<InputGlweCont>,
+) where
+    Scalar: UnsignedTorus,
+    OutputGlweCont: ContainerMut<Element = Scalar>,
+    GlweKskCont: Container<Element = c64>,
+    InputGlweCont: Container<Element = Scalar>,
+{
+    assert_eq!(out.ciphertext_modulus(), glwe.ciphertext_modulus());
+
+    let polynomial_size = pseudo_ggsw.polynomial_size();
+    let out_glwe_size = pseudo_ggsw.glwe_size_out();
+
+    let fft = Fft::new(polynomial_size);
+    let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
+    buffers.resize(
+        add_external_product_assign_mem_optimized_requirement::<Scalar>(
+            out_glwe_size,
+            polynomial_size,
+            fft,
+        )
+        .unaligned_bytes_required(),
+    );
+
+    glwe_fast_keyswitch(out, pseudo_ggsw, glwe, fft, buffers.stack());
+}
