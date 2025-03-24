@@ -8,7 +8,7 @@
   xclbin="${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_msplit_3parts.xclbin"
 
 [rtl]
-  bpip_used = true
+  bpip_use = true
   bpip_use_opportunism = false
   bpip_timeout = 100_000
 

@@ -11,7 +11,7 @@
   qdma_c2h="/dev/qdma${AVED_PCIE_DEV}001-MM-1"
 
 [rtl]
-  bpip_used = true
+  bpip_use = true
   bpip_use_opportunism = true
   bpip_timeout = 100_000
 

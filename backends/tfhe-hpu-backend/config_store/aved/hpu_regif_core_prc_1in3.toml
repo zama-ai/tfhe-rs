@@ -112,6 +112,7 @@ offset= 0x2000
   write_access="None"
   field.pbs_in_rp  = { size_b=8, offset_b=0  , default={Cst=0}, description="PEP pbs_in_rp"}
   field.pbs_in_wp  = { size_b=8, offset_b=8  , default={Cst=0}, description="PEP pbs_in_wp"}
+  field.ipip_flush_last_pbs_in_loop = { size_b=16, offset_b=16  , default={Cst=0}, description="PEP IPIP flush last pbs_in_loop"}
 
 [section.runtime_1in3.register.isc_latest_instruction]
   description="ISC: 4 latest instructions received ([0] is the most recent)"
@@ -138,6 +139,19 @@ offset= 0x2000
   read_access="Read"
   write_access="WriteNotify"
 
+[section.runtime_1in3.register.pep_seq_bpip_waiting_batch_cnt]
+  description="PEP: BPIP batch that waits the trigger counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_bpip_batch_filling_cnt]
+  description="PEP: Count batch with filled with a given number of CT (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_1","_2","_3","_4","_5","_6","_7","_8","_9","_10","_11","_12","_13","_14","_15","_16"]
+
 [section.runtime_1in3.register.pep_seq_ld_ack_cnt]
   description="PEP: load BLWE ack counter (Could be reset by user)"
   owner="Kernel"
@@ -146,6 +160,12 @@ offset= 0x2000
 
 [section.runtime_1in3.register.pep_seq_cmux_not_full_batch_cnt]
   description="PEP: not full batch CMUX counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_ipip_flush_cnt]
+  description="PEP: IPIP flush CMUX counter (Could be reset by user)"
   owner="Kernel"
   read_access="Read"
   write_access="WriteNotify"

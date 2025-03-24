@@ -216,8 +216,7 @@ impl RegisterMap {
             }
 
             // Bpip configuration registers
-            "bpip::use" => self.bpip.used as u32,
-            "bpip::use_opportunism" => self.bpip.use_opportunism as u32,
+            "bpip::use" => ((self.bpip.used as u8) + ((self.bpip.use_opportunism as u8) << 1))as u32,
             "bpip::timeout" => self.bpip.timeout,
 
             // Add offset configuration registers
@@ -346,11 +345,8 @@ impl RegisterMap {
 
             // Bpip configuration registers
             "bpip::use" => {
-                self.bpip.used = value == 0x1;
-                RegisterEvent::None
-            }
-            "bpip::use_opportunism" => {
-                self.bpip.use_opportunism = value == 0x1;
+                self.bpip.used = (value & 0x1) == 0x1;
+                self.bpip.use_opportunism = (value & 0x2) == 0x2;
                 RegisterEvent::None
             }
             "bpip::timeout" => {
