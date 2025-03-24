@@ -12,7 +12,7 @@ use crate::shortint::server_key::{
     apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_with_encoding,
     unchecked_scalar_mul_assign, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel};
+use crate::shortint::{Ciphertext, CiphertextModulus, MaxNoiseLevel, PBSOrder};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -21,16 +21,30 @@ impl CompressionKey {
         &self,
         ciphertexts: &[Ciphertext],
     ) -> CompressedCiphertextList {
+        let lwe_pksk = &self.packing_key_switching_key;
+        let lwe_per_glwe = self.lwe_per_glwe;
+        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
+        if ciphertexts.is_empty() {
+            return CompressedCiphertextList {
+                modulus_switched_glwe_ciphertext_list: Vec::new(),
+                // These values don't matter if the list is empty
+                message_modulus: MessageModulus(1),
+                carry_modulus: CarryModulus(1),
+                pbs_order: PBSOrder::BootstrapKeyswitch,
+                lwe_per_glwe,
+                count: CiphertextCount(0),
+                ciphertext_modulus,
+            };
+        }
+
         let count = CiphertextCount(ciphertexts.len());
 
         let lwe_pksk = &self.packing_key_switching_key;
 
         let polynomial_size = lwe_pksk.output_polynomial_size();
-        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
         let glwe_size = lwe_pksk.output_glwe_size();
         let lwe_size = lwe_pksk.input_key_lwe_dimension().to_lwe_size();
-
-        let lwe_per_glwe = self.lwe_per_glwe;
 
         assert!(
             lwe_per_glwe.0 <= polynomial_size.0,
@@ -273,7 +287,7 @@ mod test {
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);
 
-            for number_to_pack in [1, 128] {
+            for number_to_pack in [0, 1, 128] {
                 let f = |x| (x + 1) % params.message_modulus().0;
 
                 test_packing_(
