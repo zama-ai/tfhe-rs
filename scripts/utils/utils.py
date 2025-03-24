@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 try:
     import tomllib  # Python v3.11+
@@ -19,11 +20,15 @@ def get_tfhe_version() -> str:
         tfhe_cargo_toml = tomllib.load(f)
         return tfhe_cargo_toml["package"]["version"]
 
+# from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+def semver_regex(version_str: str):
+    return re.match(
+        r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$",
+        string=version_str,
+        flags=re.M,
+    )
 
-def format_version_major_minor(version: str) -> str:
-    hyphenated_version = "v" + version.replace(".", "_")
 
-    if hyphenated_version.count("_") == 1:
-        return hyphenated_version
-    else:
-        return hyphenated_version.rsplit("_", maxsplit=1)[0]
+def format_version_major_minor(version_str: str) -> str:
+    parsed = semver_regex(version_str)
+    return f"v{parsed.group('major')}_{parsed.group('minor')}"
