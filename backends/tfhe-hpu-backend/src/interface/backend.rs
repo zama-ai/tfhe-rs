@@ -132,13 +132,19 @@ impl HpuBackend {
 
         // Apply Rtl configuration
         // Bpip use
+        let bpip_use_reg = regmap
+            .register()
+            .get("bpip::use")
+            .expect("Unknow register, check regmap definition");
         hpu_hw.write_reg(
-            *regmap
-                .register()
-                .get("bpip::use")
-                .expect("Unknow register, check regmap definition")
-                .offset() as u64,
-            config.rtl.bpip_used as u32,
+            *bpip_use_reg.offset() as u64,
+            bpip_use_reg.from_field(
+                [
+                    ("use_bpip", config.rtl.bpip_used as u32),
+                    ("use_opportunism", config.rtl.bpip_use_opportunism as u32),
+                ]
+                .into(),
+            ),
         );
 
         // Bpip timeout
