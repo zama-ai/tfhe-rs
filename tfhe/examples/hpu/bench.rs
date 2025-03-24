@@ -64,11 +64,15 @@ pub struct Args {
     pub imm: Vec<u128>,
 
     /// Fallback prototype
-    /// Used for custom IOp testing when prototype isn't known
-    /// Syntax example: "<F B> <- <F F> <0>"
     /// Only apply to IOp with unspecified prototype
+    /// Used for custom IOp testing when prototype isn't known
+    /// Syntax example: "<N B> <- <N N> <0>"
+    /// Each entry options are (case incensitive):
+    /// * N, Nat, Native -> Full size integer;
+    /// * H, Half -> Half size integer;
+    /// * B, Bool -> boolean value;
     #[clap(long, value_parser)]
-    pub user_proto: bool,
+    pub user_proto: Option<hpu_asm::IOpProto>,
 
     /// Seed used for some rngs
     #[clap(long, value_parser)]
@@ -206,10 +210,9 @@ pub fn main() {
             let proto = if let Some(format) = iop.format() {
                 format.proto.clone()
             } else {
-                todo!("Add support for user prototype");
-                // args.user_proto.expect(
-                //     "Use of user defined IOp required a explicit prototype -> C.f. --user-proto",
-                // )
+                args.user_proto.clone().expect(
+                    "Use of user defined IOp required a explicit prototype -> C.f. --user-proto",
+                )
             };
 
             let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
