@@ -61,6 +61,7 @@ pub mod compression_keys;
 pub mod key_switching_key;
 #[cfg(any(test, feature = "internal-keycache"))]
 pub mod keycache;
+pub mod noise_squashing;
 pub mod oprf;
 pub mod parameters;
 pub mod prelude;

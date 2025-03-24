@@ -52,6 +52,8 @@ macro_rules! impl_recomposable_decomposable {
                     self.wrapping_add(other)
                 }
             }
+            impl RecomposableFrom<u128> for $type { }
+            impl DecomposableInto<u128> for $type { }
             impl RecomposableFrom<u64> for $type { }
             impl DecomposableInto<u64> for $type { }
             impl RecomposableFrom<u8> for $type { }
@@ -70,8 +72,10 @@ impl<const N: usize> Recomposable for StaticSignedBigInt<N> {
         self
     }
 }
+impl<const N: usize> RecomposableFrom<u128> for StaticSignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u64> for StaticSignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u8> for StaticSignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u128> for StaticSignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticSignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticSignedBigInt<N> {}
 
@@ -83,8 +87,10 @@ impl<const N: usize> Recomposable for StaticUnsignedBigInt<N> {
         self
     }
 }
+impl<const N: usize> RecomposableFrom<u128> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> RecomposableFrom<u8> for StaticUnsignedBigInt<N> {}
+impl<const N: usize> DecomposableInto<u128> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u64> for StaticUnsignedBigInt<N> {}
 impl<const N: usize> DecomposableInto<u8> for StaticUnsignedBigInt<N> {}
 
@@ -370,6 +376,10 @@ where
         true
     }
 
+    /// Recompose an unsigned integer, assumes all limbs from input contribute `bits_in_block` bits
+    /// to the final result.
+    ///
+    /// Input is expected in little endian order.
     pub(crate) fn recompose_unsigned<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
     where
         T: RecomposableFrom<U>,
@@ -384,6 +394,10 @@ where
         recomposer.value()
     }
 
+    /// Recompose a signed integer, assumes all limbs from input contribute `bits_in_block` bits
+    /// to the final result.
+    ///
+    /// Input is expected in little endian order.
     pub(crate) fn recompose_signed<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
     where
         T: RecomposableFrom<U> + SignExtendable,
@@ -396,6 +410,33 @@ where
         }
 
         sign_extend_partial_number(recomposer.value(), recomposer.bit_pos)
+    }
+
+    /// Recompose a signed integer, all limbs from input are added as if contributing
+    /// `bits_in_block` bits to the result, `signed_integer_size` indicates which of the low bits
+    /// are actually considered as being part of the result, this is used to decide which bit
+    /// represents the sign.
+    ///
+    /// For example with 2 limbs of 4 bits, if `signed_integer_size` is 6, then the 2 top bits from
+    /// the last limb are ignored.
+    ///
+    /// Input is expected in little endian order.
+    pub(crate) fn recompose_signed_with_size<U>(
+        input: impl Iterator<Item = U>,
+        bits_in_block: u32,
+        signed_integer_size: u32,
+    ) -> T
+    where
+        T: RecomposableFrom<U> + SignExtendable,
+    {
+        let mut recomposer = Self::new(bits_in_block);
+        for limb in input {
+            if !recomposer.add_unmasked(limb) {
+                break;
+            }
+        }
+
+        sign_extend_partial_number(recomposer.value(), signed_integer_size)
     }
 }
 
