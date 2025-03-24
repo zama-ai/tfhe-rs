@@ -282,15 +282,23 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     let d: i16 = cks.decrypt_signed_radix(&ct);
     assert_eq!(value as i16, d);
 
-    // Negative signed value
-    let value = rng.gen_range(i8::MIN..0);
-    let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
-    let d: i64 = cks.decrypt_signed_radix(&ct);
-    assert_eq!(i64::from(value), d);
+    let odd_block_count = if num_blocks % 2 == 1 {
+        num_blocks
+    } else {
+        num_blocks + 1
+    };
 
-    let ct = cks.encrypt_signed_radix(value, num_blocks.div_ceil(2));
-    let d: i16 = cks.decrypt_signed_radix(&ct);
-    assert_eq!(value as i16, d);
+    // Negative signed value
+    for block_count in [odd_block_count, num_blocks * 2, num_blocks.div_ceil(2)] {
+        let value = rng.gen_range(i8::MIN..0);
+        let ct = cks.encrypt_signed_radix(value, block_count);
+        let d: i64 = cks.decrypt_signed_radix(&ct);
+        assert_eq!(i64::from(value), d);
+
+        let ct = cks.encrypt_signed_radix(value, block_count);
+        let d: i16 = cks.decrypt_signed_radix(&ct);
+        assert_eq!(value as i16, d);
+    }
 
     // Unsigned value
     let value = rng.gen::<u32>();
