@@ -5,6 +5,7 @@ mod compressed;
 mod compressed_ciphertext_list;
 mod compressed_modulus_switched_ciphertext;
 mod integer_ciphertext;
+mod squashed_noise;
 mod utils;
 
 pub use base::*;
@@ -14,4 +15,5 @@ pub use compressed::*;
 pub use compressed_ciphertext_list::*;
 pub use compressed_modulus_switched_ciphertext::*;
 pub use integer_ciphertext::*;
+pub use squashed_noise::*;
 pub use utils::*;
