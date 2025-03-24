@@ -245,7 +245,8 @@ description="BPIP configuration"
   owner="User"
   read_access="Read"
   write_access="Write"
-  field.use_bpip = { size_b=1, offset_b=0 , default={Cst=0}, description="use"}
+  field.use_bpip = { size_b=1, offset_b=0 , default={Cst=1}, description="use"}
+  field.use_opportunism = { size_b=1, offset_b=1 , default={Cst=0}, description="use opportunistic PBS flush"}
 
 [section.bpip.register.timeout]
   description="Timeout for BPIP mode"
@@ -253,3 +254,4 @@ description="BPIP configuration"
   read_access="Read"
   write_access="Write"
   default={Cst=0xffffffff}
+
