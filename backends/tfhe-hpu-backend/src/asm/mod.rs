@@ -2,7 +2,7 @@ pub mod dop;
 pub use dop::arg::Arg as DOpArg;
 pub use dop::{DOp, DigitParameters, ImmId, MemId, Pbs, PbsGid, PbsLut, RegId, ToHex};
 pub mod iop;
-pub use iop::{AsmIOpcode, IOp, IOpcode, OperandKind};
+pub use iop::{AsmIOpcode, IOp, IOpProto, IOpcode, OperandKind};
 
 use std::collections::VecDeque;
 use std::io::{BufRead, Write};
