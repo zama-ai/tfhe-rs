@@ -1,5 +1,6 @@
 mod base;
 mod compressed;
+mod squashed_noise;
 
 mod encrypt;
 mod inner;
@@ -16,6 +17,8 @@ pub(in crate::high_level_api) use compressed::CompressedSignedRadixCiphertext;
 pub(in crate::high_level_api) use inner::{
     SignedRadixCiphertext, SignedRadixCiphertextVersionOwned,
 };
+pub(in crate::high_level_api) use squashed_noise::InnerSquashedNoiseSignedRadixCiphertextVersionOwned;
+pub use squashed_noise::SquashedNoiseFheInt;
 
 expand_pub_use_fhe_type!(
     pub use static_{

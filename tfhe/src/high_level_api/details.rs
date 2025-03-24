@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 /// 'smart-pointer' that holds either a borrowed T, or an owned T.
-pub(crate) enum MaybeCloned<'a, T> {
+pub enum MaybeCloned<'a, T> {
     Borrowed(&'a T),
     #[allow(dead_code)]
     Cloned(T),
