@@ -379,7 +379,7 @@ where
     /// to the final result.
     ///
     /// Input is expected in little endian order.
-    pub(crate) fn recompose_unsigned<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
+    pub fn recompose_unsigned<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
     where
         T: RecomposableFrom<U>,
     {
@@ -425,7 +425,7 @@ where
     /// to the final result.
     ///
     /// Input is expected in little endian order.
-    pub(crate) fn recompose_signed<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
+    pub fn recompose_signed<U>(input: impl Iterator<Item = U>, bits_in_block: u32) -> T
     where
         T: RecomposableFrom<U> + SignExtendable,
     {
@@ -448,7 +448,7 @@ where
     /// the last limb are ignored.
     ///
     /// Input is expected in little endian order.
-    pub(crate) fn recompose_signed_with_size<U>(
+    pub fn recompose_signed_with_size<U>(
         input: impl Iterator<Item = U>,
         bits_in_block: u32,
         signed_integer_size: u32,

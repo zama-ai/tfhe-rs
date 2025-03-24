@@ -11,6 +11,7 @@ use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
+use crate::integer::noise_squashing::{CompressedNoiseSquashingKey, NoiseSquashingKey};
 use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use crate::named::Named;
 use crate::prelude::Tagged;
@@ -53,6 +54,7 @@ impl ServerKey {
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
         Option<CompressionKey>,
         Option<DecompressionKey>,
+        Option<NoiseSquashingKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -60,6 +62,7 @@ impl ServerKey {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         } = (*self.key).clone();
 
         (
@@ -67,6 +70,7 @@ impl ServerKey {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
             self.tag,
         )
     }
@@ -78,6 +82,7 @@ impl ServerKey {
         >,
         compression_key: Option<CompressionKey>,
         decompression_key: Option<DecompressionKey>,
+        noise_squashing_key: Option<NoiseSquashingKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -86,6 +91,7 @@ impl ServerKey {
                 cpk_key_switching_key_material,
                 compression_key,
                 decompression_key,
+                noise_squashing_key,
             }),
             tag,
         }
@@ -239,6 +245,7 @@ impl CompressedServerKey {
         >,
         compression_key: Option<CompressedCompressionKey>,
         decompression_key: Option<CompressedDecompressionKey>,
+        noise_squashing_key: Option<CompressedNoiseSquashingKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -247,6 +254,7 @@ impl CompressedServerKey {
                 cpk_key_switching_key_material,
                 compression_key,
                 decompression_key,
+                noise_squashing_key,
             ),
             tag,
         }
@@ -432,6 +440,7 @@ mod test {
     use crate::prelude::ParameterSetConformant;
     use crate::shortint::parameters::{
         COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -450,13 +459,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: None,
-            };
+            let conformance_params = config.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -470,13 +473,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            };
+            let conformance_params = config.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -488,18 +485,56 @@ mod test {
             let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
             let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .build();
 
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+            let conformance_params = config.into();
 
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: Some((cpk_params, casting_params)),
-                compression_param: None,
-            };
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let noise_squashing_params =
+                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_noise_squashing(noise_squashing_params)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let conformance_params = config.into();
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        // Full blockchain configuration
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let noise_squashing_params =
+                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .enable_compression(comp_params)
+                .enable_noise_squashing(noise_squashing_params)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = ServerKey::new(&ck);
+
+            let conformance_params = config.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -534,6 +569,7 @@ mod test {
                     sk_param,
                     cpk_param: None,
                     compression_param: None,
+                    noise_squashing_param: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -547,7 +583,8 @@ mod test {
             let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
             let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .build();
 
             let ck = ClientKey::generate(config);
             let sk = ServerKey::new(&ck);
@@ -560,6 +597,7 @@ mod test {
                 sk_param,
                 cpk_param: Some((cpk_params, casting_params)),
                 compression_param: None,
+                noise_squashing_param: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -577,13 +615,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: None,
-            };
+            let conformance_params = config.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -597,14 +629,7 @@ mod test {
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: None,
-                compression_param: Some(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128),
-            };
-
+            let conformance_params = config.into();
             assert!(sk.is_conformant(&conformance_params));
         }
         {
@@ -615,18 +640,56 @@ mod test {
             let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
             let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .build();
 
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
 
-            let sk_param = PBSParameters::PBS(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+            let conformance_params = config.into();
 
-            let conformance_params = IntegerServerKeyConformanceParams {
-                sk_param,
-                cpk_param: Some((cpk_params, casting_params)),
-                compression_param: None,
-            };
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let noise_squashing_params =
+                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .enable_noise_squashing(noise_squashing_params)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let conformance_params = config.into();
+
+            assert!(sk.is_conformant(&conformance_params));
+        }
+        // Full blockchain configuration
+        {
+            let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let cpk_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let comp_params = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let noise_squashing_params =
+                NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+            let config = ConfigBuilder::with_custom_parameters(params)
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .enable_compression(comp_params)
+                .enable_noise_squashing(noise_squashing_params)
+                .build();
+
+            let ck = ClientKey::generate(config);
+            let sk = CompressedServerKey::new(&ck);
+
+            let conformance_params = config.into();
 
             assert!(sk.is_conformant(&conformance_params));
         }
@@ -661,6 +724,7 @@ mod test {
                     sk_param,
                     cpk_param: None,
                     compression_param: None,
+                    noise_squashing_param: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -674,7 +738,8 @@ mod test {
             let casting_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
             let config = ConfigBuilder::with_custom_parameters(params)
-                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params));
+                .use_dedicated_compact_public_key_parameters((cpk_params, casting_params))
+                .build();
 
             let ck = ClientKey::generate(config);
             let sk = CompressedServerKey::new(&ck);
@@ -687,6 +752,7 @@ mod test {
                 sk_param,
                 cpk_param: Some((cpk_params, casting_params)),
                 compression_param: None,
+                noise_squashing_param: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));

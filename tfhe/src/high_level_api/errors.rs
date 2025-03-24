@@ -45,3 +45,24 @@ impl From<UninitializedServerKey> for Error {
         Self::new(format!("{value}"))
     }
 }
+
+#[derive(Debug)]
+pub struct UninitializedNoiseSquashing;
+
+impl Display for UninitializedNoiseSquashing {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Noise squashing key not set in server key, \
+            did you forget to call `enable_noise_squashing` when building your Config?",
+        )
+    }
+}
+
+impl std::error::Error for UninitializedNoiseSquashing {}
+
+impl From<UninitializedNoiseSquashing> for Error {
+    fn from(value: UninitializedNoiseSquashing) -> Self {
+        Self::new(format!("{value}"))
+    }
+}

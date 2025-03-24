@@ -1,4 +1,7 @@
 use crate::high_level_api::keys::*;
+use crate::integer::compression_keys::{
+    CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
+};
 use crate::Tag;
 use std::convert::Infallible;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
@@ -158,16 +161,42 @@ pub(crate) struct IntegerClientKeyV2 {
     pub(crate) compression_key: Option<crate::shortint::list_compression::CompressionPrivateKeys>,
 }
 
-impl Upgrade<IntegerClientKey> for IntegerClientKeyV2 {
+impl Upgrade<IntegerClientKeyV3> for IntegerClientKeyV2 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
-        Ok(IntegerClientKey {
+    fn upgrade(self) -> Result<IntegerClientKeyV3, Self::Error> {
+        Ok(IntegerClientKeyV3 {
             key: self.key,
             dedicated_compact_private_key: self.dedicated_compact_private_key,
             compression_key: self
                 .compression_key
                 .map(|key| crate::integer::compression_keys::CompressionPrivateKeys { key }),
+        })
+    }
+}
+
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV3 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<crate::integer::compression_keys::CompressionPrivateKeys>,
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV3 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
+        let Self {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+        } = self;
+
+        Ok(IntegerClientKey {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key: None,
         })
     }
 }
@@ -178,12 +207,43 @@ pub(crate) enum IntegerClientKeyVersions {
     V0(Deprecated<IntegerClientKey>),
     V1(Deprecated<IntegerClientKey>),
     V2(IntegerClientKeyV2),
-    V3(IntegerClientKey),
+    V3(IntegerClientKeyV3),
+    V4(IntegerClientKey),
 }
 
 impl Deprecable for IntegerServerKey {
     const TYPE_NAME: &'static str = "IntegerServerKey";
     const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
+}
+
+#[derive(Version)]
+pub struct IntegerServerKeyV4 {
+    pub(crate) key: crate::integer::ServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressionKey>,
+    pub(crate) decompression_key: Option<DecompressionKey>,
+}
+
+impl Upgrade<IntegerServerKey> for IntegerServerKeyV4 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        } = self;
+
+        Ok(IntegerServerKey {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key: None,
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
@@ -192,7 +252,8 @@ pub enum IntegerServerKeyVersions {
     V1(Deprecated<IntegerServerKey>),
     V2(Deprecated<IntegerServerKey>),
     V3(Deprecated<IntegerServerKey>),
-    V4(IntegerServerKey),
+    V4(IntegerServerKeyV4),
+    V5(IntegerServerKey),
 }
 
 impl Deprecable for IntegerCompressedServerKey {
@@ -200,11 +261,42 @@ impl Deprecable for IntegerCompressedServerKey {
     const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
+#[derive(Version)]
+pub struct IntegerCompressedServerKeyV2 {
+    pub(crate) key: crate::integer::CompressedServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressedCompressionKey>,
+    pub(crate) decompression_key: Option<CompressedDecompressionKey>,
+}
+
+impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV2 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        } = self;
+
+        Ok(IntegerCompressedServerKey {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key: None,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
     V0(Deprecated<IntegerCompressedServerKey>),
     V1(Deprecated<IntegerCompressedServerKey>),
-    V2(IntegerCompressedServerKey),
+    V2(IntegerCompressedServerKeyV2),
+    V3(IntegerCompressedServerKey),
 }
 
 #[derive(VersionsDispatch)]

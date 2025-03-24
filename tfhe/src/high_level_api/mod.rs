@@ -54,7 +54,10 @@ pub use config::{Config, ConfigBuilder};
 pub use global_state::CudaGpuChoice;
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
 
-pub use integers::{CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId};
+pub use integers::{
+    CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId, SquashedNoiseFheInt,
+    SquashedNoiseFheUint,
+};
 #[cfg(feature = "gpu")]
 pub use keys::CudaServerKey;
 pub use keys::{
@@ -66,7 +69,9 @@ use strum::FromRepr;
 #[cfg(test)]
 mod tests;
 
-pub use crate::high_level_api::booleans::{CompressedFheBool, FheBool, FheBoolConformanceParams};
+pub use crate::high_level_api::booleans::{
+    CompressedFheBool, FheBool, FheBoolConformanceParams, SquashedNoiseFheBool,
+};
 
 #[cfg(feature = "extended-types")]
 expand_pub_use_fhe_type!(
