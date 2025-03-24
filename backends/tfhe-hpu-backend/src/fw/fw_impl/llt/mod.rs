@@ -9,6 +9,7 @@ use vardeg::*;
 
 use crate::asm::iop::opcode::*;
 use crate::asm::{self, OperandKind, Pbs};
+use crate::fw::metavar::MetaVarCell;
 use crate::fw::program::Program;
 use crate::pbs_by_name;
 use itertools::{EitherOrBoth, Itertools};
@@ -20,9 +21,9 @@ crate::impl_fw!("Llt" [
     SUB => fw_impl::llt::iop_sub;
     MUL => fw_impl::llt::iop_mul;
 
-    ADDS => fw_impl::ilp::iop_adds;
-    SUBS => fw_impl::ilp::iop_subs;
-    SSUB => fw_impl::ilp::iop_ssub;
+    ADDS => fw_impl::llt::iop_adds;
+    SUBS => fw_impl::llt::iop_subs;
+    SSUB => fw_impl::llt::iop_ssub;
     MULS => fw_impl::llt::iop_muls;
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
@@ -57,17 +58,22 @@ pub fn iop_add(prog: &mut Program) {
     let src_b = prog.iop_template_var(OperandKind::Src, 1);
 
     // Add Comment header
-    prog.push_comment("ADDK Operand::Dst Operand::Src Operand::Src".to_string());
+    prog.push_comment("ADD Operand::Dst Operand::Src Operand::Src".to_string());
+    iop_addx(prog, dst, src_a, src_b);
+}
 
-    let rtl = {
-        // Convert MetaVarCell in VarCell for Rtl analysis
-        let a = VarCell::from_vec(src_a);
-        let b = VarCell::from_vec(src_b);
+pub fn iop_adds(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
 
-        // Do a + b with the kogge stone adder
-        kogge::cached_add(prog, a, b, None, dst)
-    }; // Any reference to any metavar not linked to the RTL is dropped here
-    rtl.add_to_prog(prog);
+    // Add Comment header
+    prog.push_comment("ADDS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    iop_addx(prog, dst, src_a, src_b);
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -82,15 +88,35 @@ pub fn iop_sub(prog: &mut Program) {
 
     // Add Comment header
     prog.push_comment("SUB Operand::Dst Operand::Src Operand::Src".to_string());
-    {
-        // Convert MetaVarCell in VarCell for Rtl analysis
-        let a = VarCell::from_vec(src_a);
-        let b = VarCell::from_vec(src_b);
-        let b_inv = bw_inv(prog, b);
-        let one = Carry::fresh(VarCell::from(prog.new_imm(2)));
-        kogge::cached_add(prog, a, b_inv, Some(one), dst)
-    }
-    .add_to_prog(prog);
+    iop_subx(prog, dst, src_a, src_b);
+}
+
+pub fn iop_subs(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SUBS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    iop_subx(prog, dst, src_a, src_b);
+}
+
+pub fn iop_ssub(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
+    iop_subx(prog, dst, src_a, src_b);
 }
 
 #[instrument(level = "trace", skip(prog))]
@@ -214,6 +240,38 @@ pub fn iop_erc_20(prog: &mut Program) {
 // ----------------------------------------------------------------------------
 // Helper Functions
 // ----------------------------------------------------------------------------
+fn iop_addx(
+    prog: &mut Program,
+    dst: Vec<MetaVarCell>,
+    src_a: Vec<MetaVarCell>,
+    src_b: Vec<MetaVarCell>,
+) {
+    {
+        // Convert MetaVarCell in VarCell for Rtl analysis
+        let a = VarCell::from_vec(src_a);
+        let b = VarCell::from_vec(src_b);
+        // Do a + b with the kogge stone adder
+        kogge::cached_add(prog, a, b, None, dst)
+    } // Any reference to any metavar not linked to the RTL is dropped here
+    .add_to_prog(prog);
+}
+
+fn iop_subx(
+    prog: &mut Program,
+    dst: Vec<MetaVarCell>,
+    src_a: Vec<MetaVarCell>,
+    src_b: Vec<MetaVarCell>,
+) {
+    {
+        // Convert MetaVarCell in VarCell for Rtl analysis
+        let a = VarCell::from_vec(src_a);
+        let b = VarCell::from_vec(src_b);
+        let b_inv = bw_inv(prog, b);
+        let one = Carry::fresh(VarCell::from(prog.new_imm(2)));
+        kogge::cached_add(prog, a, b_inv, Some(one), dst)
+    }
+    .add_to_prog(prog);
+}
 
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_ripple_sub(

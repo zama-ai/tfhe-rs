@@ -1271,8 +1271,8 @@ impl Arch {
             {
                 self.probe_for_exec(Some(PeFlush::Timeout));
                 self.timeout = None;
-                if event.is_some() {
-                    self.events.push(event.unwrap());
+                if let Some(event) = event {
+                    self.events.push(event);
                 }
                 event = self.events.pop();
             }
