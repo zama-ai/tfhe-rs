@@ -58,6 +58,10 @@ pub struct Args {
     #[clap(long, value_parser, default_value_t = false)]
     use_ipip: bool,
 
+    /// Use ipip configuration
+    #[clap(long, value_parser, default_value_t = false)]
+    use_bpip_opportunism: bool,
+
     /// Try to fill the batch fifo
     #[clap(long, value_parser, default_value_t = true)]
     fill_batch_fifo: bool,
@@ -158,6 +162,7 @@ fn main() -> Result<(), anyhow::Error> {
         nu: args.nu,
         integer_w: args.integer_w,
         use_ipip: args.use_ipip,
+        use_bpip_opportunism: args.use_bpip_opportunism,
         kogge_cfg: args.kogge_cfg.expand(),
         op_cfg: RtlCfg::from(OpCfg {
             fill_batch_fifo: args.fill_batch_fifo,
