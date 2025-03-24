@@ -6,13 +6,16 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip_eq;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::experimental::entities::fourier_pseudo_ggsw_ciphertext::{
-    PseudoFourierGgswCiphertext, PseudoFourierGgswCiphertextView,
+    FourierPseudoGgswCiphertext, FourierPseudoGgswCiphertextView,
 };
 use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{collect_next_term, update_with_fmadd};
 use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
 use crate::core_crypto::fft_impl::fft64::math::polynomial::{
     FourierPolynomialMutView, FourierPolynomialView,
+};
+use crate::core_crypto::prelude::{
+    add_external_product_assign_mem_optimized_requirement, ComputationBuffers, Fft,
 };
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, StackReq};
@@ -116,7 +119,7 @@ use tfhe_fft::c64;
 ///
 /// buffers.resize(buffer_size_req);
 ///
-/// let mut fourier_ggsw = PseudoFourierGgswCiphertext::new(
+/// let mut fourier_ggsw = FourierPseudoGgswCiphertext::new(
 ///     glwe_size_in,
 ///     glwe_size_out,
 ///     polynomial_size,
@@ -150,7 +153,7 @@ use tfhe_fft::c64;
 /// ```
 pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
     out: &mut GlweCiphertext<OutputGlweCont>,
-    pseudo_ggsw: &PseudoFourierGgswCiphertext<GgswCont>,
+    pseudo_ggsw: &FourierPseudoGgswCiphertext<GgswCont>,
     glwe: &GlweCiphertext<InputGlweCont>,
     fft: FftView<'_>,
     stack: &mut PodStack,
@@ -168,7 +171,7 @@ pub fn glwe_fast_keyswitch<Scalar, OutputGlweCont, InputGlweCont, GgswCont>(
     #[cfg_attr(feature = "__profiling", inline(never))]
     pub fn impl_glwe_fast_keyswitch<Scalar, InputGlweCont>(
         mut out: GlweCiphertextMutView<'_, Scalar>,
-        ggsw: PseudoFourierGgswCiphertextView<'_>,
+        ggsw: FourierPseudoGgswCiphertextView<'_>,
         glwe: &GlweCiphertext<InputGlweCont>,
         fft: FftView<'_>,
         stack: &mut PodStack,
