@@ -285,7 +285,6 @@ pub const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     message_width: 1,
     carry_width: 0,
     ciphertext_width: 32,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
@@ -301,7 +300,6 @@ pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: u64::BITS as usize,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
@@ -317,7 +315,6 @@ pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: u64::BITS as usize,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
@@ -333,7 +330,6 @@ pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 44,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
@@ -349,7 +345,6 @@ pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_GAUSSIAN: HpuPBSParameters = HpuPBSParameters {
@@ -365,7 +360,6 @@ pub const MSG2_CARRY2_GAUSSIAN: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_TUNIFORM: HpuPBSParameters = HpuPBSParameters {
@@ -381,7 +375,6 @@ pub const MSG2_CARRY2_TUNIFORM: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
-    opportunistic: true,
 };
 
 pub const MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA: HpuPBSParameters = HpuPBSParameters {
@@ -397,7 +390,6 @@ pub const MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA: HpuPBSParameters = HpuPBSPa
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
-    opportunistic: true,
 };
 
 impl FromRtl for HpuPBSParameters {

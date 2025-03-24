@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 
-use crate::prelude::HpuParameters;
+use crate::prelude::{HpuConfig, HpuParameters};
 
 use super::*;
 
@@ -72,7 +72,7 @@ pub(crate) struct Pe {
     // PE Batch Configuration
     // The limits of the batch size for the PE
     batch_size: BatchSize,
-    opportunistic: bool,
+    flush_opportunism: bool,
     // Runtime State
     // A limit to instructions in the PE
     pe_limit: usize,
@@ -173,8 +173,8 @@ impl Pe {
                 // Check if there's a forced flush queued
                 .position(|c| c)
                 .and_then(|p| {
-                    if self.opportunistic {
-                        // In opportunistic mode, we flush everything that is
+                    if self.flush_opportunism {
+                        // With flush_opportunism, we flush everything that is
                         // waiting
                         (self.waiting < self.batch_limit).then_some((Flush::Force, self.waiting))
                     } else {
@@ -354,7 +354,7 @@ pub struct PeConfig {
     pub batch_size: BatchSize,   // The batch sizes
     pub pe_limit: Option<usize>, // The limit on the number of PBSs in the PE
     pub in_limit: Option<usize>, // The limit on the input fifo before the PE
-    pub opportunistic: bool,     // Whether the PE is opportunistic when
+    pub flush_opportunism: bool, // Whether the PE is opportunistic when
                                  // scheduling
 }
 
@@ -365,7 +365,7 @@ impl PeConfig {
         batch_size: BatchSize,
         pe_limit: Option<usize>,
         in_limit: Option<usize>,
-        opportunistic: bool,
+        flush_opportunism: bool,
     ) -> Self {
         Self {
             cost,
@@ -373,7 +373,7 @@ impl PeConfig {
             batch_size,
             pe_limit,
             in_limit,
-            opportunistic,
+            flush_opportunism,
         }
     }
 }
@@ -386,7 +386,7 @@ impl From<PeConfig> for Pe {
             batch_size,
             pe_limit,
             in_limit,
-            opportunistic,
+            flush_opportunism,
         } = config;
 
         assert!(batch_size.max > 0, "Invalid batch_size value");
@@ -394,7 +394,7 @@ impl From<PeConfig> for Pe {
             cost,
             kind,
             batch_size,
-            opportunistic,
+            flush_opportunism,
             pe_limit: pe_limit.unwrap_or(usize::MAX),
             fifo_limit: pe_limit
                 .unwrap_or(usize::MAX)
@@ -414,7 +414,7 @@ impl From<&Pe> for PeConfig {
             batch_size: pe.batch_size,
             pe_limit: Some(pe.pe_limit),
             in_limit: Some(pe.fifo_limit - pe.pe_limit),
-            opportunistic: pe.opportunistic,
+            flush_opportunism: pe.flush_opportunism,
         }
     }
 }
@@ -430,8 +430,9 @@ impl PeConfigStore {
 
 /// Construct PeConfigStore directly from HpuParameters
 /// Use RTL parameters to compute the expected performances
-impl From<&HpuParameters> for PeConfigStore {
-    fn from(params: &HpuParameters) -> Self {
+impl From<(&HpuParameters, &HpuConfig)> for PeConfigStore {
+    fn from(tuple_config: (&HpuParameters, &HpuConfig)) -> Self {
+        let (params, config) = tuple_config;
         // TODO: Add register to depicts the number of computation units (NB: Currently fixed to 1)
         let ldst_pe_nb = 1;
         let lin_pe_nb = 1;
@@ -444,7 +445,7 @@ impl From<&HpuParameters> for PeConfigStore {
         let lwe_k = params.pbs_params.lwe_dimension;
         let glwe_k = params.pbs_params.glwe_dimension;
         let poly_size = params.pbs_params.polynomial_size;
-        let opportunistic = params.pbs_params.opportunistic;
+        let flush_opportunism = config.rtl.bpip_use_opportunism;
         let pem_axi_w = params.pc_params.pem_pc * params.pc_params.pem_bytes_w * 8;
         let ct_w = params.ntt_params.ct_width as usize;
         let lbx = params.ks_params.lbx;
@@ -541,7 +542,7 @@ impl From<&HpuParameters> for PeConfigStore {
                     },
                     Some(total_pbs_nb),
                     in_limit,
-                    opportunistic,
+                    flush_opportunism,
                 ),
             ));
         }

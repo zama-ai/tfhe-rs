@@ -10,6 +10,7 @@
 
 [rtl]
   bpip_used = true
+  bpip_use_opportunism = true
   bpip_timeout = 100_000
 
 [board]
