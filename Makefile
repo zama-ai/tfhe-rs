@@ -602,7 +602,7 @@ test_core_crypto_gpu: install_rs_build_toolchain
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=6
+		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=4
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
