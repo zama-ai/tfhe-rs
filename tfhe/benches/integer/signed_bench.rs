@@ -1404,7 +1404,7 @@ criterion_group!(cast_ops, cast_to_unsigned, cast_to_signed);
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::{cuda_local_keys, cuda_local_streams};
+    use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::criterion_group;
     use rayon::iter::IntoParallelRefIterator;
     use std::cmp::max;

@@ -818,7 +818,6 @@ mod cuda_utils {
         }
     }
 
-    #[cfg(feature = "integer")]
     pub mod cuda_integer_utils {
         use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::integer::gpu::CudaServerKey;
@@ -826,6 +825,7 @@ mod cuda_utils {
         use tfhe::GpuIndex;
 
         /// Get number of streams usable for CUDA throughput benchmarks
+        #[allow(dead_code)]
         fn cuda_num_streams(num_block: usize) -> u64 {
             let num_streams_per_gpu: u32 = match num_block {
                 2 => 64,
@@ -841,6 +841,7 @@ mod cuda_utils {
         }
 
         /// Get vector of CUDA streams that can be directly used for throughput benchmarks.
+        #[allow(dead_code)]
         pub fn cuda_local_streams(
             num_block: usize,
             throughput_elements: usize,
@@ -857,6 +858,7 @@ mod cuda_utils {
         }
 
         /// Instantiate Cuda server key to each available GPU.
+        #[allow(dead_code)]
         pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
             let gpu_count = get_number_of_gpus() as usize;
             let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
@@ -867,9 +869,6 @@ mod cuda_utils {
             gpu_sks_vec
         }
     }
-
-    #[cfg(feature = "integer")]
-    pub use cuda_integer_utils::*;
 }
 
 #[allow(unused_imports)]

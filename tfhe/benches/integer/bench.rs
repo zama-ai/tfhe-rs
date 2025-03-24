@@ -1395,7 +1395,7 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::{cuda_local_keys, cuda_local_streams};
+    use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};

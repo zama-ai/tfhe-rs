@@ -164,7 +164,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::cuda_local_streams;
+    use crate::utilities::cuda_integer_utils::cuda_local_streams;
     use std::cmp::max;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
