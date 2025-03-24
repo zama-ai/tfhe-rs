@@ -23,6 +23,20 @@ pub enum VarMode {
     Bool,
 }
 
+/// Implement FromString trait to enable parsing from CLI
+impl std::str::FromStr for VarMode {
+    type Err = ParsingError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "n" | "nat" | "native" => Ok(VarMode::Native),
+            "h" | "half" => Ok(VarMode::Half),
+            "b" | "bool" => Ok(VarMode::Bool),
+            _ => Err(ParsingError::InvalidArg(format!("Invalid VarMode: {}", s))),
+        }
+    }
+}
+
 /// Struct used to depict IOp prototype with clarity
 #[derive(Debug, Clone)]
 pub struct ConstIOpProto<const D: usize, const S: usize> {
@@ -46,6 +60,60 @@ impl<const D: usize, const S: usize> From<ConstIOpProto<D, S>> for IOpProto {
             dst: const_val.dst.into(),
             src: const_val.src.into(),
             imm: const_val.imm,
+        }
+    }
+}
+
+/// Implement FromString trait to enable parsing from CLI
+impl std::str::FromStr for IOpProto {
+    type Err = ParsingError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        lazy_static! {
+            static ref PROTO_ARG_RE: regex::Regex =
+                regex::Regex::new(r"<(?<dst>[\w\s,]+)>::<(?<src>[\w\s,]*)><(?<imm>\d+)>")
+                    .expect("Invalid regex");
+        }
+        if let Some(caps) = PROTO_ARG_RE.captures(s) {
+            let dst = if let Some(dst_raw) = caps.name("dst") {
+                dst_raw
+                    .as_str()
+                    .split(',')
+                    .map(|x| x.trim().parse())
+                    .collect::<Result<Vec<VarMode>, ParsingError>>()
+            } else {
+                Err(ParsingError::Unmatch(format!(
+                    "Invalid IOpProto: Missing dst field (e.g. <Native, Bool>"
+                )))
+            }?;
+
+            let src = if let Some(src_raw) = caps.name("src") {
+                src_raw
+                    .as_str()
+                    .split(',')
+                    .map(|x| x.trim().parse())
+                    .collect::<Result<Vec<VarMode>, ParsingError>>()
+            } else {
+                Err(ParsingError::Unmatch(format!(
+                    "Invalid IOpProto: Missing src field (e.g. <Native, Half, Bool, ...>"
+                )))
+            }?;
+            let imm = if let Some(imm_raw) = caps.name("imm") {
+                imm_raw
+                    .as_str()
+                    .parse::<usize>()
+                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))
+            } else {
+                Err(ParsingError::Unmatch(format!(
+                    "Invalid IOpProto: Missing imm field (e.g. <2>"
+                )))
+            }?;
+
+            Ok(IOpProto { dst, src, imm })
+        } else {
+            Err(ParsingError::Unmatch(format!(
+                "Invalid IOpProto format {s}"
+            )))
         }
     }
 }
