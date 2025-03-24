@@ -110,9 +110,9 @@ pub fn iop_ssub(prog: &mut Program) {
     // Dest -> Operand
     let dst = prog.iop_template_var(OperandKind::Dst, 0);
     // SrcA -> Operand
-    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    let src_a = prog.iop_template_var(OperandKind::Imm, 0);
     // SrcB -> Immediat
-    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+    let src_b = prog.iop_template_var(OperandKind::Src, 0);
 
     // Add Comment header
     prog.push_comment("SSUB Operand::Dst Operand::Src Operand::Immediat".to_string());
