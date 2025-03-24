@@ -18,7 +18,6 @@ pub struct HpuPBSParameters {
     pub message_width: usize,
     pub carry_width: usize,
     pub ciphertext_width: usize,
-    pub opportunistic: bool,
 }
 // Manual implementation of Eq trait
 // Indeed, we can handle strict comparaison of f64

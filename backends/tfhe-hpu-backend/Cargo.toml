@@ -22,7 +22,7 @@ serial_test = "3.1.1"
 
 [dependencies]
 cxx = "1.0"
-hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", rev="e689bdd4"}
+hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", rev="2573477b"}
 
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
