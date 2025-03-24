@@ -6,7 +6,7 @@ use super::*;
 #[derive(Debug, Default)]
 pub struct InfoPePbs {
     /// Bpip used
-    bpip_used: bool,
+    bpip_use: bool,
     /// Bpip use opportunism
     bpip_use_opportunism: bool,
     /// Bpip timeout
@@ -44,6 +44,13 @@ pub struct InfoPePbs {
     /// pe_pbs pbs_in_wp
     pbs_in_wp: u8,
 
+    /// pe_pbs IPIP flush last pbs_in_loop
+    ipip_flush_last_pbs_in_loop: u16,
+    /// pe_pbs BPIP batch that waits the trigger counter (Could be reset by user)
+    seq_bpip_waiting_batch_cnt: u32,
+    /// pe_pbs Count batch with filled with a given number of CT (Could be reset by user)
+    seq_bpip_batch_filling_cnt: [u32; 16],
+
     /// pe_pbs ack counter (Could be reset by user)
     seq_ld_ack_cnt: u32,
 
@@ -57,6 +64,8 @@ pub struct InfoPePbs {
     /// pe_pbs BPIP batch triggered with a timeout counter (Could be reset by user)
     seq_bpip_batch_timeout_cnt: u32,
 
+    /// pe_pbs IPIP flush CMUX counter (Could be reset by user)
+    seq_ipip_flush_cnt: u32,
     /// pe_pbs load BLWE reception max duration (Could be reset by user)
     ldb_rcp_dur: u32,
     /// pe_pbs load GLWE request max duration (Could be reset by user)
@@ -75,6 +84,20 @@ pub struct InfoPePbs {
     pep_inst_cnt: u32,
     /// PEP instruction acknowledge counter (Could be reset by user)
     pep_ack_cnt: u32,
+
+    /// pe_pbs load BSK slice reception max duration (Could be reset by user)
+    load_bsk_rcp_dur: [u32; 16],
+
+    /// pe_pbs bsk_if req_br_loop_rp
+    bskif_req_br_loop_rp: u16,
+    /// pe_pbs bsk_if req_br_loop_wp
+    bskif_req_br_loop_wp: u16,
+    /// pe_pbs bsk_if req_prf_br_loop
+    bskif_req_prf_br_loop: u16,
+    /// pe_pbs bsk_if req_parity
+    bskif_req_parity: u8,
+    /// pe_pbs bsk_if req_assigned
+    bskif_req_assigned: u8,
 }
 
 impl FromRtl for InfoPePbs {
@@ -95,11 +118,14 @@ impl InfoPePbs {
         self.update_pointer0(ffi_hw, regmap);
         self.update_pointer1(ffi_hw, regmap);
         self.update_pointer2(ffi_hw, regmap);
+        self.update_seq_bpip_waiting_batch_cnt(ffi_hw, regmap);
+        self.update_seq_bpip_batch_filling_cnt(ffi_hw, regmap);
         self.update_seq_ld_ack_cnt(ffi_hw, regmap);
         self.update_seq_cmux_not_full_batch_cnt(ffi_hw, regmap);
         self.update_seq_bpip_batch_cnt(ffi_hw, regmap);
         self.update_seq_bpip_batch_flush_cnt(ffi_hw, regmap);
         self.update_seq_bpip_batch_timeout_cnt(ffi_hw, regmap);
+        self.update_seq_ipip_flush_cnt(ffi_hw, regmap);
         self.update_ldb_rcp_dur(ffi_hw, regmap);
         self.update_ldg_req_dur(ffi_hw, regmap);
         self.update_ldg_rcp_dur(ffi_hw, regmap);
@@ -108,6 +134,8 @@ impl InfoPePbs {
         self.update_mmacc_sxt_cmd_wait_b_dur(ffi_hw, regmap);
         self.update_pep_inst_cnt(ffi_hw, regmap);
         self.update_pep_ack_cnt(ffi_hw, regmap);
+        self.update_pep_bskif_req_info_0(ffi_hw, regmap);
+        self.update_pep_bskif_req_info_1(ffi_hw, regmap);
     }
 
     pub fn update_bpip(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -117,8 +145,8 @@ impl InfoPePbs {
             .expect("Unknow register, check regmap definition");
         let val = ffi_hw.read_reg(*reg_use.offset() as u64);
         let fields = reg_use.as_field(val);
-        self.bpip_used = *fields.get("use_bpip").expect("Unknow field") == 1;
-        self.bpip_use_opportunism = *fields.get("use_opportunism").expect("Unknow field") == 1;
+        self.bpip_use = *fields.get("use_bpip").expect("Unknown field") == 1;
+        self.bpip_use_opportunism = *fields.get("use_opportunism").expect("Unknown field opportunism") == 1;
         let reg_timeout = regmap
             .register()
             .get("bpip::timeout")
@@ -173,6 +201,26 @@ impl InfoPePbs {
         let fields = reg.as_field(val);
         self.pbs_in_rp = *fields.get("pbs_in_rp").expect("Unknow field") as u8;
         self.pbs_in_wp = *fields.get("pbs_in_wp").expect("Unknow field") as u8;
+        self.ipip_flush_last_pbs_in_loop = *fields.get("ipip_flush_last_pbs_in_loop").expect("Unknow field") as u16;
+    }
+
+    pub fn update_seq_bpip_waiting_batch_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_1in3::pep_seq_bpip_waiting_batch_cnt")
+            .expect("Unknow register, check regmap definition");
+        self.seq_bpip_waiting_batch_cnt = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    pub fn update_seq_bpip_batch_filling_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_1in3::pep_seq_bpip_batch_filling_cnt_{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknow register, check regmap definition");
+            self.seq_bpip_batch_filling_cnt[i] = ffi_hw.read_reg(*reg.offset() as u64)
+        });
     }
 
     pub fn update_seq_ld_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -223,6 +271,14 @@ impl InfoPePbs {
             .get("runtime_1in3::pep_seq_bpip_batch_timeout_cnt")
             .expect("Unknow register, check regmap definition");
         self.seq_bpip_batch_timeout_cnt = ffi_hw.read_reg(*reg.offset() as u64);
+    }
+
+    pub fn update_seq_ipip_flush_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_1in3::pep_seq_ipip_flush_cnt")
+            .expect("Unknow register, check regmap definition");
+        self.seq_ipip_flush_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
 
     pub fn update_ldb_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -287,13 +343,39 @@ impl InfoPePbs {
         self.pep_ack_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
 
+    pub fn update_pep_bskif_req_info_0(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_3in3::pep_bskif_req_info_0")
+            .expect("Unknow register, check regmap definition");
+        let val = ffi_hw.read_reg(*reg.offset() as u64);
+        let fields = reg.as_field(val);
+        self.bskif_req_br_loop_rp = *fields.get("req_br_loop_rp").expect("Unknow field") as u16;
+        self.bskif_req_br_loop_wp = *fields.get("req_br_loop_wp").expect("Unknow field") as u16;
+    }
+
+    pub fn update_pep_bskif_req_info_1(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_3in3::pep_bskif_req_info_1")
+            .expect("Unknow register, check regmap definition");
+        let val = ffi_hw.read_reg(*reg.offset() as u64);
+        let fields = reg.as_field(val);
+        self.bskif_req_prf_br_loop = *fields.get("req_prf_br_loop").expect("Unknow field") as u16;
+        self.bskif_req_parity = *fields.get("req_parity").expect("Unknow field") as u8;
+        self.bskif_req_assigned = *fields.get("req_assigned").expect("Unknow field") as u8;
+    }
+
     #[allow(unused)]
     pub fn reset(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        self.reset_seq_bpip_waiting_batch_cnt(ffi_hw, regmap);
+        self.reset_seq_bpip_batch_filling_cnt(ffi_hw, regmap);
         self.reset_seq_ld_ack_cnt(ffi_hw, regmap);
         self.reset_seq_cmux_not_full_batch_cnt(ffi_hw, regmap);
         self.reset_seq_bpip_batch_cnt(ffi_hw, regmap);
         self.reset_seq_bpip_batch_flush_cnt(ffi_hw, regmap);
         self.reset_seq_bpip_batch_timeout_cnt(ffi_hw, regmap);
+        self.reset_seq_ipip_flush_cnt(ffi_hw, regmap);
         self.reset_ldb_rcp_dur(ffi_hw, regmap);
         self.reset_ldg_req_dur(ffi_hw, regmap);
         self.reset_ldg_rcp_dur(ffi_hw, regmap);
@@ -302,6 +384,25 @@ impl InfoPePbs {
         self.reset_mmacc_sxt_cmd_wait_b_dur(ffi_hw, regmap);
         self.reset_pep_inst_cnt(ffi_hw, regmap);
         self.reset_pep_ack_cnt(ffi_hw, regmap);
+    }
+    #[allow(unused)]
+    pub fn reset_seq_bpip_waiting_batch_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_1in3::pep_seq_bpip_waiting_batch_cnt")
+            .expect("Unknow register, check regmap definition");
+        ffi_hw.write_reg(*reg.offset() as u64, 0);
+    }
+    #[allow(unused)]
+    pub fn reset_seq_bpip_batch_filling_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_1in3::pep_seq_bpip_batch_filling_cnt_{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknow register, check regmap definition");
+            ffi_hw.write_reg(*reg.offset() as u64, 0)
+        });
     }
     #[allow(unused)]
     pub fn reset_seq_ld_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -353,7 +454,14 @@ impl InfoPePbs {
             .expect("Unknow register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
-
+    #[allow(unused)]
+    pub fn reset_seq_ipip_flush_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("runtime_1in3::pep_seq_ipip_flush_cnt")
+            .expect("Unknow register, check regmap definition");
+        ffi_hw.write_reg(*reg.offset() as u64, 0);
+    }
     #[allow(unused)]
     pub fn reset_ldb_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
@@ -714,21 +822,40 @@ impl InfoIsc {
     }
 }
 
-#[derive(Debug)]
-pub struct ErrorHpu(#[allow(unused)] u16);
-
+#[derive(Debug, Default)]
+pub struct ErrorHpu{
+  error_1in3: u32,
+  error_3in3: u32,
+}
 impl FromRtl for ErrorHpu {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        // Info structure have method to update
+        // Instead of redifine parsing here, use a default construct and update methods
+        let mut infos = Self::default();
+        infos.update(ffi_hw, regmap);
+        infos
+    }
+}
+
+impl ErrorHpu {
+    pub fn update(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        self.update_error_1in3(ffi_hw, regmap);
+        self.update_error_3in3(ffi_hw, regmap);
+    }
+
+    pub fn update_error_1in3(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
             .get("status_1in3::error")
             .expect("Unknow register, check regmap definition");
-        Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
-        // TODO-JJ : now there are 2 error registers
-        //        let reg = regmap
-        //            .register()
-        //            .get("status_3in3::error")
-        //            .expect("Unknow register, check regmap definition");
-        //        Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
+        self.error_1in3 = ffi_hw.read_reg(*reg.offset() as u64) as u32;
+    }
+
+    pub fn update_error_3in3(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("status_3in3::error")
+            .expect("Unknow register, check regmap definition");
+        self.error_3in3 = ffi_hw.read_reg(*reg.offset() as u64) as u32;
     }
 }

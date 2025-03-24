@@ -70,7 +70,7 @@ pub struct FpgaConfig {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct RtlConfig {
     /// Select pe-pbs configuration Ipip or Bpip
-    pub bpip_used: bool,
+    pub bpip_use: bool,
     /// When Bpip is used, select to use opportunistic behavior
     pub bpip_use_opportunism: bool,
     /// Timeout value to start Bpip even if batch isn't full
