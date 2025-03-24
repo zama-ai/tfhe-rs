@@ -6,7 +6,6 @@ use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::CarryModulus;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -42,7 +41,7 @@ impl NoiseSquashingPrivateKey {
         let encoding = ShortintEncoding {
             ciphertext_modulus: self.params.ciphertext_modulus,
             message_modulus: ciphertext.message_modulus(),
-            carry_modulus: CarryModulus(1),
+            carry_modulus: ciphertext.carry_modulus(),
             padding_bit: PaddingBit::Yes,
         };
 

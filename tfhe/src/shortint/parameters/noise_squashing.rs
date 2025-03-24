@@ -1,7 +1,8 @@
 use crate::shortint::backward_compatibility::parameters::noise_squashing::NoiseSquashingParametersVersions;
 use crate::shortint::parameters::{
-    CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
-    GlweDimension, ModulusSwitchNoiseReductionParams, PolynomialSize,
+    CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, GlweDimension, MessageModulus, ModulusSwitchNoiseReductionParams,
+    PolynomialSize,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -15,5 +16,7 @@ pub struct NoiseSquashingParameters {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
