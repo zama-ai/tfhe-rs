@@ -145,13 +145,13 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
 
         assert_eq!(ser_decompressed_bsk, par_decompressed_bsk);
 
-        let encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             mask_seed,
             &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         let chunk_generator = LweBootstrapKeyChunkGenerator::new(
-            encryption_generator,
+            &mut encryption_generator,
             ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
             lwe_dim,
             glwe_dim.to_glwe_size(),
@@ -159,22 +159,23 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
             base_log,
             level,
             ciphertext_modulus,
-            lwe_sk.clone(),
-            glwe_sk.clone(),
+            &lwe_sk,
+            &glwe_sk,
             noise_distribution,
             false,
         );
+
         let chunks = chunk_generator.collect::<Vec<_>>();
         let assembled_bsk = allocate_and_assemble_lwe_bootstrap_key_from_chunks(chunks);
         assert_eq!(assembled_bsk, sequential_bsk);
 
-        let encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
             mask_seed,
             &mut DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed),
         );
 
         let par_chunk_generator = LweBootstrapKeyChunkGenerator::new(
-            encryption_generator,
+            &mut encryption_generator,
             ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
             lwe_dim,
             glwe_dim.to_glwe_size(),
@@ -182,8 +183,8 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
             base_log,
             level,
             ciphertext_modulus,
-            lwe_sk,
-            glwe_sk,
+            &lwe_sk,
+            &glwe_sk,
             noise_distribution,
             true,
         );

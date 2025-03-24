@@ -619,7 +619,7 @@ where
 /// let ciphertext_modulus: CiphertextModulus<u64> = CiphertextModulus::new_native();
 /// let mut seeder = new_seeder();
 /// let seeder = seeder.as_mut();
-/// let encryption_generator =
+/// let mut encryption_generator =
 ///     EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 /// let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
 /// let input_lwe_secret_key =
@@ -630,7 +630,7 @@ where
 ///     &mut secret_generator,
 /// );
 /// let chunk_generator = LweBootstrapKeyChunkGenerator::new(
-///     encryption_generator,
+///     &mut encryption_generator,
 ///     chunk_size,
 ///     input_lwe_dimension,
 ///     glwe_dimension.to_glwe_size(),
@@ -638,8 +638,8 @@ where
 ///     decomp_base_log,
 ///     decomp_level_count,
 ///     ciphertext_modulus,
-///     input_lwe_secret_key.clone(),
-///     output_glwe_secret_key.clone(),
+///     &input_lwe_secret_key,
+///     &output_glwe_secret_key,
 ///     glwe_noise_distribution,
 ///     false,
 /// );
@@ -651,14 +651,14 @@ where
 ///     assert_eq!(decrypted_ggsw.0, input_key_bit)
 /// }
 /// ```
-pub struct LweBootstrapKeyChunkGenerator<Gen, Cont, Scalar, NoiseDistribution>
+pub struct LweBootstrapKeyChunkGenerator<'a, Gen, Cont, Scalar, NoiseDistribution>
 where
     Gen: ByteRandomGenerator,
     NoiseDistribution: Distribution,
     Scalar: Encryptable<Uniform, NoiseDistribution>,
     Cont: Container<Element = Scalar>,
 {
-    enc_generator: EncryptionRandomGenerator<Gen>,
+    enc_generator: &'a mut EncryptionRandomGenerator<Gen>,
     chunk_size: ChunkSize,
     lwe_dim: LweDimension,
     glwe_size: GlweSize,
@@ -666,15 +666,15 @@ where
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
     ciphertext_modulus: CiphertextModulus<Scalar>,
-    input_lwe_secret_key: LweSecretKey<Cont>,
-    output_glwe_secret_key: GlweSecretKey<Cont>,
+    input_lwe_secret_key: &'a LweSecretKey<Cont>,
+    output_glwe_secret_key: &'a GlweSecretKey<Cont>,
     noise_distribution: NoiseDistribution,
     position: usize,
     parallel: bool,
 }
 
-impl<Gen, Cont, Scalar, NoiseDistribution>
-    LweBootstrapKeyChunkGenerator<Gen, Cont, Scalar, NoiseDistribution>
+impl<'a, Gen, Cont, Scalar, NoiseDistribution>
+    LweBootstrapKeyChunkGenerator<'a, Gen, Cont, Scalar, NoiseDistribution>
 where
     Gen: ByteRandomGenerator,
     NoiseDistribution: Distribution,
@@ -683,7 +683,7 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        enc_generator: EncryptionRandomGenerator<Gen>,
+        enc_generator: &'a mut EncryptionRandomGenerator<Gen>,
         chunk_size: ChunkSize,
         lwe_dim: LweDimension,
         glwe_size: GlweSize,
@@ -691,11 +691,11 @@ where
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
         ciphertext_modulus: CiphertextModulus<Scalar>,
-        input_lwe_secret_key: LweSecretKey<Cont>,
-        output_glwe_secret_key: GlweSecretKey<Cont>,
+        input_lwe_secret_key: &'a LweSecretKey<Cont>,
+        output_glwe_secret_key: &'a GlweSecretKey<Cont>,
         noise_distribution: NoiseDistribution,
         parallel: bool,
-    ) -> Self {
+    ) -> LweBootstrapKeyChunkGenerator<'a, Gen, Cont, Scalar, NoiseDistribution> {
         assert!(chunk_size.0 <= lwe_dim.0);
         Self {
             enc_generator,
@@ -716,7 +716,7 @@ where
 }
 
 impl<Gen, Cont, Scalar, NoiseDistribution> Iterator
-    for LweBootstrapKeyChunkGenerator<Gen, Cont, Scalar, NoiseDistribution>
+    for LweBootstrapKeyChunkGenerator<'_, Gen, Cont, Scalar, NoiseDistribution>
 where
     Gen: ParallelByteRandomGenerator,
     NoiseDistribution: Distribution + Sync,
