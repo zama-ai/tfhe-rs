@@ -7,6 +7,8 @@ use super::*;
 pub struct InfoPePbs {
     /// Bpip used
     bpip_used: bool,
+    /// Bpip use opportunism
+    bpip_use_opportunism: bool,
     /// Bpip timeout
     bpip_timeout: u32,
 
@@ -113,7 +115,10 @@ impl InfoPePbs {
             .register()
             .get("bpip::use")
             .expect("Unknow register, check regmap definition");
-        self.bpip_used = ffi_hw.read_reg(*reg_use.offset() as u64) != 0;
+        let val = ffi_hw.read_reg(*reg_use.offset() as u64);
+        let fields = reg_use.as_field(val);
+        self.bpip_used = *fields.get("use_bpip").expect("Unknow field") == 1;
+        self.bpip_use_opportunism = *fields.get("use_opportunism").expect("Unknow field") == 1;
         let reg_timeout = regmap
             .register()
             .get("bpip::timeout")
@@ -439,8 +444,6 @@ pub struct InfoPeMem {
     pem_store_ack_cnt: u32,
     /// PEM load first addr/data
     pem_ld_info: [PeMemInfo; 2],
-    /// PEM store first addr/data
-    pem_st_info: [PeMemInfo; 2],
 }
 impl FromRtl for InfoPeMem {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
@@ -461,8 +464,6 @@ impl InfoPeMem {
         self.update_pem_store_ack_cnt(ffi_hw, regmap);
         self.update_pem_ld_info(ffi_hw, regmap, 0);
         self.update_pem_ld_info(ffi_hw, regmap, 1);
-        //self.update_pem_st_info(ffi_hw, regmap, 0);
-        //self.update_pem_st_info(ffi_hw, regmap, 1);
     }
 
     pub fn update_pem_load_inst_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -520,36 +521,6 @@ impl InfoPeMem {
                 .get(&reg_name)
                 .expect("Unknow register, check regmap definition");
             self.pem_ld_info[pc_idx].data[i] = ffi_hw.read_reg(*reg.offset() as u64);
-        });
-    }
-
-    pub fn update_pem_st_info(
-        &mut self,
-        ffi_hw: &mut ffi::HpuHw,
-        regmap: &FlatRegmap,
-        pc_idx: usize,
-    ) {
-        // Update addr field
-        self.pem_st_info[pc_idx].addr = ["msb", "lsb"]
-            .iter()
-            .map(|n| {
-                let reg_name = format!("runtime_1in3::pem_store_info_1_pc{pc_idx}_{n}");
-                let reg = regmap
-                    .register()
-                    .get(&reg_name)
-                    .expect("Unknow register, check regmap definition");
-                ffi_hw.read_reg(*reg.offset() as u64)
-            })
-            .fold(0_u64, |acc, v| (acc << u32::BITS) + v as u64);
-
-        // Update value field
-        (0..4).for_each(|i| {
-            let reg_name = format!("runtime_1in3::pem_store_info_0_pc{pc_idx}_{i}");
-            let reg = regmap
-                .register()
-                .get(&reg_name)
-                .expect("Unknow register, check regmap definition");
-            self.pem_st_info[pc_idx].data[i] = ffi_hw.read_reg(*reg.offset() as u64);
         });
     }
 
@@ -754,10 +725,10 @@ impl FromRtl for ErrorHpu {
             .expect("Unknow register, check regmap definition");
         Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
         // TODO-JJ : now there are 2 error registers
-//        let reg = regmap
-//            .register()
-//            .get("status_3in3::error")
-//            .expect("Unknow register, check regmap definition");
-//        Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
+        //        let reg = regmap
+        //            .register()
+        //            .get("status_3in3::error")
+        //            .expect("Unknow register, check regmap definition");
+        //        Self(ffi_hw.read_reg(*reg.offset() as u64) as u16)
     }
 }

@@ -20,6 +20,7 @@ impl KeyState {
 #[derive(Default)]
 pub(crate) struct BpipState {
     pub(crate) used: bool,
+    pub(crate) use_opportunism: bool,
     pub(crate) timeout: u32,
 }
 
@@ -216,6 +217,7 @@ impl RegisterMap {
 
             // Bpip configuration registers
             "bpip::use" => self.bpip.used as u32,
+            "bpip::use_opportunism" => self.bpip.use_opportunism as u32,
             "bpip::timeout" => self.bpip.timeout,
 
             // Add offset configuration registers
@@ -345,6 +347,10 @@ impl RegisterMap {
             // Bpip configuration registers
             "bpip::use" => {
                 self.bpip.used = value == 0x1;
+                RegisterEvent::None
+            }
+            "bpip::use_opportunism" => {
+                self.bpip.use_opportunism = value == 0x1;
                 RegisterEvent::None
             }
             "bpip::timeout" => {
