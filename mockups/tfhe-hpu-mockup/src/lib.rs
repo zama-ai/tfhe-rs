@@ -117,7 +117,7 @@ impl HpuSim {
 
         // Allocate InstructionScheduler
         // This module is also in charge of performances estimation
-        let pe_config = PeConfigStore::from(&params.rtl_params);
+        let pe_config = PeConfigStore::from((&params.rtl_params, &config));
         let isc = isc::Scheduler::new(
             params.freq_mhz,
             params.quantum_us,

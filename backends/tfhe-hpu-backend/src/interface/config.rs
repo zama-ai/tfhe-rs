@@ -71,6 +71,8 @@ pub struct FpgaConfig {
 pub struct RtlConfig {
     /// Select pe-pbs configuration Ipip or Bpip
     pub bpip_used: bool,
+    /// When Bpip is used, select to use opportunistic behavior
+    pub bpip_use_opportunism: bool,
     /// Timeout value to start Bpip even if batch isn't full
     pub bpip_timeout: u32,
 }
