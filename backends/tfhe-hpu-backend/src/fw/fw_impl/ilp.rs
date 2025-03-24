@@ -612,7 +612,7 @@ pub fn iop_cmpx(
             let chunk = chunk
                 .into_iter()
                 .map(|(pos, mut a)| {
-                    a.pbs_assign(&cmp_sign, pos == (props.blk_w() / 2) - 1);
+                    a.pbs_assign(&cmp_sign, pos == props.blk_w().div_ceil(2) - 1);
                     a
                 })
                 .collect::<Vec<_>>();
