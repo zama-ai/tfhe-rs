@@ -87,15 +87,11 @@ void copy_radix_ciphertext_slice_async(
       input_radix->num_radix_blocks)
     PANIC(
         "Cuda error: input range should be lower or equal to input num blocks")
-  if (output_end_lwe_index - output_start_lwe_index <= 0)
-    PANIC("Cuda error: output range should be greater than zero")
-  if (input_end_lwe_index - input_start_lwe_index <= 0)
-    PANIC("Cuda error: input range should be greater than zero")
-  if (output_end_lwe_index <= output_start_lwe_index)
-    PANIC("Cuda error: output end index should be greater or equal to output "
+  if (output_end_lwe_index < output_start_lwe_index)
+    PANIC("Cuda error: output end index should be greater than output "
           "start index")
-  if (input_end_lwe_index <= input_start_lwe_index)
-    PANIC("Cuda error: input end index should be greater or equal to input "
+  if (input_end_lwe_index < input_start_lwe_index)
+    PANIC("Cuda error: input end index should be greater than input "
           "start index")
   if (output_start_lwe_index > output_radix->num_radix_blocks)
     PANIC("Cuda error: output start index should be smaller than the number "
