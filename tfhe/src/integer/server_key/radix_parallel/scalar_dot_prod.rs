@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{CastInto, Numeric};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
 use std::ops::{AddAssign, Mul};
 
@@ -9,6 +9,13 @@ use rayon::prelude::*;
 
 impl ServerKey {
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn unchecked_boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &[BooleanBlock],
@@ -63,10 +70,21 @@ impl ServerKey {
         let many_lut_chunk =
             ((self.message_modulus().0 * self.carry_modulus().0) / (1 << packing_size)) as usize;
         let to_be_summed = packed
-            .par_iter()
-            .zip(clears.par_chunks(packing_size))
+            .iter()
+            .zip(clears.chunks(packing_size))
             .map(|(block, clear_chunk)| {
-                let funcs = (0..n_blocks as usize)
+                let mut summed_clear = Clear::ZERO;
+                for c in clear_chunk.iter() {
+                    summed_clear += *c;
+                }
+                let real_n_blocks = BlockDecomposer::with_early_stop_at_zero(
+                    summed_clear,
+                    self.message_modulus().0.ilog2(),
+                )
+                .count()
+                .min(n_blocks as usize);
+
+                let funcs = (0..real_n_blocks)
                     .map(|block_index| {
                         // The LUT is going to do a part of the dot prod for the corresponding
                         // block
@@ -82,7 +100,7 @@ impl ServerKey {
                     })
                     .collect::<Vec<_>>();
 
-                let blocks = funcs
+                let mut blocks = funcs
                     .par_chunks(many_lut_chunk)
                     .flat_map(|chunk| {
                         let funcs_ref = chunk
@@ -95,6 +113,8 @@ impl ServerKey {
                     })
                     .collect::<Vec<_>>();
 
+                blocks.resize_with(n_blocks as usize, || self.key.create_trivial(0));
+
                 T::from(blocks)
             })
             .collect::<Vec<_>>();
@@ -104,6 +124,13 @@ impl ServerKey {
     }
 
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn smart_boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &mut [BooleanBlock],
@@ -134,6 +161,13 @@ impl ServerKey {
     }
 
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &[BooleanBlock],

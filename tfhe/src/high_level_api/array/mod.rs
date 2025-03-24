@@ -15,14 +15,18 @@ use crate::high_level_api::array::traits::HasClear;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
-use crate::high_level_api::integers::FheUintId;
+use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::{FheBool, FheId, FheUint};
-use std::ops::RangeBounds;
+use crate::{FheBool, FheId, FheInt, FheUint, Tag};
+use std::ops::{AddAssign, Mul, RangeBounds};
 use traits::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
 pub use traits::{IOwnedArray, Slicing, SlicingMut};
 
 use crate::array::stride::DynDimensions;
+use crate::core_crypto::prelude::{Numeric, SignedNumeric, UnsignedNumeric};
+use crate::integer::block_decomposition::DecomposableInto;
+use crate::integer::RadixCiphertext;
+use crate::prelude::{CastFrom, CastInto};
 pub use cpu::{
     CpuFheBoolArray, CpuFheBoolSlice, CpuFheBoolSliceMut, CpuFheIntArray, CpuFheIntSlice,
     CpuFheIntSliceMut, CpuFheUintArray, CpuFheUintSlice, CpuFheUintSliceMut, FheBoolId,
@@ -419,4 +423,120 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
             FheBool::new(result, gpu_key.tag.clone())
         }),
     })
+}
+
+/// Small helper to reduce code
+///
+/// * num_bits: num bits of the FheType
+/// * create_fhe_value: function that create a value of FheType given some blocks and tag
+fn fhe_bool_dot_product<Clear>(
+    bools: &[FheBool],
+    clears: &[Clear],
+    num_bits: u32,
+) -> (Vec<crate::shortint::Ciphertext>, Tag)
+where
+    Clear: Numeric
+        + DecomposableInto<u64>
+        + CastInto<usize>
+        + CastFrom<u128>
+        + Mul<Clear, Output = Clear>
+        + AddAssign<Clear>,
+{
+    global_state::with_internal_keys(|keys| match keys {
+        InternalServerKey::Cpu(cpu_key) => {
+            let boolean_blocks = bools
+                .iter()
+                .map(|b| b.ciphertext.on_cpu().to_owned())
+                .collect::<Vec<_>>();
+            let radix: RadixCiphertext = cpu_key.pbs_key().boolean_scalar_dot_prod_parallelized(
+                &boolean_blocks,
+                clears,
+                num_bits / cpu_key.message_modulus().0.ilog2(),
+            );
+
+            (radix.blocks, cpu_key.tag.clone())
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(_) => {
+            panic!("Cuda does not support FheBool dot product")
+        }
+    })
+}
+
+impl<Id, Clear> traits::FheSliceDotProduct<FheBool, Clear> for FheUint<Id>
+where
+    Clear: UnsignedNumeric
+        + DecomposableInto<u64>
+        + CastInto<usize>
+        + CastFrom<u128>
+        + Mul<Clear, Output = Clear>
+        + AddAssign<Clear>,
+    Id: FheUintId,
+{
+    /// Performs a dot product between a slice of encrypted booleans and a slice of
+    /// clear unsigned integers.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint8};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = [true, false, true]
+    ///     .into_iter()
+    ///     .map(|b| FheBool::encrypt(b, &client_key))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// let b = [2u8, 3u8, 4u8];
+    ///
+    /// let result = FheUint8::dot_product(&a, &b);
+    /// let decrypted: u8 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, 6u8);
+    /// ```
+    fn dot_product(bools: &[FheBool], clears: &[Clear]) -> Self {
+        let (blocks, tag) = fhe_bool_dot_product(bools, clears, Id::num_bits() as u32);
+        Self::new(crate::integer::RadixCiphertext::from(blocks), tag)
+    }
+}
+
+impl<Id, Clear> traits::FheSliceDotProduct<FheBool, Clear> for FheInt<Id>
+where
+    Clear: SignedNumeric
+        + DecomposableInto<u64>
+        + CastInto<usize>
+        + CastFrom<u128>
+        + Mul<Clear, Output = Clear>
+        + AddAssign<Clear>,
+    Id: FheIntId,
+{
+    /// Performs a dot product between a slice of encrypted booleans and a slice of
+    /// clear signed integers.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheInt8};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = [true, false, true]
+    ///     .into_iter()
+    ///     .map(|b| FheBool::encrypt(b, &client_key))
+    ///     .collect::<Vec<_>>();
+    ///
+    /// let b = [-2i8, -3i8, -4i8];
+    ///
+    /// let result = FheInt8::dot_product(&a, &b);
+    /// let decrypted: i8 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, -6i8);
+    /// ```
+    fn dot_product(bools: &[FheBool], clears: &[Clear]) -> Self {
+        let (blocks, tag) = fhe_bool_dot_product(bools, clears, Id::num_bits() as u32);
+        Self::new(crate::integer::SignedRadixCiphertext::from(blocks), tag)
+    }
 }
