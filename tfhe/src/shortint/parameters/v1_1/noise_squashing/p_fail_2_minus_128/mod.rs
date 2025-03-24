@@ -1,7 +1,8 @@
 use crate::shortint::parameters::{
-    CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
-    GlweDimension, LweCiphertextCount, ModulusSwitchNoiseReductionParams,
-    NoiseEstimationMeasureBound, NoiseSquashingParameters, PolynomialSize, RSigmaFactor, Variance,
+    CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
+    DynamicDistribution, GlweDimension, LweCiphertextCount, MessageModulus,
+    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound, NoiseSquashingParameters,
+    PolynomialSize, RSigmaFactor, Variance,
 };
 
 pub const V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
@@ -17,5 +18,7 @@ pub const V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
         ms_input_variance: Variance(2.63039184094559E-7f64),
     }),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
     ciphertext_modulus: CoreCiphertextModulus::<u128>::new_native(),
 };
