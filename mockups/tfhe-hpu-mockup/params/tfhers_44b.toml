@@ -11,7 +11,7 @@
     message_width= 2
     carry_width= 2
     ciphertext_width= 44
-    opportunistic=true
+
 [ntt_params]
     core_arch="WmmUnfoldPcg"
     batch_pbs_nb= 16

@@ -11,7 +11,6 @@
     message_width= 2
     carry_width= 2
     ciphertext_width= 64
-    opportunistic=true
 
 [ntt_params]
     core_arch= {GF64=[5,5]}

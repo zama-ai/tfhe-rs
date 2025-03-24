@@ -625,7 +625,7 @@ impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
         // Create Asm architecture properties and Fw instanciation
-        let pe_cfg = PeConfigStore::from(&self.params);
+        let pe_cfg = PeConfigStore::from((&self.params, config));
         let fw_name =
             crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {
                 panic!(
