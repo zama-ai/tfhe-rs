@@ -1,12 +1,14 @@
 use super::inner::InnerBoolean;
 use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheEq, IfThenElse, Tagged};
+use crate::high_level_api::traits::{FheEq, IfThenElse, ScalarIfThenElse, Tagged};
+use crate::integer::block_decomposition::DecomposableInto;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -180,6 +182,140 @@ impl FheBool {
     }
 }
 
+impl<Id, Scalar> ScalarIfThenElse<&FheUint<Id>, Scalar> for FheBool
+where
+    Id: FheUintId,
+    Scalar: DecomposableInto<u64> + UnsignedNumeric,
+{
+    type Output = FheUint<Id>;
+
+    fn scalar_if_then_else(&self, then_value: &FheUint<Id>, else_value: Scalar) -> Self::Output {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let inner = cpu_sks.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*then_value.ciphertext.on_cpu(),
+                    else_value,
+                );
+                FheUint::new(inner, cpu_sks.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                panic!("Cuda does not support if_then_else with clear input")
+            }),
+        })
+    }
+}
+
+impl<Id, Scalar> ScalarIfThenElse<Scalar, &FheUint<Id>> for FheBool
+where
+    Id: FheUintId,
+    Scalar: DecomposableInto<u64> + UnsignedNumeric,
+{
+    type Output = FheUint<Id>;
+
+    fn scalar_if_then_else(&self, then_value: Scalar, else_value: &FheUint<Id>) -> Self::Output {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let inner = cpu_sks.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    then_value,
+                    &*else_value.ciphertext.on_cpu(),
+                );
+                FheUint::new(inner, cpu_sks.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                panic!("Cuda does not support if_then_else with clear input")
+            }),
+        })
+    }
+}
+
+impl<Id, Scalar> ScalarIfThenElse<&FheInt<Id>, Scalar> for FheBool
+where
+    Id: FheIntId,
+    Scalar: DecomposableInto<u64> + SignedNumeric,
+{
+    type Output = FheInt<Id>;
+
+    fn scalar_if_then_else(&self, then_value: &FheInt<Id>, else_value: Scalar) -> Self::Output {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let inner = cpu_sks.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*then_value.ciphertext.on_cpu(),
+                    else_value,
+                );
+                FheInt::new(inner, cpu_sks.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                panic!("Cuda does not support if_then_else with clear input")
+            }),
+        })
+    }
+}
+
+impl<Id, Scalar> ScalarIfThenElse<Scalar, &FheInt<Id>> for FheBool
+where
+    Id: FheIntId,
+    Scalar: DecomposableInto<u64> + SignedNumeric,
+{
+    type Output = FheInt<Id>;
+
+    fn scalar_if_then_else(&self, then_value: Scalar, else_value: &FheInt<Id>) -> Self::Output {
+        let ct_condition = self;
+        global_state::with_internal_keys(|sks| match sks {
+            InternalServerKey::Cpu(cpu_sks) => {
+                let inner = cpu_sks.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    then_value,
+                    &*else_value.ciphertext.on_cpu(),
+                );
+                FheInt::new(inner, cpu_sks.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                panic!("Cuda does not support if_then_else with clear input")
+            }),
+        })
+    }
+}
+
+impl ScalarIfThenElse<&Self, &Self> for FheBool {
+    type Output = Self;
+
+    fn scalar_if_then_else(&self, ct_then: &Self, ct_else: &Self) -> Self::Output {
+        let ct_condition = self;
+        let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let new_ct = key.pbs_key().if_then_else_parallelized(
+                    &ct_condition.ciphertext.on_cpu(),
+                    &*ct_then.ciphertext.on_cpu(),
+                    &*ct_else.ciphertext.on_cpu(),
+                );
+                (InnerBoolean::Cpu(new_ct), key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let inner = cuda_key.key.key.if_then_else(
+                    &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                    &*ct_then.ciphertext.on_gpu(streams),
+                    &*ct_else.ciphertext.on_gpu(streams),
+                    streams,
+                );
+                let boolean_inner = CudaBooleanBlock(inner);
+                (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
+            }),
+        });
+        Self::new(ciphertext, tag)
+    }
+}
+
 impl<Id> IfThenElse<FheUint<Id>> for FheBool
 where
     Id: FheUintId,
@@ -213,16 +349,6 @@ where
                 FheUint::new(inner, cuda_key.tag.clone())
             }),
         })
-    }
-}
-
-impl Tagged for FheBool {
-    fn tag(&self) -> &Tag {
-        &self.tag
-    }
-
-    fn tag_mut(&mut self) -> &mut Tag {
-        &mut self.tag
     }
 }
 
@@ -284,6 +410,16 @@ impl IfThenElse<Self> for FheBool {
             }),
         });
         Self::new(ciphertext, tag)
+    }
+}
+
+impl Tagged for FheBool {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 

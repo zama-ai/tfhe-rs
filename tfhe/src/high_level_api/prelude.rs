@@ -10,7 +10,7 @@ pub use crate::high_level_api::traits::{
     BitSlice, CiphertextList, DivRem, FheDecrypt, FheEncrypt, FheEq, FheKeyswitch, FheMax, FheMin,
     FheOrd, FheTrivialEncrypt, FheTryEncrypt, FheTryTrivialEncrypt, IfThenElse, OverflowingAdd,
     OverflowingMul, OverflowingSub, RotateLeft, RotateLeftAssign, RotateRight, RotateRightAssign,
-    Tagged,
+    ScalarIfThenElse, Tagged,
 };
 
 pub use crate::conformance::ParameterSetConformant;
