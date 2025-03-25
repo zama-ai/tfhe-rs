@@ -4,13 +4,17 @@
 import sys
 import logging
 from collections import defaultdict
-from itertools import tee
-from operator import attrgetter
+from itertools import tee, chain, starmap
+from operator import attrgetter, sub
 from typing import Iterable, Iterator
 
 import numpy as np
 from pandas import DataFrame
 
+def delta(a: Iterable[float]):
+    a, b = tee(a, 2)
+    b = chain(range(0,1), b)
+    return starmap(sub, zip(a,b))
 
 def group_by_time(it, timef, threshold):
     try:
@@ -120,12 +124,12 @@ class Instruction:
         return hash(self) == hash(other)
 
 class Batch:
-    def __init__(self, insns):
+    def __init__(self, insns, latency = None):
         self._insns = insns
+        self.latency = self._insns[-1].latency if latency is not None else latency
 
-    @property
-    def latency(self):
-        return self._insns[-1].latency
+    def reltime(self):
+        return max(map(lambda x: x.reltime, self._insns))
 
     def __len__(self):
         return len(self._insns)
@@ -149,10 +153,12 @@ class Latency:
         if len(self.acc):
             npa = np.array(list(filter(lambda x: x != np.NAN, self.acc)))
             return {"min": npa.min(), "avg": npa.mean(),
-                    "max": npa.max(), "data": self.data, "count": len(npa)}
+                    "max": npa.max(), "sum": npa.sum(),
+                    "count": len(npa), "data": self.data}
         else:
             return {"min": 'NA', "avg": 'NA',
-                    "max": 'NA', "data": self.data, "count": 0}
+                    "max": 'NA', "sum": 'NA',
+                    "count": 0, "data": self.data}
 
 class InstructionStats:
     def __init__(self, insn, latency, timestamp, delta, reltime):
@@ -226,7 +232,10 @@ class Retired:
 
     def pbs_batches(self, threshold = BATCH_THRESHOLD):
         pbs = filter(lambda i: i.insn.opcode.startswith('PBS'), self)
-        return map(Batch, group_by_time(pbs, attrgetter('timestamp'), threshold))
+        batches = list(map(Batch, group_by_time(pbs, attrgetter('timestamp'), threshold)))
+        for batch, latency in zip(batches, delta(x.reltime() for x in batches)):
+            batch.latency = latency
+        return batches
 
     def pbs_latency_table(self, threshold = BATCH_THRESHOLD):
         pbs_latency_table = defaultdict(Latency, {})
