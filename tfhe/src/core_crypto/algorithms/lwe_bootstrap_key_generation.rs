@@ -749,20 +749,20 @@ where
 
         if self.parallel {
             par_generate_chunked_lwe_bootstrap_key(
-                &self.input_lwe_secret_key,
-                &self.output_glwe_secret_key,
+                self.input_lwe_secret_key,
+                self.output_glwe_secret_key,
                 &mut chunk,
                 self.noise_distribution,
-                &mut self.enc_generator,
+                self.enc_generator,
                 self.position,
             )
         } else {
             generate_chunked_lwe_bootstrap_key(
-                &self.input_lwe_secret_key,
-                &self.output_glwe_secret_key,
+                self.input_lwe_secret_key,
+                self.output_glwe_secret_key,
                 &mut chunk,
                 self.noise_distribution,
-                &mut self.enc_generator,
+                self.enc_generator,
                 self.position,
             )
         }
