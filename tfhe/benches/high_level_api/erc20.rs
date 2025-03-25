@@ -11,6 +11,8 @@ use std::ops::{Add, Mul, Sub};
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::shortint::parameters::*;
+#[cfg(feature = "gpu")]
+use tfhe::GpuIndex;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
 
 /// Transfer as written in the original FHEvm white-paper,
@@ -135,6 +137,9 @@ mod pbs_stats {
         let to_amount = FheType::encrypt(rng.gen::<u64>(), client_key);
         let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
 
+        #[cfg(feature = "gpu")]
+        configure_gpu(client_key);
+
         tfhe::reset_pbs_count();
         let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
         let count = tfhe::get_pbs_count();
@@ -172,6 +177,13 @@ mod pbs_stats {
     }
 }
 
+#[cfg(feature = "gpu")]
+fn configure_gpu(client_key: &ClientKey) {
+    let compressed_sks = CompressedServerKey::new(client_key);
+    let sks = compressed_sks.decompress_to_gpu();
+    rayon::broadcast(|_| set_server_key(sks.clone()));
+    set_server_key(sks);
+}
 fn bench_transfer_latency<FheType, F>(
     c: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
@@ -183,6 +195,9 @@ fn bench_transfer_latency<FheType, F>(
     FheType: FheEncrypt<u64, ClientKey>,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
 {
+    #[cfg(feature = "gpu")]
+    configure_gpu(client_key);
+
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
         let mut rng = thread_rng();
@@ -209,6 +224,7 @@ fn bench_transfer_latency<FheType, F>(
     );
 }
 
+#[cfg(not(feature = "gpu"))]
 fn bench_transfer_throughput<FheType, F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
@@ -221,14 +237,11 @@ fn bench_transfer_throughput<FheType, F>(
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     let mut rng = thread_rng();
-    #[cfg(not(feature = "gpu"))]
-    let num_gpus = 1u64;
-    #[cfg(feature = "gpu")]
-    let num_gpus = unsafe { cuda_get_number_of_gpus() } as u64;
 
-    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
-        let bench_id = format!("{bench_name}::{fn_name}::{type_name}::{num_elems}_elems");
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
             let from_amounts = (0..num_elems)
                 .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
@@ -263,31 +276,114 @@ fn bench_transfer_throughput<FheType, F>(
         );
     }
 }
+#[cfg(feature = "gpu")]
+fn cuda_bench_transfer_throughput<FheType, F>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    transfer_func: F,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
+{
+    let mut rng = thread_rng();
+    let num_gpus = get_number_of_gpus() as u64;
+    let compressed_server_key = CompressedServerKey::new(client_key);
+
+    let sks_vec = (0..num_gpus)
+        .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+        .collect::<Vec<_>>();
+
+    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            let num_streams_per_gpu = 8; // Hard coded stream value for FheUint64
+            let chunk_size = (num_elems / num_gpus) as usize;
+
+            b.iter(|| {
+                from_amounts
+                    .par_chunks(chunk_size) // Split into chunks of num_gpus
+                    .zip(
+                        to_amounts
+                            .par_chunks(chunk_size)
+                            .zip(amounts.par_chunks(chunk_size)),
+                    ) // Zip with the other data
+                    .enumerate() // Get the index for GPU
+                    .for_each(
+                        |(i, (from_amount_gpu_i, (to_amount_gpu_i, amount_gpu_i)))| {
+                            // Process chunks within each GPU
+                            let stream_chunk_size = from_amount_gpu_i.len() / num_streams_per_gpu;
+                            from_amount_gpu_i
+                                .par_chunks(stream_chunk_size)
+                                .zip(to_amount_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(amount_gpu_i.par_chunks(stream_chunk_size))
+                                .for_each(
+                                    |((from_amount_chunk, to_amount_chunk), amount_chunk)| {
+                                        // Set the server key for the current GPU
+                                        set_server_key(sks_vec[i].clone());
+                                        // Parallel iteration over the chunks of data
+                                        from_amount_chunk
+                                            .iter()
+                                            .zip(to_amount_chunk.iter().zip(amount_chunk.iter()))
+                                            .for_each(|(from_amount, (to_amount, amount))| {
+                                                transfer_func(from_amount, to_amount, amount);
+                                            });
+                                    },
+                                );
+                        },
+                    );
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "erc20-transfer",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
 
 #[cfg(feature = "pbs-stats")]
 use pbs_stats::print_transfer_pbs_counts;
 #[cfg(feature = "gpu")]
-use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+use tfhe::core_crypto::gpu::get_number_of_gpus;
 
+#[cfg(not(feature = "gpu"))]
 fn main() {
-    #[cfg(not(feature = "gpu"))]
     let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    #[cfg(feature = "gpu")]
-    let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
 
     let config = ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
 
-    #[cfg(not(feature = "gpu"))]
     let sks = compressed_sks.decompress();
-    #[cfg(feature = "gpu")]
-    let sks = compressed_sks.decompress_to_gpu();
 
     rayon::broadcast(|_| set_server_key(sks.clone()));
     set_server_key(sks);
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
+
+    let bench_name = "hlapi::erc20::transfer";
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -312,12 +408,6 @@ fn main() {
 
     // FheUint64 latency
     {
-        let bench_name = if cfg!(feature = "gpu") {
-            "hlapi::cuda::erc20::transfer_latency"
-        } else {
-            "hlapi::erc20::transfer_latency"
-        };
-
         let mut group = c.benchmark_group(bench_name);
         bench_transfer_latency(
             &mut group,
@@ -357,12 +447,6 @@ fn main() {
 
     // FheUint64 Throughput
     {
-        let bench_name = if cfg!(feature = "gpu") {
-            "hlapi::cuda::erc20::transfer_throughput"
-        } else {
-            "hlapi::erc20::transfer_throughput"
-        };
-
         let mut group = c.benchmark_group(bench_name);
         bench_transfer_throughput(
             &mut group,
@@ -389,6 +473,118 @@ fn main() {
             transfer_overflow::<FheUint64>,
         );
         bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "safe",
+            transfer_safe::<FheUint64>,
+        );
+        group.finish();
+    }
+
+    c.final_summary();
+}
+
+#[cfg(feature = "gpu")]
+fn main() {
+    let params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
+
+    let config = ConfigBuilder::with_custom_parameters(params).build();
+    let cks = ClientKey::generate(config);
+
+    let mut c = Criterion::default().sample_size(10).configure_from_args();
+
+    let bench_name = "hlapi::cuda::erc20::transfer";
+
+    // FheUint64 PBS counts
+    // We don't run multiple times since every input is encrypted
+    // PBS count is always the same
+    #[cfg(feature = "pbs-stats")]
+    {
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+    }
+
+    // FheUint64 latency
+    {
+        let mut group = c.benchmark_group(bench_name);
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "no_cmux",
+            transfer_no_cmux::<FheUint64>,
+        );
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        bench_transfer_latency(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "safe",
+            transfer_safe::<FheUint64>,
+        );
+
+        group.finish();
+    }
+
+    // FheUint64 Throughput
+    {
+        let mut group = c.benchmark_group(bench_name);
+        cuda_bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        cuda_bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "no_cmux",
+            transfer_no_cmux::<FheUint64>,
+        );
+        cuda_bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "overflow",
+            transfer_overflow::<FheUint64>,
+        );
+        cuda_bench_transfer_throughput(
             &mut group,
             &cks,
             bench_name,
