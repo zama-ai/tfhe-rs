@@ -85,3 +85,9 @@ class Trace:
         return iter(self.traces)
     def to_analysis(self):
         return analysis.Trace((x.to_analysis() for x in self))
+
+def from_mockup(filename: str) -> 'analysis.Trace':
+    return Trace(filename).to_analysis()
+
+# Register a from directly in analysis code
+setattr(analysis.Trace, 'from_mockup', from_mockup)
