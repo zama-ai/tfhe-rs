@@ -17,7 +17,7 @@
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one_128(
         const Torus *__restrict__ lut_vector,
@@ -67,7 +67,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                             blockIdx.x * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2) * 4;
 
-  if (lwe_iteration == 0) {
+  if constexpr (first_iter) {
     // First iteration
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
@@ -141,7 +141,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 }
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD, bool last_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_two_128(
         Torus *lwe_array_out, const double *__restrict__ bootstrapping_key,
@@ -220,7 +220,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   add_to_torus_128<Torus, params>(acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi,
                                   acc_fft_im_lo, accumulator);
 
-  if (lwe_iteration + 1 == lwe_dimension) {
+  if constexpr (last_iter) {
     // Last iteration
     auto block_lwe_array_out =
         &lwe_array_out[blockIdx.x * (glwe_dimension * polynomial_size + 1) +
@@ -267,19 +267,37 @@ __host__ void scratch_programmable_bootstrap_128(
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_one_128<__uint128_t, params,
-                                                   PARTIALSM>,
+                                                   PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_one_128<__uint128_t, params,
-                                                   PARTIALSM>,
+                                                   PARTIALSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_one_128<__uint128_t, params,
+                                                   PARTIALSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_one_128<__uint128_t, params,
+                                                   PARTIALSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM>,
+        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM,
+                                                   true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM>,
+        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM,
+                                                   true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM,
+                                                   false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM,
+                                                   false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -288,19 +306,37 @@ __host__ void scratch_programmable_bootstrap_128(
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_two) {
     check_cuda_error(cudaFuncSetAttribute(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
-                                                   PARTIALSM>,
+                                                   PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
         device_programmable_bootstrap_step_two_128<__uint128_t, params,
-                                                   PARTIALSM>,
+                                                   PARTIALSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_two_128<__uint128_t, params,
+                                                   PARTIALSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_two_128<__uint128_t, params,
+                                                   PARTIALSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM>,
+        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                                   true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM>,
+        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                                   true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                                   false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                                   false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -310,7 +346,7 @@ __host__ void scratch_programmable_bootstrap_128(
       input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
 }
 
-template <class params>
+template <class params, bool first_iter>
 __host__ void execute_step_one_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t const *lut_vector,
     __uint128_t const *lwe_array_in, double const *bootstrapping_key,
@@ -326,19 +362,22 @@ __host__ void execute_step_one_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_one_128<__uint128_t, params, NOSM>
+    device_programmable_bootstrap_step_one_128<__uint128_t, params, NOSM,
+                                               first_iter>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_one_128<__uint128_t, params, PARTIALSM>
+    device_programmable_bootstrap_step_one_128<__uint128_t, params, PARTIALSM,
+                                               first_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, partial_dm);
   } else {
-    device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM>
+    device_programmable_bootstrap_step_one_128<__uint128_t, params, FULLSM,
+                                               first_iter>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lwe_array_in, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
@@ -347,7 +386,7 @@ __host__ void execute_step_one_128(
   check_cuda_error(cudaGetLastError());
 }
 
-template <class params>
+template <class params, bool last_iter>
 __host__ void execute_step_two_128(
     cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
     double const *bootstrapping_key, __uint128_t *global_accumulator,
@@ -363,19 +402,22 @@ __host__ void execute_step_two_128(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM>
+    device_programmable_bootstrap_step_two_128<__uint128_t, params, NOSM,
+                                               last_iter>
         <<<grid, thds, 0, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, full_dm);
   } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM>
+    device_programmable_bootstrap_step_two_128<__uint128_t, params, PARTIALSM,
+                                               last_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
             base_log, level_count, d_mem, partial_dm);
   } else {
-    device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM>
+    device_programmable_bootstrap_step_two_128<__uint128_t, params, FULLSM,
+                                               last_iter>
         <<<grid, thds, full_sm, stream>>>(
             lwe_array_out, bootstrapping_key, global_accumulator,
             global_join_buffer, lwe_iteration, lwe_dimension, polynomial_size,
@@ -420,18 +462,36 @@ __host__ void host_programmable_bootstrap_128(
   int8_t *d_mem = pbs_buffer->d_mem;
 
   for (int i = 0; i < lwe_dimension; i++) {
-    execute_step_one_128<params>(
-        stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
-        global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
-        lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
-        d_mem, i, partial_sm, partial_dm_step_one, full_sm_step_one,
-        full_dm_step_one);
-    execute_step_two_128<params>(
-        stream, gpu_index, lwe_array_out, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two);
+    if (i == 0) {
+      execute_step_one_128<params, true>(
+          stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
+          global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
+          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
+          d_mem, i, partial_sm, partial_dm_step_one, full_sm_step_one,
+          full_dm_step_one);
+    } else {
+      execute_step_one_128<params, false>(
+          stream, gpu_index, lut_vector, lwe_array_in, bootstrapping_key,
+          global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
+          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
+          d_mem, i, partial_sm, partial_dm_step_one, full_sm_step_one,
+          full_dm_step_one);
+    }
+    if (i == lwe_dimension - 1) {
+      execute_step_two_128<params, true>(
+          stream, gpu_index, lwe_array_out, bootstrapping_key,
+          global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
+          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
+          d_mem, i, partial_sm, partial_dm_step_two, full_sm_step_two,
+          full_dm_step_two);
+    } else {
+      execute_step_two_128<params, false>(
+          stream, gpu_index, lwe_array_out, bootstrapping_key,
+          global_accumulator, global_join_buffer, input_lwe_ciphertext_count,
+          lwe_dimension, glwe_dimension, polynomial_size, base_log, level_count,
+          d_mem, i, partial_sm, partial_dm_step_two, full_sm_step_two,
+          full_dm_step_two);
+    }
   }
 }
-
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_PBS_PROGRAMMABLE_BOOTSTRAP_CLASSIC_128_CUH_

@@ -17,18 +17,17 @@
 #include "polynomial/polynomial_math.cuh"
 #include "types/complex/operations.cuh"
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_one(
         const Torus *__restrict__ lut_vector,
         const Torus *__restrict__ lut_vector_indexes,
         const Torus *__restrict__ lwe_array_in,
-        const Torus *__restrict__ lwe_input_indexes,
-        const double2 *__restrict__ bootstrapping_key,
-        Torus *global_accumulator, double2 *global_join_buffer,
-        uint32_t lwe_iteration, uint32_t lwe_dimension,
-        uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-        int8_t *device_mem, uint64_t device_memory_size_per_block) {
+        const Torus *__restrict__ lwe_input_indexes, Torus *global_accumulator,
+        double2 *global_join_buffer, uint32_t lwe_iteration,
+        uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+        uint32_t level_count, int8_t *device_mem,
+        uint64_t device_memory_size_per_block) {
 
   // We use shared memory for the polynomials that are used often during the
   // bootstrap, since shared memory is kept in L1 cache and accessing it is
@@ -71,7 +70,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                             blockIdx.x * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2);
 
-  if (lwe_iteration == 0) {
+  if constexpr (first_iter) {
     // First iteration
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
@@ -131,7 +130,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 }
 
-template <typename Torus, class params, sharedMemDegree SMD>
+template <typename Torus, class params, sharedMemDegree SMD, bool last_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_programmable_bootstrap_step_two(
         Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
@@ -205,7 +204,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
   add_to_torus<Torus, params>(accumulator_fft, accumulator);
 
-  if (lwe_iteration + 1 == lwe_dimension) {
+  if constexpr (last_iter) {
     // Last iteration
     auto block_lwe_array_out =
         &lwe_array_out[lwe_output_indexes[blockIdx.x] *
@@ -321,18 +320,30 @@ __host__ void scratch_programmable_bootstrap(
   // Configure step one
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_one) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_one<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_one));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_one<Torus, params, FULLSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -340,18 +351,30 @@ __host__ void scratch_programmable_bootstrap(
   // Configure step two
   if (max_shared_memory >= partial_sm && max_shared_memory < full_sm_step_two) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>,
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_two<Torus, params, PARTIALSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   } else if (max_shared_memory >= partial_sm) {
     check_cuda_error(cudaFuncSetAttribute(
-        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM, true>,
         cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
     cudaFuncSetCacheConfig(
-        device_programmable_bootstrap_step_two<Torus, params, FULLSM>,
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM, true>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM, false>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm_step_two));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_step_two<Torus, params, FULLSM, false>,
         cudaFuncCachePreferShared);
     check_cuda_error(cudaGetLastError());
   }
@@ -361,7 +384,7 @@ __host__ void scratch_programmable_bootstrap(
       input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT, allocate_gpu_memory);
 }
 
-template <typename Torus, class params>
+template <typename Torus, class params, bool first_iter>
 __host__ void execute_step_one(
     cudaStream_t stream, uint32_t gpu_index, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -378,31 +401,30 @@ __host__ void execute_step_one(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
   if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_one<Torus, params, NOSM>
+    device_programmable_bootstrap_step_one<Torus, params, NOSM, first_iter>
         <<<grid, thds, 0, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, full_dm);
+            global_accumulator, global_join_buffer, lwe_iteration,
+            lwe_dimension, polynomial_size, base_log, level_count, d_mem,
+            full_dm);
   } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_one<Torus, params, PARTIALSM>
+    device_programmable_bootstrap_step_one<Torus, params, PARTIALSM, first_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, partial_dm);
+            global_accumulator, global_join_buffer, lwe_iteration,
+            lwe_dimension, polynomial_size, base_log, level_count, d_mem,
+            partial_dm);
   } else {
-    device_programmable_bootstrap_step_one<Torus, params, FULLSM>
+    device_programmable_bootstrap_step_one<Torus, params, FULLSM, first_iter>
         <<<grid, thds, full_sm, stream>>>(
             lut_vector, lut_vector_indexes, lwe_array_in, lwe_input_indexes,
-            bootstrapping_key, global_accumulator, global_join_buffer,
-            lwe_iteration, lwe_dimension, polynomial_size, base_log,
-            level_count, d_mem, 0);
+            global_accumulator, global_join_buffer, lwe_iteration,
+            lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0);
   }
   check_cuda_error(cudaGetLastError());
 }
 
-template <typename Torus, class params>
+template <typename Torus, class params, bool last_iter>
 __host__ void execute_step_two(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
@@ -420,21 +442,21 @@ __host__ void execute_step_two(
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1);
 
   if (max_shared_memory < partial_sm) {
-    device_programmable_bootstrap_step_two<Torus, params, NOSM>
+    device_programmable_bootstrap_step_two<Torus, params, NOSM, last_iter>
         <<<grid, thds, 0, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_join_buffer,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, full_dm, num_many_lut, lut_stride);
   } else if (max_shared_memory < full_sm) {
-    device_programmable_bootstrap_step_two<Torus, params, PARTIALSM>
+    device_programmable_bootstrap_step_two<Torus, params, PARTIALSM, last_iter>
         <<<grid, thds, partial_sm, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_join_buffer,
             lwe_iteration, lwe_dimension, polynomial_size, base_log,
             level_count, d_mem, partial_dm, num_many_lut, lut_stride);
   } else {
-    device_programmable_bootstrap_step_two<Torus, params, FULLSM>
+    device_programmable_bootstrap_step_two<Torus, params, FULLSM, last_iter>
         <<<grid, thds, full_sm, stream>>>(
             lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
             bootstrapping_key, global_accumulator, global_join_buffer,
@@ -480,19 +502,38 @@ __host__ void host_programmable_bootstrap(
   int8_t *d_mem = pbs_buffer->d_mem;
 
   for (int i = 0; i < lwe_dimension; i++) {
-    execute_step_one<Torus, params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
-    execute_step_two<Torus, params>(
-        stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
-        lut_vector_indexes, bootstrapping_key, global_accumulator,
-        global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
-        glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
-        partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
-        num_many_lut, lut_stride);
+    if (i == 0) {
+      execute_step_one<Torus, params, true>(
+          stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+          lwe_input_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+    } else {
+      execute_step_one<Torus, params, false>(
+          stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+          lwe_input_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_one, full_sm_step_one, full_dm_step_one);
+    }
+    if (i == lwe_dimension - 1) {
+      execute_step_two<Torus, params, true>(
+          stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+          lut_vector_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
+          num_many_lut, lut_stride);
+    } else {
+      execute_step_two<Torus, params, false>(
+          stream, gpu_index, lwe_array_out, lwe_output_indexes, lut_vector,
+          lut_vector_indexes, bootstrapping_key, global_accumulator,
+          global_join_buffer, input_lwe_ciphertext_count, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, d_mem, i,
+          partial_sm, partial_dm_step_two, full_sm_step_two, full_dm_step_two,
+          num_many_lut, lut_stride);
+    }
   }
 }
 
