@@ -3,6 +3,7 @@ from collections import defaultdict
 from itertools import accumulate, chain, islice, tee
 from operator import attrgetter
 from typing import Iterator
+import logging
 
 import numpy as np
 from pandas import DataFrame
@@ -25,6 +26,7 @@ class Event:
         self.insn_asm = trace_dict['insn_asm']
         self.timestamp = trace_dict['timestamp']
         self.insn = trace_dict['insn']
+        self.sync_id = trace_dict['state']['sync_id']
 
     def as_dict(self):
         return self.__dict__
@@ -59,17 +61,23 @@ class Trace:
 
     # Tries to split the event stream in IOP boundaries
     def iops(self):
-        iop = []
+        id_map = defaultdict(list, {})
         for event in self:
-            iop.append(event)
+            id_map[event.sync_id].append(event)
             opcode = next(iter(event.insn.keys())) if event.insn is not None else None
 
             if opcode == "SYNC":
-                yield Trace(iop)
-                iop = []
+                yield Trace(id_map[event.sync_id])
+                del id_map[event.sync_id]
 
-        if len(iop):
-            yield Trace(iop)
+        if len(id_map):
+            logging.warn("The trace contains incomplete IOPs")
 
     def to_analysis(self) -> Iterator['analysis.Event']:
         return analysis.Trace(x.to_analysis() for x in self)
+
+def from_hw(filename) -> 'analysis.Trace':
+    return [x.to_analysis() for x in Trace.from_json(filename).iops()]
+
+# Register a factory function directly in the analysis module
+setattr(analysis.Trace, 'from_hw', from_hw)
