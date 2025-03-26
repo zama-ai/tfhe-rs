@@ -55,6 +55,12 @@ REGEX_PATTERN?=''
 TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
+# tfhe-hpu-backend
+CUR_SCRIPT_DIR=$(shell cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+HPU_BACKEND_DIR=$(CUR_SCRIPT_DIR)/backends/tfhe-hpu-backend
+HPU_CONFIG=aved
+AVED_PCIE_DEV=$(shell lspci -d 10ee:50b5 | sed -e "s/\(..\).*/\1/")
+
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
 --exclude-files apps/trivium/src/trivium/* \
@@ -1149,7 +1155,7 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 bench_integer_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config aved
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" \
+	HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" AVED_PCIE_DEV="$(AVED_PCIE_DEV)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) --
