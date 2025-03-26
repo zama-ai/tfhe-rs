@@ -3121,6 +3121,7 @@ mod hpu {
         }
         }
     }
+    );
 
     macro_rules! define_hpu_bench_default_fn_scalar (
     (iop_name: $iop:ident, display_name:$name:ident) => {
@@ -3135,8 +3136,7 @@ mod hpu {
         }
         }
     }
-
-);
+    );
 
     // Alu ------------------------------------------------------------------------
     define_hpu_bench_default_fn!(
@@ -3159,7 +3159,7 @@ mod hpu {
     );
 
     // Alu Scalar -----------------------------------------------------------------
-    efine_hpu_bench_default_fn_scalar!(
+    define_hpu_bench_default_fn_scalar!(
         iop_name: adds,
         display_name: add
     );
