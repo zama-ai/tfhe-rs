@@ -193,7 +193,7 @@ pub fn iop_erc_20(prog: &mut Program) {
     // All these little parameters would be very handy to write an
     // exploration/compilation program which would try to minimize latency by
     // playing with these.
-    let kogge_blk_w = 6;
+    let kogge_blk_w = 10;
     let ripple = true;
 
     let tree = {

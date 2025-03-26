@@ -451,7 +451,7 @@ impl From<&HpuParameters> for PeConfigStore {
 
         // TODO: Add registers to know the minimum batchsize filling the
         // hardware. This kind of works for the last two generations though.
-        let min_batch_size = 6;
+        let min_batch_size = 10;
 
         // Compute some intermediate values
         let blwe_coefs = (poly_size * glwe_k) + 1;
