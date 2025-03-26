@@ -1147,10 +1147,11 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
+	source ./setup_hpu.sh --config aved
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) -- --quick
+	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain

@@ -2972,7 +2972,7 @@ mod hpu {
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
                     bench_id =
-                        format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                        format!("{bench_name}::{param_name}::{bit_size}_bits");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
@@ -3119,6 +3119,21 @@ mod hpu {
         }
         }
     }
+
+    macro_rules! define_hpu_bench_default_fn_scalar (
+    (iop_name: $iop:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+        fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
+            bench_hpu_iop_clean_inputs(
+                c,
+                concat!("integer::hpu::scalar::", stringify!($iop)),
+                stringify!($name),
+                &hpu_asm::iop::[< IOP_ $iop:upper >],
+            )
+        }
+        }
+    }
+
 );
 
     // Alu ------------------------------------------------------------------------
@@ -3142,27 +3157,27 @@ mod hpu {
     );
 
     // Alu Scalar -----------------------------------------------------------------
-    define_hpu_bench_default_fn!(
+    efine_hpu_bench_default_fn_scalar!(
         iop_name: adds,
-        display_name: add_scalar
+        display_name: add
     );
-    define_hpu_bench_default_fn!(
+    define_hpu_bench_default_fn_scalar!(
         iop_name: subs,
-        display_name: sub_scalar
+        display_name: sub
     );
-    define_hpu_bench_default_fn!(
-        iop_name: ssub,
-        display_name: scalar_sub
-    );
-    define_hpu_bench_default_fn!(
+    //define_hpu_bench_default_fn!(
+    //    iop_name: ssub,
+    //    display_name: scalar_sub
+    //);
+    define_hpu_bench_default_fn_scalar!(
         iop_name: muls,
-        display_name: mul_scalar
+        display_name: mul
     );
     criterion_group!(
         default_hpu_ops_scalar,
         default_hpu_adds,
         default_hpu_subs,
-        default_hpu_ssub,
+        //default_hpu_ssub,
         default_hpu_muls
     );
     // Bitwise --------------------------------------------------------------------
