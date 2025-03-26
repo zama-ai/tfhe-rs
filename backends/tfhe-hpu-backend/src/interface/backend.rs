@@ -89,7 +89,10 @@ unsafe impl Sync for HpuBackendWrapped {}
 /// Handle HpuBackend construction and initialisation
 impl HpuBackend {
     pub fn new(config: &config::HpuConfig) -> (Self, mpsc::Sender<cmd::HpuCmd>) {
-        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
+        let mut hpu_hw = ffi::HpuHw::new_hpu_hw(
+            &config.fpga.ffi,
+            std::time::Duration::from_micros(config.fpga.polling_us),
+        );
         let regmap_expanded = config
             .fpga
             .regmap
@@ -838,7 +841,7 @@ impl HpuBackend {
             if ack_nb == 0 {
                 Ok(false)
             } else {
-                tracing::debug!("Received ack {ack_nb} IOp ack",);
+                tracing::debug!("Received ack {ack_nb} IOp ack. Pending cmd {}", cmd_q.len());
                 for _ack in 0..ack_nb {
                     let ack_cmd = cmd_q.pop_front().unwrap();
                     // TODO check that ack_code match with expected op msb
