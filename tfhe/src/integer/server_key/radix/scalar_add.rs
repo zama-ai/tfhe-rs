@@ -3,6 +3,7 @@ use crate::integer::ciphertext::IntegerRadixCiphertext;
 use crate::integer::server_key::CheckError;
 use crate::integer::ServerKey;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
+use crate::shortint::{CarryModulus, MessageModulus};
 
 impl ServerKey {
     /// Computes homomorphically an addition between a scalar and a ciphertext.
@@ -90,25 +91,38 @@ impl ServerKey {
         T: DecomposableInto<u8>,
         C: IntegerRadixCiphertext,
     {
+        let block_metadata_iter = ct
+            .blocks()
+            .iter()
+            .map(|b| (b.degree, b.message_modulus, b.carry_modulus));
+        self.is_scalar_add_possible_impl(block_metadata_iter, scalar)
+    }
+
+    pub(crate) fn is_scalar_add_possible_impl<T, Iter>(
+        &self,
+        block_metadata: Iter,
+        scalar: T,
+    ) -> Result<(), CheckError>
+    where
+        T: DecomposableInto<u8>,
+        Iter: Iterator<Item = (Degree, MessageModulus, CarryModulus)>,
+    {
         let bits_in_message = self.key.message_modulus.0.ilog2();
         let decomposer =
             BlockDecomposer::with_early_stop_at_zero(scalar, bits_in_message).iter_as::<u8>();
 
         // Assumes message_modulus and carry_modulus matches between pairs of block
         let mut preceding_block_carry = Degree::new(0);
-        for (left_block, scalar_block_value) in ct.blocks().iter().zip(decomposer) {
-            let degree_after_add = left_block.degree + Degree::new(u64::from(scalar_block_value));
+        for (block_metadata, scalar_block_value) in block_metadata.zip(decomposer) {
+            let (block_degree, block_msg_mod, block_carry_mod) = block_metadata;
+            let degree_after_add = block_degree + Degree::new(u64::from(scalar_block_value));
 
             // Also need to take into account preceding_carry
-            let max_degree = MaxDegree::from_msg_carry_modulus(
-                left_block.message_modulus,
-                left_block.carry_modulus,
-            );
+            let max_degree = MaxDegree::from_msg_carry_modulus(block_msg_mod, block_carry_mod);
 
             max_degree.validate(degree_after_add + preceding_block_carry)?;
 
-            preceding_block_carry =
-                Degree::new(degree_after_add.get() / left_block.message_modulus.0);
+            preceding_block_carry = Degree::new(degree_after_add.get() / block_msg_mod.0);
         }
         Ok(())
     }
