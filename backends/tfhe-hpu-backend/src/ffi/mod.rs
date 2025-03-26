@@ -132,7 +132,7 @@ impl HpuHw {
 
     /// Handle ffi instanciation
     #[inline(always)]
-    pub fn new_hpu_hw(mode: &FFIMode) -> HpuHw {
+    pub fn new_hpu_hw(mode: &FFIMode, retry_rate: std::time::Duration) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
         {
             use tracing::{enabled, Level};
@@ -173,6 +173,7 @@ impl HpuHw {
                     qdma_c2h,
                 } => Self(aved::HpuHw::new_hpu_hw(
                     &ami_dev.expand(),
+                    retry_rate,
                     &qdma_h2c.expand(),
                     &qdma_c2h.expand(),
                 )),
