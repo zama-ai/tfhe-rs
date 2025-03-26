@@ -3,6 +3,7 @@ mod contains;
 mod find;
 mod no_pattern;
 mod replace;
+mod split;
 mod strip;
 mod trim;
 

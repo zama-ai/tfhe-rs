@@ -181,3 +181,54 @@ fn test_string_strip(client_key: &ClientKey) {
     let dec = stripped.decrypt(client_key);
     assert_eq!(dec, "The lazy cat");
 }
+
+fn test_string_split_once(client_key: &ClientKey) {
+    let string = FheAsciiString::try_encrypt("Thespacelazyspacecat", client_key).unwrap();
+    let separator = FheAsciiString::try_encrypt("space", client_key).unwrap();
+
+    let (lhs, rhs, split_occurred) = string.split_once(&separator);
+    assert!(split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "The");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "lazyspacecat");
+
+    let (lhs, rhs, split_occurred) = string.rsplit_once(&separator);
+    assert!(split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "Thespacelazy");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "cat");
+
+    let separator = FheAsciiString::try_encrypt(" ", client_key).unwrap();
+    let (lhs, rhs, split_occurred) = string.split_once(&separator);
+    assert!(!split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "hespacelazyspacecat");
+
+    let string = FheAsciiString::try_encrypt("The_lazy_cat", client_key).unwrap();
+    let separator = ClearString::new("_".into());
+    let (lhs, rhs, split_occurred) = string.split_once(&separator);
+    assert!(split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "The");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "lazy_cat");
+
+    let (lhs, rhs, split_occurred) = string.rsplit_once(&separator);
+    assert!(split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "The_lazy");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "cat");
+
+    let separator = ClearString::new(" ".into());
+    let (lhs, rhs, split_occurred) = string.split_once(&separator);
+    assert!(!split_occurred.decrypt(client_key));
+    let lhs_decrypted = lhs.decrypt(client_key);
+    assert_eq!(&lhs_decrypted, "");
+    let rhs_decrypted = rhs.decrypt(client_key);
+    assert_eq!(&rhs_decrypted, "he_lazy_cat");
+}

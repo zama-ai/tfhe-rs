@@ -35,3 +35,9 @@ fn test_string_strip() {
     let cks = setup_default_cpu();
     super::test_string_strip(&cks);
 }
+
+#[test]
+fn test_string_split_once() {
+    let cks = setup_default_cpu();
+    super::test_string_split_once(&cks);
+}

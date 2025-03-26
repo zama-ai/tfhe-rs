@@ -43,3 +43,12 @@ where
 {
     fn repeat(&self, count: Count) -> Self;
 }
+
+pub trait FheStringSplitOnce<Pat>
+where
+    Self: Sized,
+{
+    fn split_once(&self, pat: Pat) -> (Self, Self, FheBool);
+
+    fn rsplit_once(&self, pat: Pat) -> (Self, Self, FheBool);
+}
