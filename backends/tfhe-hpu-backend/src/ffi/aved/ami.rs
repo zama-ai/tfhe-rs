@@ -7,21 +7,26 @@ use std::{
     fs::{File, OpenOptions},
     io::Read,
     os::fd::AsRawFd,
+    time::Duration,
 };
 
 pub struct AmiDriver {
     ami_dev: File,
+    retry_rate: Duration,
 }
 
 impl AmiDriver {
-    pub fn new(ami_path: &str) -> Self {
+    pub fn new(ami_path: &str, retry_rate: Duration) -> Self {
         let ami_dev = OpenOptions::new()
             .read(true)
             .write(true)
             .create(false)
             .open(ami_path)
             .unwrap();
-        Self { ami_dev }
+        Self {
+            ami_dev,
+            retry_rate,
+        }
     }
 
     /// Issue read register request through AMI driver
@@ -40,9 +45,19 @@ impl AmiDriver {
         };
 
         tracing::trace!("AMI: Read request with following payload {payload:x?}");
-        let ret = unsafe { ami_peak(ami_fd.into(), &mut payload) };
-        tracing::trace!("AMI: Read ack received {payload:x?} -> {ret:?}");
-
+        loop {
+            let ret = unsafe { ami_peak(ami_fd.into(), &mut payload) };
+            match ret {
+                Err(err) => {
+                    tracing::debug!("AMI: Read failed -> {err:?}");
+                    std::thread::sleep(self.retry_rate.clone());
+                }
+                Ok(val) => {
+                    tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
+                    break;
+                }
+            }
+        }
         let data = unsafe { Box::from_raw(data_ptr) };
         data.as_ref().clone()
     }
@@ -62,8 +77,19 @@ impl AmiDriver {
         };
 
         tracing::trace!("AMI: Write request with following payload {payload:x?}");
-        let ret = unsafe { ami_poke(ami_fd.into(), &mut payload) };
-        tracing::trace!("AMI: Write ack received {payload:x?} -> {ret:?}");
+        loop {
+            let ret = unsafe { ami_poke(ami_fd.into(), &mut payload) };
+            match ret {
+                Err(err) => {
+                    tracing::debug!("AMI: Write failed -> {err:?}");
+                    std::thread::sleep(self.retry_rate.clone());
+                }
+                Ok(val) => {
+                    tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
+                    break;
+                }
+            }
+        }
     }
 
     /// Push a stream of DOp in the ISC
@@ -86,9 +112,20 @@ impl AmiDriver {
             mode: true,   // Push a stream of DOp
         };
 
-        tracing::trace!("AMI: IOpPush request with following payload {payload:x?}");
-        let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
-        tracing::trace!("AMI: IOpPush ack received {payload:x?} -> {ret:?}");
+        tracing::trace!("AMI: DOpPush request with following payload {payload:x?}");
+        loop {
+            let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
+            match ret {
+                Err(err) => {
+                    tracing::debug!("AMI: DOpPush failed -> {err:?}");
+                    std::thread::sleep(self.retry_rate.clone());
+                }
+                Ok(val) => {
+                    tracing::trace!("AMI: DOpPush ack received {payload:x?} -> {val:?}");
+                    break;
+                }
+            }
+        }
     }
 
     /// Push IOp to ucore
@@ -111,8 +148,19 @@ impl AmiDriver {
         };
 
         tracing::trace!("AMI: IOpPush request with following payload {payload:x?}");
-        let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
-        tracing::trace!("AMI: IOpPush ack received {payload:x?} -> {ret:?}");
+        loop {
+            let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
+            match ret {
+                Err(err) => {
+                    tracing::debug!("AMI: IOpPush failed -> {err:?}");
+                    std::thread::sleep(self.retry_rate.clone());
+                }
+                Ok(val) => {
+                    tracing::trace!("AMI: IOpPush ack received {payload:x?} -> {val:?}");
+                    break;
+                }
+            }
+        }
     }
 
     // TODO ugly quick patch
