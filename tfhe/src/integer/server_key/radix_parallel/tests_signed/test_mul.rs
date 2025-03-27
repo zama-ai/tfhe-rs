@@ -40,7 +40,7 @@ create_parameterized_test!(
 
 fn integer_signed_unchecked_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul_parallelized);
     signed_unchecked_mul_test(param, executor);
@@ -48,13 +48,13 @@ where
 
 fn integer_signed_default_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     signed_default_mul_test(param, executor);
 }
 
-fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
+fn integer_signed_default_overflowing_mul(param: impl Into<TestParameters>) {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -188,7 +188,7 @@ fn integer_signed_default_overflowing_mul(param: impl Into<PBSParameters>) {
 
 pub(crate) fn signed_unchecked_mul_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,
@@ -221,7 +221,7 @@ where
 
 pub(crate) fn signed_default_mul_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,

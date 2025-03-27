@@ -358,7 +358,7 @@ fn integer_smart_add(param: ClassicPBSParameters) {
 
 fn integer_unchecked_bitand<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitand);
     unchecked_bitand_test(param, executor);
@@ -366,7 +366,7 @@ where
 
 fn integer_unchecked_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitor);
     unchecked_bitor_test(param, executor);
@@ -374,7 +374,7 @@ where
 
 fn integer_unchecked_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_bitxor);
     unchecked_bitxor_test(param, executor);
@@ -382,7 +382,7 @@ where
 
 fn integer_smart_bitand<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitand);
     smart_bitand_test(param, executor);
@@ -390,7 +390,7 @@ where
 
 fn integer_smart_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitor);
     smart_bitor_test(param, executor);
@@ -398,7 +398,7 @@ where
 
 fn integer_smart_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_bitxor);
     smart_bitxor_test(param, executor);
@@ -543,7 +543,7 @@ fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
 
 fn integer_unchecked_scalar_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift);
     unchecked_scalar_left_shift_test(param, executor);
@@ -551,7 +551,7 @@ where
 
 fn integer_unchecked_scalar_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift);
     unchecked_scalar_right_shift_test(param, executor);
@@ -559,7 +559,7 @@ where
 
 fn integer_unchecked_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_neg);
     unchecked_neg_test(param, executor);
@@ -572,7 +572,7 @@ fn integer_smart_neg(param: ClassicPBSParameters) {
 
 fn integer_unchecked_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
@@ -585,7 +585,7 @@ fn integer_smart_sub(param: ClassicPBSParameters) {
 
 fn integer_unchecked_block_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_block_mul);
     unchecked_block_mul_test(param, executor);
@@ -629,7 +629,7 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
 
 fn integer_unchecked_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul);
     unchecked_mul_test(param, executor);
@@ -637,7 +637,7 @@ where
 
 fn integer_smart_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_mul);
     smart_mul_test(param, executor);
@@ -645,7 +645,7 @@ where
 
 fn integer_unchecked_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_add);
     unchecked_scalar_add_test(param, executor);
@@ -653,7 +653,7 @@ where
 
 fn integer_smart_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_add);
     smart_scalar_add_test(param, executor);
@@ -661,7 +661,7 @@ where
 
 fn integer_unchecked_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_sub);
     unchecked_scalar_sub_test(param, executor);
@@ -669,7 +669,7 @@ where
 
 fn integer_smart_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_sub);
     smart_scalar_sub_test(param, executor);
@@ -738,7 +738,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
 
 fn integer_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub);
     default_overflowing_sub_test(param, executor);
@@ -746,13 +746,13 @@ where
 
 fn integer_full_propagate<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate);
     full_propagate_test(param, executor);
 }
 
-fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
+fn integer_create_trivial_min_max(param: impl Into<TestParameters>) {
     let (_, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let num_bits_in_one_block = sks.message_modulus().0.ilog2();
@@ -809,7 +809,7 @@ fn integer_create_trivial_min_max(param: impl Into<PBSParameters>) {
     }
 }
 
-fn integer_signed_decryption_correctly_sign_extend(param: impl Into<PBSParameters>) {
+fn integer_signed_decryption_correctly_sign_extend(param: impl Into<TestParameters>) {
     // Test that when decrypting a negative SignedRadixCiphertext of N bits to a
     // clear type of M bits where M > N, the sign extension is correctly done
     //

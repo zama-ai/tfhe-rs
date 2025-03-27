@@ -2,7 +2,7 @@ use super::shortint::load_params;
 use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
 use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
-use tfhe::shortint::PBSParameters;
+use tfhe::shortint::{AtomicPatternParameters, PBSParameters};
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::CompactPkeCrs;
 use tfhe::{
@@ -25,10 +25,10 @@ use tfhe_backward_compat_data::{
 };
 use tfhe_versionable::Unversionize;
 
-fn load_hl_params(test_params: &TestParameterSet) -> PBSParameters {
+fn load_hl_params(test_params: &TestParameterSet) -> AtomicPatternParameters {
     let pbs_params = load_params(test_params);
 
-    PBSParameters::PBS(pbs_params)
+    PBSParameters::PBS(pbs_params).into()
 }
 
 /// Test HL ciphertext: loads the ciphertext and compare the decrypted value to the one in the

@@ -46,7 +46,7 @@ use rand::Rng;
 create_parameterized_test!(integer_signed_encrypt_decrypt);
 create_parameterized_test!(integer_signed_encrypt_decrypt_128_bits);
 
-fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
+fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<TestParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -65,7 +65,7 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
     }
 }
 
-fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
+fn integer_signed_encrypt_decrypt(param: impl Into<TestParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -104,7 +104,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 //================================================================================
 create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
-fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
+fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
@@ -213,7 +213,7 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 
 create_parameterized_test!(integer_signed_default_scalar_div_rem);
 
-fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
+fn integer_signed_default_scalar_div_rem(param: impl Into<TestParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 

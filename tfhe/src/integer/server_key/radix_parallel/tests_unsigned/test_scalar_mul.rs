@@ -37,7 +37,7 @@ create_parameterized_test!(integer_default_scalar_mul);
 
 fn integer_unchecked_scalar_mul_corner_cases<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
     unchecked_scalar_mul_corner_cases_test(param, executor);
@@ -45,7 +45,7 @@ where
 
 fn integer_smart_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_mul_parallelized);
     smart_scalar_mul_test(param, executor);
@@ -53,7 +53,7 @@ where
 
 fn integer_smart_scalar_mul_u128_fix_non_reg_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_mul_parallelized);
     smart_scalar_mul_u128_fix_non_reg_test(param, executor);
@@ -61,7 +61,7 @@ where
 
 fn integer_default_scalar_mul_u128_fix_non_reg_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
     default_scalar_mul_u128_fix_non_reg_test(param, executor);
@@ -69,7 +69,7 @@ where
 
 fn integer_default_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_mul_parallelized);
     default_scalar_mul_test(param, executor);
