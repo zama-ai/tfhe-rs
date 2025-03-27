@@ -40,6 +40,7 @@ pub mod shortint_utils {
     use super::*;
     use itertools::iproduct;
     use std::vec::IntoIter;
+    use tfhe::shortint::atomic_pattern::AtomicPatternParameters;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     #[cfg(not(feature = "gpu"))]
     use tfhe::shortint::parameters::current_params::V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
@@ -58,8 +59,10 @@ pub mod shortint_utils {
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
     /// in radix decomposition
     pub struct ParamsAndNumBlocksIter {
-        params_and_bit_sizes:
-            itertools::Product<IntoIter<tfhe::shortint::PBSParameters>, IntoIter<usize>>,
+        params_and_bit_sizes: itertools::Product<
+            IntoIter<tfhe::shortint::atomic_pattern::AtomicPatternParameters>,
+            IntoIter<usize>,
+        >,
     }
 
     impl Default for ParamsAndNumBlocksIter {
@@ -92,7 +95,11 @@ pub mod shortint_utils {
     }
 
     impl Iterator for ParamsAndNumBlocksIter {
-        type Item = (tfhe::shortint::PBSParameters, usize, usize);
+        type Item = (
+            tfhe::shortint::atomic_pattern::AtomicPatternParameters,
+            usize,
+            usize,
+        );
 
         fn next(&mut self) -> Option<Self::Item> {
             let (param, bit_size) = self.params_and_bit_sizes.next()?;
@@ -105,6 +112,31 @@ pub mod shortint_utils {
 
     impl From<PBSParameters> for CryptoParametersRecord<u64> {
         fn from(params: PBSParameters) -> Self {
+            CryptoParametersRecord {
+                lwe_dimension: Some(params.lwe_dimension()),
+                glwe_dimension: Some(params.glwe_dimension()),
+                polynomial_size: Some(params.polynomial_size()),
+                lwe_noise_distribution: Some(params.lwe_noise_distribution()),
+                glwe_noise_distribution: Some(params.glwe_noise_distribution()),
+                pbs_base_log: Some(params.pbs_base_log()),
+                pbs_level: Some(params.pbs_level()),
+                ks_base_log: Some(params.ks_base_log()),
+                ks_level: Some(params.ks_level()),
+                message_modulus: Some(params.message_modulus().0),
+                carry_modulus: Some(params.carry_modulus().0),
+                ciphertext_modulus: Some(
+                    params
+                        .ciphertext_modulus()
+                        .try_to()
+                        .expect("failed to convert ciphertext modulus"),
+                ),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<AtomicPatternParameters> for CryptoParametersRecord<u64> {
+        fn from(params: AtomicPatternParameters) -> Self {
             CryptoParametersRecord {
                 lwe_dimension: Some(params.lwe_dimension()),
                 glwe_dimension: Some(params.glwe_dimension()),

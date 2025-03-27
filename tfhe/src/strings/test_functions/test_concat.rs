@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use crate::strings::ciphertext::{FheString, UIntArg};
 use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::ServerKey;
@@ -19,7 +19,7 @@ fn concat_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn concat_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&|sk: &IntegerServerKey, in1: &FheString, in2: &FheString| {
@@ -31,7 +31,7 @@ where
 
 pub(crate) fn concat_test_impl<P, T>(param: P, mut concat_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a FheString), FheString>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -84,7 +84,7 @@ fn repeat_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn repeat_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString, n: &UIntArg| {
@@ -96,7 +96,7 @@ where
 
 pub(crate) fn repeat_test_impl<P, T>(param: P, mut repeat_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, &'a UIntArg), FheString>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_signed::{
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey};
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -20,7 +21,7 @@ create_parameterized_test!(integer_signed_unchecked_scalar_div_rem);
 
 fn integer_signed_unchecked_scalar_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_signed_scalar_div_rem_parallelized);
@@ -29,7 +30,7 @@ where
 
 pub(crate) fn signed_unchecked_scalar_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
             (&'a SignedRadixCiphertext, i64),
             (SignedRadixCiphertext, SignedRadixCiphertext),

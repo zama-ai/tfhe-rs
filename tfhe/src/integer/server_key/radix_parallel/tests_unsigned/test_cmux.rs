@@ -20,7 +20,7 @@ create_parameterized_test!(integer_default_scalar_if_then_else);
 
 fn integer_unchecked_left_scalar_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     fn func(
         sks: &ServerKey,
@@ -36,7 +36,7 @@ where
 
 fn integer_smart_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_if_then_else_parallelized);
     smart_if_then_else_test(param, executor);
@@ -44,7 +44,7 @@ where
 
 fn integer_default_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func =
         |sks: &ServerKey, cond: &BooleanBlock, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
@@ -56,7 +56,7 @@ where
 
 fn integer_default_scalar_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, cond: &BooleanBlock, lhs: u64, rhs: u64, num_blocks: usize| {
         sks.scalar_if_then_else_parallelized(cond, lhs, rhs, num_blocks)
@@ -67,7 +67,7 @@ where
 
 pub(crate) fn smart_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (
             &'a mut BooleanBlock,
@@ -134,7 +134,7 @@ where
 
 pub(crate) fn default_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a BooleanBlock, &'a RadixCiphertext, &'a RadixCiphertext),
         RadixCiphertext,
@@ -246,7 +246,7 @@ where
 
 pub(crate) fn default_scalar_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a BooleanBlock, u64, u64, usize), RadixCiphertext>,
 {
     let param = param.into();
@@ -289,7 +289,7 @@ where
 
 pub(crate) fn unchecked_left_scalar_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a BooleanBlock, u64, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
