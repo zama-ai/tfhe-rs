@@ -139,6 +139,18 @@ impl CompressedNoiseSquashingKey {
             output_ciphertext_modulus: self.output_ciphertext_modulus,
         }
     }
+
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.message_modulus
+    }
+
+    pub fn carry_modulus(&self) -> CarryModulus {
+        self.carry_modulus
+    }
+
+    pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
+        self.output_ciphertext_modulus
+    }
 }
 
 impl ParameterSetConformant for CompressedNoiseSquashingKey {

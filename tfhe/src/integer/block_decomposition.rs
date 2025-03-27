@@ -393,6 +393,34 @@ where
         recomposer.value()
     }
 
+    /// Recompose an unsigned integer, all limbs from input are added as if contributing
+    /// `bits_in_block` bits to the result, `unsigned_integer_size` indicates which of the low bits
+    /// are actually considered as being part of the result, the bits beyond that are set to 0.
+    ///
+    /// Input is expected in little endian order.
+    pub fn recompose_unsigned_with_size<U>(
+        input: impl Iterator<Item = U>,
+        bits_in_block: u32,
+        unsigned_integer_size: u32,
+    ) -> T
+    where
+        T: RecomposableFrom<U>,
+    {
+        let mut recomposer = Self::new(bits_in_block);
+        for limb in input {
+            if !recomposer.add_unmasked(limb) {
+                break;
+            }
+        }
+
+        if T::BITS <= unsigned_integer_size as usize {
+            recomposer.value()
+        } else {
+            let mask = (T::ONE << unsigned_integer_size) - T::ONE;
+            recomposer.value() & mask
+        }
+    }
+
     /// Recompose a signed integer, assumes all limbs from input contribute `bits_in_block` bits
     /// to the final result.
     ///
