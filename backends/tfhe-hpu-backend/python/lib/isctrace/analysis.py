@@ -151,7 +151,8 @@ class Latency:
 
     def as_dict(self):
         if len(self.acc):
-            npa = np.array(list(filter(lambda x: x != np.NAN, self.acc)))
+            npa = np.array(list(filter(lambda x: x != np.NAN, self.acc)),
+                           dtype=float)
             return {"min": npa.min(), "avg": npa.mean(),
                     "max": npa.max(), "sum": npa.sum(),
                     "count": len(npa), "data": self.data}
@@ -175,7 +176,8 @@ class InstructionStats:
                 'delta': self.delta, 
                 'reltime': self.reltime, 
                 }
-        ret.update(self.insn.as_dict())
+        if self.insn is not None:
+            ret.update(self.insn.as_dict())
         return ret
 
 def peek(it: Iterable):
@@ -185,7 +187,6 @@ def peek(it: Iterable):
     except StopIteration:
         val = None
     return ret, val
-
 
 """
 Iterable yielding Stats objects when iterated, results are not cached so don't
@@ -237,12 +238,16 @@ class Retired:
             batch.latency = latency
         return batches
 
-    def pbs_latency_table(self, threshold = BATCH_THRESHOLD):
+    def pbs_latency_table(self, freq_mhz = 350, threshold = BATCH_THRESHOLD):
         pbs_latency_table = defaultdict(Latency, {})
         for batch in self.pbs_batches(threshold):
             pbs_latency_table[len(batch)].append(batch, batch[0].reltime)
         table = {i: x.as_dict() for i,x in pbs_latency_table.items()}
-        return DataFrame.from_dict(table, orient="index").sort_index()
+        df = DataFrame.from_dict(table, orient="index")
+        clk_cols = ['min', 'avg', 'max', 'sum']
+        df.loc[:, clk_cols] = df.loc[:, clk_cols].apply(lambda x: x/freq_mhz)
+        df.index.name = 'batch size'
+        return df.sort_index()
 
     def pbs_flushes(self):
         batch = []
@@ -257,24 +262,26 @@ class Retired:
         if len(batch):
                 yield Batch(batch)
 
-
 class Issued(Retired):
-    @staticmethod
-    def _filter(events: Iterable):
+    match_class = Issue
+    @classmethod
+    def _filter(cls, events: Iterable):
         events, first = peek(events)
         if first is None:
             return
         first_stamp = prev_stamp = first.timestamp
-        for event in filter(lambda x: x.data.__class__ == Issue, events):
+        for event in filter(lambda x: x.data.__class__ == cls.match_class, events):
             insn = event.data.insn
             timestamp = event.timestamp
-            if (event.data.__class__ == Issue):
+            if (event.data.__class__ == cls.match_class):
                 latency = None
                 delta = timestamp - prev_stamp
                 reltime = timestamp - first_stamp 
                 yield InstructionStats(insn, latency, timestamp, delta, reltime)
                 prev_stamp = timestamp
 
+class Refilled(Issued):
+    match_class = Refill
 
 class Trace:
     def __init__(self, events: Iterable['Event']):
@@ -282,6 +289,9 @@ class Trace:
 
     def __iter__(self):
         return iter(self._events)
+
+    def __len__(self):
+        return len(self._events)
 
     def to_df(self):
         df = DataFrame.from_records([x.as_dict() for x in self],
