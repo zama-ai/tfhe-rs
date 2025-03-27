@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_mul);
 
 fn integer_unchecked_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_mul);
     unchecked_mul_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::mul);
     default_mul_test(param, executor);

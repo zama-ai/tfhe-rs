@@ -15,7 +15,7 @@ use crate::integer::{
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use crate::shortint::PBSParameters;
+
 use rand::Rng;
 use std::sync::Arc;
 
@@ -38,7 +38,7 @@ create_parameterized_test!(integer_signed_default_checked_ilog2 {
 
 fn integer_signed_default_trailing_zeros<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::trailing_zeros_parallelized);
     default_trailing_zeros_test(param, executor);
@@ -46,7 +46,7 @@ where
 
 fn integer_signed_default_trailing_ones<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::trailing_ones_parallelized);
     default_trailing_ones_test(param, executor);
@@ -54,7 +54,7 @@ where
 
 fn integer_signed_default_leading_zeros<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::leading_zeros_parallelized);
     default_leading_zeros_test(param, executor);
@@ -62,7 +62,7 @@ where
 
 fn integer_signed_default_leading_ones<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::leading_ones_parallelized);
     default_leading_ones_test(param, executor);
@@ -70,7 +70,7 @@ where
 
 fn integer_signed_default_ilog2<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::ilog2_parallelized);
     default_ilog2_test(param, executor);
@@ -78,7 +78,7 @@ where
 
 fn integer_signed_default_checked_ilog2<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::checked_ilog2_parallelized);
     default_checked_ilog2_test(param, executor);
@@ -90,7 +90,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
     param: P,
     mut executor: T,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
@@ -207,7 +207,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
 
 pub(crate) fn default_trailing_zeros_test<P, T>(param: P, executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     signed_default_count_consecutive_bits_test(
@@ -220,7 +220,7 @@ where
 
 pub(crate) fn default_trailing_ones_test<P, T>(param: P, executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     signed_default_count_consecutive_bits_test(Direction::Trailing, BitValue::One, param, executor);
@@ -228,7 +228,7 @@ where
 
 pub(crate) fn default_leading_zeros_test<P, T>(param: P, executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     signed_default_count_consecutive_bits_test(Direction::Leading, BitValue::Zero, param, executor);
@@ -236,7 +236,7 @@ where
 
 pub(crate) fn default_leading_ones_test<P, T>(param: P, executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     signed_default_count_consecutive_bits_test(Direction::Leading, BitValue::One, param, executor);
@@ -244,7 +244,7 @@ where
 
 pub(crate) fn default_ilog2_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
@@ -379,7 +379,7 @@ where
 
 pub(crate) fn default_checked_ilog2_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();

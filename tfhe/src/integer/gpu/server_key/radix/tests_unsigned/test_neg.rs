@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_neg);
 
 fn integer_unchecked_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_neg);
     unchecked_neg_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::neg);
     default_neg_test(param, executor);

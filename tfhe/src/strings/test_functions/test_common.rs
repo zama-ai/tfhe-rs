@@ -2,8 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{CpuFunctionExecutor, NotTuple};
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::parameters::{TestParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::{FheStringIsEmpty, FheStringLen, ServerKey};
@@ -16,7 +15,7 @@ fn test_encrypt_decrypt_parameterized() {
 
 fn test_encrypt_decrypt<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
@@ -43,7 +42,7 @@ impl NotTuple for &FheString {}
 #[allow(clippy::needless_pass_by_value)]
 fn is_empty_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString| {
         let sk = ServerKey::new(sk);
@@ -54,7 +53,7 @@ where
 
 pub(crate) fn is_empty_test_impl<P, T>(param: P, mut is_empty_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheStringIsEmpty>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -111,7 +110,7 @@ fn len_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn len_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&|sk: &IntegerServerKey, str: &FheString| {
         let sk = ServerKey::new(sk);
@@ -122,7 +121,7 @@ where
 
 pub(crate) fn len_test_impl<P, T>(param: P, mut len_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheStringLen>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -189,7 +188,7 @@ fn strip_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn strip_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -228,7 +227,7 @@ pub(crate) fn strip_test_impl<P, T>(
     mut strip_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<&'a str>,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), (FheString, BooleanBlock)>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -299,7 +298,7 @@ fn comp_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn comp_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -332,7 +331,7 @@ pub(crate) fn comp_test_impl<P, T>(
     mut comp_executor: T,
     clear_function: fn(&str, &str) -> bool,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), BooleanBlock>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

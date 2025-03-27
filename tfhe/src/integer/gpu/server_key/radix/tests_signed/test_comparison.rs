@@ -20,7 +20,7 @@ use crate::shortint::parameters::*;
 macro_rules! define_gpu_signed_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_signed_unchecked_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_signed_unchecked_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<unchecked_ $comparison_name>]);
                 test_signed_unchecked_function(
@@ -31,7 +31,7 @@ macro_rules! define_gpu_signed_comparison_test_functions {
                 )
             }
 
-            fn [<integer_signed_default_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_signed_default_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
                 test_signed_default_function(
@@ -60,7 +60,7 @@ macro_rules! define_gpu_signed_comparison_test_functions {
 
 fn integer_signed_unchecked_min_128_bits<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_min);
     test_signed_unchecked_minmax(params, 2, executor, std::cmp::min::<i128>)
@@ -68,7 +68,7 @@ where
 
 fn integer_signed_unchecked_max_128_bits<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_max);
     test_signed_unchecked_minmax(params, 2, executor, std::cmp::max::<i128>)
@@ -76,7 +76,7 @@ where
 
 fn integer_signed_min_128_bits<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::min);
     test_signed_default_minmax(params, 2, executor, std::cmp::min::<i128>);
@@ -84,7 +84,7 @@ where
 
 fn integer_signed_max_128_bits<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::max);
     test_signed_default_minmax(params, 2, executor, std::cmp::max::<i128>);

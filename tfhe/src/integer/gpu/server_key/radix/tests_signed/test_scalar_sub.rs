@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_signed_overflowing_scalar_sub);
 
 fn integer_signed_unchecked_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_sub);
     signed_unchecked_scalar_sub_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_signed_overflowing_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::signed_overflowing_scalar_sub);
     signed_default_overflowing_scalar_sub_test(param, executor);

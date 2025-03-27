@@ -15,7 +15,7 @@ create_parameterized_test!(integer_default_count_zeros_ones);
 
 fn integer_extensive_trivial_default_count_zeros_ones<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let count_zeros_executor = CpuFunctionExecutor::new(&ServerKey::count_zeros_parallelized);
     let count_ones_executor = CpuFunctionExecutor::new(&ServerKey::count_ones_parallelized);
@@ -28,7 +28,7 @@ where
 
 fn integer_default_count_zeros_ones<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let count_zeros_executor = CpuFunctionExecutor::new(&ServerKey::count_zeros_parallelized);
     let count_ones_executor = CpuFunctionExecutor::new(&ServerKey::count_ones_parallelized);
@@ -40,7 +40,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
     mut count_zeros_executor: E1,
     mut count_ones_executor: E2,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E1: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     E2: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
@@ -99,7 +99,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
     mut count_zeros_executor: E1,
     mut count_ones_executor: E2,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E1: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     E2: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {

@@ -76,7 +76,7 @@ mod tests {
 
     pub(crate) fn reverse_bits_test<P, T>(param: P, mut executor: T)
     where
-        P: Into<PBSParameters>,
+        P: Into<TestParameters>,
         T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
     {
         let param = param.into();
@@ -116,7 +116,7 @@ mod tests {
 
     fn integer_reverse_bits<P>(param: P)
     where
-        P: Into<PBSParameters>,
+        P: Into<TestParameters>,
     {
         let executor = CpuFunctionExecutor::new(&ServerKey::reverse_bits_parallelized);
         reverse_bits_test(param, executor);
