@@ -27,7 +27,9 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     let value = rng.gen_range(0..=i32::MAX);
     let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
     let ct = sks.bitand_parallelized(&ct, &ct);
-    let ct = noise_squashing_key.squash_signed_radix_ciphertext_noise(&sks, &ct);
+    let ct = noise_squashing_key
+        .squash_signed_radix_ciphertext_noise(&sks, &ct)
+        .unwrap();
     let d: i64 = noise_squashing_private_key
         .decrypt_signed_radix(&ct)
         .unwrap();
@@ -35,7 +37,9 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
 
     let ct = cks.encrypt_signed_radix(value, num_blocks.div_ceil(2));
     let ct = sks.bitand_parallelized(&ct, &ct);
-    let ct = noise_squashing_key.squash_signed_radix_ciphertext_noise(&sks, &ct);
+    let ct = noise_squashing_key
+        .squash_signed_radix_ciphertext_noise(&sks, &ct)
+        .unwrap();
     let d: i16 = noise_squashing_private_key
         .decrypt_signed_radix(&ct)
         .unwrap();
@@ -52,7 +56,9 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
         let value = rng.gen_range(i8::MIN..0);
         let ct = cks.encrypt_signed_radix(value, block_count);
         let ct = sks.bitand_parallelized(&ct, &ct);
-        let ct = noise_squashing_key.squash_signed_radix_ciphertext_noise(&sks, &ct);
+        let ct = noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(&sks, &ct)
+            .unwrap();
         let d: i64 = noise_squashing_private_key
             .decrypt_signed_radix(&ct)
             .unwrap();
@@ -60,7 +66,9 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
 
         let ct = cks.encrypt_signed_radix(value, block_count);
         let ct = sks.bitand_parallelized(&ct, &ct);
-        let ct = noise_squashing_key.squash_signed_radix_ciphertext_noise(&sks, &ct);
+        let ct = noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(&sks, &ct)
+            .unwrap();
         let d: i16 = noise_squashing_private_key
             .decrypt_signed_radix(&ct)
             .unwrap();
@@ -71,13 +79,17 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     let value = rng.gen::<u32>();
     let ct = cks.encrypt_radix(value, num_blocks * 2);
     let ct = sks.bitand_parallelized(&ct, &ct);
-    let ct = noise_squashing_key.squash_radix_ciphertext_noise(&sks, &ct);
+    let ct = noise_squashing_key
+        .squash_radix_ciphertext_noise(&sks, &ct)
+        .unwrap();
     let d: u64 = noise_squashing_private_key.decrypt_radix(&ct).unwrap();
     assert_eq!(u64::from(value), d);
 
     let ct = cks.encrypt_radix(value, num_blocks.div_ceil(2));
     let ct = sks.bitand_parallelized(&ct, &ct);
-    let ct = noise_squashing_key.squash_radix_ciphertext_noise(&sks, &ct);
+    let ct = noise_squashing_key
+        .squash_radix_ciphertext_noise(&sks, &ct)
+        .unwrap();
     let d: u16 = noise_squashing_private_key.decrypt_radix(&ct).unwrap();
     assert_eq!(value as u16, d);
 
@@ -85,7 +97,9 @@ fn test_integer_noise_squashing_decrypt_auto_cast_and_bool() {
     for val in [true, false] {
         let ct = cks.encrypt_bool(val);
         let ct = sks.boolean_bitand(&ct, &ct);
-        let ct = noise_squashing_key.squash_boolean_block_noise(&sks, &ct);
+        let ct = noise_squashing_key
+            .squash_boolean_block_noise(&sks, &ct)
+            .unwrap();
         let d = noise_squashing_private_key.decrypt_bool(&ct).unwrap();
         assert_eq!(val, d);
     }
