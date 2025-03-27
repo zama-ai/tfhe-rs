@@ -14,7 +14,7 @@ create_gpu_parameterized_test!(integer_scalar_bitxor);
 
 fn integer_scalar_bitand<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitand);
     default_scalar_bitand_test(param, executor);
@@ -22,7 +22,7 @@ where
 
 fn integer_scalar_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitor);
     default_scalar_bitor_test(param, executor);
@@ -30,7 +30,7 @@ where
 
 fn integer_scalar_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_bitxor);
     default_scalar_bitxor_test(param, executor);

@@ -82,7 +82,7 @@ pub(crate) type SignedLog2OpExecutor =
     Box<dyn for<'a> FunctionExecutor<&'a SignedRadixCiphertext, RadixCiphertext>>;
 fn random_op_sequence<P>(param: P)
 where
-    P: Into<PBSParameters> + Clone,
+    P: Into<AtomicPatternParameters> + Clone,
 {
     // Binary Ops Executors
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
@@ -548,7 +548,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         String,
     )],
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

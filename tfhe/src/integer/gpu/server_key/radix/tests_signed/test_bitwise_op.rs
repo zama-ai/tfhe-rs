@@ -20,7 +20,7 @@ create_gpu_parameterized_test!(integer_signed_default_bitxor);
 
 fn integer_signed_unchecked_bitand<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitand);
     signed_unchecked_bitand_test(param, executor);
@@ -28,7 +28,7 @@ where
 
 fn integer_signed_unchecked_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitor);
     signed_unchecked_bitor_test(param, executor);
@@ -36,7 +36,7 @@ where
 
 fn integer_signed_unchecked_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitxor);
     signed_unchecked_bitxor_test(param, executor);
@@ -44,7 +44,7 @@ where
 
 fn integer_signed_default_bitnot<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitnot);
     signed_default_bitnot_test(param, executor);
@@ -52,7 +52,7 @@ where
 
 fn integer_signed_default_bitand<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitand);
     signed_default_bitand_test(param, executor);
@@ -60,7 +60,7 @@ where
 
 fn integer_signed_default_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitor);
     signed_default_bitor_test(param, executor);
@@ -68,7 +68,7 @@ where
 
 fn integer_signed_default_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitxor);
     signed_default_bitxor_test(param, executor);

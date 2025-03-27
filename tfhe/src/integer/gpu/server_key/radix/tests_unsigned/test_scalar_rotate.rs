@@ -16,7 +16,7 @@ create_gpu_parameterized_test!(integer_scalar_rotate_right);
 
 fn integer_unchecked_scalar_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_right);
     unchecked_scalar_rotate_right_test(param, executor);
@@ -24,7 +24,7 @@ where
 
 fn integer_scalar_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
     default_scalar_rotate_right_test(param, executor);
@@ -32,7 +32,7 @@ where
 
 fn integer_unchecked_scalar_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_rotate_left);
     unchecked_scalar_rotate_left_test(param, executor);
@@ -40,7 +40,7 @@ where
 
 fn integer_scalar_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
     default_scalar_rotate_left_test(param, executor);

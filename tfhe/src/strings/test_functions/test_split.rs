@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
@@ -44,7 +44,7 @@ fn split_once_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn split_once_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -84,7 +84,7 @@ pub(crate) fn split_once_test_impl<P, T>(
     mut split_once_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<(&'a str, &'a str)>,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a FheString, GenericPatternRef<'a>),
         (FheString, FheString, BooleanBlock),
@@ -164,7 +164,7 @@ fn split_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn split_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -225,7 +225,7 @@ pub(crate) fn split_test_impl<P, T>(
     mut split_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Box<dyn Iterator<Item = &'a str> + 'a>,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a FheString, GenericPatternRef<'a>),
         Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,
@@ -312,7 +312,7 @@ fn splitn_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn splitn_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -353,7 +353,7 @@ pub(crate) fn splitn_test_impl<P, T>(
     mut splitn_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str, u16) -> Box<dyn Iterator<Item = &'a str> + 'a>,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a FheString, GenericPatternRef<'a>, UIntArg),
         Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,

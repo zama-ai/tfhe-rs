@@ -19,7 +19,7 @@ create_parameterized_test!(integer_right_shift);
 
 fn integer_unchecked_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_shift_parallelized);
     unchecked_left_shift_test(param, executor);
@@ -27,7 +27,7 @@ where
 
 fn integer_unchecked_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_right_shift_parallelized);
     unchecked_right_shift_test(param, executor);
@@ -35,7 +35,7 @@ where
 
 fn integer_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
     default_right_shift_test(param, executor);
@@ -43,7 +43,7 @@ where
 
 fn integer_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
     default_left_shift_test(param, executor);
@@ -51,7 +51,7 @@ where
 
 pub(crate) fn unchecked_left_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -110,7 +110,7 @@ where
 
 pub(crate) fn unchecked_right_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -168,7 +168,7 @@ where
 
 pub(crate) fn default_left_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -249,7 +249,7 @@ where
 
 pub(crate) fn default_right_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();

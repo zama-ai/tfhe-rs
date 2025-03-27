@@ -31,6 +31,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::IntegerKeyKind;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -46,7 +47,7 @@ use rand::Rng;
 create_parameterized_test!(integer_signed_encrypt_decrypt);
 create_parameterized_test!(integer_signed_encrypt_decrypt_128_bits);
 
-fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
+fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<AtomicPatternParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -65,7 +66,7 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
     }
 }
 
-fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
+fn integer_signed_encrypt_decrypt(param: impl Into<AtomicPatternParameters>) {
     let param = param.into();
     let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -104,7 +105,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 //================================================================================
 create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
-fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
+fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<AtomicPatternParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
@@ -213,7 +214,7 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 
 create_parameterized_test!(integer_signed_default_scalar_div_rem);
 
-fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
+fn integer_signed_default_scalar_div_rem(param: impl Into<AtomicPatternParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 

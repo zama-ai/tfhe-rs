@@ -3,7 +3,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::ServerKey;
@@ -17,7 +17,7 @@ fn contains_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn contains_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -60,7 +60,7 @@ pub(crate) fn contains_test_impl<P, T>(
     mut contains_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> bool,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), BooleanBlock>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

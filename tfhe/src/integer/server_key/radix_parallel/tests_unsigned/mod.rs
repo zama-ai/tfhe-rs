@@ -53,7 +53,7 @@ pub(crate) const MAX_VEC_LEN: usize = 5;
 
 pub(crate) const MAX_NB_CTXT: usize = 8;
 
-pub(crate) const fn nb_unchecked_tests_for_params(params: PBSParameters) -> usize {
+pub(crate) const fn nb_unchecked_tests_for_params(params: AtomicPatternParameters) -> usize {
     nb_tests_for_params(params)
 }
 
@@ -61,7 +61,7 @@ pub(crate) const fn nb_unchecked_tests_for_params(params: PBSParameters) -> usiz
 ///
 /// The bigger the number of bits bootstrapped by the input parameters, the smaller the
 /// number of iteration is
-pub(crate) const fn nb_tests_for_params(params: PBSParameters) -> usize {
+pub(crate) const fn nb_tests_for_params(params: AtomicPatternParameters) -> usize {
     let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
 
     if cfg!(tarpaulin) {
@@ -85,7 +85,7 @@ pub(crate) const fn nb_tests_for_params(params: PBSParameters) -> usize {
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-pub(crate) const fn nb_tests_smaller_for_params(params: PBSParameters) -> usize {
+pub(crate) const fn nb_tests_smaller_for_params(params: AtomicPatternParameters) -> usize {
     let full_modulus = params.message_modulus().0 * params.carry_modulus().0;
 
     if cfg!(tarpaulin) {
@@ -656,7 +656,7 @@ fn test_non_regression_clone_from() {
 
 fn integer_trim_radix_msb_blocks_handles_dirty_inputs<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let param = param.into();
     let (client_key, server_key) = crate::integer::gen_keys_radix(param, NB_CTXT);
@@ -700,7 +700,7 @@ where
 
 fn integer_full_propagate<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::full_propagate_parallelized);
     full_propagate_test(param, executor);

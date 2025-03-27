@@ -22,7 +22,7 @@ create_parameterized_test!(integer_unchecked_mul);
 
 fn integer_unchecked_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul_parallelized);
     unchecked_mul_test(param, executor);
@@ -30,7 +30,7 @@ where
 
 fn integer_unchecked_block_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_block_mul_parallelized);
     unchecked_block_mul_test(param, executor);
@@ -38,7 +38,7 @@ where
 
 fn integer_unchecked_mul_corner_cases<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_mul_parallelized);
     unchecked_mul_corner_cases_test(param, executor);
@@ -46,7 +46,7 @@ where
 
 fn integer_smart_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_mul_parallelized);
     smart_mul_test(param, executor);
@@ -54,7 +54,7 @@ where
 
 fn integer_smart_block_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_block_mul_parallelized);
     smart_block_mul_test(param, executor);
@@ -62,7 +62,7 @@ where
 
 fn integer_default_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
     default_mul_test(param, executor);
@@ -70,7 +70,7 @@ where
 
 fn integer_default_unsigned_overflowing_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_mul_parallelized);
     default_overflowing_mul_test(param, executor);
@@ -78,7 +78,7 @@ where
 
 fn integer_default_block_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::block_mul_parallelized);
     default_default_block_mul_test(param, executor);

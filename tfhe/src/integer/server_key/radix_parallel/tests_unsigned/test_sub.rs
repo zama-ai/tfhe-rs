@@ -44,7 +44,7 @@ create_parameterized_test!(integer_advanced_sub_assign_with_borrow_sequential);
 
 fn integer_unchecked_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
@@ -52,7 +52,7 @@ where
 
 fn integer_smart_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_sub_parallelized);
     smart_sub_test(param, executor);
@@ -60,7 +60,7 @@ where
 
 fn integer_default_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
     default_sub_test(param, executor);
@@ -68,7 +68,7 @@ where
 
 fn integer_extensive_trivial_default_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
     extensive_trivial_default_sub_test(param, executor);
@@ -76,7 +76,7 @@ where
 
 fn integer_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     default_overflowing_sub_test(param, executor);
@@ -84,7 +84,7 @@ where
 
 fn integer_extensive_trivial_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
     extensive_trivial_default_overflowing_sub_test(param, executor);
@@ -92,7 +92,7 @@ where
 
 fn integer_advanced_sub_assign_with_borrow_at_least_4_bits<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
@@ -123,7 +123,7 @@ where
 
 fn integer_advanced_sub_assign_with_borrow_sequential<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
@@ -183,7 +183,7 @@ impl ExpectedNoiseLevels {
 
 pub(crate) fn unchecked_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -250,7 +250,7 @@ where
 
 pub(crate) fn smart_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
         RadixCiphertext,
@@ -300,7 +300,7 @@ where
 
 pub(crate) fn default_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -351,7 +351,7 @@ where
 /// or extremely extremely fast in general, or if its plugged just as a one time thing.
 pub(crate) fn extensive_trivial_default_sub_test<P, T>(param: P, mut sub_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -397,7 +397,7 @@ where
 
 pub(crate) fn default_overflowing_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -537,7 +537,7 @@ pub(crate) fn extensive_trivial_default_overflowing_sub_test<P, T>(
     param: P,
     mut overflowing_sub_executor: T,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
