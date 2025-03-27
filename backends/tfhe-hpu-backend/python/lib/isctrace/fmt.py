@@ -60,7 +60,7 @@ class ADDS(BaseInstruction):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.src_rid} R{self.msg_cst["Cst"]}'
+        return f'R{self.dst_rid} R{self.src_rid} {self.msg_cst["Cst"]}'
 
 class SUB(BaseInstruction):
     def __init__(self, d):
@@ -74,7 +74,14 @@ class SSUB(BaseInstruction):
         self.__dict__ = d
 
     def args(self):
-        return f'R{self.dst_rid} R{self.msg_cst["Cst"]} R{self.src_rid}'
+        return f'R{self.dst_rid} {self.msg_cst["Cst"]} R{self.src_rid}'
+
+class SUBS(BaseInstruction):
+    def __init__(self, d):
+        self.__dict__ = d
+
+    def args(self):
+        return f'R{self.dst_rid} R{self.src_rid} {self.msg_cst["Cst"]}'
 
 class SYNC(BaseInstruction):
     def __init__(self, d):
