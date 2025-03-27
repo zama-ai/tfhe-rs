@@ -15,7 +15,7 @@ create_parameterized_test!(integer_default_scalar_bitxor);
 
 fn integer_default_scalar_bitand<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitand_parallelized);
     default_scalar_bitand_test(param, executor);
@@ -23,7 +23,7 @@ where
 
 fn integer_default_scalar_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitor_parallelized);
     default_scalar_bitor_test(param, executor);
@@ -31,7 +31,7 @@ where
 
 fn integer_default_scalar_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitxor_parallelized);
     default_scalar_bitxor_test(param, executor);

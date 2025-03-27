@@ -15,7 +15,7 @@ create_parameterized_test!(integer_default_overflowing_scalar_add);
 
 fn integer_smart_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_add_parallelized);
     smart_scalar_add_test(param, executor);
@@ -23,7 +23,7 @@ where
 
 fn integer_default_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
     default_scalar_add_test(param, executor);
@@ -31,7 +31,7 @@ where
 
 fn integer_default_overflowing_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_add_parallelized);

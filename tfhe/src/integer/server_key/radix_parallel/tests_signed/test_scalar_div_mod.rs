@@ -20,7 +20,7 @@ create_parameterized_test!(integer_signed_unchecked_scalar_div_rem);
 
 fn integer_signed_unchecked_scalar_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_signed_scalar_div_rem_parallelized);
@@ -29,7 +29,7 @@ where
 
 pub(crate) fn signed_unchecked_scalar_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
             (&'a SignedRadixCiphertext, i64),
             (SignedRadixCiphertext, SignedRadixCiphertext),

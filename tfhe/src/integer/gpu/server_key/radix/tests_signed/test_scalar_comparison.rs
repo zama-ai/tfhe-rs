@@ -20,7 +20,7 @@ use crate::shortint::parameters::*;
 macro_rules! define_gpu_signed_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_signed_unchecked_scalar_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_signed_unchecked_scalar_ $comparison_name _ $clear_type>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<unchecked_scalar_ $comparison_name>]);
                 test_signed_unchecked_scalar_function(
@@ -31,7 +31,7 @@ macro_rules! define_gpu_signed_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_signed_default_scalar_ $comparison_name $clear_type>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_signed_default_scalar_ $comparison_name $clear_type>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 10;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<scalar_ $comparison_name>]);
                 test_signed_default_scalar_function(
@@ -58,7 +58,7 @@ macro_rules! define_gpu_signed_scalar_comparison_test_functions {
 
 fn integer_signed_unchecked_scalar_min_i128<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_min);
     test_signed_unchecked_scalar_minmax(params, 2, executor, std::cmp::min::<i128>);
@@ -66,7 +66,7 @@ where
 
 fn integer_signed_unchecked_scalar_max_i128<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_max);
     test_signed_unchecked_scalar_minmax(params, 2, executor, std::cmp::max::<i128>);
@@ -74,7 +74,7 @@ where
 
 fn integer_signed_scalar_min_i128<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_min);
     test_signed_default_scalar_minmax(params, 2, executor, std::cmp::min::<i128>);
@@ -82,7 +82,7 @@ where
 
 fn integer_signed_scalar_max_i128<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_max);
     test_signed_default_scalar_minmax(params, 2, executor, std::cmp::max::<i128>);

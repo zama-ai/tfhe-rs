@@ -21,7 +21,7 @@ create_parameterized_test!(integer_default_neg);
 
 fn integer_smart_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg_parallelized);
     smart_neg_test(param, executor);
@@ -29,7 +29,7 @@ where
 
 fn integer_default_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::neg_parallelized);
     default_neg_test(param, executor);
@@ -52,7 +52,7 @@ impl ExpectedDegrees {
 
 pub(crate) fn unchecked_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
@@ -112,7 +112,7 @@ where
 
 pub(crate) fn smart_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a mut RadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();
@@ -167,7 +167,7 @@ where
 
 pub(crate) fn default_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
 {
     let param = param.into();

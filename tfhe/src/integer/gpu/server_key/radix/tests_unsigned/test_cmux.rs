@@ -13,14 +13,14 @@ create_gpu_parameterized_test!(multi_device_integer_if_then_else);
 
 fn integer_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::if_then_else);
     default_if_then_else_test(param, executor);
 }
 fn multi_device_integer_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::if_then_else);
     let num_gpus = get_number_of_gpus();

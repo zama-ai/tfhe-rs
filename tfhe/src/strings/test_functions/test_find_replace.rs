@@ -4,8 +4,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecu
 use crate::integer::{
     BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey as IntegerServerKey,
 };
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::parameters::{TestParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
 use crate::strings::ciphertext::{
     ClearString, FheString, GenericPattern, GenericPatternRef, UIntArg,
 };
@@ -25,7 +24,7 @@ fn find_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn find_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -61,7 +60,7 @@ pub(crate) fn find_test_impl<P, T>(
     mut find_executor: T,
     clear_function: for<'a> fn(&'a str, &'a str) -> Option<usize>,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a FheString, GenericPatternRef<'a>),
         (RadixCiphertext, BooleanBlock),
@@ -136,7 +135,7 @@ fn replace_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn replace_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
@@ -151,7 +150,7 @@ where
 
 pub(crate) fn replace_test_impl<P, T>(param: P, mut replace_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>, &'a FheString), FheString>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -232,7 +231,7 @@ fn replacen_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn replacen_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
@@ -248,7 +247,7 @@ where
 
 pub(crate) fn replacen_test_impl<P, T>(param: P, mut replacen_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (
             &'a FheString,

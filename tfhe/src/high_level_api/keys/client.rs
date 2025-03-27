@@ -71,7 +71,7 @@ impl ClientKey {
         }
     }
 
-    pub fn computation_parameters(&self) -> crate::shortint::PBSParameters {
+    pub fn computation_parameters(&self) -> crate::shortint::AtomicPatternParameters {
         self.key.block_parameters()
     }
 

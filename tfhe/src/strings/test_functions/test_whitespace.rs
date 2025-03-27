@@ -2,8 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::parameters::{TestParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
 use crate::strings::ciphertext::FheString;
 use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::{split_ascii_whitespace, FheStringIterator, ServerKey};
@@ -20,7 +19,7 @@ fn trim_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn trim_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -63,7 +62,7 @@ pub(crate) fn trim_test_impl<P, T>(
     mut trim_executor: T,
     clear_function: for<'a> fn(&'a str) -> &'a str,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheString>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -120,7 +119,7 @@ fn split_whitespace_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn split_whitespace_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let fhe_func: fn(
@@ -136,7 +135,7 @@ where
 
 pub(crate) fn split_whitespace_test_impl<P, T>(param: P, mut split_whitespace_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         &'a FheString,
         Box<dyn for<'b> FheStringIterator<&'b IntegerServerKey>>,
