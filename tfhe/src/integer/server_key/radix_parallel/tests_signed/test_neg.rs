@@ -21,7 +21,7 @@ create_parameterized_test!(integer_signed_default_neg);
 
 fn integer_signed_unchecked_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_neg);
     signed_unchecked_neg_test(param, executor);
@@ -29,7 +29,7 @@ where
 
 fn integer_signed_smart_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_neg_parallelized);
     signed_smart_neg_test(param, executor);
@@ -37,7 +37,7 @@ where
 
 fn integer_signed_default_neg<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::neg_parallelized);
     signed_default_neg_test(param, executor);
@@ -45,7 +45,7 @@ where
 
 pub(crate) fn signed_unchecked_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -98,7 +98,7 @@ where
 
 pub(crate) fn signed_smart_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a mut SignedRadixCiphertext, SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -136,7 +136,7 @@ where
 
 pub(crate) fn signed_default_neg_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a SignedRadixCiphertext, SignedRadixCiphertext>,
 {
     let param = param.into();

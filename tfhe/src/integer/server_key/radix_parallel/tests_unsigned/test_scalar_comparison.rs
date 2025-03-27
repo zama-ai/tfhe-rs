@@ -25,7 +25,7 @@ pub(crate) fn test_unchecked_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64> + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -70,7 +70,7 @@ pub(crate) fn test_smart_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -137,7 +137,7 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -210,7 +210,7 @@ pub(crate) fn test_default_scalar_function<P, T, ClearF, Scalar>(
 macro_rules! define_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_unchecked_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_unchecked_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters>{
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_scalar_ $comparison_name _parallelized>]);
                 test_unchecked_scalar_function(
@@ -221,7 +221,7 @@ macro_rules! define_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_smart_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_smart_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters>{
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_scalar_ $comparison_name _parallelized>]);
                 test_smart_scalar_function(
@@ -232,7 +232,7 @@ macro_rules! define_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_default_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_default_scalar_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters>{
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<scalar_ $comparison_name _parallelized>]);
                 test_default_scalar_function(
@@ -595,7 +595,7 @@ pub(crate) fn test_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -640,7 +640,7 @@ pub(crate) fn test_smart_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -703,7 +703,7 @@ pub(crate) fn test_default_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     Scalar: UnsignedNumeric + AddAssign<Scalar> + DecomposableInto<u64> + RecomposableFrom<u64>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, Scalar), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -942,7 +942,7 @@ mod coverage {
 
 create_parameterized_test!(integer_extensive_trivial_default_scalar_comparisons);
 
-fn integer_extensive_trivial_default_scalar_comparisons(params: impl Into<PBSParameters>) {
+fn integer_extensive_trivial_default_scalar_comparisons(params: impl Into<TestParameters>) {
     let lt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);
     let le_executor = CpuFunctionExecutor::new(&ServerKey::scalar_le_parallelized);
     let gt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_gt_parallelized);
@@ -974,7 +974,7 @@ pub(crate) fn extensive_trivial_default_scalar_comparisons_test<P, E1, E2, E3, E
     mut min_executor: E5,
     mut max_executor: E6,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E1: for<'a> FunctionExecutor<(&'a RadixCiphertext, u128), BooleanBlock>,
     E2: for<'a> FunctionExecutor<(&'a RadixCiphertext, u128), BooleanBlock>,
     E3: for<'a> FunctionExecutor<(&'a RadixCiphertext, u128), BooleanBlock>,

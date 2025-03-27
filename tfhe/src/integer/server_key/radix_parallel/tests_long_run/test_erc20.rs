@@ -27,7 +27,7 @@ create_parameterized_test!(overflow_erc20 {
 
 fn safe_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let overflowing_add_executor =
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
@@ -46,7 +46,7 @@ where
 
 fn whitepaper_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
@@ -63,7 +63,7 @@ where
 
 fn no_cmux_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
     let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
@@ -74,7 +74,7 @@ where
 
 fn overflow_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let overflowing_sub_executor =
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_sub_parallelized);
@@ -99,7 +99,7 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
     mut if_then_else_executor: T3,
     mut bitor_executor: T4,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -242,7 +242,7 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
     mut if_then_else_executor: T3,
     mut sub_executor: T4,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     T2: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
     T3: for<'a> FunctionExecutor<
@@ -336,7 +336,7 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
     mut add_executor: T3,
     mut sub_executor: T4,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     T2: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
     T3: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
@@ -420,7 +420,7 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
     mut mul_executor: T4,
     mut add_executor: T5,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),

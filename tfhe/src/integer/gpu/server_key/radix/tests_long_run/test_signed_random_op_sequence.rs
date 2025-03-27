@@ -16,7 +16,7 @@ create_gpu_parameterized_test!(signed_random_op_sequence {
 });
 fn signed_random_op_sequence<P>(param: P)
 where
-    P: Into<PBSParameters> + Clone,
+    P: Into<TestParameters> + Clone,
 {
     // Binary Ops Executors
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);

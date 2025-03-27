@@ -68,6 +68,8 @@ pub use ks32::KeySwitch32PBSParameters;
 pub use multi_bit::MultiBitPBSParameters;
 pub use noise_squashing::NoiseSquashingParameters;
 pub use parameters_wopbs::*;
+#[cfg(test)]
+pub use test_params::TestParameters;
 
 /// The modulus of the message space. For a given plaintext $p$ we have the message $m$ defined as
 /// $m = p\bmod{MessageModulus}$ and so $0 <= m < MessageModulus$.
@@ -588,16 +590,11 @@ impl ShortintParameterSet {
 
 impl<P> From<P> for ShortintParameterSet
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     fn from(value: P) -> Self {
-        Self::new_pbs_param_set(value.into())
-    }
-}
-
-impl From<AtomicPatternParameters> for ShortintParameterSet {
-    fn from(value: AtomicPatternParameters) -> Self {
-        match value {
+        let ap_params: AtomicPatternParameters = value.into();
+        match ap_params {
             AtomicPatternParameters::Standard(parameters) => Self::new_pbs_param_set(parameters),
             AtomicPatternParameters::KeySwitch32(parameters) => {
                 Self::new_ks32_pbs_param_set(parameters)
