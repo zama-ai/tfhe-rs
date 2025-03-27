@@ -9,6 +9,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use cargo_toml::Manifest;
 use tfhe_backward_compat_data::load::{load_tests_metadata, DataFormat, TestFailure, TestResult};
 use tfhe_backward_compat_data::{data_dir, dir_for_version, TestType, Testcase};
 use tfhe_versionable::Unversionize;
@@ -29,6 +30,14 @@ fn test_data_dir() -> PathBuf {
     }
 
     data_dir(root_dir)
+}
+
+fn tfhe_manifest_dir() -> PathBuf {
+    PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
+        .unwrap()
+        .join("..")
+        .join("tfhe")
+        .join("Cargo.toml")
 }
 
 fn load_and_unversionize<Data: Unversionize, P: AsRef<Path>, T: TestType>(
@@ -78,14 +87,21 @@ fn run_all_tests<M: TestedModule>(base_dir: &Path) -> Vec<TestResult> {
 
     let mut results = Vec::new();
 
+    let tfhe_manifest = Manifest::from_path(tfhe_manifest_dir()).unwrap();
+    let tfhe_version = tfhe_manifest.package().version();
+
     for testcase in meta {
-        if testcase.is_valid_for_version(env!("CARGO_PKG_VERSION")) {
+        if testcase.is_valid_for_version(tfhe_version) {
             let test_result = run_test::<M>(base_dir, &testcase, DataFormat::Cbor);
             results.push(test_result);
             let test_result = run_test::<M>(base_dir, &testcase, DataFormat::Bincode);
             results.push(test_result)
         }
     }
+
+    println!("Executed {} tests", results.len());
+    // If we ran 0 test, it is likely that something wrong happened
+    assert!(!results.is_empty());
 
     results
 }

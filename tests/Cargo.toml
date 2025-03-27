@@ -11,6 +11,7 @@ tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-co
     "load",
 ] }
 ron = "0.8"
+cargo_toml = "0.22"
 
 
 [[test]]
