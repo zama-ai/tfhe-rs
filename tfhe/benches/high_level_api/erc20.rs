@@ -251,12 +251,19 @@ fn bench_transfer_throughput<FheType, F>(
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     let mut rng = thread_rng();
-    #[cfg(not(feature = "gpu"))]
-    let num_gpus = 1u64;
     #[cfg(feature = "gpu")]
-    let num_gpus = unsafe { cuda_get_number_of_gpus() } as u64;
+    let batch_size = {
+        let num_gpus = unsafe { cuda_get_number_of_gpus() };
+        [10 * num_gpus, 100 * num_gpus, 500 * num_gpus]
+    };
 
-    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    #[cfg(feature = "hpu")]
+    let batch_size = [10, 100, 300];
+
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+    let batch_size = [10, 100, 500];
+
+    for num_elems in batch_size {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id = format!("{bench_name}::{fn_name}::{type_name}::{num_elems}_elems");
         group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
@@ -339,6 +346,19 @@ fn main() {
 
     #[cfg(feature = "hpu")]
     let cks = {
+        // Register tracing subscriber that use env-filter
+        // Select verbosity with env_var: e.g. `RUST_LOG=Alu=trace`
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+            .compact()
+            // Display source code file paths
+            .with_file(false)
+            // Display source code line numbers
+            .with_line_number(false)
+            .without_time()
+            // Build & register the subscriber
+            .init();
+
         // Hpu is enable, start benchmark on Hpu hw accelerator
         use tfhe::{set_server_key, Config};
         use tfhe_hpu_backend::prelude::*;
@@ -455,7 +475,6 @@ fn main() {
     }
 
     // FheUint64 Throughput
-    #[cfg(not(feature = "hpu"))]
     {
         let bench_name = if cfg!(feature = "gpu") {
             "hlapi::cuda::erc20::transfer_throughput"
