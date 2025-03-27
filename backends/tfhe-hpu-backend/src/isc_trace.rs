@@ -16,11 +16,11 @@ impl TraceDump {
 
         let mut trace: Vec<u8> = vec![0;size_b];
 
-        let offset_reg: Vec<usize> = ["addr_lsb", "addr_msb"].into_iter().
+        let offset_reg: Vec<usize> = ["trc_pc0_lsb", "trc_pc0_msb"].into_iter().
             map(|name| {
                 let reg = regmap
                     .register()
-                    .get(&format!("Trace::{}", name))
+                    .get(&format!("hbm_axi4_addr_1in3::{}", name))
                     .expect("Unknow register, check regmap definition");
                 hpu_hw.read_reg(*reg.offset() as u64) as usize
             }).collect();
