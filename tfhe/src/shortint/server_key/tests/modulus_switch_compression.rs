@@ -1,7 +1,7 @@
 use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::test_params::*;
-use crate::shortint::parameters::{NoiseLevel, PBSParameters};
+use crate::shortint::parameters::{AtomicPatternParameters, NoiseLevel};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
 
@@ -9,7 +9,7 @@ create_parameterized_test!(shortint_modulus_switch_compression);
 
 fn shortint_modulus_switch_compression<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
