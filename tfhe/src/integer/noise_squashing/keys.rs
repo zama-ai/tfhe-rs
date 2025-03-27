@@ -73,6 +73,14 @@ impl NoiseSquashingPrivateKey {
     }
 
     pub fn new(params: NoiseSquashingParameters) -> Self {
+        assert!(
+            params.carry_modulus.0 >= params.message_modulus.0,
+            "NoiseSquashingPrivateKey requires its CarryModulus {:?} to be greater \
+            or equal to its MessageModulus {:?}",
+            params.carry_modulus.0,
+            params.message_modulus.0,
+        );
+
         Self {
             key: crate::shortint::noise_squashing::NoiseSquashingPrivateKey::new(params),
         }
@@ -84,7 +92,7 @@ impl NoiseSquashingPrivateKey {
     {
         let SquashedNoiseRadixCiphertext {
             packed_blocks,
-            original_block_count: _,
+            original_block_count,
         } = ct;
 
         if packed_blocks.is_empty() {
@@ -94,12 +102,20 @@ impl NoiseSquashingPrivateKey {
         let packed_blocks_msg_mod = packed_blocks[0].message_modulus();
         let packed_blocks_carry_mod = packed_blocks[0].carry_modulus();
 
+        if packed_blocks_carry_mod.0 < packed_blocks_msg_mod.0 {
+            return Err(crate::error!(
+                "Input blocks cannot hold properly packed data and cannot be decrypted. \
+                CarryModulus ({packed_blocks_carry_mod:?}) should be greater or equal to \
+                the MessageModulus ({packed_blocks_msg_mod:?})",
+            ));
+        }
+
         if !packed_blocks.iter().all(|block| {
             block.message_modulus() == packed_blocks_msg_mod
                 && block.carry_modulus() == packed_blocks_carry_mod
         }) {
             return Err(crate::error!(
-                "Inconsistent message and carry modules in provided SquashedNoiseRadixCiphertext."
+                "Inconsistent message and carry moduli in provided SquashedNoiseRadixCiphertext."
             ));
         }
 
@@ -116,14 +132,21 @@ impl NoiseSquashingPrivateKey {
             ));
         }
 
-        let bits_in_packed_block = (packed_blocks_msg_mod.0 * packed_blocks_carry_mod.0).ilog2();
+        // We pack messages together so the number of bits per block is related to the msg_mod
+        // squared, we only require the carry to be big enough to hold a message
+        let bits_in_packed_block = (packed_blocks_msg_mod.0 * packed_blocks_msg_mod.0).ilog2();
+        // Packed block has a message modulus with 2x the number of bits vs. the original
+        let bits_in_original_block = bits_in_packed_block / 2;
+        let original_block_count = *original_block_count as u32;
+        let original_bit_size = bits_in_original_block * original_block_count;
         let decrypted_packed_block_iter = packed_blocks
             .iter()
             .map(|block| self.key.decrypt_squashed_noise_ciphertext(block));
 
-        Ok(BlockRecomposer::recompose_unsigned(
+        Ok(BlockRecomposer::recompose_unsigned_with_size(
             decrypted_packed_block_iter,
             bits_in_packed_block,
+            original_bit_size,
         ))
     }
 
@@ -146,12 +169,20 @@ impl NoiseSquashingPrivateKey {
         let packed_blocks_msg_mod = packed_blocks[0].message_modulus();
         let packed_blocks_carry_mod = packed_blocks[0].carry_modulus();
 
+        if packed_blocks_carry_mod.0 < packed_blocks_msg_mod.0 {
+            return Err(crate::error!(
+                "Input blocks cannot hold properly packed data and cannot be decrypted. \
+                CarryModulus ({packed_blocks_carry_mod:?}) should be greater or equal to \
+                the MessageModulus ({packed_blocks_msg_mod:?})",
+            ));
+        }
+
         if !packed_blocks.iter().all(|block| {
             block.message_modulus() == packed_blocks_msg_mod
                 && block.carry_modulus() == packed_blocks_carry_mod
         }) {
             return Err(crate::error!(
-                "Inconsistent message and carry modules in provided \
+                "Inconsistent message and carry moduli in provided \
                 SquashedNoiseSignedRadixCiphertext"
             ));
         }
@@ -169,7 +200,9 @@ impl NoiseSquashingPrivateKey {
             ));
         }
 
-        let bits_in_packed_block = (packed_blocks_msg_mod.0 * packed_blocks_carry_mod.0).ilog2();
+        // We pack messages together so the number of bits per block is related to the msg_mod
+        // squared, we only require the carry to be big enough to hold a message
+        let bits_in_packed_block = (packed_blocks_msg_mod.0 * packed_blocks_msg_mod.0).ilog2();
         // Packed block has a message modulus with 2x the number of bits vs. the original
         let bits_in_original_block = bits_in_packed_block / 2;
         let original_block_count = *original_block_count as u32;
@@ -233,60 +266,60 @@ impl NoiseSquashingKey {
         &self,
         src_server_key: &ServerKey,
         ciphertext: &RadixCiphertext,
-    ) -> SquashedNoiseRadixCiphertext {
+    ) -> crate::Result<SquashedNoiseRadixCiphertext> {
         let original_block_count = ciphertext.blocks.len();
 
-        let packed_blocks: Vec<_> = ciphertext
+        let packed_blocks = ciphertext
             .blocks
             .par_chunks(2)
             .map(|two_values| {
                 let packed = src_server_key.pack_block_chunk(two_values);
 
                 self.key
-                    .squash_ciphertext_noise(&packed, &src_server_key.key)
+                    .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
             })
-            .collect();
+            .collect::<crate::Result<Vec<_>>>()?;
 
-        SquashedNoiseRadixCiphertext {
+        Ok(SquashedNoiseRadixCiphertext {
             packed_blocks,
             original_block_count,
-        }
+        })
     }
 
     pub fn squash_signed_radix_ciphertext_noise(
         &self,
         src_server_key: &ServerKey,
         ciphertext: &SignedRadixCiphertext,
-    ) -> SquashedNoiseSignedRadixCiphertext {
+    ) -> crate::Result<SquashedNoiseSignedRadixCiphertext> {
         let original_block_count = ciphertext.blocks.len();
 
-        let packed_blocks: Vec<_> = ciphertext
+        let packed_blocks = ciphertext
             .blocks
             .par_chunks(2)
             .map(|two_values| {
                 let packed = src_server_key.pack_block_chunk(two_values);
 
                 self.key
-                    .squash_ciphertext_noise(&packed, &src_server_key.key)
+                    .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
             })
-            .collect();
+            .collect::<crate::Result<Vec<_>>>()?;
 
-        SquashedNoiseSignedRadixCiphertext {
+        Ok(SquashedNoiseSignedRadixCiphertext {
             packed_blocks,
             original_block_count,
-        }
+        })
     }
 
     pub fn squash_boolean_block_noise(
         &self,
         src_server_key: &ServerKey,
         boolean_block: &BooleanBlock,
-    ) -> SquashedNoiseBooleanBlock {
-        SquashedNoiseBooleanBlock {
+    ) -> crate::Result<SquashedNoiseBooleanBlock> {
+        Ok(SquashedNoiseBooleanBlock {
             ciphertext: self
                 .key
-                .squash_ciphertext_noise(&boolean_block.0, &src_server_key.key),
-        }
+                .checked_squash_ciphertext_noise(&boolean_block.0, &src_server_key.key)?,
+        })
     }
 }
 
@@ -338,6 +371,11 @@ impl ParameterSetConformant for NoiseSquashingKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
+        // The atomic pattern we support requires packing
+        if key.carry_modulus().0 < key.message_modulus().0 {
+            return false;
+        }
+
         key.is_conformant(parameter_set)
     }
 }
@@ -347,6 +385,11 @@ impl ParameterSetConformant for CompressedNoiseSquashingKey {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
+
+        // The atomic pattern we support requires packing
+        if key.carry_modulus().0 < key.message_modulus().0 {
+            return false;
+        }
 
         key.is_conformant(parameter_set)
     }
