@@ -21,7 +21,7 @@ use crate::shortint::parameters::*;
 macro_rules! define_gpu_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters>{
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<unchecked_ $comparison_name>]);
                 test_unchecked_function(
@@ -32,7 +32,7 @@ macro_rules! define_gpu_comparison_test_functions {
                 )
             }
 
-            fn [<integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
                 test_default_function(
@@ -43,7 +43,7 @@ macro_rules! define_gpu_comparison_test_functions {
                 )
             }
 
-            fn [<multi_device_integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<multi_device_integer_default_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<TestParameters> {
                 let num_tests = 1;
                 let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::[<$comparison_name>]);
                 let num_gpus = get_number_of_gpus();
@@ -78,7 +78,7 @@ macro_rules! define_gpu_comparison_test_functions {
 
 fn integer_unchecked_min_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::unchecked_min);
     test_unchecked_minmax(params, 2, executor, std::cmp::min::<U256>);
@@ -86,7 +86,7 @@ where
 
 fn integer_unchecked_max_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::unchecked_max);
     test_unchecked_minmax(params, 2, executor, std::cmp::max::<U256>);
@@ -94,7 +94,7 @@ where
 
 fn integer_min_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::min);
     test_default_minmax(params, 2, executor, std::cmp::min::<U256>);
@@ -102,7 +102,7 @@ where
 
 fn integer_max_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::max);
     test_default_minmax(params, 2, executor, std::cmp::max::<U256>);

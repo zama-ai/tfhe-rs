@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_scalar_mul);
 
 fn integer_unchecked_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_mul);
     unchecked_scalar_mul_corner_cases_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_mul);
     default_scalar_mul_test(param, executor);

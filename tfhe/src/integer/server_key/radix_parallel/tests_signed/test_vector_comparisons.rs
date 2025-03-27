@@ -18,7 +18,7 @@ create_parameterized_test!(integer_signed_default_all_eq_slices_test_case);
 
 fn integer_signed_unchecked_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_all_eq_slices_parallelized);
     unchecked_all_eq_slices_test_case(param, executor);
@@ -26,7 +26,7 @@ where
 
 pub(crate) fn unchecked_all_eq_slices_test_case<P, E>(params: P, mut executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
         (&'a [SignedRadixCiphertext], &'a [SignedRadixCiphertext]),
         BooleanBlock,
@@ -50,7 +50,7 @@ where
 
 fn integer_signed_default_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::all_eq_slices_parallelized);
     default_all_eq_slices_test_case(param, executor);
@@ -58,7 +58,7 @@ where
 
 pub(crate) fn default_all_eq_slices_test_case<P, E>(params: P, mut executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<
         (&'a [SignedRadixCiphertext], &'a [SignedRadixCiphertext]),
         BooleanBlock,

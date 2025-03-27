@@ -10,7 +10,7 @@ create_gpu_parameterized_test!(integer_scalar_div_rem);
 
 fn integer_scalar_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_div_rem);
     default_scalar_div_rem_test(param, executor);

@@ -12,7 +12,7 @@ create_parameterized_test!(modulus_switch_compression_signed);
 
 fn modulus_switch_compression_signed<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let size = 4;
     let (cks, sks) = gen_keys_radix(param, size);

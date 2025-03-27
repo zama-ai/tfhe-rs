@@ -53,7 +53,7 @@ pub(crate) type Log2OpExecutor =
     Box<dyn for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>>;
 fn random_op_sequence<P>(param: P)
 where
-    P: Into<PBSParameters> + Clone,
+    P: Into<TestParameters> + Clone,
 {
     // Binary Ops Executors
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
@@ -464,7 +464,7 @@ pub(crate) fn random_op_sequence_test<P>(
     )],
     log2_ops: &mut [(Log2OpExecutor, impl Fn(u64) -> u64, String)],
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let param = param.into();
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);

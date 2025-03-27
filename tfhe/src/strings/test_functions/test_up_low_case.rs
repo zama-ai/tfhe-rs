@@ -2,8 +2,7 @@ use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey as IntegerServerKey};
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use crate::shortint::PBSParameters;
+use crate::shortint::parameters::{TestParameters, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
 use crate::strings::ciphertext::{ClearString, FheString, GenericPattern, GenericPatternRef};
 use crate::strings::client_key::ClientKey;
 use crate::strings::server_key::ServerKey;
@@ -27,7 +26,7 @@ fn to_lower_upper_case_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn to_lower_upper_case_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     #[allow(clippy::type_complexity)]
     let ops: [(
@@ -63,7 +62,7 @@ pub(crate) fn to_lower_upper_case_test_impl<P, T>(
     mut to_lower_upper_case_executor: T,
     clear_function: for<'a> fn(&'a str) -> String,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a FheString, FheString>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -110,7 +109,7 @@ fn eq_ignore_case_test_parameterized() {
 #[allow(clippy::needless_pass_by_value)]
 fn eq_ignore_case_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&|sk: &IntegerServerKey,
@@ -125,7 +124,7 @@ where
 
 pub(crate) fn eq_ignore_case_test_impl<P, T>(param: P, mut eq_ignore_case_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a FheString, GenericPatternRef<'a>), BooleanBlock>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
