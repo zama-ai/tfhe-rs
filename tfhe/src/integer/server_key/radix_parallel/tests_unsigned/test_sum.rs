@@ -18,14 +18,14 @@ create_parameterized_test!(integer_default_sum_ciphertexts_vec);
 
 fn integer_default_unsigned_overflowing_sum_ciphertexts_vec<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     integer_default_unsigned_overflowing_sum_ciphertexts_test(param);
 }
 
 fn integer_default_sum_ciphertexts_vec<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     // Without this the compiler seems lost, and outputs errors about
     // 'one type is more general than the other' probably because the
@@ -39,7 +39,7 @@ where
 
 pub(crate) fn integer_default_unsigned_overflowing_sum_ciphertexts_test<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
@@ -139,7 +139,7 @@ where
 
 pub(crate) fn default_sum_ciphertexts_vec_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
 {
     let param = param.into();
@@ -185,7 +185,7 @@ where
 
 fn integer_smart_sum_ciphertexts_slice<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);

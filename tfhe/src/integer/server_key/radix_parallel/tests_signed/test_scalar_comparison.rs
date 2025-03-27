@@ -25,7 +25,7 @@ pub(crate) fn test_signed_unchecked_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + From<bool>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -91,7 +91,7 @@ pub(crate) fn test_signed_smart_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric
         + RecomposableSignedInteger
         + DecomposableInto<u64>
@@ -158,7 +158,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric
         + RecomposableSignedInteger
         + DecomposableInto<u64>
@@ -231,7 +231,7 @@ pub(crate) fn test_signed_default_scalar_function<P, T, ClearF, Scalar>(
 macro_rules! define_signed_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_signed_unchecked_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<AtomicPatternParameters>{
                 let num_tests = 2;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_scalar_ $comparison_name _parallelized>]);
                 test_signed_unchecked_scalar_function(
@@ -242,7 +242,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_signed_smart_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_signed_smart_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<AtomicPatternParameters>{
                 let num_tests = 2;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_scalar_ $comparison_name _parallelized>]);
                 test_signed_smart_scalar_function(
@@ -253,7 +253,7 @@ macro_rules! define_signed_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_signed_default_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_signed_default_scalar_ $comparison_name _parallelized_  $clear_type>]<P>(param: P) where P: Into<AtomicPatternParameters>{
                 let num_tests = 2;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<scalar_ $comparison_name _parallelized>]);
                 test_signed_default_scalar_function(
@@ -384,7 +384,7 @@ pub(crate) fn test_signed_unchecked_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -450,7 +450,7 @@ pub(crate) fn test_signed_smart_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + WrappingAdd,
     T: for<'a> FunctionExecutor<(&'a mut SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -513,7 +513,7 @@ pub(crate) fn test_signed_default_scalar_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: SignedNumeric + RecomposableSignedInteger + DecomposableInto<u64> + WrappingAdd,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, Scalar), SignedRadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
@@ -751,7 +751,9 @@ mod coverage {
 
 create_parameterized_test!(integer_extensive_trivial_signed_default_scalar_comparisons);
 
-fn integer_extensive_trivial_signed_default_scalar_comparisons(params: impl Into<PBSParameters>) {
+fn integer_extensive_trivial_signed_default_scalar_comparisons(
+    params: impl Into<AtomicPatternParameters>,
+) {
     let lt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_lt_parallelized);
     let le_executor = CpuFunctionExecutor::new(&ServerKey::scalar_le_parallelized);
     let gt_executor = CpuFunctionExecutor::new(&ServerKey::scalar_gt_parallelized);
@@ -783,7 +785,7 @@ pub(crate) fn extensive_trivial_signed_default_scalar_comparisons_test<P, E1, E2
     mut min_executor: E5,
     mut max_executor: E6,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     E1: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i128), BooleanBlock>,
     E2: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i128), BooleanBlock>,
     E3: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i128), BooleanBlock>,

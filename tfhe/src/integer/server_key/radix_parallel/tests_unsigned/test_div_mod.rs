@@ -135,7 +135,7 @@ create_parameterized_test!(
 
 fn integer_smart_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_div_rem_parallelized);
     smart_div_rem_test(param, executor);
@@ -143,7 +143,7 @@ where
 
 fn integer_smart_div<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_div_parallelized);
     smart_div_test(param, executor);
@@ -151,7 +151,7 @@ where
 
 fn integer_smart_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_rem_parallelized);
     smart_rem_test(param, executor);
@@ -159,7 +159,7 @@ where
 
 fn integer_default_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::div_rem_parallelized);
     default_div_rem_test(param, executor);
@@ -167,7 +167,7 @@ where
 
 fn integer_default_div<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::div_parallelized);
     default_div_test(param, executor);
@@ -175,7 +175,7 @@ where
 
 fn integer_default_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::rem_parallelized);
     default_rem_test(param, executor);
@@ -183,7 +183,7 @@ where
 
 pub(crate) fn default_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, RadixCiphertext),
@@ -253,7 +253,7 @@ where
 
 pub(crate) fn default_div_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -298,7 +298,7 @@ where
 
 pub(crate) fn default_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -343,7 +343,7 @@ where
 
 pub(crate) fn smart_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
         (RadixCiphertext, RadixCiphertext),
@@ -386,7 +386,7 @@ where
 
 pub(crate) fn smart_div_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
         RadixCiphertext,
@@ -426,7 +426,7 @@ where
 
 pub(crate) fn smart_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
         RadixCiphertext,

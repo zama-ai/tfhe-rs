@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_scalar_add);
 create_gpu_parameterized_test!(integer_default_overflowing_scalar_add);
 fn integer_unchecked_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_add);
     unchecked_scalar_add_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_add);
     default_scalar_add_test(param, executor);
@@ -29,7 +29,7 @@ where
 
 fn integer_default_overflowing_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_scalar_add);
     default_overflowing_scalar_add_test(param, executor);

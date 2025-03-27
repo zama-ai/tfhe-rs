@@ -13,7 +13,9 @@ use crate::integer::ClientKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
-use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+use crate::shortint::{
+    AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, PBSOrder,
+};
 mod radix;
 
 pub enum CudaBootstrappingKey {
@@ -83,7 +85,10 @@ impl CudaServerKey {
         let mut engine = ShortintEngine::new();
 
         // Generate a regular keyset and convert to the GPU
-        let pbs_params_base = &cks.parameters();
+        let AtomicPatternParameters::Classical(pbs_params_base) = &cks.parameters() else {
+            panic!("Only the classical atomic pattern is supported on GPU")
+        };
+
         let d_bootstrapping_key = match pbs_params_base {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
                 let h_bootstrap_key: LweBootstrapKeyOwned<u64> =

@@ -15,7 +15,7 @@ create_gpu_parameterized_test!(signed_no_cmux_erc20 {
 
 fn signed_whitepaper_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
@@ -32,7 +32,7 @@ where
 
 fn signed_no_cmux_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
     let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);

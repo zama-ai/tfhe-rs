@@ -17,7 +17,7 @@ create_gpu_parameterized_test!(integer_signed_overflowing_sub);
 
 fn integer_unchecked_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_sub);
     signed_unchecked_sub_test(param, executor);
@@ -25,7 +25,7 @@ where
 
 fn integer_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
     signed_default_sub_test(param, executor);
@@ -33,7 +33,7 @@ where
 
 fn integer_unchecked_signed_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_signed_overflowing_sub);
     signed_unchecked_overflowing_sub_test(param, executor);
@@ -41,7 +41,7 @@ where
 
 fn integer_signed_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::signed_overflowing_sub);
     signed_default_overflowing_sub_test(param, executor);

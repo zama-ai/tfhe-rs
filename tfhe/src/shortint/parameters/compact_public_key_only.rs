@@ -183,7 +183,8 @@ impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
                 params.try_into()
             }
             AtomicPatternParameters::KeySwitch32(parameters) => {
-                todo!()
+                let params: ShortintParameterSet = parameters.into();
+                params.try_into()
             }
         }
     }

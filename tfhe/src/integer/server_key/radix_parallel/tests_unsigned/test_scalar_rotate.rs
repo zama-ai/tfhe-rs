@@ -19,7 +19,7 @@ create_parameterized_test!(integer_default_scalar_rotate_right);
 
 fn integer_default_scalar_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_left_parallelized);
     default_scalar_rotate_left_test(param, executor);
@@ -27,7 +27,7 @@ where
 
 fn integer_unchecked_scalar_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_rotate_left_parallelized);
     unchecked_scalar_rotate_left_test(param, executor);
@@ -35,7 +35,7 @@ where
 
 fn integer_default_scalar_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_rotate_right_parallelized);
     default_scalar_rotate_right_test(param, executor);
@@ -43,7 +43,7 @@ where
 
 fn integer_unchecked_scalar_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_rotate_right_parallelized);
     unchecked_scalar_rotate_right_test(param, executor);
@@ -51,7 +51,7 @@ where
 
 pub(crate) fn unchecked_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
     let param = param.into();
@@ -117,7 +117,7 @@ where
 
 pub(crate) fn unchecked_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
     let param = param.into();
@@ -183,7 +183,7 @@ where
 
 pub(crate) fn default_scalar_rotate_right_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
     let param = param.into();
@@ -257,7 +257,7 @@ where
 
 pub(crate) fn default_scalar_rotate_left_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), RadixCiphertext>,
 {
     let param = param.into();

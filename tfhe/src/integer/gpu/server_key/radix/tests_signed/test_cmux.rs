@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_if_then_else);
 
 fn integer_unchecked_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_if_then_else);
     signed_unchecked_if_then_else_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::if_then_else);
     signed_default_if_then_else_test(param, executor);

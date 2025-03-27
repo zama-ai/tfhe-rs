@@ -10,7 +10,7 @@ create_gpu_parameterized_test!(integer_signed_unchecked_div_rem);
 
 fn integer_signed_unchecked_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::div_rem);
     signed_unchecked_div_rem_test(param, executor);

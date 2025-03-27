@@ -7,7 +7,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
-use crate::shortint::PBSParameters;
+use crate::shortint::AtomicPatternParameters;
 use rand::{thread_rng, Rng};
 use std::sync::Arc;
 
@@ -20,18 +20,18 @@ create_parameterized_test!(unchecked_boolean_scalar_dot_prod);
 create_parameterized_test!(smart_boolean_scalar_dot_prod);
 create_parameterized_test!(boolean_scalar_dot_prod);
 
-fn unchecked_boolean_scalar_dot_prod(params: impl Into<PBSParameters>) {
+fn unchecked_boolean_scalar_dot_prod(params: impl Into<AtomicPatternParameters>) {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_boolean_scalar_dot_prod_parallelized);
     unchecked_boolean_scalar_dot_prod_test_case(params, executor);
 }
 
-fn smart_boolean_scalar_dot_prod(params: impl Into<PBSParameters>) {
+fn smart_boolean_scalar_dot_prod(params: impl Into<AtomicPatternParameters>) {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_boolean_scalar_dot_prod_parallelized);
     smart_boolean_scalar_dot_prod_test_case(params, executor);
 }
 
-fn boolean_scalar_dot_prod(params: impl Into<PBSParameters>) {
+fn boolean_scalar_dot_prod(params: impl Into<AtomicPatternParameters>) {
     let executor = CpuFunctionExecutor::new(&ServerKey::boolean_scalar_dot_prod_parallelized);
     default_boolean_scalar_dot_prod_test_case(params, executor);
 }
@@ -46,7 +46,7 @@ fn boolean_dot_prod(bs: &[bool], cs: &[u64], modulus: u64) -> u64 {
 
 pub(crate) fn unchecked_boolean_scalar_dot_prod_test_case<P, E>(params: P, mut dot_prod_executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     E: for<'a> FunctionExecutor<(&'a [BooleanBlock], &'a [u64], u32), RadixCiphertext>,
 {
     let params = params.into();
@@ -100,7 +100,7 @@ where
 
 pub(crate) fn smart_boolean_scalar_dot_prod_test_case<P, E>(params: P, mut dot_prod_executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     E: for<'a> FunctionExecutor<(&'a mut [BooleanBlock], &'a [u64], u32), RadixCiphertext>,
 {
     let params = params.into();
@@ -168,7 +168,7 @@ where
 
 pub(crate) fn default_boolean_scalar_dot_prod_test_case<P, E>(params: P, mut dot_prod_executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     E: for<'a> FunctionExecutor<(&'a [BooleanBlock], &'a [u64], u32), RadixCiphertext>,
 {
     let params = params.into();

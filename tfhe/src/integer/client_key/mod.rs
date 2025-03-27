@@ -142,8 +142,8 @@ impl ClientKey {
         Self { key }
     }
 
-    pub fn parameters(&self) -> crate::shortint::PBSParameters {
-        self.key.parameters.pbs_parameters().unwrap()
+    pub fn parameters(&self) -> crate::shortint::AtomicPatternParameters {
+        self.key.parameters.ap_parameters().unwrap()
     }
 
     #[cfg(test)]

@@ -23,7 +23,7 @@ use rand::Rng;
 macro_rules! define_gpu_scalar_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_unchecked_scalar_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_unchecked_scalar_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters>{
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<unchecked_scalar_ $comparison_name>]);
                 test_unchecked_scalar_function(
@@ -34,7 +34,7 @@ macro_rules! define_gpu_scalar_comparison_test_functions {
                 )
             }
 
-            fn [<integer_default_scalar_ $comparison_name $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_default_scalar_ $comparison_name $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters> {
                 let num_tests = 1;
                 let executor = GpuFunctionExecutor::new(&CudaServerKey::[<scalar_ $comparison_name>]);
                 test_default_scalar_function(
@@ -61,7 +61,7 @@ macro_rules! define_gpu_scalar_comparison_test_functions {
 
 fn integer_unchecked_scalar_min_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::unchecked_scalar_min);
     test_unchecked_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
@@ -69,7 +69,7 @@ where
 
 fn integer_unchecked_scalar_max_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::unchecked_scalar_max);
     test_unchecked_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
@@ -77,7 +77,7 @@ where
 
 fn integer_scalar_min_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::scalar_min);
     test_default_scalar_minmax(params, 2, executor, std::cmp::min::<U256>);
@@ -85,7 +85,7 @@ where
 
 fn integer_scalar_max_u256<P>(params: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(CudaServerKey::scalar_max);
     test_default_scalar_minmax(params, 2, executor, std::cmp::max::<U256>);
@@ -96,7 +96,7 @@ where
 // compared to the ciphertext
 fn integer_unchecked_scalar_comparisons_edge<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let p = param.into();
     let num_block = (128f64 / (p.message_modulus().0 as f64).log(2.0)).ceil() as usize;
@@ -226,7 +226,7 @@ where
 
 fn integer_unchecked_scalar_comparisons_edge_one_block<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let p = param.into();
     let num_block = 1;
