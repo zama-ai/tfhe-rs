@@ -25,7 +25,7 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -86,7 +86,7 @@ pub(crate) fn test_smart_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -173,7 +173,7 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -262,7 +262,7 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
 macro_rules! define_comparison_test_functions {
     ($comparison_name:ident, $clear_type:ty) => {
         ::paste::paste!{
-            fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters>{
+            fn [<integer_unchecked_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters>{
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_ $comparison_name>]);
                 test_unchecked_function(
@@ -273,7 +273,7 @@ macro_rules! define_comparison_test_functions {
                 )
             }
 
-            fn [<integer_unchecked_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_unchecked_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters> {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<unchecked_ $comparison_name _parallelized>]);
                 test_unchecked_function(
@@ -284,7 +284,7 @@ macro_rules! define_comparison_test_functions {
                 )
             }
 
-            fn [<integer_smart_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_smart_ $comparison_name _ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters> {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_ $comparison_name>]);
                 test_smart_function(
@@ -295,7 +295,7 @@ macro_rules! define_comparison_test_functions {
                 )
             }
 
-            fn [<integer_smart_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_smart_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters> {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<smart_ $comparison_name _parallelized>]);
                 test_smart_function(
@@ -306,7 +306,7 @@ macro_rules! define_comparison_test_functions {
                 )
             }
 
-            fn [<integer_default_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<PBSParameters> {
+            fn [<integer_default_ $comparison_name _parallelized_ $clear_type:lower>]<P>(param: P) where P: Into<AtomicPatternParameters> {
                 let num_tests = 1;
                 let executor = CpuFunctionExecutor::new(&ServerKey::[<$comparison_name _parallelized>]);
                 test_default_function(
@@ -405,7 +405,7 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -466,7 +466,7 @@ pub(crate) fn test_smart_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -556,7 +556,7 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
     mut executor: T,
     clear_fn: ClearF,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     Scalar: UnsignedNumeric
         + AddAssign<Scalar>
         + DecomposableInto<u64>
@@ -636,32 +636,32 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
 mod no_coverage {
     use super::*;
 
-    fn integer_unchecked_min_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_unchecked_min_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_min_parallelized);
         test_unchecked_minmax(params, 2, executor, std::cmp::min::<U256>);
     }
 
-    fn integer_unchecked_max_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_unchecked_max_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_max_parallelized);
         test_unchecked_minmax(params, 2, executor, std::cmp::max::<U256>);
     }
 
-    fn integer_smart_min_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_smart_min_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::smart_min_parallelized);
         test_smart_minmax(params, 2, executor, std::cmp::min::<U256>);
     }
 
-    fn integer_smart_max_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_smart_max_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::smart_max_parallelized);
         test_smart_minmax(params, 2, executor, std::cmp::max::<U256>);
     }
 
-    fn integer_min_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_min_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::min_parallelized);
         test_default_minmax(params, 2, executor, std::cmp::min::<U256>);
     }
 
-    fn integer_max_parallelized_u256(params: impl Into<PBSParameters>) {
+    fn integer_max_parallelized_u256(params: impl Into<AtomicPatternParameters>) {
         let executor = CpuFunctionExecutor::new(&ServerKey::max_parallelized);
         test_default_minmax(params, 2, executor, std::cmp::max::<U256>);
     }
@@ -762,7 +762,7 @@ mod coverage {
 
 create_parameterized_test!(integer_extensive_trivial_default_comparisons);
 
-fn integer_extensive_trivial_default_comparisons(params: impl Into<PBSParameters>) {
+fn integer_extensive_trivial_default_comparisons(params: impl Into<AtomicPatternParameters>) {
     let lt_executor = CpuFunctionExecutor::new(&ServerKey::lt_parallelized);
     let le_executor = CpuFunctionExecutor::new(&ServerKey::le_parallelized);
     let gt_executor = CpuFunctionExecutor::new(&ServerKey::gt_parallelized);
@@ -794,7 +794,7 @@ pub(crate) fn extensive_trivial_default_comparisons_test<P, E1, E2, E3, E4, E5, 
     mut min_executor: E5,
     mut max_executor: E6,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     E1: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     E2: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     E3: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,

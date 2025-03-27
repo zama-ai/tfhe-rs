@@ -199,7 +199,7 @@ impl IntegerClientKey {
         }
     }
 
-    pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::PBSParameters {
+    pub(crate) fn block_parameters(&self) -> crate::shortint::parameters::AtomicPatternParameters {
         self.key.parameters()
     }
 }

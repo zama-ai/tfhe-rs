@@ -1,9 +1,9 @@
 #[cfg(feature = "experimental")]
 use crate::integer::wopbs::WopbsKey;
 use crate::integer::{ClientKey, IntegerKeyKind, ServerKey};
-use crate::shortint::PBSParameters;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 #[cfg(feature = "experimental")]
-use crate::shortint::WopbsParameters;
+use crate::shortint::{PBSParameters, WopbsParameters};
 
 #[derive(Default)]
 pub struct IntegerKeyCache;
@@ -11,7 +11,7 @@ pub struct IntegerKeyCache;
 impl IntegerKeyCache {
     pub fn get_from_params<P>(&self, params: P, key_kind: IntegerKeyKind) -> (ClientKey, ServerKey)
     where
-        P: Into<PBSParameters>,
+        P: Into<AtomicPatternParameters>,
     {
         let cache = &crate::shortint::keycache::KEY_CACHE;
 

@@ -9,6 +9,7 @@ use crate::integer::{
     BooleanBlock, IntegerCiphertext, IntegerKeyKind, RadixClientKey, ServerKey,
     SignedRadixCiphertext,
 };
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::parameters::*;
 use rand::Rng;
 use std::sync::Arc;
@@ -22,7 +23,7 @@ create_parameterized_test!(no_cmux_erc20 {
 
 fn whitepaper_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
     let add_executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
@@ -39,7 +40,7 @@ where
 
 fn no_cmux_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let ge_executor = CpuFunctionExecutor::new(&ServerKey::ge_parallelized);
     let mul_executor = CpuFunctionExecutor::new(&ServerKey::mul_parallelized);
@@ -55,7 +56,7 @@ pub(crate) fn signed_whitepaper_erc20_test<P, T1, T2, T3, T4>(
     mut if_then_else_executor: T3,
     mut sub_executor: T4,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         BooleanBlock,
@@ -162,7 +163,7 @@ pub(crate) fn signed_no_cmux_erc20_test<P, T1, T2, T3, T4>(
     mut add_executor: T3,
     mut sub_executor: T4,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T1: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         BooleanBlock,
