@@ -792,6 +792,11 @@ impl MetaVarCell {
         }
     }
 
+    pub fn pack_carry(&self, msb: &MetaVarCell) -> MetaVarCell {
+        let tfhe_params: asm::DigitParameters = self.0.borrow().prog.params().clone().into();
+        msb.mac(tfhe_params.msg_range() as u8, self)
+    }
+
     pub fn mac(&self, mul_factor: u8, rhs: &MetaVarCell) -> MetaVarCell {
         // Allocate output variable
         let dst = {

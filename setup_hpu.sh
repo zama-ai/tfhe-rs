@@ -123,7 +123,7 @@ fi
 # Aved specific init ###########################################################
 if [[ "$HPU_CONFIG" == aved* ]]; then
     export AVED_PCIE_DEV
-    if [ "$AVED_QDMA_INIT" == true ]; then
+    if [[ "$AVED_QDMA_INIT" == true ]]; then
         while true; do
             read -p "QDMA_PF init requested by user. This required sudo right, Are you sure to process [Y/n]" user_input
             if [[ "$user_input" == [Yy] ]]; then

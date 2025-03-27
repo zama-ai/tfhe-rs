@@ -127,7 +127,10 @@ fn main() {
     let config = HpuConfig::from_toml(&args.config.expand());
 
     // Instanciate bare-minimum abstraction around XRT -----------------------
-    let mut hpu_hw = ffi::HpuHw::new_hpu_hw(&config.fpga.ffi);
+    let mut hpu_hw = ffi::HpuHw::new_hpu_hw(
+        &config.fpga.ffi,
+        std::time::Duration::from_micros(config.fpga.polling_us),
+    );
     let regmap = {
         let regmap_expanded = config
             .fpga
