@@ -269,8 +269,19 @@ fn bench_transfer_throughput<FheType, F>(
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     let mut rng = thread_rng();
+    #[cfg(feature = "gpu")]
+    let batch_size = {
+        let num_gpus = unsafe { cuda_get_number_of_gpus() };
+        [10 * num_gpus, 100 * num_gpus, 500 * num_gpus]
+    };
 
-    for num_elems in [10, 100, 500] {
+    #[cfg(feature = "hpu")]
+    let batch_size = [10, 100, 300];
+
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+    let batch_size = [10, 100, 500];
+
+    for num_elems in batch_size {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
@@ -701,27 +712,27 @@ fn main() {
     }
 
     // FheUint64 Throughput
-    // {
-    //     let mut group = c.benchmark_group(bench_name);
-    //     bench_transfer_throughput(
-    //         &mut group,
-    //         &cks,
-    //         bench_name,
-    //         "FheUint64",
-    //         "whitepaper",
-    //         transfer_whitepaper::<FheUint64>,
-    //     );
-    //     // Erc20 optimized instruction only available on Hpu
-    //     bench_transfer_throughput(
-    //         &mut group,
-    //         &cks,
-    //         bench_name,
-    //         "FheUint64",
-    //         "hpu_optim",
-    //         transfer_hpu::<FheUint64>,
-    //     );
-    //     group.finish();
-    // }
+    {
+        let mut group = c.benchmark_group(bench_name);
+        bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "whitepaper",
+            transfer_whitepaper::<FheUint64>,
+        );
+        // Erc20 optimized instruction only available on Hpu
+        bench_transfer_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "hpu_optim",
+            transfer_hpu::<FheUint64>,
+        );
+        group.finish();
+    }
 
     c.final_summary();
 }
