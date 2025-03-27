@@ -1,4 +1,4 @@
-use crate::core_crypto::prelude::{CastFrom, Numeric, UnsignedNumeric};
+use crate::core_crypto::prelude::{CastFrom, Numeric, OverflowingAdd, UnsignedNumeric};
 use std::ops::ShlAssign;
 
 const fn one_for_unsigned_u64_based_integer<const N: usize>() -> [u64; N] {
@@ -258,6 +258,18 @@ impl<const N: usize> std::ops::Shr<usize> for StaticUnsignedBigInt<N> {
 impl<const N: usize> std::ops::ShlAssign<usize> for StaticUnsignedBigInt<N> {
     fn shl_assign(&mut self, shift: usize) {
         super::algorithms::shl_assign(self.0.as_mut_slice(), shift as u32);
+    }
+}
+
+impl<const N: usize> OverflowingAdd<Self> for StaticUnsignedBigInt<N> {
+    type Output = Self;
+
+    fn overflowing_add(self, other: Self) -> (Self::Output, bool) {
+        let mut result = self;
+        let overflowed =
+            super::algorithms::unsigned_overflowing_add_assign_words(&mut result.0, &other.0);
+
+        (result, overflowed)
     }
 }
 

@@ -130,3 +130,9 @@ where
         }
     }
 }
+
+pub trait OverflowingAdd<Rhs> {
+    type Output;
+
+    fn overflowing_add(self, other: Rhs) -> (Self::Output, bool);
+}

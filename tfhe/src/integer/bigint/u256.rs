@@ -25,12 +25,11 @@ impl U256 {
 
 #[cfg(test)]
 mod tests {
-    use std::panic::catch_unwind;
-
-    use rand::Rng;
-
     use super::super::{u64_with_even_bits_set, u64_with_odd_bits_set};
     use super::*;
+    use crate::core_crypto::prelude::OverflowingAdd;
+    use rand::Rng;
+    use std::panic::catch_unwind;
 
     #[test]
     fn test_const() {
@@ -219,6 +218,17 @@ mod tests {
     #[test]
     fn test_add_wrap_around() {
         assert_eq!(U256::MAX + U256::from(1u32), U256::MIN);
+    }
+
+    #[test]
+    fn test_overflowing_add() {
+        let (r, o) = U256::MAX.overflowing_add(U256::from(1u32));
+        assert_eq!(r, U256::MIN);
+        assert!(o);
+
+        let (r, o) = U256::MAX.overflowing_add(U256::from(0u32));
+        assert_eq!(r, U256::MAX);
+        assert!(!o);
     }
 
     #[test]

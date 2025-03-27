@@ -1,4 +1,5 @@
 use super::{CastFrom, CastInto, Numeric, SignedNumeric, UnsignedInteger};
+use crate::core_crypto::prelude::OverflowingAdd;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -29,6 +30,7 @@ pub trait SignedInteger:
     + ShlAssign<usize>
     + Shr<usize, Output = Self>
     + ShrAssign<usize>
+    + OverflowingAdd<Self, Output = Self>
     + CastFrom<f64>
     + CastInto<f64>
 {
@@ -59,6 +61,15 @@ macro_rules! implement {
 
         impl SignedNumeric for $Type {
             type NumericUnsignedType = $UnsignedType;
+        }
+
+        impl OverflowingAdd<Self> for $Type {
+            type Output = Self;
+
+            #[inline]
+            fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_add(rhs)
+            }
         }
 
         impl SignedInteger for $Type {
