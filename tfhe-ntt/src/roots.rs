@@ -90,6 +90,22 @@ pub const fn find_primitive_root64(p: Div64, degree: u64) -> Option<u64> {
     Some(root)
 }
 
+/// Returns the n-th root of unity in the solinas prime
+///
+/// Returns `None` if n == 0 or is greater than 2^32
+pub const fn find_root_solinas_64(p: Div64, n: u64) -> Option<u64> {
+    if n == 0 || n > (1u64 << 32) {
+        return None;
+    }
+
+    // 2^32th root of unity
+    const OMG_2_32: u64 = 16334397945464290598;
+
+    let pow = (1u64 << 32) / n;
+
+    Some(exp_mod64(p, OMG_2_32, pow))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,5 +144,30 @@ mod tests {
             assert_ne!(exp_mod64(p, root, i), 1);
         }
         assert_eq!(exp_mod64(p, root, deg), 1);
+    }
+
+    #[test]
+    fn test_primitive_root_solinas() {
+        let p = Div64::new(super::super::prime64::SOLINAS_PRIME);
+        let input_result = [
+            (32, 8_u64),
+            (64, 2198989700608_u64),
+            (128, 14041890976876060974_u64),
+            (256, 14430643036723656017_u64),
+            (512, 4440654710286119610_u64),
+            (1024, 8816101479115663336_u64),
+            (2048, 10974926054405199669_u64),
+            (4096, 1206500561358145487_u64),
+            (8192, 10930245224889659871_u64),
+            (16384, 3333600369887534767_u64),
+            (32768, 15893793146607301539_u64),
+        ];
+        for (poly_size, expected_root) in input_result {
+            assert_eq!(
+                expected_root,
+                find_root_solinas_64(p, 2 * poly_size).unwrap()
+            );
+            assert_eq!(exp_mod64(p, expected_root, 2 * poly_size), 1);
+        }
     }
 }
