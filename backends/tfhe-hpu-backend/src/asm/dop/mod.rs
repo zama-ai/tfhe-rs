@@ -3,7 +3,7 @@ mod dop_macro;
 pub mod field;
 pub mod fmt;
 mod opcode;
-mod pbs_macro;
+pub mod pbs_macro;
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -180,19 +180,13 @@ pbs!(
 
 ["CmpSign" => 10 [
     @0 =>{
-        |params: &DigitParameters, val | {
+        |_params: &DigitParameters, val | {
             // Signed comparaison with 0. Based on behavior of negacyclic function.
             // Example for Padding| 4bit digits (i.e 2msg2Carry)
             // 1|xxxx -> SignLut -> -1 -> 0|1111
             // x|0000 -> SignLut ->  0 -> 0|0000
             // 0|xxxx -> SignLut ->  1 -> 0|0001
-            if val != 0 {
-                if 0b1 ==  val >> (params.msg_w + params.carry_w) {
-                    params.data_mask()
-                } else {
-                    1
-                }
-            } else {0}
+            if val != 0 {1} else {0}
         };
         // WARN: in practice return value with padding that could encode -1, 0, 1
         //       But should always be follow by an add to reach back range 0, 1, 2
@@ -439,7 +433,8 @@ pbs!(
             let msg_field = val & params.msg_mask();
 
             match (carry_field, msg_field) {
-                (CMP_SUPERIOR, _) => 1,
+                (CMP_SUPERIOR, _) |
+                (CMP_EQUAL, CMP_SUPERIOR) => 1,
                 _ => 0,
             }
         };
@@ -454,6 +449,7 @@ pbs!(
 
             match (carry_field, msg_field) {
                 (CMP_SUPERIOR, _) |
+                (CMP_EQUAL, CMP_SUPERIOR) |
                 (CMP_EQUAL, CMP_EQUAL) => 1,
                 _ => 0,
             }
@@ -468,7 +464,8 @@ pbs!(
             let msg_field = val & params.msg_mask();
 
             match (carry_field, msg_field) {
-                (CMP_INFERIOR, _) => 1,
+                (CMP_INFERIOR, _) |
+                (CMP_EQUAL, CMP_INFERIOR) => 1,
                 _ => 0,
             }
         };
@@ -482,8 +479,9 @@ pbs!(
             let msg_field = val & params.msg_mask();
 
             match (carry_field, msg_field) {
-                (CMP_EQUAL, CMP_EQUAL) |
-                (CMP_INFERIOR, _) => 1,
+                (CMP_INFERIOR, _) |
+                (CMP_EQUAL, CMP_INFERIOR) |
+                (CMP_EQUAL, CMP_EQUAL) => 1,
                 _ => 0,
             }
         };
