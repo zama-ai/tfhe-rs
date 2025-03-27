@@ -14,7 +14,7 @@ env:
 
 jobs:
   integer-benchmarks-hpu:
-    name: Execute integer benchmarks for HPU backend
+    name: Execute integer & erc20 benchmarks for HPU backend
     runs-on: v80-desktop
     concurrency:
       group: ${{ github.workflow }}_${{ github.ref }}
@@ -58,6 +58,7 @@ jobs:
       - name: Run benchmarks
         run: |
           make bench_integer_hpu
+          make bench_hlapi_erc20_hpu
 
       - name: Parse results
         run: |

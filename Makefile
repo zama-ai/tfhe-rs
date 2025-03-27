@@ -1351,6 +1351,14 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
+.PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
+bench_hlapi_erc20_hpu: install_rs_check_toolchain
+	source ./setup_hpu.sh --config aved
+	RUSTFLAGS="$(RUSTFLAGS)" HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" AVED_PCIE_DEV="$(AVED_PCIE_DEV)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) -- --quick
+
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
