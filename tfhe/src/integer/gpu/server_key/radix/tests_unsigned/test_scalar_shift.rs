@@ -16,7 +16,7 @@ create_gpu_parameterized_test!(integer_scalar_right_shift);
 
 fn integer_unchecked_scalar_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_right_shift);
     unchecked_scalar_right_shift_test(param, executor);
@@ -24,7 +24,7 @@ where
 
 fn integer_scalar_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
     default_scalar_right_shift_test(param, executor);
@@ -32,7 +32,7 @@ where
 
 fn integer_unchecked_scalar_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_left_shift);
     unchecked_scalar_left_shift_test(param, executor);
@@ -40,7 +40,7 @@ where
 
 fn integer_scalar_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
     default_scalar_left_shift_test(param, executor);

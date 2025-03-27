@@ -20,7 +20,7 @@ create_gpu_parameterized_test!(integer_bitxor);
 
 fn integer_unchecked_bitnot<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitnot);
     unchecked_bitnot_test(param, executor);
@@ -28,7 +28,7 @@ where
 
 fn integer_unchecked_bitand<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitand);
     unchecked_bitand_test(param, executor);
@@ -36,7 +36,7 @@ where
 
 fn integer_unchecked_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitor);
     unchecked_bitor_test(param, executor);
@@ -44,7 +44,7 @@ where
 
 fn integer_unchecked_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_bitxor);
     unchecked_bitxor_test(param, executor);
@@ -52,7 +52,7 @@ where
 
 fn integer_bitnot<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitnot);
     default_bitnot_test(param, executor);
@@ -60,7 +60,7 @@ where
 
 fn integer_bitand<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitand);
     default_bitand_test(param, executor);
@@ -68,7 +68,7 @@ where
 
 fn integer_bitor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitor);
     default_bitor_test(param, executor);
@@ -76,7 +76,7 @@ where
 
 fn integer_bitxor<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<TestParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::bitxor);
     default_bitxor_test(param, executor);

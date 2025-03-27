@@ -44,7 +44,7 @@ create_parameterized_test!(integer_default_first_index_of_clear);
 
 fn integer_unchecked_match_value<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_match_value_parallelized);
     unchecked_match_value_test_case(param, executor);
@@ -52,7 +52,7 @@ where
 
 fn integer_unchecked_match_value_or<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_match_value_or_parallelized);
     unchecked_match_value_or_test_case(param, executor);
@@ -60,7 +60,7 @@ where
 
 fn integer_unchecked_contains<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_contains_parallelized);
     unchecked_contains_test_case(param, executor);
@@ -68,7 +68,7 @@ where
 
 fn integer_unchecked_contains_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_contains_clear_parallelized);
     unchecked_contains_clear_test_case(param, executor);
@@ -76,7 +76,7 @@ where
 
 fn integer_unchecked_is_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_is_in_clears_parallelized);
     unchecked_is_in_clears_test_case(param, executor);
@@ -84,7 +84,7 @@ where
 
 fn integer_unchecked_index_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_index_in_clears_parallelized);
     unchecked_index_in_clears_test_case(param, executor);
@@ -92,7 +92,7 @@ where
 
 fn integer_unchecked_first_index_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_first_index_in_clears_parallelized);
@@ -101,7 +101,7 @@ where
 
 fn integer_unchecked_index_of<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_index_of_parallelized);
     unchecked_index_of_test_case(param, executor);
@@ -109,7 +109,7 @@ where
 
 fn integer_unchecked_index_of_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_index_of_clear_parallelized);
     unchecked_index_of_clear_test_case(param, executor);
@@ -117,7 +117,7 @@ where
 
 fn integer_unchecked_first_index_of<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_first_index_of_parallelized);
     unchecked_first_index_of_test_case(param, executor);
@@ -125,7 +125,7 @@ where
 
 fn integer_unchecked_first_index_of_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_first_index_of_clear_parallelized);
@@ -136,7 +136,7 @@ where
 
 fn integer_default_match_value<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::match_value_parallelized);
     default_match_value_test_case(param, executor);
@@ -144,7 +144,7 @@ where
 
 fn integer_default_match_value_or<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::match_value_or_parallelized);
     default_match_value_or_test_case(param, executor);
@@ -152,7 +152,7 @@ where
 
 fn integer_default_contains<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::contains_parallelized);
     default_contains_test_case(param, executor);
@@ -160,7 +160,7 @@ where
 
 fn integer_default_contains_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::contains_clear_parallelized);
     default_contains_clear_test_case(param, executor);
@@ -168,7 +168,7 @@ where
 
 fn integer_default_is_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::is_in_clears_parallelized);
     default_is_in_clears_test_case(param, executor);
@@ -176,7 +176,7 @@ where
 
 fn integer_default_index_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::index_in_clears_parallelized);
     default_index_in_clears_test_case(param, executor);
@@ -184,7 +184,7 @@ where
 
 fn integer_default_first_index_in_clears<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::first_index_in_clears_parallelized);
     default_first_index_in_clears_test_case(param, executor);
@@ -192,7 +192,7 @@ where
 
 fn integer_default_index_of<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::index_of_parallelized);
     default_index_of_test_case(param, executor);
@@ -200,7 +200,7 @@ where
 
 fn integer_default_index_of_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::index_of_clear_parallelized);
     default_index_of_clear_test_case(param, executor);
@@ -208,7 +208,7 @@ where
 
 fn integer_default_first_index_of<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::first_index_of_parallelized);
     default_first_index_of_test_case(param, executor);
@@ -216,7 +216,7 @@ where
 
 fn integer_default_first_index_of_clear<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::first_index_of_clear_parallelized);
     default_first_index_of_clear_test_case(param, executor);
@@ -356,7 +356,7 @@ fn draw_unique_randoms(
 
 pub(crate) fn unchecked_match_value_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a MatchValues<u64>),
         (RadixCiphertext, BooleanBlock),
@@ -471,7 +471,7 @@ where
 
 pub(crate) fn default_match_value_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a MatchValues<u64>),
         (RadixCiphertext, BooleanBlock),
@@ -546,7 +546,7 @@ where
 
 pub(crate) fn unchecked_match_value_or_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>,
 {
     let param = param.into();
@@ -651,7 +651,7 @@ where
 
 pub(crate) fn default_match_value_or_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a MatchValues<u64>, u64), RadixCiphertext>,
 {
     let param = param.into();
@@ -716,7 +716,7 @@ where
 
 pub(crate) fn unchecked_contains_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), BooleanBlock>,
 {
     let param = param.into();
@@ -786,7 +786,7 @@ where
 
 pub(crate) fn default_contains_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a RadixCiphertext), BooleanBlock>,
 {
     let param = param.into();
@@ -854,7 +854,7 @@ where
 
 pub(crate) fn unchecked_contains_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), BooleanBlock>,
 {
     let param = param.into();
@@ -917,7 +917,7 @@ where
 
 pub(crate) fn default_contains_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), BooleanBlock>,
 {
     let param = param.into();
@@ -981,7 +981,7 @@ where
 
 pub(crate) fn unchecked_is_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), BooleanBlock>,
 {
     let param = param.into();
@@ -1038,7 +1038,7 @@ where
 
 pub(crate) fn default_is_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), BooleanBlock>,
 {
     let param = param.into();
@@ -1096,7 +1096,7 @@ where
 
 pub(crate) fn unchecked_index_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1161,7 +1161,7 @@ where
 
 pub(crate) fn default_index_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1226,7 +1226,7 @@ where
 
 pub(crate) fn unchecked_first_index_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1291,7 +1291,7 @@ where
 
 pub(crate) fn default_first_index_in_clears_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a [u64]), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1355,7 +1355,7 @@ where
 
 pub(crate) fn unchecked_index_of_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a [RadixCiphertext], &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -1429,7 +1429,7 @@ where
 
 pub(crate) fn default_index_of_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a [RadixCiphertext], &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -1504,7 +1504,7 @@ where
 
 pub(crate) fn unchecked_index_of_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1573,7 +1573,7 @@ where
 
 pub(crate) fn default_index_of_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1639,7 +1639,7 @@ where
 
 pub(crate) fn unchecked_first_index_of_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a [RadixCiphertext], &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -1718,7 +1718,7 @@ where
 
 pub(crate) fn default_first_index_of_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a [RadixCiphertext], &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -1802,7 +1802,7 @@ where
 
 pub(crate) fn unchecked_first_index_of_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();
@@ -1876,7 +1876,7 @@ where
 
 pub(crate) fn default_first_index_of_clear_test_case<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a [RadixCiphertext], u64), (RadixCiphertext, BooleanBlock)>,
 {
     let param = param.into();

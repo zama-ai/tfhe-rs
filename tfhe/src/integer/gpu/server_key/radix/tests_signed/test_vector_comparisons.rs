@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_signed_default_all_eq_slices_test_case);
 
 fn integer_signed_unchecked_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_all_eq_slices);
     unchecked_all_eq_slices_test_case(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_signed_default_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::all_eq_slices);
     default_all_eq_slices_test_case(param, executor);

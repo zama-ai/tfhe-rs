@@ -11,6 +11,8 @@ use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
 
+use super::atomic_pattern::AtomicPatternParameters;
+
 named_params_impl!( ShortintParameterSet =>
     V1_1_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
     V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
@@ -315,6 +317,8 @@ named_params_impl!( ShortintParameterSet =>
     V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
     V1_1_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
+    // KS32 AP with TUniform
+    V1_1_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
     // Wopbs
     LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_0_KS_PBS,
     LEGACY_WOPBS_PARAM_MESSAGE_1_CARRY_1_KS_PBS,
@@ -428,6 +432,12 @@ impl NamedParam for WopbsParameters {
     }
 }
 
+impl NamedParam for AtomicPatternParameters {
+    fn name(&self) -> String {
+        ShortintParameterSet::from(*self).name()
+    }
+}
+
 named_params_impl!(ShortintKeySwitchingParameters =>
     V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     ; fallback => ks_params_default_name
@@ -468,8 +478,8 @@ named_params_impl!( NoiseSquashingParameters =>
     V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
-impl From<PBSParameters> for (ClientKey, ServerKey) {
-    fn from(param: PBSParameters) -> Self {
+impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {
+    fn from(param: AtomicPatternParameters) -> Self {
         let param_set = ShortintParameterSet::from(param);
         param_set.into()
     }
@@ -484,7 +494,7 @@ impl From<ShortintParameterSet> for (ClientKey, ServerKey) {
 }
 
 pub struct Keycache {
-    inner: ImplKeyCache<PBSParameters, (ClientKey, ServerKey), FileStorage>,
+    inner: ImplKeyCache<AtomicPatternParameters, (ClientKey, ServerKey), FileStorage>,
 }
 
 impl Default for Keycache {
@@ -554,7 +564,7 @@ impl SharedKeySwitchingKey {
 impl Keycache {
     pub fn get_from_param<P>(&self, param: P) -> SharedKey
     where
-        P: Into<PBSParameters>,
+        P: Into<AtomicPatternParameters>,
     {
         SharedKey {
             inner: self.inner.get(param.into()),

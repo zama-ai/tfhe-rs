@@ -17,7 +17,7 @@ create_parameterized_test!(integer_signed_unchecked_scalar_mul);
 
 fn integer_signed_unchecked_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_mul_parallelized);
     signed_unchecked_scalar_mul_test(param, executor);
@@ -25,7 +25,7 @@ where
 
 pub(crate) fn signed_unchecked_scalar_mul_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
     let param = param.into();
