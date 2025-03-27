@@ -1,5 +1,5 @@
-use crate::core_crypto::prelude::{CastInto, Numeric};
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::core_crypto::prelude::{CastInto, Numeric, OverflowingAdd};
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::{BooleanBlock, IntegerRadixCiphertext, ServerKey};
 use std::ops::{AddAssign, Mul};
 
@@ -9,6 +9,13 @@ use rayon::prelude::*;
 
 impl ServerKey {
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn unchecked_boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &[BooleanBlock],
@@ -21,7 +28,8 @@ impl ServerKey {
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
-            + AddAssign<Clear>,
+            + AddAssign<Clear>
+            + OverflowingAdd<Clear, Output = Clear>,
         T: IntegerRadixCiphertext,
     {
         assert_eq!(
@@ -31,6 +39,8 @@ impl ServerKey {
         );
 
         assert!(!boolean_blocks.is_empty(), "operands must not be empty");
+
+        assert!(Clear::BITS as u32 >= n_blocks * self.message_modulus().0.ilog2());
 
         // How many boolean blocks we pack together
         let mut packing_size = 1;
@@ -63,10 +73,36 @@ impl ServerKey {
         let many_lut_chunk =
             ((self.message_modulus().0 * self.carry_modulus().0) / (1 << packing_size)) as usize;
         let to_be_summed = packed
-            .par_iter()
-            .zip(clears.par_chunks(packing_size))
+            .iter()
+            .zip(clears.chunks(packing_size))
             .map(|(block, clear_chunk)| {
-                let funcs = (0..n_blocks as usize)
+                // Try to see if most significant blocks might be zero
+                // and avoid some PBS
+                let mut summed_clear = Clear::ZERO;
+                let mut overflowed;
+                let mut real_n_blocks = 0;
+                for c in clear_chunk.iter() {
+                    if *c < Clear::ZERO {
+                        real_n_blocks = n_blocks;
+                        break;
+                    }
+                    (summed_clear, overflowed) = summed_clear.overflowing_add(*c);
+                    if overflowed {
+                        real_n_blocks = n_blocks;
+                        break;
+                    }
+                }
+
+                if real_n_blocks == 0 {
+                    real_n_blocks = BlockDecomposer::with_early_stop_at_zero(
+                        summed_clear,
+                        self.message_modulus().0.ilog2(),
+                    )
+                    .count()
+                    .min(n_blocks as usize) as u32;
+                }
+
+                let funcs = (0..real_n_blocks)
                     .map(|block_index| {
                         // The LUT is going to do a part of the dot prod for the corresponding
                         // block
@@ -76,13 +112,13 @@ impl ServerKey {
                                 summed_clear += *c * Clear::cast_from(u128::from(block >> i) & 1);
                             }
 
-                            let shift = block_index as u32 * self.message_modulus().0.ilog2();
+                            let shift = block_index * self.message_modulus().0.ilog2();
                             ((summed_clear >> shift) & block_mask).cast_into()
                         }
                     })
                     .collect::<Vec<_>>();
 
-                let blocks = funcs
+                let mut blocks = funcs
                     .par_chunks(many_lut_chunk)
                     .flat_map(|chunk| {
                         let funcs_ref = chunk
@@ -95,6 +131,8 @@ impl ServerKey {
                     })
                     .collect::<Vec<_>>();
 
+                blocks.resize_with(n_blocks as usize, || self.key.create_trivial(0));
+
                 T::from(blocks)
             })
             .collect::<Vec<_>>();
@@ -104,6 +142,13 @@ impl ServerKey {
     }
 
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn smart_boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &mut [BooleanBlock],
@@ -116,7 +161,8 @@ impl ServerKey {
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
-            + AddAssign<Clear>,
+            + AddAssign<Clear>
+            + OverflowingAdd<Clear, Output = Clear>,
         T: IntegerRadixCiphertext,
     {
         if boolean_blocks
@@ -134,6 +180,13 @@ impl ServerKey {
     }
 
     /// Computes the dot product between encrypted booleans and clear values
+    ///
+    /// * `n_blocks` number of blocks in the resulting ciphertext
+    ///
+    /// # Panic
+    ///
+    /// * Panics if `boolean_blocks` and `clears` do not have the same lengths
+    /// * Panics if `boolean_blocks` or `clears` is empty
     pub fn boolean_scalar_dot_prod_parallelized<Clear, T>(
         &self,
         boolean_blocks: &[BooleanBlock],
@@ -146,7 +199,8 @@ impl ServerKey {
             + CastInto<usize>
             + CastFrom<u128>
             + Mul<Clear, Output = Clear>
-            + AddAssign<Clear>,
+            + AddAssign<Clear>
+            + OverflowingAdd<Clear, Output = Clear>,
         T: IntegerRadixCiphertext,
     {
         let mut cloned;

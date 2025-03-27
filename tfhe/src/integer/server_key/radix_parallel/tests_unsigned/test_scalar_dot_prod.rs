@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_smaller_for_params, panic_if_any_block_is_not_clean,
+    nb_tests_smaller_for_params, panic_if_any_block_is_not_clean_or_trivial,
     panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
     MAX_NB_CTXT, MAX_VEC_LEN, NB_CTXT,
 };
@@ -230,7 +230,7 @@ where
                 "
             );
 
-            panic_if_any_block_is_not_clean(&e_result, &cks);
+            panic_if_any_block_is_not_clean_or_trivial(&e_result, &cks);
 
             let e_result2 =
                 dot_prod_executor.execute((&e_booleans, &clear_values, num_blocks as u32));
