@@ -5,6 +5,7 @@ use aligned_vec::{avec, ABox};
 use pulp::*;
 
 const RECURSION_THRESHOLD: usize = 1024;
+pub(crate) const SOLINAS_PRIME: u64 = ((1_u128 << 64) - (1_u128 << 32) + 1) as u64;
 
 mod generic_solinas;
 mod shoup;
@@ -19,9 +20,9 @@ mod less_than_51bit;
 mod less_than_62bit;
 mod less_than_63bit;
 
-pub use generic_solinas::Solinas;
-
 use self::generic_solinas::PrimeModulus;
+use crate::roots::find_root_solinas_64;
+pub use generic_solinas::Solinas;
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 impl crate::V3 {
@@ -157,7 +158,29 @@ impl crate::V4 {
 
 fn init_negacyclic_twiddles(p: u64, n: usize, twid: &mut [u64], inv_twid: &mut [u64]) {
     let div = Div64::new(p);
-    let w = find_primitive_root64(div, 2 * n as u64).unwrap();
+
+    let w = if p == SOLINAS_PRIME {
+        // Used custom root-of-unity with Goldilocks prime
+        // Those root-of-unity enable generation of friendly twiddle will low hamming weight
+        // and enable replacement of multiplication with simple shift
+        match n {
+            32 => 8_u64,
+            64 => 2198989700608_u64,
+            128 => 14041890976876060974_u64,
+            256 => 14430643036723656017_u64,
+            512 => 4440654710286119610_u64,
+            1024 => 8816101479115663336_u64,
+            2048 => 10974926054405199669_u64,
+            4096 => 1206500561358145487_u64,
+            8192 => 10930245224889659871_u64,
+            16384 => 3333600369887534767_u64,
+            32768 => 15893793146607301539_u64,
+            _ => find_root_solinas_64(div, 2 * n as u64).unwrap(),
+        }
+    } else {
+        find_primitive_root64(div, 2 * n as u64).unwrap()
+    };
+
     let mut k = 0;
     let mut wk = 1u64;
 
