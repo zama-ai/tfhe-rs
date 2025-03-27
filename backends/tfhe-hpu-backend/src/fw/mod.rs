@@ -86,6 +86,7 @@ pub trait Fw {
 pub enum AvlblFw {
     Ilp(fw_impl::ilp::Ilp),
     Llt(fw_impl::llt::Llt),
+    Demo(fw_impl::demo::Demo),
 }
 
 impl AvlblFw {
@@ -93,6 +94,7 @@ impl AvlblFw {
         match kind {
             FwName::Ilp => Self::Ilp(Default::default()),
             FwName::Llt => Self::Llt(Default::default()),
+            FwName::Demo => Self::Demo(Default::default()),
         }
     }
 }

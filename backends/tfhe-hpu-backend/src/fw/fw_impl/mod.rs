@@ -1,6 +1,7 @@
 use super::*;
 use crate::asm::{AsmIOpcode, DOp, IOpcode};
 
+pub mod demo;
 pub mod ilp;
 pub mod llt;
 

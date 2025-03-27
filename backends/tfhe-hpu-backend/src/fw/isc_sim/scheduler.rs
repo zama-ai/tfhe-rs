@@ -314,7 +314,7 @@ impl Scheduler {
                     flush,
                     slot,
                 } => {
-                    tracing::trace!("Issue: {:?}", slot);
+                    tracing::trace!("Issue: {:?} flush: {:?}", slot, flush);
 
                     // Push token in associated pe
                     self.pe_store.push(kind_1h, flush);
