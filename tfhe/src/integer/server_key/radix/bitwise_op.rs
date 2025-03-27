@@ -762,7 +762,7 @@ mod tests {
     const INPUT_BOOLEANS: [(bool, bool); 4] =
         [(false, false), (false, true), (true, false), (true, true)];
 
-    fn boolean_bitxor(params: impl Into<PBSParameters>) {
+    fn boolean_bitxor(params: impl Into<AtomicPatternParameters>) {
         let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {
@@ -785,7 +785,7 @@ mod tests {
         }
     }
 
-    fn boolean_bitor(params: impl Into<PBSParameters>) {
+    fn boolean_bitor(params: impl Into<AtomicPatternParameters>) {
         let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {
@@ -808,7 +808,7 @@ mod tests {
         }
     }
 
-    fn boolean_bitand(params: impl Into<PBSParameters>) {
+    fn boolean_bitand(params: impl Into<AtomicPatternParameters>) {
         let (cks, sks) = KEY_CACHE.get_from_params(params.into(), IntegerKeyKind::Radix);
 
         for (clear_0, clear_1) in INPUT_BOOLEANS {

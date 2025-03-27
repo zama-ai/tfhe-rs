@@ -65,7 +65,7 @@ pub struct CudaLweBootstrapKey {
 impl CudaLweBootstrapKey {
     pub fn from_lwe_bootstrap_key<InputBskCont: Container>(
         bsk: &LweBootstrapKey<InputBskCont>,
-        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
         streams: &CudaStreams,
     ) -> Self
     where

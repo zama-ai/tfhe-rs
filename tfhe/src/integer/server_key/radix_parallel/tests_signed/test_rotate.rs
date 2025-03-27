@@ -28,7 +28,7 @@ create_parameterized_test!(integer_signed_rotate_left);
 
 pub(crate) fn signed_default_rotate_left_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -122,7 +122,7 @@ where
 
 pub(crate) fn signed_default_rotate_right_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -214,7 +214,7 @@ where
 
 pub(crate) fn signed_unchecked_rotate_left_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -273,7 +273,7 @@ where
 
 pub(crate) fn signed_unchecked_rotate_right_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -332,7 +332,7 @@ where
 
 fn integer_signed_unchecked_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_rotate_right_parallelized);
     signed_unchecked_rotate_right_test(param, executor);
@@ -340,7 +340,7 @@ where
 
 fn integer_signed_rotate_right<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::rotate_right_parallelized);
     signed_default_rotate_right_test(param, executor);
@@ -348,7 +348,7 @@ where
 
 fn integer_signed_unchecked_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_rotate_left_parallelized);
     signed_unchecked_rotate_left_test(param, executor);
@@ -356,7 +356,7 @@ where
 
 fn integer_signed_rotate_left<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::rotate_left_parallelized);
     signed_default_rotate_left_test(param, executor);

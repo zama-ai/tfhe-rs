@@ -588,16 +588,11 @@ impl ShortintParameterSet {
 
 impl<P> From<P> for ShortintParameterSet
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     fn from(value: P) -> Self {
-        Self::new_pbs_param_set(value.into())
-    }
-}
-
-impl From<AtomicPatternParameters> for ShortintParameterSet {
-    fn from(value: AtomicPatternParameters) -> Self {
-        match value {
+        let ap_params: AtomicPatternParameters = value.into();
+        match ap_params {
             AtomicPatternParameters::Classical(parameters) => Self::new_pbs_param_set(parameters),
             AtomicPatternParameters::KeySwitch32(parameters) => {
                 Self::new_ks32_pbs_param_set(parameters)

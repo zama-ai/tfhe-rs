@@ -22,7 +22,7 @@ create_parameterized_test!(integer_signed_default_scalar_if_then_else);
 
 fn integer_signed_unchecked_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_if_then_else_parallelized);
     signed_unchecked_if_then_else_test(param, executor);
@@ -30,7 +30,7 @@ where
 
 fn integer_signed_default_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func =
         |sks: &ServerKey,
@@ -43,7 +43,7 @@ where
 
 fn integer_signed_default_scalar_if_then_else<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, cond: &BooleanBlock, lhs: i64, rhs: i64, n_blocks: usize| {
         sks.scalar_if_then_else_parallelized(cond, lhs, rhs, n_blocks)
@@ -54,7 +54,7 @@ where
 
 pub(crate) fn signed_default_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (
             &'a BooleanBlock,
@@ -170,7 +170,7 @@ where
 
 pub(crate) fn signed_default_scalar_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a BooleanBlock, i64, i64, usize), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -208,7 +208,7 @@ where
 
 pub(crate) fn signed_unchecked_if_then_else_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (
             &'a BooleanBlock,
