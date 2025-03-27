@@ -1,9 +1,13 @@
 use super::current_params::*;
+use super::AtomicPatternParameters;
 
 use super::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
     MultiBitPBSParameters, ShortintKeySwitchingParameters,
 };
+
+/// Alias for the type of parameters used by tests
+pub type TestParameters = AtomicPatternParameters;
 
 // Classic
 // CPK Gaussian

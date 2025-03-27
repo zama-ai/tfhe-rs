@@ -19,7 +19,7 @@ create_gpu_parameterized_test!(multi_device_integer_default_overflowing_sub);
 
 fn integer_unchecked_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_sub);
     unchecked_sub_test(param, executor);
@@ -27,7 +27,7 @@ where
 
 fn integer_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::sub);
     default_sub_test(param, executor);
@@ -35,7 +35,7 @@ where
 
 fn multi_device_integer_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
     let num_gpus = get_number_of_gpus();
@@ -46,7 +46,7 @@ where
 
 fn integer_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
     default_overflowing_sub_test(param, executor);
@@ -54,7 +54,7 @@ where
 
 fn multi_device_integer_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_sub);
     let num_gpus = get_number_of_gpus();

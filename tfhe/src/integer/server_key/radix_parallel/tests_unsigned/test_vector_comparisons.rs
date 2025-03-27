@@ -25,7 +25,7 @@ create_parameterized_test!(integer_unchecked_contains_slice_test_case);
 
 fn integer_unchecked_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_all_eq_slices_parallelized);
     unchecked_all_eq_slices_test_case(param, executor);
@@ -33,7 +33,7 @@ where
 
 fn integer_default_all_eq_slices_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::all_eq_slices_parallelized);
     default_all_eq_slices_test_case(param, executor);
@@ -41,7 +41,7 @@ where
 
 fn integer_unchecked_contains_slice_test_case<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_contains_sub_slice_parallelized);
     unchecked_slice_contains_test_case(param, executor);
@@ -116,7 +116,7 @@ pub(crate) fn unchecked_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
 pub(crate) fn unchecked_all_eq_slices_test_case<P, E>(params: P, mut executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
@@ -223,7 +223,7 @@ pub(crate) fn default_all_eq_slices_test_case_impl<E, Clear, Ciphertext, F>(
 
 pub(crate) fn default_all_eq_slices_test_case<P, E>(params: P, mut executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
     let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);
@@ -242,7 +242,7 @@ where
 
 pub(crate) fn unchecked_slice_contains_test_case<P, E>(params: P, mut executor: E)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     E: for<'a> FunctionExecutor<(&'a [RadixCiphertext], &'a [RadixCiphertext]), BooleanBlock>,
 {
     let (cks, mut sks) = KEY_CACHE.get_from_params(params, IntegerKeyKind::Radix);

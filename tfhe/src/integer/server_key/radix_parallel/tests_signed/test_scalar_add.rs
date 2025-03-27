@@ -24,7 +24,7 @@ create_parameterized_test!(integer_signed_default_overflowing_scalar_add);
 
 fn integer_signed_unchecked_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_add);
     signed_unchecked_scalar_add_test(param, executor);
@@ -32,7 +32,7 @@ where
 
 fn integer_signed_default_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_add_parallelized);
     signed_default_scalar_add_test(param, executor);
@@ -40,14 +40,14 @@ where
 
 fn integer_signed_default_overflowing_scalar_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_scalar_add_parallelized);
     signed_default_overflowing_scalar_add_test(param, executor);
 }
 pub(crate) fn signed_unchecked_scalar_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -93,7 +93,7 @@ where
 
 pub(crate) fn signed_default_scalar_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -143,7 +143,7 @@ where
 
 pub(crate) fn signed_default_overflowing_scalar_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, i64),
         (SignedRadixCiphertext, BooleanBlock),

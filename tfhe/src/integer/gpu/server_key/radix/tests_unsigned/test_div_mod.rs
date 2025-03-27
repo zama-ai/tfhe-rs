@@ -14,7 +14,7 @@ create_gpu_parameterized_test!(integer_rem);
 
 fn integer_div<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::div);
     default_div_test(param, executor);
@@ -22,7 +22,7 @@ where
 
 fn integer_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::div_rem);
     default_div_rem_test(param, executor);
@@ -30,7 +30,7 @@ where
 
 fn integer_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::rem);
     default_rem_test(param, executor);

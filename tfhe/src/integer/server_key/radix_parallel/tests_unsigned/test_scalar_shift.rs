@@ -17,7 +17,7 @@ create_parameterized_test!(integer_default_scalar_right_shift);
 
 fn integer_default_scalar_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_left_shift_parallelized);
     default_scalar_left_shift_test(param, executor);
@@ -25,7 +25,7 @@ where
 
 fn integer_unchecked_scalar_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_left_shift_parallelized);
     unchecked_scalar_left_shift_test(param, executor);
@@ -33,7 +33,7 @@ where
 
 fn integer_default_scalar_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_right_shift_parallelized);
     default_scalar_right_shift_test(param, executor);
@@ -41,7 +41,7 @@ where
 
 fn integer_unchecked_scalar_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_right_shift_parallelized);
     unchecked_scalar_right_shift_test(param, executor);

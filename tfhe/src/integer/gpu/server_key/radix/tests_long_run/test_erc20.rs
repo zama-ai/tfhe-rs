@@ -18,7 +18,7 @@ create_gpu_parameterized_test!(no_cmux_erc20 {
 
 fn safe_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let overflowing_add_executor =
         GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
@@ -37,7 +37,7 @@ where
 
 fn whitepaper_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
@@ -54,7 +54,7 @@ where
 
 fn no_cmux_erc20<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
     let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);

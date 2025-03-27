@@ -10,7 +10,7 @@ create_gpu_parameterized_test!(integer_signed_unchecked_scalar_mul);
 
 fn integer_signed_unchecked_scalar_mul<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<TestParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_mul);
     signed_unchecked_scalar_mul_test(param, executor);
