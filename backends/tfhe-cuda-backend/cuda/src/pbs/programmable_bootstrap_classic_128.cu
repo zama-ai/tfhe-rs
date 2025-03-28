@@ -1,5 +1,16 @@
 #include "programmable_bootstrap_classic_128.cuh"
 
+
+bool has_support_to_cuda_programmable_bootstrap_128_cg(uint32_t glwe_dimension,
+uint32_t polynomial_size,
+    uint32_t level_count,
+uint32_t num_samples,
+    uint32_t max_shared_memory) {
+return supports_cooperative_groups_on_programmable_bootstrap_128(
+    glwe_dimension, polynomial_size, level_count, num_samples,
+    max_shared_memory);
+}
+
 /*
  * This scratch function allocates the necessary amount of data on the GPU for
  * the PBS on 128 bits inputs, into `buffer`. It also configures SM options on
@@ -11,42 +22,87 @@ void scratch_cuda_programmable_bootstrap_128(
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, bool allocate_ms_array) {
 
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
   auto buffer = (pbs_buffer_128<CLASSICAL> **)pbs_buffer;
-  switch (polynomial_size) {
-  case 256:
-    scratch_programmable_bootstrap_128<AmortizedDegree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
-  case 512:
-    scratch_programmable_bootstrap_128<AmortizedDegree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
-  case 1024:
-    scratch_programmable_bootstrap_128<AmortizedDegree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
-  case 2048:
-    scratch_programmable_bootstrap_128<AmortizedDegree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
-  case 4096:
-    scratch_programmable_bootstrap_128<AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
-  default:
-    PANIC("Cuda error (classical PBS): unsupported polynomial size. "
-          "Supported N's are powers of two"
-          " in the interval [256..4096].")
+
+  if (has_support_to_cuda_programmable_bootstrap_128_cg(
+      glwe_dimension, polynomial_size, level_count,
+      input_lwe_ciphertext_count, max_shared_memory)) {
+    switch (polynomial_size) {
+      case 256:
+        scratch_programmable_bootstrap_cg_128<AmortizedDegree<256>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 512:
+        scratch_programmable_bootstrap_cg_128<AmortizedDegree<512>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 1024:
+        scratch_programmable_bootstrap_cg_128<AmortizedDegree<1024>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 2048:
+//        printf("scratch for cg\n");
+        scratch_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 4096:
+        scratch_programmable_bootstrap_cg_128<AmortizedDegree<4096>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      default:
+      PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
+            "Supported N's are powers of two"
+            " in the interval [256..4096].")
+    }
+  } else {
+    switch (polynomial_size) {
+      case 256:
+        scratch_programmable_bootstrap_128<AmortizedDegree<256>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 512:
+        scratch_programmable_bootstrap_128<AmortizedDegree<512>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 1024:
+        scratch_programmable_bootstrap_128<AmortizedDegree<1024>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 2048:
+//        printf("scratch for default\n");
+        scratch_programmable_bootstrap_128<AmortizedDegree<2048>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      case 4096:
+        scratch_programmable_bootstrap_128<AmortizedDegree<4096>>(
+            static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
+            glwe_dimension, polynomial_size, level_count,
+            input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+        break;
+      default:
+      PANIC("Cuda error (classical PBS): unsupported polynomial size. "
+            "Supported N's are powers of two"
+            " in the interval [256..4096].")
+    }
   }
 }
 
@@ -90,6 +146,52 @@ void executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
         polynomial_size, base_log, level_count, num_samples);
     break;
   default:
+    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..4096].")
+  }
+}
+
+template <typename Torus>
+void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lut_vector, Torus *lwe_array_in,
+    double const *bootstrapping_key, pbs_buffer_128<CLASSICAL> *buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+
+  switch (polynomial_size) {
+    case 256:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<256>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 512:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<512>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 1024:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<1024>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 2048:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 4096:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<4096>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    default:
     PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
           "Supported N's are powers of two"
           " in the interval [256..4096].")
@@ -180,12 +282,26 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
         static_cast<const __uint128_t *>(lwe_array_in));
   }
 
-  executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<__uint128_t>(
-      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
-      static_cast<const __uint128_t *>(lut_vector),
-      static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
-      static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
-      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+  switch (buffer->pbs_variant) {
+    case DEFAULT:
+      executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<__uint128_t>(
+          stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+          static_cast<const __uint128_t *>(lut_vector),
+          static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
+          static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+      break;
+    case CG:
+      executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128<__uint128_t>(
+          stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+          static_cast<const __uint128_t *>(lut_vector),
+          static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
+          static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+      break;
+    default:
+    PANIC("Cuda error (PBS): unknown pbs variant.")
+  }
 }
 
 /*
