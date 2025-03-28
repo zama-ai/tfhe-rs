@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::dispersion::StandardDev;
 use crate::core_crypto::commons::generators::{DeterministicSeeder, EncryptionRandomGenerator};
 use crate::core_crypto::commons::math::random::{
-    DefaultRandomGenerator, DynamicDistribution, Seed,
+    CompressionSeed, DefaultRandomGenerator, DynamicDistribution, Seed,
 };
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::parameters::{
@@ -137,7 +137,9 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
 
         assert_eq!(sequential_seeded_bsk, parallel_seeded_bsk);
 
-        let ser_decompressed_bsk = sequential_seeded_bsk.decompress_into_lwe_bootstrap_key();
+        let ser_decompressed_bsk = sequential_seeded_bsk
+            .clone()
+            .decompress_into_lwe_bootstrap_key();
 
         assert_eq!(ser_decompressed_bsk, sequential_bsk);
 
@@ -191,6 +193,61 @@ fn test_parallel_and_seeded_and_chunked_bsk_gen_equivalence<T: UnsignedTorus + S
         let chunks = par_chunk_generator.collect::<Vec<_>>();
         let assembled_bsk = allocate_and_assemble_lwe_bootstrap_key_from_chunks(chunks.as_slice());
         assert_eq!(assembled_bsk, sequential_bsk);
+
+        let mut noise_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
+        let compression_seed = CompressionSeed { seed: mask_seed };
+        let seeded_chunk_generator = SeededLweBootstrapKeyChunkGenerator::new(
+            ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
+            lwe_dim,
+            glwe_dim.to_glwe_size(),
+            poly_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            &lwe_sk,
+            &glwe_sk,
+            noise_distribution,
+            compression_seed,
+            &mut noise_seeder,
+            false,
+        );
+
+        let seeded_chunks = seeded_chunk_generator.collect::<Vec<_>>();
+        let assembled_seeded_bsk =
+            allocate_and_assemble_seeded_lwe_bootstrap_key_from_chunks(seeded_chunks.as_slice());
+        assert_eq!(assembled_seeded_bsk, sequential_seeded_bsk);
+        assert_eq!(
+            assembled_seeded_bsk.decompress_into_lwe_bootstrap_key(),
+            sequential_bsk
+        );
+
+        let mut noise_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
+        let par_seeded_chunk_generator = SeededLweBootstrapKeyChunkGenerator::new(
+            ChunkSize(crate::core_crypto::commons::test_tools::random_usize_between(1..5)),
+            lwe_dim,
+            glwe_dim.to_glwe_size(),
+            poly_size,
+            base_log,
+            level,
+            ciphertext_modulus,
+            &lwe_sk,
+            &glwe_sk,
+            noise_distribution,
+            compression_seed,
+            &mut noise_seeder,
+            true,
+        );
+
+        let seeded_chunks = par_seeded_chunk_generator.collect::<Vec<_>>();
+        let assembled_seeded_bsk =
+            allocate_and_assemble_seeded_lwe_bootstrap_key_from_chunks(seeded_chunks.as_slice());
+        assert_eq!(assembled_seeded_bsk, sequential_seeded_bsk);
+        assert_eq!(
+            assembled_seeded_bsk.decompress_into_lwe_bootstrap_key(),
+            sequential_bsk
+        );
     }
 }
 
