@@ -35,6 +35,7 @@ pub mod seeded_ggsw_ciphertext_list;
 pub mod seeded_glwe_ciphertext;
 pub mod seeded_glwe_ciphertext_list;
 pub mod seeded_lwe_bootstrap_key;
+pub mod seeded_lwe_bootstrap_key_chunk;
 pub mod seeded_lwe_ciphertext;
 pub mod seeded_lwe_ciphertext_list;
 pub mod seeded_lwe_compact_public_key;
