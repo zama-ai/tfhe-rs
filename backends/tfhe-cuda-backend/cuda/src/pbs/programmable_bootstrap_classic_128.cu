@@ -48,6 +48,7 @@ void scratch_cuda_programmable_bootstrap_128(
             input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
         break;
       case 2048:
+        printf("scratch for cg\n");
         scratch_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
             static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
             glwe_dimension, polynomial_size, level_count,
@@ -85,6 +86,7 @@ void scratch_cuda_programmable_bootstrap_128(
             input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
         break;
       case 2048:
+        printf("scratch for default\n");
         scratch_programmable_bootstrap_128<AmortizedDegree<2048>>(
             static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
             glwe_dimension, polynomial_size, level_count,

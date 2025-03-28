@@ -812,6 +812,7 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
   if (!cuda_check_support_cooperative_groups())
     return false;
 
+  printf("cuda_check_support_cooperative_groups\n");
   // Calculate the dimension of the kernel
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(params::degree);
@@ -826,6 +827,10 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
   int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
   int max_active_blocks_per_sm;
 
+
+  cudaFuncSetAttribute((void *)device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize,
+                       full_sm);
   if (max_shared_memory < partial_sm) {
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
@@ -842,9 +847,19 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
         full_sm);
   }
 
+
   // Get the number of streaming multiprocessors
   int number_of_sm = 0;
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+
+//  printf("max_shared_memory: %lu\n", max_shared_memory);
+//  printf("full_sm: %lu\n", full_sm);
+//  printf("partial_sm: %lu\n", partial_sm);
+//  printf("number_of_blocks: %lu\n", number_of_blocks);
+//  printf("max_active_blocks_per_sm: %lu\n", max_active_blocks_per_sm);
+//  printf("number_of_sm: %lu\n", number_of_sm);
+//  printf("thds: %lu\n", thds);
+
   return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
 }
 
