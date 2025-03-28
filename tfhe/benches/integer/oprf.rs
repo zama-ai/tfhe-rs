@@ -1,6 +1,6 @@
 use crate::utilities::{
-    throughput_num_threads, write_to_json, BenchmarkType, OperatorType, ParamsAndNumBlocksIter,
-    BENCH_TYPE,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
+    ParamsAndNumBlocksIter,
 };
 use criterion::{black_box, Criterion, Throughput};
 use rayon::prelude::*;
@@ -24,7 +24,7 @@ pub fn unsigned_oprf(c: &mut Criterion) {
 
         let bench_id;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                 bench_group.bench_function(&bench_id, |b| {

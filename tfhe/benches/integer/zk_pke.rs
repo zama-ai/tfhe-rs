@@ -1,7 +1,7 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
+use crate::utilities::{get_bench_type, throughput_num_threads, BenchmarkType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -89,7 +89,7 @@ fn pke_zk_proof(c: &mut Criterion) {
 
                 let bench_id;
 
-                match BENCH_TYPE.get().unwrap() {
+                match get_bench_type() {
                     BenchmarkType::Latency => {
                         bench_id = format!(
                             "{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
@@ -251,7 +251,7 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                 let bench_id_verify;
                 let bench_id_verify_and_expand;
 
-                match BENCH_TYPE.get().unwrap() {
+                match get_bench_type() {
                     BenchmarkType::Latency => {
                         bench_id_verify = format!(
                             "{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
@@ -437,8 +437,6 @@ pub fn zk_verify() {
 }
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
-
     zk_verify();
 
     Criterion::default().configure_from_args().final_summary();

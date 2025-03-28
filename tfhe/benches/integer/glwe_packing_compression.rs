@@ -2,7 +2,7 @@
 mod utilities;
 
 use crate::utilities::{
-    throughput_num_threads, write_to_json, BenchmarkType, OperatorType, BENCH_TYPE,
+    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
 };
 use criterion::{black_box, criterion_group, Criterion, Throughput};
 use rayon::prelude::*;
@@ -14,6 +14,7 @@ use tfhe::shortint::parameters::{
     COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
+use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn cpu_glwe_packing(c: &mut Criterion) {
     let bench_name = "integer::packing_compression";
@@ -50,7 +51,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         let bench_id_pack;
         let bench_id_unpack;
 
-        match BENCH_TYPE.get().unwrap() {
+        match get_bench_type() {
             BenchmarkType::Latency => {
                 let ct = cks.encrypt_radix(0_u32, num_blocks);
 
@@ -163,7 +164,7 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use crate::utilities::cuda_local_streams;
+    use crate::utilities::cuda_integer_utils::cuda_local_streams;
     use std::cmp::max;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
@@ -218,7 +219,7 @@ mod cuda {
                 &stream,
             );
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     // Encrypt
                     let ct = cks.encrypt_radix(0_u32, num_blocks);
@@ -362,11 +363,8 @@ criterion_group!(cpu_glwe_packing2, cpu_glwe_packing);
 
 #[cfg(feature = "gpu")]
 use cuda::gpu_glwe_packing2;
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn main() {
-    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
-
     #[cfg(feature = "gpu")]
     gpu_glwe_packing2();
     #[cfg(not(feature = "gpu"))]
