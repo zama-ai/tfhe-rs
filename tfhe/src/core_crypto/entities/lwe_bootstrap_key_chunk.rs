@@ -6,6 +6,7 @@ use crate::core_crypto::backward_compatibility::entities::lwe_bootstrap_key_chun
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use crate::named::Named;
 
 /// An [`LWE bootstrap key chunk`](`LweBootstrapKeyChunk`).
 ///
@@ -23,6 +24,13 @@ where
     // An LweBootstrapKeyChunk is literally a GgswCiphertextList, so we wrap a GgswCiphertextList
     // and use Deref to have access to all the primitives of the GgswCiphertextList easily
     ggsw_list: GgswCiphertextList<C>,
+}
+
+impl<C: Container> Named for LweBootstrapKeyChunk<C>
+where
+    C::Element: UnsignedInteger,
+{
+    const NAME: &'static str = "core_crypto::LweBootstrapKeyChunk";
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> std::ops::Deref
