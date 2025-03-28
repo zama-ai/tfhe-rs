@@ -812,7 +812,7 @@ __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
   if (!cuda_check_support_cooperative_groups())
     return false;
 
-  printf("cuda_check_support_cooperative_groups\n");
+//  printf("cuda_check_support_cooperative_groups\n");
   // Calculate the dimension of the kernel
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(params::degree);
