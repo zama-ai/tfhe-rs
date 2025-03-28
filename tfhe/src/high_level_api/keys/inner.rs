@@ -6,12 +6,15 @@ use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
 };
+use crate::integer::noise_squashing::{
+    CompressedNoiseSquashingKey, NoiseSquashingKey, NoiseSquashingPrivateKey,
+};
 use crate::integer::public_key::CompactPublicKey;
 use crate::integer::CompressedCompactPublicKey;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+    CompactPublicKeyEncryptionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::{EncryptionKeyChoice, MessageModulus, PBSParameters};
 use crate::{Config, Error};
@@ -30,28 +33,31 @@ pub(crate) struct IntegerConfig {
         crate::shortint::parameters::ShortintKeySwitchingParameters,
     )>,
     pub(crate) compression_parameters: Option<CompressionParameters>,
+    pub(crate) noise_squashing_parameters: Option<NoiseSquashingParameters>,
 }
 
 impl IntegerConfig {
-    pub(crate) fn new(
-        block_parameters: crate::shortint::PBSParameters,
-        dedicated_compact_public_key_parameters: Option<(
-            crate::shortint::parameters::CompactPublicKeyEncryptionParameters,
-            crate::shortint::parameters::ShortintKeySwitchingParameters,
-        )>,
-    ) -> Self {
+    pub(crate) fn new(block_parameters: crate::shortint::PBSParameters) -> Self {
         Self {
             block_parameters,
-            dedicated_compact_public_key_parameters,
+            dedicated_compact_public_key_parameters: None,
             compression_parameters: None,
+            noise_squashing_parameters: None,
         }
     }
 
-    pub fn enable_compression(&mut self, compression_parameters: CompressionParameters) {
+    pub(crate) fn enable_compression(&mut self, compression_parameters: CompressionParameters) {
         self.compression_parameters = Some(compression_parameters);
     }
 
-    pub fn public_key_encryption_parameters(
+    pub(crate) fn enable_noise_squashing(
+        &mut self,
+        compression_parameters: NoiseSquashingParameters,
+    ) {
+        self.noise_squashing_parameters = Some(compression_parameters);
+    }
+
+    pub(crate) fn public_key_encryption_parameters(
         &self,
     ) -> Result<crate::shortint::parameters::CompactPublicKeyEncryptionParameters, crate::Error>
     {
@@ -76,6 +82,7 @@ impl Default for IntegerConfig {
             block_parameters: params,
             dedicated_compact_public_key_parameters: None,
             compression_parameters: None,
+            noise_squashing_parameters: None,
         }
     }
 }
@@ -91,6 +98,7 @@ pub(crate) struct IntegerClientKey {
     pub(crate) key: crate::integer::ClientKey,
     pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
     pub(crate) compression_key: Option<CompressionPrivateKeys>,
+    pub(crate) noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
 }
 
 impl IntegerClientKey {
@@ -112,10 +120,16 @@ impl IntegerClientKey {
         let dedicated_compact_private_key = config
             .dedicated_compact_public_key_parameters
             .map(|p| (crate::integer::CompactPrivateKey::new(p.0), p.1));
+
+        let noise_squashing_private_key = config
+            .noise_squashing_parameters
+            .map(NoiseSquashingPrivateKey::new);
+
         Self {
             key,
             dedicated_compact_private_key,
             compression_key,
+            noise_squashing_private_key,
         }
     }
 
@@ -126,13 +140,20 @@ impl IntegerClientKey {
         crate::integer::ClientKey,
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
+        Option<NoiseSquashingPrivateKey>,
     ) {
         let Self {
             key,
             dedicated_compact_private_key,
             compression_key,
+            noise_squashing_private_key,
         } = self;
-        (key, dedicated_compact_private_key, compression_key)
+        (
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key,
+        )
     }
 
     /// Construct a, [`IntegerClientKey`] from its constituents.
@@ -144,6 +165,7 @@ impl IntegerClientKey {
         key: crate::integer::ClientKey,
         dedicated_compact_private_key: Option<CompactPrivateKey>,
         compression_key: Option<CompressionPrivateKeys>,
+        noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
     ) -> Self {
         let shortint_cks: &crate::shortint::ClientKey = key.as_ref();
 
@@ -170,6 +192,7 @@ impl IntegerClientKey {
             key,
             dedicated_compact_private_key,
             compression_key,
+            noise_squashing_private_key,
         }
     }
 
@@ -195,10 +218,15 @@ impl From<IntegerConfig> for IntegerClientKey {
             .compression_parameters
             .map(|params| key.new_compression_private_key(params));
 
+        let noise_squashing_private_key = config
+            .noise_squashing_parameters
+            .map(NoiseSquashingPrivateKey::new);
+
         Self {
             key,
             dedicated_compact_private_key,
             compression_key,
+            noise_squashing_private_key,
         }
     }
 }
@@ -215,6 +243,7 @@ pub struct IntegerServerKey {
         Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
     pub(crate) compression_key: Option<CompressionKey>,
     pub(crate) decompression_key: Option<DecompressionKey>,
+    pub(crate) noise_squashing_key: Option<NoiseSquashingKey>,
 }
 
 impl IntegerServerKey {
@@ -246,11 +275,18 @@ impl IntegerServerKey {
 
                     build_helper.into()
                 });
+
+        let noise_squashing_key = client_key
+            .noise_squashing_private_key
+            .as_ref()
+            .map(|key| NoiseSquashingKey::new(cks, key));
+
         Self {
             key: base_integer_key,
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         }
     }
 
@@ -292,6 +328,7 @@ pub struct IntegerCompressedServerKey {
         Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
     pub(crate) compression_key: Option<CompressedCompressionKey>,
     pub(crate) decompression_key: Option<CompressedDecompressionKey>,
+    pub(crate) noise_squashing_key: Option<CompressedNoiseSquashingKey>,
 }
 
 impl IntegerCompressedServerKey {
@@ -327,11 +364,20 @@ impl IntegerCompressedServerKey {
                     (Some(compression_keys), Some(decompression_keys))
                 });
 
+        let noise_squashing_key =
+            client_key
+                .noise_squashing_private_key
+                .as_ref()
+                .map(|noise_squashing_private_key| {
+                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key)
+                });
+
         Self {
             key,
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         }
     }
 
@@ -358,12 +404,14 @@ impl IntegerCompressedServerKey {
         >,
         compression_key: Option<CompressedCompressionKey>,
         decompression_key: Option<CompressedDecompressionKey>,
+        noise_squashing_key: Option<CompressedNoiseSquashingKey>,
     ) -> Self {
         Self {
             key,
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         }
     }
 
@@ -378,6 +426,11 @@ impl IntegerCompressedServerKey {
             .as_ref()
             .map(CompressedDecompressionKey::decompress);
 
+        let noise_squashing_key = self
+            .noise_squashing_key
+            .as_ref()
+            .map(CompressedNoiseSquashingKey::decompress);
+
         IntegerServerKey {
             key: self.key.decompress(),
             cpk_key_switching_key_material: self.cpk_key_switching_key_material.as_ref().map(
@@ -385,6 +438,7 @@ impl IntegerCompressedServerKey {
             ),
             compression_key,
             decompression_key,
+            noise_squashing_key,
         }
     }
 }
@@ -473,14 +527,17 @@ pub struct IntegerServerKeyConformanceParams {
         ShortintKeySwitchingParameters,
     )>,
     pub compression_param: Option<CompressionParameters>,
+    pub noise_squashing_param: Option<NoiseSquashingParameters>,
 }
 
-impl From<Config> for IntegerServerKeyConformanceParams {
-    fn from(value: Config) -> Self {
+impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
+    fn from(value: C) -> Self {
+        let config: Config = value.into();
         Self {
-            sk_param: value.inner.block_parameters,
-            cpk_param: value.inner.dedicated_compact_public_key_parameters,
-            compression_param: value.inner.compression_parameters,
+            sk_param: config.inner.block_parameters,
+            cpk_param: config.inner.dedicated_compact_public_key_parameters,
+            compression_param: config.inner.compression_parameters,
+            noise_squashing_param: config.inner.noise_squashing_parameters,
         }
     }
 }
@@ -539,6 +596,7 @@ impl ParameterSetConformant for IntegerServerKey {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -572,9 +630,27 @@ impl ParameterSetConformant for IntegerServerKey {
             _ => return false,
         };
 
+        let noise_squashing_key_is_ok = match (
+            parameter_set.noise_squashing_param.as_ref(),
+            noise_squashing_key.as_ref(),
+        ) {
+            (None, None) => true,
+            (Some(noise_squashing_param), Some(noise_squashing_key)) => {
+                let noise_squashing_param =
+                    (parameter_set.sk_param, *noise_squashing_param).try_into();
+                if let Ok(noise_squashing_param) = noise_squashing_param {
+                    noise_squashing_key.is_conformant(&noise_squashing_param)
+                } else {
+                    return false;
+                }
+            }
+            _ => return false,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
+            && noise_squashing_key_is_ok
     }
 }
 
@@ -587,6 +663,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -620,9 +697,27 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             _ => return false,
         };
 
+        let noise_squashing_key_is_ok = match (
+            parameter_set.noise_squashing_param.as_ref(),
+            noise_squashing_key.as_ref(),
+        ) {
+            (None, None) => true,
+            (Some(noise_squashing_param), Some(noise_squashing_key)) => {
+                let noise_squashing_param =
+                    (parameter_set.sk_param, *noise_squashing_param).try_into();
+                if let Ok(noise_squashing_param) = noise_squashing_param {
+                    noise_squashing_key.is_conformant(&noise_squashing_param)
+                } else {
+                    return false;
+                }
+            }
+            _ => return false,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
+            && noise_squashing_key_is_ok
     }
 }
 

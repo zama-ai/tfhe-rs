@@ -3,6 +3,7 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
+use crate::shortint::parameters::NoiseSquashingParameters;
 
 /// The config type
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -48,13 +49,24 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn enable_noise_squashing(
+        mut self,
+        noise_squashing_parameters: NoiseSquashingParameters,
+    ) -> Self {
+        self.config
+            .inner
+            .enable_noise_squashing(noise_squashing_parameters);
+
+        self
+    }
+
     pub fn with_custom_parameters<P>(block_parameters: P) -> Self
     where
         P: Into<crate::shortint::PBSParameters>,
     {
         Self {
             config: Config {
-                inner: IntegerConfig::new(block_parameters.into(), None),
+                inner: IntegerConfig::new(block_parameters.into()),
             },
         }
     }
@@ -75,7 +87,7 @@ impl ConfigBuilder {
     where
         P: Into<crate::shortint::PBSParameters>,
     {
-        self.config.inner = IntegerConfig::new(block_parameters.into(), None);
+        self.config.inner = IntegerConfig::new(block_parameters.into());
         self
     }
 

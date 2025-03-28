@@ -3,6 +3,7 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::booleans::{
     InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool,
+    InnerSquashedNoiseBooleanVersionOwned, SquashedNoiseFheBool,
 };
 use crate::{CompressedFheBool, FheBool, Tag};
 use std::convert::Infallible;
@@ -62,4 +63,17 @@ impl Upgrade<CompressedFheBool> for CompressedFheBoolV0 {
 pub enum CompressedFheBoolVersions {
     V0(CompressedFheBoolV0),
     V1(CompressedFheBool),
+}
+
+// Squashed Noise
+// Manual impl
+#[derive(Serialize, Deserialize)]
+pub(crate) enum InnerSquashedNoiseBooleanVersionedOwned {
+    V0(InnerSquashedNoiseBooleanVersionOwned),
+}
+
+// Squashed Noise
+#[derive(VersionsDispatch)]
+pub enum SquashedNoiseFheBoolVersions {
+    V0(SquashedNoiseFheBool),
 }

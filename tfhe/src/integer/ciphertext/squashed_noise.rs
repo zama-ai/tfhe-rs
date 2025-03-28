@@ -25,3 +25,29 @@ pub struct SquashedNoiseSignedRadixCiphertext {
 pub struct SquashedNoiseBooleanBlock {
     pub(crate) ciphertext: SquashedNoiseCiphertext,
 }
+
+impl SquashedNoiseRadixCiphertext {
+    pub fn packed_blocks(&self) -> &[SquashedNoiseCiphertext] {
+        &self.packed_blocks
+    }
+
+    pub fn original_block_count(&self) -> usize {
+        self.original_block_count
+    }
+}
+
+impl SquashedNoiseSignedRadixCiphertext {
+    pub fn packed_blocks(&self) -> &[SquashedNoiseCiphertext] {
+        &self.packed_blocks
+    }
+
+    pub fn original_block_count(&self) -> usize {
+        self.original_block_count
+    }
+}
+
+impl SquashedNoiseBooleanBlock {
+    pub fn packed_blocks(&self) -> &SquashedNoiseCiphertext {
+        &self.ciphertext
+    }
+}

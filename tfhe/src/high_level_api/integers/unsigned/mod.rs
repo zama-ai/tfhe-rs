@@ -18,12 +18,15 @@ expand_pub_use_fhe_type!(
 );
 
 pub use compressed::CompressedFheUint;
+pub use squashed_noise::SquashedNoiseFheUint;
 
 pub(in crate::high_level_api) use compressed::CompressedRadixCiphertext;
 pub(in crate::high_level_api) use inner::{RadixCiphertext, RadixCiphertextVersionOwned};
+pub(in crate::high_level_api) use squashed_noise::InnerSquashedNoiseRadixCiphertextVersionOwned;
 
 mod base;
 mod compressed;
+mod squashed_noise;
 mod static_;
 
 mod encrypt;

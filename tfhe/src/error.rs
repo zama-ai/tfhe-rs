@@ -26,14 +26,14 @@ impl Error {
     }
 }
 
-#[cfg(feature = "integer")]
+#[cfg(any(feature = "integer", feature = "shortint"))]
 macro_rules! error{
     ($($arg:tt)*) => {
         $crate::error::Error::new(::std::format!($($arg)*))
     }
 }
 
-#[cfg(feature = "integer")]
+#[cfg(any(feature = "integer", feature = "shortint"))]
 pub(crate) use error;
 
 impl Display for Error {

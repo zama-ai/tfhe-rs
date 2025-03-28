@@ -190,3 +190,9 @@ pub trait CiphertextList {
 }
 
 pub trait FheId: Copy + Default {}
+
+pub trait SquashNoise {
+    type Output;
+
+    fn squash_noise(&self) -> crate::Result<Self::Output>;
+}

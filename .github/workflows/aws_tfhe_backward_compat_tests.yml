@@ -71,7 +71,7 @@ jobs:
       - name: Use specific data branch
         if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
         env:
-          PR_BRANCH: ${{ github.ref_name }}
+          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
           echo "BACKWARD_COMPAT_DATA_BRANCH=${PR_BRANCH}" >> "${GITHUB_ENV}"
 

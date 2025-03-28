@@ -7,6 +7,7 @@ use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
 use crate::integer::compression_keys::CompressionPrivateKeys;
+use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
@@ -80,10 +81,11 @@ impl ClientKey {
         crate::integer::ClientKey,
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
+        Option<NoiseSquashingPrivateKey>,
         Tag,
     ) {
-        let (cks, cpk, cppk) = self.key.into_raw_parts();
-        (cks, cpk, cppk, self.tag)
+        let (cks, cpk, cppk, nsk) = self.key.into_raw_parts();
+        (cks, cpk, cppk, nsk, self.tag)
     }
 
     pub fn from_raw_parts(
@@ -93,6 +95,7 @@ impl ClientKey {
             crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters,
         )>,
         compression_key: Option<CompressionPrivateKeys>,
+        noise_squashing_key: Option<NoiseSquashingPrivateKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -100,6 +103,7 @@ impl ClientKey {
                 key,
                 dedicated_compact_private_key,
                 compression_key,
+                noise_squashing_key,
             ),
             tag,
         }

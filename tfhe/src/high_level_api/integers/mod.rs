@@ -31,17 +31,18 @@ expand_pub_use_fhe_type!(
 );
 
 pub(in crate::high_level_api) use signed::{
-    CompressedSignedRadixCiphertext, FheIntId, SignedRadixCiphertextVersionOwned,
+    CompressedSignedRadixCiphertext, FheIntId, InnerSquashedNoiseSignedRadixCiphertextVersionOwned,
+    SignedRadixCiphertextVersionOwned,
 };
 pub(in crate::high_level_api) use unsigned::{
-    CompressedRadixCiphertext, FheUintId,
+    CompressedRadixCiphertext, FheUintId, InnerSquashedNoiseRadixCiphertextVersionOwned,
     RadixCiphertextVersionOwned as UnsignedRadixCiphertextVersionOwned,
 };
 // These are pub-exported so that their doc can appear in generated rust docs
 use crate::high_level_api::traits::FheId;
 use crate::shortint::MessageModulus;
-pub use signed::{CompressedFheInt, FheInt};
-pub use unsigned::{CompressedFheUint, FheUint};
+pub use signed::{CompressedFheInt, FheInt, SquashedNoiseFheInt};
+pub use unsigned::{CompressedFheUint, FheUint, SquashedNoiseFheUint};
 
 pub mod oprf;
 pub(super) mod signed;

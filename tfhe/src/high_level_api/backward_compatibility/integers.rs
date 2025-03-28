@@ -220,3 +220,26 @@ pub enum CompressedFheUintVersions<Id: FheUintId> {
     V0(CompressedFheUintV0<Id>),
     V1(CompressedFheUint<Id>),
 }
+
+// Squashed Noise
+// Manual impl
+#[derive(Serialize, Deserialize)]
+pub(crate) enum InnerSquashedNoiseRadixCiphertextVersionedOwned {
+    V0(InnerSquashedNoiseRadixCiphertextVersionOwned),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SquashedNoiseFheUintVersions {
+    V0(SquashedNoiseFheUint),
+}
+
+// Manual impl
+#[derive(Serialize, Deserialize)]
+pub(crate) enum InnerSquashedNoiseSignedRadixCiphertextVersionedOwned {
+    V0(InnerSquashedNoiseSignedRadixCiphertextVersionOwned),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SquashedNoiseFheIntVersions {
+    V0(SquashedNoiseFheInt),
+}

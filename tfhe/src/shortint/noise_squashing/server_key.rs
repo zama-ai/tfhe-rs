@@ -47,6 +47,29 @@ impl ClientKey {
             .pbs_parameters()
             .expect("NoiseSquashingKey generation requires PBSParameters");
 
+        assert_eq!(
+            pbs_parameters.message_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .message_modulus,
+            "Incompatible MessageModulus ClientKey {:?}, NoiseSquashingPrivateKey {:?}.",
+            pbs_parameters.message_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .message_modulus,
+        );
+        assert_eq!(
+            pbs_parameters.carry_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .carry_modulus,
+            "Incompatible CarryModulus ClientKey {:?}, NoiseSquashingPrivateKey {:?}",
+            pbs_parameters.carry_modulus(),
+            noise_squashing_private_key
+                .noise_squashing_parameters()
+                .carry_modulus,
+        );
+
         let noise_squashing_parameters = noise_squashing_private_key.noise_squashing_parameters();
 
         let (bootstrapping_key, modulus_switch_noise_reduction_key) =
@@ -109,29 +132,46 @@ impl NoiseSquashingKey {
         ciphertext: &Ciphertext,
         src_server_key: &ServerKey,
     ) -> SquashedNoiseCiphertext {
-        let ct_noise_level = ciphertext.noise_level();
-        assert!(
-            src_server_key
-                .max_noise_level
-                .validate(ct_noise_level)
-                .is_ok(),
-            "squash_ciphertext_noise requires the input Ciphertext to have at most {:?} noise \
-                got {:?}.",
-            src_server_key.max_noise_level,
-            ct_noise_level
-        );
-        assert_eq!(
-            ciphertext.message_modulus, self.message_modulus,
-            "Mismatched MessageModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
-            ciphertext.message_modulus, self.message_modulus,
-        );
-        assert_eq!(
-            ciphertext.carry_modulus, self.carry_modulus,
-            "Mismatched CarryModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
-            ciphertext.carry_modulus, self.carry_modulus,
-        );
+        self.checked_squash_ciphertext_noise(ciphertext, src_server_key)
+            .unwrap()
+    }
 
-        self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key)
+    pub fn checked_squash_ciphertext_noise(
+        &self,
+        ciphertext: &Ciphertext,
+        src_server_key: &ServerKey,
+    ) -> crate::Result<SquashedNoiseCiphertext> {
+        let ct_noise_level = ciphertext.noise_level();
+        if src_server_key
+            .max_noise_level
+            .validate(ct_noise_level)
+            .is_err()
+        {
+            return Err(crate::error!(
+                "squash_ciphertext_noise requires the input Ciphertext to have at most {:?} noise \
+                got {:?}.",
+                src_server_key.max_noise_level,
+                ct_noise_level
+            ));
+        }
+
+        if ciphertext.message_modulus != self.message_modulus {
+            return Err(crate::error!(
+                "Mismatched MessageModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
+                ciphertext.message_modulus,
+                self.message_modulus,
+            ));
+        }
+
+        if ciphertext.carry_modulus != self.carry_modulus {
+            return Err(crate::error!(
+                "Mismatched CarryModulus between Ciphertext {:?} and NoiseSquashingKey {:?}.",
+                ciphertext.carry_modulus,
+                self.carry_modulus,
+            ));
+        }
+
+        Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key))
     }
 
     pub fn unchecked_squash_ciphertext_noise(
@@ -240,6 +280,18 @@ impl NoiseSquashingKey {
         res.set_degree(ciphertext.degree);
 
         res
+    }
+
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.message_modulus
+    }
+
+    pub fn carry_modulus(&self) -> CarryModulus {
+        self.carry_modulus
+    }
+
+    pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
+        self.output_ciphertext_modulus
     }
 }
 

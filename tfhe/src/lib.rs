@@ -149,7 +149,7 @@ pub mod error;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
 
-#[cfg(feature = "integer")]
+#[cfg(any(feature = "integer", feature = "shortint"))]
 pub(crate) use error::error;
 pub use error::{Error, ErrorKind};
 pub type Result<T> = std::result::Result<T, Error>;
