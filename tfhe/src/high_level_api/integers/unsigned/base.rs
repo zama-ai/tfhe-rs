@@ -940,6 +940,68 @@ where
             }
         })
     }
+
+    /// Creates a FheUint that encrypts either of two values depending
+    /// on an encrypted condition
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheBool, FheUint32};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let cond = FheBool::encrypt(true, &client_key);
+    ///
+    /// let result = FheUint32::if_then_else(&cond, u32::MAX, u32::MIN);
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, u32::MAX);
+    ///
+    /// let result = FheUint32::if_then_else(&!cond, u32::MAX, u32::MIN);
+    /// let decrypted: u32 = result.decrypt(&client_key);
+    /// assert_eq!(decrypted, u32::MIN);
+    /// ```
+    pub fn if_then_else<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
+    where
+        Clear: UnsignedNumeric + DecomposableInto<u64>,
+    {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let sk = cpu_key.pbs_key();
+
+                let result: crate::integer::RadixCiphertext = sk.scalar_if_then_else_parallelized(
+                    &condition.ciphertext.on_cpu(),
+                    true_value,
+                    false_value,
+                    Id::num_blocks(sk.message_modulus()),
+                );
+
+                Self::new(result, cpu_key.tag.clone())
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_) => {
+                panic!("Cuda devices do not support if_then_else yet");
+            }
+        })
+    }
+
+    /// Same as [Self::if_then_else] but with a different name
+    pub fn select<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
+    where
+        Clear: UnsignedNumeric + DecomposableInto<u64>,
+    {
+        Self::if_then_else(condition, true_value, false_value)
+    }
+
+    /// Same as [Self::if_then_else] but with a different name
+    pub fn cmux<Clear>(condition: &FheBool, true_value: Clear, false_value: Clear) -> Self
+    where
+        Clear: UnsignedNumeric + DecomposableInto<u64>,
+    {
+        Self::if_then_else(condition, true_value, false_value)
+    }
 }
 
 impl<Id> TryFrom<crate::integer::RadixCiphertext> for FheUint<Id>

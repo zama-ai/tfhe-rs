@@ -148,6 +148,20 @@ pub trait IfThenElse<Ciphertext> {
     }
 }
 
+pub trait ScalarIfThenElse<Lhs, Rhs> {
+    type Output;
+
+    fn scalar_if_then_else(&self, value_true: Lhs, value_false: Rhs) -> Self::Output;
+
+    fn scalar_select(&self, value_true: Lhs, value_false: Rhs) -> Self::Output {
+        self.scalar_if_then_else(value_true, value_false)
+    }
+
+    fn scalar_cmux(&self, value_true: Lhs, value_false: Rhs) -> Self::Output {
+        self.scalar_if_then_else(value_true, value_false)
+    }
+}
+
 pub trait OverflowingAdd<Rhs> {
     type Output;
 

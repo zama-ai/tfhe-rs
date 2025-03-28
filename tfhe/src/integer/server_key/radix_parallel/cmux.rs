@@ -436,7 +436,7 @@ impl ServerKey {
                 let block = block_condition / 2;
                 let condition = block_condition % 2;
                 if condition == 1 {
-                    block
+                    block % self.message_modulus().0
                 } else {
                     scalar_block
                 }
@@ -449,8 +449,9 @@ impl ServerKey {
             .par_iter()
             .zip(luts.par_iter())
             .map(|(block, lut)| {
-                let mut result_block = self.key.scalar_mul(block, 2);
-                self.key.add_assign(&mut result_block, &condition.0);
+                let mut result_block = self.key.unchecked_scalar_mul(block, 2);
+                self.key
+                    .unchecked_add_assign(&mut result_block, &condition.0);
                 self.key.apply_lookup_table_assign(&mut result_block, lut);
                 result_block
             })
