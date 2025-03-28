@@ -22,6 +22,11 @@ get_join_buffer_element(int level_id, int glwe_id, G &group,
                         double2 *global_memory_buffer, uint32_t polynomial_size,
                         uint32_t glwe_dimension, bool support_dsm);
 
+template <typename G>
+__device__ double *get_join_buffer_element_128(
+    int level_id, int glwe_id, G &group, double *global_memory_buffer,
+    uint32_t polynomial_size, uint32_t glwe_dimension, bool support_dsm);
+
 /** Perform the matrix multiplication between the GGSW and the GLWE,
  * each block operating on a single level for mask and body.
  * Both operands should be at fourier domain
