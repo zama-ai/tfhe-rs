@@ -15,7 +15,64 @@
 #include "pbs/programmable_bootstrap.h"
 #include "polynomial/parameters.cuh"
 #include "polynomial/polynomial_math.cuh"
+#include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
+
+/** Perform the matrix multiplication between the GGSW and the GLWE,
+ * each block operating on a single level for mask and body.
+ * Both operands should be at fourier domain
+ *
+ * This function assumes:
+ *  - Thread blocks at dimension z relates to the decomposition level.
+ *  - Thread blocks at dimension y relates to the glwe dimension.
+ *  - polynomial_size / params::opt threads are available per block
+ */
+template <typename G, class params>
+__device__ void mul_ggsw_glwe_in_fourier_domain_128(
+    double *fft, double *join_buffer,
+    const double *__restrict__ bootstrapping_key, int iteration, G &group,
+    bool support_dsm = false) {
+  const uint32_t polynomial_size = params::degree;
+  const uint32_t glwe_dimension = gridDim.y - 1;
+  const uint32_t level_count = gridDim.z;
+
+  // The first product is used to initialize level_join_buffer
+  auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
+
+  // Continues multiplying fft by every polynomial in that particular bsk level
+  // Each y-block accumulates in a different polynomial at each iteration
+  auto bsk_slice = get_ith_mask_kth_block_128(
+      bootstrapping_key, iteration, blockIdx.y, blockIdx.z, polynomial_size,
+      glwe_dimension, level_count);
+  for (int j = 0; j < glwe_dimension + 1; j++) {
+    int idx = (j + this_block_rank) % (glwe_dimension + 1);
+
+    auto bsk_poly = bsk_slice + idx * polynomial_size / 2 * 4;
+    auto buffer_slice = get_join_buffer_element_128<G>(
+        blockIdx.z, idx, group, join_buffer, polynomial_size, glwe_dimension,
+        support_dsm);
+
+    polynomial_product_accumulate_in_fourier_domain_128<params>(
+        buffer_slice, fft, bsk_poly, j == 0);
+    group.sync();
+  }
+
+  // -----------------------------------------------------------------
+  // All blocks are synchronized here; after this sync, level_join_buffer has
+  // the values needed from every other block
+
+  // accumulate rest of the products into fft buffer
+  for (int l = 0; l < level_count; l++) {
+    auto cur_src_acc = get_join_buffer_element_128<G>(
+        l, blockIdx.y, group, join_buffer, polynomial_size, glwe_dimension,
+        support_dsm);
+
+    polynomial_accumulate_in_fourier_domain_128<params>(fft, cur_src_acc,
+                                                        l == 0);
+  }
+
+  synchronize_threads_in_block();
+}
 
 template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -242,6 +299,184 @@ __global__ void __launch_bounds__(params::degree / params::opt)
       tid += params::degree / params::opt;
     }
   }
+}
+
+/*
+ * Kernel that computes the classical PBS using cooperative groups
+ *
+ * - lwe_array_out: vector of output lwe s, with length
+ * (glwe_dimension * polynomial_size+1)*num_samples
+ * - lut_vector: vector of look up tables with
+ * length  (glwe_dimension+1) * polynomial_size * num_samples
+ * - lut_vector_indexes: mapping between lwe_array_in and lut_vector
+ * lwe_array_in: vector of lwe inputs with length (lwe_dimension + 1) *
+ * num_samples
+ *
+ * Each y-block computes one element of the lwe_array_out.
+ */
+template <typename Torus, class params, sharedMemDegree SMD>
+__global__ void device_programmable_bootstrap_cg_128(
+    Torus *lwe_array_out, const Torus *__restrict__ lut_vector,
+    const Torus *__restrict__ lwe_array_in,
+    const double *__restrict__ bootstrapping_key, double *join_buffer,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, int8_t *device_mem,
+    uint64_t device_memory_size_per_block) {
+
+  grid_group grid = this_grid();
+
+  // We use shared memory for the polynomials that are used often during the
+  // bootstrap, since shared memory is kept in L1 cache and accessing it is
+  // much faster than global memory
+  extern __shared__ int8_t sharedmem[];
+  int8_t *selected_memory;
+  uint32_t glwe_dimension = gridDim.y - 1;
+
+  if constexpr (SMD == FULLSM) {
+    selected_memory = sharedmem;
+  } else {
+    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
+                      blockIdx.x * gridDim.z * gridDim.y;
+    selected_memory = &device_mem[block_index * device_memory_size_per_block];
+  }
+
+  // We always compute the pointer with most restrictive alignment to avoid
+  // alignment issues
+  Torus *accumulator = (Torus *)selected_memory;
+  Torus *accumulator_rotated =
+      (Torus *)accumulator + (ptrdiff_t)(polynomial_size);
+  double *accumulator_fft =
+      (double *)(accumulator_rotated) +
+      (ptrdiff_t)(polynomial_size * sizeof(Torus) / sizeof(double));
+
+  if constexpr (SMD == PARTIALSM)
+    accumulator_fft = (double *)sharedmem;
+
+  // The third dimension of the block is used to determine on which ciphertext
+  // this block is operating, in the case of batch bootstraps
+  const Torus *block_lwe_array_in =
+      &lwe_array_in[blockIdx.x * (lwe_dimension + 1)];
+
+  const Torus *block_lut_vector =
+      &lut_vector[blockIdx.x * params::degree * (glwe_dimension + 1)];
+
+  double *block_join_buffer =
+      &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
+                   params::degree / 2 * 4];
+  // Since the space is L1 cache is small, we use the same memory location for
+  // the rotated accumulator and the fft accumulator, since we know that the
+  // rotated array is not in use anymore by the time we perform the fft
+
+  // Put "b" in [0, 2N[
+  Torus b_hat = 0;
+  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+                 params::log2_degree + 1);
+
+  divide_by_monomial_negacyclic_inplace<Torus, params::opt,
+                                        params::degree / params::opt>(
+      accumulator, &block_lut_vector[blockIdx.y * params::degree], b_hat,
+      false);
+
+  for (int i = 0; i < lwe_dimension; i++) {
+    synchronize_threads_in_block();
+
+    // Put "a" in [0, 2N[
+    Torus a_hat = 0;
+    modulus_switch(block_lwe_array_in[i], a_hat, params::log2_degree + 1);
+
+    // Perform ACC * (X^ä - 1)
+    multiply_by_monomial_negacyclic_and_sub_polynomial<
+        Torus, params::opt, params::degree / params::opt>(
+        accumulator, accumulator_rotated, a_hat);
+
+    // Perform a rounding to increase the accuracy of the
+    // bootstrapped ciphertext
+    init_decomposer_state_inplace<Torus, params::opt,
+                                  params::degree / params::opt>(
+        accumulator_rotated, base_log, level_count);
+
+    synchronize_threads_in_block();
+
+    // Decompose the accumulator. Each block gets one level of the
+    // decomposition, for the mask and the body (so block 0 will have the
+    // accumulator decomposed at level 0, 1 at 1, etc.)
+    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
+                                           accumulator_rotated);
+    gadget_acc.decompose_and_compress_level_128(accumulator_fft, blockIdx.z);
+
+    auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
+    auto acc_fft_re_lo = accumulator_fft + 1 * params::degree / 2;
+    auto acc_fft_im_hi = accumulator_fft + 2 * params::degree / 2;
+    auto acc_fft_im_lo = accumulator_fft + 3 * params::degree / 2;
+
+    negacyclic_forward_fft_f128<HalfDegree<params>>(
+        acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
+    synchronize_threads_in_block();
+    // Perform G^-1(ACC) * GGSW -> GLWE
+    mul_ggsw_glwe_in_fourier_domain_128<grid_group, params>(
+        accumulator_fft, block_join_buffer, bootstrapping_key, i, grid);
+
+    negacyclic_backward_fft_f128<HalfDegree<params>>(
+        acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
+    synchronize_threads_in_block();
+
+    add_to_torus_128<Torus, params>(acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi,
+                                    acc_fft_im_lo, accumulator);
+  }
+
+  auto block_lwe_array_out =
+      &lwe_array_out[blockIdx.x * (glwe_dimension * polynomial_size + 1) +
+                     blockIdx.y * polynomial_size];
+
+  if (blockIdx.z == 0) {
+    if (blockIdx.y < glwe_dimension) {
+      // Perform a sample extract. At this point, all blocks have the result,
+      // but we do the computation at block 0 to avoid waiting for extra blocks,
+      // in case they're not synchronized
+      sample_extract_mask<Torus, params>(block_lwe_array_out, accumulator);
+
+    } else if (blockIdx.y == glwe_dimension) {
+      sample_extract_body<Torus, params>(block_lwe_array_out, accumulator, 0);
+    }
+  }
+}
+
+template <typename params>
+__host__ void scratch_programmable_bootstrap_cg_128(
+    cudaStream_t stream, uint32_t gpu_index, pbs_buffer_128<CLASSICAL> **buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+    bool allocate_gpu_memory, bool allocate_ms_array) {
+
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
+          polynomial_size);
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
+          polynomial_size);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  if (max_shared_memory >= partial_sm && max_shared_memory < full_sm) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg_128<__uint128_t, params, PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg_128<__uint128_t, params, PARTIALSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  } else if (max_shared_memory >= partial_sm) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
+        cudaFuncCachePreferShared);
+    check_cuda_error(cudaGetLastError());
+  }
+
+  *buffer = new pbs_buffer_128<CLASSICAL>(
+      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
+      level_count, input_lwe_ciphertext_count, PBS_VARIANT::CG,
+      allocate_gpu_memory, allocate_ms_array);
 }
 
 template <typename params>
@@ -494,6 +729,168 @@ __host__ void host_programmable_bootstrap_128(
           d_mem, i, partial_sm, partial_dm_step_two, full_sm_step_two,
           full_dm_step_two);
     }
+  }
+}
+
+template <class params>
+__host__ void host_programmable_bootstrap_cg_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    __uint128_t const *lut_vector, __uint128_t const *lwe_array_in,
+    double const *bootstrapping_key, pbs_buffer_128<CLASSICAL> *buffer,
+    uint32_t glwe_dimension, uint32_t lwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count,
+    uint32_t input_lwe_ciphertext_count) {
+
+  // With SM each block corresponds to either the mask or body, no need to
+  // duplicate data for each
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
+          polynomial_size);
+
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
+          polynomial_size);
+
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  cuda_set_device(gpu_index);
+
+  uint64_t full_dm = full_sm;
+
+  uint64_t partial_dm = full_dm - partial_sm;
+
+  int8_t *d_mem = buffer->d_mem;
+  double *buffer_fft = buffer->global_join_buffer;
+
+  int thds = polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+
+  void *kernel_args[11];
+  kernel_args[0] = &lwe_array_out;
+  kernel_args[1] = &lut_vector;
+  kernel_args[2] = &lwe_array_in;
+  kernel_args[3] = &bootstrapping_key;
+  kernel_args[4] = &buffer_fft;
+  kernel_args[5] = &lwe_dimension;
+  kernel_args[6] = &polynomial_size;
+  kernel_args[7] = &base_log;
+  kernel_args[8] = &level_count;
+  kernel_args[9] = &d_mem;
+
+  if (max_shared_memory < partial_sm) {
+    kernel_args[10] = &full_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, NOSM>,
+        grid, thds, (void **)kernel_args, 0, stream));
+  } else if (max_shared_memory < full_sm) {
+    kernel_args[10] = &partial_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params,
+                                                     PARTIALSM>,
+        grid, thds, (void **)kernel_args, partial_sm, stream));
+  } else {
+    int no_dm = 0;
+    kernel_args[10] = &no_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)
+            device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
+        grid, thds, (void **)kernel_args, full_sm, stream));
+  }
+
+  check_cuda_error(cudaGetLastError());
+}
+
+// Verify if the grid size satisfies the cooperative group constraints
+template <class params>
+__host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
+    int glwe_dimension, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
+
+  // If Cooperative Groups is not supported, no need to check anything else
+  if (!cuda_check_support_cooperative_groups())
+    return false;
+
+  // Calculate the dimension of the kernel
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
+          params::degree);
+
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
+          params::degree);
+
+  int thds = params::degree / params::opt;
+
+  // Get the maximum number of active blocks per streaming multiprocessors
+  int number_of_blocks = level_count * (glwe_dimension + 1) * num_samples;
+  int max_active_blocks_per_sm;
+
+  if (max_shared_memory < partial_sm) {
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, NOSM>,
+        thds, 0);
+  } else if (max_shared_memory < full_sm) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg_128<Torus, params, PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg_128<Torus, params, PARTIALSM>,
+        cudaFuncCachePreferShared);
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params,
+                                                     PARTIALSM>,
+        thds, partial_sm);
+  } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg_128<Torus, params, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg_128<Torus, params, FULLSM>,
+        cudaFuncCachePreferShared);
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_active_blocks_per_sm,
+        (void *)
+            device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>,
+        thds, full_sm);
+  }
+
+  // Get the number of streaming multiprocessors
+  int number_of_sm = 0;
+  cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);
+
+  return number_of_blocks <= max_active_blocks_per_sm * number_of_sm;
+}
+
+// Verify if the grid size satisfies the cooperative group constraints
+__host__ bool supports_cooperative_groups_on_programmable_bootstrap_128(
+    int glwe_dimension, int polynomial_size, int level_count, int num_samples,
+    uint32_t max_shared_memory) {
+  switch (polynomial_size) {
+  case 256:
+    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
+        AmortizedDegree<256>>(glwe_dimension, level_count, num_samples,
+                              max_shared_memory);
+  case 512:
+    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
+        AmortizedDegree<512>>(glwe_dimension, level_count, num_samples,
+                              max_shared_memory);
+  case 1024:
+    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
+        AmortizedDegree<1024>>(glwe_dimension, level_count, num_samples,
+                               max_shared_memory);
+  case 2048:
+    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
+        AmortizedDegree<2048>>(glwe_dimension, level_count, num_samples,
+                               max_shared_memory);
+  case 4096:
+    return verify_cuda_programmable_bootstrap_128_cg_grid_size<
+        AmortizedDegree<4096>>(glwe_dimension, level_count, num_samples,
+                               max_shared_memory);
+  default:
+    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..4096].")
   }
 }
 #endif // TFHE_RS_BACKENDS_TFHE_CUDA_BACKEND_CUDA_SRC_PBS_PROGRAMMABLE_BOOTSTRAP_CLASSIC_128_CUH_
