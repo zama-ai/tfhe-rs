@@ -16,6 +16,15 @@ get_join_buffer_element(int level_id, int glwe_id, grid_group &group,
   return buffer_slice;
 }
 
+template <>
+__device__ double *get_join_buffer_element_128(
+    int level_id, int glwe_id, grid_group &group, double *global_memory_buffer,
+    uint32_t polynomial_size, uint32_t glwe_dimension, bool support_dsm) {
+  double *buffer_slice =
+      global_memory_buffer +
+      (glwe_id + level_id * (glwe_dimension + 1)) * polynomial_size / 2 * 4;
+  return buffer_slice;
+}
 #if CUDA_ARCH >= 900
 template <>
 __device__ int get_this_block_rank(cluster_group &cluster, bool support_dsm) {
