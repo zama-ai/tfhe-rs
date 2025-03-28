@@ -108,10 +108,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKeyChu
     /// assert_eq!(bsk_chunk.polynomial_size(), polynomial_size);
     /// assert_eq!(bsk_chunk.decomposition_base_log(), decomp_base_log);
     /// assert_eq!(bsk_chunk.decomposition_level_count(), decomp_level_count);
-    /// assert_eq!(bsk_chunk.chunk_size(), chunk_size);
     /// assert_eq!(bsk_chunk.ciphertext_modulus(), ciphertext_modulus);
     ///
     /// // These methods are specific to the LweBootstrapKeyChunk
+    /// assert_eq!(bsk_chunk.chunk_size(), chunk_size);
     /// assert_eq!(
     ///     bsk_chunk.output_lwe_dimension(),
     ///     glwe_size
@@ -165,7 +165,7 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBootstrapKeyChu
         }
     }
 
-    /// Return the [`LweDimension`] of the input [`LweSecretKey`].
+    /// Return the [`ChunkSize`] of the input [`LweBootstrapKeyChunk`].
     ///
     /// See [`LweBootstrapKeyChunk::from_container`] for usage.
     pub fn chunk_size(&self) -> ChunkSize {
