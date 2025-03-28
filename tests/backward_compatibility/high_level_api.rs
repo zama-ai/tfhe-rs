@@ -8,7 +8,8 @@ use tfhe::zk::CompactPkeCrs;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedPublicKey, CompressedServerKey, FheBool, FheInt8, FheUint8,
+    CompressedPublicKey, CompressedServerKey, FheBool, FheInt8, FheUint8, SquashedNoiseFheBool,
+    SquashedNoiseFheInt, SquashedNoiseFheUint,
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
@@ -18,7 +19,9 @@ use tfhe_backward_compat_data::load::{
 use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
     HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
-    TestMetadata, TestParameterSet, TestType, Testcase, ZkPkePublicParamsTest,
+    HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
+    HlSquashedNoiseUnsignedCiphertextTest, TestMetadata, TestParameterSet, TestType, Testcase,
+    ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
 
@@ -377,6 +380,96 @@ pub fn test_hl_serverkey(
     }
 }
 
+/// Test HL ciphertext: loads the ciphertext and compare the decrypted value to the one in the
+/// metadata.
+pub fn test_hl_squashed_noise_unsigned_ciphertext(
+    dir: &Path,
+    test: &HlSquashedNoiseUnsignedCiphertextTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let ct: SquashedNoiseFheUint = load_and_unversionize(dir, test, format)?;
+
+    let clear: u64 = ct.decrypt(&key);
+
+    if clear != (test.clear_value) {
+        Err(test.failure(
+            format!(
+                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear, test.clear_value
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
+/// Test HL signed ciphertext: loads the ciphertext and compare the decrypted value to the one in
+/// the metadata.
+pub fn test_hl_squashed_noise_signed_ciphertext(
+    dir: &Path,
+    test: &HlSquashedNoiseSignedCiphertextTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let ct: SquashedNoiseFheInt = load_and_unversionize(dir, test, format)?;
+
+    let clear: i64 = ct.decrypt(&key);
+
+    if clear != (test.clear_value) {
+        Err(test.failure(
+            format!(
+                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear, test.clear_value
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
+/// Test HL bool ciphertext: loads the ciphertext and compare the decrypted value to the one in the
+/// metadata.
+pub fn test_hl_squashed_noise_bool_ciphertext(
+    dir: &Path,
+    test: &HlSquashedNoiseBoolCiphertextTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(e, format))?;
+
+    let ct: SquashedNoiseFheBool = load_and_unversionize(dir, test, format)?;
+
+    let clear: bool = ct.decrypt(&key);
+
+    if clear != (test.clear_value) {
+        Err(test.failure(
+            format!(
+                "Invalid {} decrypted cleartext:\n Expected :\n{:?}\nGot:\n{:?}",
+                format, clear, test.clear_value
+            ),
+            format,
+        ))
+    } else {
+        Ok(test.success(format))
+    }
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -412,6 +505,15 @@ impl TestedModule for Hl {
             }
             TestMetadata::ZkPkePublicParams(test) => {
                 test_zk_params(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlSquashedNoiseUnsignedCiphertext(test) => {
+                test_hl_squashed_noise_unsigned_ciphertext(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlSquashedNoiseSignedCiphertext(test) => {
+                test_hl_squashed_noise_signed_ciphertext(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlSquashedNoiseBoolCiphertext(test) => {
+                test_hl_squashed_noise_bool_ciphertext(test_dir.as_ref(), test, format).into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);

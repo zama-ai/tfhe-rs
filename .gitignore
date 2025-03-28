@@ -37,5 +37,6 @@ package-lock.json
 __pycache__
 
 # Dir used for backward compatibility test data
-tests/tfhe-backward-compat-data/
+# First directive is to ignore symlinks
+tests/tfhe-backward-compat-data
 ci/
