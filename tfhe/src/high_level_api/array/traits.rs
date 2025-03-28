@@ -217,3 +217,8 @@ pub trait SlicingMut {
 ///
 /// This trait is for "Owned" array types
 pub trait IOwnedArray: Clone + Slicing + SlicingMut {}
+
+// Trait to overload `dot_product` free functions
+pub trait FheSliceDotProduct<Lhs, Rhs> {
+    fn dot_product(lhs: &[Lhs], rhs: &[Rhs]) -> Self;
+}

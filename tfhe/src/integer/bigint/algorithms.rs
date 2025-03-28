@@ -150,6 +150,13 @@ pub(crate) fn wrapping_add_with_carry<T: UnsignedInteger>(l: T, r: T, c: bool) -
 }
 
 pub(crate) fn wrapping_add_assign_words<T: UnsignedInteger>(lhs: &mut [T], rhs: &[T]) {
+    let _carry = unsigned_overflowing_add_assign_words(lhs, rhs);
+}
+
+pub(crate) fn unsigned_overflowing_add_assign_words<T: UnsignedInteger>(
+    lhs: &mut [T],
+    rhs: &[T],
+) -> bool {
     let iter = lhs
         .iter_mut()
         .zip(rhs.iter().copied().chain(std::iter::repeat(T::ZERO)));
@@ -160,6 +167,8 @@ pub(crate) fn wrapping_add_assign_words<T: UnsignedInteger>(lhs: &mut [T], rhs: 
         *lhs_block = result;
         carry = out_carry;
     }
+
+    carry
 }
 
 /// lhs and rhs are slice of words.

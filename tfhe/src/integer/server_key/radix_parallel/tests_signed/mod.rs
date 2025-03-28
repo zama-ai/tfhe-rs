@@ -15,6 +15,7 @@ pub(crate) mod test_scalar_add;
 pub(crate) mod test_scalar_bitwise_op;
 pub(crate) mod test_scalar_comparison;
 pub(crate) mod test_scalar_div_mod;
+mod test_scalar_dot_prod;
 pub(crate) mod test_scalar_mul;
 pub(crate) mod test_scalar_rotate;
 pub(crate) mod test_scalar_shift;

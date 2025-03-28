@@ -1,4 +1,5 @@
 use super::{CastFrom, CastInto, Numeric, SignedInteger, UnsignedNumeric};
+use crate::core_crypto::prelude::OverflowingAdd;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -30,6 +31,7 @@ pub trait UnsignedInteger:
     + ShlAssign<usize>
     + Shr<usize, Output = Self>
     + ShrAssign<usize>
+    + OverflowingAdd<Self, Output = Self>
     + CastFrom<Self::Signed>
     + CastFrom<f64>
     + CastInto<f64>
@@ -83,8 +85,6 @@ pub trait UnsignedInteger:
     #[must_use]
     fn wrapping_shr(self, rhs: u32) -> Self;
     #[must_use]
-    fn overflowing_add(self, rhs: Self) -> (Self, bool);
-    #[must_use]
     fn overflowing_sub(self, rhs: Self) -> (Self, bool);
     #[must_use]
     fn is_power_of_two(self) -> bool;
@@ -119,6 +119,15 @@ macro_rules! implement {
 
         impl UnsignedNumeric for $Type {
             type NumericSignedType = $SignedType;
+        }
+
+        impl OverflowingAdd<Self> for $Type {
+            type Output = Self;
+
+            #[inline]
+            fn overflowing_add(self, rhs: Self) -> (Self, bool) {
+                self.overflowing_add(rhs)
+            }
         }
 
         impl UnsignedInteger for $Type {
@@ -217,10 +226,6 @@ macro_rules! implement {
             #[inline]
             fn wrapping_pow(self, exp: u32) -> Self {
                 self.wrapping_pow(exp)
-            }
-            #[inline]
-            fn overflowing_add(self, rhs: Self) -> (Self, bool) {
-                self.overflowing_add(rhs)
             }
             #[inline]
             fn overflowing_sub(self, rhs: Self) -> (Self, bool) {
