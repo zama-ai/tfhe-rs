@@ -1,4 +1,3 @@
-#[cfg(feature = "gpu")]
 use crate::core_crypto::commons::numeric::CastFrom;
 use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
@@ -484,31 +483,38 @@ use crate::high_level_api::integers::unsigned::scalar_ops::{
     generic_integer_impl_scalar_left_operation, generic_integer_impl_scalar_operation,
     generic_integer_impl_scalar_operation_assign,
 };
+use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
+use crate::integer::server_key::{Reciprocable, ScalarMultiplier, TwosComplementNegation};
+
+fn scalar_add_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_add(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
 
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Add(add),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_add(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_add_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -538,27 +544,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Add(add),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_add(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_add_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -578,30 +564,35 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_sub_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8> + TwosComplementNegation,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_sub(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Sub(sub),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_sub(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_sub_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -631,27 +622,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Sub(sub),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_sub(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_sub_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -671,30 +642,35 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_mul_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8> + ScalarMultiplier,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_mul(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Mul(mul),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_mul(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_mul_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -724,27 +700,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Mul(mul),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_mul(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_mul_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -764,30 +720,35 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitand_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_bitand(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitand(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitand_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -817,27 +778,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitand(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitand_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -857,30 +798,35 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitor_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_bitor(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: BitOr(bitor),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitor_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -910,27 +856,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitOr(bitor),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitor_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -950,31 +876,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitxor_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .scalar_bitxor(&*lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitxor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitxor_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -1004,28 +935,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitxor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_bitxor_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -1045,30 +955,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_shl_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key.key.key.scalar_left_shift(
+                    &*lhs.ciphertext.on_gpu(streams),
+                    u64::cast_from(rhs),
+                    streams,
+                )
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Shl(shl),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_left_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_shl_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -1098,27 +1014,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Shl(shl),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_left_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_shl_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -1138,30 +1034,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_shr_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key.key.key.scalar_right_shift(
+                    &*lhs.ciphertext.on_gpu(streams),
+                    u64::cast_from(rhs),
+                    streams,
+                )
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Shr(shr),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_right_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_shr_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -1191,27 +1093,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Shr(shr),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_right_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_shr_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -1231,30 +1113,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_rotate_left_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key.key.key.scalar_rotate_left(
+                    &*lhs.ciphertext.on_gpu(streams),
+                    u64::cast_from(rhs),
+                    streams,
+                )
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateLeft(rotate_left),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_left(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_left_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -1284,27 +1172,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateLeft(rotate_left),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_left(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_left_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -1324,30 +1192,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_rotate_right_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key.key.key.scalar_rotate_right(
+                    &*lhs.ciphertext.on_gpu(streams),
+                    u64::cast_from(rhs),
+                    streams,
+                )
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateRight(rotate_right),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_right(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_right_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -1377,27 +1251,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: RotateRight(rotate_right),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_right(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_right_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -1416,31 +1270,37 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
+
+fn scalar_div_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: SignedReciprocable,
+    <<Clear as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .signed_scalar_div(&lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
 
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Div(div),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.signed_scalar_div(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_div_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -1470,27 +1330,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Div(div),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .signed_scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.signed_scalar_div(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_div_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -1510,30 +1350,36 @@ generic_integer_impl_scalar_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_rem_impl<Id, Clear>(lhs: &FheInt<Id>, rhs: Clear) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: SignedReciprocable + ScalarMultiplier,
+    <<Clear as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let inner_result = cpu_key
+                .pbs_key()
+                .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+            SignedRadixCiphertext::Cpu(inner_result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => {
+            let inner_result = with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .signed_scalar_rem(&lhs.ciphertext.on_gpu(streams), rhs, streams)
+            });
+            SignedRadixCiphertext::Cuda(inner_result)
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation!(
     rust_trait: Rem(rem),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.signed_scalar_rem(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rem_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -1563,27 +1409,7 @@ generic_integer_impl_scalar_operation!(
 );
 generic_integer_impl_scalar_operation!(
     rust_trait: Rem(rem),
-    implem: {
-        |lhs: &FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .signed_scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    SignedRadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.signed_scalar_rem(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    SignedRadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
+    implem: { scalar_rem_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -1689,35 +1515,40 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_left_sub_impl<Id, Clear>(lhs: Clear, rhs: &FheInt<Id>) -> SignedRadixCiphertext
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u64>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            let mut result = cpu_key
+                .pbs_key()
+                .create_trivial_radix(lhs, rhs.ciphertext.on_cpu().blocks().len());
+            cpu_key
+                .pbs_key()
+                .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
+            SignedRadixCiphertext::Cpu(result)
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(_cuda_key) => {
+            with_thread_local_cuda_streams(|_stream| {
+                panic!("Cuda devices do not support subtracting a chiphertext to a clear")
+                //                        let mut result =
+                // cuda_key.key.key.create_signed_trivial_radix(lhs,
+                // rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
+                //                        cuda_key.key.key.sub_assign(&mut result,
+                // &rhs.ciphertext.on_gpu(streams), streams);
+                // RadixCiphertext::Cuda(result)
+            })
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Sub(sub),
-    implem: {
-        |lhs, rhs: &FheInt<_>| {
-            // `-` is not commutative, so we resort to converting to trivial
-            // which should give same perf
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let mut result = cpu_key
-                        .pbs_key()
-                        .create_trivial_radix(lhs, rhs.ciphertext.on_cpu().blocks().len());
-                    cpu_key
-                        .pbs_key()
-                        .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
-                    SignedRadixCiphertext::Cpu(result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    with_thread_local_cuda_streams(|_stream| {
-                        panic!("Cuda devices do not support subtracting a chiphertext to a clear")
-//                        let mut result = cuda_key.key.key.create_signed_trivial_radix(lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
-//                        cuda_key.key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
-//                        RadixCiphertext::Cuda(result)
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_left_sub_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -1747,32 +1578,7 @@ generic_integer_impl_scalar_left_operation!(
 );
 generic_integer_impl_scalar_left_operation!(
     rust_trait: Sub(sub),
-    implem: {
-        |lhs, rhs: &FheInt<_>| {
-            // `-` is not commutative, so we resort to converting to trivial
-            // which should give same perf
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let mut result = cpu_key
-                        .pbs_key()
-                        .create_trivial_radix(lhs, rhs.ciphertext.on_cpu().blocks().len());
-                    cpu_key
-                        .pbs_key()
-                        .sub_assign_parallelized(&mut result, &*rhs.ciphertext.on_cpu());
-                    SignedRadixCiphertext::Cpu(result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_cuda_key) => {
-                    with_thread_local_cuda_streams(|_stream| {
-                        panic!("Cuda devices do not support subtracting a chiphertext to a clear")
-//                        let mut result = cuda_key.key.key.create_signed_trivial_radix(lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
-//                        cuda_key.key.key.sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
-//                        RadixCiphertext::Cuda(result)
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_left_sub_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2151,27 +1957,31 @@ generic_integer_impl_scalar_left_operation!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_add_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_add_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2201,24 +2011,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: AddAssign(add_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_add_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2260,27 +2053,31 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_sub_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8> + TwosComplementNegation,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: SubAssign(sub_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_sub_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2310,24 +2107,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: SubAssign(sub_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_sub_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2347,27 +2127,31 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_mul_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8> + ScalarMultiplier,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: MulAssign(mul_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_mul_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2397,24 +2181,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: MulAssign(mul_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_mul_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2434,27 +2201,31 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitand_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitAndAssign(bitand_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitand_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2484,24 +2255,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitAndAssign(bitand_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitand_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2521,27 +2275,31 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitor_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitOrAssign(bitor_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitor_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2571,24 +2329,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitOrAssign(bitor_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitor_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2608,27 +2349,31 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_bitxor_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key
+                .key
+                .key
+                .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitXorAssign(bitxor_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitxor_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -2658,24 +2403,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: BitXorAssign(bitxor_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_bitxor_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -2695,27 +2423,33 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_shl_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key.key.key.scalar_left_shift_assign(
+                lhs.ciphertext.as_gpu_mut(streams),
+                rhs,
+                streams,
+            );
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShlAssign(shl_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_shl_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -2745,24 +2479,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShlAssign(shl_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_shl_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -2782,27 +2499,33 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_shr_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key.key.key.scalar_right_shift_assign(
+                lhs.ciphertext.as_gpu_mut(streams),
+                rhs,
+                streams,
+            );
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShrAssign(shr_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_shr_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -2832,24 +2555,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: ShrAssign(shr_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_shr_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -2869,27 +2575,33 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_rotate_left_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key.key.key.scalar_rotate_left_assign(
+                lhs.ciphertext.as_gpu_mut(streams),
+                rhs,
+                streams,
+            );
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateLeftAssign(rotate_left_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_left_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -2919,24 +2631,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateLeftAssign(rotate_left_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_left_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -2956,27 +2651,33 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
 
+fn scalar_rotate_right_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8>,
+    u64: CastFrom<Clear>,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            cuda_key.key.key.scalar_rotate_right_assign(
+                lhs.ciphertext.as_gpu_mut(streams),
+                rhs,
+                streams,
+            );
+        }),
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateRightAssign(rotate_right_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_right_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, u8, u16, u32, u64, u128),
         (super::FheInt40, u8, u16, u32, u64, u128),
@@ -3006,24 +2707,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RotateRightAssign(rotate_right_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
+    implem: { scalar_rotate_right_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, u8, u16, u32, u64, u128),
         (super::FheInt4, u8, u16, u32, u64, u128),
@@ -3042,25 +2726,30 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt1024, u8, u16, u32, u64, u128, U256, U512, U1024),
         (super::FheInt2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
 );
+
+fn scalar_div_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: DecomposableInto<u8> + SignedReciprocable,
+    <<Clear as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(_) => {
+            panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
+        }
+    })
+}
 
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: DivAssign(div_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
+    implem: { scalar_div_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -3090,21 +2779,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: DivAssign(div_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
+    implem: { scalar_div_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
@@ -3124,24 +2799,29 @@ generic_integer_impl_scalar_operation_assign!(
         (super::FheInt2048, I2048),
 );
 
+fn scalar_rem_assign_impl<Id, Clear>(lhs: &mut FheInt<Id>, rhs: Clear)
+where
+    Id: FheIntId,
+    Clear: SignedReciprocable + ScalarMultiplier,
+    <<Clear as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    global_state::with_internal_keys(|key| match key {
+        InternalServerKey::Cpu(cpu_key) => {
+            cpu_key
+                .pbs_key()
+                .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+        }
+        #[cfg(feature = "gpu")]
+        InternalServerKey::Cuda(_) => {
+            panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
+        }
+    })
+}
+
 #[cfg(feature = "extended-types")]
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RemAssign(rem_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
+    implem: { scalar_rem_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt24, i32),
         (super::FheInt40, i64),
@@ -3171,21 +2851,7 @@ generic_integer_impl_scalar_operation_assign!(
 );
 generic_integer_impl_scalar_operation_assign!(
     rust_trait: RemAssign(rem_assign),
-    implem: {
-        |lhs: &mut FheInt<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
+    implem: { scalar_rem_assign_impl },
     fhe_and_scalar_type:
         (super::FheInt2, i8),
         (super::FheInt4, i8),
