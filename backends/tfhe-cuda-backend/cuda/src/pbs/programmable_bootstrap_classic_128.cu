@@ -150,6 +150,52 @@ void executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
   }
 }
 
+template <typename Torus>
+void executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128(
+    void *stream, uint32_t gpu_index, Torus *lwe_array_out,
+    Torus const *lut_vector, Torus *lwe_array_in,
+    double const *bootstrapping_key, pbs_buffer_128<CLASSICAL> *buffer,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t base_log, uint32_t level_count, uint32_t num_samples) {
+
+  switch (polynomial_size) {
+    case 256:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<256>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 512:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<512>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 1024:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<1024>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 2048:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    case 4096:
+      host_programmable_bootstrap_cg_128<AmortizedDegree<4096>>(
+          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out, lut_vector,
+          lwe_array_in, bootstrapping_key, buffer, glwe_dimension, lwe_dimension,
+          polynomial_size, base_log, level_count, num_samples);
+      break;
+    default:
+    PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
+          "Supported N's are powers of two"
+          " in the interval [256..4096].")
+  }
+}
+
 /* Perform bootstrapping on a batch of input u128 LWE ciphertexts, storing the
  * result in the same index for each ciphertext.
  *
@@ -234,12 +280,26 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
         static_cast<const __uint128_t *>(lwe_array_in));
   }
 
-  executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<__uint128_t>(
-      stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
-      static_cast<const __uint128_t *>(lut_vector),
-      static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
-      static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
-      glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+  switch (buffer->pbs_variant) {
+    case DEFAULT:
+      executor_cuda_programmable_bootstrap_lwe_ciphertext_vector_128<__uint128_t>(
+          stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+          static_cast<const __uint128_t *>(lut_vector),
+          static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
+          static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+      break;
+    case CG:
+      executor_cuda_programmable_bootstrap_cg_lwe_ciphertext_vector_128<__uint128_t>(
+          stream, gpu_index, static_cast<__uint128_t *>(lwe_array_out),
+          static_cast<const __uint128_t *>(lut_vector),
+          static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
+          static_cast<const double *>(bootstrapping_key), buffer, lwe_dimension,
+          glwe_dimension, polynomial_size, base_log, level_count, num_samples);
+      break;
+    default:
+    PANIC("Cuda error (PBS): unknown pbs variant.")
+  }
 }
 
 /*

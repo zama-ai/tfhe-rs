@@ -737,6 +737,71 @@ __host__ void host_programmable_bootstrap_128(
   }
 }
 
+template <class params>
+__host__ void host_programmable_bootstrap_cg_128(
+    cudaStream_t stream, uint32_t gpu_index, __uint128_t *lwe_array_out,
+    __uint128_t const *lut_vector,
+    __uint128_t const *lwe_array_in,
+    double const *bootstrapping_key,
+    pbs_buffer_128<CLASSICAL> *buffer, uint32_t glwe_dimension,
+    uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t input_lwe_ciphertext_count) {
+
+  // With SM each block corresponds to either the mask or body, no need to
+  // duplicate data for each
+  uint64_t full_sm =
+      get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(polynomial_size);
+
+  uint64_t partial_sm =
+      get_buffer_size_partial_sm_programmable_bootstrap_cg<__uint128_t>(
+          polynomial_size);
+
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+  cuda_set_device(gpu_index);
+
+  uint64_t full_dm = full_sm;
+
+  uint64_t partial_dm = full_dm - partial_sm;
+
+  int8_t *d_mem = buffer->d_mem;
+  double *buffer_fft = buffer->global_join_buffer;
+
+  int thds = polynomial_size / params::opt;
+  dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
+
+  void *kernel_args[16];
+  kernel_args[0] = &lwe_array_out;
+  kernel_args[1] = &lut_vector;
+  kernel_args[2] = &lwe_array_in;
+  kernel_args[3] = &bootstrapping_key;
+  kernel_args[4] = &buffer_fft;
+  kernel_args[5] = &lwe_dimension;
+  kernel_args[6] = &polynomial_size;
+  kernel_args[7] = &base_log;
+  kernel_args[8] = &level_count;
+  kernel_args[9] = &d_mem;
+
+  if (max_shared_memory < partial_sm) {
+    kernel_args[10] = &full_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, NOSM>, grid,
+        thds, (void **)kernel_args, 0, stream));
+  } else if (max_shared_memory < full_sm) {
+    kernel_args[10] = &partial_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, PARTIALSM>,
+        grid, thds, (void **)kernel_args, partial_sm, stream));
+  } else {
+    int no_dm = 0;
+    kernel_args[10] = &no_dm;
+    check_cuda_error(cudaLaunchCooperativeKernel(
+        (void *)device_programmable_bootstrap_cg_128<__uint128_t, params, FULLSM>, grid,
+        thds, (void **)kernel_args, full_sm, stream));
+  }
+
+  check_cuda_error(cudaGetLastError());
+}
+
 // Verify if the grid size satisfies the cooperative group constraints
 template <class params>
 __host__ bool verify_cuda_programmable_bootstrap_128_cg_grid_size(
