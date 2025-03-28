@@ -55,7 +55,7 @@ create_parameterized_test!(
 );
 fn integer_signed_unchecked_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_div_rem_parallelized);
     signed_unchecked_div_rem_test(param, executor);
@@ -63,7 +63,7 @@ where
 
 fn integer_signed_unchecked_div_rem_floor<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_div_rem_floor_parallelized);
     signed_unchecked_div_rem_floor_test(param, executor);
@@ -71,7 +71,7 @@ where
 
 pub(crate) fn signed_unchecked_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, SignedRadixCiphertext),
@@ -139,7 +139,7 @@ where
 
 pub(crate) fn signed_unchecked_div_rem_floor_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, SignedRadixCiphertext),

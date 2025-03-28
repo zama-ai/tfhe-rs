@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_scalar_sub);
 
 fn integer_unchecked_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_scalar_sub);
     unchecked_scalar_sub_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::scalar_sub);
     default_scalar_sub_test(param, executor);

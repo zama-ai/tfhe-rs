@@ -1,7 +1,7 @@
 use super::NB_TESTS;
 use crate::shortint::keycache::KEY_CACHE;
 use crate::shortint::parameters::test_params::*;
-use crate::shortint::parameters::{NoiseLevel, PBSParameters};
+use crate::shortint::parameters::{AtomicPatternParameters, NoiseLevel};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
 use rand::Rng;
 
@@ -9,7 +9,7 @@ create_parameterized_test!(shortint_modulus_switch_compression);
 
 fn shortint_modulus_switch_compression<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
@@ -38,7 +38,7 @@ where
             assert_eq!(decompressed_ct.noise_level(), NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
-            assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);
+            assert_eq!(ctxt.atomic_pattern, decompressed_ct.atomic_pattern);
         }
         {
             let lookup_table = sks.generate_msg_lookup_table(|a| a + 1, ctxt.message_modulus);
@@ -53,7 +53,7 @@ where
             assert_eq!(decompressed_ct.noise_level(), NoiseLevel::NOMINAL);
             assert_eq!(ctxt.message_modulus, decompressed_ct.message_modulus);
             assert_eq!(ctxt.carry_modulus, decompressed_ct.carry_modulus);
-            assert_eq!(ctxt.pbs_order, decompressed_ct.pbs_order);
+            assert_eq!(ctxt.atomic_pattern, decompressed_ct.atomic_pattern);
         }
     }
 }

@@ -76,7 +76,7 @@ impl CrtClientKey {
     }
 
     /// Returns the parameters used by the client key.
-    pub fn parameters(&self) -> crate::shortint::PBSParameters {
+    pub fn parameters(&self) -> crate::shortint::AtomicPatternParameters {
         self.key.parameters()
     }
 

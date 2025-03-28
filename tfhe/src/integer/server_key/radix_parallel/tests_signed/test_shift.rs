@@ -26,7 +26,7 @@ create_parameterized_test!(integer_signed_right_shift);
 
 pub(crate) fn signed_default_left_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -117,7 +117,7 @@ where
 
 pub(crate) fn signed_default_right_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -208,7 +208,7 @@ where
 
 pub(crate) fn signed_unchecked_left_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -270,7 +270,7 @@ where
 
 pub(crate) fn signed_unchecked_right_shift_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a RadixCiphertext),
         SignedRadixCiphertext,
@@ -331,7 +331,7 @@ where
 
 fn integer_signed_unchecked_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_right_shift_parallelized);
     signed_unchecked_right_shift_test(param, executor);
@@ -339,7 +339,7 @@ where
 
 fn integer_signed_right_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::right_shift_parallelized);
     signed_default_right_shift_test(param, executor);
@@ -347,7 +347,7 @@ where
 
 fn integer_signed_unchecked_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_shift_parallelized);
     signed_unchecked_left_shift_test(param, executor);
@@ -355,7 +355,7 @@ where
 
 fn integer_signed_left_shift<P>(param: P)
 where
-    P: Into<PBSParameters> + Copy,
+    P: Into<AtomicPatternParameters> + Copy,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_shift_parallelized);
     signed_default_left_shift_test(param, executor);

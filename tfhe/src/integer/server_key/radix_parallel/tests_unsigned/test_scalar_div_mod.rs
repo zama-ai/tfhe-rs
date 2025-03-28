@@ -17,7 +17,7 @@ create_parameterized_test!(integer_default_scalar_div_rem);
 
 fn integer_default_scalar_div_rem<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_div_rem_parallelized);
     default_scalar_div_rem_test(param, executor);
@@ -25,7 +25,7 @@ where
 
 pub(crate) fn default_scalar_div_rem_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, u64), (RadixCiphertext, RadixCiphertext)>
         + std::panic::UnwindSafe,
 {
