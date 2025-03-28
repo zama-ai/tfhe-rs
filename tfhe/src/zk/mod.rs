@@ -1,4 +1,6 @@
 pub mod backward_compatibility;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{
