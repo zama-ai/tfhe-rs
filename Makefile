@@ -407,6 +407,11 @@ clippy_trivium: install_rs_check_toolchain
 	cd apps/trivium; RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-trivium -- --no-deps -D warnings
 
+.PHONY: clippy_ws_tests # Run clippy on the workspace level tests
+clippy_ws_tests: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --tests \
+		-p tests --features=shortint,integer,zk-pok -- --no-deps -D warnings
+
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
@@ -442,7 +447,7 @@ clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolcha
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable clippy_tfhe_lints
+clippy_versionable clippy_tfhe_lints clippy_ws_tests
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
