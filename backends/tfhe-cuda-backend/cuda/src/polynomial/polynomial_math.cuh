@@ -135,6 +135,38 @@ polynomial_accumulate_in_fourier_domain(double2 *result, double2 *x,
   }
 }
 
+// Computes result += x
+// If init_accumulator is set, assumes that result was not initialized and does
+// that with the outcome of first * second
+template <class params>
+__device__ void
+polynomial_accumulate_in_fourier_domain_128(double *result, double *x,
+                                        bool init_accumulator = false) {
+  auto tid = threadIdx.x;
+  if (init_accumulator) {
+    for (int i = 0; i < params::opt / 2 * 4; i++) {
+      result[tid] = x[tid];
+      tid += params::degree / params::opt;
+    }
+  } else {
+    for (int i = 0; i < params::opt / 2; i++) {
+      f128 res_re(result[tid + 0 * params::degree / 2], result[tid + 1 * params::degree / 2]);
+      f128 res_im(result[tid + 2 * params::degree / 2], result[tid + 3 * params::degree / 2]);
+
+      f128 x_re(x[tid + 0 * params::degree / 2], x[tid + 1 * params::degree / 2]);
+      f128 x_im(x[tid + 2 * params::degree / 2], x[tid + 3 * params::degree / 2]);
+
+      f128::cplx_f128_add_assign(res_re, res_im, res_re, res_im, x_re, x_im);
+
+      result[tid + 0 * params::degree / 2] = res_re.hi;
+      result[tid + 1 * params::degree / 2] = res_re.lo;
+      result[tid + 2 * params::degree / 2] = res_im.hi;
+      result[tid + 3 * params::degree / 2] = res_im.lo;
+      tid += params::degree / params::opt;
+    }
+  }
+}
+
 // This method expects to work with polynomial_size / compression_params::opt
 // threads in the x-block If init_accumulator is set, assumes that result was
 // not initialized and does that with the outcome of first * second

@@ -54,15 +54,17 @@ uint64_t get_buffer_size_sm_dsm_plus_tbc_classic_programmable_bootstrap(
 template <typename Torus>
 uint64_t
 get_buffer_size_full_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
+  size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
   return sizeof(Torus) * polynomial_size +      // accumulator_rotated
          sizeof(Torus) * polynomial_size +      // accumulator
-         sizeof(double2) * polynomial_size / 2; // accumulator fft
+         sizeof(double) * polynomial_size / 2 * 2 * double_count; // accumulator fft
 }
 
 template <typename Torus>
 uint64_t
 get_buffer_size_partial_sm_programmable_bootstrap_cg(uint32_t polynomial_size) {
-  return sizeof(double2) * polynomial_size / 2; // accumulator fft mask & body
+  size_t double_count = (sizeof(Torus) == 16) ? 2 : 1;
+  return sizeof(double) * polynomial_size / 2 * 2 * double_count; // accumulator fft mask & body
 }
 
 template <typename Torus>
