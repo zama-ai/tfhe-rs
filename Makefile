@@ -284,7 +284,7 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats \
+		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats,extended-types \
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 

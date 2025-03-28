@@ -1,11 +1,11 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_signed::{
-    random_non_zero_value, signed_overflowing_add_under_modulus,
+    random_non_zero_value, signed_add_under_modulus, signed_overflowing_add_under_modulus,
     signed_overflowing_sub_under_modulus, signed_sub_under_modulus, NB_CTXT,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
-    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor,
+    nb_tests_for_params, nb_tests_smaller_for_params, CpuFunctionExecutor, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{
@@ -20,6 +20,9 @@ use std::sync::Arc;
 
 create_parameterized_test!(integer_signed_unchecked_scalar_sub);
 create_parameterized_test!(integer_signed_default_overflowing_scalar_sub);
+create_parameterized_test!(integer_signed_unchecked_left_scalar_sub);
+create_parameterized_test!(integer_signed_smart_left_scalar_sub);
+create_parameterized_test!(integer_signed_default_left_scalar_sub);
 
 fn integer_signed_unchecked_scalar_sub<P>(param: P)
 where
@@ -36,6 +39,31 @@ where
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_scalar_sub_parallelized);
     signed_default_overflowing_scalar_sub_test(param, executor);
 }
+
+fn integer_signed_unchecked_left_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_scalar_sub);
+    signed_unchecked_left_scalar_sub_test(param, executor);
+}
+
+fn integer_signed_smart_left_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::smart_left_scalar_sub_parallelized);
+    signed_smart_left_scalar_sub_test(param, executor);
+}
+
+fn integer_signed_default_left_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::left_scalar_sub_parallelized);
+    signed_default_left_scalar_sub_test(param, executor);
+}
+
 pub(crate) fn signed_unchecked_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
     P: Into<PBSParameters>,
@@ -259,5 +287,164 @@ where
         assert!(decrypted_overflowed); // Actually we know its an overflow case
         assert_eq!(encrypted_overflow.0.degree.get(), 1);
         assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
+pub(crate) fn signed_unchecked_left_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(i64, &'a SignedRadixCiphertext), SignedRadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if modulus <= 1 {
+            continue;
+        }
+
+        for _ in 0..nb_tests {
+            let clear_lhs = rng.gen::<i64>() % modulus;
+            let mut clear_rhs = rng.gen::<i64>() % modulus;
+
+            let mut ct_rhs = cks.encrypt_signed_radix(clear_rhs, num_blocks);
+
+            ct_rhs = executor.execute((clear_lhs, &ct_rhs));
+            clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
+            assert_eq!(dec_res, clear_rhs);
+
+            loop {
+                let clear_lhs = rng.gen::<i64>() % modulus;
+                if sks.is_left_scalar_sub_possible(clear_lhs, &ct_rhs).is_err() {
+                    break;
+                }
+
+                ct_rhs = executor.execute((clear_lhs, &ct_rhs));
+                clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+                let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
+                assert_eq!(dec_res, clear_rhs);
+            }
+        }
+    }
+}
+
+pub(crate) fn signed_smart_left_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(i64, &'a mut SignedRadixCiphertext), SignedRadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks);
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if modulus <= 1 {
+            continue;
+        }
+
+        let clear_lhs = rng.gen::<i64>() % modulus;
+        let mut clear_rhs = rng.gen::<i64>() % modulus;
+
+        let mut ct_rhs = cks.encrypt_signed_radix(clear_rhs, num_blocks);
+
+        ct_rhs = executor.execute((clear_lhs, &mut ct_rhs));
+        clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+
+        let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
+        assert_eq!(dec_res, clear_rhs);
+        for _ in 0..nb_tests {
+            let clear_lhs = rng.gen::<i64>() % modulus;
+
+            ct_rhs = executor.execute((clear_lhs, &mut ct_rhs));
+            clear_rhs = signed_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+            let dec_res: i64 = cks.decrypt_signed_radix(&ct_rhs);
+            assert_eq!(dec_res, clear_rhs);
+        }
+    }
+}
+
+pub(crate) fn signed_default_left_scalar_sub_test<P, T>(param: P, mut executor: T)
+where
+    P: Into<PBSParameters>,
+    T: for<'a> FunctionExecutor<(i64, &'a SignedRadixCiphertext), SignedRadixCiphertext>,
+{
+    let param = param.into();
+    let nb_tests = nb_tests_for_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+    let sks = Arc::new(sks);
+
+    let mut rng = rand::thread_rng();
+
+    executor.setup(&cks, sks.clone());
+
+    let cks: crate::integer::ClientKey = cks.into();
+
+    for num_blocks in 1..MAX_NB_CTXT {
+        // message_modulus^vec_length
+        let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
+        if modulus <= 1 {
+            continue;
+        }
+
+        for _ in 0..nb_tests {
+            let clear_0 = rng.gen::<i64>() % modulus;
+            let clear_1 = rng.gen::<i64>() % modulus;
+
+            let ctxt_1 = cks.encrypt_signed_radix(clear_1, num_blocks);
+
+            let ct_res = executor.execute((clear_0, &ctxt_1));
+            assert!(ct_res.block_carries_are_empty());
+
+            let tmp = executor.execute((clear_0, &ctxt_1));
+            assert_eq!(ct_res, tmp, "Operation is not deterministic");
+
+            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
+            assert_eq!(dec_res, signed_sub_under_modulus(clear_0, clear_1, modulus));
+
+            let non_zero = random_non_zero_value(&mut rng, modulus);
+            let non_clean = sks.unchecked_scalar_add(&ctxt_1, non_zero);
+            let ct_res = executor.execute((clear_0, &non_clean));
+            assert!(ct_res.block_carries_are_empty());
+            let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
+            let expected = signed_sub_under_modulus(
+                clear_0,
+                signed_add_under_modulus(clear_1, non_zero, modulus),
+                modulus,
+            );
+            assert_eq!(dec_res, expected);
+
+            let ct_res2 = executor.execute((clear_0, &non_clean));
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+        }
     }
 }
