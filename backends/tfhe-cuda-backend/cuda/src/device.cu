@@ -303,7 +303,7 @@ void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index) {
 #endif
 }
 
-/// Get the maximum size for the shared memory
+/// Get the maximum size for the shared memory per streaming multiprocessors
 uint32_t cuda_get_max_shared_memory(uint32_t gpu_index) {
   auto max_shared_memory = 0;
 #if CUDA_ARCH == 900
@@ -317,7 +317,8 @@ uint32_t cuda_get_max_shared_memory(uint32_t gpu_index) {
 #elif CUDA_ARCH == 700
   max_shared_memory = 95000;
 #else
-  cudaDeviceGetAttribute(&max_shared_memory, cudaDevAttrMaxSharedMemoryPerBlock,
+  cudaDeviceGetAttribute(&max_shared_memory,
+                         cudaDevAttrMaxSharedMemoryPerMultiprocessor,
                          gpu_index);
   check_cuda_error(cudaGetLastError());
 #endif
