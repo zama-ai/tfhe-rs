@@ -848,6 +848,11 @@ test_strings: install_rs_build_toolchain
 		--features=shortint,integer,strings -p $(TFHE_SPEC) \
 		-- strings::
 
+.PHONY: test_wasm_api_rs # Run the rust tests for the JS wasm api
+test_wasm_api_rs: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=high-level-client-js-wasm-api -p $(TFHE_SPEC) \
+		-- js_on_wasm_api
 
 .PHONY: test_user_doc # Run tests from the .md documentation
 test_user_doc: install_rs_build_toolchain
@@ -1005,7 +1010,7 @@ check_compile_tests_benches_gpu: install_rs_build_toolchain
 		"$(MAKE)" -j "$(CPU_COUNT)"
 
 .PHONY: test_nodejs_wasm_api # Run tests for the nodejs on wasm API
-test_nodejs_wasm_api: build_node_js_api
+test_nodejs_wasm_api: build_node_js_api test_wasm_api_rs
 	cd tfhe/js_on_wasm_tests && npm install && npm run test
 
 .PHONY: test_nodejs_wasm_api_ci # Run tests for the nodejs on wasm API

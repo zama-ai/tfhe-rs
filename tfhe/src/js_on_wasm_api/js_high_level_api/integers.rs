@@ -9,6 +9,7 @@ use crate::js_on_wasm_api::js_high_level_api::keys::TfheCompactPublicKey;
 use crate::js_on_wasm_api::js_high_level_api::zk::{CompactPkeCrs, ZkComputeLoad};
 use crate::js_on_wasm_api::js_high_level_api::{catch_panic, catch_panic_result, into_js_error};
 use js_sys::BigInt;
+use strum::FromRepr;
 use wasm_bindgen::prelude::*;
 
 const U128_MAX_AS_STR: &str = "340282366920938463463374607431768211455";
@@ -1934,6 +1935,7 @@ impl CompactCiphertextListExpander {
 }
 
 #[wasm_bindgen]
+#[derive(FromRepr)]
 pub enum FheTypes {
     Bool = 0,
 
@@ -2026,93 +2028,23 @@ pub enum FheTypes {
     Int248 = 83,
 }
 
+#[allow(clippy::fallible_impl_from)] // This is not actually fallible
 impl From<crate::FheTypes> for FheTypes {
     fn from(value: crate::FheTypes) -> Self {
-        match value {
-            crate::FheTypes::Bool => Self::Bool,
-            crate::FheTypes::Uint2 => Self::Uint2,
-            crate::FheTypes::Uint4 => Self::Uint4,
-            crate::FheTypes::Uint6 => Self::Uint6,
-            crate::FheTypes::Uint8 => Self::Uint8,
-            crate::FheTypes::Uint10 => Self::Uint10,
-            crate::FheTypes::Uint12 => Self::Uint12,
-            crate::FheTypes::Uint14 => Self::Uint14,
-            crate::FheTypes::Uint16 => Self::Uint16,
-            crate::FheTypes::Uint24 => Self::Uint24,
-            crate::FheTypes::Uint32 => Self::Uint32,
-            crate::FheTypes::Uint40 => Self::Uint40,
-            crate::FheTypes::Uint48 => Self::Uint48,
-            crate::FheTypes::Uint56 => Self::Uint56,
-            crate::FheTypes::Uint64 => Self::Uint64,
-            crate::FheTypes::Uint72 => Self::Uint72,
-            crate::FheTypes::Uint80 => Self::Uint80,
-            crate::FheTypes::Uint88 => Self::Uint88,
-            crate::FheTypes::Uint96 => Self::Uint96,
-            crate::FheTypes::Uint104 => Self::Uint104,
-            crate::FheTypes::Uint112 => Self::Uint112,
-            crate::FheTypes::Uint120 => Self::Uint120,
-            crate::FheTypes::Uint128 => Self::Uint128,
-            crate::FheTypes::Uint136 => Self::Uint136,
-            crate::FheTypes::Uint144 => Self::Uint144,
-            crate::FheTypes::Uint152 => Self::Uint152,
-            crate::FheTypes::Uint160 => Self::Uint160,
-            crate::FheTypes::Uint168 => Self::Uint168,
-            crate::FheTypes::Uint176 => Self::Uint176,
-            crate::FheTypes::Uint184 => Self::Uint184,
-            crate::FheTypes::Uint192 => Self::Uint192,
-            crate::FheTypes::Uint200 => Self::Uint200,
-            crate::FheTypes::Uint208 => Self::Uint208,
-            crate::FheTypes::Uint216 => Self::Uint216,
-            crate::FheTypes::Uint224 => Self::Uint224,
-            crate::FheTypes::Uint232 => Self::Uint232,
-            crate::FheTypes::Uint240 => Self::Uint240,
-            crate::FheTypes::Uint248 => Self::Uint248,
-            crate::FheTypes::Uint256 => Self::Uint256,
-            crate::FheTypes::Uint512 => Self::Uint512,
-            crate::FheTypes::Uint1024 => Self::Uint1024,
-            crate::FheTypes::Uint2048 => Self::Uint2048,
-            crate::FheTypes::Int2 => Self::Int2,
-            crate::FheTypes::Int4 => Self::Int4,
-            crate::FheTypes::Int6 => Self::Int6,
-            crate::FheTypes::Int8 => Self::Int8,
-            crate::FheTypes::Int10 => Self::Int10,
-            crate::FheTypes::Int12 => Self::Int12,
-            crate::FheTypes::Int14 => Self::Int14,
-            crate::FheTypes::Int16 => Self::Int16,
-            crate::FheTypes::Int24 => Self::Int24,
-            crate::FheTypes::Int32 => Self::Int32,
-            crate::FheTypes::Int40 => Self::Int40,
-            crate::FheTypes::Int48 => Self::Int48,
-            crate::FheTypes::Int56 => Self::Int56,
-            crate::FheTypes::Int64 => Self::Int64,
-            crate::FheTypes::Int72 => Self::Int72,
-            crate::FheTypes::Int80 => Self::Int80,
-            crate::FheTypes::Int88 => Self::Int88,
-            crate::FheTypes::Int96 => Self::Int96,
-            crate::FheTypes::Int104 => Self::Int104,
-            crate::FheTypes::Int112 => Self::Int112,
-            crate::FheTypes::Int120 => Self::Int120,
-            crate::FheTypes::Int128 => Self::Int128,
-            crate::FheTypes::Int136 => Self::Int136,
-            crate::FheTypes::Int144 => Self::Int144,
-            crate::FheTypes::Int152 => Self::Int152,
-            crate::FheTypes::Int160 => Self::Int160,
-            crate::FheTypes::Int168 => Self::Int168,
-            crate::FheTypes::Int176 => Self::Int176,
-            crate::FheTypes::Int184 => Self::Int184,
-            crate::FheTypes::Int192 => Self::Int192,
-            crate::FheTypes::Int200 => Self::Int200,
-            crate::FheTypes::Int208 => Self::Int208,
-            crate::FheTypes::Int216 => Self::Int216,
-            crate::FheTypes::Int224 => Self::Int224,
-            crate::FheTypes::Int232 => Self::Int232,
-            crate::FheTypes::Int240 => Self::Int240,
-            crate::FheTypes::Int248 => Self::Int248,
-            crate::FheTypes::Int256 => Self::Int256,
-            crate::FheTypes::Int512 => Self::Int512,
-            crate::FheTypes::Int1024 => Self::Int1024,
-            crate::FheTypes::Int2048 => Self::Int2048,
-            crate::FheTypes::AsciiString => Self::AsciiString,
-        }
+        // First unwrap cannot fail because the values are all positive
+        // Second unwrap cannot fail as long as the enums are in sync, and this is checked by the
+        // test below
+        Self::from_repr((value as i32).try_into().unwrap()).unwrap()
+    }
+}
+
+#[test]
+fn fhe_types_enum_to_js_compatible() {
+    use strum::IntoEnumIterator;
+
+    for rust_value in crate::FheTypes::iter() {
+        let js_value = FheTypes::from(rust_value);
+
+        assert_eq!(rust_value as i32, js_value as i32)
     }
 }
