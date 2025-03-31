@@ -22,16 +22,15 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(1);
 fn new_uid() -> usize {
     COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct LoadStats {
-    load_cnt: usize,
     depth: usize,
 }
 
@@ -47,7 +46,7 @@ struct Prio {
 
 impl From<&OperationCell> for Prio {
     fn from(value: &OperationCell) -> Self {
-        let stats = value.borrow().load_stats().unwrap_or_default();
+        let stats = value.borrow().load_stats().clone().unwrap_or_default();
         Prio {
             latency_tier: value.latency_tier(),
             depth: stats.depth,
@@ -72,6 +71,7 @@ impl Var {
             driver: self.driver.as_ref().map(|(d, i)| (d.clone_on(prog), *i)),
             loads: HashSet::new(),
             meta: self.meta.as_ref().map(|m| m.clone_on(prog)),
+            load_stats: self.load_stats.clone(),
             ..*self
         }
     }
@@ -79,7 +79,7 @@ impl Var {
 
 impl std::ops::Drop for Var {
     fn drop(&mut self) {
-        trace!(target: "rtl", "Var Dropped: {:?}", &self);
+        trace!("Var Dropped: {:?}", &self);
     }
 }
 
@@ -153,7 +153,7 @@ impl VarCell {
     }
 
     pub fn set_load_stats(&self, load_stats: LoadStats) -> LoadStats {
-        self.borrow_mut().load_stats = Some(load_stats);
+        self.borrow_mut().load_stats = Some(load_stats.clone());
         load_stats
     }
 
@@ -174,7 +174,7 @@ impl VarCell {
     }
 
     pub fn copy_load_stats(&self) -> LoadStats {
-        let load_stats = self.borrow().load_stats;
+        let load_stats = self.borrow().load_stats.clone();
         load_stats.unwrap_or_else(|| self.set_load_stats(self.compute_load_stats()))
     }
 
@@ -182,11 +182,6 @@ impl VarCell {
     //(excluding itself).
     pub fn compute_load_stats(&self) -> LoadStats {
         LoadStats {
-            load_cnt: self
-                .copy_loads()
-                .into_iter()
-                .map(|d| d.copy_load_stats().load_cnt)
-                .sum::<usize>(),
             depth: self
                 .copy_loads()
                 .into_iter()
@@ -904,7 +899,7 @@ impl OperationCell {
     }
 
     fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
-        self.0.borrow_mut().set_load_stats(stats);
+        self.0.borrow_mut().set_load_stats(stats.clone());
         stats
     }
 
@@ -960,12 +955,6 @@ impl OperationCell {
     // variables depending on it (excluding itself).
     fn compute_load_stats(&self) -> LoadStats {
         LoadStats {
-            load_cnt: self
-                .copy_dst()
-                .into_iter()
-                .flatten()
-                .map(|d| d.copy_load_stats().load_cnt + 1)
-                .sum::<usize>(),
             depth: self
                 .copy_dst()
                 .into_iter()
@@ -977,7 +966,7 @@ impl OperationCell {
     }
 
     pub fn copy_load_stats(&self) -> LoadStats {
-        let load_stats = *self.borrow().load_stats();
+        let load_stats = self.borrow().load_stats().clone();
         load_stats.unwrap_or_else(|| self.set_load_stats(self.compute_load_stats()))
     }
 
@@ -1211,7 +1200,7 @@ impl Arch {
                         op.alloc_prog(self.program.as_mut());
 
                         self.rd_pdg.entry(id).or_default().push_front(op);
-                        trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
+                        trace!("rd_pdg: {:?}", self.rd_pdg);
 
                         None
                     } else {
@@ -1256,10 +1245,10 @@ impl Arch {
     }
 
     pub fn done(&mut self) -> Option<OperationCell> {
-        trace!(target: "rtl", "Events: {:?}", self.events);
-        trace!(target: "rtl", "rd_pdg: {:?}", self.rd_pdg);
-        trace!(target: "rtl", "queued: {:?}", self.queued);
-        trace!(target: "rtl", "wr_pdg: {:?}", self.wr_pdg);
+        trace!("Events: {:?}", self.events);
+        trace!("rd_pdg: {:?}", self.rd_pdg);
+        trace!("queued: {:?}", self.queued);
+        trace!("wr_pdg: {:?}", self.wr_pdg);
 
         let isc_sim::Event {
             at_cycle,
@@ -1412,7 +1401,7 @@ impl Rtl {
     }
 
     #[allow(clippy::mutable_key_type)]
-    #[instrument(level = "trace", target = "rtl")]
+    #[instrument(level = "trace")]
     fn find_roots(from: &mut [VarCell]) -> HashSet<OperationCell> {
         let mut not_ready: HashSet<OperationCell> = HashSet::new();
         let mut ready: HashSet<OperationCell> = HashSet::new();
@@ -1447,6 +1436,7 @@ impl Rtl {
         ready
     }
 
+    #[instrument(level = "trace", skip(prog))]
     pub fn raw_add(mut self, prog: &Program) -> (usize, Vec<MetaVarCell>) {
         self.load();
 
@@ -1454,26 +1444,37 @@ impl Rtl {
         let mut todo: BinaryHeap<_> = Rtl::find_roots(&mut self.0).into_iter().collect();
 
         self.write_dot(prog, 0);
-        trace!(target: "rtl", "todo: {:?}", &todo);
+
+        debug!(
+            "Running simulation for {:?}@{}bits",
+            prog.borrow().params.op_name,
+            prog.borrow().params.integer_w
+        );
+
+        trace!("todo: {:?}", &todo);
 
         while (!todo.is_empty()) || arch.busy() {
             // Try to dispatch everything that is ready to be done
             todo = arch.try_dispatch(todo);
-            trace!(target: "rtl", "todo: {:?}", &todo);
+            trace!("todo: {:?}", &todo);
 
             if let Some(op) = arch.done() {
-                trace!(target: "rtl", "Removing {:?}", &op);
+                trace!("Removing {:?}", &op);
                 // Done is consumed here
                 let new = op.remove();
-                trace!(target: "rtl", "new ready op {:?}", &new);
+                trace!("new ready op {:?}", &new);
                 todo.extend(new.into_iter());
                 self.write_dot(prog, arch.cycle());
             }
         }
 
-        trace!(target: "rtl", "arch report: {}, cycles estimate: {}",
-               arch.report_usage(),
-               arch.cycle());
+        debug!(
+            "arch report for {:?}@{}: {}, cycles estimate: {}",
+            prog.borrow().params.op_name,
+            prog.borrow().params.integer_w,
+            arch.report_usage(),
+            arch.cycle()
+        );
 
         (
             arch.cycle(),
@@ -1481,10 +1482,12 @@ impl Rtl {
         )
     }
 
+    #[instrument(level = "trace", skip(prog))]
     pub fn add_to_prog(self, prog: &Program) -> Vec<MetaVarCell> {
         self.raw_add(prog).1
     }
 
+    #[instrument(level = "trace", skip(prog))]
     pub fn estimate(self, prog: &Program) -> usize {
         self.raw_add(prog).0
     }
