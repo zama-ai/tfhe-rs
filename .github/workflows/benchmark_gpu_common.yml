@@ -133,6 +133,14 @@ jobs:
           backend: ${{ inputs.backend }}
           profile: ${{ inputs.profile }}
 
+      - name: Acknowledge remote instance failure
+        if: steps.start-remote-instance.outcome == 'failure' &&
+          inputs.profile != 'single-h100'
+        run: |
+          echo "Remote instance instance has failed to start (profile provided: '${{ inputs.profile }}')"
+          echo "Permanent instance instance cannot be used as a substitute (profile needed: 'single-h100')"
+          exit 1
+
       # This will allow to fallback on permanent instances running on Hyperstack.
       - name: Use permanent remote instance
         id: use-permanent-instance
