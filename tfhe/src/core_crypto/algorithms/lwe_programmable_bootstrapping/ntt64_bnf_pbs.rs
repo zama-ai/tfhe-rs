@@ -576,9 +576,11 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
             // DOMAIN In this section, we perform the external product in the ntt
             // domain, and accumulate the result in the output_fft_buffer variable.
             let (mut decomposition, substack1) = TensorSignedDecompositionLendingIter::new(
-                glwe.as_ref()
-                    .iter()
-                    .map(|s| decomposer.init_decomposer_state(*s)),
+                glwe.as_ref().iter().map(|s| {
+                    decomposer.closest_representable(*s)
+                        >> (u64::BITS
+                            - (decomposer.level_count().0 * decomposer.base_log().0) as u32)
+                }),
                 decomposer.base_log(),
                 decomposer.level_count(),
                 substack0,
