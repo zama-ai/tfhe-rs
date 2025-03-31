@@ -20,6 +20,9 @@ bool has_support_to_cuda_programmable_bootstrap_tbc_multi_bit(
     uint32_t num_samples, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t max_shared_memory) {
 #if CUDA_ARCH >= 900
+  if ((glwe_dimension + 1) * level_count > 8)
+    return false;
+
   switch (polynomial_size) {
   case 256:
     return supports_thread_block_clusters_on_multibit_programmable_bootstrap<
@@ -228,8 +231,6 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
 
   if (base_log > 64)
     PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
-  if ((glwe_dimension + 1) * level_count > 8)
-    PANIC("Cuda error (multi-bit PBS): (k + 1)*l should be <= 8")
 
   pbs_buffer<uint64_t, MULTI_BIT> *buffer =
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;
