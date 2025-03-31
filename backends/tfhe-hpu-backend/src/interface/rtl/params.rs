@@ -120,6 +120,7 @@ impl FromRtl for HpuNttParameters {
 
         Self {
             core_arch,
+            min_pbs_nb: None, // TODO: Get this from a register
             batch_pbs_nb,
             total_pbs_nb,
             ct_width: pbs_params.ciphertext_width as u32,

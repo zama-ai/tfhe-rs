@@ -449,10 +449,7 @@ impl From<(&HpuParameters, &HpuConfig)> for PeConfigStore {
         let pem_axi_w = params.pc_params.pem_pc * params.pc_params.pem_bytes_w * 8;
         let ct_w = params.ntt_params.ct_width as usize;
         let lbx = params.ks_params.lbx;
-
-        // TODO: Add registers to know the minimum batchsize filling the
-        // hardware. This kind of works for the last two generations though.
-        let min_batch_size = 10;
+        let min_batch_size = params.ntt_params.min_pbs_nb.unwrap();
 
         // Compute some intermediate values
         let blwe_coefs = (poly_size * glwe_k) + 1;
