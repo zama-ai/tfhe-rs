@@ -57,7 +57,6 @@ pub fn native_closest_representable<Scalar: UnsignedInteger>(
 /// returns 1 if the following if condition is true otherwise 0
 ///
 /// (val > B / 2) || ((val == B / 2) && (random == 1))
-#[cfg(any(not(feature = "hpu"), test))]
 #[inline(always)]
 fn balanced_rounding_condition_bit_trick<Scalar: UnsignedInteger>(
     val: Scalar,
@@ -155,43 +154,33 @@ where
 
     #[inline(always)]
     pub fn init_decomposer_state(&self, input: Scalar) -> Scalar {
-        // Default mode -> use balanced decomposition
-        #[cfg(not(feature = "hpu"))]
-        {
-            // The closest number representable by the decomposition can be computed by performing
-            // the rounding at the appropriate bit.
+        // The closest number representable by the decomposition can be computed by performing
+        // the rounding at the appropriate bit.
 
-            // We compute the number of least significant bits which can not be represented by the
-            // decomposition
-            // Example with level_count = 3, base_log = 4 and BITS == 64 -> 52
-            let rep_bit_count = self.level_count * self.base_log;
-            let non_rep_bit_count: usize = Scalar::BITS - rep_bit_count;
-            // Move the representable bits + 1 to the LSB, with our example :
-            //       |-----| 64 - (64 - 12 - 1) == 13 bits
-            // 0....0XX...XX
-            let mut res = input >> (non_rep_bit_count - 1);
-            // Fetch the first bit value as we need it for a balanced rounding
-            let rounding_bit = res & Scalar::ONE;
-            // Add one to do the rounding by adding the half interval
-            res += Scalar::ONE;
-            // Discard the LSB which was the one deciding in which direction we round
-            res >>= 1;
-            // Keep the low base_log * level bits
-            let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
-            res &= mod_mask;
-            // Control bit about whether we should balance the state
-            // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random == 1)
-            let need_balance =
-                balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
-            // Balance depending on the control bit
-            res.wrapping_sub(need_balance << rep_bit_count)
-        }
-
-        // Hpu used unbalanced decomposition
-        #[cfg(feature = "hpu")]
-        {
-            self.closest_representable(input) >> (Scalar::BITS - (self.level_count * self.base_log))
-        }
+        // We compute the number of least significant bits which can not be represented by the
+        // decomposition
+        // Example with level_count = 3, base_log = 4 and BITS == 64 -> 52
+        let rep_bit_count = self.level_count * self.base_log;
+        let non_rep_bit_count: usize = Scalar::BITS - rep_bit_count;
+        // Move the representable bits + 1 to the LSB, with our example :
+        //       |-----| 64 - (64 - 12 - 1) == 13 bits
+        // 0....0XX...XX
+        let mut res = input >> (non_rep_bit_count - 1);
+        // Fetch the first bit value as we need it for a balanced rounding
+        let rounding_bit = res & Scalar::ONE;
+        // Add one to do the rounding by adding the half interval
+        res += Scalar::ONE;
+        // Discard the LSB which was the one deciding in which direction we round
+        res >>= 1;
+        // Keep the low base_log * level bits
+        let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
+        res &= mod_mask;
+        // Control bit about whether we should balance the state
+        // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random ==
+        // 1)
+        let need_balance = balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
+        // Balance depending on the control bit
+        res.wrapping_sub(need_balance << rep_bit_count)
     }
 
     /// Generate an iterator over the terms of the decomposition of the input.
@@ -231,6 +220,48 @@ where
         // not rounded to the closest representable first. We then perform it before decomposing.
         SignedDecompositionIter::new(
             self.init_decomposer_state(input),
+            DecompositionBaseLog(self.base_log),
+            DecompositionLevelCount(self.level_count),
+        )
+    }
+
+    /// Generate an iterator over the terms of the decomposition of the input.
+    /// # Warning
+    /// This used unbalanced decomposition and shouldn't be used with one-level decomposition
+    /// The returned iterator yields the terms $\tilde{\theta}\_i$ in order of decreasing $i$.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
+    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
+    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
+    /// let decomposer =
+    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
+    /// // 2147483647 == 2^31 - 1 and has a decomposition term == to half_basis
+    /// for term in decomposer.decompose(2147483647u32) {
+    ///     assert!(1 <= term.level().0);
+    ///     assert!(term.level().0 <= 3);
+    ///     let signed_term = term.value().into_signed();
+    ///     let half_basis = 2i32.pow(4) / 2i32;
+    ///     assert!(
+    ///         -half_basis <= signed_term,
+    ///         "{} <= {signed_term} failed",
+    ///         -half_basis
+    ///     );
+    ///     assert!(
+    ///         signed_term <= half_basis,
+    ///         "{signed_term} <= {half_basis} failed"
+    ///     );
+    /// }
+    /// assert_eq!(decomposer.decompose(1).count(), 3);
+    /// ```
+    pub fn decompose_raw(&self, input: Scalar) -> SignedDecompositionIter<Scalar> {
+        // Note that there would be no sense of making the decomposition on an input which was
+        // not rounded to the closest representable first. We then perform it before decomposing.
+        SignedDecompositionIter::new(
+            self.closest_representable(input)
+                >> (Scalar::BITS - (self.level_count * self.base_log)),
             DecompositionBaseLog(self.base_log),
             DecompositionLevelCount(self.level_count),
         )
