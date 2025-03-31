@@ -304,6 +304,7 @@ pub fn main() {
         println!("________________________________________");
     }
     println!("--------------------------------------------------------------------------------");
+    #[cfg(feature = "hpu-debug")]
     if let Some(io_dump) = args.io_dump {
         println!("Stimulus generated in {io_dump}");
     } else {
