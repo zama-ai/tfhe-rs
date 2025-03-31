@@ -15,6 +15,7 @@
 
 [ntt_params]
     core_arch= {GF64=[5,6]}
+    min_pbs_nb= 11
     batch_pbs_nb= 12
     total_pbs_nb= 32
     ct_width= 64
