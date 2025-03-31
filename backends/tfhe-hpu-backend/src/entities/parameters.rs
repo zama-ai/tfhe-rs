@@ -53,6 +53,8 @@ pub struct HpuKeyswitchParameters {
 pub struct HpuNttParameters {
     /// Core architecture
     pub core_arch: HpuNttCoreArch,
+    /// Minimum #PBS in the batch for full throughput
+    pub min_pbs_nb: Option<usize>,
     /// #PBS in Ntt Pipe
     pub batch_pbs_nb: usize,
     /// Maximum #PBS store in Pep

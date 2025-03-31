@@ -104,7 +104,12 @@ impl HpuBackend {
             .map(|f| f.as_str())
             .collect::<Vec<_>>();
         let regmap = hw_regmap::FlatRegmap::from_file(&regmap_str);
-        let params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+        let mut params = HpuParameters::from_rtl(&mut hpu_hw, &regmap);
+
+        // In case this is not filled by from_rtl()
+        if params.ntt_params.min_pbs_nb.is_none() {
+            params.ntt_params.min_pbs_nb = Some(config.firmware.min_batch_size);
+        }
 
         // Init on-board memory
         hpu_hw.init_mem(config, &params);

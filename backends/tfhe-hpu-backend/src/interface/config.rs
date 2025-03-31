@@ -131,6 +131,10 @@ pub struct FwConfig {
 
     /// Defines the firmware implementation to use
     pub implementation: String,
+
+    /// Defines the minimum batch size for an accurate FW simulation (use this
+    /// while this information is not available as a register in the hardware)
+    pub min_batch_size: usize,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
