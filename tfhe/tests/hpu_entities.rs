@@ -81,9 +81,10 @@ fn hpu_key_loopback() {
     // BSK Loopback conversion and check -------------------------------------
     // Extract and convert ksk
     let cpu_bsk_orig = match sks_compressed.bootstrapping_key {
-        crate::shortint::server_key::ShortintCompressedBootstrappingKey::Classic(seeded_bsk) => {
-            seeded_bsk.decompress_into_lwe_bootstrap_key()
-        }
+        crate::shortint::server_key::ShortintCompressedBootstrappingKey::Classic {
+            bsk: seeded_bsk,
+            ..
+        } => seeded_bsk.decompress_into_lwe_bootstrap_key(),
         crate::shortint::server_key::ShortintCompressedBootstrappingKey::MultiBit { .. } => {
             panic!("Hpu currently not support multibit. Required a Classic BSK")
         }
