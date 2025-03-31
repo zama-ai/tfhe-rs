@@ -328,15 +328,29 @@ __host__ bool verify_cuda_programmable_bootstrap_cg_grid_size(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_cg<Torus, params, NOSM>, thds, 0);
   } else if (max_shared_memory < full_sm) {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, partial_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
+        cudaFuncCachePreferShared);
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_cg<Torus, params, PARTIALSM>,
         thds, partial_sm);
+    check_cuda_error(cudaGetLastError());
   } else {
+    check_cuda_error(cudaFuncSetAttribute(
+        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, full_sm));
+    cudaFuncSetCacheConfig(
+        device_programmable_bootstrap_cg<Torus, params, FULLSM>,
+        cudaFuncCachePreferShared);
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &max_active_blocks_per_sm,
         (void *)device_programmable_bootstrap_cg<Torus, params, FULLSM>, thds,
         full_sm);
+    check_cuda_error(cudaGetLastError());
   }
 
   // Get the number of streaming multiprocessors
