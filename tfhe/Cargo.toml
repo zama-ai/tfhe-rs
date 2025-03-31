@@ -42,7 +42,6 @@ env_logger = "0.11"
 log = "0.4.19"
 hex = "0.4.3"
 # End regex-engine deps
-strum = { version = "0.26", features = ["derive"] }
 
 [build-dependencies]
 cbindgen = { version = "0.28", optional = true }
@@ -69,6 +68,7 @@ fs2 = { version = "0.4.3", optional = true }
 sha3 = { version = "0.10", optional = true }
 itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
+strum = { version = "0.27", features = ["derive"], optional = true }
 tfhe-zk-pok = { version = "0.5.0", path = "../tfhe-zk-pok", optional = true }
 tfhe-versionable = { version = "0.5.0", path = "../utils/tfhe-versionable" }
 
@@ -86,10 +86,10 @@ bytemuck = { workspace = true }
 [features]
 boolean = []
 shortint = ["dep:sha3"]
-integer = ["shortint"]
+integer = ["shortint", "dep:strum"]
 strings = ["integer"]
 internal-keycache = ["dep:fs2"]
-gpu = ["dep:tfhe-cuda-backend","shortint"]
+gpu = ["dep:tfhe-cuda-backend", "shortint"]
 zk-pok = ["dep:tfhe-zk-pok"]
 
 # Adds more FheUint/FheInt types to the HL
