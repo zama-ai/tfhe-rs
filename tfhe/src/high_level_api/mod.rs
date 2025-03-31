@@ -48,6 +48,7 @@ macro_rules! export_concrete_array_types {
 
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
+use crate::{error, Error};
 pub use config::{Config, ConfigBuilder};
 #[cfg(feature = "gpu")]
 pub use global_state::CudaGpuChoice;
@@ -60,6 +61,7 @@ pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
     CompressedServerKey, KeySwitchingKey, PublicKey, ServerKey,
 };
+use strum::FromRepr;
 
 #[cfg(test)]
 mod tests;
@@ -156,7 +158,7 @@ pub enum Device {
     CudaGpu,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(FromRepr, Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(i32)]
 #[cfg_attr(test, derive(strum::EnumIter))]
 pub enum FheTypes {
@@ -249,4 +251,12 @@ pub enum FheTypes {
     Int232 = 81,
     Int240 = 82,
     Int248 = 83,
+}
+
+impl TryFrom<i32> for FheTypes {
+    type Error = Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        Self::from_repr(value).ok_or_else(|| error!("Invalid value for FheTypes: {}", value))
+    }
 }
