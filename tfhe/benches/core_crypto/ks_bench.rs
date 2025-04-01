@@ -554,7 +554,7 @@ mod cuda {
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
-                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, &streams);
+                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
                     let ct = allocate_and_encrypt_new_lwe_ciphertext(
                         &big_lwe_sk,
@@ -594,7 +594,7 @@ mod cuda {
                     }
                 }
                 BenchmarkType::Throughput => {
-                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys);
+                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
@@ -757,7 +757,7 @@ mod cuda {
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
-                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, &streams);
+                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
 
                     let mut input_ct_list = LweCiphertextList::new(
                         Scalar::ZERO,
@@ -808,7 +808,7 @@ mod cuda {
                     }
                 }
                 BenchmarkType::Throughput => {
-                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys);
+                    let gpu_keys_vec = cuda_local_keys_core(&cpu_keys, None);
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");

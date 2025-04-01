@@ -1,10 +1,11 @@
 pub mod params;
-pub(crate) use params::*;
-
 pub(crate) use super::misc::check_encrypted_content_respects_mod;
 pub(crate) use crate::core_crypto::algorithms::misc::divide_round;
 pub(crate) use crate::core_crypto::keycache::KeyCacheAccess;
 pub(crate) use crate::core_crypto::prelude::*;
+#[cfg(feature = "gpu")]
+use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
+pub(crate) use params::*;
 pub(crate) use std::fmt::Debug;
 
 mod ggsw_encryption;
@@ -348,18 +349,6 @@ pub const FFT128_U128_PARAMS: FftTestParams<u128> = FftTestParams {
     ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
 };
 
-#[cfg(feature = "gpu")]
-pub const FFT128_U128_GPU_PARAMS: FftTestParams<u128> = FftTestParams {
-    lwe_dimension: LweDimension(879),
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
-    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
-    pbs_base_log: DecompositionBaseLog(32),
-    pbs_level: DecompositionLevelCount(3),
-    ciphertext_modulus: CiphertextModulus::new_native(),
-};
-
 pub const FFT_WOPBS_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams {
     lwe_dimension: LweDimension(481),
     glwe_dimension: GlweDimension(1),
@@ -441,6 +430,25 @@ pub const FFT_WOPBS_N2048_PARAMS: FftWopPbsTestParams<u64> = FftWopPbsTestParams
     cbs_base_log: DecompositionBaseLog(6),
     ciphertext_modulus: CiphertextModulus::new_native(),
 };
+
+#[cfg(feature = "gpu")]
+pub const NOISESQUASHING128_U128_GPU_PARAMS: NoiseSquashingTestParams<u128> =
+    NoiseSquashingTestParams {
+        lwe_dimension: LweDimension(879),
+        glwe_dimension: GlweDimension(2),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
+        glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
+        pbs_base_log: DecompositionBaseLog(24),
+        pbs_level: DecompositionLevelCount(3),
+        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: LweCiphertextCount(1449),
+            ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
+            ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
+            ms_input_variance: Variance(2.63039184094559E-7f64),
+        }),
+        ciphertext_modulus: CiphertextModulus::new_native(),
+    };
 
 pub fn get_encoding_with_padding<Scalar: UnsignedInteger>(
     ciphertext_modulus: CiphertextModulus<Scalar>,

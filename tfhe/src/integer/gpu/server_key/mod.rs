@@ -109,7 +109,7 @@ impl CudaServerKey {
                     });
                 let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &h_bootstrap_key,
-                    modulus_switch_noise_reduction_key,
+                    modulus_switch_noise_reduction_key.as_ref(),
                     streams,
                 );
 
@@ -230,7 +230,7 @@ impl CudaServerKey {
                 let standard_bootstrapping_key = h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
 
                 let d_bootstrap_key =
-                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, ms_noise_reduction_key, streams);
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, ms_noise_reduction_key.as_ref(), streams);
 
                 CudaBootstrappingKey::Classic(d_bootstrap_key)
             }

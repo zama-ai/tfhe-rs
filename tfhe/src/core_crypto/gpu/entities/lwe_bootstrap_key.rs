@@ -65,7 +65,7 @@ pub struct CudaLweBootstrapKey {
 impl CudaLweBootstrapKey {
     pub fn from_lwe_bootstrap_key<InputBskCont: Container>(
         bsk: &LweBootstrapKey<InputBskCont>,
-        ms_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
         streams: &CudaStreams,
     ) -> Self
     where
@@ -107,8 +107,9 @@ impl CudaLweBootstrapKey {
         }
 
         // If noise reduction key is present, copy it to the GPU
-        let d_ms_noise_reduction_key = match ms_noise_reduction_key {
-            Some(ms_noise_red_key) => {
+        let d_ms_noise_reduction_key = ms_noise_reduction_key.map_or_else(
+            || None,
+            |ms_noise_red_key| {
                 let h_input = ms_noise_red_key
                     .modulus_switch_zeros
                     .as_view()
@@ -135,9 +136,8 @@ impl CudaLweBootstrapKey {
                     ms_r_sigma_factor: ms_noise_red_key.ms_r_sigma_factor,
                     ms_input_variance: ms_noise_red_key.ms_input_variance,
                 })
-            }
-            None => None,
-        };
+            },
+        );
 
         streams.synchronize();
         Self {

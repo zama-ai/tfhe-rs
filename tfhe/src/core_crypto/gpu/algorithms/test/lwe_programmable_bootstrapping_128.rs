@@ -1,8 +1,6 @@
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 
-use crate::core_crypto::algorithms::test::{
-    FftBootstrapKeys, FftTestParams, TestResources, FFT128_U128_GPU_PARAMS,
-};
+use crate::core_crypto::algorithms::test::{FftBootstrapKeys, TestResources};
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
@@ -10,6 +8,9 @@ use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
 
 use crate::core_crypto::keycache::KeyCacheAccess;
+use crate::core_crypto::prelude::test::{
+    NoiseSquashingTestParams, NOISESQUASHING128_U128_GPU_PARAMS,
+};
 use crate::core_crypto::prelude::*;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -17,7 +18,7 @@ use serde::Serialize;
 pub fn generate_keys<
     Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
 >(
-    params: FftTestParams<Scalar>,
+    params: NoiseSquashingTestParams<Scalar>,
     rsc: &mut TestResources,
 ) -> FftBootstrapKeys<Scalar> {
     // Generate an LweSecretKey with binary coefficients
@@ -51,7 +52,7 @@ pub fn generate_keys<
     }
 }
 
-pub fn execute_bootstrap_u128<Scalar>(params: FftTestParams<Scalar>)
+pub fn execute_bootstrap_u128<Scalar>(params: NoiseSquashingTestParams<Scalar>)
 where
     Scalar: Numeric
         + UnsignedTorus
@@ -61,9 +62,9 @@ where
         + Sync
         + Serialize
         + DeserializeOwned,
-    FftTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
+    NoiseSquashingTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
 {
-    let lwe_noise_distribution = params.lwe_noise_distribution;
+    let lwe_noise_distribution = params.glwe_noise_distribution;
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
     let ciphertext_modulus = params.ciphertext_modulus;
@@ -150,6 +151,6 @@ where
 }
 
 #[test]
-fn test_bootstrap_u128() {
-    execute_bootstrap_u128::<u128>(FFT128_U128_GPU_PARAMS);
+fn test_bootstrap_u128_with_squashing() {
+    execute_bootstrap_u128::<u128>(NOISESQUASHING128_U128_GPU_PARAMS);
 }
