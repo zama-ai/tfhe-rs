@@ -23,7 +23,11 @@ struct KoggeBlockTableIndex(String);
 
 impl From<FwParameters> for KoggeBlockTableIndex {
     fn from(value: FwParameters) -> Self {
-        KoggeBlockTableIndex(format!("blk_{}_pbs_{}", value.blk_w(), value.pbs_batch_w))
+        KoggeBlockTableIndex(format!(
+            "blk_{}_pbs_{}",
+            value.blk_w(),
+            value.min_pbs_batch_w
+        ))
     }
 }
 

@@ -61,7 +61,7 @@ impl PartialEq for Event {
 impl Eq for Event {}
 
 /// Kind of the event
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum EventType {
     RdUnlock(InstructionKind, usize),
     WrUnlock(InstructionKind, usize),
