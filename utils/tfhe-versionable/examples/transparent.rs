@@ -11,7 +11,7 @@ use tfhe_versionable::{Unversionize, Upgrade, Version, Versionize, VersionsDispa
 //
 // struct MyStructWrapper<T> { inner: MyStruct<T> };
 #[derive(Versionize)]
-#[versionize(transparent)] // Also works with `#[repr(transparent)]`
+#[versionize(transparent)] // Also works with `#[repr(transparent)]` or `#[serde(transparent)]`
 struct MyStructWrapper<T>(MyStruct<T>);
 
 // The inner struct that is versioned.

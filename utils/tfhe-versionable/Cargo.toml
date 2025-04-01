@@ -69,3 +69,7 @@ test = true
 [[example]]
 name = "associated_bounds"
 test = true
+
+[[example]]
+name = "skip"
+test = true
