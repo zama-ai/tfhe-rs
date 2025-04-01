@@ -8,7 +8,10 @@ use syn::spanned::Spanned;
 use syn::{Attribute, Expr, Lit, Meta, Path, Token};
 
 /// Name of the attribute used to give arguments to the `Versionize` macro
-const VERSIONIZE_ATTR_NAME: &str = "versionize";
+pub(crate) const VERSIONIZE_ATTR_NAME: &str = "versionize";
+
+/// Name of the attribute used to give arguments to serde macros
+pub(crate) const SERDE_ATTR_NAME: &str = "serde";
 
 /// Transparent mode can also be activated using `#[repr(transparent)]`
 pub(crate) const REPR_ATTR_NAME: &str = "repr";
@@ -297,17 +300,38 @@ fn parse_path_ignore_quotes(value: &Expr) -> syn::Result<Path> {
     }
 }
 
-/// Check if the target type has the `#[repr(transparent)]` attribute in its attributes list
+/// Check if the target type has the `#[repr(transparent)]` or `#[serde(transparent)]` attribute in
+/// its attributes list
 pub(crate) fn is_transparent(attributes: &[Attribute]) -> syn::Result<bool> {
     if let Some(attr) = attributes
         .iter()
-        .find(|attr| attr.path().is_ident(REPR_ATTR_NAME))
+        .find(|attr| attr.path().is_ident(REPR_ATTR_NAME) || attr.path().is_ident(SERDE_ATTR_NAME))
     {
         let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
 
         for meta in nested.iter() {
             if let Meta::Path(path) = meta {
                 if path.is_ident("transparent") {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+/// Check if a field has the `#[serde(skip)]` or `#[versionize(skip)]` attribute in
+/// its attributes list
+pub(crate) fn is_skipped(attributes: &[Attribute]) -> syn::Result<bool> {
+    if let Some(attr) = attributes.iter().find(|attr| {
+        attr.path().is_ident(VERSIONIZE_ATTR_NAME) || attr.path().is_ident(SERDE_ATTR_NAME)
+    }) {
+        let nested = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
+
+        for meta in nested.iter() {
+            if let Meta::Path(path) = meta {
+                if path.is_ident("skip") {
                     return Ok(true);
                 }
             }

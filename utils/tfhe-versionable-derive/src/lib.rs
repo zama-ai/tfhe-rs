@@ -52,6 +52,7 @@ pub(crate) const INTO_TRAIT_NAME: &str = "::core::convert::Into";
 pub(crate) const ERROR_TRAIT_NAME: &str = "::core::error::Error";
 pub(crate) const SYNC_TRAIT_NAME: &str = "::core::marker::Sync";
 pub(crate) const SEND_TRAIT_NAME: &str = "::core::marker::Send";
+pub(crate) const DEFAULT_TRAIT_NAME: &str = "::core::default::Default";
 pub(crate) const STATIC_LIFETIME_NAME: &str = "'static";
 
 use associated::AssociatingTrait;
@@ -71,7 +72,7 @@ macro_rules! syn_unwrap {
     };
 }
 
-#[proc_macro_derive(Version)]
+#[proc_macro_derive(Version, attributes(versionize))]
 /// Implement the `Version` trait for the target type.
 pub fn derive_version(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

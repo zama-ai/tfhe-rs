@@ -94,6 +94,9 @@ pub enum UnversionizeError {
 
     /// A deprecated version has been found
     DeprecatedVersion(DeprecatedVersionError),
+
+    /// User tried to unversionize an enum variant with the `#[versionize(skip)]` attribute
+    SkippedVariant { variant_name: String },
 }
 
 impl Display for UnversionizeError {
@@ -120,6 +123,9 @@ impl Display for UnversionizeError {
                 )
             }
             Self::DeprecatedVersion(deprecation_error) => deprecation_error.fmt(f),
+            Self::SkippedVariant { variant_name } => write!(f,
+                "Enum variant {variant_name} is marked with the `skip` attribute and cannot be unversioned"
+            ),
         }
     }
 }
@@ -131,6 +137,7 @@ impl Error for UnversionizeError {
             UnversionizeError::Conversion { source, .. } => Some(source.as_ref()),
             UnversionizeError::ArrayLength { .. } => None,
             UnversionizeError::DeprecatedVersion(_) => None,
+            UnversionizeError::SkippedVariant { .. } => None,
         }
     }
 }
@@ -152,6 +159,12 @@ impl UnversionizeError {
         Self::Conversion {
             from_type: from_type.to_string(),
             source: Box::new(source),
+        }
+    }
+
+    pub fn skipped_variant(variant_name: &str) -> Self {
+        Self::SkippedVariant {
+            variant_name: variant_name.to_string(),
         }
     }
 }
