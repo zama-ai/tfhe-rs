@@ -119,6 +119,17 @@ impl HpuDevice {
         // Init HW trace offset
         self.trace_init();
     }
+
+    /// Enforce a cleaan state of the HPU before workload execution
+    /// Currently only enforce proper state of the Ciphertext pool
+    /// i.e. No already allocated Ciphertext and no fragmentation
+    pub fn mem_sanitizer(&self) {
+        // Lock underlying backend
+        let backend = self.backend.lock().unwrap();
+
+        // Triggered Ciphertext pool defragmentation
+        backend.ct_mem.reorder_pool();
+    }
 }
 /// Bootstrapping Key handling
 /// Only here to expose function to the user. Associated logic is handled by the backend
