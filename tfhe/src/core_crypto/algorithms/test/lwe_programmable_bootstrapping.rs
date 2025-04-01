@@ -1053,8 +1053,6 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
         ));
 
         use crate::core_crypto::commons::math::ntt::ntt64::Ntt64;
-
-        // TODO
         let mut nbsk = NttLweBootstrapKeyOwned::new(
             0u64,
             bsk.input_lwe_dimension(),
@@ -1070,7 +1068,7 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
         let ntt = Ntt64::new(params.ciphertext_modulus, nbsk.polynomial_size());
         let ntt = ntt.as_view();
 
-        let stack_size = programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized_requirement(
+        let stack_size = programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized_requirement(
             glwe_dimension.to_glwe_size(),
             polynomial_size,
             ntt,

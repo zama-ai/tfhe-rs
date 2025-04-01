@@ -124,11 +124,16 @@ impl Ntt64View<'_> {
     /// From: user domain (i.e. pow2 modulus)
     /// To:   ntt domain  (i.e. prime modulus)
     /// Switching are done inplace
-    pub fn user2ntt_modswitch(&self, user_width: u32, data: &mut [u64]) {
+    pub(crate) fn modswitch_from_power_of_two_to_ntt_prime(
+        &self,
+        input_modulus_width: u32,
+        data: &mut [u64],
+    ) {
         let mod_p_u128 = self.plan.modulus() as u128;
         for val in data.iter_mut() {
             let val_u128: u128 = (*val).cast_into();
-            *val = (((val_u128 * mod_p_u128) + (1 << (user_width - 1))) >> user_width) as u64;
+            *val = (((val_u128 * mod_p_u128) + (1 << (input_modulus_width - 1)))
+                >> input_modulus_width) as u64;
         }
     }
 
@@ -138,11 +143,16 @@ impl Ntt64View<'_> {
     /// From: ntt domain  (i.e. prime modulus)
     /// To:   user domain (i.e. pow2 modulus)
     /// Switching are done inplace
-    pub fn ntt2user_modswitch(&self, user_width: u32, data: &mut [u64]) {
+    pub(crate) fn modswitch_from_ntt_prime_to_power_of_two(
+        &self,
+        output_modulus_width: u32,
+        data: &mut [u64],
+    ) {
         let mod_p_u128 = self.plan.modulus() as u128;
         for val in data.iter_mut() {
             let val_u128: u128 = (*val).cast_into();
-            *val = ((((val_u128) << user_width) | ((mod_p_u128) >> 1)) / mod_p_u128) as u64;
+            *val =
+                ((((val_u128) << output_modulus_width) | ((mod_p_u128) >> 1)) / mod_p_u128) as u64;
         }
     }
 }

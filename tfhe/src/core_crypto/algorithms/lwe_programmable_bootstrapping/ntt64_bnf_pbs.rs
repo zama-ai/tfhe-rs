@@ -141,7 +141,7 @@ use super::CiphertextModulus;
 ///     ciphertext_modulus,
 /// );
 /// println!("Performing blind rotation...");
-/// blind_rotate_ntt64_assign(&lwe_ciphertext_in, &mut accumulator, &ntt_bsk);
+/// blind_rotate_ntt64_bnf_assign(&lwe_ciphertext_in, &mut accumulator, &ntt_bsk);
 /// println!("Performing sample extraction...");
 /// extract_lwe_sample_from_glwe_ciphertext(
 ///     &accumulator,
@@ -208,7 +208,7 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputCont, OutputCont, KeyCon
 {
     fn implementation(
         bsk: NttLweBootstrapKeyView<'_, u64>,
-        #[allow(unused_mut)] mut lut: GlweCiphertextMutView<'_, u64>,
+        lut: GlweCiphertextMutView<'_, u64>,
         lwe: &[u64],
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
@@ -564,7 +564,7 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
         // Extract modswitch_requirement
         let modulus = ntt.custom_modulus();
         let ntt_modulus = CiphertextModulus::new(modulus as u128);
-        let (req_ba, req_ms) =
+        let (bitalign_required, modswitch_required) =
             bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
 
         // we round the input mask and body
@@ -624,9 +624,14 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                 .for_each(|(ggsw_row, glwe_poly)| {
                     let (ntt_poly, _) = substack2.make_aligned_raw::<u64>(poly_size, align);
                     // 1. Move poly coef in ntt_modulus if needed
-                    ntt_poly.clone_from_slice(glwe_poly.into_container());
+                    ntt_poly.clone_from_slice(glwe_poly.as_ref());
                     // NB: Decomposition term is already LSB align
-                    user2ntt_bitmask_modswitch(ntt_poly, req_ba, req_ms, ntt);
+                    user2ntt_bitmask_modswitch(
+                        ntt_poly,
+                        bitalign_required,
+                        modswitch_required,
+                        ntt,
+                    );
 
                     // 2. We perform the forward ntt transform for the glwe polynomial
                     ntt.plan.fwd(ntt_poly);
@@ -666,7 +671,12 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
 
                 // Move back in std domain
                 ntt.plan.inv(ntt_poly.as_mut());
-                ntt2user_bitalign_modswitch(ntt_poly.as_mut(), req_ba, req_ms, ntt);
+                ntt2user_bitalign_modswitch(
+                    ntt_poly.as_mut(),
+                    bitalign_required,
+                    modswitch_required,
+                    ntt,
+                );
 
                 // autovectorize
                 pulp::Arch::new().dispatch(
@@ -798,11 +808,11 @@ pub fn bitalign_modswitch_requirement(
             "Only support implicit modswitch from 2**k to ntt_modulus"
         );
         if from.is_native_modulus() {
-            (None, Some(usize::BITS))
+            (None, Some(u64::BITS))
         } else {
             let pow2_modulus = from.get_custom_modulus();
             let pow2_width = pow2_modulus.ilog2();
-            (Some(usize::BITS - pow2_width), Some(pow2_width))
+            (Some(u64::BITS - pow2_width), Some(pow2_width))
         }
     }
 }
@@ -817,13 +827,13 @@ pub fn user2ntt_bitalign_modswitch(
         data.iter_mut().for_each(|x| *x >>= shr_bit);
     }
     if let Some(modswitch) = req_modswitch {
-        ntt.user2ntt_modswitch(modswitch, data);
+        ntt.modswitch_from_power_of_two_to_ntt_prime(modswitch, data);
     }
 }
 
-/// This function is used when the input come from the decomposer
+/// This function is used when the input comes from the decomposer
 /// In such case value inputs are small value around 0. But negative value are signed
-/// extend on BITS and prevent the modswitch to work properly
+/// extended on BITS and prevent the modswitch from working properly
 /// Thus we start by bitmask to remove extra MSB and then modswitch
 pub fn user2ntt_bitmask_modswitch(
     data: &mut [u64],
@@ -836,7 +846,7 @@ pub fn user2ntt_bitmask_modswitch(
             .for_each(|x| *x = (*x << shr_bit) >> shr_bit);
     }
     if let Some(modswitch) = req_modswitch {
-        ntt.user2ntt_modswitch(modswitch, data);
+        ntt.modswitch_from_power_of_two_to_ntt_prime(modswitch, data);
     }
 }
 
@@ -847,7 +857,7 @@ pub fn ntt2user_bitalign_modswitch(
     ntt: Ntt64View<'_>,
 ) {
     if let Some(modswitch) = req_modswitch {
-        ntt.ntt2user_modswitch(modswitch, data);
+        ntt.modswitch_from_ntt_prime_to_power_of_two(modswitch, data);
     }
     if let Some(shl_bit) = req_bitalign {
         data.iter_mut().for_each(|x| *x <<= shl_bit);
