@@ -1,3 +1,5 @@
+#[cfg(feature = "gpu")]
+use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
@@ -5,6 +7,8 @@ use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
 };
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::{FheBool, FheInt, FheUint};
 use std::borrow::Borrow;
 use std::ops::{
@@ -67,8 +71,38 @@ where
                     )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support sum of signed integers");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_streams(|streams| {
+                    let cts = iter
+                        .map(|fhe_uint| {
+                            match fhe_uint.ciphertext.on_gpu(streams) {
+                                MaybeCloned::Borrowed(gpu_ct) => {
+                                    unsafe {
+                                        // SAFETY
+                                        // The gpu_ct is a ref, meaning it belongs to the thing
+                                        // that is being iterated on, so it will stay alive for the
+                                        // whole function
+                                        gpu_ct.duplicate_async(streams)
+                                    }
+                                }
+                                MaybeCloned::Cloned(gpu_ct) => gpu_ct,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    let inner = cuda_key
+                        .key
+                        .key
+                        .sum_ciphertexts(cts, streams)
+                        .unwrap_or_else(|| {
+                            cuda_key.key.key.create_trivial_radix(
+                                0,
+                                Id::num_blocks(cuda_key.message_modulus()),
+                                streams,
+                            )
+                        });
+                    Self::new(inner, cuda_key.tag.clone())
+                })
             }
         })
     }
@@ -1481,8 +1515,16 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support division");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_streams(|streams| {
+                    let cuda_lhs = self.ciphertext.as_gpu_mut(streams);
+                    let cuda_result = cuda_key.pbs_key().div(
+                        &*cuda_lhs,
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+                    *cuda_lhs = cuda_result;
+                });
             }
         })
     }
@@ -1525,8 +1567,16 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cuda devices do not support remainder");
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_streams(|streams| {
+                    let cuda_lhs = self.ciphertext.as_gpu_mut(streams);
+                    let cuda_result = cuda_key.pbs_key().rem(
+                        &*cuda_lhs,
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    );
+                    *cuda_lhs = cuda_result;
+                });
             }
         })
     }

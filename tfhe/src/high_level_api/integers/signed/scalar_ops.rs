@@ -1274,9 +1274,11 @@ macro_rules! define_scalar_ops {
                                 .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(_) => {
-                            panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
-                        }
+                        InternalServerKey::Cuda(cuda_key) => global_state::with_thread_local_cuda_streams(|streams| {
+                            let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
+                            let cuda_result = cuda_key.pbs_key().signed_scalar_div(&cuda_lhs, rhs, streams);
+                            *cuda_lhs = cuda_result;
+                        })
                     })
                 }
             },
@@ -1297,9 +1299,11 @@ macro_rules! define_scalar_ops {
                                 .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(_) => {
-                            panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
-                        }
+                        InternalServerKey::Cuda(cuda_key) => global_state::with_thread_local_cuda_streams(|streams| {
+                            let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
+                            let cuda_result = cuda_key.pbs_key().signed_scalar_rem(&cuda_lhs, rhs, streams);
+                            *cuda_lhs = cuda_result;
+                        })
                     })
                 }
             },
