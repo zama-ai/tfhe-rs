@@ -15,12 +15,12 @@ use crate::associated::{
     generate_from_trait_impl, generate_try_from_trait_impl, AssociatedType, AssociatedTypeKind,
     ConversionDirection,
 };
-use crate::versionize_attribute::is_transparent;
+use crate::versionize_attribute::{is_skipped, is_transparent};
 use crate::{
     add_trait_where_clause, parse_const_str, parse_trait_bound, punctuated_from_iter_result,
-    INTO_TRAIT_NAME, LIFETIME_NAME, TRY_INTO_TRAIT_NAME, UNVERSIONIZE_ERROR_NAME,
-    UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME, VERSIONIZE_TRAIT_NAME,
-    VERSION_TRAIT_NAME,
+    DEFAULT_TRAIT_NAME, INTO_TRAIT_NAME, LIFETIME_NAME, TRY_INTO_TRAIT_NAME,
+    UNVERSIONIZE_ERROR_NAME, UNVERSIONIZE_TRAIT_NAME, VERSIONIZE_OWNED_TRAIT_NAME,
+    VERSIONIZE_TRAIT_NAME, VERSION_TRAIT_NAME,
 };
 
 /// The types generated for a specific version of a given exposed type. These types are identical to
@@ -201,7 +201,8 @@ impl AssociatedType for VersionType {
     fn inner_types(&self) -> syn::Result<Vec<&Type>> {
         self.orig_type_fields()
             .iter()
-            .map(|field| Ok(&field.ty))
+            .filter_map(|field| filter_skipped_field(field))
+            .map(|field| Ok(&field?.ty))
             .collect()
     }
 
@@ -232,6 +233,14 @@ impl AssociatedType for VersionType {
                         self.inner_types()?,
                         &[UNVERSIONIZE_TRAIT_NAME],
                     )?;
+
+                    // "skipped" types are not present in the Version types so we add a Default
+                    // bound to be able to reconstruct them.
+                    add_trait_where_clause(
+                        &mut generics,
+                        self.skipped_inner_types()?,
+                        &[DEFAULT_TRAIT_NAME],
+                    )?;
                 }
             }
         }
@@ -244,6 +253,15 @@ impl VersionType {
     /// Returns the fields of the original declaration.
     fn orig_type_fields(&self) -> Punctuated<&Field, Comma> {
         derive_type_fields(&self.orig_type)
+    }
+
+    /// Returns the list of types inside the original type that are skipped
+    fn skipped_inner_types(&self) -> syn::Result<Vec<&Type>> {
+        self.orig_type_fields()
+            .iter()
+            .filter_map(|field| keep_skipped_field(field))
+            .map(|field| Ok(&field?.ty))
+            .collect()
     }
 
     /// Generates the declaration for the Version equivalent of the input struct
@@ -353,45 +371,49 @@ impl VersionType {
         let kind = self.kind.clone();
         let is_transparent = self.is_transparent;
 
-        fields_iter.into_iter().map(move |field| {
-            let unver_ty = field.ty.clone();
+        fields_iter
+            .into_iter()
+            .filter_map(filter_skipped_field)
+            .map(move |field| {
+                let field = field?;
+                let unver_ty = field.ty.clone();
 
-            if is_transparent {
-                // If the type is transparent, we reuse the "Version" impl of the inner type
-                let version_trait = parse_trait_bound(VERSION_TRAIT_NAME)?;
+                if is_transparent {
+                    // If the type is transparent, we reuse the "Version" impl of the inner type
+                    let version_trait = parse_trait_bound(VERSION_TRAIT_NAME)?;
 
-                let ty: Type = match &kind {
-                    AssociatedTypeKind::Ref(lifetime) => parse_quote! {
-                        <#unver_ty as #version_trait>::Ref<#lifetime>
-                    },
-                    AssociatedTypeKind::Owned => parse_quote! {
-                        <#unver_ty as #version_trait>::Owned
-                    },
-                };
+                    let ty: Type = match &kind {
+                        AssociatedTypeKind::Ref(lifetime) => parse_quote! {
+                            <#unver_ty as #version_trait>::Ref<#lifetime>
+                        },
+                        AssociatedTypeKind::Owned => parse_quote! {
+                            <#unver_ty as #version_trait>::Owned
+                        },
+                    };
 
-                Ok(Field {
-                    ty,
-                    ..field.clone()
-                })
-            } else {
-                let versionize_trait = parse_trait_bound(VERSIONIZE_TRAIT_NAME)?;
-                let versionize_owned_trait = parse_trait_bound(VERSIONIZE_OWNED_TRAIT_NAME)?;
+                    Ok(Field {
+                        ty,
+                        ..field.clone()
+                    })
+                } else {
+                    let versionize_trait = parse_trait_bound(VERSIONIZE_TRAIT_NAME)?;
+                    let versionize_owned_trait = parse_trait_bound(VERSIONIZE_OWNED_TRAIT_NAME)?;
 
-                let ty: Type = match &kind {
-                    AssociatedTypeKind::Ref(lifetime) => parse_quote! {
-                        <#unver_ty as #versionize_trait>::Versioned<#lifetime>
-                    },
-                    AssociatedTypeKind::Owned => parse_quote! {
-                        <#unver_ty as #versionize_owned_trait>::VersionedOwned
-                    },
-                };
+                    let ty: Type = match &kind {
+                        AssociatedTypeKind::Ref(lifetime) => parse_quote! {
+                            <#unver_ty as #versionize_trait>::Versioned<#lifetime>
+                        },
+                        AssociatedTypeKind::Owned => parse_quote! {
+                            <#unver_ty as #versionize_owned_trait>::VersionedOwned
+                        },
+                    };
 
-                Ok(Field {
-                    ty,
-                    ..field.clone()
-                })
-            }
-        })
+                    Ok(Field {
+                        ty,
+                        ..field.clone()
+                    })
+                }
+            })
     }
 
     /// Generates the constructor part of the conversion impl block. This will create the dest type
@@ -545,7 +567,10 @@ impl VersionType {
     ) -> syn::Result<TokenStream> {
         let fields: syn::Result<Vec<TokenStream>> = fields
             .into_iter()
-            .map(move |field| self.generate_constructor_field_named(arg_name, field, direction))
+            .filter_map(move |field| {
+                self.generate_constructor_field_named(arg_name, field, direction)
+                    .transpose()
+            })
             .collect();
         let fields = fields?;
 
@@ -562,7 +587,7 @@ impl VersionType {
         arg_name: &str,
         field: &Field,
         direction: ConversionDirection,
-    ) -> syn::Result<TokenStream> {
+    ) -> syn::Result<Option<TokenStream>> {
         let arg_ident = Ident::new(arg_name, Span::call_site());
         // Ok to unwrap because the field is named so field.ident is Some
         let field_ident = field.ident.as_ref().unwrap();
@@ -570,14 +595,17 @@ impl VersionType {
         let param = quote! { #arg_ident.#field_ident };
 
         let rhs = if self.is_transparent() {
-            self.generate_constructor_transparent_rhs(param, direction)?
+            self.generate_constructor_transparent_rhs(param, direction)
+                .map(Some)
         } else {
-            self.generate_constructor_field_rhs(ty, param, false, direction)?
-        };
+            self.generate_constructor_field_rhs(ty, param, false, is_skipped(field)?, direction)
+        }?;
 
-        Ok(quote! {
-            #field_ident: #rhs
-        })
+        Ok(rhs.map(|rhs| {
+            quote! {
+                #field_ident: #rhs
+            }
+        }))
     }
 
     /// Generates the constructor for the fields of a named enum variant.
@@ -592,22 +620,32 @@ impl VersionType {
         direction: ConversionDirection,
     ) -> syn::Result<TokenStream> {
         let fields: syn::Result<Vec<TokenStream>> = zip(arg_names, fields)
-            .map(move |(arg_name, field)| {
+            .filter_map(move |(arg_name, field)| {
                 // Ok to unwrap because the field is named so field.ident is Some
                 let field_ident = field.ident.as_ref().unwrap();
+
                 let rhs = if self.is_transparent() {
-                    self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction)?
+                    Some(self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction))
                 } else {
+                    let skipped = match is_skipped(field) {
+                        Ok(skipped) => skipped,
+                        Err(e) => return Some(Err(e)),
+                    };
                     self.generate_constructor_field_rhs(
                         &field.ty,
                         quote! {#arg_name},
                         true,
+                        skipped,
                         direction,
-                    )?
-                };
-                Ok(quote! {
-                    #field_ident: #rhs
-                })
+                    )
+                    .transpose()
+                }?;
+
+                Some(rhs.map(|rhs| {
+                    quote! {
+                        #field_ident: #rhs
+                    }
+                }))
             })
             .collect();
         let fields = fields?;
@@ -629,8 +667,9 @@ impl VersionType {
         let fields: syn::Result<Vec<TokenStream>> = fields
             .into_iter()
             .enumerate()
-            .map(move |(idx, field)| {
+            .filter_map(move |(idx, field)| {
                 self.generate_constructor_field_unnamed(arg_name, field, idx, direction)
+                    .transpose()
             })
             .collect();
         let fields = fields?;
@@ -647,7 +686,7 @@ impl VersionType {
         field: &Field,
         idx: usize,
         direction: ConversionDirection,
-    ) -> syn::Result<TokenStream> {
+    ) -> syn::Result<Option<TokenStream>> {
         let arg_ident = Ident::new(arg_name, Span::call_site());
         let idx = Literal::usize_unsuffixed(idx);
         let ty = &field.ty;
@@ -655,8 +694,9 @@ impl VersionType {
 
         if self.is_transparent {
             self.generate_constructor_transparent_rhs(param, direction)
+                .map(Some)
         } else {
-            self.generate_constructor_field_rhs(ty, param, false, direction)
+            self.generate_constructor_field_rhs(ty, param, false, is_skipped(field)?, direction)
         }
     }
 
@@ -672,16 +712,22 @@ impl VersionType {
         direction: ConversionDirection,
     ) -> syn::Result<TokenStream> {
         let fields: syn::Result<Vec<TokenStream>> = zip(arg_names, fields)
-            .map(move |(arg_name, field)| {
-                if self.is_transparent {
-                    self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction)
+            .filter_map(move |(arg_name, field)| {
+                if self.is_transparent() {
+                    Some(self.generate_constructor_transparent_rhs(quote! {#arg_name}, direction))
                 } else {
+                    let skipped = match is_skipped(field) {
+                        Ok(skipped) => skipped,
+                        Err(e) => return Some(Err(e)),
+                    };
                     self.generate_constructor_field_rhs(
                         &field.ty,
                         quote! {#arg_name},
                         true,
+                        skipped,
                         direction,
                     )
+                    .transpose()
                 }
             })
             .collect();
@@ -699,15 +745,21 @@ impl VersionType {
         &self,
         ty: &Type,
         field_param: TokenStream,
-        is_ref: bool, // True if the param is already a reference
+        is_ref: bool,     // True if the param is already a reference
+        is_skipped: bool, // True if the field has the `skipped` attribute
         direction: ConversionDirection,
-    ) -> syn::Result<TokenStream> {
+    ) -> syn::Result<Option<TokenStream>> {
         let versionize_trait: Path = parse_const_str(VERSIONIZE_TRAIT_NAME);
         let versionize_owned_trait: Path = parse_const_str(VERSIONIZE_OWNED_TRAIT_NAME);
         let unversionize_trait: Path = parse_const_str(UNVERSIONIZE_TRAIT_NAME);
+        let default_trait: Path = parse_const_str(DEFAULT_TRAIT_NAME);
 
         let field_constructor = match direction {
             ConversionDirection::OrigToAssociated => {
+                if is_skipped {
+                    // Skipped fields does not exist in the associated type so we return None
+                    return Ok(None);
+                }
                 match self.kind {
                     AssociatedTypeKind::Ref(_) => {
                         let param = if is_ref {
@@ -727,12 +779,21 @@ impl VersionType {
             ConversionDirection::AssociatedToOrig => match self.kind {
                 AssociatedTypeKind::Ref(_) =>
 panic!("No conversion should be generated between associated ref type to original type"),
-                AssociatedTypeKind::Owned => quote! {
-                    <#ty as #unversionize_trait>::unversionize(#field_param)?
+                AssociatedTypeKind::Owned => {
+                    if is_skipped {
+                        // If the field is skipped, we try to construct it from a Default impl (this is what serde does)
+                        quote! {
+                            <#ty as #default_trait>::default()
+                        }
+                    } else {
+                        quote! {
+                            <#ty as #unversionize_trait>::unversionize(#field_param)?
+                        }
+                    }
                 },
             },
         };
-        Ok(field_constructor)
+        Ok(Some(field_constructor))
     }
 
     fn generate_constructor_transparent_rhs(
@@ -806,5 +867,21 @@ fn derive_type_fields(input: &DeriveInput) -> Punctuated<&Field, Comma> {
                 .flatten(),
         ),
         Data::Union(uni) => Punctuated::from_iter(uni.fields.named.iter()),
+    }
+}
+
+fn filter_skipped_field(field: &Field) -> Option<syn::Result<&Field>> {
+    match is_skipped(field) {
+        Ok(true) => None,
+        Ok(false) => Some(Ok(field)),
+        Err(e) => Some(Err(e)),
+    }
+}
+
+fn keep_skipped_field(field: &Field) -> Option<syn::Result<&Field>> {
+    match is_skipped(field) {
+        Ok(true) => Some(Ok(field)),
+        Ok(false) => None,
+        Err(e) => Some(Err(e)),
     }
 }
