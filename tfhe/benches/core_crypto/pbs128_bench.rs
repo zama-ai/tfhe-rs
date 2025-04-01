@@ -161,7 +161,7 @@ fn pbs_128(c: &mut Criterion) {
 mod cuda {
     use crate::utilities::{
         cuda_local_keys_core, cuda_local_streams_core, get_bench_type, throughput_num_threads,
-        write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord, CudaIndexes,
+        write_to_json, BenchmarkType, CpuKeys, CpuKeysBuilder, CryptoParametersRecord,
         CudaLocalKeys, OperatorType,
     };
     use criterion::{black_box, Criterion, Throughput};
@@ -169,13 +169,15 @@ mod cuda {
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
     use tfhe::core_crypto::gpu::{
-        cuda_programmable_bootstrap_lwe_ciphertext, get_number_of_gpus, CudaStreams,
+        cuda_programmable_bootstrap_128_lwe_ciphertext, get_number_of_gpus, CudaStreams,
     };
     use tfhe::core_crypto::prelude::*;
+    use tfhe::shortint::engine::ShortintEngine;
     use tfhe::shortint::parameters::{
         DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-        LweDimension, PolynomialSize,
+        LweDimension, ModulusSwitchNoiseReductionParams, PolynomialSize,
     };
+    use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
 
     fn cuda_pbs_128(c: &mut Criterion) {
         let bench_name = "core_crypto::cuda::pbs128";
@@ -190,10 +192,20 @@ mod cuda {
         let glwe_dimension = GlweDimension(2);
         let polynomial_size = PolynomialSize(2048);
         let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
+        let lwe_noise_distribution_u128: DynamicDistribution<u128> =
+            DynamicDistribution::new_t_uniform(46);
         let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
-        let pbs_base_log = DecompositionBaseLog(32);
+        let pbs_base_log = DecompositionBaseLog(24);
         let pbs_level = DecompositionLevelCount(3);
         let ciphertext_modulus = CiphertextModulus::new_native();
+        let ct_modulus_u64: CiphertextModulus<u64> = CiphertextModulus::new_native();
+
+        let modulus_switch_noise_reduction_params = ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: LweCiphertextCount(1449),
+            ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
+            ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
+            ms_input_variance: Variance(2.63039184094559E-7f64),
+        };
 
         let params_name = "PARAMS_SWITCH_SQUASH";
 
@@ -208,6 +220,15 @@ mod cuda {
 
         let input_lwe_secret_key =
             LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);
+
+        let input_lwe_secret_key_u128 = LweSecretKey::from_container(
+            input_lwe_secret_key
+                .as_ref()
+                .iter()
+                .copied()
+                .map(|x| x as u128)
+                .collect::<Vec<_>>(),
+        );
 
         let output_glwe_secret_key = GlweSecretKey::<Vec<Scalar>>::generate_new_binary(
             glwe_dimension,
@@ -227,6 +248,15 @@ mod cuda {
             ciphertext_modulus,
         );
 
+        let mut engine = ShortintEngine::new();
+        let modulus_switch_noise_reduction_key = Some(ModulusSwitchNoiseReductionKey::new(
+            modulus_switch_noise_reduction_params,
+            &input_lwe_secret_key,
+            &mut engine,
+            CiphertextModulus::new_native(),
+            lwe_noise_distribution,
+        ));
+
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
         let message_modulus: Scalar = 1 << 4;
@@ -239,13 +269,17 @@ mod cuda {
         match get_bench_type() {
             BenchmarkType::Latency => {
                 let streams = CudaStreams::new_multi_gpu();
-                let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, &streams);
+                let gpu_keys = CudaLocalKeys::from_cpu_keys(
+                    &cpu_keys,
+                    modulus_switch_noise_reduction_key.as_ref(),
+                    &streams,
+                );
 
                 let lwe_ciphertext_in: LweCiphertextOwned<Scalar> =
                     allocate_and_encrypt_new_lwe_ciphertext(
-                        &input_lwe_secret_key,
+                        &input_lwe_secret_key_u128,
                         plaintext,
-                        lwe_noise_distribution,
+                        lwe_noise_distribution_u128,
                         ciphertext_modulus,
                         &mut encryption_generator,
                     );
@@ -269,20 +303,14 @@ mod cuda {
                 let mut out_pbs_ct_gpu =
                     CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &streams);
 
-                let h_indexes = [Scalar::ZERO];
-                let cuda_indexes = CudaIndexes::new(&h_indexes, &streams, 0);
-
                 bench_id = format!("{bench_name}::{params_name}");
                 {
                     bench_group.bench_function(&bench_id, |b| {
                         b.iter(|| {
-                            cuda_programmable_bootstrap_lwe_ciphertext(
+                            cuda_programmable_bootstrap_128_lwe_ciphertext(
                                 &lwe_ciphertext_in_gpu,
                                 &mut out_pbs_ct_gpu,
                                 &accumulator_gpu,
-                                &cuda_indexes.d_lut,
-                                &cuda_indexes.d_output,
-                                &cuda_indexes.d_input,
                                 LweCiphertextCount(1),
                                 gpu_keys.bsk.as_ref().unwrap(),
                                 &streams,
@@ -293,7 +321,8 @@ mod cuda {
                 }
             }
             BenchmarkType::Throughput => {
-                let gpu_keys_vec = cuda_local_keys_core(&cpu_keys);
+                let gpu_keys_vec =
+                    cuda_local_keys_core(&cpu_keys, modulus_switch_noise_reduction_key.as_ref());
                 let gpu_count = get_number_of_gpus() as usize;
 
                 bench_id = format!("{bench_name}::throughput::{params_name}");
@@ -318,10 +347,10 @@ mod cuda {
                                 );
 
                                 encrypt_lwe_ciphertext_list(
-                                    &input_lwe_secret_key,
+                                    &input_lwe_secret_key_u128,
                                     &mut input_ct_list,
                                     &plaintext_list,
-                                    lwe_noise_distribution,
+                                    lwe_noise_distribution_u128,
                                     &mut encryption_generator,
                                 );
 
@@ -363,32 +392,14 @@ mod cuda {
                             })
                             .collect::<Vec<_>>();
 
-                        let h_indexes = (0..(elements / gpu_count as u64))
-                            .map(CastFrom::cast_from)
-                            .collect::<Vec<_>>();
-                        let cuda_indexes_vec = (0..gpu_count)
-                            .map(|i| CudaIndexes::new(&h_indexes, &local_streams[i], 0))
-                            .collect::<Vec<_>>();
                         local_streams.iter().for_each(|stream| stream.synchronize());
 
-                        (
-                            input_cts,
-                            output_cts,
-                            accumulators,
-                            cuda_indexes_vec,
-                            local_streams,
-                        )
+                        (input_cts, output_cts, accumulators, local_streams)
                     };
 
                     b.iter_batched(
                         setup_encrypted_values,
-                        |(
-                            input_cts,
-                            mut output_cts,
-                            accumulators,
-                            cuda_indexes_vec,
-                            local_streams,
-                        )| {
+                        |(input_cts, mut output_cts, accumulators, local_streams)| {
                             (0..gpu_count)
                                 .into_par_iter()
                                 .zip(input_cts.par_iter())
@@ -397,13 +408,10 @@ mod cuda {
                                 .zip(local_streams.par_iter())
                                 .for_each(
                                     |((((i, input_ct), output_ct), accumulator), local_stream)| {
-                                        cuda_programmable_bootstrap_lwe_ciphertext(
+                                        cuda_programmable_bootstrap_128_lwe_ciphertext(
                                             input_ct,
                                             output_ct,
                                             accumulator,
-                                            &cuda_indexes_vec[i].d_lut,
-                                            &cuda_indexes_vec[i].d_output,
-                                            &cuda_indexes_vec[i].d_input,
                                             LweCiphertextCount(1),
                                             gpu_keys_vec[i].bsk.as_ref().unwrap(),
                                             local_stream,
@@ -425,7 +433,7 @@ mod cuda {
             glwe_noise_distribution: Some(glwe_noise_distribution),
             pbs_base_log: Some(pbs_base_log),
             pbs_level: Some(pbs_level),
-            ciphertext_modulus: Some(ciphertext_modulus),
+            ciphertext_modulus: Some(ct_modulus_u64),
             ..Default::default()
         };
 

@@ -654,6 +654,7 @@ mod cuda_utils {
     use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
+    use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
 
     #[allow(dead_code)]
     pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
@@ -754,7 +755,11 @@ mod cuda_utils {
 
     #[allow(dead_code)]
     impl<T: UnsignedInteger> CudaLocalKeys<T> {
-        pub fn from_cpu_keys(cpu_keys: &CpuKeys<T>, stream: &CudaStreams) -> Self {
+        pub fn from_cpu_keys(
+            cpu_keys: &CpuKeys<T>,
+            ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+            stream: &CudaStreams,
+        ) -> Self {
             Self {
                 ksk: cpu_keys
                     .ksk
@@ -763,10 +768,9 @@ mod cuda_utils {
                 pksk: cpu_keys.pksk.as_ref().map(|pksk| {
                     CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(pksk, stream)
                 }),
-                bsk: cpu_keys
-                    .bsk
-                    .as_ref()
-                    .map(|bsk| CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, None, stream)),
+                bsk: cpu_keys.bsk.as_ref().map(|bsk| {
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(bsk, ms_noise_reduction_key, stream)
+                }),
                 multi_bit_bsk: cpu_keys.multi_bit_bsk.as_ref().map(|mb_bsk| {
                     CudaLweMultiBitBootstrapKey::from_lwe_multi_bit_bootstrap_key(mb_bsk, stream)
                 }),
@@ -778,12 +782,17 @@ mod cuda_utils {
     #[allow(dead_code)]
     pub fn cuda_local_keys_core<T: UnsignedInteger>(
         cpu_keys: &CpuKeys<T>,
+        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
     ) -> Vec<CudaLocalKeys<T>> {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);
         for i in 0..gpu_count {
             let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
-            gpu_keys_vec.push(CudaLocalKeys::from_cpu_keys(cpu_keys, &stream));
+            gpu_keys_vec.push(CudaLocalKeys::from_cpu_keys(
+                cpu_keys,
+                ms_noise_reduction_key,
+                &stream,
+            ));
         }
         gpu_keys_vec
     }

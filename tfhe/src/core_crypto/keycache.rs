@@ -1,3 +1,5 @@
+#[cfg(feature = "gpu")]
+use crate::core_crypto::algorithms::test::NoiseSquashingTestParams;
 use crate::core_crypto::algorithms::test::{
     ClassicBootstrapKeys, ClassicTestParams, FftBootstrapKeys, FftTestParams, FftWopPbsKeys,
     FftWopPbsTestParams, MultiBitBootstrapKeys, MultiBitTestParams, PackingKeySwitchKeys,
@@ -9,7 +11,6 @@ use serde::Serialize;
 #[cfg(feature = "internal-keycache")]
 use std::fmt::Debug;
 use std::sync::LazyLock;
-
 pub struct KeyCacheCoreImpl<P, K>
 where
     P: Copy + NamedParam + DeserializeOwned + Serialize + PartialEq,
@@ -62,6 +63,9 @@ pub struct KeyCache {
     u64_fft_wopbs_cache: KeyCacheCoreImpl<FftWopPbsTestParams<u64>, FftWopPbsKeys<u64>>,
     u32_pksk_cache: KeyCacheCoreImpl<PackingKeySwitchTestParams<u32>, PackingKeySwitchKeys<u32>>,
     u64_pksk_cache: KeyCacheCoreImpl<PackingKeySwitchTestParams<u64>, PackingKeySwitchKeys<u64>>,
+    #[cfg(feature = "gpu")]
+    u128_noise_squashing_cache:
+        KeyCacheCoreImpl<NoiseSquashingTestParams<u128>, FftBootstrapKeys<u128>>,
 }
 
 impl KeyCache {
@@ -174,6 +178,14 @@ impl KeyCacheAccess for PackingKeySwitchTestParams<u64> {
 
     fn access(keycache: &KeyCache) -> &KeyCacheCoreImpl<Self, Self::Keys> {
         &keycache.u64_pksk_cache
+    }
+}
+#[cfg(feature = "gpu")]
+impl KeyCacheAccess for NoiseSquashingTestParams<u128> {
+    type Keys = FftBootstrapKeys<u128>;
+
+    fn access(keycache: &KeyCache) -> &KeyCacheCoreImpl<Self, Self::Keys> {
+        &keycache.u128_noise_squashing_cache
     }
 }
 
