@@ -312,7 +312,7 @@ pub fn write_to_json<
 
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
-const HPU_BENCH_BIT_SIZES: [usize; 4] = [8, 16, 32, 64];
+const HPU_BENCH_BIT_SIZES: [usize; 5] = [8, 16, 32, 64, 128];
 const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
 
 /// User configuration in which benchmarks must be run.

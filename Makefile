@@ -1158,7 +1158,7 @@ bench_integer_hpu: install_rs_check_toolchain
 	HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" AVED_PCIE_DEV="$(AVED_PCIE_DEV)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,hpu,hpu-aved -p $(TFHE_SPEC) -- --quick
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
