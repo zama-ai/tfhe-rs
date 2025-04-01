@@ -281,9 +281,7 @@ impl PeStore {
             .0
             .iter_mut()
             .enumerate()
-            .filter(|(_, (_, pe))| {
-                (InstructionKind::None != (pe.kind & kind_1h)) && !pe.is_busy() && !pe.is_full()
-            })
+            .filter(|(_, (_, pe))| (InstructionKind::None != (pe.kind & kind_1h)) && !pe.is_full())
             .collect::<Vec<_>>();
 
         capable_pe.first_mut().map(|(id, (_, pe))| {

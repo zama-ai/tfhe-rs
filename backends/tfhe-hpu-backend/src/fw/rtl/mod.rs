@@ -12,6 +12,7 @@ use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
 use super::program::{AtomicRegType, Program, StmtLink};
 use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
+use bitflags::bitflags;
 use config::FlushBehaviour;
 use config::OpCfg;
 use enum_dispatch::enum_dispatch;
@@ -36,7 +37,7 @@ pub struct LoadStats {
 
 // Encodes an operation priority when scheduling
 // Order first by depth, then by most registers, then by uid
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Prio {
     latency_tier: usize,
     depth: usize,
@@ -46,12 +47,13 @@ struct Prio {
 
 impl From<&OperationCell> for Prio {
     fn from(value: &OperationCell) -> Self {
-        let stats = value.borrow().load_stats().clone().unwrap_or_default();
+        let value = value.borrow();
+        let stats = value.load_stats().clone().unwrap_or_default();
         Prio {
             latency_tier: value.latency_tier(),
             depth: stats.depth,
-            uid: *value.borrow().uid(),
-            reg_balance: value.borrow().src().len(),
+            uid: *value.uid(),
+            reg_balance: value.src().len(),
         }
     }
 }
@@ -280,10 +282,10 @@ where
     fn src(&self) -> &Vec<VarCell>;
     fn uid(&self) -> &usize;
     fn load_stats(&self) -> &Option<LoadStats>;
+    fn load_stats_mut(&mut self) -> &mut Option<LoadStats>;
     fn clear_src(&mut self);
     fn clear_dst(&mut self);
     fn kind(&self) -> InstructionKind;
-    fn set_load_stats(&mut self, stats: LoadStats);
     fn clone_on(&self, prog: &Program) -> Operation;
     // {{{1 Debug
     // -----------------------------------------------------------------------
@@ -885,9 +887,6 @@ impl OperationCell {
     fn copy_src(&self) -> Vec<VarCell> {
         self.0.borrow().src().clone()
     }
-    fn prio(&self) -> Prio {
-        Prio::from(self)
-    }
     fn kind(&self) -> InstructionKind {
         self.0.borrow().kind()
     }
@@ -898,8 +897,8 @@ impl OperationCell {
         self.0.borrow().is_pbs()
     }
 
-    fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
-        self.0.borrow_mut().set_load_stats(stats.clone());
+    pub fn set_load_stats(&self, stats: LoadStats) -> LoadStats {
+        *self.0.borrow_mut().load_stats_mut() = Some(stats.clone());
         stats
     }
 
@@ -1082,7 +1081,7 @@ impl From<Operation> for OperationCell {
 // operations
 impl Ord for OperationCell {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        other.prio().cmp(&self.prio())
+        Prio::from(other).cmp(&Prio::from(self))
     }
 }
 
@@ -1149,6 +1148,14 @@ impl std::ops::ShlAssign<&VarCell> for VarCell {
     }
 }
 
+// I was expecting more events to be waited for...
+bitflags! {
+    #[derive(Clone)]
+    struct WaitEvents: u8 {
+        const RdUnlock = 0x1;
+    }
+}
+
 // Used to emulate the ALU store add instructions to the program and manipulate
 // the register file
 struct Arch {
@@ -1162,6 +1169,7 @@ struct Arch {
     use_ipip: bool,
     cfg: OpCfg,
     timeout: Option<usize>,
+    waiting_for: WaitEvents,
 }
 
 // An interface to the target architecture
@@ -1181,14 +1189,26 @@ impl Arch {
             0
         };
 
+        self.waiting_for = WaitEvents::empty();
+
         let ret = op
             .into_sorted_vec()
             .into_iter()
             .filter_map(|mut op| {
                 if op.latency_tier() >= max_tier {
                     if let Some(id) = {
-                        op.peek_prog(self.program.as_mut())
+                        // Shortcut peeking the program if the PE won't
+                        // accept our kind. Peeking the program is very
+                        // heavy.
+                        self.pe_store
+                            .avail_kind()
+                            .intersects(op.kind())
                             .then_some(true)
+                            .and_then(|_| {
+                                let prog_ok = op.peek_prog(self.program.as_mut());
+                                self.waiting_for.set(WaitEvents::RdUnlock, !prog_ok);
+                                prog_ok.then_some(true)
+                            })
                             .and_then(|_| self.pe_store.try_push(op.kind(), false))
                     } {
                         max_tier = if self.cfg.use_tiers {
@@ -1245,60 +1265,81 @@ impl Arch {
     }
 
     pub fn done(&mut self) -> Option<OperationCell> {
-        trace!("Events: {:?}", self.events);
-        trace!("rd_pdg: {:?}", self.rd_pdg);
-        trace!("queued: {:?}", self.queued);
-        trace!("wr_pdg: {:?}", self.wr_pdg);
+        assert!(!self.events.is_empty());
 
-        let isc_sim::Event {
-            at_cycle,
-            event_type,
-        } = {
-            let mut event = self.events.pop();
-            if self.timeout.is_some()
-                && self.timeout.unwrap() < event.as_ref().map(|x| x.at_cycle).unwrap_or(usize::MAX)
-            {
-                self.probe_for_exec(Some(PeFlush::Timeout));
-                self.timeout = None;
-                if let Some(event) = event {
-                    self.events.push(event);
-                }
-                event = self.events.pop();
-            }
-            event.expect("Event queue is empty")
-        };
-        self.cycle = at_cycle;
+        let waiting_for = self.waiting_for.clone();
+        let mut waiting = (true, None);
 
-        match event_type {
-            isc_sim::EventType::RdUnlock(_, id) => {
-                // update associated pe state
-                self.pe_store.rd_unlock(id);
-                let mut op = self.rd_pdg.get_mut(&id).unwrap().pop_back().unwrap();
-                op.add_prog(self.program.as_mut());
-                op.free_rd();
-                self.queued.entry(id).or_default().push_front(op);
-                None
-            }
-            isc_sim::EventType::BatchStart { pe_id, issued } => {
-                self.queued.entry(pe_id).and_modify(|fifo| {
-                    let mut batch = fifo.split_off(fifo.len() - issued);
-                    if self.cfg.flush {
-                        batch.front_mut().unwrap().to_flush();
+        while let (true, _) = waiting {
+            trace!("---------- Processing Loop ------------");
+            trace!("Events: {:?}", self.events);
+            trace!("rd_pdg: {:?}", self.rd_pdg);
+            trace!("queued: {:?}", self.queued);
+            trace!("wr_pdg: {:?}", self.wr_pdg);
+            trace!("---------------------------------------");
+
+            let event = {
+                let mut event = self.events.pop();
+                if self.timeout.is_some()
+                    && self.timeout.unwrap()
+                        < event.as_ref().map(|x| x.at_cycle).unwrap_or(usize::MAX)
+                {
+                    self.probe_for_exec(Some(PeFlush::Timeout));
+                    self.timeout = None;
+                    if let Some(event) = event {
+                        self.events.push(event);
                     }
-                    let fifo = self.wr_pdg.entry(pe_id).or_default();
-                    batch.into_iter().for_each(|e| fifo.push_front(e));
-                });
-                None
-            }
-            isc_sim::EventType::WrUnlock(_, id) => {
-                // update associated pe state
-                self.pe_store.wr_unlock(id);
-                let mut op = self.wr_pdg.get_mut(&id).unwrap().pop_back().unwrap();
-                op.free_wr();
-                Some(op)
-            }
-            _ => panic!("Received an unexpected event: {:?}", event_type),
+                    event = self.events.pop();
+                }
+                event
+            };
+
+            waiting = if let Some(isc_sim::Event {
+                at_cycle,
+                event_type,
+            }) = event
+            {
+                self.cycle = at_cycle;
+
+                match event_type {
+                    isc_sim::EventType::RdUnlock(_, id) => {
+                        // update associated pe state
+                        self.pe_store.rd_unlock(id);
+                        self.probe_for_exec(None);
+
+                        let mut op = self.rd_pdg.get_mut(&id).unwrap().pop_back().unwrap();
+                        op.add_prog(self.program.as_mut());
+                        op.free_rd();
+                        self.queued.entry(id).or_default().push_front(op);
+                        (!(waiting_for.intersects(WaitEvents::RdUnlock)), None)
+                    }
+                    isc_sim::EventType::BatchStart { pe_id, issued } => {
+                        self.queued.entry(pe_id).and_modify(|fifo| {
+                            let mut batch = fifo.split_off(fifo.len() - issued);
+                            if self.cfg.flush {
+                                batch.front_mut().unwrap().to_flush();
+                            }
+                            let fifo = self.wr_pdg.entry(pe_id).or_default();
+                            batch.into_iter().for_each(|e| fifo.push_front(e));
+                        });
+                        (true, None)
+                    }
+                    isc_sim::EventType::WrUnlock(_, id) => {
+                        // update associated pe state
+                        self.pe_store.wr_unlock(id);
+                        self.probe_for_exec(None);
+
+                        let mut op = self.wr_pdg.get_mut(&id).unwrap().pop_back().unwrap();
+                        op.free_wr();
+                        (false, Some(op))
+                    }
+                    _ => panic!("Received an unexpected event: {:?}", event_type),
+                }
+            } else {
+                (false, None)
+            };
         }
+        waiting.1
     }
 
     pub fn busy(&self) -> bool {
@@ -1372,6 +1413,7 @@ impl Arch {
             wr_pdg: HashMap::new(),
             cfg: op_cfg,
             timeout: None,
+            waiting_for: WaitEvents::empty(),
         }
     }
 }
@@ -1409,34 +1451,34 @@ impl Rtl {
             .iter()
             .filter_map(|v| v.copy_driver().map(|(d, _)| d))
             .collect();
+        let mut all: HashSet<OperationCell> = HashSet::new();
 
         while !to_check.is_empty() {
             let op = to_check.pop_front().unwrap();
 
-            if ready.contains(&op) || not_ready.contains(&op) {
-                continue;
-            }
-
-            if op.is_ready() {
-                ready.insert(op.clone());
-            } else {
-                not_ready.insert(op.clone());
-                to_check.extend(
-                    op.copy_src()
-                        .into_iter()
-                        .flat_map(|v| v.copy_driver().map(|(d, _)| d)),
-                );
+            if !all.contains(&op) {
+                if op.is_ready() {
+                    ready.insert(op.clone());
+                } else {
+                    not_ready.insert(op.clone());
+                    to_check.extend(
+                        op.copy_src()
+                            .into_iter()
+                            .flat_map(|v| v.copy_driver().map(|(d, _)| d)),
+                    );
+                }
+                all.insert(op);
             }
         }
 
         ready.iter().for_each(|op| {
-            op.set_load_stats(op.copy_load_stats());
+            op.set_load_stats(op.compute_load_stats());
         });
 
         ready
     }
 
-    #[instrument(level = "trace", skip(prog))]
+    #[instrument(level = "trace", skip(self, prog))]
     pub fn raw_add(mut self, prog: &Program) -> (usize, Vec<MetaVarCell>) {
         self.load();
 
@@ -1482,12 +1524,12 @@ impl Rtl {
         )
     }
 
-    #[instrument(level = "trace", skip(prog))]
+    #[instrument(level = "trace", skip(self, prog))]
     pub fn add_to_prog(self, prog: &Program) -> Vec<MetaVarCell> {
         self.raw_add(prog).1
     }
 
-    #[instrument(level = "trace", skip(prog))]
+    #[instrument(level = "trace", skip(self, prog))]
     pub fn estimate(self, prog: &Program) -> usize {
         self.raw_add(prog).0
     }
