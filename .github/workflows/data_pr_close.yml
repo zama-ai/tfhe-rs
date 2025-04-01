@@ -8,7 +8,7 @@ env:
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  PR_BRANCH: ${{ github.ref_name }}
+  PR_BRANCH: ${{ github.head_ref || github.ref_name }}
   CLOSE_TYPE: ${{ github.event.pull_request.merged && 'merge' || 'close' }}
 
 # only trigger on pull request closed events
