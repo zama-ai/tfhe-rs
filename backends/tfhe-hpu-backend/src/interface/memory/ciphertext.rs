@@ -232,4 +232,15 @@ impl CiphertextMemory {
             }
         }
     }
+
+    /// Enforce CiphertextMemory completness and ordering
+    /// Use to prevent fragmentation between various workload
+    ///
+    /// Warn: This function could block in case of un-released ciphertext slots
+    #[tracing::instrument(level = "debug", skip(self), ret)]
+    pub fn reorder_pool(&self) {
+        let all_in_one_bundle = self.get_bundle(self.pool.capacity());
+        std::hint::black_box(&all_in_one_bundle);
+        drop(all_in_one_bundle);
+    }
 }
