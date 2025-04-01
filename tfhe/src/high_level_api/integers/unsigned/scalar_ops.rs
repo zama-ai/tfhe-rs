@@ -512,57 +512,6 @@ macro_rules! generic_integer_impl_scalar_div_rem {
         )* // Closing first repeating pattern
     };
 }
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_div_rem!(
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-
-generic_integer_impl_scalar_div_rem!(
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
 // Ciphertext/Scalar ops
 macro_rules! generic_integer_impl_scalar_operation {
     (
@@ -574,7 +523,7 @@ macro_rules! generic_integer_impl_scalar_operation {
         // A 'list' of tuple, where the first element is the concrete Fhe type
         // e.g (FheUint8 and the rest is scalar types (u8, u16, etc)
         fhe_and_scalar_type: $(
-            ($concrete_type:ty, $($scalar_type:ty),*)
+            ($concrete_type:ty, $($scalar_type:ty),* $(,)?)
         ),*
         $(,)?
     ) => {
@@ -605,1124 +554,6 @@ macro_rules! generic_integer_impl_scalar_operation {
 }
 
 pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_operation;
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Add(add),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_add(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Add(add),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_add(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Sub(sub),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_sub(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Sub(sub),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_sub(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Mul(mul),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_mul(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Mul(mul),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_mul(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitand(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitand(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitOr(bitor),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitOr(bitor),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitxor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_bitxor(
-                            &*lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Shl(shl),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_left_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Shl(shl),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_left_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Shr(shr),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_right_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Shr(shr),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_right_shift(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: RotateLeft(rotate_left),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_left(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: RotateLeft(rotate_left),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_left(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: RotateRight(rotate_right),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_right(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: RotateRight(rotate_right),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rotate_right(
-                            &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Div(div),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_div(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Div(div),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_div(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation!(
-    rust_trait: Rem(rem),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rem(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation!(
-    rust_trait: Rem(rem),
-    implem: {
-        |lhs: &FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let inner_result = cpu_key
-                        .pbs_key()
-                        .scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
-                    RadixCiphertext::Cpu(inner_result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    let inner_result = with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key.scalar_rem(
-                            &lhs.ciphertext.on_gpu(streams), rhs, streams
-                        )
-                    });
-                    RadixCiphertext::Cuda(inner_result)
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
 
 // Scalar / Ciphertext ops
 macro_rules! generic_integer_impl_scalar_left_operation {
@@ -1791,540 +622,6 @@ macro_rules! generic_integer_impl_scalar_left_operation {
 
 pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_left_operation;
 
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Add(add),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `+` is commutative
-            let result: FheUint<_> = rhs + lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Add(add),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `+` is commutative
-            let result: FheUint<_> = rhs + lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Adds a [super::FheUint16] to a clear
-            ///
-            /// The operation is modular, i.e on overflow it wraps around.
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a + &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 + 3u16);
-            /// ```
-             u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Sub(sub),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-             global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let result = cpu_key.pbs_key().left_scalar_sub_parallelized(lhs, &*rhs.ciphertext.on_cpu());
-                    RadixCiphertext::Cpu(result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        let mut result: CudaUnsignedRadixCiphertext = cuda_key.pbs_key().create_trivial_radix(
-                            lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
-                        cuda_key.pbs_key().sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
-                        RadixCiphertext::Cuda(result)
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Sub(sub),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    let result = cpu_key.pbs_key().left_scalar_sub_parallelized(lhs, &*rhs.ciphertext.on_cpu());
-                    RadixCiphertext::Cpu(result)
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        let mut result: CudaUnsignedRadixCiphertext = cuda_key.pbs_key().create_trivial_radix(
-                            lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
-                        cuda_key.pbs_key().sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
-                        RadixCiphertext::Cuda(result)
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Subtract a [super::FheUint16] to a clear
-            ///
-            /// The operation is modular, i.e on overflow it wraps around.
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a - &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 - 3u16);
-            /// ```
-            u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Mul(mul),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `*` is commutative
-            let result: FheUint<_> = rhs * lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: Mul(mul),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `*` is commutative
-            let result: FheUint<_> = rhs * lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Multiplies a [super::FheUint16] to a clear
-            ///
-            /// The operation is modular, i.e on overflow it wraps around.
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a * &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 * 3u16);
-            /// ```
-            u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `&` is commutative
-            let result: FheUint<_> = rhs & lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitAnd(bitand),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `&` is commutative
-            let result: FheUint<_> = rhs & lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Performs a bitwise 'and' between a clear and [super::FheUint16]
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a & &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 & 3u16);
-            /// ```
-             u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitOr(bitor),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `|` is commutative
-            let result: FheUint<_> = rhs | lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitOr(bitor),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `|` is commutative
-            let result: FheUint<_> = rhs | lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Performs a bitwise 'or' between a clear and [super::FheUint16]
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a | &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 | 3u16);
-            /// ```
-            u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `^` is commutative
-            let result: FheUint<_> = rhs ^ lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_left_operation!(
-    rust_trait: BitXor(bitxor),
-    implem: {
-        |lhs, rhs: &FheUint<_>| {
-            // `^` is commutative
-            let result: FheUint<_> = rhs ^ lhs;
-            result.ciphertext
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-            /// Performs a bitwise 'xor' between a clear and [super::FheUint16]
-            ///
-            /// # Example
-            ///
-            /// ```rust
-            /// use tfhe::prelude::*;
-            /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-            ///
-            /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-            /// set_server_key(server_key);
-            ///
-            /// let a = 23u16;
-            /// let b = FheUint16::encrypt(3u16, &client_key);
-            ///
-            /// let result = a ^ &b;
-            /// let result: u16 = result.decrypt(&client_key);
-            /// assert_eq!(result, 23u16 ^ 3u16);
-            /// ```
-            u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
 // Scalar assign ops
 macro_rules! generic_integer_impl_scalar_operation_assign {
     (
@@ -2335,7 +632,7 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
         // A 'list' of tuple, where the first element is the concrete Fhe type
         // e.g (FheUint8 and the rest is scalar types (u8, u16, etc)
         fhe_and_scalar_type: $(
-            ($concrete_type:ty, $($(#[$doc:meta])* $scalar_type:ty),*)
+            ($concrete_type:ty, $($(#[$doc:meta])* $scalar_type:ty),* $(,)?)
         ),*
         $(,)?
     ) => {
@@ -2355,1056 +652,926 @@ macro_rules! generic_integer_impl_scalar_operation_assign {
 
 pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_operation_assign;
 
+macro_rules! define_scalar_rotate_shifts {
+    (
+        $(
+            ($concrete_type:ty, $($scalar_type:ty),* $(,)?)
+        ),*
+        $(,)?
+    ) => {
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Shl(shl),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_left_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_left_shift(
+                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Shr(shr),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_right_shift_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_right_shift(
+                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: RotateLeft(rotate_left),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_rotate_left_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_rotate_left(
+                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: RotateRight(rotate_right),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_rotate_right_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_rotate_right(
+                                    &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: ShlAssign(shl_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: ShrAssign(shr_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: RotateLeftAssign(rotate_left_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: RotateRightAssign(rotate_right_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+    };
+}
+
 #[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: AddAssign(add_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
+define_scalar_rotate_shifts!(
+    (super::FheUint24, u8, u16, u32, u64, u128),
+    (super::FheUint40, u8, u16, u32, u64, u128),
+    (super::FheUint48, u8, u16, u32, u64, u128),
+    (super::FheUint56, u8, u16, u32, u64, u128),
+    (super::FheUint72, u8, u16, u32, u64, u128),
+    (super::FheUint80, u8, u16, u32, u64, u128),
+    (super::FheUint88, u8, u16, u32, u64, u128),
+    (super::FheUint96, u8, u16, u32, u64, u128),
+    (super::FheUint104, u8, u16, u32, u64, u128),
+    (super::FheUint112, u8, u16, u32, u64, u128),
+    (super::FheUint120, u8, u16, u32, u64, u128),
+    (super::FheUint136, u8, u16, u32, u64, u128, U256),
+    (super::FheUint144, u8, u16, u32, u64, u128, U256),
+    (super::FheUint152, u8, u16, u32, u64, u128, U256),
+    (super::FheUint168, u8, u16, u32, u64, u128, U256),
+    (super::FheUint176, u8, u16, u32, u64, u128, U256),
+    (super::FheUint184, u8, u16, u32, u64, u128, U256),
+    (super::FheUint192, u8, u16, u32, u64, u128, U256),
+    (super::FheUint200, u8, u16, u32, u64, u128, U256),
+    (super::FheUint208, u8, u16, u32, u64, u128, U256),
+    (super::FheUint216, u8, u16, u32, u64, u128, U256),
+    (super::FheUint224, u8, u16, u32, u64, u128, U256),
+    (super::FheUint232, u8, u16, u32, u64, u128, U256),
+    (super::FheUint240, u8, u16, u32, u64, u128, U256),
+    (super::FheUint248, u8, u16, u32, u64, u128, U256),
 );
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: AddAssign(add_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+
+define_scalar_rotate_shifts!(
+    (super::FheUint2, u8, u16, u32, u64, u128),
+    (super::FheUint4, u8, u16, u32, u64, u128),
+    (super::FheUint6, u8, u16, u32, u64, u128),
+    (super::FheUint8, u8, u16, u32, u64, u128),
+    (super::FheUint10, u8, u16, u32, u64, u128),
+    (super::FheUint12, u8, u16, u32, u64, u128),
+    (super::FheUint14, u8, u16, u32, u64, u128),
+    (super::FheUint16, u8, u16, u32, u64, u128),
+    (super::FheUint32, u8, u16, u32, u64, u128),
+    (super::FheUint64, u8, u16, u32, u64, u128),
+    (super::FheUint128, u8, u16, u32, u64, u128),
+    (super::FheUint160, u8, u16, u32, u64, u128, U256),
+    (super::FheUint256, u8, u16, u32, u64, u128, U256),
+    (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
+    (
+        super::FheUint1024,
+        u8,
+        u16,
+        u32,
+        u64,
+        u128,
+        U256,
+        U512,
+        U1024
+    ),
+    (
+        super::FheUint2048,
+        u8,
+        u16,
+        u32,
+        u64,
+        u128,
+        U256,
+        U512,
+        U1024,
+        U2048
+    ),
+);
+
+macro_rules! define_scalar_ops {
+    (
+        $(
+            ($concrete_type:ty, $($(#[$doc:meta])* $scalar_type:ty),*)
+        ),*
+        $(,)?
+    ) => {
+
+        generic_integer_impl_scalar_div_rem!(
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Add(add),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_add_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_add(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
                     })
                 }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16,
-        /// Adds a clear to a [super::FheUint16]
-        ///
-        /// The operation is modular, i.e. on overflow it wraps around.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use tfhe::prelude::*;
-        /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint16};
-        ///
-        /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
-        /// set_server_key(server_key);
-        ///
-        /// let mut a = FheUint16::encrypt(3u16, &client_key);
-        /// let b = 23u16;
-        ///
-        /// a += b;
-        ///
-        /// let result: u16 = a.decrypt(&client_key);
-        /// assert_eq!(result, 23u16 + 3u16);
-        /// ```
-        u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Sub(sub),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_sub_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_sub(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Mul(mul),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_mul_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_mul(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: BitAnd(bitand),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_bitand_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_bitand(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: BitOr(bitor),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_bitor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_bitor(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: BitXor(bitxor),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_bitxor_parallelized(&*lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_bitxor(
+                                    &*lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Div(div),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_div_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_div(
+                                    &lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation!(
+            rust_trait: Rem(rem),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let inner_result = cpu_key
+                                .pbs_key()
+                                .scalar_rem_parallelized(&lhs.ciphertext.on_cpu(), rhs);
+                            RadixCiphertext::Cpu(inner_result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.scalar_rem(
+                                    &lhs.ciphertext.on_gpu(streams), rhs, streams
+                                )
+                            });
+                            RadixCiphertext::Cuda(inner_result)
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        // Scalar Ops With Scalar As Lhs
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: Add(add),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    // `+` is commutative
+                    let result: FheUint<_> = rhs + lhs;
+                    result.ciphertext
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: Sub(sub),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            let result = cpu_key.pbs_key().left_scalar_sub_parallelized(lhs, &*rhs.ciphertext.on_cpu());
+                            RadixCiphertext::Cpu(result)
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                let mut result: CudaUnsignedRadixCiphertext = cuda_key.pbs_key().create_trivial_radix(
+                                    lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
+                                cuda_key.pbs_key().sub_assign(&mut result, &rhs.ciphertext.on_gpu(streams), streams);
+                                RadixCiphertext::Cuda(result)
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: Mul(mul),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    // `*` is commutative
+                    let result: FheUint<_> = rhs * lhs;
+                    result.ciphertext
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: BitAnd(bitand),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    // `&` is commutative
+                    let result: FheUint<_> = rhs & lhs;
+                    result.ciphertext
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: BitOr(bitor),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    // `|` is commutative
+                    let result: FheUint<_> = rhs | lhs;
+                    result.ciphertext
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_left_operation!(
+            rust_trait: BitXor(bitxor),
+            implem: {
+                |lhs, rhs: &FheUint<_>| {
+                    // `^` is commutative
+                    let result: FheUint<_> = rhs ^ lhs;
+                    result.ciphertext
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        // Scalar Assign Ops
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: AddAssign(add_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_add_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type,
+                        $(
+                            #[doc = "Performs an addition assignment operation of a clear to a [FheUint]."]
+                            $scalar_type
+                        )*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: SubAssign(sub_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: MulAssign(mul_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: BitAndAssign(bitand_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: BitOrAssign(bitor_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: BitXorAssign(bitxor_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(cuda_key) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key
+                                    .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
+                            })
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: DivAssign(div_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(_) => {
+                            panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        generic_integer_impl_scalar_operation_assign!(
+            rust_trait: RemAssign(rem_assign),
+            implem: {
+                |lhs: &mut FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(cpu_key) => {
+                            cpu_key
+                                .pbs_key()
+                                .scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
+                        },
+                        #[cfg(feature = "gpu")]
+                        InternalServerKey::Cuda(_) => {
+                            panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
+                        }
+                    })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+    };
+}
+
+define_scalar_ops!(
+    (super::FheUint2, u8),
+    (super::FheUint4, u8),
+    (super::FheUint6, u8),
+    (super::FheUint8, u8),
+    (super::FheUint10, u16),
+    (super::FheUint12, u16),
+    (super::FheUint14, u16),
+    (super::FheUint16, u16),
+    (super::FheUint32, u32),
+    (super::FheUint64, u64),
+    (super::FheUint128, u128),
+    (super::FheUint160, U256),
+    (super::FheUint256, U256),
+    (super::FheUint512, U512),
+    (super::FheUint1024, U1024),
+    (super::FheUint2048, U2048),
 );
 
 #[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: SubAssign(sub_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: SubAssign(sub_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_sub_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: MulAssign(mul_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: MulAssign(mul_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_mul_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitAndAssign(bitand_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitAndAssign(bitand_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitand_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitOrAssign(bitor_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitOrAssign(bitor_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitXorAssign(bitxor_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: BitXorAssign(bitxor_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_bitxor_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: ShlAssign(shl_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: ShlAssign(shl_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: ShrAssign(shr_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: ShrAssign(shr_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_right_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RotateLeftAssign(rotate_left_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RotateLeftAssign(rotate_left_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RotateRightAssign(rotate_right_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u8, u16, u32, u64, u128),
-        (super::FheUint40, u8, u16, u32, u64, u128),
-        (super::FheUint48, u8, u16, u32, u64, u128),
-        (super::FheUint56, u8, u16, u32, u64, u128),
-        (super::FheUint72, u8, u16, u32, u64, u128),
-        (super::FheUint80, u8, u16, u32, u64, u128),
-        (super::FheUint88, u8, u16, u32, u64, u128),
-        (super::FheUint96, u8, u16, u32, u64, u128),
-        (super::FheUint104, u8, u16, u32, u64, u128),
-        (super::FheUint112, u8, u16, u32, u64, u128),
-        (super::FheUint120, u8, u16, u32, u64, u128),
-        (super::FheUint136, u8, u16, u32, u64, u128, U256),
-        (super::FheUint144, u8, u16, u32, u64, u128, U256),
-        (super::FheUint152, u8, u16, u32, u64, u128, U256),
-        (super::FheUint168, u8, u16, u32, u64, u128, U256),
-        (super::FheUint176, u8, u16, u32, u64, u128, U256),
-        (super::FheUint184, u8, u16, u32, u64, u128, U256),
-        (super::FheUint192, u8, u16, u32, u64, u128, U256),
-        (super::FheUint200, u8, u16, u32, u64, u128, U256),
-        (super::FheUint208, u8, u16, u32, u64, u128, U256),
-        (super::FheUint216, u8, u16, u32, u64, u128, U256),
-        (super::FheUint224, u8, u16, u32, u64, u128, U256),
-        (super::FheUint232, u8, u16, u32, u64, u128, U256),
-        (super::FheUint240, u8, u16, u32, u64, u128, U256),
-        (super::FheUint248, u8, u16, u32, u64, u128, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RotateRightAssign(rotate_right_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rotate_right_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        cuda_key.key.key
-                            .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                    })
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8, u16, u32, u64, u128),
-        (super::FheUint4, u8, u16, u32, u64, u128),
-        (super::FheUint6, u8, u16, u32, u64, u128),
-        (super::FheUint8, u8, u16, u32, u64, u128),
-        (super::FheUint10, u8, u16, u32, u64, u128),
-        (super::FheUint12, u8, u16, u32, u64, u128),
-        (super::FheUint14, u8, u16, u32, u64, u128),
-        (super::FheUint16, u8, u16, u32, u64, u128),
-        (super::FheUint32, u8, u16, u32, u64, u128),
-        (super::FheUint64, u8, u16, u32, u64, u128),
-        (super::FheUint128, u8, u16, u32, u64, u128),
-        (super::FheUint160, u8, u16, u32, u64, u128, U256),
-        (super::FheUint256, u8, u16, u32, u64, u128, U256),
-        (super::FheUint512, u8, u16, u32, u64, u128, U256, U512),
-        (super::FheUint1024, u8, u16, u32, u64, u128, U256, U512, U1024),
-        (super::FheUint2048, u8, u16, u32, u64, u128, U256, U512, U1024, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: DivAssign(div_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: DivAssign(div_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("DivAssign '/=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
-);
-
-#[cfg(feature = "extended-types")]
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RemAssign(rem_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint24, u32),
-        (super::FheUint40, u64),
-        (super::FheUint48, u64),
-        (super::FheUint56, u64),
-        (super::FheUint72, u128),
-        (super::FheUint80, u128),
-        (super::FheUint88, u128),
-        (super::FheUint96, u128),
-        (super::FheUint104, u128),
-        (super::FheUint112, u128),
-        (super::FheUint120, u128),
-        (super::FheUint136, U256),
-        (super::FheUint144, U256),
-        (super::FheUint152, U256),
-        (super::FheUint168, U256),
-        (super::FheUint176, U256),
-        (super::FheUint184, U256),
-        (super::FheUint192, U256),
-        (super::FheUint200, U256),
-        (super::FheUint208, U256),
-        (super::FheUint216, U256),
-        (super::FheUint224, U256),
-        (super::FheUint232, U256),
-        (super::FheUint240, U256),
-        (super::FheUint248, U256),
-);
-generic_integer_impl_scalar_operation_assign!(
-    rust_trait: RemAssign(rem_assign),
-    implem: {
-        |lhs: &mut FheUint<_>, rhs| {
-            global_state::with_internal_keys(|key| match key {
-                InternalServerKey::Cpu(cpu_key) => {
-                    cpu_key
-                        .pbs_key()
-                        .scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
-                },
-                #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(_) => {
-                    panic!("RemAssign '%=' with clear value is not yet supported by Cuda devices")
-                }
-            })
-        }
-    },
-    fhe_and_scalar_type:
-        (super::FheUint2, u8),
-        (super::FheUint4, u8),
-        (super::FheUint6, u8),
-        (super::FheUint8, u8),
-        (super::FheUint10, u16),
-        (super::FheUint12, u16),
-        (super::FheUint14, u16),
-        (super::FheUint16, u16),
-        (super::FheUint32, u32),
-        (super::FheUint64, u64),
-        (super::FheUint128, u128),
-        (super::FheUint160, U256),
-        (super::FheUint256, U256),
-        (super::FheUint512, U512),
-        (super::FheUint1024, U1024),
-        (super::FheUint2048, U2048),
+define_scalar_ops!(
+    (super::FheUint24, u32),
+    (super::FheUint40, u64),
+    (super::FheUint48, u64),
+    (super::FheUint56, u64),
+    (super::FheUint72, u128),
+    (super::FheUint80, u128),
+    (super::FheUint88, u128),
+    (super::FheUint96, u128),
+    (super::FheUint104, u128),
+    (super::FheUint112, u128),
+    (super::FheUint120, u128),
+    (super::FheUint136, U256),
+    (super::FheUint144, U256),
+    (super::FheUint152, U256),
+    (super::FheUint168, U256),
+    (super::FheUint176, U256),
+    (super::FheUint184, U256),
+    (super::FheUint192, U256),
+    (super::FheUint200, U256),
+    (super::FheUint208, U256),
+    (super::FheUint216, U256),
+    (super::FheUint224, U256),
+    (super::FheUint232, U256),
+    (super::FheUint240, U256),
+    (super::FheUint248, U256),
 );
