@@ -293,6 +293,9 @@ pub fn main() {
             width_report.insert(iop.to_string(), op_duration);
         }
         report.push((format!("Integer_{width}"), width_report));
+
+        // Prevent potential performance dropdown due to memory fragrmentation
+        hpu_device.mem_sanitizer();
     }
 
     // Display summary report ----------------------------------------------------------
