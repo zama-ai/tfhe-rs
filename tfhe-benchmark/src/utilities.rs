@@ -372,7 +372,7 @@ pub fn get_bench_type() -> &'static BenchmarkType {
 
 /// Number of streaming multiprocessors (SM) available on Nvidia H100 GPU
 #[cfg(feature = "gpu")]
-const H100_PCIE_SM_COUNT: u32 = 132;
+const H100_PCIE_SM_COUNT: u32 = 114;
 
 /// Generate a number of threads to use to saturate current machine for throughput measurements.
 pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
@@ -380,7 +380,7 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil().min(1.0);
     // Some operations with a high serial workload (e.g. division) would yield an operation
     // loading value so low that the number of elements in the end wouldn't be meaningful.
-    let minimum_loading = if num_block < 64 { 0.2 } else { 0.1 };
+    let minimum_loading = if num_block < 64 { 0.2 } else { 0.01 };
 
     #[cfg(feature = "gpu")]
     {

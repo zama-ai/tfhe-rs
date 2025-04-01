@@ -147,49 +147,6 @@ features = [
 ]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
-###########
-#         #
-# Benches #
-#         #
-###########
-
-[[bench]]
-name = "ks-bench"
-path = "benches/core_crypto/ks_bench.rs"
-harness = false
-required-features = ["shortint", "internal-keycache"]
-
-[[bench]]
-name = "pbs-bench"
-path = "benches/core_crypto/pbs_bench.rs"
-harness = false
-required-features = ["boolean", "shortint", "internal-keycache"]
-
-[[bench]]
-name = "ks-pbs-bench"
-path = "benches/core_crypto/ks_pbs_bench.rs"
-harness = false
-required-features = ["shortint", "internal-keycache"]
-
-[[bench]]
-name = "dev-bench"
-path = "benches/core_crypto/dev_bench.rs"
-harness = false
-required-features = ["internal-keycache"]
-
-[[bench]]
-name = "modulus_switch_noise_reduction"
-path = "benches/core_crypto/modulus_switch_noise_reduction.rs"
-harness = false
-required-features = ["shortint"]
-
-
-[[bench]]
-name = "pbs128-bench"
-path = "benches/core_crypto/pbs128_bench.rs"
-harness = false
-required-features = ["shortint"]
-
 # Examples used as tools
 
 [[example]]

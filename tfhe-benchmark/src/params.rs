@@ -1,3 +1,25 @@
+#[cfg(feature = "boolean")]
+pub mod boolean_params {
+    use crate::utilities::CryptoParametersRecord;
+    use tfhe::boolean::parameters::{DEFAULT_PARAMETERS, PARAMETERS_ERROR_PROB_2_POW_MINUS_165};
+
+    pub fn benchmark_32bits_parameters() -> Vec<(String, CryptoParametersRecord<u32>)> {
+        [
+            ("BOOLEAN_DEFAULT_PARAMS", DEFAULT_PARAMETERS),
+            (
+                "BOOLEAN_TFHE_LIB_PARAMS",
+                PARAMETERS_ERROR_PROB_2_POW_MINUS_165,
+            ),
+        ]
+        .iter()
+        .map(|(name, params)| (name.to_string(), params.to_owned().into()))
+        .collect()
+    }
+}
+
+#[cfg(feature = "boolean")]
+pub use boolean_params::*;
+
 #[cfg(feature = "shortint")]
 pub mod shortint_params {
     use crate::params_aliases::*;
@@ -79,7 +101,45 @@ pub mod shortint_params {
         }
     }
 
-    pub fn multi_bit_benchmark_parameters(
+    pub fn multi_bit_benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+        match get_parameters_set() {
+            ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
+                .iter()
+                .map(|params| {
+                    (
+                        params.name(),
+                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                            .to_owned()
+                            .into(),
+                    )
+                })
+                .collect(),
+            ParametersSet::All => {
+                let desired_backend = if cfg!(feature = "gpu") {
+                    DesiredBackend::Gpu
+                } else {
+                    DesiredBackend::Cpu
+                };
+                filter_parameters(
+                    &BENCH_ALL_MULTI_BIT_PBS_PARAMETERS,
+                    DesiredNoiseDistribution::Both,
+                    desired_backend,
+                )
+                .into_iter()
+                .map(|(params, name)| {
+                    (
+                        name.to_string(),
+                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                            .to_owned()
+                            .into(),
+                    )
+                })
+                .collect()
+            }
+        }
+    }
+
+    pub fn multi_bit_benchmark_parameters_with_grouping(
     ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
         match get_parameters_set() {
             ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
@@ -138,6 +198,17 @@ pub mod shortint_params {
                 .map(|p| (*p).into())
                 .collect()
         }
+    }
+
+    pub fn benchmark_compression_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+        vec![(
+            BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.name(),
+            (
+                BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            )
+                .into(),
+        )]
     }
 
     // This array has been built according to performance benchmarks measuring latency over a

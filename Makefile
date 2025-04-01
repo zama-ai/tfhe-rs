@@ -1200,56 +1200,56 @@ bench_ks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_gpu # Run benchmarks for keyswitch on GPU backend
 bench_ks_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
 bench_ks_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-pbs-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_pbs_gpu # Run benchmarks for KS-PBS on GPU backend
 bench_ks_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
 bench_pbs128: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs128-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs128_gpu # Run benchmarks for PBS using FFT 128 bits on GPU
 bench_pbs128_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs128-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
