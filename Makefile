@@ -1076,7 +1076,14 @@ dieharder_csprng: install_dieharder build_tfhe_csprng
 .PHONY: clippy_bench # Run clippy lints on tfhe-benchmark
 clippy_bench: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
-		--all-features -p tfhe-benchmark -- --no-deps -D warnings
+		--features=boolean,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		-p tfhe-benchmark -- --no-deps -D warnings
+
+.PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
+clippy_bench_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=gpu,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		-p tfhe-benchmark -- --no-deps -D warnings
 
 .PHONY: pcc_bench # pcc stands for pre commit checks
 pcc_bench: check_fmt clippy_bench
@@ -1379,7 +1386,7 @@ tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
-clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
+clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \

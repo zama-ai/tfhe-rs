@@ -1,3 +1,4 @@
+use benchmark::params_aliases::*;
 use benchmark::utilities::{
     get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
 };
@@ -13,7 +14,6 @@ use tfhe::integer::key_switching_key::KeySwitchingKey;
 use tfhe::integer::parameters::IntegerCompactCiphertextListExpansionMode;
 use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::*;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 use tfhe::{get_pbs_count, reset_pbs_count};
@@ -33,9 +33,9 @@ fn pke_zk_proof(c: &mut Criterion) {
 
     for (param_pke, _param_casting, param_fhe) in [
         (
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
         // Non default params use the V1_1 prefix
         (
@@ -176,14 +176,14 @@ fn pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
     for (param_pke, param_casting, param_fhe) in [
         (
-            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
         (
             BENCH_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
             BENCH_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
         let param_name = param_fhe.name();

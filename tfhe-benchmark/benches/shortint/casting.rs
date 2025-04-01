@@ -1,10 +1,7 @@
+use benchmark::params_aliases::*;
 use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::Criterion;
 use rayon::prelude::*;
-use tfhe::shortint::parameters::current_params::{
-    BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-};
 use tfhe::shortint::prelude::*;
 
 pub fn pack_cast_64(c: &mut Criterion) {

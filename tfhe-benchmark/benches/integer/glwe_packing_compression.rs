@@ -1,3 +1,4 @@
+use benchmark::params_aliases::*;
 use benchmark::utilities::{
     get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
 };
@@ -7,10 +8,6 @@ use std::cmp::max;
 use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
 use tfhe::integer::{ClientKey, RadixCiphertext};
 use tfhe::keycache::NamedParam;
-use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
 use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn cpu_glwe_packing(c: &mut Criterion) {
@@ -20,8 +17,8 @@ fn cpu_glwe_packing(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(30));
 
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let comp_param = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let cks = ClientKey::new(param);
 

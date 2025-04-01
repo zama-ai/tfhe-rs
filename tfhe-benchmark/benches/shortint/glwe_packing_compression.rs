@@ -1,15 +1,12 @@
+use benchmark::params_aliases::*;
 use criterion::{black_box, criterion_group, Criterion};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use tfhe::shortint::parameters::{
-    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
 use tfhe::shortint::prelude::*;
 
 fn glwe_packing(c: &mut Criterion) {
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-    let comp_param = COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let comp_param = BENCH_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let number_to_pack = 256;
 

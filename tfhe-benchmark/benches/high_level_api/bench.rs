@@ -4,7 +4,6 @@ use rand::prelude::*;
 use std::fmt::Write;
 use std::ops::*;
 use tfhe::prelude::*;
-use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use tfhe::{
     set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint10, FheUint12,
     FheUint128, FheUint14, FheUint16, FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,

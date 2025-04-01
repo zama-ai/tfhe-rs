@@ -1,5 +1,6 @@
 #[cfg(feature = "gpu")]
 use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+#[cfg(not(feature = "gpu"))]
 use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
@@ -10,7 +11,6 @@ use rayon::prelude::*;
 use std::ops::{Add, Mul, Sub};
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
-use tfhe::shortint::parameters::*;
 #[cfg(feature = "gpu")]
 use tfhe::GpuIndex;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};

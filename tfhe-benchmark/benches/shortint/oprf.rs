@@ -1,7 +1,7 @@
+use benchmark::params_aliases::*;
 use criterion::{black_box, criterion_group, Criterion};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::keycache::KEY_CACHE;
-use tfhe::shortint::parameters::*;
 use tfhe_csprng::seeders::Seed;
 
 fn oprf(c: &mut Criterion) {
@@ -9,7 +9,7 @@ fn oprf(c: &mut Criterion) {
 
     let mut bench_group = c.benchmark_group(bench_name);
 
-    let param = PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    let param = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
     let keys = KEY_CACHE.get_from_param(param);
     let sks = keys.server_key();

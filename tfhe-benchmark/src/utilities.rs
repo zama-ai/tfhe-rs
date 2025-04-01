@@ -38,12 +38,8 @@ pub use boolean_utils::*;
 pub mod shortint_utils {
     use super::*;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
-    #[cfg(not(feature = "gpu"))]
-    use tfhe::shortint::parameters::current_params::BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
-    #[cfg(feature = "gpu")]
-    use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
     use tfhe::shortint::{
         ClassicPBSParameters, MultiBitPBSParameters, PBSParameters, ShortintParameterSet,
     };
@@ -137,6 +133,7 @@ pub mod shortint_utils {
     }
 }
 
+#[allow(unused_imports)]
 #[cfg(feature = "shortint")]
 pub use shortint_utils::*;
 
@@ -374,10 +371,10 @@ pub fn get_bench_type() -> &'static BenchmarkType {
 }
 
 /// Number of streaming multiprocessors (SM) available on Nvidia H100 GPU
+#[cfg(feature = "gpu")]
 const H100_PCIE_SM_COUNT: u32 = 132;
 
 /// Generate a number of threads to use to saturate current machine for throughput measurements.
-#[allow(dead_code)]
 pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
     let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil().min(1.0);

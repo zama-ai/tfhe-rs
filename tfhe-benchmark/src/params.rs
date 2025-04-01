@@ -5,22 +5,20 @@ pub mod shortint_params {
     use std::collections::HashMap;
     use std::env;
     use std::sync::OnceLock;
-    use tfhe::boolean::parameters::DynamicDistribution;
-    use tfhe::core_crypto::prelude::LweBskGroupingFactor;
+    use tfhe::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::{
         CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
     };
 
-    // TODO use the same pattern than test parameters to alias the ones below.
-    const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
+    pub const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
         BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M128,
     ];
 
-    const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
+    pub const SHORTINT_BENCH_PARAMS_GAUSSIAN: [ClassicPBSParameters; 4] = [
         BENCH_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -28,7 +26,7 @@ pub mod shortint_params {
     ];
 
     #[cfg(feature = "gpu")]
-    const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128,
@@ -38,7 +36,7 @@ pub mod shortint_params {
     ];
 
     #[cfg(not(feature = "gpu"))]
-    const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
+    pub const SHORTINT_MULTI_BIT_BENCH_PARAMS: [MultiBitPBSParameters; 6] = [
         BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
         BENCH_PARAM_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -47,7 +45,7 @@ pub mod shortint_params {
         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
     ];
 
-    fn benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+    pub fn benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
         match get_parameters_set() {
             ParametersSet::Default => SHORTINT_BENCH_PARAMS_TUNIFORM
                 .iter()
@@ -81,7 +79,7 @@ pub mod shortint_params {
         }
     }
 
-    fn multi_bit_benchmark_parameters(
+    pub fn multi_bit_benchmark_parameters(
     ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
         match get_parameters_set() {
             ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
@@ -119,6 +117,26 @@ pub mod shortint_params {
                 })
                 .collect()
             }
+        }
+    }
+
+    pub fn raw_benchmark_parameters() -> Vec<PBSParameters> {
+        let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
+            Ok(val) => val.to_lowercase() == "multi_bit",
+            Err(_) => false,
+        };
+
+        if is_multi_bit {
+            SHORTINT_MULTI_BIT_BENCH_PARAMS
+                .iter()
+                .map(|p| (*p).into())
+                .collect()
+        } else {
+            SHORTINT_BENCH_PARAMS_TUNIFORM
+                .iter()
+                .chain(SHORTINT_BENCH_PARAMS_GAUSSIAN.iter())
+                .map(|p| (*p).into())
+                .collect()
         }
     }
 
@@ -320,7 +338,7 @@ mod integer_params {
                 ];
                 #[cfg(not(feature = "gpu"))]
                 let params = vec![
-                    BENCH_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
+                    BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
                 ];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
