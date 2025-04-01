@@ -42,7 +42,7 @@ macro_rules! rtl_op {
                         dst: self.dst.iter().map(|_| None).collect(),
                         uid: self.uid,
                         load_stats: self.load_stats.clone(),
-                        data: self.data.clone()
+                        data: self.data.clone(),
                     })
                 }
 
@@ -64,7 +64,7 @@ macro_rules! rtl_op {
                 fn src(&self) -> &Vec<VarCell> { &self.src }
                 fn uid(&self) -> &usize { &self.uid }
                 fn load_stats(&self) -> &Option<LoadStats> { &self.load_stats }
-                fn set_load_stats(&mut self, stats: LoadStats) { self.load_stats = Some(stats); }
+                fn load_stats_mut(&mut self) -> &mut Option<LoadStats> { &mut self.load_stats }
                 fn dst_mut(&mut self) -> &mut Vec<Option<VarCell>> { &mut self.dst }
             }
 

@@ -652,6 +652,11 @@ impl HpuBackend {
             register: self.params.regf_params.reg_nb,
             isc_depth: self.params.isc_params.depth,
             heap_size: config.board.heap_size,
+            min_pbs_batch_w: self
+                .params
+                .ntt_params
+                .min_pbs_nb
+                .unwrap_or(self.params.ntt_params.batch_pbs_nb),
             pbs_batch_w: self.params.ntt_params.batch_pbs_nb,
             total_pbs_nb: self.params.ntt_params.total_pbs_nb,
             msg_w: self.params.pbs_params.message_width,
