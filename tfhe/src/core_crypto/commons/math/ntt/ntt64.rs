@@ -67,6 +67,8 @@ impl Ntt64 {
     }
 }
 
+/// Below implementation block define common functions used while working on value already
+/// on ntt prime modulus
 impl Ntt64View<'_> {
     pub fn polynomial_size(self) -> PolynomialSize {
         PolynomialSize(self.plan.ntt_size())
@@ -118,10 +120,38 @@ impl Ntt64View<'_> {
             },
         )
     }
+}
+
+/// Below implementation block define functions used while working with power-of-two modulus values
+impl Ntt64View<'_> {
+    /// Check modswitch requirement
+    ///
+    /// Return power of two modulus width if modswitch is required
+    /// #Notes
+    /// Only modswitch from a power of two modulus is supported
+    /// Power-of-two modulus value are always MSB aligned
+    pub fn modswitch_requirement(&self, from: CiphertextModulus<u64>) -> Option<u32> {
+        let ntt_modulus = CiphertextModulus::new(self.plan.modulus() as u128);
+        if from == ntt_modulus {
+            None
+        } else {
+            assert!(
+                from.is_compatible_with_native_modulus(),
+                "Only support implicit modswitch from pow-of-two modulus to ntt_modulus"
+            );
+            if from.is_native_modulus() {
+                Some(u64::BITS)
+            } else {
+                let pow2_modulus = from.get_custom_modulus();
+                let pow2_width = pow2_modulus.ilog2();
+                Some(pow2_width)
+            }
+        }
+    }
 
     /// Handle modswitch between power-of-two modulus and Ntt prime modulus
     /// This function switches modulus for a slice of coefficients
-    /// From: user domain (i.e. pow2 modulus)
+    /// From: power_of_two domain (NB: value are aligned on MSB)
     /// To:   ntt domain  (i.e. prime modulus)
     /// Switching are done inplace
     pub(crate) fn modswitch_from_power_of_two_to_ntt_prime(
@@ -131,17 +161,16 @@ impl Ntt64View<'_> {
     ) {
         let mod_p_u128 = self.plan.modulus() as u128;
         for val in data.iter_mut() {
-            let val_u128: u128 = (*val).cast_into();
+            let val_u128: u128 = (*val as u128) >> (u64::BITS - input_modulus_width);
             *val = (((val_u128 * mod_p_u128) + (1 << (input_modulus_width - 1)))
                 >> input_modulus_width) as u64;
         }
     }
 
-    /// Handle modswitch and bit-align
     /// Handle modswitch between Ntt prime modulus and power-of-two modulus
     /// This function switches modulus for a slice of coefficients
     /// From: ntt domain  (i.e. prime modulus)
-    /// To:   user domain (i.e. pow2 modulus)
+    /// To:   power_of_two domain (NB: value are aligned on MSB)
     /// Switching are done inplace
     pub(crate) fn modswitch_from_ntt_prime_to_power_of_two(
         &self,
@@ -151,8 +180,79 @@ impl Ntt64View<'_> {
         let mod_p_u128 = self.plan.modulus() as u128;
         for val in data.iter_mut() {
             let val_u128: u128 = (*val).cast_into();
-            *val =
-                ((((val_u128) << output_modulus_width) | ((mod_p_u128) >> 1)) / mod_p_u128) as u64;
+            *val = (((((val_u128) << output_modulus_width) | ((mod_p_u128) >> 1)) / mod_p_u128)
+                as u64)
+                << (u64::BITS - output_modulus_width);
         }
+    }
+
+    /// Applies a forward negacyclic NTT
+    ///
+    /// Entries coefficients are on power_of_two modulus
+    pub fn forward_from_power_of_two_modulus(
+        &self,
+        input_modulus_width: u32,
+        ntt: PolynomialMutView<'_, u64>,
+        standard: PolynomialView<'_, u64>,
+    ) {
+        let mut ntt = ntt;
+        let ntt = ntt.as_mut();
+        let standard = standard.as_ref();
+        ntt.copy_from_slice(standard);
+
+        self.modswitch_from_power_of_two_to_ntt_prime(input_modulus_width, ntt);
+        self.plan.fwd(ntt);
+    }
+
+    /// Applies a forward negacyclic NTT transform in place to the given buffer.
+    ///
+    /// Entries come from decomposer and thus are small signed extended value around 0.
+    /// There are considered as on power_of_two modulus, however a full modswitch isn't needed.
+    /// It's simply needed to correctly encoded the negative value regarding the ntt prime value
+    pub fn forward_from_decomp(
+        &self,
+        ntt: PolynomialMutView<'_, u64>,
+        decomp: PolynomialView<'_, u64>,
+    ) {
+        let mut ntt = ntt;
+        let ntt = ntt.as_mut();
+        let decomp = decomp.as_ref();
+        ntt.copy_from_slice(decomp);
+
+        ntt.iter_mut().for_each(|x| {
+            *x = if (*x >> (u64::BITS - 1)) == 1 {
+                // Correctly encode negative value in regard of the prime modulus
+                self.custom_modulus() - (!(*x) + 1)
+            } else {
+                *x
+            };
+        });
+        self.plan.fwd(ntt);
+    }
+
+    /// Applies a backword negacyclic NTT transform on ntt, moved obtained value on power-of-two
+    /// modulus And sum them with standard polynomial
+    pub fn add_backward_on_power_of_two_modulus(
+        self,
+        output_modulus_width: u32,
+        standard: PolynomialMutView<'_, u64>,
+        ntt: PolynomialMutView<'_, u64>,
+    ) {
+        let mut ntt = ntt;
+        let mut standard = standard;
+        let ntt = ntt.as_mut();
+        let standard = standard.as_mut();
+        self.plan.inv(ntt);
+        self.modswitch_from_ntt_prime_to_power_of_two(output_modulus_width, ntt);
+
+        // autovectorize
+        pulp::Arch::new().dispatch(
+            #[inline(always)]
+            || {
+                for (out, inp) in izip!(standard, &*ntt) {
+                    *out = u64::wrapping_add(*out, *inp);
+                }
+            },
+        )
     }
 }

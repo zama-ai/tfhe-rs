@@ -41,7 +41,8 @@ use super::CiphertextModulus;
 ///     Gaussian::from_dispersion_parameter(StandardDev(0.00000000000000029403601535432533), 0.0);
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
-/// let ciphertext_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+/// let ciphertext_modulus = CiphertextModulus::new_native();
+/// let ntt_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -89,7 +90,7 @@ use super::CiphertextModulus;
 ///     std_bootstrapping_key.polynomial_size(),
 ///     std_bootstrapping_key.decomposition_base_log(),
 ///     std_bootstrapping_key.decomposition_level_count(),
-///     std_bootstrapping_key.ciphertext_modulus(),
+///     ntt_modulus,
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
@@ -541,15 +542,13 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
         InputGlweCont: Container<Element = u64>,
     {
         // Check that modswitch is really needed around cmux
-
         use crate::core_crypto::fft_impl::fft64::crypto::ggsw::collect_next_term;
         use crate::core_crypto::fft_impl::fft64::math::decomposition::TensorSignedDecompositionLendingIter;
         use crate::core_crypto::prelude::SignedDecomposer;
-        assert!(
-            glwe.ciphertext_modulus()
-                .is_compatible_with_native_modulus(),
-            "Back and Forth modswitch implementation only work with power-of-two user modulus"
-        );
+        let power_of_two_modulus_width =
+            ntt.modswitch_requirement(glwe.ciphertext_modulus()).expect(
+                "Back and Forth modswitch implementation only work with power-of-two user modulus",
+            );
 
         // we check that the polynomial sizes match
         debug_assert_eq!(ggsw.polynomial_size(), glwe.polynomial_size());
@@ -560,12 +559,6 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
 
         let align = CACHELINE_ALIGN;
         let poly_size = ggsw.polynomial_size().0;
-
-        // Extract modswitch_requirement
-        let modulus = ntt.custom_modulus();
-        let ntt_modulus = CiphertextModulus::new(modulus as u128);
-        let (bitalign_required, modswitch_required) =
-            bitalign_modswitch_requirement(glwe.ciphertext_modulus(), ntt_modulus);
 
         // we round the input mask and body
         let decomposer = SignedDecomposer::<u64>::new(
@@ -622,26 +615,18 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                     glwe_decomp_term.as_polynomial_list().iter()
                 )
                 .for_each(|(ggsw_row, glwe_poly)| {
-                    let (ntt_poly, _) = substack2.make_aligned_raw::<u64>(poly_size, align);
-                    // 1. Move poly coef in ntt_modulus if needed
-                    ntt_poly.clone_from_slice(glwe_poly.as_ref());
-                    // NB: Decomposition term is already LSB align
-                    user2ntt_bitmask_modswitch(
-                        ntt_poly,
-                        bitalign_required,
-                        modswitch_required,
-                        ntt,
+                    let mut ntt_poly = PolynomialMutView::from_container(
+                        substack2.make_aligned_raw::<u64>(poly_size, align).0,
                     );
+                    // We perform the forward ntt transform for the glwe polynomial
+                    ntt.forward_from_decomp(ntt_poly.as_mut_view(), glwe_poly.as_view());
 
-                    // 2. We perform the forward ntt transform for the glwe polynomial
-                    ntt.plan.fwd(ntt_poly);
                     // Now we loop through the polynomials of the output, and add the
                     // corresponding product of polynomials.
-
                     update_with_fmadd_ntt64_bnf(
                         output_fft_buffer,
                         ggsw_row.as_ref(),
-                        ntt_poly,
+                        ntt_poly.as_ref(),
                         is_output_uninit,
                         poly_size,
                         ntt,
@@ -666,27 +651,7 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                     .map(PolynomialMutView::from_container),
             )
             .for_each(|(out, ntt_poly)| {
-                let mut out = out;
-                let mut ntt_poly = ntt_poly;
-
-                // Move back in std domain
-                ntt.plan.inv(ntt_poly.as_mut());
-                ntt2user_bitalign_modswitch(
-                    ntt_poly.as_mut(),
-                    bitalign_required,
-                    modswitch_required,
-                    ntt,
-                );
-
-                // autovectorize
-                pulp::Arch::new().dispatch(
-                    #[inline(always)]
-                    || {
-                        for (out, inp) in izip!(out.as_mut(), ntt_poly.as_ref()) {
-                            *out = u64::wrapping_add(*out, *inp);
-                        }
-                    },
-                )
+                ntt.add_backward_on_power_of_two_modulus(power_of_two_modulus_width, out, ntt_poly);
             });
         }
     }
@@ -794,72 +759,4 @@ pub fn programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized_requirement
             glwe_size.0 * polynomial_size.0,
             CACHELINE_ALIGN,
         )?)
-}
-/// Return the required bitalign/modswitch
-pub fn bitalign_modswitch_requirement(
-    from: CiphertextModulus<u64>,
-    to: CiphertextModulus<u64>,
-) -> (Option<u32>, Option<u32>) {
-    if from == to {
-        (None, None)
-    } else {
-        assert!(
-            from.is_compatible_with_native_modulus(),
-            "Only support implicit modswitch from 2**k to ntt_modulus"
-        );
-        if from.is_native_modulus() {
-            (None, Some(u64::BITS))
-        } else {
-            let pow2_modulus = from.get_custom_modulus();
-            let pow2_width = pow2_modulus.ilog2();
-            (Some(u64::BITS - pow2_width), Some(pow2_width))
-        }
-    }
-}
-
-pub fn user2ntt_bitalign_modswitch(
-    data: &mut [u64],
-    req_bitalign: Option<u32>,
-    req_modswitch: Option<u32>,
-    ntt: Ntt64View<'_>,
-) {
-    if let Some(shr_bit) = req_bitalign {
-        data.iter_mut().for_each(|x| *x >>= shr_bit);
-    }
-    if let Some(modswitch) = req_modswitch {
-        ntt.modswitch_from_power_of_two_to_ntt_prime(modswitch, data);
-    }
-}
-
-/// This function is used when the input comes from the decomposer
-/// In such case value inputs are small value around 0. But negative value are signed
-/// extended on BITS and prevent the modswitch from working properly
-/// Thus we start by bitmask to remove extra MSB and then modswitch
-pub fn user2ntt_bitmask_modswitch(
-    data: &mut [u64],
-    req_bitalign: Option<u32>,
-    req_modswitch: Option<u32>,
-    ntt: Ntt64View<'_>,
-) {
-    if let Some(shr_bit) = req_bitalign {
-        data.iter_mut()
-            .for_each(|x| *x = (*x << shr_bit) >> shr_bit);
-    }
-    if let Some(modswitch) = req_modswitch {
-        ntt.modswitch_from_power_of_two_to_ntt_prime(modswitch, data);
-    }
-}
-
-pub fn ntt2user_bitalign_modswitch(
-    data: &mut [u64],
-    req_bitalign: Option<u32>,
-    req_modswitch: Option<u32>,
-    ntt: Ntt64View<'_>,
-) {
-    if let Some(modswitch) = req_modswitch {
-        ntt.modswitch_from_ntt_prime_to_power_of_two(modswitch, data);
-    }
-    if let Some(shl_bit) = req_bitalign {
-        data.iter_mut().for_each(|x| *x <<= shl_bit);
-    }
 }

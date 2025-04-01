@@ -9,7 +9,6 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::fill_with_forward_fourier_scratch;
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
-use crate::core_crypto::prelude::{bitalign_modswitch_requirement, user2ntt_bitalign_modswitch};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use rayon::prelude::*;
 use tfhe_fft::c64;
@@ -338,26 +337,28 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         output_bsk.input_lwe_dimension(),
     );
 
-    // Extract modswitch_requirement
-    let (req_ba, req_ms) = bitalign_modswitch_requirement(
-        input_bsk.ciphertext_modulus(),
-        output_bsk.ciphertext_modulus(),
-    );
-
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
 
+    // Extract modswitch_requirement
+    let modswitch_requirement = ntt.modswitch_requirement(input_bsk.ciphertext_modulus());
+
     // Allocate a buffer for bitshifth and modswitch
-    let mut poly_bfr = Polynomial::from_container(vec![0; input_bsk.polynomial_size().0]);
-    for (input_poly, output_poly) in input_bsk
+    for (input_poly, mut output_poly) in input_bsk
         .as_polynomial_list()
         .iter()
         .zip(output_bsk.as_mut_polynomial_list().iter_mut())
     {
-        poly_bfr.as_mut().copy_from_slice(input_poly.as_ref());
-        user2ntt_bitalign_modswitch(poly_bfr.as_mut(), req_ba, req_ms, ntt);
-
-        ntt.forward_normalized(output_poly, poly_bfr.as_view())
+        if let Some(input_modulus_width) = modswitch_requirement {
+            ntt.forward_from_power_of_two_modulus(
+                input_modulus_width,
+                output_poly.as_mut_view(),
+                input_poly,
+            );
+            ntt.plan.normalize(output_poly.as_mut());
+        } else {
+            ntt.forward_normalized(output_poly, input_poly);
+        };
     }
 }
 
@@ -406,14 +407,11 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         output_bsk.input_lwe_dimension(),
     );
 
-    // Extract modswitch_requirement
-    let (req_ba, req_ms) = bitalign_modswitch_requirement(
-        input_bsk.ciphertext_modulus(),
-        output_bsk.ciphertext_modulus(),
-    );
-
     let ntt = Ntt64::new(output_bsk.ciphertext_modulus(), input_bsk.polynomial_size());
     let ntt = ntt.as_view();
+
+    // Extract modswitch_requirement
+    let modswitch_requirement = ntt.modswitch_requirement(input_bsk.ciphertext_modulus());
 
     let num_threads = rayon::current_num_threads();
     let input_as_polynomial_list = input_bsk.as_polynomial_list();
@@ -427,16 +425,19 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
         .par_chunks(chunk_size)
         .zip(output_as_polynomial_list.par_chunks_mut(chunk_size))
         .for_each(|(input_poly_chunk, mut output_poly_chunk)| {
-            // Allocate a buffer for bitshift and modswitch
-            let mut poly_bfr = Polynomial::from_container(vec![0; input_bsk.polynomial_size().0]);
-
-            for (input_poly, output_poly) in
+            for (input_poly, mut output_poly) in
                 input_poly_chunk.iter().zip(output_poly_chunk.iter_mut())
             {
-                poly_bfr.as_mut().copy_from_slice(input_poly.as_ref());
-                user2ntt_bitalign_modswitch(poly_bfr.as_mut(), req_ba, req_ms, ntt);
-
-                ntt.forward_normalized(output_poly, poly_bfr.as_view())
+                if let Some(input_modulus_width) = modswitch_requirement {
+                    ntt.forward_from_power_of_two_modulus(
+                        input_modulus_width,
+                        output_poly.as_mut_view(),
+                        input_poly,
+                    );
+                    ntt.plan.normalize(output_poly.as_mut());
+                } else {
+                    ntt.forward_normalized(output_poly, input_poly);
+                };
             }
         });
 }
