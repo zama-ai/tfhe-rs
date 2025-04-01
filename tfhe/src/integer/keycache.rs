@@ -59,7 +59,7 @@ impl IntegerKeyCache {
     where
         P: Into<PBSParameters> + crate::keycache::NamedParam + Clone,
     {
-        self.hpu_device.get_or_init(|| {
+        let hpu_device = self.hpu_device.get_or_init(|| {
             // Instanciate HpuDevice --------------------------------------------------
             let hpu_device = {
                 let config_file = ShellString::new(
@@ -84,7 +84,12 @@ impl IntegerKeyCache {
             // Init Hpu device with server key and firmware
             crate::integer::hpu::init_device(&hpu_device, sks_compressed.into());
             Mutex::new(hpu_device)
-        })
+        });
+
+        // Sanitize memory to prevent side-effect between tests
+        hpu_device.lock().unwrap().mem_sanitizer();
+
+        hpu_device
     }
 }
 
