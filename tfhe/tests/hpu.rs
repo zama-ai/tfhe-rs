@@ -3,11 +3,16 @@
 //! A testcase simply bind a IOp to a closure describing it's behavior
 //! WARN: Only one Hpu could be use at a time, thus all test must be run sequentially
 pub use serial_test::serial;
+
+#[cfg(feature = "hpu")]
 use std::str::FromStr;
 
 pub use rand::Rng;
+
+#[cfg(feature = "hpu")]
 pub use tfhe_hpu_backend::prelude::*;
 
+#[cfg(feature = "hpu")]
 /// Variable to store initialized HpuDevice and associated client key for fast iteration
 static HPU_DEVICE_CKS: std::sync::OnceLock<(
     std::sync::Mutex<HpuDevice>,
@@ -17,12 +22,14 @@ static HPU_DEVICE_CKS: std::sync::OnceLock<(
 // NB: Currently u55c didn't check for workq overflow.
 // -> Use default value < queue depth to circumvent this limitation
 // NB': This is only for u55c, on V80 user could set HPU_TEST_ITER to whatever value he want
+#[cfg(feature = "hpu")]
 const DEFAULT_TEST_ITER: usize = 32;
 
 #[macro_export]
 macro_rules! hpu_testbundle {
     ($base_name: literal::$integer_width:tt => [$($testcase: literal),+]) => {
     ::paste::paste! {
+        #[cfg(feature = "hpu")]
         #[test]
         #[serial]
         pub fn [<hpu_test_ $base_name:lower _u $integer_width>]() {
@@ -89,6 +96,7 @@ macro_rules! hpu_testcase {
     ($iop: literal => [$($user_type: ty),+] |$ct:ident, $imm: ident| $behav: expr) => {
         ::paste::paste! {
             $(
+            #[cfg(feature = "hpu")]
             #[allow(unused)]
             pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, cks: &tfhe::integer::ClientKey) -> bool {
                 use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
