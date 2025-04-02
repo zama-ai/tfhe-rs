@@ -25,7 +25,9 @@ pub struct HpuBackend {
     // Extracted parameters
     pub(crate) params: HpuParameters,
     // Prevent to parse regmap at each polling iteration
+    #[cfg(not(feature = "hw-aved"))]
     workq_addr: u64,
+    #[cfg(not(feature = "hw-aved"))]
     ackq_addr: u64,
 
     // Key memory
@@ -180,24 +182,18 @@ impl HpuBackend {
             rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
         );
 
-        let workq_addr = if cfg!(not(feature = "hw-aved")) {
-            (*regmap
-                .register()
-                .get("WorkAck::workq")
-                .expect("Unknown register, check regmap definition")
-                .offset()) as u64
-        } else {
-            0
-        };
-        let ackq_addr = if cfg!(not(feature = "hw-aved")) {
-            (*regmap
-                .register()
-                .get("WorkAck::ackq")
-                .expect("Unknown register, check regmap definition")
-                .offset()) as u64
-        } else {
-            0
-        };
+        #[cfg(not(feature = "hw-aved"))]
+        let workq_addr = (*regmap
+            .register()
+            .get("WorkAck::workq")
+            .expect("Unknown register, check regmap definition")
+            .offset()) as u64;
+        #[cfg(not(feature = "hw-aved"))]
+        let ackq_addr = (*regmap
+            .register()
+            .get("WorkAck::ackq")
+            .expect("Unknown register, check regmap definition")
+            .offset()) as u64;
 
         // Allocate memory for Bsk
         let bsk_props = {
@@ -284,7 +280,9 @@ impl HpuBackend {
                 hpu_hw,
                 regmap,
                 params,
+                #[cfg(not(feature = "hw-aved"))]
                 workq_addr,
+                #[cfg(not(feature = "hw-aved"))]
                 ackq_addr,
                 bsk_key,
                 ksk_key,
@@ -780,6 +778,7 @@ impl HpuBackend {
     fn workq_push(&mut self, cmd: cmd::HpuCmd) -> Result<(), HpuInternalError> {
         let Self {
             ref mut hpu_hw,
+            #[cfg(not(feature = "hw-aved"))]
             workq_addr,
             cmd_q,
             ..
@@ -828,6 +827,7 @@ impl HpuBackend {
     pub fn poll_ack_q(&mut self) -> Result<bool, HpuInternalError> {
         let Self {
             ref mut hpu_hw,
+            #[cfg(not(feature = "hw-aved"))]
             ackq_addr,
             cmd_q,
             regmap,
