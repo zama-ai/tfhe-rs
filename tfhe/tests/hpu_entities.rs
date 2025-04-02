@@ -1,16 +1,11 @@
-use tfhe::core_crypto::prelude::*;
-// use tfhe::prelude::*;
-use tfhe::*;
-
-#[cfg(feature = "hpu")]
-use tfhe_hpu_backend::prelude::*;
-
-#[cfg(feature = "hpu")]
-use tfhe::core_crypto::hpu::from_with::FromWith;
-
 #[cfg(feature = "hpu")]
 #[test]
 fn hpu_key_loopback() {
+    use tfhe::core_crypto::hpu::from_with::FromWith;
+    use tfhe::core_crypto::prelude::*;
+    use tfhe::*;
+    use tfhe_hpu_backend::prelude::*;
+
     // Instantiate HpuDevice --------------------------------------------------
     // -> Aims is to read the expected Hpu configuration
     // NB: Change working dir to top level repository
@@ -81,11 +76,11 @@ fn hpu_key_loopback() {
     // BSK Loopback conversion and check -------------------------------------
     // Extract and convert ksk
     let cpu_bsk_orig = match sks_compressed.bootstrapping_key {
-        crate::shortint::server_key::ShortintCompressedBootstrappingKey::Classic {
+        tfhe::shortint::server_key::ShortintCompressedBootstrappingKey::Classic {
             bsk: seeded_bsk,
             ..
         } => seeded_bsk.decompress_into_lwe_bootstrap_key(),
-        crate::shortint::server_key::ShortintCompressedBootstrappingKey::MultiBit { .. } => {
+        tfhe::shortint::server_key::ShortintCompressedBootstrappingKey::MultiBit { .. } => {
             panic!("Hpu currently not support multibit. Required a Classic BSK")
         }
     };
@@ -98,7 +93,7 @@ fn hpu_key_loopback() {
             cpu_bsk_orig.polynomial_size(),
             cpu_bsk_orig.decomposition_base_log(),
             cpu_bsk_orig.decomposition_level_count(),
-            CiphertextModulus::new(hpu_device.params().ntt_params.prime_modulus as u128),
+            CiphertextModulus::new(u64::from(&hpu_device.params().ntt_params.prime_modulus) as u128),
         );
 
         // Conversion to ntt domain
