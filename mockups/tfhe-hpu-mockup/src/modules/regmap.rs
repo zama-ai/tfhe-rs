@@ -216,7 +216,9 @@ impl RegisterMap {
             }
 
             // Bpip configuration registers
-            "bpip::use" => ((self.bpip.used as u8) + ((self.bpip.use_opportunism as u8) << 1))as u32,
+            "bpip::use" => {
+                ((self.bpip.used as u8) + ((self.bpip.use_opportunism as u8) << 1)) as u32
+            }
             "bpip::timeout" => self.bpip.timeout,
 
             // Add offset configuration registers
