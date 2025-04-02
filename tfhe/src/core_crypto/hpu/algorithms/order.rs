@@ -2,9 +2,9 @@
 //! Define polynomial ordering
 //! And associated function that enable to translate from one ordering to the others
 //!
-//! Ordering is usefull in HW to expose common structure in the computation.
+//! Ordering is useful in HW to expose common structure in the computation.
 //!
-//! NB: Retrived from Zaxl-sw implementation. A lot of cleanup required
+//! NB: Retrieved from Zaxl-sw implementation. A lot of cleanup required
 //! -> With the current implementation only the Reverse order is used. Maybe, we can remove the
 //! other one
 

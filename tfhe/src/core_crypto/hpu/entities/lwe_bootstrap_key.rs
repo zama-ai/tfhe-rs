@@ -36,7 +36,7 @@ fn shuffle_gf64(
 ) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
 
-    // Extract params inner values for ease of writting
+    // Extract params inner values for ease of writing
     let ntt_p = &params.ntt_params;
     let pbs_p = &params.pbs_params;
     let glwe_n = pbs_p.polynomial_size;
@@ -108,7 +108,7 @@ fn unshuffle_gf64(
     hpu_bsk: HpuLweBootstrapKeyView<u64>,
     cut_w: &[u8],
 ) -> NttLweBootstrapKeyOwned<u64> {
-    // Extract params inner values for ease of writting
+    // Extract params inner values for ease of writing
     let params = hpu_bsk.params();
     let ntt_p = &params.ntt_params;
     let pbs_p = &params.pbs_params;
@@ -197,7 +197,7 @@ fn shuffle_wmm(
 ) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
 
-    // Extract params inner values for ease of writting
+    // Extract params inner values for ease of writing
     let ntt_p = &params.ntt_params;
     let pbs_p = &params.pbs_params;
     let glwe_n = pbs_p.polynomial_size;
@@ -213,7 +213,7 @@ fn shuffle_wmm(
         "Error: With radix !=2 bsk must be converted from bit-reverse in radix-reverse order"
     );
 
-    // Instanciate Ntt network
+    // Instantiate Ntt network
     let mut ntw = match &ntt_p.core_arch {
         HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => {
             order::Network::new(order::NetworkKind::Pcg, ntt_p.radix, ntt_p.stg_nb)
@@ -254,7 +254,7 @@ fn shuffle_wmm(
 
 /// UnShuffle BSK for Wmm Ntt architecture
 fn unshuffle_wmm(hpu_bsk: HpuLweBootstrapKeyView<u64>) -> NttLweBootstrapKeyOwned<u64> {
-    // Extract params inner values for ease of writting
+    // Extract params inner values for ease of writing
     let params = hpu_bsk.params();
     let ntt_p = &params.ntt_params;
     let pbs_p = &params.pbs_params;
@@ -272,7 +272,7 @@ fn unshuffle_wmm(hpu_bsk: HpuLweBootstrapKeyView<u64>) -> NttLweBootstrapKeyOwne
         CiphertextModulus::new(u64::from(&hpu_bsk.params().ntt_params.prime_modulus) as u128),
     );
 
-    // Instanciate Ntt network
+    // Instantiate Ntt network
     let mut ntw = match &ntt_p.core_arch {
         HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => {
             order::Network::new(order::NetworkKind::Pcg, ntt_p.radix, ntt_p.stg_nb)
@@ -322,7 +322,7 @@ pub struct GgswIndex {
 
 impl GgswIndex {
     /// Ease out of order iteration over a Ggsw ciphertext.
-    /// This is usefull for Bootstrapping key shuffling to match expected HW
+    /// This is useful for Bootstrapping key shuffling to match expected HW
     /// order
     pub fn poly_view<'a, Scalar: UnsignedInteger>(
         self,
@@ -345,7 +345,7 @@ impl GgswIndex {
     }
 
     /// Ease out of order iteration over a mutable Ggsw ciphertext.
-    /// This is usefull for Bootstrapping key shuffling to match expected HW
+    /// This is useful for Bootstrapping key shuffling to match expected HW
     /// order
     pub fn poly_mut_view<'a, Scalar: UnsignedInteger>(
         self,

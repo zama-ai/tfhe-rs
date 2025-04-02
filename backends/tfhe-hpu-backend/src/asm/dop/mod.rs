@@ -97,7 +97,7 @@ impl DigitParameters {
 }
 
 /// Base trait to depict an Pbs function
-/// Provides a set of method to raison about pbs
+/// Provides a set of method to reason about pbs
 #[enum_dispatch]
 pub trait PbsLut {
     fn name(&self) -> &'static str;
@@ -181,7 +181,7 @@ pbs!(
 ["CmpSign" => 10 [
     @0 =>{
         |_params: &DigitParameters, val | {
-            // Signed comparaison with 0. Based on behavior of negacyclic function.
+            // Signed comparison with 0. Based on behavior of negacyclic function.
             // Example for Padding| 4bit digits (i.e 2msg2Carry)
             // 1|xxxx -> SignLut -> -1 -> 0|1111
             // x|0000 -> SignLut ->  0 -> 0|0000

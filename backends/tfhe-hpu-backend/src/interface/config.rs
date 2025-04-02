@@ -6,7 +6,7 @@ use crate::fw::rtl::config::RtlCfg;
 use std::collections::{HashMap, HashSet};
 
 /// ShellString
-/// Thin wrapper around String that provide a method to interpolate it's content with environnement
+/// Thin wrapper around String that provide a method to interpolate it's content with environment
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ShellString(String);
 impl ShellString {
@@ -37,7 +37,7 @@ impl std::str::FromStr for ShellString {
     }
 }
 
-/// Configuration of targeted FFI bridge witht the Hw
+/// Configuration of targeted FFI bridge with the Hw
 /// Enable to select targeted ffi interface with specific properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum FFIMode {

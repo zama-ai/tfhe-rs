@@ -78,7 +78,7 @@ impl std::str::FromStr for Arg {
                         .parse::<u16>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                 } else {
-                    // One of them must match, otherwise error will be arised before
+                    // One of them must match, otherwise error will be arose before
                     let raw_hex_cid = caps.name("hex_cid").unwrap();
                     u16::from_str_radix(&raw_hex_cid.as_str()[2..], 16)
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
@@ -136,7 +136,7 @@ impl std::str::FromStr for Arg {
                         .parse::<u16>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                 } else {
-                    // One of them must match, otherwise error will be arised before
+                    // One of them must match, otherwise error will be arose before
                     let raw_hex_cst = caps.name("hex_cst").unwrap();
                     u16::from_str_radix(&raw_hex_cst.as_str()[2..], 16)
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?

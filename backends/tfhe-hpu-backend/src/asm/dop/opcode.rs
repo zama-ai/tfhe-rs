@@ -20,7 +20,7 @@ pub enum DOpType {
     PBS = 0b11,
 }
 
-/// Define raw type convertion
+/// Define raw type conversion
 /// Opcode is on 6bits
 impl From<Opcode> for u8 {
     fn from(value: Opcode) -> Self {

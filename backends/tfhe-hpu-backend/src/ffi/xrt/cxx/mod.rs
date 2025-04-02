@@ -63,7 +63,7 @@ mod extern_cxx {
     }
 }
 
-/// Generic function to easily handle mutiple word size
+/// Generic function to easily handle multiple word size
 impl MemZone {
     pub fn read<T: Sized + bytemuck::Pod>(&self, ofst: usize, data: &mut [T]) {
         let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);

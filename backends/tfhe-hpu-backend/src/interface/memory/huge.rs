@@ -38,7 +38,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     /// This function allocate a set of memzone to store HugeMemory block
     /// HugeMemory block is spread over multiple Hbm cut. Furthermore, due to size and XRT
     /// limitation each cut is split on multiple buffer of 16MiB.
-    /// We allocate 16MiB buffer only ( the last one isn't shrinked to fit the required memory size)
+    /// We allocate 16MiB buffer only ( the last one isn't shrunk to fit the required memory size)
     #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
     pub fn alloc(ffi_hw: &mut ffi::HpuHw, props: HugeMemoryProperties) -> Self {
         assert_eq!(
@@ -102,7 +102,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     }
 
     /// Write data slice into memory cut_id
-    /// NB: User specify ofset in unit of data.
+    /// NB: User specify offset in unit of data.
     #[tracing::instrument(level = "trace", skip(data), ret)]
     pub fn write_cut_at(&mut self, cut_id: usize, ofst: usize, data: &[T]) {
         assert!(
@@ -117,7 +117,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         // Underlying memory is view as bytes memory
         // Extract byte ofst and byte length
         // NB: Don't use generic write method to prevent misunderstanding of ofst meaning
-        // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
+        // Indeed, we must used a bytes offset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
         let len_b = std::mem::size_of_val(data);
@@ -141,7 +141,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     }
 
     /// Read data slice from memory cut_id
-    /// NB: User specify ofset in unit of data.
+    /// NB: User specify offset in unit of data.
     #[tracing::instrument(level = "trace", skip(data), ret)]
     pub fn read_cut_at(&mut self, cut_id: usize, ofst: usize, data: &mut [T]) {
         assert!(
@@ -153,7 +153,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         // Underlying memory is view as bytes memory
         // Extract byte ofst and byte length
         // NB: Don't use generic write method to prevent misunderstanding of ofst meaning
-        // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
+        // Indeed, we must used a bytes offset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
         let len_b = std::mem::size_of_val(data);
