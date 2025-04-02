@@ -87,6 +87,8 @@ pub struct InfoPePbs {
 
     /// pe_pbs load BSK slice reception max duration (Could be reset by user)
     load_bsk_rcp_dur: [u32; 16],
+    /// pe_pbs load KSK slice reception max duration (Could be reset by user)
+    load_ksk_rcp_dur: [u32; 16],
 
     /// pe_pbs bsk_if req_br_loop_rp
     bskif_req_br_loop_rp: u16,
@@ -135,6 +137,7 @@ impl InfoPePbs {
         self.update_pep_inst_cnt(ffi_hw, regmap);
         self.update_pep_ack_cnt(ffi_hw, regmap);
         self.update_load_bsk_rcp_dur(ffi_hw, regmap);
+        self.update_load_ksk_rcp_dur(ffi_hw, regmap);
         self.update_pep_bskif_req_info_0(ffi_hw, regmap);
         self.update_pep_bskif_req_info_1(ffi_hw, regmap);
     }
@@ -360,6 +363,16 @@ impl InfoPePbs {
             self.load_bsk_rcp_dur[i] = ffi_hw.read_reg(*reg.offset() as u64)
         });
     }
+    pub fn update_load_ksk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_1in3::pep_load_ksk_rcp_dur_pc{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.load_ksk_rcp_dur[i] = ffi_hw.read_reg(*reg.offset() as u64)
+        });
+    }
 
     pub fn update_pep_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
@@ -411,6 +424,7 @@ impl InfoPePbs {
         self.reset_pep_inst_cnt(ffi_hw, regmap);
         self.reset_pep_ack_cnt(ffi_hw, regmap);
         self.reset_load_bsk_rcp_dur(ffi_hw, regmap);
+        self.reset_load_ksk_rcp_dur(ffi_hw, regmap);
     }
     #[allow(unused)]
     pub fn reset_seq_bpip_waiting_batch_cnt(
@@ -567,6 +581,17 @@ impl InfoPePbs {
     pub fn reset_load_bsk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         (1..16).for_each(|i| {
             let reg_name = format!("runtime_3in3::pep_load_bsk_rcp_dur_pc{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            ffi_hw.write_reg(*reg.offset() as u64, 0);
+        });
+    }
+    #[allow(unused)]
+    pub fn reset_load_ksk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_1in3::pep_load_ksk_rcp_dur_pc{i}");
             let reg = regmap
                 .register()
                 .get(&reg_name)
