@@ -433,7 +433,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 noise_samples[2].push(torus_diff);
 
                 // Compute PBS with NTT
-                programmable_bootstrap_ntt64_lwe_ciphertext_mem_optimized(
+                programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized(
                     &out_ks_ct,
                     &mut ct,
                     &accumulator,
