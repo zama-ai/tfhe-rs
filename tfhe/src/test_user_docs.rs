@@ -215,4 +215,8 @@ mod test_gpu_doc {
         "../docs/configuration/run_on_gpu.md",
         configuration_run_on_gpu
     );
+    doctest!(
+        "../docs/tutorials/multi_gpu_device_selection.md",
+        tutorials_multi_gpu_device_selection
+    );
 }
