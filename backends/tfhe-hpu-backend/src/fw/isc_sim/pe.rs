@@ -352,8 +352,8 @@ pub struct PeConfig {
     pub batch_size: BatchSize,   // The batch sizes
     pub pe_limit: Option<usize>, // The limit on the number of PBSs in the PE
     pub in_limit: Option<usize>, // The limit on the input fifo before the PE
-    pub flush_opportunism: bool, // Whether the PE is opportunistic when
-                                 // scheduling
+    pub flush_opportunism: bool, /* Whether the PE is opportunistic when
+                                  * scheduling */
 }
 
 impl PeConfig {
@@ -459,8 +459,8 @@ impl From<(&HpuParameters, &HpuConfig)> for PeConfigStore {
         // Latency of a Cmux for a batch
         let cmux_lat = ct_load_cycles * batch_pbs;
 
-        // NB: Keyswitch latency is dimension to match roughly the Cmux latency (with lbx coefs in //)
-        // Keep this approximation here
+        // NB: Keyswitch latency is dimension to match roughly the Cmux latency (with lbx coefs in
+        // //) Keep this approximation here
         let ks_cycles = cmux_lat * lbx;
 
         let mut pe_config_store = Vec::with_capacity(ldst_pe_nb + lin_pe_nb + batch_pbs);

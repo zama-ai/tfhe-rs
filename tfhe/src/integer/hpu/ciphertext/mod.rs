@@ -72,7 +72,8 @@ impl HpuRadixCiphertext {
     }
 
     /// Create a Cpu boolean block
-    /// Warn: This function panic if the underlying RadixCiphertext don't fulfill required properties
+    /// Warn: This function panic if the underlying RadixCiphertext don't fulfill required
+    /// properties
     pub fn to_boolean_block(&self) -> BooleanBlock {
         assert!(
             self.0.is_boolean(),

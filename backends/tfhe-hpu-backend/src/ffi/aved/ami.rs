@@ -2,13 +2,10 @@
 //!
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
-//!
-use std::{
-    fs::{File, OpenOptions},
-    io::Read,
-    os::fd::AsRawFd,
-    time::Duration,
-};
+use std::fs::{File, OpenOptions};
+use std::io::Read;
+use std::os::fd::AsRawFd;
+use std::time::Duration;
 
 pub struct AmiDriver {
     ami_dev: File,

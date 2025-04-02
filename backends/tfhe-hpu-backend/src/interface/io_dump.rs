@@ -94,7 +94,8 @@ pub fn dump<T: num_traits::PrimInt + num_traits::cast::AsPrimitive<u32>>(
                 .unwrap();
 
             // Dump
-            // Based on configuration dump value must be shrunk to 32b (i.e. when contained information is <= 32)
+            // Based on configuration dump value must be shrunk to 32b (i.e. when contained
+            // information is <= 32)
             let (word_bits, line_bytes) = match kind {
                 DumpKind::Bsk => (params.ntt_params.ct_width, params.pc_params.bsk_bytes_w),
                 DumpKind::Ksk => (
