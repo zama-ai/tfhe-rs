@@ -73,7 +73,7 @@ namespace ffi {
 
     };
 
-    // Utility function to properly instanciate Cxx class in rust world
+    // Utility function to properly instantiate Cxx class in rust world
     std::unique_ptr<HpuHw>
       new_hpu_hw(uint32_t fpga_id, rust::String kernel_name, rust::String awsxclbin,
           VerbosityCxx verbose);

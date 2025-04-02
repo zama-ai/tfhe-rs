@@ -140,11 +140,11 @@ impl CiphertextMemory {
                     let lsb = regmap
                         .register()
                         .get(&lsb_name)
-                        .expect("Unknow register, check regmap definition");
+                        .expect("Unknown register, check regmap definition");
                     let msb = regmap
                         .register()
                         .get(&msb_name)
-                        .expect("Unknow register, check regmap definition");
+                        .expect("Unknown register, check regmap definition");
                     (lsb, msb)
                 })
                 .collect::<Vec<_>>();
@@ -233,7 +233,7 @@ impl CiphertextMemory {
         }
     }
 
-    /// Enforce CiphertextMemory completness and ordering
+    /// Enforce CiphertextMemory completeness and ordering
     /// Use to prevent fragmentation between various workload
     ///
     /// Warn: This function could block in case of un-released ciphertext slots

@@ -109,7 +109,7 @@ impl std::fmt::Display for PbsGid {
 }
 
 /// Sync argument
-/// Currently unsused
+/// Currently unused
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SyncId(pub u32);
 

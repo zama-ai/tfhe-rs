@@ -121,7 +121,7 @@ impl Drop for MetaVar {
         trace!(target: "MetaDrop", "Drop::{self:?}");
         if let Some(pos) = &self.pos {
             let mut prog = self.prog.borrow_mut();
-            // Release ressource attached to inner
+            // Release resource attached to inner
             match pos {
                 VarPos::Reg(rid) => {
                     assert!(
@@ -577,7 +577,7 @@ impl MetaVarCell {
     pub fn pbs_assign(&mut self, lut: &MetaVarCell, flush: bool) {
         // Construct tfhe params
         let tfhe_params = self.0.borrow().prog.params().clone().into();
-        // Deffered to default logic
+        // Deferred to default logic
         Self::pbs_raw(&[self], self, lut, flush, &tfhe_params);
     }
 
@@ -592,7 +592,7 @@ impl MetaVarCell {
         // Construct tfhe params
         let tfhe_params = prog.params().clone().into();
 
-        // Deffered to default logic
+        // Deferred to default logic
         Self::pbs_raw(&[&dst], self, lut, flush, &tfhe_params);
         dst
     }
@@ -611,7 +611,7 @@ impl MetaVarCell {
         // Construct tfhe params
         let tfhe_params = self.0.borrow().prog.params().clone().into();
 
-        // Deffered to default logic
+        // Deferred to default logic
         Self::pbs_raw(
             &out_vec.iter().collect::<Vec<_>>(),
             self,
@@ -627,7 +627,7 @@ impl MetaVarCell {
 
 /// Implement mac operator
 impl MetaVarCell {
-    /// Raw Mac implemenation
+    /// Raw Mac implementation
     /// MAC output= (rhs_0 * mul_factor) + rhs_1
     pub(super) fn mac_raw(
         &self,
@@ -1060,7 +1060,7 @@ impl AddAssign for MetaVarCell {
     }
 }
 
-/// Implement raw substraction and derive Sub/SubAssign from it
+/// Implement raw subtraction and derive Sub/SubAssign from it
 impl MetaVarCell {
     pub(super) fn sub_raw(
         &self,
@@ -1225,7 +1225,7 @@ impl SubAssign for MetaVarCell {
         self.sub_raw(self, &rhs, true);
     }
 }
-/// Implement raw substraction and derive Mul/MulAssign from it
+/// Implement raw subtraction and derive Mul/MulAssign from it
 impl MetaVarCell {
     fn mul_raw(dst: &MetaVarCell, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell) {
         // Check operand type

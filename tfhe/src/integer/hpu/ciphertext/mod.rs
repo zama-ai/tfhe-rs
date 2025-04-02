@@ -20,7 +20,7 @@ impl HpuRadixCiphertext {
 
 impl HpuRadixCiphertext {
     /// Create a Hpu Radix ciphertext based on a Cpu one.
-    /// No xfer with Fpga occured until operation is request on HpuRadixCiphertext
+    /// No xfer with Fpga occurred until operation is request on HpuRadixCiphertext
     /// TODO Rework the way to iterate over RadixCihpertext
     pub fn from_radix_ciphertext(cpu_ct: &RadixCiphertext, device: &HpuDevice) -> Self {
         let params = device.params();
@@ -59,7 +59,7 @@ impl HpuRadixCiphertext {
     }
 
     /// Create a Hpu Radix ciphertext based on a Cpu one.
-    /// No xfer with Fpga occured until operation is request on HpuRadixCiphertext
+    /// No xfer with Fpga occurred until operation is request on HpuRadixCiphertext
     /// TODO Rework the way to iterate over RadixCihpertext
     pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
         let params = device.params();
@@ -72,7 +72,7 @@ impl HpuRadixCiphertext {
     }
 
     /// Create a Cpu boolean block
-    /// Warn: This function panic if the underlying RadixCiphertext don't fullfill required properties
+    /// Warn: This function panic if the underlying RadixCiphertext don't fulfill required properties
     pub fn to_boolean_block(&self) -> BooleanBlock {
         assert!(
             self.0.is_boolean(),

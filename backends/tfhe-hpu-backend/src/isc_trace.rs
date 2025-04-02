@@ -21,7 +21,7 @@ impl TraceDump {
                 let reg = regmap
                     .register()
                     .get(&format!("hbm_axi4_addr_1in3::{}", name))
-                    .expect("Unknow register, check regmap definition");
+                    .expect("Unknown register, check regmap definition");
                 hpu_hw.read_reg(*reg.offset() as u64) as usize
             }).collect();
         let offset = offset_reg[0] + (offset_reg[1] << 32);

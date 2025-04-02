@@ -103,7 +103,7 @@ impl std::hash::Hash for Var {
 pub struct VarCell(Rc<RefCell<Var>>);
 
 impl VarCell {
-    // Purposedly not public
+    // Purposely not public
     fn borrow_mut(&self) -> RefMut<'_, Var> {
         self.0.borrow_mut()
     }
@@ -914,7 +914,7 @@ impl OperationCell {
         });
     }
 
-    // Removes all links from roots to leafs
+    // Removes all links from roots to leaves
     fn unload(&self) {
         self.0
             .borrow()

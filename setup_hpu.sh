@@ -7,7 +7,7 @@ HPU_MOCKUP_DIR=$CUR_SCRIPT_DIR/mockups/tfhe-hpu-mockup
 
 # Default default bitstream
 # Available options are:
-#  * sim: use with the mockup (i.e simualtion)
+#  * sim: use with the mockup (i.e simulation)
 #  * u55c: use with u55c (latest bitstream with gf64 config)
 #  * aved: use with v80 (i.e should specify pcie-dev flag [zamav80: 01, srvzama: 21]
 HPU_CONFIG="sim"

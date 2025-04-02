@@ -20,7 +20,7 @@ pub struct HpuPBSParameters {
     pub ciphertext_width: usize,
 }
 // Manual implementation of Eq trait
-// Indeed, we can handle strict comparaison of f64
+// Indeed, we can handle strict comparison of f64
 impl std::cmp::Eq for HpuPBSParameters {}
 
 impl HpuPBSParameters {
@@ -174,7 +174,7 @@ pub struct HpuParameters {
     pub isc_params: HpuIscParameters,
 }
 
-/// Provide Serde mechanims in ron file
+/// Provide Serde mechanisms in ron file
 impl HpuParameters {
     /// Provide Serde mechanisms from TOML file
     pub fn from_toml(file: &str) -> Self {

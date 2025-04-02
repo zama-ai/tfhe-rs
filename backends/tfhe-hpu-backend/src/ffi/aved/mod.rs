@@ -24,7 +24,7 @@ pub struct HpuHw {
 }
 
 impl HpuHw {
-    /// Handle ffi instanciation
+    /// Handle ffi instantiation
     #[inline(always)]
     pub fn new_hpu_hw(
         ami_path: &str,

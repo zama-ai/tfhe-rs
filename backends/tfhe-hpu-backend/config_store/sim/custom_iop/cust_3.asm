@@ -1,7 +1,7 @@
 # CUST_3
 # Simple IOp to check isc behavior
 # Generate obvious deps and check that isc correctly issued the dop
-# Correct resut must bu Dest <- Src[0]
+# Correct result must bu Dest <- Src[0]
 LD R0   TS[0].0
 LD R1   TS[0].1
 LD R2   TS[0].2

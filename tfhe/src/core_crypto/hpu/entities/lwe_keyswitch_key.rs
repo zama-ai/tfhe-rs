@@ -17,7 +17,7 @@ where
         // Allocate radix_basis converter
         let mut rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
 
-        // Extract params inner values for ease of writting
+        // Extract params inner values for ease of writing
         let pbs_p = &params.pbs_params;
         let lwe_k = pbs_p.lwe_dimension;
         let glwe_k = pbs_p.glwe_dimension;
@@ -41,7 +41,7 @@ where
         // Within this rectangle lbZ coefs are merged in one 64b coefs
         // and iterated over y dim.
         // Furthermore it's possible that ksk polyhedron isn't a multiple of lbx/lby/lbz.
-        // Imcomplete rectangle are then extend with xx and iterate as usual
+        // Incomplete rectangle are then extend with xx and iterate as usual
 
         let mut hw_idx = 0;
         for outer_x in (0..lwe_k + 1).step_by(ks_p.lbx) {
@@ -91,8 +91,8 @@ where
                                 };
                                 // NB: Ksk modulus used within Hw could be different that the one
                                 // used in Sw. In Sw, the
-                                // informations is kept in MSB, but Hw required them in LSB
-                                // Handle rounding and bit alignement
+                                // information is kept in MSB, but Hw required them in LSB
+                                // Handle rounding and bit alignment
                                 let coef_rounded_ralign = {
                                     let coef_orig: u64 = cur_coef.cast_into();
                                     // Extract info bits and rounding if required
@@ -197,7 +197,7 @@ where
         let params = hpu_ksk.params();
         let mut rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
 
-        // Extract params inner values for ease of writting
+        // Extract params inner values for ease of writing
         let pbs_p = &params.pbs_params;
         let lwe_k = pbs_p.lwe_dimension;
         let glwe_k = pbs_p.glwe_dimension;
@@ -257,7 +257,7 @@ where
                                         *cpu_coef =
                                             hpu_val << (u64::BITS - ks_p.width as u32) as usize;
                                     }
-                                    _ => { /* At leat one dimension overflow, it's padded with 0 in
+                                    _ => { /* At least one dimension overflow, it's padded with 0 in
                                           * the Hw view => Skipped */
                                     }
                                 };

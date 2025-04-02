@@ -256,7 +256,7 @@ impl Program<iop::IOp> {
 
         let mut prog = Self::default();
         // Buffer word stream.
-        // When comment token occured, convert the word stream into IOp
+        // When comment token occurred, convert the word stream into IOp
         // -> No comment could be inserted in a middle of IOp word stream
         let mut word_stream = VecDeque::new();
         let mut file_len = 0;
