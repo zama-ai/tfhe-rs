@@ -12,8 +12,6 @@ use crate::core_crypto::entities::*;
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
-use super::CiphertextModulus;
-
 /// Perform a blind rotation given an input [`LWE ciphertext`](`LweCiphertext`), modifying a look-up
 /// table passed as a [`GLWE ciphertext`](`GlweCiphertext`) and an [`LWE bootstrap
 /// key`](`LweBootstrapKey`) in the NTT domain see [`NTT LWE bootstrap

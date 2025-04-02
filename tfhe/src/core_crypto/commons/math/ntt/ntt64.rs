@@ -155,7 +155,7 @@ impl Ntt64View<'_> {
     /// To:   ntt domain  (i.e. prime modulus)
     /// Switching are done inplace
     pub(crate) fn modswitch_from_power_of_two_to_ntt_prime(
-        &self,
+        self,
         input_modulus_width: u32,
         data: &mut [u64],
     ) {
@@ -173,7 +173,7 @@ impl Ntt64View<'_> {
     /// To:   power_of_two domain (NB: value are aligned on MSB)
     /// Switching are done inplace
     pub(crate) fn modswitch_from_ntt_prime_to_power_of_two(
-        &self,
+        self,
         output_modulus_width: u32,
         data: &mut [u64],
     ) {
@@ -219,14 +219,14 @@ impl Ntt64View<'_> {
         let decomp = decomp.as_ref();
         ntt.copy_from_slice(decomp);
 
-        ntt.iter_mut().for_each(|x| {
+        for x in ntt.iter_mut() {
             *x = if (*x >> (u64::BITS - 1)) == 1 {
                 // Correctly encode negative value in regard of the prime modulus
                 self.custom_modulus() - (!(*x) + 1)
             } else {
                 *x
             };
-        });
+        }
         self.plan.fwd(ntt);
     }
 

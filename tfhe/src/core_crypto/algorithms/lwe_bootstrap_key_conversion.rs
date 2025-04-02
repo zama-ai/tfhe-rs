@@ -358,7 +358,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
             ntt.plan.normalize(output_poly.as_mut());
         } else {
             ntt.forward_normalized(output_poly, input_poly);
-        };
+        }
     }
 }
 
@@ -437,7 +437,7 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
                     ntt.plan.normalize(output_poly.as_mut());
                 } else {
                     ntt.forward_normalized(output_poly, input_poly);
-                };
+                }
             }
         });
 }
