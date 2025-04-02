@@ -1,6 +1,7 @@
 use super::*;
 
 // For the kogge stone add/sub
+use crate::fw::metavar::PosKind;
 use crate::fw::rtl::{Rtl, VarCell};
 use lazy_static::lazy_static;
 use std::cmp::{Eq, PartialEq};
@@ -31,11 +32,17 @@ impl From<FwParameters> for KoggeBlockTableIndex {
     }
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+enum AddCfg {
+    Kogge(usize),
+    Ripple,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct KoggeBlockCfg {
     #[serde(skip)]
     filename: String,
-    table: HashMap<KoggeBlockTableIndex, usize>,
+    table: HashMap<KoggeBlockTableIndex, AddCfg>,
 }
 
 fn append_bin(name: &str) -> String {
@@ -68,11 +75,14 @@ impl KoggeBlockCfg {
         }
     }
 
-    pub fn entry(&mut self, index: KoggeBlockTableIndex) -> Entry<'_, KoggeBlockTableIndex, usize> {
+    pub fn entry(
+        &mut self,
+        index: KoggeBlockTableIndex,
+    ) -> Entry<'_, KoggeBlockTableIndex, AddCfg> {
         self.table.entry(index)
     }
 
-    pub fn get(&mut self, index: &KoggeBlockTableIndex) -> Option<&usize> {
+    pub fn get(&mut self, index: &KoggeBlockTableIndex) -> Option<&AddCfg> {
         self.table.get(index)
     }
 
@@ -129,26 +139,69 @@ lazy_static! {
 struct Range(usize, usize);
 
 #[derive(Clone, Debug)]
-pub struct Carry {
+pub struct PGCarry {
     var: VarCell,
     cpos: usize,
     fresh: VarCell,
 }
 
+#[derive(Clone, Debug)]
+pub struct RippleCarry(pub VarCell);
+
+#[derive(Clone, Debug)]
+pub enum Carry {
+    PG(PGCarry),
+    Ripple(RippleCarry),
+}
+
 impl Carry {
-    pub fn fresh(var: VarCell) -> Carry {
-        Carry {
+    pub fn clone_on(&self, prog: &Program) -> Carry {
+        match self {
+            Carry::PG(x) => Carry::PG(x.clone_on(prog)),
+            Carry::Ripple(RippleCarry(x)) => Carry::Ripple(RippleCarry(x.clone_on(prog))),
+        }
+    }
+}
+
+impl PGCarry {
+    pub fn fresh(var: VarCell) -> PGCarry {
+        PGCarry {
             var: var.clone(),
             cpos: 1,
             fresh: var,
         }
     }
 
-    pub fn clone_on(&self, prog: &Program) -> Carry {
-        Carry {
+    pub fn clone_on(&self, prog: &Program) -> PGCarry {
+        PGCarry {
             var: self.var.clone_on(prog),
             cpos: self.cpos,
             fresh: self.fresh.clone_on(prog),
+        }
+    }
+}
+
+impl From<Carry> for PGCarry {
+    fn from(value: Carry) -> Self {
+        match value {
+            Carry::Ripple(x) => {
+                if let Some(true) = x.0.copy_meta().map(|x| x.is_in(PosKind::IMM)) {
+                    PGCarry::fresh(&x.0 * 2usize)
+                } else {
+                    let pbs = pbs_by_name!("Ripple2GenProp");
+                    PGCarry::fresh(x.0.single_pbs(&pbs))
+                }
+            }
+            Carry::PG(x) => x,
+        }
+    }
+}
+
+impl From<Carry> for RippleCarry {
+    fn from(value: Carry) -> Self {
+        match value {
+            Carry::Ripple(x) => x,
+            Carry::PG(_) => panic!("Unsupported"),
         }
     }
 }
@@ -168,13 +221,13 @@ impl ReduceType {
 }
 
 struct KoggeTree {
-    cache: HashMap<Range, Carry>,
+    cache: HashMap<Range, PGCarry>,
     tfhe_params: asm::DigitParameters,
     reduce_map: HashMap<usize, ReduceType>,
 }
 
 impl KoggeTree {
-    fn new(prg: &mut Program, inputs: Vec<Carry>) -> KoggeTree {
+    fn new(prg: &mut Program, inputs: Vec<PGCarry>) -> KoggeTree {
         let mut cache = HashMap::new();
         inputs.into_iter().enumerate().for_each(|(i, v)| {
             cache.insert(Range(i, i), v);
@@ -236,14 +289,14 @@ impl KoggeTree {
 
                 let var = lsb.mac(msb_shift, msb);
                 let fresh = self.reduce_map[&cpos].apply(&var);
-                Carry { var, cpos, fresh }
+                PGCarry { var, cpos, fresh }
             };
 
             self.cache.insert((*index).clone(), merge);
         }
     }
 
-    fn get_subtree(&mut self, index: &Range) -> &Carry {
+    fn get_subtree(&mut self, index: &Range) -> &PGCarry {
         self.insert_subtree(index);
         self.cache.get(index).unwrap()
     }
@@ -259,12 +312,12 @@ pub fn propagate_carry(
     prog: &mut Program,
     dst: &mut [VarCell],
     carrysave: &[VarCell],
-    cin: &Option<Carry>,
-) -> Carry {
+    cin: &Option<PGCarry>,
+) -> PGCarry {
     let tfhe_params: asm::DigitParameters = prog.params().clone().into();
 
-    let pbs_genprop = asm::Pbs::ManyGenProp(asm::dop::PbsManyGenProp::default());
-    let pbs_genprop_add = asm::Pbs::GenPropAdd(asm::dop::PbsGenPropAdd::default());
+    let pbs_genprop = pbs_by_name!("ManyGenProp");
+    let pbs_genprop_add = pbs_by_name!("GenPropAdd");
 
     // Make sure the TFHE parameters are enough to run this
     assert!(
@@ -278,7 +331,7 @@ pub fn propagate_carry(
         .iter()
         .map(|v| {
             let mut res = v.pbs(&pbs_genprop).into_iter();
-            (res.next().unwrap(), Carry::fresh(res.next().unwrap()))
+            (res.next().unwrap(), PGCarry::fresh(res.next().unwrap()))
         })
         .unzip();
 
@@ -286,7 +339,7 @@ pub fn propagate_carry(
     carry.insert(
         0,
         cin.clone()
-            .unwrap_or_else(|| Carry::fresh(VarCell::from(prog.new_imm(0)))),
+            .unwrap_or_else(|| PGCarry::fresh(VarCell::from(prog.new_imm(0)))),
     );
 
     // Build a list of terminal outputs
@@ -306,12 +359,15 @@ pub fn propagate_carry(
 // description of a kogge stone adder that can then be added to the program
 pub fn add(
     prog: &mut Program,
+    mut dst: Vec<VarCell>,
     a: Vec<VarCell>,
     b: Vec<VarCell>,
-    mut cin: Option<Carry>,
-    mut dst: Vec<VarCell>,
+    cin: Option<Carry>,
     par_w: usize,
 ) -> Rtl {
+    // Convert Carry go PGCarry
+    let mut cin: Option<PGCarry> = cin.map(|x| x.into());
+
     // Carry save add
     let csave: Vec<_> = a
         .into_iter()
@@ -338,14 +394,50 @@ pub fn add(
 
 pub fn sub(
     prog: &mut Program,
+    dst: Vec<VarCell>,
     a: Vec<VarCell>,
     b: Vec<VarCell>,
-    dst: Vec<VarCell>,
     par_w: usize,
 ) -> Rtl {
     let b_inv = bw_inv(prog, b);
-    let one = Carry::fresh(VarCell::from(prog.new_imm(2)));
-    kogge::add(prog, a, b_inv, Some(one), dst, par_w)
+    let one = Carry::Ripple(RippleCarry(VarCell::from(prog.new_imm(1))));
+    kogge::add(prog, dst, a, b_inv, Some(one), par_w)
+}
+
+pub fn ripple_sub(prog: &mut Program, dst: Vec<VarCell>, a: Vec<VarCell>, b: Vec<VarCell>) -> Rtl {
+    let b_inv = bw_inv(prog, b);
+    let one = Carry::Ripple(RippleCarry(VarCell::from(prog.new_imm(1))));
+    kogge::ripple_add(dst, a, b_inv, Some(one))
+}
+
+pub fn ripple_add(
+    mut dst: Vec<VarCell>,
+    src_a: Vec<VarCell>,
+    src_b: Vec<VarCell>,
+    carry: Option<Carry>,
+) -> Rtl {
+    let pbs = pbs_by_name!("ManyCarryMsg");
+
+    let mut carry: Option<VarCell> = carry.map(|x| RippleCarry::from(x).0);
+
+    dst.iter_mut()
+        .zip(src_a.into_iter().zip_longest(src_b).map(|r| match r {
+            EitherOrBoth::Left(x) | EitherOrBoth::Right(x) => x.clone(),
+            EitherOrBoth::Both(a, b) => &a + &b,
+        }))
+        .for_each(|(dst, mut msg)| {
+            // Conditional carry
+            if let Some(carry) = &carry {
+                msg = &msg + carry;
+            }
+
+            // Extract carry and message
+            let mut pbs_iter = msg.pbs(&pbs).into_iter();
+            *dst <<= &pbs_iter.next().unwrap();
+            carry = Some(pbs_iter.next().unwrap());
+        });
+
+    Rtl::from(dst)
 }
 
 // cached kogge_adder wrapper
@@ -372,7 +464,9 @@ pub fn cached_add(
         .or_else(|| {
             dirty = true;
             (1..=prog.params().blk_w())
-                .map(|w| {
+                .map(|x| AddCfg::Kogge(x))
+                .chain([AddCfg::Ripple].into_iter())
+                .map(|cfg| {
                     // Build a new tree for every par_w trial, which means that we
                     // need to get fresh variables for each trial.
                     let mut tmp_prog = Program::new(&prog.params());
@@ -380,18 +474,24 @@ pub fn cached_add(
                     let b: Vec<_> = clone_on(&tmp_prog, &b);
                     let dst: Vec<_> = clone_on(&tmp_prog, &dst);
                     let cin = cin.clone().map(|c| c.clone_on(&tmp_prog));
-                    let tree = add(&mut tmp_prog, a, b, cin, dst, w);
-                    (w, tree.estimate(&tmp_prog))
+                    let tree = match cfg {
+                        AddCfg::Kogge(w) => add(&mut tmp_prog, dst, a, b, cin, w),
+                        AddCfg::Ripple => ripple_add(dst, a, b, cin),
+                    };
+                    (cfg, tree.estimate(&tmp_prog))
                 })
                 .min_by_key(|(_, cycle_estimate)| *cycle_estimate)
-                .map(|(w, _)| w)
+                .map(|(cfg, _)| cfg)
         })
-        .map(|w| {
-            kogge_cfg.entry(index).or_insert(w);
+        .map(|cfg| {
+            kogge_cfg.entry(index).or_insert(cfg);
             if dirty && kogge_cfg.try_write().is_err() {
                 warn!("Could not write kogge config");
             }
-            add(prog, a, b, cin, dst, w)
+            match cfg {
+                AddCfg::Kogge(w) => add(prog, dst, a, b, cin, w),
+                AddCfg::Ripple => ripple_add(dst, a, b, cin),
+            }
         })
         .unwrap()
 }

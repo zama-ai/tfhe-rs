@@ -4,7 +4,7 @@ pub mod kogge;
 pub mod vardeg;
 
 use super::rtl::{Rtl, VarCell};
-use kogge::Carry;
+use kogge::{Carry, RippleCarry};
 use vardeg::*;
 
 use crate::asm::iop::opcode::*;
@@ -227,11 +227,11 @@ pub fn iop_erc_20(prog: &mut Program) {
             .collect::<Vec<_>>();
 
         if ripple {
-            iop_ripple_add(dst_to, src_to, src_amount.clone(), None)
-                + iop_ripple_sub(prog, dst_from, src_from, src_amount)
+            kogge::ripple_add(dst_to, src_to, src_amount.clone(), None)
+                + kogge::ripple_sub(prog, dst_from, src_from, src_amount)
         } else {
-            kogge::add(prog, src_to, src_amount.clone(), None, dst_to, kogge_blk_w)
-                + kogge::sub(prog, src_from, src_amount, dst_from, kogge_blk_w)
+            kogge::add(prog, dst_to, src_to, src_amount.clone(), None, kogge_blk_w)
+                + kogge::sub(prog, dst_from, src_from, src_amount, kogge_blk_w)
         }
     };
     tree.add_to_prog(prog);
@@ -267,66 +267,10 @@ fn iop_subx(
         let a = VarCell::from_vec(src_a);
         let b = VarCell::from_vec(src_b);
         let b_inv = bw_inv(prog, b);
-        let one = Carry::fresh(VarCell::from(prog.new_imm(2)));
+        let one = Carry::Ripple(RippleCarry(VarCell::from(prog.new_imm(1))));
         kogge::cached_add(prog, a, b_inv, Some(one), dst)
     }
     .add_to_prog(prog);
-}
-
-#[instrument(level = "trace", skip(prog))]
-pub fn iop_ripple_sub(
-    prog: &mut Program,
-    mut dst: Vec<VarCell>,
-    src_a: Vec<VarCell>,
-    src_b: Vec<VarCell>,
-) -> Rtl {
-    let pbs = pbs_by_name!("ManyCarryMsg");
-    let b_bw_inv = bw_inv(prog, src_b);
-    let mut carry: VarCell = VarCell::from(prog.new_imm(1));
-
-    dst.iter_mut()
-        .zip(src_a.into_iter().zip_longest(b_bw_inv).map(|r| match r {
-            EitherOrBoth::Left(x) | EitherOrBoth::Right(x) => x,
-            EitherOrBoth::Both(a, b) => &a + &b,
-        }))
-        .for_each(|(dst, msg)| {
-            let msg = &msg + &carry;
-            let mut pbs_iter = msg.pbs(&pbs).into_iter();
-            // Extract carry and message
-            *dst <<= &pbs_iter.next().unwrap();
-            carry = pbs_iter.next().unwrap();
-        });
-
-    Rtl::from(dst)
-}
-
-#[instrument(level = "trace")]
-pub fn iop_ripple_add(
-    mut dst: Vec<VarCell>,
-    src_a: Vec<VarCell>,
-    src_b: Vec<VarCell>,
-    mut carry: Option<VarCell>,
-) -> Rtl {
-    let pbs = pbs_by_name!("ManyCarryMsg");
-
-    dst.iter_mut()
-        .zip(src_a.into_iter().zip_longest(src_b).map(|r| match r {
-            EitherOrBoth::Left(x) | EitherOrBoth::Right(x) => x.clone(),
-            EitherOrBoth::Both(a, b) => &a + &b,
-        }))
-        .for_each(|(dst, mut msg)| {
-            // Conditional carry
-            if let Some(carry) = &carry {
-                msg = &msg + carry;
-            }
-
-            // Extract carry and message
-            let mut pbs_iter = msg.pbs(&pbs).into_iter();
-            *dst <<= &pbs_iter.next().unwrap();
-            carry = Some(pbs_iter.next().unwrap());
-        });
-
-    Rtl::from(dst)
 }
 
 /// Generic mul operation
@@ -375,7 +319,7 @@ pub fn iop_mulx(
     for (blk, dst) in dst.iter_mut().enumerate() {
         let mut to_sum: VecVarCellDeg = mul_map.remove(&blk).unwrap().into();
         let mut bootstrap = |sum: &VarCellDeg| -> VarCellDeg {
-            trace!(target: "ilp:mulx:bootstrap", "bootstrap: {:?}", sum);
+            trace!(target: "llt:mulx:bootstrap", "bootstrap: {:?}", sum);
             if sum.deg.deg > props.max_msg() {
                 mul_map.entry(blk + 1).or_default().push(VarCellDeg::new(
                     sum.deg.deg >> props.msg_w,
