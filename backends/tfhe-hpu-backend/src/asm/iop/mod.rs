@@ -82,9 +82,9 @@ impl std::str::FromStr for IOpProto {
                     .map(|x| x.trim().parse())
                     .collect::<Result<Vec<VarMode>, ParsingError>>()
             } else {
-                Err(ParsingError::Unmatch(format!(
-                    "Invalid IOpProto: Missing dst field (e.g. <Native, Bool>"
-                )))
+                Err(ParsingError::Unmatch(
+                    "Invalid IOpProto: Missing dst field (e.g. <Native, Bool>".to_string(),
+                ))
             }?;
 
             let src = if let Some(src_raw) = caps.name("src") {
@@ -94,9 +94,10 @@ impl std::str::FromStr for IOpProto {
                     .map(|x| x.trim().parse())
                     .collect::<Result<Vec<VarMode>, ParsingError>>()
             } else {
-                Err(ParsingError::Unmatch(format!(
+                Err(ParsingError::Unmatch(
                     "Invalid IOpProto: Missing src field (e.g. <Native, Half, Bool, ...>"
-                )))
+                        .to_string(),
+                ))
             }?;
             let imm = if let Some(imm_raw) = caps.name("imm") {
                 imm_raw
@@ -104,9 +105,9 @@ impl std::str::FromStr for IOpProto {
                     .parse::<usize>()
                     .map_err(|err| ParsingError::InvalidArg(err.to_string()))
             } else {
-                Err(ParsingError::Unmatch(format!(
-                    "Invalid IOpProto: Missing imm field (e.g. <2>"
-                )))
+                Err(ParsingError::Unmatch(
+                    "Invalid IOpProto: Missing imm field (e.g. <2>".to_string(),
+                ))
             }?;
 
             Ok(IOpProto { dst, src, imm })

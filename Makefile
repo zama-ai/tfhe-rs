@@ -479,6 +479,11 @@ clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
 
+.PHONY: clippy_hpu_backend # Run clippy lints on the tfhe-hpu-backend
+clippy_hpu_backend: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-hpu-backend -- --no-deps -D warnings
+
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
 check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \

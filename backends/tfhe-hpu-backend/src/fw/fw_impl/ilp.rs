@@ -776,9 +776,9 @@ pub fn iop_erc_20(prog: &mut Program) {
 
     // Fuse real_amount computation and new_from, new_to
     // First compute a batch of real_amount in advance
-    let mut real_amount_work = (0..props.blk_w()).map(|x| x).peekable();
+    let mut real_amount_work = (0..props.blk_w()).peekable();
     let mut upfront_work = real_amount_work.by_ref().take(props.pbs_batch_w).peekable();
-    prog.push_comment(format!(" ==> Compute some real_amount in advance"));
+    prog.push_comment(" ==> Compute some real_amount in advance".to_string());
     let mut real_amount = VecDeque::new();
     while let Some(blk) = upfront_work.next() {
         let mut val_cond = enough_fund.mac(tfhe_params.msg_range() as u8, &src_amount[blk]);
