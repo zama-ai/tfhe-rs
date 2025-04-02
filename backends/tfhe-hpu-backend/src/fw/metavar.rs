@@ -1349,6 +1349,10 @@ impl MetaVarCell {
         );
         dst.check_degree();
     }
+
+    pub fn mul(&self, rhs_0: &MetaVarCell, rhs_1: &MetaVarCell) {
+        Self::mul_raw(self, rhs_0, rhs_1)
+    }
 }
 
 impl Mul for &MetaVarCell {
