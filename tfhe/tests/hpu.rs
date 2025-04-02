@@ -1,6 +1,6 @@
 //! Define a test-harness that handle setup and configuration of Hpu Backend
 //! The test harness take a list of testcase and run them
-//! A testcase simlpy bind a IOp to a closure describing it's behavior
+//! A testcase simply bind a IOp to a closure describing it's behavior
 //! WARN: Only one Hpu could be use at a time, thus all test must be run sequentially
 pub use serial_test::serial;
 use std::str::FromStr;
@@ -35,7 +35,7 @@ macro_rules! hpu_testbundle {
                 .with_line_number(false)
                 .without_time()
                 .try_init();
-            // Retrieved test iteration from environnement ----------------------------
+            // Retrieved test iteration from environment ----------------------------
             let hpu_test_iter = match(std::env::var("HPU_TEST_ITER")){
                 Ok(var) => usize::from_str(&var).unwrap_or_else(|_| {
                     panic!("HPU_TEST_ITER env variable {var} couldn't be casted in usize")
@@ -43,9 +43,9 @@ macro_rules! hpu_testbundle {
                 _ => DEFAULT_TEST_ITER
             };
 
-            // Retrived HpuDevice or init ---------------------------------------------
+            // Retrieved HpuDevice or init ---------------------------------------------
             let (hpu_mutex, cks)= HPU_DEVICE_CKS.get_or_init(|| {
-                // Instanciate HpuDevice --------------------------------------------------
+                // Instantiate HpuDevice --------------------------------------------------
                 let hpu_device = {
                     let config_file = ShellString::new(
                         "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
@@ -178,7 +178,7 @@ hpu_testcase!("BW_OR" => [u8, u16, u32, u64, u128]
 hpu_testcase!("BW_XOR" => [u8, u16, u32, u64, u128]
     |ct, imm| vec![ct[0] ^ ct[1]]);
 
-// Comparaison IOp
+// Comparison IOp
 hpu_testcase!("CMP_GT" => [u8, u16, u32, u64, u128]
     |ct, imm| vec![ct[0] > ct[1]]);
 hpu_testcase!("CMP_GTE" => [u8, u16, u32, u64, u128]

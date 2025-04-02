@@ -126,7 +126,7 @@ fn main() {
     // Load fpga configuration from file
     let config = HpuConfig::from_toml(&args.config.expand());
 
-    // Instanciate bare-minimum abstraction around XRT -----------------------
+    // Instantiate bare-minimum abstraction around XRT -----------------------
     let mut hpu_hw = ffi::HpuHw::new_hpu_hw(
         &config.fpga.ffi,
         std::time::Duration::from_micros(config.fpga.polling_us),
@@ -155,7 +155,7 @@ fn main() {
             let reg_start = regmap
                 .register()
                 .get(&name)
-                .expect("Unknow register, check regmap definition");
+                .expect("Unknown register, check regmap definition");
             let addr_start = *reg_start.offset() as u64;
 
             println!("Start read register {name} @{addr_start:0>8x}");
@@ -169,7 +169,7 @@ fn main() {
             let reg = regmap
                 .register()
                 .get(&name)
-                .expect("Unknow register, check regmap definition");
+                .expect("Unknown register, check regmap definition");
             let addr = *reg.offset() as u64;
 
             println!("Write {value:0>8x} in register {name} @{addr:0>8x}");
@@ -240,7 +240,7 @@ fn main() {
                 let ackq_addr = (*regmap
                     .register()
                     .get("WorkAck::ackq")
-                    .expect("Unknow register, check regmap definition")
+                    .expect("Unknown register, check regmap definition")
                     .offset()) as u64;
                 let ack_code = hpu_hw.read_reg(ackq_addr);
                 println!("Flush ackq -> {ack_code:0>8x}");

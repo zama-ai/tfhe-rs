@@ -125,7 +125,7 @@ impl HpuBackend {
             let ackq_addr = (*regmap
                 .register()
                 .get("WorkAck::ackq")
-                .expect("Unknow register, check regmap definition")
+                .expect("Unknown register, check regmap definition")
                 .offset()) as u64;
             loop {
                 let ack_code = hpu_hw.read_reg(ackq_addr);
@@ -140,7 +140,7 @@ impl HpuBackend {
         let bpip_use_reg = regmap
             .register()
             .get("bpip::use")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         hpu_hw.write_reg(
             *bpip_use_reg.offset() as u64,
             bpip_use_reg.from_field(
@@ -157,7 +157,7 @@ impl HpuBackend {
             *regmap
                 .register()
                 .get("bpip::timeout")
-                .expect("Unknow register, check regmap definition")
+                .expect("Unknown register, check regmap definition")
                 .offset() as u64,
             config.rtl.bpip_timeout,
         );
@@ -184,7 +184,7 @@ impl HpuBackend {
             (*regmap
                 .register()
                 .get("WorkAck::workq")
-                .expect("Unknow register, check regmap definition")
+                .expect("Unknown register, check regmap definition")
                 .offset()) as u64
         } else {
             0
@@ -193,7 +193,7 @@ impl HpuBackend {
             (*regmap
                 .register()
                 .get("WorkAck::ackq")
-                .expect("Unknow register, check regmap definition")
+                .expect("Unknown register, check regmap definition")
                 .offset()) as u64
         } else {
             0
@@ -315,11 +315,11 @@ impl HpuBackend {
         let bsk_avail = regmap
             .register()
             .get("bsk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let bsk_reset = regmap
             .register()
             .get("bsk_avail::reset")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         // Cache reset procedure
         // 1. Wait for end of batch process (WARN: Not handled by this function)
@@ -335,7 +335,7 @@ impl HpuBackend {
                 let val = hpu_hw.read_reg(*bsk_reset.offset() as u64);
                 let fields = bsk_reset.as_field(val);
 
-                *fields.get("done").expect("Unknow field") != 0
+                *fields.get("done").expect("Unknown field") != 0
             };
             if done {
                 break;
@@ -359,7 +359,7 @@ impl HpuBackend {
         let bsk_avail = regmap
             .register()
             .get("bsk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let bsk_addr_pc = (0..params.pc_params.bsk_pc)
             .map(|idx| {
                 let lsb_name = format!("hbm_axi4_addr_3in3::bsk_pc{idx}_lsb");
@@ -367,11 +367,11 @@ impl HpuBackend {
                 let lsb = regmap
                     .register()
                     .get(&lsb_name)
-                    .expect("Unknow register, check regmap definition");
+                    .expect("Unknown register, check regmap definition");
                 let msb = regmap
                     .register()
                     .get(&msb_name)
-                    .expect("Unknow register, check regmap definition");
+                    .expect("Unknown register, check regmap definition");
                 (lsb, msb)
             })
             .collect::<Vec<_>>();
@@ -409,12 +409,12 @@ impl HpuBackend {
         let bsk_avail = regmap
             .register()
             .get("bsk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         let val = hpu_hw.read_reg(*bsk_avail.offset() as u64);
         let fields = bsk_avail.as_field(val);
 
-        *fields.get("avail").expect("Unknow field") != 0
+        *fields.get("avail").expect("Unknown field") != 0
     }
 }
 
@@ -433,11 +433,11 @@ impl HpuBackend {
         let ksk_avail = regmap
             .register()
             .get("ksk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let ksk_reset = regmap
             .register()
             .get("ksk_avail::reset")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         // Cache reset procedure
         // 1. Wait for end of batch process (WARN: Not handled by this function)
@@ -453,7 +453,7 @@ impl HpuBackend {
                 let val = hpu_hw.read_reg(*ksk_reset.offset() as u64);
                 let fields = ksk_reset.as_field(val);
 
-                *fields.get("done").expect("Unknow field") != 0
+                *fields.get("done").expect("Unknown field") != 0
             };
             if done {
                 break;
@@ -476,7 +476,7 @@ impl HpuBackend {
         let ksk_avail = regmap
             .register()
             .get("ksk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let ksk_addr_pc = (0..params.pc_params.ksk_pc)
             .map(|idx| {
                 let lsb_name = format!("hbm_axi4_addr_1in3::ksk_pc{idx}_lsb");
@@ -484,11 +484,11 @@ impl HpuBackend {
                 let lsb = regmap
                     .register()
                     .get(&lsb_name)
-                    .expect("Unknow register, check regmap definition");
+                    .expect("Unknown register, check regmap definition");
                 let msb = regmap
                     .register()
                     .get(&msb_name)
-                    .expect("Unknow register, check regmap definition");
+                    .expect("Unknown register, check regmap definition");
                 (lsb, msb)
             })
             .collect::<Vec<_>>();
@@ -526,12 +526,12 @@ impl HpuBackend {
         let ksk_avail = regmap
             .register()
             .get("ksk_avail::avail")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         let val = hpu_hw.read_reg(*ksk_avail.offset() as u64);
         let fields = ksk_avail.as_field(val);
 
-        *fields.get("avail").expect("Unknow field") != 0
+        *fields.get("avail").expect("Unknown field") != 0
     }
 }
 
@@ -579,11 +579,11 @@ impl HpuBackend {
         let reg_lsb = regmap
             .register()
             .get("hbm_axi4_addr_1in3::glwe_pc0_lsb")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let reg_msb = regmap
             .register()
             .get("hbm_axi4_addr_1in3::glwe_pc0_msb")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         let lut_addr = lut_mem.cut_paddr()[0];
         hpu_hw.write_reg(
@@ -613,11 +613,11 @@ impl HpuBackend {
         let reg_lsb = regmap
             .register()
             .get("hbm_axi4_addr_1in3::trc_pc0_lsb")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
         let reg_msb = regmap
             .register()
             .get("hbm_axi4_addr_1in3::trc_pc0_msb")
-            .expect("Unknow register, check regmap definition");
+            .expect("Unknown register, check regmap definition");
 
         let trace_addr = trace_mem.cut_paddr()[0];
         hpu_hw.write_reg(
@@ -635,7 +635,7 @@ impl HpuBackend {
 impl HpuBackend {
     #[tracing::instrument(skip(self, config))]
     pub(crate) fn fw_init(&mut self, config: &config::HpuConfig) {
-        // Create Asm architecture properties and Fw instanciation
+        // Create Asm architecture properties and Fw instantiation
         let pe_cfg = PeConfigStore::from((&self.params, config));
         let fw_name =
             crate::fw::FwName::from_str(&config.firmware.implementation).unwrap_or_else(|_| {

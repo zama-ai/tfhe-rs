@@ -422,7 +422,7 @@ impl Program {
                     self.var_from(Some(VarPos::Imm(iid)))
                 })
                 .collect::<Vec<_>>(),
-            asm::OperandKind::Unknow => panic!("Template var required a known kind"),
+            asm::OperandKind::Unknown => panic!("Template var required a known kind"),
         }
     }
 
@@ -446,7 +446,7 @@ pub enum AtomicRegType {
 impl Program {
     /// Bulk reserve
     /// Evict value from cache in a bulk manner. This enable to prevent false dependency of bulk
-    /// opertions when cache is almost full Enforce that at least bulk_size register is `free`
+    /// operations when cache is almost full Enforce that at least bulk_size register is `free`
     pub(crate) fn reg_bulk_reserve(&self, bulk_size: usize) {
         // Iter from Lru -> MRu and take bulk_size regs
         let to_evict = self

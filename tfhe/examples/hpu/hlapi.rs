@@ -51,7 +51,7 @@ fn main() {
         SeedableRng::from_entropy()
     };
 
-    // Instanciate HpuDevice --------------------------------------------------
+    // Instantiate HpuDevice --------------------------------------------------
     let hpu_device = HpuDevice::from_config(&args.config.expand());
 
     // Generate keys ----------------------------------------------------------

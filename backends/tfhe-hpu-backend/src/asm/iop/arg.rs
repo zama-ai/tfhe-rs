@@ -29,7 +29,7 @@ pub enum ParsingError {
     Empty,
 }
 
-// Asm arguments are slighly different that hex word
+// Asm arguments are slightly different that hex word
 // Thus we can't directly mapped ASM arg to fmt structure
 // Below, we define a set of arguments for parsing purpose
 
@@ -135,7 +135,7 @@ impl std::str::FromStr for AsmIOpcode {
                         .parse::<u8>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                 } else {
-                    // One of them must match, otherwise error will be arised before
+                    // One of them must match, otherwise error will be arose before
                     let raw_hex_val = caps.name("hex_val").unwrap();
                     u8::from_str_radix(&raw_hex_val.as_str()[2..], 16)
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
@@ -308,7 +308,7 @@ impl std::str::FromStr for OperandBundle {
                             .parse::<u16>()
                             .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                     } else {
-                        // One of them must match, otherwise error will be arised before
+                        // One of them must match, otherwise error will be arose before
                         let raw_hex_cid = caps.name("vec_hex_cid").unwrap();
                         u16::from_str_radix(raw_hex_cid.as_str(), 16)
                             .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
@@ -325,7 +325,7 @@ impl std::str::FromStr for OperandBundle {
                             .parse::<u16>()
                             .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                     } else {
-                        // One of them must match, otherwise error will be arised before
+                        // One of them must match, otherwise error will be arose before
                         u16::from_str_radix(&caps["hex_cid"], 16)
                             .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                     };
@@ -387,7 +387,7 @@ impl std::str::FromStr for ImmBundle {
                         .parse::<u128>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                 } else {
-                    // One of them must match, otherwise error will be arised before
+                    // One of them must match, otherwise error will be arose before
                     let raw_hex_imm = caps.name("hex_imm").unwrap();
                     u128::from_str_radix(raw_hex_imm.as_str(), 16)
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?

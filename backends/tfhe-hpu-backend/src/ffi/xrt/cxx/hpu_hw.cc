@@ -30,7 +30,7 @@ namespace ffi {
       if (cu.empty())
         throw std::runtime_error("IP not found in the provided xclbin");
      
-      // Display kernel and memory informations ----------------------------------
+      // Display kernel and memory information -----------------------------------
       if (verbose >= VerbosityCxx::Trace) {
         std::cout << kernel_name << " CU properties: " << std::endl;
         for (auto& cu_i: cu) {

@@ -12,7 +12,7 @@ const MEM_PAGE_SIZE_B: usize = 4096;
 pub const HBM_BSK_PC_MAX: usize = 16;
 pub const HBM_KSK_PC_MAX: usize = 16;
 
-// WARN: XRT currently not suppor allocation greater than 16MiB
+// WARN: XRT currently not support allocation greater than 16MiB
 const HBM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
 
 pub(crate) struct HbmBank {
@@ -69,11 +69,11 @@ impl HbmBank {
         self.chunk.remove(&addr)
     }
 
-    /// Read data slice from mutiple chunk
+    /// Read data slice from multiple chunk
     /// WARN: To circumvent an XRT limitation with huge buffer, Key's memory are allocated with
     /// multiple slot of MEM_CHUNK_SIZE_B (i.e. Currently 16MiB) This is abstracted by the
     /// HugeMemory in tfhe-hpu-backend Mimics the logic here to correctly read Huge object from
-    /// Hbm model NB: User specify ofset in unit of data.
+    /// Hbm model NB: User specify offset in unit of data.
     pub(crate) fn read_across_chunk<T>(&self, ofst: usize, data: &mut [T])
     where
         T: bytemuck::Pod,
@@ -81,7 +81,7 @@ impl HbmBank {
         // Underlying memory is view as bytes memory
         // Extract byte ofst and byte length
         // NB: Don't use generic write method to prevent misunderstanding of ofst meaning
-        // Indeed, we must used a bytes ofset to compute the sub-bfr id and thus keep a
+        // Indeed, we must used a bytes offset to compute the sub-bfr id and thus keep a
         // byte approach everywhere to prevent mismatch
         let ofst_b = ofst * std::mem::size_of::<T>();
         let len_b = std::mem::size_of_val(data);

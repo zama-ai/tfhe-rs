@@ -11,7 +11,7 @@ use tfhe::core_crypto::hpu::from_with::FromWith;
 #[cfg(feature = "hpu")]
 #[test]
 fn hpu_key_loopback() {
-    // Instanciate HpuDevice --------------------------------------------------
+    // Instantiate HpuDevice --------------------------------------------------
     // -> Aims is to read the expected Hpu configuration
     // NB: Change working dir to top level repository
     // -> Enable to have stable path in configuration file
