@@ -2,7 +2,8 @@ use crate::asm::dop::DOp;
 use bitvec::prelude::*;
 use packed_struct::{Len, NoMoreBits, PackedStructLsb};
 use serde::Serialize;
-use std::{error::Error, fmt::Display};
+use std::error::Error;
+use std::fmt::Display;
 
 // TODO: We need to have some kind of trace versioning system to be able to
 // retroactively support traces coming from different hardware versions

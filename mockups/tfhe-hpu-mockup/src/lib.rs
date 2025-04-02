@@ -425,8 +425,8 @@ impl HpuSim {
                             let hw_slice = dst.as_mut_view().into_container();
                             std::iter::zip(hw_slice, ct_chunk).for_each(|(hpu, mem)| {
                                 // NB: Chunk are extended to enforce page align buffer
-                                // -> To prevent error during copy, with shrink the mem buffer to the
-                                // real   size before-hand
+                                // -> To prevent error during copy, with shrink the mem buffer to
+                                // the real   size before-hand
                                 let size_b = std::mem::size_of_val(hpu);
                                 let hbm_u64 = bytemuck::cast_slice::<u8, u64>(&mem[0..size_b]);
                                 hpu.clone_from_slice(hbm_u64);
@@ -477,14 +477,16 @@ impl HpuSim {
                         }
 
                         hpu_asm::DOp::ADD(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
                             let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                             lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
                         }
                         hpu_asm::DOp::SUB(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
                             let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                             lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
@@ -504,7 +506,8 @@ impl HpuSim {
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
                         }
                         hpu_asm::DOp::ADDS(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
                             let msg_cst = match op_impl.0.msg_cst {
                                 hpu_asm::ImmId::Cst(cst) => cst as u64,
@@ -518,7 +521,8 @@ impl HpuSim {
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
                         }
                         hpu_asm::DOp::SUBS(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
                             let msg_cst = match op_impl.0.msg_cst {
                                 hpu_asm::ImmId::Cst(cst) => cst as u64,
@@ -532,7 +536,8 @@ impl HpuSim {
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
                         }
                         hpu_asm::DOp::SSUB(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
                             lwe_ciphertext_opposite_assign(&mut cpu_s0);
                             let msg_cst = match op_impl.0.msg_cst {
@@ -547,7 +552,8 @@ impl HpuSim {
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
                         }
                         hpu_asm::DOp::MULS(op_impl) => {
-                            // NB: The first src is used as destination to prevent useless allocation
+                            // NB: The first src is used as destination to prevent useless
+                            // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
                             let msg_cst = match op_impl.0.msg_cst {
                                 hpu_asm::ImmId::Cst(cst) => cst as u64,
@@ -664,7 +670,8 @@ impl HpuSim {
             let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
             let box_size = pbs_p.polynomial_size / modulus_sup;
             // Max valid degree for a ciphertext when using the LUT we generate
-            // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1 boxes
+            // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1
+            // boxes
             let max_degree = modulus_sup / lut.lut_nb() as usize;
             max_degree * box_size
         };
