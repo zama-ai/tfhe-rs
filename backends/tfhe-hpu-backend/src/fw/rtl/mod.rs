@@ -424,6 +424,7 @@ rtl_op!("ADD", Arith, OpLock1);
 rtl_op!("SUB", Arith, OpLock1);
 rtl_op!("SUBS", Arith, AddsData);
 rtl_op!("MAC", Arith, MacData);
+rtl_op!("MULS", Arith, MacData);
 rtl_op!("PBS", Pbs, PbsData);
 rtl_op!("ST", MemSt, Option<RegLockPtr>);
 
@@ -570,6 +571,50 @@ impl ProgManager for MacOp {
             let b = self.src[1].copy_meta().unwrap();
             let d = d.copy_meta().unwrap();
             d.mac_raw(&a, self.data.mult as u8, &b);
+        }
+    }
+
+    fn free_rd(&mut self) {
+        self.data.lock.rd_lock = None;
+    }
+
+    fn free_wr(&mut self) {
+        self.data.lock.wr_lock = None;
+    }
+}
+
+impl ProgManager for MulsOp {
+    fn alloc_prog(&mut self, prog: &mut Program) {
+        self.data.lock = if let Some(dst) = self.dst()[0].as_ref() {
+            let mut a = self.src()[0].copy_meta().unwrap();
+            let mut d = prog.new_var();
+            dst.set_meta(d.clone());
+
+            let alock = {
+                a.reg_alloc_mv();
+                a.reg_lock()
+            };
+
+            assert!((a.is_in(PosKind::REG) || a.is_cst()));
+
+            if !a.is_cst() {
+                d.reg_alloc_mv();
+            }
+
+            OpLock1 {
+                rd_lock: Some(vec![alock]),
+                wr_lock: Some(d.reg_lock()),
+            }
+        } else {
+            OpLock1::default()
+        };
+    }
+
+    fn add_prog(&mut self, prog: &mut Program) {
+        if let Some(d) = self.dst[0].as_ref() {
+            let a = self.src[0].copy_meta().unwrap();
+            let d = d.copy_meta().unwrap();
+            d.mul(&a, &prog.new_imm(self.data.mult));
         }
     }
 
@@ -792,6 +837,22 @@ impl MacOp {
     }
 }
 
+impl MulsOp {
+    fn new_op(var: &VarCell, mult: usize) -> OperationCell {
+        let op = MulsOp {
+            src: vec![var.clone()],
+            dst: vec![None],
+            uid: new_uid(),
+            load_stats: None,
+            data: MacData {
+                mult,
+                lock: OpLock1::default(),
+            },
+        };
+        OperationCell(Rc::new(RefCell::new(Operation::MULS(op))))
+    }
+}
+
 impl PbsOp {
     fn new_op(dst: &[VarCell], lut: &Pbs, lhs: &VarCell) -> OperationCell {
         let op = PbsOp {
@@ -828,6 +889,7 @@ impl ToFlush for SubsOp {}
 impl ToFlush for AddOp {}
 impl ToFlush for SubOp {}
 impl ToFlush for MacOp {}
+impl ToFlush for MulsOp {}
 impl ToFlush for PbsOp {
     fn to_flush(&mut self) {
         if let Some(asm) = &mut self.data.stmt_link {
@@ -847,6 +909,7 @@ pub enum Operation {
     ADD(AddOp),
     SUB(SubOp),
     MAC(MacOp),
+    MULS(MulsOp),
     PBS(PbsOp),
     ST(StOp),
 }
@@ -1136,6 +1199,17 @@ impl std::ops::Sub<usize> for &VarCell {
     fn sub(self, other: usize) -> VarCell {
         let var = VarCell::new();
         let new_op = SubsOp::new_op(self, other);
+        var.set_driver(Some((new_op.clone(), 0)));
+        var
+    }
+}
+
+impl std::ops::Mul<usize> for &VarCell {
+    type Output = VarCell;
+
+    fn mul(self, coeff: usize) -> VarCell {
+        let var = VarCell::new();
+        let new_op = MulsOp::new_op(self, coeff);
         var.set_driver(Some((new_op.clone(), 0)));
         var
     }
