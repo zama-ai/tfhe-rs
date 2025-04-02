@@ -24,7 +24,7 @@ struct BadCmd;
 
 impl Display for BadCmd {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.to_string().as_str())
+        f.write_str("No such command")
     }
 }
 
@@ -124,7 +124,7 @@ where
         };
 
         let slice = slice.get(u32::len()..).ok_or(NoMoreBits)?;
-        let timestamp = u32::from_bit_slice_le(&slice)?;
+        let timestamp = u32::from_bit_slice_le(slice)?;
         let insn_asm = insn.as_ref().map(|dop| format!("{dop}"));
 
         Ok(IscTrace {
@@ -155,7 +155,7 @@ impl IscTraceStream {
         let view = bytes.view_bits::<Lsb0>();
         IscTraceStream(
             view.chunks(TRACE_W * 8)
-                .filter_map(|c| IscTrace::from_bit_slice_le(&c).ok())
+                .filter_map(|c| IscTrace::from_bit_slice_le(c).ok())
                 .collect(),
         )
     }

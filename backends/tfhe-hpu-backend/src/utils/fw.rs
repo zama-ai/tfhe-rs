@@ -155,6 +155,7 @@ fn main() -> Result<(), anyhow::Error> {
         register: params.regf_params.reg_nb,
         isc_depth: params.isc_params.depth,
         heap_size: args.heap,
+        min_pbs_batch_w: config.firmware.min_batch_size,
         total_pbs_nb: params.ntt_params.total_pbs_nb,
         pbs_batch_w: params.ntt_params.batch_pbs_nb,
         msg_w: params.pbs_params.message_width,
@@ -162,7 +163,6 @@ fn main() -> Result<(), anyhow::Error> {
         nu: args.nu,
         integer_w: args.integer_w,
         use_ipip: args.use_ipip,
-        use_bpip_opportunism: args.use_bpip_opportunism,
         kogge_cfg: args.kogge_cfg.expand(),
         op_cfg: RtlCfg::from(OpCfg {
             fill_batch_fifo: args.fill_batch_fifo,
@@ -192,8 +192,8 @@ fn main() -> Result<(), anyhow::Error> {
         // Instantiate Fw and start translation ----------------------------------------
         let fw = fw::AvlblFw::new(&args.fw_kind);
         let prog = fw.expand(&fw_params, iop);
-        prog.write_asm(&asm_p.as_os_str().to_str().unwrap())?;
-        prog.write_hex(&hex_p.as_os_str().to_str().unwrap())?;
+        prog.write_asm(asm_p.as_os_str().to_str().unwrap())?;
+        prog.write_hex(hex_p.as_os_str().to_str().unwrap())?;
     }
 
     Ok(())
