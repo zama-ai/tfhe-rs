@@ -35,22 +35,22 @@ fn isc_trace_simple() {
     ];
 
     let byte_view = bytemuck::try_cast_slice::<_, u8>(bytes.as_slice()).unwrap();
-    let stream = IscTraceStream::from_bytes(&byte_view);
-    print!("stream: {:?}\n", stream);
+    let stream = IscTraceStream::from_bytes(byte_view);
+    println!("stream: {:?}", stream);
 }
 
 #[test]
 fn isc_trace_v80() {
     let bytes = &data::V80_TEST_DATA;
     let byte_view = bytemuck::try_cast_slice::<_, u8>(bytes.as_slice()).unwrap();
-    let stream = IscTraceStream::from_bytes(&byte_view);
-    print!("stream: {:?}\n", stream);
+    let stream = IscTraceStream::from_bytes(byte_view);
+    println!("stream: {:?}", stream);
 }
 
 #[test]
 fn isc_trace_v80_2() {
     let bytes = &data::V80_TEST_DATA2;
     let byte_view = bytemuck::try_cast_slice::<_, u8>(bytes.as_slice()).unwrap();
-    let stream = IscTraceStream::from_bytes(&byte_view);
-    print!("stream: {:?}\n", stream);
+    let stream = IscTraceStream::from_bytes(byte_view);
+    println!("stream: {:?}", stream);
 }

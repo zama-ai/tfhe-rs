@@ -11,7 +11,6 @@ use tfhe_hpu_backend::isc_trace::{IscTraceStream, TraceDump};
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_num::maybe_hex;
 
-use serde_json;
 use std::fs::File;
 
 use tracing_subscriber::fmt::MakeWriter;
