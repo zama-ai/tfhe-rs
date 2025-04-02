@@ -76,10 +76,7 @@ impl ProgramInner {
         // Handle evicted slot if any
         // Convert it in strong reference for later handling
         let evicted = if let Some(weak_evicted) = rdata {
-            match weak_evicted.try_into() {
-                Ok(cell) => Some(cell),
-                Err(_) => None,
-            }
+            weak_evicted.try_into().ok()
         } else {
             None
         };
@@ -130,10 +127,7 @@ impl ProgramInner {
             .unwrap_or_else(|| panic!("Error register {rid:} is not available"));
 
         if let Some(weak_evicted) = rdata {
-            match weak_evicted.try_into() {
-                Ok(cell) => Some(cell),
-                Err(_) => None,
-            }
+            weak_evicted.try_into().ok()
         } else {
             None
         }
@@ -200,10 +194,7 @@ impl ProgramInner {
         // Handle evicted slot if any
         // Convert it in strong reference for later handling
         let evicted = if let Some(weak_evicted) = rdata {
-            match weak_evicted.try_into() {
-                Ok(cell) => Some(cell),
-                Err(_) => None,
-            }
+            weak_evicted.try_into().ok()
         } else {
             None
         };

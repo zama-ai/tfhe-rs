@@ -134,6 +134,7 @@ impl InfoPePbs {
         self.update_mmacc_sxt_cmd_wait_b_dur(ffi_hw, regmap);
         self.update_pep_inst_cnt(ffi_hw, regmap);
         self.update_pep_ack_cnt(ffi_hw, regmap);
+        self.update_load_bsk_rcp_dur(ffi_hw, regmap);
         self.update_pep_bskif_req_info_0(ffi_hw, regmap);
         self.update_pep_bskif_req_info_1(ffi_hw, regmap);
     }
@@ -348,6 +349,18 @@ impl InfoPePbs {
             .expect("Unknown register, check regmap definition");
         self.pep_inst_cnt = ffi_hw.read_reg(*reg.offset() as u64);
     }
+
+    pub fn update_load_bsk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_3in3::pep_load_bsk_rcp_dur_pc{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            self.load_bsk_rcp_dur[i] = ffi_hw.read_reg(*reg.offset() as u64)
+        });
+    }
+
     pub fn update_pep_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
             .register()
@@ -397,6 +410,7 @@ impl InfoPePbs {
         self.reset_mmacc_sxt_cmd_wait_b_dur(ffi_hw, regmap);
         self.reset_pep_inst_cnt(ffi_hw, regmap);
         self.reset_pep_ack_cnt(ffi_hw, regmap);
+        self.reset_load_bsk_rcp_dur(ffi_hw, regmap);
     }
     #[allow(unused)]
     pub fn reset_seq_bpip_waiting_batch_cnt(
@@ -547,6 +561,18 @@ impl InfoPePbs {
             .get("runtime_1in3::pep_ack_cnt")
             .expect("Unknown register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
+    }
+
+    #[allow(unused)]
+    pub fn reset_load_bsk_rcp_dur(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        (1..16).for_each(|i| {
+            let reg_name = format!("runtime_3in3::pep_load_bsk_rcp_dur_pc{i}");
+            let reg = regmap
+                .register()
+                .get(&reg_name)
+                .expect("Unknown register, check regmap definition");
+            ffi_hw.write_reg(*reg.offset() as u64, 0);
+        });
     }
 }
 
@@ -833,6 +859,7 @@ impl InfoIsc {
             .expect("Unknown register, check regmap definition");
         ffi_hw.write_reg(*reg.offset() as u64, 0);
     }
+
     #[allow(unused)]
     pub fn reset_isc_ack_cnt(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
         let reg = regmap
@@ -869,7 +896,7 @@ impl ErrorHpu {
             .register()
             .get("status_1in3::error")
             .expect("Unknown register, check regmap definition");
-        self.error_1in3 = ffi_hw.read_reg(*reg.offset() as u64) as u32;
+        self.error_1in3 = ffi_hw.read_reg(*reg.offset() as u64);
     }
 
     pub fn update_error_3in3(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
@@ -877,6 +904,6 @@ impl ErrorHpu {
             .register()
             .get("status_3in3::error")
             .expect("Unknown register, check regmap definition");
-        self.error_3in3 = ffi_hw.read_reg(*reg.offset() as u64) as u32;
+        self.error_3in3 = ffi_hw.read_reg(*reg.offset() as u64);
     }
 }

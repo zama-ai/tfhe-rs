@@ -75,7 +75,7 @@ impl HpuCmd {
             .collect::<Vec<_>>();
         let imm_op = imm
             .iter()
-            .map(|var| Immediat::from_cst(*var as u128))
+            .map(|var| Immediat::from_cst(*var))
             .collect::<Vec<_>>();
 
         let op = IOp::new(opcode, dst_op, src_op, imm_op);
