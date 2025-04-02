@@ -541,7 +541,7 @@ impl HpuBackend {
     #[tracing::instrument(level = "debug", skip(self, gen_lut), ret)]
     pub(crate) fn lut_init<F>(&mut self, gen_lut: F)
     where
-        F: Fn(HpuParameters, asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
+        F: Fn(HpuParameters, &asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
         let Self {
             ref mut hpu_hw,
@@ -560,7 +560,7 @@ impl HpuBackend {
             // Write it in on-board memory
             // Lut are encoded as trivial ciphertext.
             // Thus to prevent useless memory xfer, only the Body polynomial is uploaded on Hw
-            let hpu_lut = gen_lut(params.clone(), lut_impl);
+            let hpu_lut = gen_lut(params.clone(), &lut_impl);
 
             // NB: lut_mem are always on 1cut
             let ofst = lut_gid * params.pbs_params.polynomial_size;

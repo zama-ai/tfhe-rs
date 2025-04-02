@@ -246,22 +246,17 @@ where
                                     None
                                 };
 
-                                match (abs_x, abs_y, abs_z) {
-                                    (Some(x), Some(y), Some(z)) => {
-                                        let mut cpu_ksk_view = cpu_ksk.as_mut_view();
-                                        let cpu_coef =
-                                            KskIndex { x, y, z }.coef_mut_view(&mut cpu_ksk_view);
-                                        let hpu_val = (hpu_ksk[hw_idx] >> (inner_z * ks_p.width))
-                                            & Scalar::cast_from((1 << ks_p.width) - 1);
-                                        // Cpu expect value MSB Align
-                                        *cpu_coef =
-                                            hpu_val << (u64::BITS - ks_p.width as u32) as usize;
-                                    }
-                                    _ => { /* At least one dimension overflow, it's padded with 0
-                                          * in
-                                          * the Hw view => Skipped */
-                                    }
-                                };
+                                if let (Some(x), Some(y), Some(z)) = (abs_x, abs_y, abs_z) {
+                                    let mut cpu_ksk_view = cpu_ksk.as_mut_view();
+                                    let cpu_coef =
+                                        KskIndex { x, y, z }.coef_mut_view(&mut cpu_ksk_view);
+                                    let hpu_val = (hpu_ksk[hw_idx] >> (inner_z * ks_p.width))
+                                        & Scalar::cast_from((1 << ks_p.width) - 1);
+                                    // Cpu expect value MSB Align
+                                    *cpu_coef = hpu_val << (u64::BITS - ks_p.width as u32) as usize;
+                                }
+                                // Otherwise, at least one dimension overflow, it's padded with 0 in
+                                // the Hw view => Skipped
                             });
                             hw_idx += 1;
                         }

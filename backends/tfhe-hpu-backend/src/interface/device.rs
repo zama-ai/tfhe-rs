@@ -101,7 +101,7 @@ impl HpuDevice {
         ksk: HpuLweKeyswitchKeyOwned<u64>,
         gen_lut: F,
     ) where
-        F: Fn(HpuParameters, crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
+        F: Fn(HpuParameters, &crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
         // Properly reset keys
         self.bsk_unset();
@@ -170,7 +170,7 @@ impl HpuDevice {
 impl HpuDevice {
     pub(crate) fn lut_init<F>(&self, gen_lut: F)
     where
-        F: Fn(HpuParameters, crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
+        F: Fn(HpuParameters, &crate::asm::Pbs) -> HpuGlweLookuptableOwned<u64>,
     {
         let mut backend = self.backend.lock().unwrap();
         backend.lut_init(gen_lut)

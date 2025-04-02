@@ -23,7 +23,7 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) {
         .key
         .key_switching_key
         .decompress_into_lwe_keyswitch_key();
-    let hpu_ksk = ksk.as_view().into_with(params.clone());
+    let hpu_ksk = ksk.as_view().into_with(params);
     // Upload them on Hpu and configure internal Fw/Lut
     device.init(
         hpu_bsk,
