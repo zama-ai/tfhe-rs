@@ -24,7 +24,7 @@ pub(crate) mod report;
 use crate::asm;
 
 /// Event used for modelisation of time advance
-/// Contain the cycle in which the event must occure and the associated event type
+/// Contain the cycle in which the event must occurred and the associated event type
 #[derive(Debug)]
 pub struct Event {
     pub(crate) at_cycle: usize,

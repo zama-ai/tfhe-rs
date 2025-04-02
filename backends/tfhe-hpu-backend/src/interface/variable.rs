@@ -81,7 +81,7 @@ pub struct HpuVarWrapped {
     pub(crate) id: memory::ciphertext::SlotId,
     /// Reference to associated ct pool
     pub(crate) pool: memory::CiphertextMemory,
-    /// Way to push cmd insid the backend without need of locking
+    /// Way to push cmd inside the backend without need of locking
     pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
     pub(crate) params: HpuParameters,
     pub(crate) width: usize,
@@ -251,63 +251,3 @@ impl HpuVarWrapped {
         self.mode == VarMode::Bool
     }
 }
-
-// TODO remove this
-// /// Specialized Iop function call with usual dst <- lhs,rhs
-// /// Handle Ct x Ct iop only (i.e. No immediat)
-// /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-// impl HpuVarWrapped {
-//     /// IOp format is Ct <- Ct x Ct
-//     /// Dst operand is allocated
-//     /// IOp width is inferred from operand width
-//     pub fn iop_ct(self, opcode: crate::asm::IOpcode, rhs: Self) -> Self {
-//         // Allocate output variable
-//         let dst = Self::new_in(
-//             self.pool.clone(),
-//             self.cmd_api.clone(),
-//             self.params.clone(),
-//             self.width,
-//         );
-
-//         // NB: Clone Arcs -> neglicable cost
-//         Self::iop_raw(opcode, &[dst.clone()], &[self, rhs], &[]);
-//         dst
-//     }
-
-//     /// IOp format is Ct <- Ct x Ct
-//     /// Dest operand is first src operand
-//     pub fn iop_ct_assign(&self, opcode: crate::asm::IOpcode, rhs: Self) {
-//         Self::iop_raw(opcode, &[self.clone()], &[self.clone(), rhs], &[]);
-//     }
-// }
-
-// /// Specialized Iop function call with usual dst <- lhs,rhs
-// /// Handle Ct x Imm iop only (i.e. No immediat)
-// /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-// impl HpuVarWrapped {
-//     /// IOp format is Ct <- Ct x Imm
-//     /// Dst operand is allocated
-//     /// IOp width is inferred from operand width
-//     pub fn iop_scalar(self, opcode: crate::asm::IOpcode, rhs: HpuImm) -> Self {
-//         // Allocate output variable
-//         let dst = Self::new_in(
-//             self.pool.clone(),
-//             self.cmd_api.clone(),
-//             self.params.clone(),
-//             self.width,
-//         );
-
-//         // NB: Clone Arcs -> neglicable cost
-//         Self::iop_raw(opcode, &[dst.clone()], &[self], &[rhs]);
-//         dst
-//     }
-
-//     /// This function format and push associated work in dst cmd_api
-//     /// IOp format is Ct <- Ct x Imm
-//     /// Dest operand is first src operand
-//     /// -> Narrow possible IOp format for ease of use and mapping on common operation format
-//     /// IOp width is inferred from operand width
-//     pub fn iop_scalar_assign(&self, opcode: crate::asm::IOpcode, rhs: HpuImm) {
-//         Self::iop_raw(opcode, &[self.clone()], &[self.clone()], &[rhs]);
-//     }
-// }

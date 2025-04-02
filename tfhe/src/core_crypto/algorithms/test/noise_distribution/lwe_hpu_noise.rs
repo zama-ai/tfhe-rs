@@ -471,7 +471,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let after_ks_variance = variance(&noise_samples[2]);
     let after_pbs_variance = variance(&noise_samples[3]);
     println!(
-        "exp var {:?} encryp var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
+        "exp var {:?} encrypt var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
         expected_variance.0,
         encryption_variance.0,
         bynorm2_variance.0,
@@ -481,8 +481,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
     // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
     // variance after PBS must be around (exp_pbs_variance)
-    let expexted_bynorm2_variance = Variance(exp_pbs_variance.0 * (norm2 as f64).powf(2.0));
-    let expexted_after_ks_variance = Variance(expexted_bynorm2_variance.0 + exp_add_ks_variance.0);
+    let expected_bynorm2_variance = Variance(exp_pbs_variance.0 * (norm2 as f64).powf(2.0));
+    let expected_after_ks_variance = Variance(expected_bynorm2_variance.0 + exp_add_ks_variance.0);
 
     let mut wtr = csv::Writer::from_writer(io::stdout());
     let _ = wtr.write_record(&[
@@ -501,7 +501,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         encryption_variance.0.to_string().as_str(),
         bynorm2_variance.0.to_string().as_str(),
         after_ks_variance.0.to_string().as_str(),
-        expexted_after_ks_variance.0.to_string().as_str(),
+        expected_after_ks_variance.0.to_string().as_str(),
         after_pbs_variance.0.to_string().as_str(),
         exp_pbs_variance.0.to_string().as_str(),
     ]);
@@ -515,7 +515,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
             .as_str(),
         bynorm2_variance.get_standard_dev().0.to_string().as_str(),
         after_ks_variance.get_standard_dev().0.to_string().as_str(),
-        expexted_after_ks_variance
+        expected_after_ks_variance
             .get_standard_dev()
             .0
             .to_string()
@@ -537,7 +537,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         (after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
-        (expexted_after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
+        (expected_after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()
             .as_str(),
         (after_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
@@ -551,20 +551,20 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let var_pbs_abs_diff = (exp_pbs_variance.0 - after_pbs_variance.0).abs();
     let pbs_tolerance_thres = RELATIVE_TOLERANCE * exp_pbs_variance.0;
 
-    let var_ksk_abs_diff = (expexted_after_ks_variance.0 - after_ks_variance.0).abs();
-    let ks_tolerance_thres = RELATIVE_TOLERANCE * expexted_after_ks_variance.0;
+    let var_ksk_abs_diff = (expected_after_ks_variance.0 - after_ks_variance.0).abs();
+    let ks_tolerance_thres = RELATIVE_TOLERANCE * expected_after_ks_variance.0;
 
-    let var_bynorm2_abs_diff = (expexted_bynorm2_variance.0 - bynorm2_variance.0).abs();
-    let bynorm2_tolerance_thres = RELATIVE_TOLERANCE * expexted_bynorm2_variance.0;
+    let var_bynorm2_abs_diff = (expected_bynorm2_variance.0 - bynorm2_variance.0).abs();
+    let bynorm2_tolerance_thres = RELATIVE_TOLERANCE * expected_bynorm2_variance.0;
 
     let after_pbs_errbit = params.ct_width as f64 + after_pbs_variance.get_log_standard_dev().0;
     let after_pbs_exp_errbit = params.ct_width as f64 + exp_pbs_variance.get_log_standard_dev().0;
     let bynorm2_errbit = params.ct_width as f64 + bynorm2_variance.get_log_standard_dev().0;
     let bynorm2_exp_errbit =
-        params.ct_width as f64 + expexted_bynorm2_variance.get_log_standard_dev().0;
+        params.ct_width as f64 + expected_bynorm2_variance.get_log_standard_dev().0;
     let after_ks_errbit = params.ct_width as f64 + after_ks_variance.get_log_standard_dev().0;
     let after_ks_exp_errbit =
-        params.ct_width as f64 + expexted_after_ks_variance.get_log_standard_dev().0;
+        params.ct_width as f64 + expected_after_ks_variance.get_log_standard_dev().0;
     assert!(
         var_pbs_abs_diff < pbs_tolerance_thres,
         "Absolute difference for after PBS is incorrect: {var_pbs_abs_diff} >= {pbs_tolerance_thres}, \
@@ -575,13 +575,13 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         var_bynorm2_abs_diff < bynorm2_tolerance_thres,
         "Absolute difference for after *norm2 in incorrect: {var_bynorm2_abs_diff} >= {bynorm2_tolerance_thres} \
         got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
-        expected variance: {expexted_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
+        expected variance: {expected_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
     );
     assert!(
         (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit - after_ks_errbit < 1f64)),
         "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
         got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
-        expected variance: {expexted_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
+        expected variance: {expected_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
     );
 }
 

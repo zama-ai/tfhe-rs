@@ -71,7 +71,7 @@ impl Pool {
             srcs_on_dst: Some((slot.inst.srca_id, slot.inst.srcb_id)),
             ..Default::default()
         };
-        self.idx_matchs(filter).into_iter().for_each(|idx| {
+        self.idx_matches(filter).into_iter().for_each(|idx| {
             tracing::trace!("RdLock decrement -> {:?}", self.store[idx]);
             // TODO dig in this condition
             // Find a case that required the underflow filtering
@@ -113,7 +113,7 @@ impl Pool {
             dst_on_dst: Some(slot.inst.dst_id),
             ..Default::default()
         };
-        self.idx_matchs(filter).into_iter().for_each(|idx| {
+        self.idx_matches(filter).into_iter().for_each(|idx| {
             tracing::trace!("WrLock decrement -> {:?}", self.store[idx]);
             if self.store[idx].state.wr_lock != 0 {
                 self.store[idx].state.wr_lock -= 1;
@@ -127,7 +127,7 @@ impl Pool {
             sync_id: Some(slot.state.sync_id),
             ..Default::default()
         };
-        self.idx_matchs(filter).into_iter().for_each(|idx| {
+        self.idx_matches(filter).into_iter().for_each(|idx| {
             tracing::trace!("SyncLock decrement -> {:?}", self.store[idx]);
             if self.store[idx].state.wr_lock != 0 {
                 self.store[idx].state.wr_lock -= 1;
@@ -162,7 +162,7 @@ impl Pool {
                 sync_id: Some(sync_id),
                 ..Default::default()
             };
-            let sync_lock = self.idx_matchs(filter).len();
+            let sync_lock = self.idx_matches(filter).len();
             (sync_lock, 0, 0)
         } else {
             // Count vld instruction where our dst match on their srcs
@@ -172,7 +172,7 @@ impl Pool {
                 dst_on_srcs: Some(dst_id),
                 ..Default::default()
             };
-            let rd_lock = self.idx_matchs(filter).len();
+            let rd_lock = self.idx_matches(filter).len();
 
             // Count vld instruction where our src match on their dst
             let filter = Filter {
@@ -181,7 +181,7 @@ impl Pool {
                 dst_on_dst: Some(dst_id),
                 ..Default::default()
             };
-            let wr_lock = self.idx_matchs(filter).len();
+            let wr_lock = self.idx_matches(filter).len();
 
             // Count vld instruction that were not issued and are not flushes if
             // this is a flush and vice-versa. Only for PBSs.
@@ -194,7 +194,7 @@ impl Pool {
                     kind: Some(InstructionKind::Pbs),
                     ..Default::default()
                 };
-                self.idx_matchs(filter).len()
+                self.idx_matches(filter).len()
             } else {
                 0
             };
@@ -256,7 +256,7 @@ impl Pool {
                         kind: Some(InstructionKind::Pbs),
                         ..Default::default()
                     };
-                    self.idx_matchs(filter).into_iter().for_each(|idx| {
+                    self.idx_matches(filter).into_iter().for_each(|idx| {
                         tracing::trace!("Issue decrement -> {:?}", self.store[idx]);
                         self.store[idx].state.issue_lock =
                             self.store[idx].state.issue_lock.saturating_sub(1);
@@ -282,9 +282,9 @@ impl Pool {
 }
 
 impl Pool {
-    /// Extract the firt matching entry from the pool
+    /// Extract the first matching entry from the pool
     fn first_match(&mut self, filter: Filter) -> Option<Slot> {
-        let match_idx = self.idx_matchs(filter);
+        let match_idx = self.idx_matches(filter);
         if let Some(idx) = match_idx.first() {
             // extract value
             Some(self.store.remove(*idx))
@@ -294,7 +294,7 @@ impl Pool {
     }
 
     /// Return a vector of matching index
-    fn idx_matchs(&self, filter: Filter) -> Vec<usize> {
+    fn idx_matches(&self, filter: Filter) -> Vec<usize> {
         self.store
             .iter()
             .enumerate()
@@ -445,7 +445,7 @@ impl ArgId {
                 | asm::DOp::PBS_ML2_F(DOpPbsMl2F(pbs))
                 | asm::DOp::PBS_ML4_F(DOpPbsMl4F(pbs))
                 | asm::DOp::PBS_ML8_F(DOpPbsMl8F(pbs)) => {
-                    // PBS used muliple contiguous register in case of many-lut
+                    // PBS used multiple contiguous register in case of many-lut
                     let lut = asm::Pbs::from_hex(pbs.gid).expect("Invalid PbsGid");
                     arg.mode = DOpMode::Register(lut.lut_msk());
                     tracing::trace!(

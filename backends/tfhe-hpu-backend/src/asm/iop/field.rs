@@ -26,7 +26,7 @@ pub enum OperandKind {
     Src = 0x0,
     Dst = 0x1,
     Imm = 0x2,
-    Unknow = 0x3,
+    Unknown = 0x3,
 }
 
 /// VectorSize
@@ -66,7 +66,7 @@ pub struct Operand {
 impl Operand {
     pub(crate) fn new(block: u8, base_cid: u16, vec_size: u8, kind: Option<OperandKind>) -> Self {
         Self {
-            kind: kind.unwrap_or(OperandKind::Unknow),
+            kind: kind.unwrap_or(OperandKind::Unknown),
             is_last: false,
             vec_size: VectorSize::new(vec_size),
             block: OperandBlock::new(block),
@@ -144,7 +144,7 @@ impl OperandBundle {
 // ------------------------------------------------------------------------------------------------
 /// Immediat Size
 /// => Number of valid digit in following immediat
-/// To obtain the number of valid bits, user shoud multiply by the msg_width
+/// To obtain the number of valid bits, user should multiply by the msg_width
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ImmBlock(pub u16);
 
@@ -419,7 +419,7 @@ impl IOp {
         self.header.opcode.into()
     }
     // Compute table entry
-    // Based on dst_alignement for the lut blk and opcode for inner offset
+    // Based on dst_alignment for the lut blk and opcode for inner offset
     pub fn fw_entry(&self) -> usize {
         std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize * 0x100
             + self.header.opcode.0 as usize
@@ -499,7 +499,7 @@ impl IOp {
             src
         };
 
-        // 4. Parse Immediat [Optionnal]
+        // 4. Parse Immediat [Optional]
         let (imm, peaked) = if header.has_imm {
             ImmBundle::from_words(&stream.as_slices().0[peak_words..])?
         } else {
@@ -507,7 +507,7 @@ impl IOp {
         };
         peak_words += peaked;
 
-        // Successfull extraction from the dequeue
+        // Successful extraction from the dequeue
         // Consume the associated words
         stream.drain(0..peak_words);
 

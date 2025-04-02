@@ -15,7 +15,7 @@ pub struct HpuCmd {
     pub(crate) op: IOp,
     pub(crate) dst: Vec<HpuVarWrapped>,
     pub(crate) src: Vec<HpuVarWrapped>,
-    // NB: No need to track Immediat lifetime. It's simply constant completly held by the IOp
+    // NB: No need to track Immediat lifetime. It's simply constant completely held by the IOp
     // definition
 }
 

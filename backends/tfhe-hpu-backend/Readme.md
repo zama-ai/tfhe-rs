@@ -87,7 +87,7 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
 ### Device setup
 Following code snippet shows how to instantiate and configure a `HpuDevice`:
 ```rust
-    // Instanciate HpuDevice --------------------------------------------------
+    // Instantiate HpuDevice --------------------------------------------------
     let hpu_device = HpuDevice::from_config("backends/tfhe-hpu-backend/config/hpu_config.toml");
 
     // Extract pbs_configuration from Hpu and generate top-level config

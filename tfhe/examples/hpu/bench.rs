@@ -160,7 +160,7 @@ pub fn main() {
         hpu_config.firmware.implementation = name;
     }
 
-    // Instanciate HpuDevice --------------------------------------------------
+    // Instantiate HpuDevice --------------------------------------------------
     let hpu_device = HpuDevice::new(hpu_config);
 
     // Force key seeder if seed specified by user

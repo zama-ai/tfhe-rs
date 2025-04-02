@@ -1,5 +1,5 @@
 //! This ffi layer implement a wrapper around multiple ffi implementation
-//! Aims is to completly hide underlying specificities and enable compile-time
+//! Aims is to completely hide underlying specificities and enable compile-time
 //! swapping.
 //!
 //! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
@@ -84,7 +84,7 @@ impl HpuHw {
         config: &crate::interface::HpuConfig,
         params: &crate::entities::HpuParameters,
     ) {
-        // NB: Currently only aved backend requierd explicit memory init
+        // NB: Currently only aved backend required explicit memory init
         #[cfg(feature = "hw-aved")]
         {
             self.0.init_mem(config, params);
@@ -130,7 +130,7 @@ impl HpuHw {
         }
     }
 
-    /// Handle ffi instanciation
+    /// Handle ffi instantiation
     #[inline(always)]
     pub fn new_hpu_hw(mode: &FFIMode, retry_rate: std::time::Duration) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
@@ -190,7 +190,7 @@ impl HpuHw {
         }
     }
 
-    /// Custom register command to retrived custom parameters set from mockup.
+    /// Custom register command to retrieved custom parameters set from mockup.
     /// Only available with mockup FFI
     #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
     pub fn get_pbs_parameters(&mut self) -> crate::entities::HpuPBSParameters {
@@ -229,7 +229,7 @@ impl MemZone {
         self.0.read_bytes(ofst, bytes);
     }
 
-    /// Get physical MemZone addresse
+    /// Get physical MemZone address
     #[inline(always)]
     pub fn paddr(&self) -> u64 {
         self.0.paddr()
@@ -297,7 +297,7 @@ impl MemZone {
     }
 }
 
-/// Generic function to easily handle mutiple word size
+/// Generic function to easily handle multiple word size
 impl MemZone {
     pub fn read<T: Sized + bytemuck::Pod>(&self, ofst: usize, data: &mut [T]) {
         let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);

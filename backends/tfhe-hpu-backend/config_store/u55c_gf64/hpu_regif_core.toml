@@ -125,9 +125,9 @@ offset= 0x10
   read_access="Read"
   write_access="None"
   field.alu_nb =          { size_b=8, offset_b=24 , default={Param="PEA_ALU_NB"}, description="Number of coefficients processed in parallel in pe_alu"}
-  field.pep_regf_period = { size_b=8, offset_b=16 , default={Param="PEP_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfert between PEP and regfile"}
-  field.pem_regf_period = { size_b=8, offset_b=8 ,  default={Param="PEM_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfert between PEM and regfile"}
-  field.pea_regf_period = { size_b=8, offset_b=0 ,  default={Param="PEA_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfert between PEA and regfile"}
+  field.pep_regf_period = { size_b=8, offset_b=16 , default={Param="PEP_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEP and regfile"}
+  field.pem_regf_period = { size_b=8, offset_b=8 ,  default={Param="PEM_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEM and regfile"}
+  field.pea_regf_period = { size_b=8, offset_b=0 ,  default={Param="PEA_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEA and regfile"}
 
 [section.info.register.bsk_structure]
   description="BSK manager structure parameters"

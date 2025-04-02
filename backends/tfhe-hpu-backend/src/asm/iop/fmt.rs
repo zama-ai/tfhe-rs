@@ -35,7 +35,7 @@ impl From<&OperandHex> for field::Operand {
         } else if value.kind() == OperandKind::Imm as u8 {
             OperandKind::Imm
         } else {
-            OperandKind::Unknow
+            OperandKind::Unknown
         };
 
         Self {
@@ -82,7 +82,7 @@ impl From<&ImmediatHeaderHex> for field::ImmediatHeader {
         } else if value.kind() == OperandKind::Imm as u8 {
             OperandKind::Imm
         } else {
-            OperandKind::Unknow
+            OperandKind::Unknown
         };
 
         Self {

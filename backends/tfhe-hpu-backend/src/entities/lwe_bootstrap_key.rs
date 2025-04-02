@@ -6,7 +6,7 @@
 use super::parameters::*;
 use super::traits::container::*;
 
-/// A [`Hpu lwe bootstraping key`](`HpuLweBootstrapKey`).
+/// A [`Hpu lwe bootstrapping key`](`HpuLweBootstrapKey`).
 /// Inner container is split in pc chunks to ease copy from/to hardware
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuLweBootstrapKey<C: Container> {
@@ -14,7 +14,7 @@ pub struct HpuLweBootstrapKey<C: Container> {
     params: HpuParameters,
 }
 
-/// Index inside the container abstracing away the inner pc split
+/// Index inside the container abstracting away the inner pc split
 impl<C: Container> std::ops::Index<usize> for HpuLweBootstrapKey<C> {
     type Output = C::Element;
 
@@ -30,7 +30,7 @@ impl<C: Container> std::ops::Index<usize> for HpuLweBootstrapKey<C> {
     }
 }
 
-/// IndexMut inside the container abstracing away the inner pc split
+/// IndexMut inside the container abstracting away the inner pc split
 impl<C: ContainerMut> std::ops::IndexMut<usize> for HpuLweBootstrapKey<C> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let ntt_p = &self.params.ntt_params;

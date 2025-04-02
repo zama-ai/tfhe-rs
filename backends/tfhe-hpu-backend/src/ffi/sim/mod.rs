@@ -16,7 +16,7 @@ pub struct HpuHw {
 }
 
 impl HpuHw {
-    /// Handle ffi instanciation
+    /// Handle ffi instantiation
     #[inline(always)]
     pub fn new_hpu_hw(ipc_name: &str) -> HpuHw {
         Self {

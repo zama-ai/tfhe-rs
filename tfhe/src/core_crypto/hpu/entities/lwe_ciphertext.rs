@@ -24,7 +24,7 @@ impl<Scalar: UnsignedInteger> FromWith<LweCiphertextView<'_, Scalar>, HpuParamet
         // Allocate translation buffer and reversed vector here
         let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
         let lwe_len = hpu_lwe.len();
-        // Copy lwe mask in reverse order and update alignement
+        // Copy lwe mask in reverse order and update alignment
         cpu_lwe
             .get_mask()
             .as_ref()
@@ -64,7 +64,7 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
         // Allocate translation buffer and reversed vector here
         let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
         let lwe_len = hpu_lwe.len();
-        // Copy lwe mask in reverse order and update alignement
+        // Copy lwe mask in reverse order and update alignment
         cpu_lwe
             .get_mut_mask()
             .as_mut()

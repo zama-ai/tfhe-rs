@@ -2940,7 +2940,7 @@ mod hpu {
     use tfhe_hpu_backend::prelude::*;
 
     /// Base function to bench an hpu operations.
-    /// Inputs/Output types and legnth are inferred based on associated iop prototype
+    /// Inputs/Output types and length are inferred based on associated iop prototype
     fn bench_hpu_iop_clean_inputs(
         c: &mut Criterion,
         bench_name: &str,
@@ -2971,8 +2971,7 @@ mod hpu {
 
             match BENCH_TYPE.get().unwrap() {
                 BenchmarkType::Latency => {
-                    bench_id =
-                        format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
                         let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
@@ -3199,7 +3198,7 @@ mod hpu {
         default_hpu_bw_or,
         default_hpu_bw_xor,
     );
-    // Comparaison ----------------------------------------------------------------
+    // Comparison ----------------------------------------------------------------
     define_hpu_bench_default_fn!(
         iop_name: cmp_eq,
         display_name: equal
