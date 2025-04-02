@@ -27,12 +27,12 @@ pub struct HpuTestParams {
     pub norm2: u64,
     pub ntt_modulus: u64,
 }
-
+#[allow(unused)]
 pub const HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(1.2597809688976277e-05),
+    lwe_modular_std_dev: StandardDev(1.259_780_968_897_627_7e-5),
     glwe_modular_std_dev: StandardDev(2.2737367544323206e-13),
     pbs_base_log: DecompositionBaseLog(20),
     pbs_level: DecompositionLevelCount(1),
@@ -45,11 +45,12 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21: HpuTestParams = HpuTestParams {
     ntt_modulus: 17592186028033,
 };
 
+#[allow(unused)]
 pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(786),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(5.314123935599821e-06),
+    lwe_modular_std_dev: StandardDev(5.314_123_935_599_821e-6),
     glwe_modular_std_dev: StandardDev(9.1881734381394e-16),
     pbs_base_log: DecompositionBaseLog(24),
     pbs_level: DecompositionLevelCount(1),
@@ -62,11 +63,12 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21: HpuTestParams = HpuTestParams {
     ntt_modulus: 18446744069414584321,
 };
 
+#[allow(unused)]
 pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(804),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(5.963599673924788e-06),
+    lwe_modular_std_dev: StandardDev(5.963_599_673_924_788e-6),
     glwe_modular_std_dev: StandardDev(2.8452674713391114e-15),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -79,6 +81,7 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132: HpuTestParams = HpuTestParams
     ntt_modulus: 18446744069414584321,
 };
 
+#[allow(unused)]
 pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
@@ -96,11 +99,12 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
     ntt_modulus: 18446744069414584321,
 };
 
+#[allow(unused)]
 pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(841),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(3.1496674685772435e-06),
+    lwe_modular_std_dev: StandardDev(3.149_667_468_577_243_5e-6),
     glwe_modular_std_dev: StandardDev(2.845267479601915e-15),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
@@ -114,14 +118,12 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: HpuTestParams = H
 };
 
 pub fn get_modulo_value<T: UnsignedInteger>(modulus: &CiphertextModulus<T>) -> u128 {
-    let mod_val: u128 = match modulus.is_native_modulus() {
-        true => {
-            let converted: CiphertextModulus<u128> = modulus.try_to().unwrap();
-            u128::cast_from(converted.get_custom_modulus())
-        }
-        false => u128::cast_from(modulus.get_custom_modulus()),
-    };
-    mod_val
+    if modulus.is_native_modulus() {
+        let converted: CiphertextModulus<u128> = modulus.try_to().unwrap();
+        u128::cast_from(converted.get_custom_modulus())
+    } else {
+        u128::cast_from(modulus.get_custom_modulus())
+    }
 }
 
 //fn lwe_noise_distribution_hpu<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64>>(
@@ -153,7 +155,9 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let norm2 = params.norm2;
 
     let num_samples = NB_PBS * NB_HPU_TESTS * (msg as usize);
-    let mut noise_samples = vec![Vec::with_capacity(num_samples); 4];
+    let mut noise_samples = (0..4)
+        .map(|_| Vec::with_capacity(num_samples))
+        .collect::<Vec<_>>();
     let min_lwe_variance =
         variance_formula::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(
             lwe_dimension,
@@ -165,15 +169,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
             polynomial_size,
             get_modulo_value(&ciphertext_modulus) as f64,
         );
-    println!("ciphertext_modulus {:?}ksk_modulus {:?} message_modulus_log {:?} encoding_with_padding {} expected_variance {:?} msg_modulus {} msg {} delta {}",
-        ciphertext_modulus,
-        ksk_modulus,
-        message_modulus_log,
-        encoding_with_padding,
-        expected_variance,
-        msg_modulus,
-        msg,
-        delta);
+    println!("ciphertext_modulus {ciphertext_modulus:?} ksk_modulus {ksk_modulus:?} message_modulus_log {message_modulus_log:?} encoding_with_padding {encoding_with_padding } expected_variance {expected_variance:?} msg_modulus {msg_modulus} msg {msg} delta {delta}");
     println!(
         "min lwe var {:?} ({:?}) - param: {:?}",
         min_lwe_variance.0,
@@ -422,19 +418,17 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 // do modulo switch on plaintext post KS only if necessary
                 let cm_f = get_modulo_value(&ciphertext_modulus);
                 let ksm_f = get_modulo_value(&ksk_modulus);
-                let torus_diff: f64;
-                if cm_f == ksm_f {
-                    torus_diff =
-                        torus_modular_diff(plaintext.0, decrypted_after_ks.0, ciphertext_modulus);
+                let torus_diff = if cm_f == ksm_f {
+                    torus_modular_diff(plaintext.0, decrypted_after_ks.0, ciphertext_modulus)
                 } else {
                     let decrypted_after_ks_modswitched =
                         decrypted_after_ks.0 * ((cm_f / ksm_f) as u64);
-                    torus_diff = torus_modular_diff(
+                    torus_modular_diff(
                         plaintext.0,
                         decrypted_after_ks_modswitched,
                         ciphertext_modulus,
-                    );
-                }
+                    )
+                };
 
                 noise_samples[2].push(torus_diff);
 
@@ -485,7 +479,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let expected_after_ks_variance = Variance(expected_bynorm2_variance.0 + exp_add_ks_variance.0);
 
     let mut wtr = csv::Writer::from_writer(io::stdout());
-    let _ = wtr.write_record(&[
+    let _ = wtr.write_record([
         "data type",
         "encrypt exp",
         "encrypt",
@@ -495,7 +489,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         "post PBS",
         "theo PBS",
     ]);
-    let _ = wtr.write_record(&[
+    let _ = wtr.write_record([
         "variances",
         expected_variance.0.to_string().as_str(),
         encryption_variance.0.to_string().as_str(),
@@ -505,7 +499,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         after_pbs_variance.0.to_string().as_str(),
         exp_pbs_variance.0.to_string().as_str(),
     ]);
-    let _ = wtr.write_record(&[
+    let _ = wtr.write_record([
         "std_dev",
         expected_variance.get_standard_dev().0.to_string().as_str(),
         encryption_variance
@@ -523,7 +517,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         after_pbs_variance.get_standard_dev().0.to_string().as_str(),
         exp_pbs_variance.get_standard_dev().0.to_string().as_str(),
     ]);
-    let _ = wtr.write_record(&[
+    let _ = wtr.write_record([
         "log2 std_dev + ct_w",
         (expected_variance.get_log_standard_dev().0 + params.ct_width as f64)
             .to_string()

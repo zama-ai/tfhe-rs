@@ -66,7 +66,7 @@ impl HpuRadixCiphertext {
 
         let hpu_ct = vec![HpuLweCiphertextOwned::from_with(
             cpu_ct.0.ct.as_view(),
-            params.clone(),
+            params,
         )];
         Self(device.new_var_from(hpu_ct, VarMode::Bool))
     }
@@ -107,10 +107,7 @@ impl HpuRadixCiphertext {
     ) -> Vec<Self> {
         let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
         let res_var = HpuCmd::exec(proto, opcode, &rhs_var, rhs_imm);
-        res_var
-            .into_iter()
-            .map(|v| Self::new(v))
-            .collect::<Vec<Self>>()
+        res_var.into_iter().map(Self::new).collect::<Vec<Self>>()
     }
 
     pub fn exec_assign(proto: &IOpProto, opcode: IOpcode, rhs_ct: &[Self], rhs_imm: &[HpuImm]) {

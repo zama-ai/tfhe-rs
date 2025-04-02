@@ -65,17 +65,17 @@ impl RadixBasis {
 
     /// Compute a value in binary basis from a vector of digit expressed in Radix basis
     /// digits[0] -> Least significant digit
-    fn from_radix_basis(&self) -> usize {
+    fn cast_from_radix_basis(&self) -> usize {
         self.conv_bfr
             .iter()
             .enumerate()
             .map(|(i, d)| d << (i * self.radix_lg))
-            .fold(0, |acc, v| acc + v)
+            .sum::<usize>()
     }
 
     /// Decompose a value expressed in binary basis in slice of radix digit
     /// digits[0] -> Least significant digit
-    fn into_radix_basis(&mut self, val: usize) {
+    fn cast_into_radix_basis(&mut self, val: usize) {
         let mask = (1 << self.radix_lg) - 1;
 
         for (i, d) in self.conv_bfr.iter_mut().enumerate() {
@@ -88,9 +88,9 @@ impl RadixBasis {
     /// based shifting)
     pub fn idx_rrot(&mut self, nat_val: usize) -> usize {
         // Pseudo reverse is like left rotation of one digit-shift
-        self.into_radix_basis(nat_val);
+        self.cast_into_radix_basis(nat_val);
         self.conv_bfr.rotate_left(1);
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 
     /// Convert an index expressed in 'rrot' Order into Natural Order
@@ -98,9 +98,9 @@ impl RadixBasis {
     /// based shifting)
     pub fn idx_rrot_inv(&mut self, pdrev_val: usize) -> usize {
         // Pseudo reverse is like left rotation of one digit-shift
-        self.into_radix_basis(pdrev_val);
+        self.cast_into_radix_basis(pdrev_val);
         self.conv_bfr.rotate_right(1);
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 
     /// Convert an index expressed in Natural Order into 'pdrev' Order
@@ -108,9 +108,9 @@ impl RadixBasis {
     /// * Nat_order from 0..rank
     /// * Rev_order from rank..digits
     pub fn idx_pdrev(&mut self, digits: usize, rank: usize, nat_val: usize) -> usize {
-        self.into_radix_basis(nat_val);
+        self.cast_into_radix_basis(nat_val);
         self.conv_bfr[rank..digits].reverse();
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 
     /// Convert an index expressed in 'pdrev' Order into Natural Order
@@ -120,9 +120,9 @@ impl RadixBasis {
     }
 
     pub fn idx_rev(&mut self, nat_val: usize) -> usize {
-        self.into_radix_basis(nat_val);
+        self.cast_into_radix_basis(nat_val);
         self.conv_bfr.reverse();
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 
     #[inline]
@@ -135,12 +135,12 @@ impl RadixBasis {
     pub fn ntw_pcg_nxt(&mut self, cur_stg: usize, idx: usize) -> usize {
         // Transfer function from Natural index to Bu id
         let pdrev_idx = self.idx_pdrev(self.conv_bfr.len(), cur_stg + 1, idx);
-        self.into_radix_basis(pdrev_idx);
+        self.cast_into_radix_basis(pdrev_idx);
         self.conv_bfr.rotate_right(1);
         // Transfer function from BU id to iteration index
         // NB: +2 here -> Only apply reverse on BU id not BU id + input index
         self.conv_bfr[cur_stg + 2..].reverse();
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 
     // TODO Must be moved directly in Network definition or merged with get_bu_idx
@@ -149,9 +149,9 @@ impl RadixBasis {
     /// based shifting)
     pub fn ntw_rrot_nxt(&mut self, idx: usize) -> usize {
         // Next stage of rrot is like left rotation of one digit-shift
-        self.into_radix_basis(idx);
+        self.cast_into_radix_basis(idx);
         self.conv_bfr.rotate_right(1);
-        self.from_radix_basis()
+        self.cast_from_radix_basis()
     }
 }
 
@@ -225,8 +225,7 @@ impl Network {
             PolyOrder::Reverse => match self.kind {
                 NetworkKind::RRot => {
                     let idx_rrot = self.rb_conv.idx_rrot(idx);
-                    let idx_rev = self.rb_conv.idx_rev_inv(idx_rrot);
-                    idx_rev
+                    self.rb_conv.idx_rev_inv(idx_rrot)
                 }
                 NetworkKind::Pcg => idx,
             },
@@ -262,7 +261,7 @@ impl Network {
                 let pdrev_idx = self.rb_conv.idx_pdrev(self.stg_nb - 1, delta_idx, node_idx);
                 pdrev_idx * (1 << self.rb_conv.radix_lg()) + rmn_idx
             }
-            _ => unimplemented!("get_pos_id not implemented for {:?}", self.kind),
+            NetworkKind::RRot => unimplemented!("get_pos_id not implemented for {:?}", self.kind),
         }
     }
 
