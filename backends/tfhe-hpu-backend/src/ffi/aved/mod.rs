@@ -112,12 +112,4 @@ impl MemZone {
         let qdma = self.qdma.lock().unwrap();
         qdma.write_bytes(ofst + self.addr as usize, bytes)
     }
-
-    pub fn mmap(&mut self) -> &mut [u64] {
-        todo!()
-    }
-
-    pub fn sync(&mut self, mode: ffi::SyncMode) {
-        todo!()
-    }
 }
