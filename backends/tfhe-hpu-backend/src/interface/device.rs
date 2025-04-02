@@ -1,5 +1,5 @@
 //! Implement User-view of Hpu backend
-//! Through this interface user is able to instanciate and configure a Hpu Backend
+//! Through this interface user is able to instantiate and configure a Hpu Backend
 use super::config::HpuConfig;
 use super::*;
 use crate::entities::*;
@@ -27,7 +27,7 @@ unsafe impl Sync for HpuDevice {}
 
 /// Provide constructor
 /// Use a toml configuration file to properly construct HpuDevice
-/// This configuration file contain xclbin/kernel informations and associated register map
+/// This configuration file contain xclbin/kernel information and associated register map
 /// definition
 impl HpuDevice {
     pub fn from_config(config_toml: &str) -> Self {
@@ -205,7 +205,7 @@ impl HpuDevice {
 }
 
 /// Spawn a background thread that handle periodically update HW state
-/// WARN: Variable still required lock on HpuBackend for allocation. Thus ensure to relase the lock
+/// WARN: Variable still required lock on HpuBackend for allocation. Thus ensure to release the lock
 /// periodically NB: This should be replaced by Irq when available
 impl HpuDevice {
     fn run_polling(&mut self) {

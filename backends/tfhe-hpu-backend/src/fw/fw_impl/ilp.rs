@@ -199,7 +199,7 @@ pub fn iop_subx(
     });
 }
 
-/// Implemenation of SSUB
+/// Implementation of SSUB
 /// Provide its own implementation to match SUBS perfs
 #[instrument(level = "trace", skip(prog))]
 pub fn iop_ssub(prog: &mut Program) {
@@ -384,7 +384,7 @@ pub fn iop_mulx(
         trace!(target: "Fw", "Acc_wh: Check flushing condition {:#<20}","");
         for (w, acc) in acc_wh.iter_mut().enumerate() {
             if w < wb_idx {
-                // Skip position w if already commited
+                // Skip position w if already committed
                 assert_eq!(0, acc.len(), "Error committed incomplete digit");
                 continue;
             }
@@ -436,7 +436,7 @@ pub fn iop_mulx(
         );
         while let Some((w, acc_chunks)) = pdg_acc.pop() {
             trace!(target: "Fw", "Reduce @{w}[{}] <- {acc_chunks:?}",acc_chunks.len());
-            // Hand-writter tree reduction for up to 5
+            // Hand-written tree reduction for up to 5
             match acc_chunks.len() {
                 1 => {
                     unreachable!("This case must not go through acc reduction tree. In should have take the fast pass in acc_wh flushing.");
@@ -628,7 +628,7 @@ pub fn iop_cmpx(
             .pbs(&cmp_reduce, true)
     });
 
-    // interprete reduce with expected cmp
+    // interpret reduce with expected cmp
     let cmp = reduce.unwrap().pbs(&cmp_op, true);
     dst.mv_assign(&cmp);
 }

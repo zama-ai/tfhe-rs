@@ -60,7 +60,7 @@ impl IntegerKeyCache {
         P: Into<PBSParameters> + crate::keycache::NamedParam + Clone,
     {
         let hpu_device = self.hpu_device.get_or_init(|| {
-            // Instanciate HpuDevice --------------------------------------------------
+            // Instantiate HpuDevice --------------------------------------------------
             let hpu_device = {
                 let config_file = ShellString::new(
                     "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),

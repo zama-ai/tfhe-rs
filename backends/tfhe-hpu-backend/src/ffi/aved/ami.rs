@@ -94,7 +94,7 @@ impl AmiDriver {
 
     /// Push a stream of DOp in the ISC
     /// This call bypass the IOp->DOp translation in the ucore
-    /// NB: There is no automtic SYNC insertion
+    /// NB: There is no automatic SYNC insertion
     #[allow(unused)]
     pub fn dop_push(&self, stream: &[u32]) {
         let ami_fd = self.ami_dev.as_raw_fd();

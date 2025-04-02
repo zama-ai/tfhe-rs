@@ -649,7 +649,7 @@ fn main() {
         use tfhe::{set_server_key, Config};
         use tfhe_hpu_backend::prelude::*;
 
-        // Use environnement variable to construct path to configuration file
+        // Use environment variable to construct path to configuration file
         let config_path = ShellString::new(
             "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
         );

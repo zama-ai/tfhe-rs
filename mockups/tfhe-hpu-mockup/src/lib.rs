@@ -329,7 +329,7 @@ impl HpuSim {
 
         // Read operands
         match dop {
-            // Invariant path, handle independantly from `nops` flag
+            // Invariant path, handle independently from `nops` flag
             hpu_asm::DOp::SYNC(_) => {
                 // Push ack in stream
                 let iop = self
@@ -466,7 +466,7 @@ impl HpuSim {
                                             .data_mut(),
                                     };
                                     // NB: hbm chunk are extended to enforce page align buffer
-                                    // -> Shrinked it to slice size to prevent error during copy
+                                    // -> Shrunk it to slice size to prevent error during copy
                                     let size_b = std::mem::size_of_val(hpu);
 
                                     let ct_chunk_u64 = bytemuck::cast_slice_mut::<u8, u64>(
@@ -870,7 +870,7 @@ impl HpuSim {
                 .flat_map(|dst| dop.src().into_iter().map(move |src| dst == src))
                 .fold(false, |acc, cur| acc || cur);
 
-            // Write afer read check
+            // Write after read check
             // Mainly associated register is read before the expected write
             let war_err = dop
                 .dst()

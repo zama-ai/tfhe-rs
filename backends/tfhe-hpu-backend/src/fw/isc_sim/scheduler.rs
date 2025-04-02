@@ -188,7 +188,7 @@ impl Scheduler {
             };
 
             // Register next Query event
-            // NB: Register new query event only if something usefull has append. Other-wise wait
+            // NB: Register new query event only if something useful has append. Other-wise wait
             // for the next registered event
             if trigger_query
                 && !self.evt_pdg.iter().any(
@@ -252,7 +252,7 @@ impl Scheduler {
             // to clutter the source operands. The dst register is then available in
             // advance, but not used before it's real availability due to wr_lock.
             // -> Another option would have been to buffer the source operands. However, due to the
-            // operands size, we had prefered to move the behavioral execution at the rd_unlock
+            // operands size, we had preferred to move the behavioral execution at the rd_unlock
             // stage
             self.dop_exec.push(slot.inst.op.clone());
 

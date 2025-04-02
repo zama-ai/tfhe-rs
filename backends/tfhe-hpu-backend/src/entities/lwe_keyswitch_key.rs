@@ -14,7 +14,7 @@ pub struct HpuLweKeyswitchKey<C: Container> {
     params: HpuParameters,
 }
 
-/// Index inside the container abstracing away the inner pc split
+/// Index inside the container abstracting away the inner pc split
 impl<C: Container> std::ops::Index<usize> for HpuLweKeyswitchKey<C> {
     type Output = C::Element;
 
@@ -29,7 +29,7 @@ impl<C: Container> std::ops::Index<usize> for HpuLweKeyswitchKey<C> {
     }
 }
 
-/// IndexMut inside the container abstracing away the inner pc split
+/// IndexMut inside the container abstracting away the inner pc split
 impl<C: ContainerMut> std::ops::IndexMut<usize> for HpuLweKeyswitchKey<C> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         let ksk_pc = self.params.pc_params.ksk_pc;
