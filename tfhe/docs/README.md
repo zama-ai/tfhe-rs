@@ -51,6 +51,7 @@ Take a deep dive into TFHE-rs, exploring APIs from the highest to the lowest lev
 * [Fine-grained APIs](references/fine-grained-apis/): Mid-level APIs that enable evaluation of Boolean, short integer, and integer circuits
 * [Core crypto API](references/core-crypto-api/): Low-level API with the primitive functions and types of the TFHE scheme
 * [TFHE deep dive](explanations/tfhe-deep-dive.md): Resources that explain the Fully Homomorphic Encryption scheme - TFHE
+* [TFHE-rs handbook](https://github.com/zama-ai/tfhe-rs-handbook): Document describing algorithms implemented in TFHE-rs
 
 ### Support channels
 
