@@ -188,7 +188,7 @@ where
                     native: hpu_res
                         .iter()
                         .filter(|x| !x.0.is_boolean())
-                        .map(|x| FheUint::new(x.clone(), device.tag.clone()))
+                        .map(|x| Self::new(x.clone(), device.tag.clone()))
                         .collect::<Vec<_>>(),
                     boolean: hpu_res
                         .iter()

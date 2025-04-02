@@ -15,7 +15,6 @@ use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
 use itertools::Itertools;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
-use tfhe::prelude::*;
 use tfhe::*;
 use tfhe_hpu_backend::prelude::*;
 
