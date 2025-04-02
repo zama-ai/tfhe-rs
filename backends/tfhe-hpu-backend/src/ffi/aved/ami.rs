@@ -35,7 +35,7 @@ impl AmiDriver {
         let data_ptr = Box::into_raw(data);
 
         // Populate payload
-        let mut payload = AmiPeakPokePayload {
+        let payload = AmiPeakPokePayload {
             data_ptr,
             len: 0x1,
             offset: addr as u32,
@@ -43,11 +43,11 @@ impl AmiDriver {
 
         tracing::trace!("AMI: Read request with following payload {payload:x?}");
         loop {
-            let ret = unsafe { ami_peak(ami_fd.into(), &mut payload) };
+            let ret = unsafe { ami_peak(ami_fd, &payload) };
             match ret {
                 Err(err) => {
                     tracing::debug!("AMI: Read failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate.clone());
+                    std::thread::sleep(self.retry_rate);
                 }
                 Ok(val) => {
                     tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
@@ -55,8 +55,7 @@ impl AmiDriver {
                 }
             }
         }
-        let data = unsafe { Box::from_raw(data_ptr) };
-        data.as_ref().clone()
+        unsafe { *Box::from_raw(data_ptr) }
     }
 
     pub fn write_reg(&self, addr: u64, value: u32) {
@@ -67,7 +66,7 @@ impl AmiDriver {
         let data_ptr = Box::into_raw(data);
 
         // Populate payload
-        let mut payload = AmiPeakPokePayload {
+        let payload = AmiPeakPokePayload {
             data_ptr,
             len: 0x1,
             offset: addr as u32,
@@ -75,11 +74,11 @@ impl AmiDriver {
 
         tracing::trace!("AMI: Write request with following payload {payload:x?}");
         loop {
-            let ret = unsafe { ami_poke(ami_fd.into(), &mut payload) };
+            let ret = unsafe { ami_poke(ami_fd, &payload) };
             match ret {
                 Err(err) => {
                     tracing::debug!("AMI: Write failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate.clone());
+                    std::thread::sleep(self.retry_rate);
                 }
                 Ok(val) => {
                     tracing::trace!("AMI: Write ack received {payload:x?} -> {val:?}");
@@ -111,11 +110,11 @@ impl AmiDriver {
 
         tracing::trace!("AMI: DOpPush request with following payload {payload:x?}");
         loop {
-            let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
+            let ret = unsafe { ami_iop_push(ami_fd, &payload) };
             match ret {
                 Err(err) => {
                     tracing::debug!("AMI: DOpPush failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate.clone());
+                    std::thread::sleep(self.retry_rate);
                 }
                 Ok(val) => {
                     tracing::trace!("AMI: DOpPush ack received {payload:x?} -> {val:?}");
@@ -146,11 +145,11 @@ impl AmiDriver {
 
         tracing::trace!("AMI: IOpPush request with following payload {payload:x?}");
         loop {
-            let ret = unsafe { ami_iop_push(ami_fd.into(), &mut payload) };
+            let ret = unsafe { ami_iop_push(ami_fd, &payload) };
             match ret {
                 Err(err) => {
                     tracing::debug!("AMI: IOpPush failed -> {err:?}");
-                    std::thread::sleep(self.retry_rate.clone());
+                    std::thread::sleep(self.retry_rate);
                 }
                 Ok(val) => {
                     tracing::trace!("AMI: IOpPush ack received {payload:x?} -> {val:?}");
@@ -176,7 +175,7 @@ impl AmiDriver {
         if ack_str.is_empty() {
             0
         } else {
-            let ack_nb = u32::from_str_radix(ack_str.as_str().trim_ascii(), 10).unwrap();
+            let ack_nb = ack_str.as_str().trim_ascii().parse::<u32>().unwrap();
             tracing::trace!("Get value {ack_str} from proc/ami_iop_ack => {ack_nb}",);
             ack_nb
         }
@@ -204,7 +203,7 @@ nix::ioctl_write_ptr!(ami_poke, AMI_IOC_MAGIC, AMI_POKE_CMD, AmiPeakPokePayload)
 
 // IOpPush/IOpRead command used for issuing work to HPU ------------------------
 const AMI_IOPPUSH_CMD: u8 = 17;
-const AMI_IOPREAD_CMD: u8 = 18;
+// const AMI_IOPREAD_CMD: u8 = 18;
 
 /// Payload used for IOp push and read back
 #[derive(Debug)]
@@ -217,6 +216,6 @@ struct AmiIOpPayload {
 }
 
 nix::ioctl_write_ptr!(ami_iop_push, AMI_IOC_MAGIC, AMI_IOPPUSH_CMD, AmiIOpPayload);
-nix::ioctl_write_ptr!(ami_iop_read, AMI_IOC_MAGIC, AMI_IOPREAD_CMD, AmiIOpPayload);
+// nix::ioctl_write_ptr!(ami_iop_read, AMI_IOC_MAGIC, AMI_IOPREAD_CMD, AmiIOpPayload);
 
 // ----------------------------------------------------------------------------
