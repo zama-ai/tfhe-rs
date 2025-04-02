@@ -647,7 +647,7 @@ impl HpuSim {
         );
 
         // Generate Lut
-        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), lut.clone());
+        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), &lut);
         let mut tfhe_lut = hpu_lut.as_view().into();
 
         // Get keys and computation buffer

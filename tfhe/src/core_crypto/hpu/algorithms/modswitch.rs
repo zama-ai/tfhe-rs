@@ -6,7 +6,7 @@ use tfhe_hpu_backend::prelude::HpuParameters;
 pub fn msb2lsb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) -> Scalar {
     let ct_width = params.ntt_params.ct_width as usize;
     let storage_width = Scalar::BITS;
-    data >> ((storage_width - ct_width) as usize)
+    data >> (storage_width - ct_width)
 }
 
 /// This function change information position in value
@@ -15,7 +15,7 @@ pub fn msb2lsb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) ->
 pub fn lsb2msb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) -> Scalar {
     let ct_width = params.ntt_params.ct_width as usize;
     let storage_width = Scalar::BITS;
-    data << ((storage_width - ct_width) as usize)
+    data << (storage_width - ct_width)
 }
 
 /// This function change information position in container
@@ -23,9 +23,9 @@ pub fn lsb2msb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) ->
 pub fn msb2lsb_align<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let ct_width = params.ntt_params.ct_width as usize;
     let storage_width = Scalar::BITS;
-    data.iter_mut().for_each(|val| {
-        *val = *val >> ((storage_width - ct_width) as usize);
-    });
+    for val in data.iter_mut() {
+        *val >>= storage_width - ct_width;
+    }
 }
 /// This function change information position in container
 /// Move information bits from LSB to MSB
@@ -33,9 +33,9 @@ pub fn msb2lsb_align<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut
 pub fn lsb2msb_align<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let ct_width = params.ntt_params.ct_width as usize;
     let storage_width = Scalar::BITS;
-    data.iter_mut().for_each(|val| {
-        *val = *val << ((storage_width - ct_width) as usize);
-    });
+    for val in data.iter_mut() {
+        *val <<= storage_width - ct_width;
+    }
 }
 
 /// This function switches modulus for a slice of coefficients
@@ -45,10 +45,10 @@ pub fn lsb2msb_align<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut
 pub fn user2ntt_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let user_width = params.ntt_params.ct_width as usize;
     let mod_p_u128 = u64::from(&params.ntt_params.prime_modulus) as u128;
-    data.iter_mut().for_each(|val| {
+    for val in data.iter_mut() {
         let val_u128: u128 = val.cast_into();
-        *val = Scalar::cast_from((val_u128 * mod_p_u128) + (1 << (user_width - 1)) >> user_width);
-    });
+        *val = Scalar::cast_from(((val_u128 * mod_p_u128) + (1 << (user_width - 1))) >> user_width);
+    }
 }
 
 /// This function switches modulus for a slice of coefficients
@@ -58,8 +58,8 @@ pub fn user2ntt_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data:
 pub fn ntt2user_modswitch<Scalar: UnsignedInteger>(params: &HpuParameters, data: &mut [Scalar]) {
     let user_width = params.ntt_params.ct_width as usize;
     let mod_p_u128 = u64::from(&params.ntt_params.prime_modulus) as u128;
-    data.iter_mut().for_each(|val| {
+    for val in data.iter_mut() {
         let val_u128: u128 = val.cast_into();
         *val = Scalar::cast_from((((val_u128) << user_width) | ((mod_p_u128) >> 1)) / mod_p_u128);
-    });
+    }
 }
