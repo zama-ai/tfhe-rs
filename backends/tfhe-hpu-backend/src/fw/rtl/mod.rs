@@ -7,14 +7,14 @@ pub mod config;
 mod macros;
 
 use super::isc_sim;
-use super::isc_sim::{report::PeStoreRpt, InstructionKind, PeFlush, PeStore};
+use super::isc_sim::report::PeStoreRpt;
+use super::isc_sim::{InstructionKind, PeFlush, PeStore};
 use super::metavar::{MetaVarCell, PosKind, RegLockPtr, VarPos};
 use super::program::{AtomicRegType, Program, StmtLink};
 use crate::asm::{ImmId, Pbs, PbsLut};
 use crate::rtl_op;
 use bitflags::bitflags;
-use config::FlushBehaviour;
-use config::OpCfg;
+use config::{FlushBehaviour, OpCfg};
 use enum_dispatch::enum_dispatch;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};

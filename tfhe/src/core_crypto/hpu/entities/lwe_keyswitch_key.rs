@@ -257,7 +257,8 @@ where
                                         *cpu_coef =
                                             hpu_val << (u64::BITS - ks_p.width as u32) as usize;
                                     }
-                                    _ => { /* At least one dimension overflow, it's padded with 0 in
+                                    _ => { /* At least one dimension overflow, it's padded with 0
+                                          * in
                                           * the Hw view => Skipped */
                                     }
                                 };
