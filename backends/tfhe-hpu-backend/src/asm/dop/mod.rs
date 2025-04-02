@@ -352,6 +352,14 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     }
 ]],
+["Ripple2GenProp" => 25 [ // Converts from Ripple carry to GenProp
+    @0 =>{
+        |params: &DigitParameters, val | {
+           (val & params.msg_mask()) * 2
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
 
 // Below Pbs are defined for Test only
 ["TestMany2" => 128 [
