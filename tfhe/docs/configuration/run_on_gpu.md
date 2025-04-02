@@ -127,32 +127,36 @@ Finally, the client decrypts the results using:
 
 The GPU backend includes the following operations for both signed and unsigned encrypted integers:
 
-| name                  | symbol         | `Enc`/`Enc`                | `Enc`/ `Int`               |
-| --------------------- | -------------- | -------------------------- | -------------------------- |
-| Neg                   | `-`            | :heavy\_check\_mark:       | N/A                        |
-| Add                   | `+`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Sub                   | `-`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Mul                   | `*`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Div                   | `/`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Rem                   | `%`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Not                   | `!`            | :heavy\_check\_mark:       | N/A                        |
-| BitAnd                | `&`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| BitOr                 | `\|`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| BitXor                | `^`            | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Shr                   | `>>`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Shl                   | `<<`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Rotate right          | `rotate_right` | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Rotate left           | `rotate_left`  | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Min                   | `min`          | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Max                   | `max`          | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Greater than          | `gt`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Greater or equal than | `ge`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Lower than            | `lt`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Lower or equal than   | `le`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Equal                 | `eq`           | :heavy\_check\_mark:       | :heavy\_check\_mark:       |
-| Cast (into dest type) | `cast_into`    | :heavy\_multiplication\_x: | N/A                        |
-| Cast (from src type)  | `cast_from`    | :heavy\_multiplication\_x: | N/A                        |
-| Ternary operator      | `select`       | :heavy\_check\_mark:       | :heavy\_multiplication\_x: |
+| name                               | symbol                | `Enc`/`Enc`          | `Enc`/ `Int`               |
+|------------------------------------|-----------------------|----------------------|----------------------------|
+| Neg                                | `-`                   | :heavy\_check\_mark: | N/A                        |
+| Add                                | `+`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Sub                                | `-`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Mul                                | `*`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Div                                | `/`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Rem                                | `%`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Not                                | `!`                   | :heavy\_check\_mark: | N/A                        |
+| BitAnd                             | `&`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitOr                              | `\|`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| BitXor                             | `^`                   | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shr                                | `>>`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Shl                                | `<<`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Rotate right                       | `rotate_right`        | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Rotate left                        | `rotate_left`         | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Min                                | `min`                 | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Max                                | `max`                 | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater than                       | `gt`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Greater or equal than              | `ge`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Lower than                         | `lt`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Lower or equal than                | `le`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Equal                              | `eq`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Not Equal                          | `ne`                  | :heavy\_check\_mark: | :heavy\_check\_mark:       |
+| Cast (into dest type)              | `cast_into`           | :heavy\_check\_mark: | N/A                        |
+| Cast (from src type)               | `cast_from`           | :heavy\_check\_mark: | N/A                        |
+| Ternary operator                   | `select`              | :heavy\_check\_mark: | :heavy\_multiplication\_x: |
+| Integer logarithm                  | `ilog2`               | :heavy\_check\_mark: | N/A                        |
+| Count trailing/leading zeros/ones  | `count_leading_zeros` | :heavy\_check\_mark: | N/A                        |
+| Oblivious Pseudo Random Generation | `oprf`                | :heavy\_check\_mark: | N/A                        |
 
 {% hint style="info" %}
 All operations follow the same syntax than the one described in [here](../fhe-computation/operations/README.md).
@@ -161,6 +165,11 @@ All operations follow the same syntax than the one described in [here](../fhe-co
 ## Multi-GPU support
 
 TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in the code to execute on such platforms**. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
+However, you can decide to have operations be executed on a single GPU of your choice.
+In many cases this provides better throughput than using all the available GPUs to perform the operation.
+Indeed, except for integer precisions above 64 bits and for the multiplication, which involves many bootstrap computations in parallel, most operations on up to 64 bits do not necessitate the full power of a GPU.
+To go further, you can learn how to select specific GPUs to perform batches of operations in this [tutorial](../tutorials/multi_gpu_device_selection.md).
+You will then be able to maximize throughput on multiple GPUs with TFHE-rs.
 
 ## Benchmark
 
