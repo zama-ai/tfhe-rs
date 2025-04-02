@@ -240,7 +240,6 @@ impl HpuVarWrapped {
                 Ok(_) => break,
                 Err(err) => match err {
                     HpuInternalError::SyncPending => {}
-                    _ => panic!("Hpu encounter internal error {err:?}"),
                 },
             }
         }

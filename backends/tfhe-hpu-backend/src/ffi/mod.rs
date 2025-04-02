@@ -132,7 +132,7 @@ impl HpuHw {
 
     /// Handle ffi instantiation
     #[inline(always)]
-    pub fn new_hpu_hw(mode: &FFIMode, retry_rate: std::time::Duration) -> HpuHw {
+    pub fn new_hpu_hw(mode: &FFIMode, #[allow(unused)] retry_rate: std::time::Duration) -> HpuHw {
         #[cfg(feature = "hw-xrt")]
         {
             use tracing::{enabled, Level};
