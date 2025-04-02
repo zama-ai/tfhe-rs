@@ -571,6 +571,9 @@ mod cuda {
                 println!("[WARNING] polynomial size is too large for parameters set '{}' (max: {}, got: {})", name, GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE, params.polynomial_size.unwrap().0);
                 continue;
             }
+            if grouping_factor.0 != 4 {
+                continue;
+            }
 
             // Create the LweSecretKey
             let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
