@@ -45,15 +45,14 @@ impl MemAlloc {
             .board
             .ct_pc
             .iter()
-            .map(|kind| match kind {
+            .filter_map(|kind| match kind {
                 ffi::MemKind::Ddr { .. } => None,
                 ffi::MemKind::Hbm { pc } => Some(*pc as u64),
             })
-            .flatten()
             .collect::<Vec<_>>();
 
         let ct_chunk_b = page_align(
-            hpu_big_lwe_ciphertext_size(&params).div_ceil(params.pc_params.pem_pc)
+            hpu_big_lwe_ciphertext_size(params).div_ceil(params.pc_params.pem_pc)
                 * std::mem::size_of::<u64>(),
         );
 

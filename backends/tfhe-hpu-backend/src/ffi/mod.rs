@@ -272,7 +272,7 @@ impl MemZone {
 
         #[cfg(feature = "hw-aved")]
         {
-            self.0.mmap()
+            panic!("Aved ffi rely on QDMA and couldn't implement mmap")
         }
 
         #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
