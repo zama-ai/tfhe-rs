@@ -67,7 +67,7 @@ impl From<HpuGlweLookuptableView<'_, u64>> for GlweCiphertextOwned<u64> {
 
 pub fn create_hpu_lookuptable(
     params: HpuParameters,
-    pbs: hpu_asm::Pbs,
+    pbs: &hpu_asm::Pbs,
 ) -> HpuGlweLookuptableOwned<u64> {
     // Create Glwe
     let pbs_p = ClassicPBSParameters::from(params.clone());
