@@ -11,8 +11,7 @@ use pool::Pool;
 
 /// Implement simple model of Pe
 mod pe;
-pub(crate) use pe::Flush as PeFlush;
-pub(crate) use pe::PeStore;
+pub(crate) use pe::{Flush as PeFlush, PeStore};
 pub use pe::{PeConfig, PeConfigStore, PeCost};
 
 /// Implement time simulation of Isc

@@ -1,7 +1,7 @@
-use std::error::Error;
 use bitvec::prelude::*;
+use std::error::Error;
 use std::fmt;
-use std::fmt::{Display, Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 mod macros;
 
@@ -29,41 +29,41 @@ pub trait Len {
 }
 
 pub trait PackedStructLsb<O>
-where O: bitvec::store::BitStore,
-      Self: Sized + Len
+where
+    O: bitvec::store::BitStore,
+    Self: Sized + Len,
 {
-    fn from_bit_slice_le(slice: &BitSlice<O,Lsb0>) -> 
-            Result<Self, Box<dyn Error>>;
-    fn to_bit_slice_le(&self, _dst: &mut BitSlice<O,Lsb0>) ->
-        Result<(), Box<dyn Error>> {
+    fn from_bit_slice_le(slice: &BitSlice<O, Lsb0>) -> Result<Self, Box<dyn Error>>;
+    fn to_bit_slice_le(&self, _dst: &mut BitSlice<O, Lsb0>) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }
 
 impl Len for bool {
-    fn len() -> usize { 1 }
+    fn len() -> usize {
+        1
+    }
 }
 
-impl <O> PackedStructLsb<O> for bool
-where O: bitvec::store::BitStore
+impl<O> PackedStructLsb<O> for bool
+where
+    O: bitvec::store::BitStore,
 {
-    fn from_bit_slice_le(slice: &BitSlice<O,Lsb0>) -> 
-        Result<Self, Box<dyn Error>> {
-            if slice.len() != 0 {
-                Ok(slice[0])
-            } else {
-                Err(NoMoreBits)?
-            }
+    fn from_bit_slice_le(slice: &BitSlice<O, Lsb0>) -> Result<Self, Box<dyn Error>> {
+        if slice.len() != 0 {
+            Ok(slice[0])
+        } else {
+            Err(NoMoreBits)?
         }
-    fn to_bit_slice_le(&self, dst: &mut BitSlice<O,Lsb0>) ->
-        Result<(), Box<dyn Error>> {
-            if dst.len() > bool::len() {
-                Err(NoMoreBits)?
-            } else {
-                dst.set(0, *self);
-                Ok(())
-            }
+    }
+    fn to_bit_slice_le(&self, dst: &mut BitSlice<O, Lsb0>) -> Result<(), Box<dyn Error>> {
+        if dst.len() > bool::len() {
+            Err(NoMoreBits)?
+        } else {
+            dst.set(0, *self);
+            Ok(())
         }
+    }
 }
 
 integer_packed_struct!(u8);
@@ -77,7 +77,7 @@ mod packed_struct_tests {
 
     #[test]
     fn simple() {
-        let mut bytes: [u8;3] = [0x00, 0x00, 0x00];
+        let mut bytes: [u8; 3] = [0x00, 0x00, 0x00];
         let out_view = bytes.view_bits_mut::<Lsb0>();
 
         let byte0: u8 = 0xFF;
@@ -90,7 +90,7 @@ mod packed_struct_tests {
 
         print!("Struct partially deserialized 0x{:?}\n", bytes);
 
-        let bytes: [u8;3] = [0xBA, 0xBE, 0x12];
+        let bytes: [u8; 3] = [0xBA, 0xBE, 0x12];
         let mut view = bytes.view_bits::<Lsb0>();
 
         for _ in bytes {
@@ -112,10 +112,7 @@ mod packed_struct_tests {
             //       ^ sign bit
             // 23       16
         ];
-        let asd = &raw.view_bits::<Lsb0>() [4 .. 20];
-        assert_eq!(
-            asd.load_le::<u16>(),
-            0x2018u16,
-            );
+        let asd = &raw.view_bits::<Lsb0>()[4..20];
+        assert_eq!(asd.load_le::<u16>(), 0x2018u16,);
     }
 }
