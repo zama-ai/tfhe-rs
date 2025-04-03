@@ -42,7 +42,7 @@ impl DdrMem {
         });
         assert!(
             clash.is_empty(),
-            "Error: Ddr allocation @0x{paddr:x}[0x{size_b:x}] has {} collision.",
+            "Error: Ddr allocation @0x{paddr:x}[0x{size_b:x}] has {} collision. This is likely linked to the absence of a proper HpuDevice release in previous execution.",
             clash.len()
         );
 
