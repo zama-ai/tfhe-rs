@@ -68,7 +68,7 @@ pub(crate) fn generate_try_from_trait_impl(
     })
 }
 
-/// The ownership kind of the data for a associated type.
+/// The ownership kind of the data for an associated type.
 #[derive(Clone)]
 pub(crate) enum AssociatedTypeKind {
     /// This version type use references to non-Copy rust underlying built-in types.
