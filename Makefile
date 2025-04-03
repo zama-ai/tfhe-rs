@@ -447,7 +447,7 @@ clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolcha
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable clippy_tfhe_lints clippy_ws_tests
+clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -1073,6 +1073,21 @@ dieharder_csprng: install_dieharder build_tfhe_csprng
 # Benchmarks
 #
 
+.PHONY: clippy_bench # Run clippy lints on tfhe-benchmark
+clippy_bench: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=boolean,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		-p tfhe-benchmark -- --no-deps -D warnings
+
+.PHONY: clippy_bench_gpu # Run clippy lints on tfhe-benchmark
+clippy_bench_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=gpu,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
+		-p tfhe-benchmark -- --no-deps -D warnings
+
+.PHONY: pcc_bench # pcc stands for pre commit checks
+pcc_bench: check_fmt clippy_bench
+
 .PHONY: print_doc_bench_parameters # Print parameters used in doc benchmarks
 print_doc_bench_parameters:
 	RUSTFLAGS="" cargo run --example print_doc_bench_parameters \
@@ -1162,87 +1177,79 @@ bench_integer_zk: install_rs_check_toolchain
 
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench shortint-bench \
-	--features=shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_shortint_oprf # Run benchmarks for shortint
 bench_shortint_oprf: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench oprf-shortint-bench \
-	--features=shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
-
-.PHONY: bench_shortint_multi_bit # Run benchmarks for shortint using multi-bit parameters
-bench_shortint_multi_bit: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=MULTI_BIT \
-	__TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench shortint-bench \
-	--features=shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_boolean # Run benchmarks for boolean
 bench_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench boolean-bench \
-	--features=boolean,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_gpu # Run benchmarks for keyswitch on GPU backend
 bench_ks_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs # Run benchmarks for PBS
 bench_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs_gpu # Run benchmarks for PBS on GPU backend
 bench_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_pbs # Run benchmarks for KS-PBS
 bench_ks_pbs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-pbs-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_ks_pbs_gpu # Run benchmarks for KS-PBS on GPU backend
 bench_ks_pbs_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_PARAM_TYPE=$(BENCH_PARAM_TYPE) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench ks-pbs-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs128 # Run benchmarks for PBS using FFT 128 bits
 bench_pbs128: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs128-bench \
-	--features=boolean,shortint,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 .PHONY: bench_pbs128_gpu # Run benchmarks for PBS using FFT 128 bits on GPU
 bench_pbs128_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench pbs128-bench \
-	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p $(TFHE_SPEC)
+	--features=boolean,shortint,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark
 
 bench_web_js_api_parallel_chrome: browser_path = "$(WEB_RUNNER_DIR)/chrome/chrome-linux64/chrome"
 bench_web_js_api_parallel_chrome: driver_path = "$(WEB_RUNNER_DIR)/chrome/chromedriver-linux64/chromedriver"
@@ -1278,13 +1285,13 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 bench_hlapi_erc20: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_erc20_gpu # Run benchmarks for ECR20 operations on GPU
 bench_hlapi_erc20_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
-	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
@@ -1379,7 +1386,7 @@ tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
-clippy_gpu clippy_cuda_backend check_compile_tests_benches_gpu
+clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
