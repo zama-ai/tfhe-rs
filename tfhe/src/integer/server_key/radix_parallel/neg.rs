@@ -78,19 +78,19 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
-        let mut tmp_ctxt;
-
-        let ct = if ctxt.block_carries_are_empty() {
-            ctxt
+        if ctxt.block_carries_are_empty() {
+            let mut result = self.bitnot(ctxt);
+            self.scalar_add_assign_parallelized(&mut result, 1);
+            result
+        } else if self.is_neg_possible(ctxt).is_ok() {
+            let mut result = self.unchecked_neg(ctxt);
+            self.full_propagate_parallelized(&mut result);
+            result
         } else {
-            tmp_ctxt = ctxt.clone();
-            self.full_propagate_parallelized(&mut tmp_ctxt);
-            &tmp_ctxt
-        };
-
-        let mut ct = self.unchecked_neg(ct);
-        self.full_propagate_parallelized(&mut ct);
-        ct
+            let mut cleaned_ctxt = ctxt.clone();
+            self.full_propagate_parallelized(&mut cleaned_ctxt);
+            self.neg_parallelized(&cleaned_ctxt)
+        }
     }
 
     pub fn overflowing_neg_parallelized<T>(&self, ctxt: &T) -> (T, BooleanBlock)
@@ -99,6 +99,8 @@ impl ServerKey {
     {
         let mut tmp_ctxt;
 
+        // As we want to compute the overflow we need a truly clean state
+        // And so we cannot avoid the full_propagate like we may in non overflowing_block
         let ct = if ctxt.block_carries_are_empty() {
             ctxt
         } else {
