@@ -651,10 +651,9 @@ mod cuda_utils {
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-    use tfhe::core_crypto::gpu::vec::CudaVec;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
-    use tfhe::GpuIndex;
 
     #[allow(dead_code)]
     pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
