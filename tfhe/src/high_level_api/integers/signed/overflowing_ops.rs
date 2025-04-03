@@ -5,7 +5,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::prelude::{OverflowingAdd, OverflowingMul, OverflowingSub};
+use crate::prelude::{OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheInt};
 
 impl<Id> OverflowingAdd<Self> for &FheInt<Id>
@@ -533,5 +533,70 @@ where
     /// ```
     fn overflowing_mul(self, other: &Self) -> (Self::Output, FheBool) {
         <&Self as OverflowingMul<&Self>>::overflowing_mul(&self, other)
+    }
+}
+
+impl<Id> OverflowingNeg for &FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = FheInt<Id>;
+
+    /// Negates self, overflowing if this is equal to the minimum value.
+    ///
+    /// * The operation is modular, i.e. on overflow the result wraps around.
+    /// * On overflow the [FheBool] is true (if self encrypts the minimum value), otherwise false
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt16};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let a = FheInt16::encrypt(i16::MIN, &client_key);
+    ///
+    /// let (result, overflowed) = a.overflowing_neg();
+    /// let (expected_result, expected_overflowed) = i16::MIN.overflowing_neg();
+    /// let result: i16 = result.decrypt(&client_key);
+    /// assert_eq!(result, expected_result);
+    /// assert_eq!(overflowed.decrypt(&client_key), expected_overflowed);
+    /// assert!(overflowed.decrypt(&client_key));
+    /// ```
+    fn overflowing_neg(self) -> (Self::Output, FheBool) {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let (result, overflow) = cpu_key
+                    .pbs_key()
+                    .overflowing_neg_parallelized(&*self.ciphertext.on_cpu());
+                (
+                    FheInt::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, overflow) = cuda_key
+                    .pbs_key()
+                    .overflowing_neg(&*self.ciphertext.on_gpu(streams), streams);
+                (
+                    FheInt::new(result, cuda_key.tag.clone()),
+                    FheBool::new(overflow, cuda_key.tag.clone()),
+                )
+            }),
+        })
+    }
+}
+
+impl<Id> OverflowingNeg for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = Self;
+
+    fn overflowing_neg(self) -> (Self::Output, FheBool) {
+        <&Self as OverflowingNeg>::overflowing_neg(&self)
     }
 }
