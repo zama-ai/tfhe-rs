@@ -4,8 +4,8 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::{FunctionE
 use crate::integer::server_key::radix_parallel::tests_unsigned::{
     nb_tests_for_params, nb_tests_smaller_for_params,
     panic_if_any_block_info_exceeds_max_degree_or_noise, panic_if_any_block_is_not_clean,
-    panic_if_any_block_values_exceeds_its_degree, unsigned_modulus, CpuFunctionExecutor,
-    ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
+    panic_if_any_block_values_exceeds_its_degree, random_non_zero_value, unsigned_modulus,
+    CpuFunctionExecutor, ExpectedDegrees, ExpectedNoiseLevels, MAX_NB_CTXT,
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
@@ -174,7 +174,7 @@ where
 // Default Tests
 //=============================================================================
 
-pub(crate) fn default_neg_test<P, T>(param: P, mut executor: T)
+pub(crate) fn default_neg_test<P, T>(param: P, mut neg: T)
 where
     P: Into<TestParameters>,
     T: for<'a> FunctionExecutor<&'a RadixCiphertext, RadixCiphertext>,
@@ -185,28 +185,55 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
-    let sks = Arc::new(sks);
+    let sks = Arc::new(sks.clone());
 
     let mut rng = rand::thread_rng();
 
-    let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
+    neg.setup(&cks, sks.clone());
 
-    executor.setup(&cks, sks);
+    let cks: crate::integer::ClientKey = cks.into();
 
-    for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<u64>() % modulus;
+    for num_blocks in 1..MAX_NB_CTXT {
+        let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
-        let ctxt = cks.encrypt(clear);
-        panic_if_any_block_is_not_clean(&ctxt, &cks);
+        for _ in 0..nb_tests_smaller {
+            let mut clear = rng.gen_range(0..modulus);
+            let mut ctxt = cks.encrypt_radix(clear, num_blocks);
 
-        let ct_res = executor.execute(&ctxt);
-        let tmp = executor.execute(&ctxt);
-        assert!(ct_res.block_carries_are_empty());
-        assert_eq!(ct_res, tmp);
+            let ct_res = neg.execute(&ctxt);
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
 
-        let dec: u64 = cks.decrypt(&ct_res);
-        let clear_result = clear.wrapping_neg() % modulus;
-        assert_eq!(clear_result, dec);
+            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct, expected,
+                "Invalid result for neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+            );
+
+            let ct_res2 = neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+
+            // Test with non clean carries
+            let random_non_zero = random_non_zero_value(&mut rng, modulus);
+            sks.unchecked_scalar_add_assign(&mut ctxt, random_non_zero);
+            clear = clear.wrapping_add(random_non_zero) % modulus;
+
+            let ct_res = neg.execute(&ctxt);
+            panic_if_any_block_is_not_clean(&ct_res, &cks);
+
+            let dec_ct: u64 = cks.decrypt_radix(&ct_res);
+            let expected = clear.wrapping_neg() % modulus;
+            assert_eq!(
+                dec_ct, expected,
+                "Invalid result for neg({clear}),\n\
+                Expected {expected}, got {dec_ct}\n\
+                num_blocks: {num_blocks}, modulus: {modulus}"
+            );
+            let ct_res2 = neg.execute(&ctxt);
+            assert_eq!(ct_res, ct_res2, "Failed determinism check");
+        }
     }
 }
 
