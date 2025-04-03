@@ -5,6 +5,7 @@ use crate::core_crypto::gpu::algorithms::{
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
@@ -96,6 +97,31 @@ impl CudaServerKey {
         ct.as_mut().info = ct.as_ref().info.after_bitnot();
     }
 
+    pub(crate) unsafe fn unchecked_boolean_bitnot_assign_async(
+        &self,
+        ct: &mut CudaBooleanBlock,
+        streams: &CudaStreams,
+    ) {
+        // We do (-ciphertext) + (msg_mod -1) as it allows to avoid an allocation
+        cuda_lwe_ciphertext_negate_assign(&mut ct.0.as_mut().d_blocks, streams);
+
+        let ct_blocks = ct.0.as_ref().d_blocks.lwe_ciphertext_count().0;
+
+        let shift_plaintext = self.encoding().encode(Cleartext(1u64)).0;
+
+        let scalar_vector = vec![shift_plaintext; ct_blocks];
+        let mut d_decomposed_scalar =
+            CudaVec::<u64>::new_async(ct.0.as_ref().d_blocks.lwe_ciphertext_count().0, streams, 0);
+        d_decomposed_scalar.copy_from_cpu_async(scalar_vector.as_slice(), streams, 0);
+
+        cuda_lwe_ciphertext_plaintext_add_assign(
+            &mut ct.0.as_mut().d_blocks,
+            &d_decomposed_scalar,
+            streams,
+        );
+        // Neither noise level nor the degree changes
+    }
+
     pub fn unchecked_bitnot_assign<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
@@ -165,7 +191,7 @@ impl CudaServerKey {
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
+    ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_bitop_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
@@ -560,7 +586,7 @@ impl CudaServerKey {
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
+    ///   not be dropped until streams is synchronized
     pub unsafe fn bitand_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
@@ -666,7 +692,7 @@ impl CudaServerKey {
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
+    ///   not be dropped until streams is synchronized
     pub unsafe fn bitor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
@@ -771,7 +797,7 @@ impl CudaServerKey {
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
+    ///   not be dropped until streams is synchronized
     pub unsafe fn bitxor_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
@@ -869,7 +895,7 @@ impl CudaServerKey {
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
+    ///   not be dropped until streams is synchronized
     pub unsafe fn bitnot_assign_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &mut T,
