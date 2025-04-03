@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::{BooleanBlock, ServerKey};
 
 impl ServerKey {
     /// Homomorphically computes the opposite of a ciphertext encrypting an integer message.
@@ -91,5 +91,35 @@ impl ServerKey {
         let mut ct = self.unchecked_neg(ct);
         self.full_propagate_parallelized(&mut ct);
         ct
+    }
+
+    pub fn overflowing_neg_parallelized<T>(&self, ctxt: &T) -> (T, BooleanBlock)
+    where
+        T: IntegerRadixCiphertext,
+    {
+        let mut tmp_ctxt;
+
+        let ct = if ctxt.block_carries_are_empty() {
+            ctxt
+        } else {
+            tmp_ctxt = ctxt.clone();
+            self.full_propagate_parallelized(&mut tmp_ctxt);
+            &tmp_ctxt
+        };
+
+        let mut result = self.bitnot(ct);
+        let mut overflowed = self.overflowing_scalar_add_assign_parallelized(&mut result, 1);
+
+        if !T::IS_SIGNED {
+            // Computing overflow of !input + 1 only really works for signed integers
+            // However for unsigned integers we can still get the correct result as the only
+            // case where `!input + 1` overflows, is when `!input` == MAX (0b111..111) =>
+            // `input == 0`.
+            // And in unsigned integers, the only case that is not an overflow is -0,
+            // so we can just invert the result
+            self.boolean_bitnot_assign(&mut overflowed);
+        }
+
+        (result, overflowed)
     }
 }
