@@ -210,23 +210,16 @@ fn test_single_level_decompose_balanced() {
         1,
         "This test is only valid if the decomposition level count is 1"
     );
-    use rand::prelude::*;
-    let mut rng = rand::thread_rng();
-    let mut mean = 0f64;
-    // Still runs fast, about 1 billion runs which is exactly representable in float
-    let runs = 1usize << 30;
-    for _ in 0..runs {
-        let val: u64 = rng.gen();
+    let mut sum = 0i64;
+    // Test all 32 bits values shifted in the high bits of a u64, runs in < 10s on dev laptop
+    // allows to actually verify the claim of the balanced decomposition
+    for val in 0..(1u64 << 32) {
+        let val = val << 32;
         let decomp = decomposer.decompose(val).next().unwrap();
         let value: i64 = decomp.value() as i64;
-        mean += value as f64;
+        sum = sum.checked_add(value).unwrap();
     }
-    mean /= runs as f64;
 
-    // To print with --nocapture to check in the terminal
-    println!("mean={mean}");
-
-    // This bound is not very tight or good, but as an unbalanced decomposition has a mean of about
-    // 0.5 this will do
-    assert!(mean.abs() < 0.2);
+    // We expect an average value of 0 so the sum is also 0
+    assert_eq!(sum, 0);
 }
