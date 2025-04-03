@@ -2,7 +2,7 @@
 
 ## Brief 
 Simulation _drop-in-replacement_ implementation of HPU Hardware.
-This mockup implementation could be paired seamlessly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-xrt`).
+This mockup implementation could be paired seamlessly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-aved` or `hpu-xrt`).
 Indeed, without hardware support, `tfhe-hpu-backend` calls to low-level FFI are replaced by IPC calls and could be intercepted by this mockup implementation.
 
 Objectives of this mockup are as follows:
@@ -18,17 +18,15 @@ Objectives of this mockup are as follows:
 > Generate accurate performance estimation and tracing capabilities to help the development/optimization of HPU firmware
 
 ### Mockup structure
-Without hardware support `tfhe-hpu-backend` falls back to a simulation FFI interface (i.e. `ffi-sim`). This interface binds to an IPC channel and forwards the FFI call over IPC with a simple Cmd/Payload message and Request/Ack protocol. The Mockup binds to those IPC and answeris to request like the real hardware.
+Without hardware support `tfhe-hpu-backend` falls back to a simulation FFI interface (i.e. `ffi-sim`). This interface binds to an IPC channel and forwards the FFI call over IPC with a simple Cmd/Payload message and Request/Ack protocol. The Mockup binds to those IPC and answer is to request like the real hardware.
 
 On its side, the mockup answers to backend IPC requests and simulates the hardware behavior.
 The internal structure of the mockup is organized around modules to emulate the hardware behavior. It contains the following modules:
-* `hbm`: Emulate HBM memory (only from a behavioral point of view). It enables to allocate/release chunk of memory. Those chunks could be read/write through the IPC with the same Sync mechanisms as the real hardware.
-* `isc`: This module implements the `instruction_scheduler` behavior. It reorders the DOp in a same manner as the RTL module does and emulates HPU's processing element availability with a simple cost model to estimate the achieved performances.
- + `pe`: Processing element cost model. Parameters are loaded from `.ron` file
- + `pool`: Emulate the behavior of the instruction_scheduler pool used to store the state of the in-flight instructions
- + `scheduler`: Issue query in the `pool` and dispatch requests to Processing-Element.
+* `memory`: Emulate memory such as Ddr and Hbm (only from a behavioral point of view). It enables to allocate/release chunk of memory. Those chunks could be read/write through the IPC with the same Sync mechanisms as the real hardware.
 * `regmap`: Emulate the RTL register map. It converts concrete TFHE/RTL parameters into register value.
 * `ucore`: Emulate the ucore behavior. It is in charge of reading the DOp stream from the HBM and patching the template operations in a same manner as it is done in the real hardware, to get the same patched DOp ucode.
+
+> NB: Modeling of the `instruction_scheduler` is required for efficient firmware generation and thus directly done inside `tfhe-hpu-backend` crate in `isc_sim` modules. The mockup reuse this implementation directly.
 
 The Mockup is a standalone binary that must be run before the User application code.
 The use of two binaries enables to:
@@ -41,10 +39,10 @@ Below an overview of the internal structure of the Mockup.
 After the Mockup starts, it registers an IPC configuration channel in a file that could be read by the `ffi-sim` to establish a connection.
 Once done, the following steps occur:
 
-> NB: Used filename is set in the TOML configuration file in FFI section.
+> NB: Used filename is set in the TOML configuration file in FFI section. Environment variables could be used in the filename.
 > ```toml
 > [fpga.ffi.Sim]
-> ipc_name="/tmp/hpu_mockup_ipc"
+> ipc_name="/tmp/${USER}/hpu_mockup_ipc"
 > ```
 
 1. Use configuration channel to exchange a set of IPC endpoints: one for registers access and one for memory management. Those channels implement a simple Cmd/Payload message and Request/Ack protocol.
@@ -73,61 +71,100 @@ This file is used to retrieve the inner RTL parameters such as:
 * Instruction scheduler properties
 * PC configuration for each HBM connection
 
-This file also includes a description of the available processing-element alongside with their associated performances.
-
 Other optional configuration knobs are available:
-* `--freq-hz`, `--register`, `isc-depth`, `--pe-cfg`: These knobs are used to override some parameters on the flight. They are useful for quick exploration.
+* `--freq-hz`, `--register`, `isc-depth`: These knobs are used to override some parameters on the flight. They are useful for quick exploration.
 * `--dump-out`, `--dump-reg`: Use for RTL stimuli generation and debug
 * `--report-out`, `report-trace`: Use for detailed analysis of the performances report
+* `--nops`: Disable tfhe-rs computation. Obsviously led to incorrect behavior but accurate performance estimation.
+* `--log-out`: Write trace message in the given file instead of stdio.
 
 On top of that `tfhe-hpu-mockup` could generate a detailed set of trace points at runtime to help during the debug/exploration phase (e.g. When writing new Hpu firmware).
 Those trace points rely on `tokio-tracing` and could be activated on a path::verbosity based through the `RUST_LOG` environment variable.
-For example the following value will enable the info trace for all the design and the debug one for the instruction scheduler submodule:
-`RUST_LOG=info,hpu_sim::modules::isc=debug`.
+For example the following value will enable the info trace for all the design and the debug one for the ucore submodule:
+`RUST_LOG=info,hpu_sim::modules::ucore=debug`.
+
+> NB: With the mockup estimated IOp performances must be read from the mockup log, not from the user application report.
+> Indeed, the user application reports the execution time of the mockup binary not the expected performance on real Hpu hardware.
 
 
 ## Example
-The following section explains how to run the `hpu_8b` benchmark on the mockup backend.
+The following section explains how to run the user application examples on the mockup backend.
 > NB: The use of the mockup instead of the real hardware is transparent for the user application.
-> Only changes in the configuration file are required, and no hardware support should be activated during compilation (i.e. features like `hw-xrt`).
+> Only changes in the configuration file are required, and no hardware support should be activated during compilation (i.e. features like `hpu-aved` or `hpu-xrt`).
 
 
 ### HPU configuration selection
-Select the desired configuration in `setup_hpu.sh` (Cf. HPU_CONFIG). 
-For convenience a simulation configuration is available `sim_pem2`.
+For convenience a simulation configuration is available in `backends/tfhe-hpu-backend/config_store/sim`.
+Select the desired configuration with help of `setup_hpu.sh`:
 
 ```bash
-source setup_hpu.sh
+source setup_hpu.sh --config sim
 ```
 
 > NB: For convenience, a Justfile is provided with different targets to build and start User/Mockup applications.
 > Open two terminals and, for example
-> Start `just mockup_fast` in the first one and start `just hpu_8b` in the second one.
+> Start `just mockup` in the first one and start `just hpu_bench` in the second one.
 > For list of available target use `just`
 
 ### Start mockup application
-Two parameter files are provided for convenience:
-* `mockups/tfhe-hpu-mockup/params/tfhers_64b.ron`: 
-> Use real 64b Hardware parameter set. Simulation is slow, but it enables to generate bit-accurate results. Useful for RTL stimulus generation.
+Two parameter kinds are provided for convenience:
+* `mockups/tfhe-hpu-mockup/params/tfhers_*_fast.ron`:
+ > Use a fake parameters set with small lwe_n. Simulation is fast. Useful for debug and test
 
- * `mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron`:
- > Use a fake 64b parameters set. Simulation is fast. Useful for debug and test
+* `mockups/tfhe-hpu-mockup/params/tfhers_*.ron`:
+> Use real Hardware parameter set. Simulation is slow, but it enables to generate bit-accurate results and accurate performances estimation. Useful for RTL stimulus generation and FW exploration.
 
 ```bash
+# Example of CLI for building/running mockup application
+# For convenience, `just mockup` could be also used
 cargo build --release --bin hpu_mockup
 ./target/release/hpu_mockup \
   --params mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron \
-  [--freq-hz --register --isc-depth --pe-cfg]
+  [--freq-hz --register --isc-depth]
   [--dump-out mockup_out/ --dump-reg]\
   [--report-out mockup_rpt/ --report-trace]
 ```
 
 ### Start user application
-In the snippets below, `hpu_8b` benchmark is selected but any application using HPU hardware could be used.
+In the snippets below, `hpu_bench` is selected but any application using HPU hardware could be used.
 
+```bash
+# Example of CLI for building/running hpu_bench application
+# For convenienc, `just hpu_bench` could be also used
+cargo build --release --features="hpu" --example hpu_bench
+# Start MUL and ADD IOp on 64b integer
+./target/release/examples/hpu_bench --integer-w 64 --iop MUL --iop ADD
 ```
-cargo build --release --features="hpu-xfer" --example hpu_8b
-./target/release/examples/hpu_8b --iop MUL --src-a 8 --src-b 36
+
+
+## Test
+Hpu test framework could also be started with the mockup. It relies on the same configuration mechanism (c.f. [setup_hpu.sh](#HPU-configuration-selection)). 
+
+> In same fashion as example a dedicated Justfile entry is available for the test
+> Open two terminals and run the following
+> Start `just mockup` in the first one and start `just hpu_test` in the second one.
+
+
+### Start mockup application
+Mockup starting process is the same as for examples (c.f. [Start Mockup](#Start-mockup-application)).
+
+### Start test framework
+In the snippets below, hpu test framework is started on 8b integer.
+
+```bash
+# Example of CLI for running hpu test framework
+# For convenience, `just hpu_test` could be also used
+# Test is defined for 8/16/32/64 and 128 bits integer, without specification all integer width are started
+cargo run --release --features="hpu" --test hpu -- u8
+
+# Filtering could also be used to sub-categories
+# Available sub-categories are:
+# * alus: for ct x scalar arithmetic IOps
+# * alu: for ct x ct arithmetic IOps
+# * bitwise: for ct x ct bitwise IOps
+# * cmp: for comparison IOps
+# * ternary: for if-then-else and like IOps
+# * algo: for IOps dedicated to offload sub-algorithm like ERC_20
+# Command below only run comparison IOps, for convenience, `just hpu_test "cmp"` could be also used
+cargo run --release --features="hpu" --test hpu -- cmp
 ```
-
-
