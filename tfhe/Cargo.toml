@@ -90,6 +90,7 @@ integer = ["shortint", "dep:strum"]
 strings = ["integer"]
 internal-keycache = ["dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend", "shortint"]
+gpu-experimental-multi-arch = ["gpu", "tfhe-cuda-backend/experimental-multi-arch"]
 zk-pok = ["dep:tfhe-zk-pok"]
 
 # Adds more FheUint/FheInt types to the HL
