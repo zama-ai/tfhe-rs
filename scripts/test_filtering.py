@@ -192,7 +192,7 @@ def filter_shortint_tests(input_args):
             msg_carry_pairs.append((4, 4))
 
     filter_expression = [
-        f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks_pbs.*/)"
+        f"test(/^shortint::.*_param{multi_bit_filter}{group_filter}_message_{msg}_carry_{carry}(_compact_pk)?_ks(32)?_pbs.*/)"
         for msg, carry in msg_carry_pairs
     ]
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
