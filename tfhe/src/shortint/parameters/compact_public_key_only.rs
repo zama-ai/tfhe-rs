@@ -1,10 +1,11 @@
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::parameters::compact_public_key_only::{
     CompactCiphertextListExpansionKindVersions, CompactPublicKeyEncryptionParametersVersions,
 };
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution, LweDimension,
-    MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters, ShortintParameterSet,
-    SupportedCompactPkeZkScheme,
+    AtomicPatternKind, CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
+    LweDimension, MessageModulus, MultiBitPBSParameters, PBSOrder, PBSParameters,
+    ShortintParameterSet, SupportedCompactPkeZkScheme,
 };
 use crate::shortint::{KeySwitchingKeyView, PaddingBit, ShortintEncoding};
 use crate::Error;
@@ -32,9 +33,12 @@ pub enum ShortintCompactCiphertextListCastingMode<'a> {
     NoCasting,
 }
 
-impl From<PBSOrder> for CompactCiphertextListExpansionKind {
-    fn from(value: PBSOrder) -> Self {
-        Self::NoCasting(value)
+impl From<AtomicPatternKind> for CompactCiphertextListExpansionKind {
+    fn from(value: AtomicPatternKind) -> Self {
+        match value {
+            AtomicPatternKind::Classical(pbsorder) => Self::NoCasting(pbsorder),
+            AtomicPatternKind::KeySwitch32 => Self::NoCasting(PBSOrder::KeyswitchBootstrap),
+        }
     }
 }
 
@@ -166,5 +170,22 @@ impl TryFrom<PBSParameters> for CompactPublicKeyEncryptionParameters {
     fn try_from(value: PBSParameters) -> Result<Self, Self::Error> {
         let params: ShortintParameterSet = value.into();
         params.try_into()
+    }
+}
+
+impl TryFrom<AtomicPatternParameters> for CompactPublicKeyEncryptionParameters {
+    type Error = Error;
+
+    fn try_from(value: AtomicPatternParameters) -> Result<Self, Self::Error> {
+        match value {
+            AtomicPatternParameters::Classical(parameters) => {
+                let params: ShortintParameterSet = parameters.into();
+                params.try_into()
+            }
+            AtomicPatternParameters::KeySwitch32(parameters) => {
+                let params: ShortintParameterSet = parameters.into();
+                params.try_into()
+            }
+        }
     }
 }

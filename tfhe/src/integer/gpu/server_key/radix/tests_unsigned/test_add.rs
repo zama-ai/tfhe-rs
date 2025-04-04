@@ -23,7 +23,7 @@ create_gpu_parameterized_test!(multi_device_integer_default_overflowing_add);
 
 fn integer_unchecked_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_add);
     unchecked_add_test(param, executor);
@@ -31,7 +31,7 @@ where
 
 fn integer_unchecked_add_assign<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_add_assign);
     unchecked_add_assign_test(param, executor);
@@ -39,7 +39,7 @@ where
 
 fn integer_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::add);
     default_add_test(param, executor);
@@ -47,7 +47,7 @@ where
 
 fn multi_device_integer_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
     let num_gpus = get_number_of_gpus();
@@ -58,7 +58,7 @@ where
 
 fn integer_sum_ciphertexts_vec<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     // Without this the compiler seems lost, and outputs errors about
     // 'one type is more general than the other' probably because the
@@ -75,7 +75,7 @@ where
 
 fn integer_default_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     default_overflowing_add_test(param, executor);
@@ -83,7 +83,7 @@ where
 
 fn multi_device_integer_default_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::unsigned_overflowing_add);
     let num_gpus = get_number_of_gpus();

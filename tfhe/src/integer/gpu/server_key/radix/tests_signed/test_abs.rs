@@ -13,7 +13,7 @@ create_gpu_parameterized_test!(integer_signed_abs);
 
 fn integer_signed_unchecked_abs<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_abs);
     signed_unchecked_absolute_value_test(param, executor);
@@ -21,7 +21,7 @@ where
 
 fn integer_signed_abs<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::abs);
     signed_default_absolute_value_test(param, executor);

@@ -46,7 +46,7 @@ create_parameterized_test!(integer_extensive_trivial_signed_default_overflowing_
 
 fn integer_signed_unchecked_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_sub);
     signed_unchecked_sub_test(param, executor);
@@ -54,7 +54,7 @@ where
 
 fn integer_signed_unchecked_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_signed_overflowing_sub);
     signed_unchecked_overflowing_sub_test(param, executor);
@@ -62,7 +62,7 @@ where
 
 fn integer_signed_default_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
     signed_default_sub_test(param, executor);
@@ -70,7 +70,7 @@ where
 
 fn integer_extensive_trivial_signed_default_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::sub_parallelized);
     extensive_trivial_signed_default_sub_test(param, executor);
@@ -78,7 +78,7 @@ where
 
 fn integer_extensive_trivial_signed_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_sub_parallelized);
     extensive_trivial_signed_default_overflowing_sub_test(param, executor);
@@ -86,7 +86,7 @@ where
 
 fn integer_signed_default_overflowing_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_sub_parallelized);
     signed_default_overflowing_sub_test(param, executor);
@@ -94,7 +94,7 @@ where
 
 fn integer_signed_default_overflowing_sub_sequential<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &SignedRadixCiphertext, rhs: &SignedRadixCiphertext| {
         sks.signed_overflowing_sub_parallelized_with_choice(
@@ -109,7 +109,7 @@ where
 
 fn integer_signed_default_overflowing_sub_parallel<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &SignedRadixCiphertext, rhs: &SignedRadixCiphertext| {
         sks.signed_overflowing_sub_parallelized_with_choice(
@@ -124,7 +124,7 @@ where
 
 pub(crate) fn signed_default_overflowing_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, BooleanBlock),
@@ -262,7 +262,7 @@ where
 
 pub(crate) fn signed_unchecked_overflowing_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, BooleanBlock),
@@ -384,7 +384,7 @@ pub(crate) fn extensive_trivial_signed_default_overflowing_sub_test<P, T>(
     param: P,
     mut overflowing_sub_executor: T,
 ) where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         (SignedRadixCiphertext, BooleanBlock),
@@ -436,7 +436,7 @@ pub(crate) fn extensive_trivial_signed_default_overflowing_sub_test<P, T>(
 
 pub(crate) fn signed_unchecked_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,
@@ -486,7 +486,7 @@ where
 
 pub(crate) fn signed_default_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,
@@ -547,7 +547,7 @@ where
 /// or extremely extremely fast in general, or if its plugged just as a one time thing.
 pub(crate) fn extensive_trivial_signed_default_sub_test<P, T>(param: P, mut sub_executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, &'a SignedRadixCiphertext),
         SignedRadixCiphertext,

@@ -16,7 +16,7 @@ create_gpu_parameterized_test!(integer_signed_overflowing_add);
 
 fn integer_unchecked_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_add);
     signed_unchecked_add_test(param, executor);
@@ -24,7 +24,7 @@ where
 
 fn integer_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::add);
     signed_default_add_test(param, executor);
@@ -32,7 +32,7 @@ where
 
 fn integer_unchecked_signed_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::unchecked_signed_overflowing_add);
     signed_unchecked_overflowing_add_test(param, executor);
@@ -40,7 +40,7 @@ where
 
 fn integer_signed_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = GpuFunctionExecutor::new(&CudaServerKey::signed_overflowing_add);
     signed_unchecked_overflowing_add_test(param, executor);

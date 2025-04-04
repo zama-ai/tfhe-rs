@@ -11,7 +11,9 @@ use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionPrivateKeys,
 };
 use crate::integer::BooleanBlock;
-use crate::shortint::{Ciphertext as ShortintCiphertext, PBSParameters as ShortintParameters};
+use crate::shortint::{
+    AtomicPatternParameters as ShortintParameters, Ciphertext as ShortintCiphertext,
+};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
