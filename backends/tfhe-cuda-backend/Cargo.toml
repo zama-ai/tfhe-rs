@@ -15,3 +15,6 @@ keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography"]
 cmake = { version = "0.1" }
 pkg-config = { version = "0.3" }
 bindgen = "0.71"
+
+[features]
+experimental-multi-arch = []
