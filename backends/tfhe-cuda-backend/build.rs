@@ -37,7 +37,17 @@ fn main() {
             );
         }
 
-        let dest = cmake::build("cuda");
+        let mut cmake_config = cmake::Config::new("cuda");
+
+        // Conditionally pass the "MULTI_ARCH" variable to CMake if the feature is enabled
+        #[cfg(feature = "multi_arch")]
+        cmake_config.define("MULTI_ARCH", "ON");
+        #[cfg(not(feature = "multi_arch"))]
+        cmake_config.define("MULTI_ARCH", "OFF");
+
+        // Build the CMake project
+        let dest = cmake_config.build();
+        //let dest = cmake::build("cuda");
         println!("cargo:rustc-link-search=native={}", dest.display());
         println!("cargo:rustc-link-lib=static=tfhe_cuda_backend");
 
