@@ -207,9 +207,11 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
-    use crate::shortint::oprf::create_random_from_seed_modulus_switched;
-    use crate::shortint::{ClientKey, ServerKey};
+    use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, LweSecretKey};
+    use crate::shortint::{ClientKey, ServerKey, ShortintParameterSet};
+
+    use super::*;
+
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
@@ -222,22 +224,35 @@ pub(crate) mod test {
     #[test]
     fn oprf_compare_plain_ci_run_filter() {
         use crate::shortint::gen_keys;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+        use crate::shortint::parameters::{
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+        };
+
         let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
 
         for seed in 0..1000 {
-            oprf_compare_plain_from_seed(Seed(seed), &ck, &sk);
+            oprf_compare_plain_from_seed::<u64>(Seed(seed), &ck, &sk);
+        }
+
+        let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128);
+
+        for seed in 0..1000 {
+            oprf_compare_plain_from_seed::<u32>(Seed(seed), &ck, &sk);
         }
     }
 
-    fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ServerKey) {
+    fn oprf_compare_plain_from_seed<Scalar: UnsignedInteger + CastFrom<u64> + CastInto<u64>>(
+        seed: Seed,
+        ck: &ClientKey,
+        sk: &ServerKey,
+    ) {
         let params = ck.parameters;
 
         let random_bits_count = 2;
 
         let input_p = 2 * params.polynomial_size().0 as u64;
 
-        let log_input_p = input_p.ilog2();
+        let log_input_p = input_p.ilog2() as usize;
 
         let p_prime = 1 << random_bits_count;
 
@@ -255,15 +270,24 @@ pub(crate) mod test {
             params
                 .polynomial_size()
                 .to_blind_rotation_input_modulus_log(),
-            sk.ciphertext_modulus,
+            CiphertextModulus::new_native(),
         );
 
-        let sk = ck.small_lwe_secret_key();
+        let sk = LweSecretKey::from_container(
+            ck.small_lwe_secret_key()
+                .as_ref()
+                .iter()
+                .copied()
+                .map(|x| Scalar::cast_from(x))
+                .collect::<Vec<_>>(),
+        );
 
-        let plain_prf_input = decrypt_lwe_ciphertext(&sk, &ct)
-            .0
-            .wrapping_add(1 << (64 - log_input_p - 1))
-            >> (64 - log_input_p);
+        let plain_prf_input = CastInto::<u64>::cast_into(
+            decrypt_lwe_ciphertext(&sk, &ct)
+                .0
+                .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
+                >> (Scalar::BITS - log_input_p),
+        );
 
         let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
 
@@ -296,20 +320,29 @@ pub(crate) mod test {
         let p_value_limit: f64 = 0.000_01;
 
         use crate::shortint::gen_keys;
-        use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-        let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-
-        let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
-            test_uniformity(sample_count, p_value_limit, distinct_values, f)
+        use crate::shortint::parameters::{
+            PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         };
 
-        let random_bits_count = 2;
+        for params in [
+            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+        ] {
+            let (ck, sk) = gen_keys(params);
 
-        test_uniformity(1 << random_bits_count, &|seed| {
-            let img = sk.generate_oblivious_pseudo_random(Seed(seed as u128), random_bits_count);
+            let test_uniformity = |distinct_values: u64, f: &(dyn Fn(usize) -> u64 + Sync)| {
+                test_uniformity(sample_count, p_value_limit, distinct_values, f)
+            };
 
-            ck.decrypt_message_and_carry(&img)
-        });
+            let random_bits_count = 2;
+
+            test_uniformity(1 << random_bits_count, &|seed| {
+                let img =
+                    sk.generate_oblivious_pseudo_random(Seed(seed as u128), random_bits_count);
+
+                ck.decrypt_message_and_carry(&img)
+            });
+        }
     }
 
     pub fn test_uniformity<F>(sample_count: usize, p_value_limit: f64, distinct_values: u64, f: F)
