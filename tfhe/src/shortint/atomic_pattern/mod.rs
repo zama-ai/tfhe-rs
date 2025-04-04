@@ -551,3 +551,46 @@ impl From<KS32AtomicPatternServerKey> for AtomicPatternServerKey {
         Self::KeySwitch32(value)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+    use crate::shortint::{gen_keys, ServerKey};
+
+    use super::AtomicPatternServerKey;
+
+    // Test an implementation of the KS32 AP as a dynamic atomic pattern
+    #[test]
+    fn test_ks32_as_dyn_ap_ci_run_filter() {
+        let (client_key, server_key) =
+            gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128);
+
+        // Convert the static ks 32 server key into a dynamic one
+        let AtomicPatternServerKey::KeySwitch32(ks32_key) = server_key.atomic_pattern else {
+            panic!("We know from parameters that AP is KS32")
+        };
+
+        let ap_key = AtomicPatternServerKey::Dynamic(Box::new(ks32_key));
+
+        // Re create the server key with the DAP
+        let server_key = ServerKey::from_raw_parts(
+            ap_key,
+            server_key.message_modulus,
+            server_key.carry_modulus,
+            server_key.max_degree,
+            server_key.max_noise_level,
+        );
+
+        // Do some operation
+        let msg1 = 1;
+        let msg2 = 0;
+
+        let ct_1 = client_key.encrypt(msg1);
+        let ct_2 = client_key.encrypt(msg2);
+
+        let ct_3 = server_key.add(&ct_1, &ct_2);
+
+        let output = client_key.decrypt(&ct_3);
+        assert_eq!(output, 1);
+    }
+}
