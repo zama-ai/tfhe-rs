@@ -1,7 +1,10 @@
 pub mod ciphertext;
 pub mod client_key;
+pub mod key_switching_key;
 pub mod list_compression;
 pub mod server_key;
+#[cfg(feature = "zk-pok")]
+pub mod zk;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
     prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,

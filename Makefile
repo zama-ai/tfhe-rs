@@ -1119,6 +1119,13 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p $(TFHE_SPEC) --
+	
+.PHONY: bench_zk_gpu
+bench_zk_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-pke-bench \
+	--features=integer,internal-keycache,gpu,pbs-stats,zk-pok -p $(TFHE_SPEC) --
 
 .PHONY: bench_integer_multi_bit # Run benchmarks for unsigned integer using multi-bit parameters
 bench_integer_multi_bit: install_rs_check_toolchain
