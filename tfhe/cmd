@@ -1,0 +1,27 @@
+
+    Run Measurements Classic & Multi-Bit
+================================================================================
+
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u64_132_bits --nocapture
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_lwe_encrypt_pbs_decrypt_custom_mod_noise_test_params_4_bits_native_u128_132_bits --nocapture
+
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u64_132_bits --nocapture
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_lwe_encrypt_multi_bit_pbs_decrypt_custom_mod_noise_test_params_multi_bit_4_bits_native_u128_132_bits --nocapture
+
+
+    Export Predicted Variances Classic & Multi-Bit
+================================================================================
+
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_export_noise_predictions_native_u64_132_bits --nocapture
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_export_noise_predictions_native_u128_132_bits --nocapture
+
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_export_multi_bit_noise_predictions_native_u64_132_bits --nocapture
+    $ RUSTFLAGS="-C target-cpu=native" cargo +stable test --tests --profile release --features=x86_64-unix -p tfhe -- test_export_multi_bit_noise_predictions_native_u128_132_bits --nocapture
+
+
+    Delete expected variances for non-existing measurements
+================================================================================
+
+    irb> EXP_NAME = "u64-u128" ; distro = "GAUSSIAN" ; a = []
+    irb> for gf in [2,3,4] do ; for logbase in 5..30 do ; for level in 1..6 do ; next if logbase * level > 36 ; for k,logN in [[4,9],[2,10],[1,11],[3,10],[2,11],[1,12],[1,13],] do ; ef = "./results/#{EXP_NAME}/expected-variances-gf=#{gf}-logB=#{logbase}-l=#{level}-k=#{k}-N=#{2**logN}-distro=#{distro}.json" ; ff = "./results/#{EXP_NAME}/samples/fft-id=0-gf=#{gf}-logB=#{logbase}-l=#{level}-k=#{k}-N=#{2**logN}-distro=#{distro}.npy" ; a << ef if File.exist? ef and not File.exist? ff ; end ; end ; end ; end
+    irb> puts a.join(" ") # to remove
