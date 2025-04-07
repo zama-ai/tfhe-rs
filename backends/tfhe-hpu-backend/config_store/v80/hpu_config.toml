@@ -7,8 +7,8 @@
   polling_us=10
 [fpga.ffi.V80]
   ami_dev="/dev/ami1"
-  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-0"
-  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-1"
+  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-1"
+  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-2"
 
 [rtl]
   bpip_use = true
