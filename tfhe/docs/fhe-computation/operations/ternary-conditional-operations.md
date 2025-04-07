@@ -49,6 +49,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_res: i32 = encrypted_res.decrypt(&client_key);
     assert_eq!(clear_res, clear_a);
     
+    // Ternary conditional also supports operands that are in clear (except for the condition)
+    // with the `scalar` prefix
+    let encrypted_res = &encrypted_comp.scalar_select(&encrypted_a, clear_b);
+    let clear_res: i32 = encrypted_res.decrypt(&client_key);
+    assert_eq!(clear_res, clear_a);
+
+    let encrypted_res = &encrypted_comp.scalar_select(clear_a, &encrypted_b);
+    let clear_res: i32 = encrypted_res.decrypt(&client_key);
+    assert_eq!(clear_res, clear_a);
+
+    // When both possible results are in clear the form to be used is
+    let encrypted_res = FheInt32::select(encrypted_comp, clear_a, clear_b);
+    let clear_res: i32 = encrypted_res.decrypt(&client_key);
+    assert_eq!(clear_res, clear_a);
+   
     Ok(())
 }
 ```
