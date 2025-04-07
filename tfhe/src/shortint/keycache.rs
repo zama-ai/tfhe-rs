@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "hpu")]
 // TODO correct version for HPU parameters set
 // and thus remove this stmt
-use crate::shortint::parameters::v1_0::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+use crate::shortint::parameters::v1_1::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
 use super::atomic_pattern::AtomicPatternParameters;
 
@@ -413,8 +413,8 @@ named_params_impl!( ShortintParameterSet =>
     #[cfg(tarpaulin)]
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
 
-    #[cfg(feature = "hpu")]
-    V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    #[cfg(feature ="hpu")]
+    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 );
 
 impl NamedParam for ClassicPBSParameters {

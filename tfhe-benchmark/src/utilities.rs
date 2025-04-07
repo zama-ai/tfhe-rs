@@ -38,6 +38,8 @@ pub use boolean_utils::*;
 pub mod shortint_utils {
     use super::*;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
+    #[cfg(feature = "hpu")]
+    use tfhe::shortint::parameters::current_params::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
     use tfhe::shortint::{
@@ -402,7 +404,12 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         elements.min(1500) // This threshold is useful for operation with both a small number of
                            // block and low PBs count.
     }
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(feature = "hpu")]
+    {
+        // Enforce that a minimum of 64 IOp is sent
+        block_multiplicator.min(64.0) as u64
+    }
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
     {
         let num_threads = rayon::current_num_threads() as f64;
         let operation_loading = (num_threads / (op_pbs_count as f64)).max(minimum_loading);
