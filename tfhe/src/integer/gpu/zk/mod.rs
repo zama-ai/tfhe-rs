@@ -351,12 +351,8 @@ mod tests {
         ProvenCompactCiphertextList,
     };
     use crate::shortint::parameters::test_params::TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
-    use crate::shortint::parameters::v1_1::V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-    use crate::shortint::parameters::{
-        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
+    use crate::shortint::parameters::v1_1::{V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
+    use crate::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128};
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
@@ -442,14 +438,10 @@ mod tests {
 
     #[test]
     fn test_several_proven_lists() {
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let params = [
             (
-                V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
-            ),
-            (
-                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             ),
         ];

@@ -33,17 +33,11 @@ fn pke_zk_proof(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    for (param_pke, _param_casting, param_fhe) in [
+    for (param_pke, _param_casting, param_fhe ) in [
         (
             PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        ),
-        // Non default params use the V1_1 prefix
-        (
-            V1_1_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-            V1_1_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-            PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
         let param_name = param_fhe.name();
@@ -457,16 +451,11 @@ mod cuda {
             .expect("cannot open results file");
 
         for (param_pke, param_ksk, param_fhe) in [
-            (
-                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            ),
-            (
-                V1_1_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-                V1_1_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            ),
+        (
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ),
         ] {
             let param_name = param_fhe.name();
             let param_name = param_name.as_str();
