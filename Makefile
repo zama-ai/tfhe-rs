@@ -713,6 +713,10 @@ test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_n
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
+.PHONY: test_integer_hpu_ci # Run the tests for integer ci on hpu backend
+test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
+	cargo test --release -p $(TFHE_SPEC) --features hpu-v80 --test hpu
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -1163,7 +1167,7 @@ bench_integer_hpu: install_rs_check_toolchain
 	HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" V80_PCIE_DEV="$(V80_PCIE_DEV)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
-	--features=integer,internal-keycache,hpu,hpu-v80 -p $(TFHE_SPEC) -- --quick
+	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p $(TFHE_SPEC) -- --quick
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
