@@ -322,6 +322,7 @@ impl CompressedServerKey {
                 decompression_key,
             }),
             tag: self.tag.clone(),
+            streams,
         }
     }
 }
@@ -341,10 +342,10 @@ impl Named for CompressedServerKey {
 }
 
 #[cfg(feature = "gpu")]
-#[derive(Clone)]
 pub struct CudaServerKey {
     pub(crate) key: Arc<IntegerCudaServerKey>,
     pub(crate) tag: Tag,
+    pub(crate) streams: CudaStreams,
 }
 
 #[cfg(feature = "gpu")]
@@ -367,6 +368,10 @@ impl CudaServerKey {
         } else {
             CudaStreams::new_multi_gpu()
         }
+    }
+
+    pub(crate) fn build_streams_with_indexes(&self, indexes: Vec<GpuIndex>) -> CudaStreams {
+        CudaStreams::new_multi_gpu_with_indexes(indexes.as_slice())
     }
 }
 
