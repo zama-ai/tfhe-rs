@@ -1,6 +1,6 @@
-//! Implement Aved driver abstraction
+//! Implement V80 driver abstraction
 //!
-//! Aved rely on 2 driver for communication
+//! V80 rely on 2 driver for communication
 //! * Register access/Rpu interaction -> AMI
 //! * Data xfer -> QDMA
 
@@ -56,7 +56,7 @@ impl HpuHw {
         let chunks = self
             .allocator
             .as_mut()
-            .expect("Error: Aved backend memory must be explicitly init (c.f. init_mem)")
+            .expect("Error: V80 backend memory must be explicitly init (c.f. init_mem)")
             .alloc(&props);
         MemZone::new(props.mem_kind, chunks[0].paddr, chunks, self.qdma.clone())
     }
@@ -65,7 +65,7 @@ impl HpuHw {
         let MemZone { kind, chunks, .. } = zone;
         self.allocator
             .as_mut()
-            .expect("Error: Aved backend memory must be explicitly init (c.f. init_mem)")
+            .expect("Error: V80 backend memory must be explicitly init (c.f. init_mem)")
             .release(kind, chunks)
     }
 }

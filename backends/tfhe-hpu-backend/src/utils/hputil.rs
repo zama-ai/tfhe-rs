@@ -230,11 +230,11 @@ fn main() {
             }
         }
         Command::Flush => loop {
-            #[cfg(feature = "hw-aved")]
+            #[cfg(feature = "hw-v80")]
             {
                 // TODO add ack flush to prevent error with previous stall execution
             }
-            #[cfg(not(feature = "hw-aved"))]
+            #[cfg(not(feature = "hw-v80"))]
             {
                 let ackq_addr = (*regmap
                     .register()
