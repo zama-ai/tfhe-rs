@@ -130,10 +130,10 @@ if [[ "$HPU_CONFIG" == v80* ]]; then
                 echo "Continuing... You could be prompt for sudo password"
                 sudo modprobe -r qdma-pf &&  sudo modprobe qdma-pf
                 sudo bash -c "echo 100 > /sys/bus/pci/devices/0000\:${V80_PCIE_DEV}\:00.1/qdma/qmax"
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 0 mode mm dir h2c
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 1 mode mm dir c2h
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 0 dir h2c
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 1 dir c2h
+                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 1 mode mm dir h2c
+                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 2 mode mm dir c2h
+                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 1 dir h2c
+                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 2 dir c2h
                 break
             elif [[ "$user_input" == [Nn] ]]; then
                 echo "Skipped QDMA_PF init"
