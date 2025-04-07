@@ -41,7 +41,7 @@ impl std::str::FromStr for ShellString {
 /// Enable to select targeted ffi interface with specific properties
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum FFIMode {
-    Aved {
+    V80 {
         ami_dev: ShellString,
         qdma_h2c: ShellString,
         qdma_c2h: ShellString,
