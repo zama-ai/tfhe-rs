@@ -2,7 +2,7 @@
 //! Aims is to completely hide underlying specificities and enable compile-time
 //! swapping.
 //!
-//! Mainly replacing Xrt(u55c)/Aved(V80) by a simulation interface for ease CI
+//! Mainly replacing Xrt(u55c)/V80 by a simulation interface for ease CI
 
 use crate::interface::FFIMode;
 
@@ -33,8 +33,8 @@ pub struct MemZoneProperties {
 
 pub struct HpuHw(
     #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::HpuHw>,
-    #[cfg(feature = "hw-aved")] aved::HpuHw,
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))] sim::HpuHw,
+    #[cfg(feature = "hw-v80")] v80::HpuHw,
+    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))] sim::HpuHw,
 );
 
 impl HpuHw {
@@ -46,12 +46,12 @@ impl HpuHw {
             self.0.read_reg(addr)
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             self.0.ami.read_reg(addr)
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.read_reg(addr)
         }
@@ -65,12 +65,12 @@ impl HpuHw {
             self.0.pin_mut().write_reg(addr, value)
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             self.0.ami.write_reg(addr, value)
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.write_reg(addr, value)
         }
@@ -84,8 +84,8 @@ impl HpuHw {
         config: &crate::interface::HpuConfig,
         params: &crate::entities::HpuParameters,
     ) {
-        // NB: Currently only aved backend required explicit memory init
-        #[cfg(feature = "hw-aved")]
+        // NB: Currently only v80 backend required explicit memory init
+        #[cfg(feature = "hw-v80")]
         {
             self.0.init_mem(config, params);
         }
@@ -99,12 +99,12 @@ impl HpuHw {
             MemZone(xrt_mz)
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             MemZone(self.0.alloc(props))
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             MemZone(self.0.alloc(props))
         }
@@ -119,12 +119,12 @@ impl HpuHw {
         //     todo!("Handle memory release");
         // }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             self.0.release(&mut zone.0);
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.release(&mut zone.0);
         }
@@ -164,24 +164,24 @@ impl HpuHw {
             }
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             match mode {
-                FFIMode::Aved {
+                FFIMode::V80 {
                     ami_dev,
                     qdma_h2c,
                     qdma_c2h,
-                } => Self(aved::HpuHw::new_hpu_hw(
+                } => Self(v80::HpuHw::new_hpu_hw(
                     &ami_dev.expand(),
                     retry_rate,
                     &qdma_h2c.expand(),
                     &qdma_c2h.expand(),
                 )),
-                _ => panic!("Unsupported config type with ffi::aved"),
+                _ => panic!("Unsupported config type with ffi::v80"),
             }
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             match mode {
                 FFIMode::Sim { ipc_name } => Self(sim::HpuHw::new_hpu_hw(&ipc_name.expand())),
@@ -192,25 +192,25 @@ impl HpuHw {
 
     /// Custom register command to retrieved custom parameters set from mockup.
     /// Only available with mockup FFI
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
     pub fn get_pbs_parameters(&mut self) -> crate::entities::HpuPBSParameters {
         self.0.get_pbs_parameters()
     }
 
-    /// Custom command only supported on AVED to push work
-    #[cfg(feature = "hw-aved")]
+    /// Custom command only supported on V80 to push work
+    #[cfg(feature = "hw-v80")]
     pub fn iop_push(&mut self, stream: &[u32]) {
         self.0.ami.iop_push(stream)
     }
 
-    /// Custom command only supported on AVED to push work
-    #[cfg(feature = "hw-aved")]
+    /// Custom command only supported on V80 to push work
+    #[cfg(feature = "hw-v80")]
     pub fn dop_push(&mut self, stream: &[u32]) {
         self.0.ami.dop_push(stream)
     }
 
-    /// Custom command only supported on AVED to rd_ack
-    #[cfg(feature = "hw-aved")]
+    /// Custom command only supported on V80 to rd_ack
+    #[cfg(feature = "hw-v80")]
     pub fn iop_ack_rd(&mut self) -> u32 {
         self.0.ami.iop_ackq_rd()
     }
@@ -218,8 +218,8 @@ impl HpuHw {
 
 pub struct MemZone(
     #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::MemZone>,
-    #[cfg(feature = "hw-aved")] aved::MemZone,
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))] sim::MemZone,
+    #[cfg(feature = "hw-v80")] v80::MemZone,
+    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))] sim::MemZone,
 );
 
 impl MemZone {
@@ -250,12 +250,12 @@ impl MemZone {
             self.0.pin_mut().write_bytes(ofst, bytes)
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             self.0.write_bytes(ofst, bytes)
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.write_bytes(ofst, bytes)
         }
@@ -270,12 +270,12 @@ impl MemZone {
             self.0.pin_mut().mmap()
         }
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
-            panic!("Aved ffi rely on QDMA and couldn't implement mmap")
+            panic!("V80 ffi rely on QDMA and couldn't implement mmap")
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.mmap()
         }
@@ -290,7 +290,7 @@ impl MemZone {
             self.0.pin_mut().sync(mode.into())
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
         {
             self.0.sync(mode)
         }
@@ -312,10 +312,10 @@ impl MemZone {
     }
 }
 
-#[cfg(feature = "hw-aved")]
-mod aved;
+#[cfg(feature = "hw-v80")]
+mod v80;
 #[cfg(feature = "hw-xrt")]
 mod xrt;
 
-#[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+#[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
 pub(crate) mod sim;

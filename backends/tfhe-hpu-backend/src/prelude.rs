@@ -19,7 +19,7 @@ pub use super::interface::{
 /// Expose io_dump init function
 pub use super::interface::io_dump::set_hpu_io_dump;
 
-#[cfg(not(any(feature = "hw-xrt", feature = "hw-aved")))]
+#[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
 /// Expose simulation interface
 pub use super::ffi::{
     sim::ipc::{IpcSim, MemoryAck, MemoryReq, MemorySim, RegisterAck, RegisterReq, RegisterSim},

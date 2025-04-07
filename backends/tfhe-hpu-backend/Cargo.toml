@@ -9,7 +9,7 @@ readme = "README.md"
 [features]
 default = []
 hw-xrt = []
-hw-aved = []
+hw-v80 = []
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
 utils = ["clap", "clap-num", "packed_struct", "bitvec", "serde_json"]

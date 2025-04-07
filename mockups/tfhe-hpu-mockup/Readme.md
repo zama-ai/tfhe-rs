@@ -2,7 +2,7 @@
 
 ## Brief 
 Simulation _drop-in-replacement_ implementation of HPU Hardware.
-This mockup implementation could be paired seamlessly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-aved` or `hpu-xrt`).
+This mockup implementation could be paired seamlessly with `tfhe-hpu-backend` compiled without any hardware support (i.e. `hpu-v80` or `hpu-xrt`).
 Indeed, without hardware support, `tfhe-hpu-backend` calls to low-level FFI are replaced by IPC calls and could be intercepted by this mockup implementation.
 
 Objectives of this mockup are as follows:
@@ -90,7 +90,7 @@ For example the following value will enable the info trace for all the design an
 ## Example
 The following section explains how to run the user application examples on the mockup backend.
 > NB: The use of the mockup instead of the real hardware is transparent for the user application.
-> Only changes in the configuration file are required, and no hardware support should be activated during compilation (i.e. features like `hpu-aved` or `hpu-xrt`).
+> Only changes in the configuration file are required, and no hardware support should be activated during compilation (i.e. features like `hpu-v80` or `hpu-xrt`).
 
 
 ### HPU configuration selection

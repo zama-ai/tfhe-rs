@@ -25,9 +25,9 @@ pub struct HpuBackend {
     // Extracted parameters
     pub(crate) params: HpuParameters,
     // Prevent to parse regmap at each polling iteration
-    #[cfg(not(feature = "hw-aved"))]
+    #[cfg(not(feature = "hw-v80"))]
     workq_addr: u64,
-    #[cfg(not(feature = "hw-aved"))]
+    #[cfg(not(feature = "hw-v80"))]
     ackq_addr: u64,
 
     // Key memory
@@ -118,11 +118,11 @@ impl HpuBackend {
 
         // Flush ack_q
         // Ensure that no residue from previous execution were stall in the pipe
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             // TODO add ack flush to prevent error with previous stall execution
         }
-        #[cfg(not(feature = "hw-aved"))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             let ackq_addr = (*regmap
                 .register()
@@ -182,13 +182,13 @@ impl HpuBackend {
             rtl::runtime::InfoPePbs::from_rtl(&mut hpu_hw, &regmap)
         );
 
-        #[cfg(not(feature = "hw-aved"))]
+        #[cfg(not(feature = "hw-v80"))]
         let workq_addr = (*regmap
             .register()
             .get("WorkAck::workq")
             .expect("Unknown register, check regmap definition")
             .offset()) as u64;
-        #[cfg(not(feature = "hw-aved"))]
+        #[cfg(not(feature = "hw-v80"))]
         let ackq_addr = (*regmap
             .register()
             .get("WorkAck::ackq")
@@ -280,9 +280,9 @@ impl HpuBackend {
                 hpu_hw,
                 regmap,
                 params,
-                #[cfg(not(feature = "hw-aved"))]
+                #[cfg(not(feature = "hw-v80"))]
                 workq_addr,
-                #[cfg(not(feature = "hw-aved"))]
+                #[cfg(not(feature = "hw-v80"))]
                 ackq_addr,
                 bsk_key,
                 ksk_key,
@@ -778,7 +778,7 @@ impl HpuBackend {
     fn workq_push(&mut self, cmd: cmd::HpuCmd) -> Result<(), HpuInternalError> {
         let Self {
             ref mut hpu_hw,
-            #[cfg(not(feature = "hw-aved"))]
+            #[cfg(not(feature = "hw-v80"))]
             workq_addr,
             cmd_q,
             ..
@@ -799,11 +799,11 @@ impl HpuBackend {
 
         // Write them in workq entry
         // NB: No queue full check was done ...
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             hpu_hw.iop_push(op_words.as_slice());
         }
-        #[cfg(not(feature = "hw-aved"))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             for w in op_words.iter() {
                 hpu_hw.write_reg(*workq_addr, *w);
@@ -827,7 +827,7 @@ impl HpuBackend {
     pub fn poll_ack_q(&mut self) -> Result<bool, HpuInternalError> {
         let Self {
             ref mut hpu_hw,
-            #[cfg(not(feature = "hw-aved"))]
+            #[cfg(not(feature = "hw-v80"))]
             ackq_addr,
             cmd_q,
             regmap,
@@ -851,7 +851,7 @@ impl HpuBackend {
             rtl::runtime::InfoPePbs::from_rtl(hpu_hw, regmap)
         );
 
-        #[cfg(feature = "hw-aved")]
+        #[cfg(feature = "hw-v80")]
         {
             let ack_nb = hpu_hw.iop_ack_rd();
             if ack_nb == 0 {
@@ -871,7 +871,7 @@ impl HpuBackend {
                 Ok(true)
             }
         }
-        #[cfg(not(feature = "hw-aved"))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             let ack_code = hpu_hw.read_reg(*ackq_addr);
             if ack_code != ACKQ_EMPTY {
