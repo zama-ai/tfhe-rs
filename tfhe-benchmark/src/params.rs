@@ -396,7 +396,7 @@ mod integer_params {
     #[cfg(feature = "hpu")]
     // TODO correct version for HPU parameters set
     // and thus remove this stmt
-    use crate::shortint::parameters::v1_0::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    use crate::shortint::parameters::v1_0::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
@@ -434,10 +434,9 @@ mod integer_params {
                 #[cfg(feature = "hpu")]
                 let params =
                     // FIXME Add aliasing for Hpu parameters
-                    vec![V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
+                    vec![V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
                 #[cfg(not(feature = "hpu"))]
-                let params = 
-                    vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
+                let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {

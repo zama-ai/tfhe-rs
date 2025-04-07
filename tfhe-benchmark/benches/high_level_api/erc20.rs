@@ -225,6 +225,7 @@ fn bench_transfer_latency<FheType, F>(
     transfer_func: F,
 ) where
     FheType: FheEncrypt<u64, ClientKey>,
+    FheType: FheWait,
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
 {
     #[cfg(feature = "gpu")]
@@ -239,7 +240,11 @@ fn bench_transfer_latency<FheType, F>(
         let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         b.iter(|| {
-            let (_, _) = transfer_func(&from_amount, &to_amount, &amount);
+            let (new_from, new_to) = transfer_func(&from_amount, &to_amount, &amount);
+            new_from.wait();
+            criterion::black_box(new_from);
+            new_to.wait();
+            criterion::black_box(new_to);
         })
     });
 
@@ -256,7 +261,7 @@ fn bench_transfer_latency<FheType, F>(
     );
 }
 
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn bench_transfer_throughput<FheType, F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
@@ -269,19 +274,8 @@ fn bench_transfer_throughput<FheType, F>(
     F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     let mut rng = thread_rng();
-    #[cfg(feature = "gpu")]
-    let batch_size = {
-        let num_gpus = unsafe { cuda_get_number_of_gpus() };
-        [10 * num_gpus, 100 * num_gpus, 500 * num_gpus]
-    };
 
-    #[cfg(feature = "hpu")]
-    let batch_size = [10, 100, 300];
-
-    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
-    let batch_size = [10, 100, 500];
-
-    for num_elems in batch_size {
+    for num_elems in [10, 100, 500] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
@@ -319,6 +313,7 @@ fn bench_transfer_throughput<FheType, F>(
         );
     }
 }
+
 #[cfg(feature = "gpu")]
 fn cuda_bench_transfer_throughput<FheType, F>(
     group: &mut BenchmarkGroup<'_, WallTime>,
@@ -389,6 +384,69 @@ fn cuda_bench_transfer_throughput<FheType, F>(
                                 );
                         },
                     );
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "erc20-transfer",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
+
+#[cfg(feature = "hpu")]
+fn hpu_bench_transfer_throughput<FheType, F>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    transfer_func: F,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    FheType: FheWait,
+    F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
+{
+    let mut rng = thread_rng();
+
+    for num_elems in [10, 100, 300] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amounts = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            b.iter(|| {
+                let (last_new_from, last_new_to) = std::iter::zip(
+                    from_amounts.iter(),
+                    std::iter::zip(to_amounts.iter(), amounts.iter()),
+                )
+                .map(|(from_amount, (to_amount, amount))| {
+                    transfer_func(from_amount, to_amount, amount)
+                })
+                .last()
+                .unwrap();
+
+                // Wait on last result to enforce all computation is over
+                last_new_from.wait();
+                criterion::black_box(last_new_from);
+                last_new_to.wait();
+                criterion::black_box(last_new_to);
             });
         });
 
@@ -641,7 +699,6 @@ fn main() {
 
     c.final_summary();
 }
-
 #[cfg(feature = "hpu")]
 fn main() {
     let cks = {
@@ -666,27 +723,6 @@ fn main() {
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
     let bench_name = "hlapi::hpu::erc20::transfer";
-
-    // FheUint64 PBS counts
-    // We don't run multiple times since every input is encrypted
-    // PBS count is always the same
-    #[cfg(feature = "pbs-stats")]
-    {
-        print_transfer_pbs_counts(
-            &cks,
-            "FheUint64",
-            "whitepaper",
-            transfer_whitepaper::<FheUint64>,
-        );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
-        print_transfer_pbs_counts(
-            &cks,
-            "FheUint64",
-            "overflow",
-            transfer_overflow::<FheUint64>,
-        );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
-    }
 
     // FheUint64 latency
     {
@@ -714,7 +750,7 @@ fn main() {
     // FheUint64 Throughput
     {
         let mut group = c.benchmark_group(bench_name);
-        bench_transfer_throughput(
+        hpu_bench_transfer_throughput(
             &mut group,
             &cks,
             bench_name,
@@ -723,7 +759,7 @@ fn main() {
             transfer_whitepaper::<FheUint64>,
         );
         // Erc20 optimized instruction only available on Hpu
-        bench_transfer_throughput(
+        hpu_bench_transfer_throughput(
             &mut group,
             &cks,
             bench_name,
