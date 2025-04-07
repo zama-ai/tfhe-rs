@@ -66,10 +66,10 @@ HPU configuration knobs are gathered in a TOML configuration file. This file des
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
           "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
   polling_us=10
-[fpga.ffi.Aved] # Hardware properties
+[fpga.ffi.V80] # Hardware properties
   ami_dev="/dev/ami1" # Name of ami device
-  qdma_h2c="/dev/qdma${AVED_PCIE_DEV}001-MM-0" # QDma host to card device
-  qdma_c2h="/dev/qdma${AVED_PCIE_DEV}001-MM-1" # QDma card to host device
+  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-0" # QDma host to card device
+  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-1" # QDma card to host device
 
 [rtl] # RTL option
   bpip_used = true # BPIP/IPIP mode
@@ -198,11 +198,11 @@ There are some example applications already available in `tfhe/examples/hpu`:
  * hpu_hlapi: Depict the used of HPU device through HighLevelApi.
  * hpu_bench: Depict the used of HPU device through Integer abstraction level.
 
-In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-aved` features:
+In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-v80` features:
 ``` bash
-cargo build --release --features="hpu-aved" --example hpu_hlapi --example hpu_bench
+cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config aved --init-qdma
+source setup_hpu.sh --config v80 --init-qdma
 ./target/release/examples/hpu_bench --integer-w 64 --integer-w 32 --iop MUL --iter 10
 ./target/release/examples/hpu_hlapi
 ```
@@ -221,13 +221,13 @@ Those tests have 5 sub-kind:
 Snippets below give some example of command that could be used for testing:
 ``` bash
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config aved --init-qdma
+source setup_hpu.sh --config v80 --init-qdma
 
 # Run all sub-kind for 64b integer width
-cargo test --release --features="hpu-aved" --test hpu -- u64
+cargo test --release --features="hpu-v80" --test hpu -- u64
 
 # Run only `bitwise` sub-kind for all integer width IOp
-cargo test --release --features="hpu-aved" --test hpu -- bitwise
+cargo test --release --features="hpu-v80" --test hpu -- bitwise
 ```
 
 ## Benches framework
@@ -235,7 +235,7 @@ HPU is completely integrated in tfhe benchmark system. Performances results coul
 Three benchmarks could be started, through the following Makefile target for simplicity:
 ``` bash
 # Do not forget to correctly set environment before hand
-source setup_hpu.sh --config aved --init-qdma
+source setup_hpu.sh --config v80 --init-qdma
 
 # Run hlapi benches
 make test_high_level_api_hpu

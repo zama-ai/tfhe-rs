@@ -112,7 +112,7 @@ zk-pok = ["dep:tfhe-zk-pok"]
 # Start Fpga Hpu features
 hpu = ["dep:tfhe-hpu-backend", "shortint", "integer"]
 hpu-xrt = ["hpu", "tfhe-hpu-backend/hw-xrt"]
-hpu-aved = ["hpu", "tfhe-hpu-backend/hw-aved"]
+hpu-v80 = ["hpu", "tfhe-hpu-backend/hw-v80"]
 hpu-debug = ["hpu", "tfhe-hpu-backend/io-dump"]
 # End Fpga Hpu features
 
