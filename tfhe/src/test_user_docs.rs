@@ -109,6 +109,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/operations/string-operations.md",
         operations_string_operations
     );
+    doctest!(
+        "../docs/fhe-computation/operations/dot-product.md",
+        operations_dot_product
+    );
 
     // TOOLING
     doctest!("../docs/fhe-computation/tooling/debug.md", tooling_debug);
