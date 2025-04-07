@@ -2969,7 +2969,7 @@ mod hpu {
                 panic!("HPU only IOp with defined prototype could be benched");
             };
 
-            match BENCH_TYPE.get().unwrap() {
+            match get_bench_type() {
                 BenchmarkType::Latency => {
                     bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
                     bench_group.bench_function(&bench_id, |b| {
@@ -3027,7 +3027,7 @@ mod hpu {
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(30));
-                    let elements = throughput_num_threads(num_block);
+                    let elements = throughput_num_threads(num_block, 1);
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
