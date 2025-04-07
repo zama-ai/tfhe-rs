@@ -18,9 +18,15 @@ endif()
 if(CMAKE_CUDA_COMPILER_VERSION VERSION_LESS ${MINIMUM_SUPPORTED_CUDA_VERSION})
   message(FATAL_ERROR "CUDA ${MINIMUM_SUPPORTED_CUDA_VERSION} or greater is required for compilation.")
 endif()
-
-set(CUDA_RETURN_CODE 0)
-set(ARCH "-arch=sm_75")
+# Get CUDA compute capability
+set(OUTPUTFILE ${CMAKE_CURRENT_SOURCE_DIR}/cuda_script) # No suffix required
+set(CUDAFILE ${CMAKE_CURRENT_SOURCE_DIR}/check_cuda.cu)
+execute_process(COMMAND nvcc -lcuda ${CUDAFILE} -o ${OUTPUTFILE})
+execute_process(
+  COMMAND ${OUTPUTFILE}
+  RESULT_VARIABLE CUDA_RETURN_CODE
+  OUTPUT_VARIABLE ARCH)
+file(REMOVE ${OUTPUTFILE})
 
 if(${CUDA_RETURN_CODE} EQUAL 0)
   set(CUDA_SUCCESS "TRUE")
@@ -86,7 +92,7 @@ endif()
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC -arch=compute_70 ")
+  --use_fast_math -Xcompiler -fPIC ")
 
 set(INCLUDE_DIR include)
 
