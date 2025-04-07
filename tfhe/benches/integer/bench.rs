@@ -2799,6 +2799,7 @@ mod cuda {
         cuda_max,
         cuda_default_if_then_else,
         cuda_ilog2,
+        cuda_leading_zeros,
         cuda_scalar_add,
         cuda_scalar_eq,
         cuda_scalar_gt,
