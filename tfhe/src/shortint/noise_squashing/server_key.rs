@@ -127,6 +127,48 @@ impl NoiseSquashingKey {
         client_key.new_noise_squashing_key(noise_squashing_private_key)
     }
 
+    pub fn from_raw_parts(
+        bootstrapping_key: Fourier128LweBootstrapKeyOwned,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        output_ciphertext_modulus: CoreCiphertextModulus<u128>,
+    ) -> Self {
+        Self {
+            bootstrapping_key,
+            modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        }
+    }
+
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        Fourier128LweBootstrapKeyOwned,
+        Option<ModulusSwitchNoiseReductionKey>,
+        MessageModulus,
+        CarryModulus,
+        CoreCiphertextModulus<u128>,
+    ) {
+        let Self {
+            bootstrapping_key,
+            modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        } = self;
+
+        (
+            bootstrapping_key,
+            modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        )
+    }
+
     pub fn squash_ciphertext_noise(
         &self,
         ciphertext: &Ciphertext,
