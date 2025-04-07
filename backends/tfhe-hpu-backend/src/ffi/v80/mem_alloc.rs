@@ -14,9 +14,9 @@ use crate::interface::{page_align, HpuConfig};
 
 use std::collections::VecDeque;
 
-// Some AVED constants
+// Some V80 constants
 // Chunk_size inherited from XRT limitation
-// NB: In Xilinx aved implementation the HBM PC are not directly accessible.
+// NB: In Xilinx v80 implementation the HBM PC are not directly accessible.
 // Indeed, there is an extra level of abstraction called port:
 // Each HBM has 2 PC, and each PC has 2 Port.
 // To keep thing simple this is hided from the SW, thus instead of viewing the board memory as:
