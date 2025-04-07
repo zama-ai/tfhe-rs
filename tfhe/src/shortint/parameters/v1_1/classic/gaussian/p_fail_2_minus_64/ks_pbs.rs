@@ -103,3 +103,29 @@ pub const V1_1_PARAM_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameter
         encryption_key_choice: EncryptionKeyChoice::Big,
         modulus_switch_noise_reduction_params: None,
     };
+
+#[cfg(feature = "hpu")]
+// p-fail = 2^-64, dedicated to HPU hardware
+pub const V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
+    ClassicPBSParameters {
+        lwe_dimension: LweDimension(804),
+        glwe_dimension: GlweDimension(1),
+        polynomial_size: PolynomialSize(2048),
+        lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+            5.963599673924788e-6,
+        )),
+        glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
+            2.8452674713391114e-15,
+        )),
+        pbs_base_log: DecompositionBaseLog(23),
+        pbs_level: DecompositionLevelCount(1),
+        ks_base_log: DecompositionBaseLog(2),
+        ks_level: DecompositionLevelCount(8),
+        message_modulus: MessageModulus(4),
+        carry_modulus: CarryModulus(4),
+        max_noise_level: MaxNoiseLevel::new(5),
+        log2_p_fail: -64.0,
+        ciphertext_modulus: CiphertextModulus::new_native(),
+        encryption_key_choice: EncryptionKeyChoice::Big,
+        modulus_switch_noise_reduction_params: None,
+    };

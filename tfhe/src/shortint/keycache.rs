@@ -10,9 +10,6 @@ use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
-// TODO correct version for HPU parameters set
-// and thus remove this stmt
-use crate::shortint::parameters::v1_0::V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
 
 named_params_impl!( ShortintParameterSet =>
     V1_1_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
@@ -407,8 +404,8 @@ named_params_impl!( ShortintParameterSet =>
     #[cfg(tarpaulin)]
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
 
-    #[cfg(feature = "hpu")]
-    V1_0_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    #[cfg(feature ="hpu")]
+    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 );
 
 impl NamedParam for ClassicPBSParameters {
