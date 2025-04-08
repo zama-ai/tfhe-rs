@@ -10,7 +10,10 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian(
     ksk_modulus: f64,
     ct_modulus: f64,
 ) -> (Variance, Variance) {
-    let var_min = super::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(output_lwe_dimension, ksk_modulus);
+    let var_min = super::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(
+        output_lwe_dimension,
+        ksk_modulus,
+    );
     let (var_ks, var_modswitch) = keyswitch_additive_variance_128_bits_security_gaussian_impl(
         input_glwe_dimension.0 as f64,
         input_polynomial_size.0 as f64,
@@ -35,14 +38,29 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian_impl(
     ct_modulus: f64,
 ) -> (f64, f64) {
     //let decomposition_base = 2.0f64.powi(decomposition_base_log.0 as i32);
-    let pow2_2bl = 2.0f64.powi(2*(decomposition_level_count as i32)*decomposition_base_log);
-    let ks_0 = ((input_glwe_dimension * input_polynomial_size) / 2.0) * (1.0/pow2_2bl + 2.0*ct_modulus.powf(-2.0))/12.0;
-    let ks_1 = ( 2.0*ct_modulus.powf(-2.0) + ksk_modulus.powf(-2.0))/12.0;
-    let ks_2 = var_min * (input_glwe_dimension * input_polynomial_size) * decomposition_level_count * (2.0f64.powi(2*decomposition_base_log)+ 2.0)/12.0;
+    let pow2_2bl = 2.0f64.powi(2 * (decomposition_level_count as i32) * decomposition_base_log);
+    let ks_0 = ((input_glwe_dimension * input_polynomial_size) / 2.0)
+        * (1.0 / pow2_2bl + 2.0 * ct_modulus.powf(-2.0))
+        / 12.0;
+    let ks_1 = (2.0 * ct_modulus.powf(-2.0) + ksk_modulus.powf(-2.0)) / 12.0;
+    let ks_2 = var_min
+        * (input_glwe_dimension * input_polynomial_size)
+        * decomposition_level_count
+        * (2.0f64.powi(2 * decomposition_base_log) + 2.0)
+        / 12.0;
 
-    let var_modswitch = (1.0 + output_lwe_dimension / 2.0) * ((2.0*input_polynomial_size).powf(-2.0) + 2.0 * ksk_modulus.powf(-2.0)) / 12.0;
+    let var_modswitch = (1.0 + output_lwe_dimension / 2.0)
+        * ((2.0 * input_polynomial_size).powf(-2.0) + 2.0 * ksk_modulus.powf(-2.0))
+        / 12.0;
 
-    println!("KS ad var {:?} + {:?} + {:?} = {:?} / mod switch KS-2N {:?}", ks_0, ks_1, ks_2, ks_0+ks_1+ks_2, var_modswitch); 
+    println!(
+        "KS ad var {:?} + {:?} + {:?} = {:?} / mod switch KS-2N {:?}",
+        ks_0,
+        ks_1,
+        ks_2,
+        ks_0 + ks_1 + ks_2,
+        var_modswitch
+    );
     //ks_0 + ks_1 + ks_2 + var_modswitch
     (ks_0 + ks_1 + ks_2, var_modswitch)
 }
