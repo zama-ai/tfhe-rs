@@ -10,7 +10,11 @@ pub fn pbs_variance_128_bits_security_gaussian(
     ciphertext_modulus: f64,
     ntt_modulus: f64,
 ) -> Variance {
-    let var_min = super::secure_noise::minimal_glwe_variance_for_128_bits_security_gaussian(glwe_dimension, polynomial_size, ciphertext_modulus);
+    let var_min = super::secure_noise::minimal_glwe_variance_for_128_bits_security_gaussian(
+        glwe_dimension,
+        polynomial_size,
+        ciphertext_modulus,
+    );
     Variance(pbs_variance_128_bits_security_gaussian_impl(
         lwe_dimension.0 as f64,
         glwe_dimension.0 as f64,
@@ -33,28 +37,26 @@ pub fn pbs_variance_128_bits_security_gaussian_impl(
     ciphertext_modulus: f64,
     ntt_modulus: f64,
 ) -> f64 {
-
     let pow2_2b = (2.0 * decomposition_base_log).exp2();
     let pow2_bl = (decomposition_level_count * decomposition_base_log).exp2();
-    let ntt2q_factor = ciphertext_modulus.powf(-2.0) + (ciphertext_modulus*ntt_modulus).powf(-2.0);
-    let q2ntt_factor = ntt_modulus.powf(-2.0) + 2.0*(ciphertext_modulus*ntt_modulus).powf(-2.0);
-    let var_ntt_to_q = glwe_dimension * polynomial_size / 24.0
-        * ntt2q_factor
-        + ntt2q_factor/12.0; 
-    let var_q_to_ntt = glwe_dimension * polynomial_size / 24.0
-        * q2ntt_factor
-        + q2ntt_factor/12.0; 
-    let var_modswitch = (1.0 + (glwe_dimension * polynomial_size)/2.0) * (pow2_bl.powf(-2.0)+2.0*ciphertext_modulus.powf(-2.0))/12.0;  
-    let var_ext_product = 
-        decomposition_level_count
+    let ntt2q_factor =
+        ciphertext_modulus.powf(-2.0) + (ciphertext_modulus * ntt_modulus).powf(-2.0);
+    let q2ntt_factor = ntt_modulus.powf(-2.0) + 2.0 * (ciphertext_modulus * ntt_modulus).powf(-2.0);
+    let var_ntt_to_q = glwe_dimension * polynomial_size / 24.0 * ntt2q_factor + ntt2q_factor / 12.0;
+    let var_q_to_ntt = glwe_dimension * polynomial_size / 24.0 * q2ntt_factor + q2ntt_factor / 12.0;
+    let var_modswitch = (1.0 + (glwe_dimension * polynomial_size) / 2.0)
+        * (pow2_bl.powf(-2.0) + 2.0 * ciphertext_modulus.powf(-2.0))
+        / 12.0;
+    let var_ext_product = decomposition_level_count
         * (glwe_dimension + 1.0)
         * polynomial_size
-        * ((pow2_2b/12.0 + 1.0/6.0) * (var_min + var_q_to_ntt * ciphertext_modulus.powf(2.0) * ntt_modulus.powf(-2.0)))
-        + var_modswitch/2.0
+        * ((pow2_2b / 12.0 + 1.0 / 6.0)
+            * (var_min + var_q_to_ntt * ciphertext_modulus.powf(2.0) * ntt_modulus.powf(-2.0)))
+        + var_modswitch / 2.0
         + var_ntt_to_q;
-    println!("PBS components var_modswitch {:?} var_ext_product {:?} lwe_dimension {}",
-        var_modswitch,
-        var_ext_product,
-        lwe_dimension);
+    println!(
+        "PBS components var_modswitch {:?} var_ext_product {:?} lwe_dimension {}",
+        var_modswitch, var_ext_product, lwe_dimension
+    );
     lwe_dimension * var_ext_product
 }
