@@ -88,6 +88,26 @@ else()
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 
+# Fetch CPM.cmake directly from GitHub if not already present
+include(FetchContent)
+FetchContent_Declare(
+    CPM
+    GIT_REPOSITORY https://github.com/cpm-cmake/CPM.cmake
+    GIT_TAG v0.38.5 # replace with the desired version or main for latest
+)
+FetchContent_MakeAvailable(CPM)
+
+include(${cpm_SOURCE_DIR}/cmake/CPM.cmake)
+
+# This will automatically clone CCCL from GitHub and make the exported cmake targets available
+CPMAddPackage(
+  NAME CCCL
+  GITHUB_REPOSITORY "nvidia/cccl"
+  GIT_TAG "main"
+  # The following is required to make the `CCCL::cudax` target available:
+  OPTIONS "CCCL_ENABLE_UNSTABLE ON"
+)
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
