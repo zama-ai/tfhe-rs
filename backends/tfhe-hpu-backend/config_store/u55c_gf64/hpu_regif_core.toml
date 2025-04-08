@@ -620,4 +620,3 @@ offset= 0x8000
   owner="Kernel"
   read_access="ReadNotify"
   write_access="None"
-
