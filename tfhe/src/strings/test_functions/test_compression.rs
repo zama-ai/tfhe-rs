@@ -56,3 +56,44 @@ fn test_compressed_list_with_strings() {
         assert_eq!(decrypted, clear_string2);
     }
 }
+
+#[test]
+fn test_compressed_list_empty_string() {
+    let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+    let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+
+    let private_compression_key =
+        cks.new_compression_private_key(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+    let (compression_key, decompression_key) =
+        cks.new_compression_decompression_keys(&private_compression_key);
+
+    let cks = StringClientKey::new(cks);
+
+    let clear_empty = String::new();
+    let empty = cks.encrypt_ascii(&clear_empty, None);
+
+    let clear_string = String::from("not empty");
+    let string = cks.encrypt_ascii(&clear_string, None);
+
+    // Try to compress 2 empty strings with one not empty in the middle
+    let mut builder = CompressedCiphertextListBuilder::new();
+    builder.push(empty.clone());
+    builder.push(string);
+    builder.push(empty);
+    let compressed = builder.build(&compression_key);
+
+    assert_eq!(compressed.len(), 3);
+
+    let s1: FheString = compressed.get(0, &decompression_key).unwrap().unwrap();
+    let decrypted = cks.decrypt_ascii(&s1);
+    assert_eq!(decrypted, clear_empty);
+
+    let s2: FheString = compressed.get(1, &decompression_key).unwrap().unwrap();
+    let decrypted = cks.decrypt_ascii(&s2);
+    assert_eq!(decrypted, clear_string);
+
+    let s3: FheString = compressed.get(2, &decompression_key).unwrap().unwrap();
+    let decrypted = cks.decrypt_ascii(&s3);
+    assert_eq!(decrypted, clear_empty);
+}
