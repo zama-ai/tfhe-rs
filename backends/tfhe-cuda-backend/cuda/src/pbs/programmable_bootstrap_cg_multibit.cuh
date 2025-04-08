@@ -18,6 +18,10 @@
 #include "types/complex/operations.cuh"
 #include <vector>
 
+#include <cuda/experimental/stf.cuh>
+
+namespace cudastf = cuda::experimental::stf;
+
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_cg_accumulate(
@@ -384,6 +388,8 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
+  cudastf::context ctx(stream);
+
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
@@ -403,6 +409,8 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
         grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
         lut_stride);
   }
+
+  ctx.finalize();
 }
 
 // Verify if the grid size satisfies the cooperative group constraints

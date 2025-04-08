@@ -121,6 +121,8 @@ enable_testing()
 add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 
+target_link_libraries(tfhe_cuda_backend PRIVATE CCCL::CCCL CCCL::cudax)
+
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)
 
