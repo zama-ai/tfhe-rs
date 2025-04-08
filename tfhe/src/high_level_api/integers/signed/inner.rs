@@ -247,7 +247,9 @@ impl SignedRadixCiphertext {
                 *self = Self::Cpu(new_inner);
             }
             #[cfg(feature = "hpu")]
-            _ => todo!(),
+            (_, Device::Hpu) => {
+                panic!("Hpu device do not support integer yet",)
+            }
         }
     }
 

@@ -166,9 +166,12 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cpu key requested but only cuda key is available")
             }
-            #[cfg(feature = "hpu")]
-            InternalServerKey::Cuda(_) => {
-                panic!("Cpu key requested but only hpu key is available")
+            #[allow(unreachable_patterns)]
+            _ => {
+                panic!(
+                    "Cpu key requested but only the key for {:?} is available",
+                    key.device()
+                )
             }
         }
     })
