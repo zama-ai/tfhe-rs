@@ -352,12 +352,10 @@ impl EnvConfig {
             } else {
                 MULTI_BIT_CPU_SIZES.to_vec()
             }
+        } else if cfg!(feature = "hpu") {
+            HPU_BENCH_BIT_SIZES.to_vec()
         } else {
-            if cfg!(feature = "hpu") {
-                HPU_BENCH_BIT_SIZES.to_vec()
-            } else {
-                BENCH_BIT_SIZES.to_vec()
-            }
+            BENCH_BIT_SIZES.to_vec()
         }
     }
 }
