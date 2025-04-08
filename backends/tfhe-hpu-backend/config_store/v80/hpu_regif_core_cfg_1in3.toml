@@ -254,4 +254,3 @@ description="BPIP configuration"
   read_access="Read"
   write_access="Write"
   default={Cst=0xffffffff}
-
