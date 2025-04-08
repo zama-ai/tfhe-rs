@@ -28,9 +28,9 @@ pub fn minimal_variance_for_128_bits_security_gaussian_impl(
     //let slope2=-0.05139355742296919;
     //let biais2=5.351862745098032;
     // 132b curve
-    let slope2=-0.04978291316526609;
-    let biais2=5.31469187675068;
-    let f=slope2*lwe_dimension+biais2;
-    let g=2.0*(2.0-modulus.log2().ceil());
-    ((f+g)/2.0+(f-g).abs()/2.0).exp2()
+    let slope2 = -0.04978291316526609;
+    let biais2 = 5.31469187675068;
+    let f = slope2 * lwe_dimension + biais2;
+    let g = 2.0 * (2.0 - modulus.log2().ceil());
+    ((f + g) / 2.0 + (f - g).abs() / 2.0).exp2()
 }
