@@ -145,7 +145,16 @@ impl crate::integer::ciphertext::Expandable for FheString {
     ) -> crate::Result<Self> {
         match kind {
             DataKind::String { n_chars, padded } => {
-                let n_blocks_per_chars = 7u32.div_ceil(blocks[0].message_modulus.0.ilog2());
+                if n_chars == 0 {
+                    return Ok(Self::empty());
+                }
+
+                let Some(first_block) = blocks.get(0) else {
+                    return Err(crate::error!(
+                        "Invalid number of blocks for a string of {n_chars} chars, got 0 blocks"
+                    ));
+                };
+                let n_blocks_per_chars = 7u32.div_ceil(first_block.message_modulus.0.ilog2());
                 let expected_num_blocks = n_chars * n_blocks_per_chars;
                 if expected_num_blocks != blocks.len() as u32 {
                     return Err(crate::error!("Invalid number of blocks for a string of {n_chars} chars, expected {expected_num_blocks}, got {}", blocks.len()));
