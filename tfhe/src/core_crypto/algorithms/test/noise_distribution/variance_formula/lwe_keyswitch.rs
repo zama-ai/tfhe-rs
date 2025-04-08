@@ -27,6 +27,7 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian(
     (Variance(var_ks), Variance(var_modswitch))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn keyswitch_additive_variance_128_bits_security_gaussian_impl(
     input_glwe_dimension: f64,
     input_polynomial_size: f64,

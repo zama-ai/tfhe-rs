@@ -160,9 +160,9 @@ where
             .as_ref()
             .ok_or(UninitializedServerKey)
             .unwrap_display();
-        #[allow(clippy::match_wildcard_for_single_variants)]
         match key {
             InternalServerKey::Cpu(key) => func(key),
+            #[allow(unreachable_patterns)]
             _ => {
                 panic!(
                     "Cpu key requested but only the key for {:?} is available",
