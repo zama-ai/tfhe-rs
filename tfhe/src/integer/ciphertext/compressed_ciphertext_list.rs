@@ -64,13 +64,12 @@ impl CompressedCiphertextListBuilder {
     {
         let n = self.ciphertexts.len();
         let kind = data.compress_into(&mut self.ciphertexts);
-        let message_modulus = self.ciphertexts.last().unwrap().message_modulus;
-        assert_eq!(n + kind.num_blocks(message_modulus), self.ciphertexts.len());
-
-        if kind.num_blocks(message_modulus) != 0 {
-            self.info.push(kind);
-        }
-
+        let num_blocks = self
+            .ciphertexts
+            .last()
+            .map_or(0, |ct| kind.num_blocks(ct.message_modulus));
+        assert_eq!(n + num_blocks, self.ciphertexts.len());
+        self.info.push(kind);
         self
     }
 
