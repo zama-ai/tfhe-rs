@@ -50,7 +50,7 @@ where
         write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
         bench_group.bench_function(&name, |b| {
             b.iter(|| {
-                let res = lhs.overflowing_add(&rhs);
+                let (res, _flag) = lhs.overflowing_add(&rhs);
                 res.wait();
                 black_box(res)
             })
@@ -63,7 +63,7 @@ where
         write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
         bench_group.bench_function(&name, |b| {
             b.iter(|| {
-                let res = lhs.overflowing_sub(&rhs);
+                let (res, _flag) = lhs.overflowing_sub(&rhs);
                 res.wait();
                 black_box(res)
             })
@@ -188,7 +188,8 @@ bench_type!(FheUint64);
 bench_type!(FheUint128);
 
 fn main() {
-    let cks = if cfg!(feature = "hpu") {
+    #[cfg(feature = "hpu")]
+    let cks = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
         use tfhe::{set_server_key, Config};
         use tfhe_hpu_backend::prelude::*;
@@ -205,7 +206,9 @@ fn main() {
 
         set_server_key((hpu_device, compressed_sks));
         cks
-    } else {
+    };
+    #[cfg(not(feature = "hpu"))]
+    let cks = {
         let config = ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS).build();
         let cks = ClientKey::generate(config);
         let compressed_sks = CompressedServerKey::new(&cks);

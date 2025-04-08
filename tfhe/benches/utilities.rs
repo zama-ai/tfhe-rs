@@ -95,11 +95,10 @@ pub mod shortint_utils {
             } else {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
-                let params = if cfg!(feature = "hpu") {
-                    vec![V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()]
-                } else {
-                    vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()]
-                };
+                #[cfg(feature = "hpu")]
+                let params = vec![V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
+                #[cfg(not(feature = "hpu"))]
+                let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
                 Self {
@@ -597,12 +596,10 @@ impl EnvConfig {
             } else {
                 MULTI_BIT_CPU_SIZES.to_vec()
             }
+        } else if cfg!(feature = "hpu") {
+            HPU_BENCH_BIT_SIZES.to_vec()
         } else {
-            if cfg!(feature = "hpu") {
-                HPU_BENCH_BIT_SIZES.to_vec()
-            } else {
-                BENCH_BIT_SIZES.to_vec()
-            }
+            BENCH_BIT_SIZES.to_vec()
         }
     }
 }
