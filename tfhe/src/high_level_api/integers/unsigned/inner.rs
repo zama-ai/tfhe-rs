@@ -269,6 +269,7 @@ impl RadixCiphertext {
         CudaUnsignedRadixCiphertext::from_radix_ciphertext(&cpu_radix, streams)
     }
 
+    #[allow(clippy::needless_pass_by_ref_mut)]
     pub(crate) fn move_to_device(&mut self, target_device: Device) {
         let current_device = self.current_device();
 
