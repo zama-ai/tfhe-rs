@@ -26,7 +26,7 @@ pub fn pbs_variance_128_bits_security_gaussian(
         ntt_modulus,
     ))
 }
-
+#[allow(clippy::too_many_arguments)]
 pub fn pbs_variance_128_bits_security_gaussian_impl(
     lwe_dimension: f64,
     glwe_dimension: f64,
@@ -55,8 +55,6 @@ pub fn pbs_variance_128_bits_security_gaussian_impl(
         + var_modswitch / 2.0
         + var_ntt_to_q;
     println!(
-        "PBS components var_modswitch {:?} var_ext_product {:?} lwe_dimension {}",
-        var_modswitch, var_ext_product, lwe_dimension
-    );
+        "PBS components var_modswitch {var_modswitch:?} var_ext_product {var_ext_product:?} lwe_dimension {lwe_dimension}");
     lwe_dimension * var_ext_product
 }
