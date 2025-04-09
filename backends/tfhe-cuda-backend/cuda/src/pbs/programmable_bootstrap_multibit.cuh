@@ -686,14 +686,10 @@ __host__ void host_multi_bit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
-
-  cudastf::context ctx;
-
   // Generate a CUDA graph if the USE_CUDA_GRAPH is set to a non-null value
   const char *use_graph_env = getenv("USE_CUDA_GRAPH");
-  if (use_graph_env && atoi(use_graph_env) != 0) {
-     ctx = cudastf::graph_ctx(stream);
-  }
+
+  cudastf::context ctx = (use_graph_env && atoi(use_graph_env) != 0)?cudastf::graph_ctx(stream):cudastf::stream_ctx(stream);
 
   auto buffer_token = ctx.logical_token();
 

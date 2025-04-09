@@ -387,9 +387,10 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t grouping_factor,
     uint32_t base_log, uint32_t level_count, uint32_t num_samples,
     uint32_t num_many_lut, uint32_t lut_stride) {
+  // Generate a CUDA graph if the USE_CUDA_GRAPH is set to a non-null value
+  const char *use_graph_env = getenv("USE_CUDA_GRAPH");
 
-  cudastf::context ctx(stream);
-
+  cudastf::context ctx = (use_graph_env && atoi(use_graph_env) != 0)?cudastf::graph_ctx(stream):cudastf::stream_ctx(stream);
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
@@ -402,7 +403,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     auto result_token = ctx.logical_token();
 
     // Compute a keybundle
-    ctx.task(key_token.write(), buffer_token.write())->*[&](cudaStream_t stf_stream) {
+    ctx.task(key_token.write(), buffer_token.write())->*[&](cudaStream_t stf_stream).set_symbol("compute_keybundle") {
         execute_compute_keybundle<Torus, params>(
             stf_stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
             buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
@@ -410,7 +411,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     };
 
     // Accumulate
-    ctx.task(key_token.read(), buffer_token.rw(), result_token.write())->*[&](cudaStream_t stf_stream) {
+    ctx.task(key_token.read(), buffer_token.rw(), result_token.write()).set_symbol("accumulate")->*[&](cudaStream_t stf_stream) {
         execute_cg_external_product_loop<Torus, params>(
             stf_stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
             lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
