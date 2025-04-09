@@ -233,15 +233,10 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
         // n, k, N, lwe_variance, glwe_variance, pbs_base_log, pbs_level,
         // message_modulus, carry_modulus, number_of_inputs, repetitions,
         // samples
-        // PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+        // V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         (ClassicalProgrammableBootstrapTestParams){
-            887, 1, 2048, new_t_uniform(46), new_t_uniform(17), 22, 1, 4, 4,
-            100, 1, 1},
-        // V0_11_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
-        (ClassicalProgrammableBootstrapTestParams){
-            977, 1, 8192, new_gaussian_from_std_dev(3.0144389706858286e-07),
-            new_gaussian_from_std_dev(2.168404344971009e-19), 16, 2, 8, 8, 100,
-            1, 1});
+            918, 1, 2048, new_t_uniform(45), new_t_uniform(17), 23, 1, 4, 4,
+            100, 1, 1});
 std::string printParamName(
     ::testing::TestParamInfo<ClassicalProgrammableBootstrapTestParams> p) {
   ClassicalProgrammableBootstrapTestParams params = p.param;
