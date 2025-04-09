@@ -390,7 +390,11 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
   // Generate a CUDA graph if the USE_CUDA_GRAPH is set to a non-null value
   const char *use_graph_env = getenv("USE_CUDA_GRAPH");
 
-  cudastf::context ctx = (use_graph_env && atoi(use_graph_env) != 0)?cudastf::graph_ctx(stream):cudastf::stream_ctx(stream);
+  cudastf::context ctx(stream);
+  if (use_graph_env && atoi(use_graph_env) != 0) {
+      ctx = cudastf::graph_ctx(stream);
+  }
+
 
   auto lwe_chunk_size = buffer->lwe_chunk_size;
 
@@ -403,7 +407,7 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
     auto result_token = ctx.logical_token();
 
     // Compute a keybundle
-    ctx.task(key_token.write(), buffer_token.write())->*[&](cudaStream_t stf_stream).set_symbol("compute_keybundle") {
+    ctx.task(key_token.write(), buffer_token.write()).set_symbol("compute_keybundle")->*[&](cudaStream_t stf_stream) {
         execute_compute_keybundle<Torus, params>(
             stf_stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
             buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
