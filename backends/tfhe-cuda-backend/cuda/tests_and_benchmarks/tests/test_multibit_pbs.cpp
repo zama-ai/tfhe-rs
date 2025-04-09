@@ -190,25 +190,24 @@ TEST_P(MultiBitProgrammableBootstrapTestPrimitives_u64,
 // It executes each src for all pairs on phis X qs (Cartesian product)
 ::testing::internal::ParamGenerator<MultiBitProgrammableBootstrapTestParams>
     multipbs_params_u64 = ::testing::Values(
-        // PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+        // V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         (MultiBitProgrammableBootstrapTestParams){
-            882, 1, 2048, new_t_uniform(46), new_t_uniform(17), 14, 2, 8, 8,
+            918, 1, 4096, new_t_uniform(45), new_t_uniform(3), 21, 1, 4, 4, 100,
+            2, 1, 1},
+        // V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+        (MultiBitProgrammableBootstrapTestParams){
+            879, 1, 2048, new_t_uniform(46), new_t_uniform(17), 14, 2, 4, 4,
             100, 3, 1, 1},
-        // PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64
+        // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         (MultiBitProgrammableBootstrapTestParams){
-            978, 1, 8192, new_gaussian_from_std_dev((2.962875621642539e-07)),
-            new_gaussian_from_std_dev((2.168404344971009e-19)), 14, 2, 8, 8,
-            100, 3, 1, 1},
-        // PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+            920, 1, 2048, new_t_uniform(45), new_t_uniform(17), 22, 1, 4, 4,
+            100, 4, 1, 1},
+        // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128
+        // This test is here only to be sure we don't break support to
+        // 8192-degree polynomials
         (MultiBitProgrammableBootstrapTestParams){
-            836, 1, 2048, new_gaussian_from_std_dev((3.433444883863949e-06)),
-            new_gaussian_from_std_dev((2.845267479601915e-15)), 22, 2, 4, 4,
-            100, 2, 1, 1},
-        // PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
-        (MultiBitProgrammableBootstrapTestParams){
-            978, 1, 8192, new_gaussian_from_std_dev((2.962875621642539e-07)),
-            new_gaussian_from_std_dev((2.168404344971009e-19)), 14, 2, 8, 8,
-            100, 2, 1, 1});
+            1040, 1, 8192, new_t_uniform(42), new_t_uniform(3), 14, 2, 4, 4,
+            100, 4, 1, 1});
 
 std::string printParamName(
     ::testing::TestParamInfo<MultiBitProgrammableBootstrapTestParams> p) {
