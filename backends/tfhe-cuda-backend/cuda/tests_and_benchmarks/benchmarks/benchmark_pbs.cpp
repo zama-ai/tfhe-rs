@@ -366,12 +366,16 @@ static void
 MultiBitPBSBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // Define the parameters to benchmark
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
-  // input_lwe_ciphertext_count
+  // input_lwe_ciphertext_count, grouping_factor
   std::vector<MultiBitPBSBenchmarkParams> params = {
-      // 4_bits_multi_bit_group_2
-      (MultiBitPBSBenchmarkParams){818, 1, 2048, 22, 1, 1, 2},
-      // 4_bits_multi_bit_group_3
-      (MultiBitPBSBenchmarkParams){888, 1, 2048, 21, 1, 1, 3},
+      // V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+      (MultiBitPBSBenchmarkParams){918, 1, 4096, 21, 1, 1, 2},
+      // V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+      (MultiBitPBSBenchmarkParams){879, 1, 2048, 14, 2, 1, 3},
+      // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+      (MultiBitPBSBenchmarkParams){920, 1, 2048, 22, 1, 1, 4},
+      // V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128
+      (MultiBitPBSBenchmarkParams){1040, 1, 8192, 14, 2, 1, 4},
   };
 
   // Add to the list of parameters to benchmark
@@ -391,9 +395,11 @@ BootstrapBenchmarkGenerateParams(benchmark::internal::Benchmark *b) {
   // lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log, pbs_level,
   // input_lwe_ciphertext_count
 
-  // PARAM_MESSAGE_2_CARRY_2_KS_PBS
   std::vector<BootstrapBenchmarkParams> params = {
-      (BootstrapBenchmarkParams){742, 1, 2048, 23, 1, 1},
+  // V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+      (BootstrapBenchmarkParams){918, 1, 2048, 23, 1, 1},
+      //V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M128
+      (BootstrapBenchmarkParams){1077, 1, 8192, 15, 2, 1},
   };
 
   // Add to the list of parameters to benchmark
