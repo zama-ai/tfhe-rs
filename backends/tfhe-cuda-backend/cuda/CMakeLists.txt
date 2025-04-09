@@ -112,7 +112,7 @@ CPMAddPackage(
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC")
+  --use_fast_math -Xcompiler -fPIC -DCCCL_DISABLE_EXCEPTIONS")
 
 set(INCLUDE_DIR include)
 
@@ -121,7 +121,7 @@ enable_testing()
 add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
 
-target_link_libraries(tfhe_cuda_backend PRIVATE CCCL::CCCL CCCL::cudax)
+target_link_libraries(tfhe_cuda_backend PRIVATE CCCL::CCCL CCCL::cudax cuda)
 
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)

@@ -390,24 +390,34 @@ __host__ void host_cg_multi_bit_programmable_bootstrap(
 
   cudastf::context ctx(stream);
 
+
   auto lwe_chunk_size = buffer->lwe_chunk_size;
+
+  auto buffer_token = ctx.logical_token();
 
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
+    auto key_token = ctx.logical_token();
+    auto result_token = ctx.logical_token();
+
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+    ctx.task(key_token.write(), buffer_token.write())->*[&](cudaStream_t stf_stream) {
+        execute_compute_keybundle<Torus, params>(
+            stf_stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+            buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            grouping_factor, level_count, lwe_offset);
+    };
 
     // Accumulate
-    execute_cg_external_product_loop<Torus, params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
-        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride);
+    ctx.task(key_token.read(), buffer_token.rw(), result_token.write())->*[&](cudaStream_t stf_stream) {
+        execute_cg_external_product_loop<Torus, params>(
+            stf_stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
+            num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+            grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
+            lut_stride);
+    };
   }
 
   ctx.finalize();
