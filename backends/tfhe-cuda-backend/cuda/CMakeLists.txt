@@ -112,7 +112,7 @@ CPMAddPackage(
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC -DCCCL_DISABLE_EXCEPTIONS")
+  --use_fast_math -Xcompiler -fPIC -DCCCL_DISABLE_EXCEPTIONS -DCUDASTF_DISABLE_CODE_GENERATION")
 
 set(INCLUDE_DIR include)
 
