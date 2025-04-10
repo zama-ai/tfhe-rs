@@ -16,12 +16,10 @@ impl HpuRadixCiphertext {
     fn new(hpu_var: HpuVarWrapped) -> Self {
         Self(hpu_var)
     }
-}
 
-impl HpuRadixCiphertext {
     /// Create a Hpu Radix ciphertext based on a Cpu one.
-    /// No xfer with Fpga occurred until operation is request on HpuRadixCiphertext
-    /// TODO Rework the way to iterate over RadixCihpertext
+    ///
+    /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
     pub fn from_radix_ciphertext(cpu_ct: &RadixCiphertext, device: &HpuDevice) -> Self {
         let params = device.params();
 
@@ -58,9 +56,9 @@ impl HpuRadixCiphertext {
         RadixCiphertext { blocks: cpu_ct }
     }
 
-    /// Create a Hpu Radix ciphertext based on a Cpu one.
-    /// No xfer with Fpga occurred until operation is request on HpuRadixCiphertext
-    /// TODO Rework the way to iterate over RadixCihpertext
+    /// Create a Hpu boolean ciphertext based on a Cpu one.
+    ///
+    /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
     pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
         let params = device.params();
 
@@ -71,9 +69,11 @@ impl HpuRadixCiphertext {
         Self(device.new_var_from(hpu_ct, VarMode::Bool))
     }
 
-    /// Create a Cpu boolean block
-    /// Warn: This function panic if the underlying RadixCiphertext don't fulfill required
-    /// properties
+    /// Create a Cpu boolean block from a Hpu one
+    ///
+    /// # Panics
+    ///
+    /// This function panic if the underlying RadixCiphertext does not encrypt 0 or 1
     pub fn to_boolean_block(&self) -> BooleanBlock {
         assert!(
             self.0.is_boolean(),
