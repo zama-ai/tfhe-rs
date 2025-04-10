@@ -11,7 +11,6 @@ pub fn msb2lsb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) ->
 
 /// This function change information position in value
 /// Move information bits from LSB to MSB
-#[allow(unused)]
 pub fn lsb2msb<Scalar: UnsignedInteger>(params: &HpuParameters, data: Scalar) -> Scalar {
     let ct_width = params.ntt_params.ct_width as usize;
     let storage_width = Scalar::BITS;
