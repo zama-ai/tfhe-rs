@@ -17,7 +17,7 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
         let pbs_p = &params.pbs_params;
 
         // NB: Glwe polynomial must be in reversed order
-        let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
+        let rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
 
         // Put glwe in reverse order and align on lsb
         std::iter::zip(
@@ -25,13 +25,7 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
             cpu_glwe.as_polynomial_list().iter(),
         )
         .for_each(|(hw, cpu)| {
-            order::poly_order(
-                hw,
-                cpu.into_container(),
-                order::PolyOrder::Reverse,
-                &mut rb_conv,
-                |x| x,
-            );
+            order::poly_order(hw, cpu.into_container(), &rb_conv, |x| x);
             modswitch::msb2lsb_align(&params, hw);
         });
         hpu_glwe

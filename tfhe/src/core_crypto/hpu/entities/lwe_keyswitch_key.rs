@@ -15,7 +15,7 @@ where
         let mut hpu_ksk = Self::new(0, params.clone());
 
         // Allocate radix_basis converter
-        let mut rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
+        let rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
 
         // Extract params inner values for ease of writing
         let pbs_p = &params.pbs_params;
@@ -195,7 +195,7 @@ where
 
         // Allocate radix_basis converter
         let params = hpu_ksk.params();
-        let mut rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
+        let rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
 
         // Extract params inner values for ease of writing
         let pbs_p = &params.pbs_params;
