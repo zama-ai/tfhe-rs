@@ -9,4 +9,3 @@ pub mod glwe_lookuptable;
 pub mod lwe_bootstrap_key;
 pub mod lwe_ciphertext;
 pub mod lwe_keyswitch_key;
-pub mod parameters;
