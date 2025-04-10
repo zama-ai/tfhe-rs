@@ -18,15 +18,14 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
         let ntt_p = &params.ntt_params;
 
         // NB: Glwe polynomial must be in reversed order
-        let mut rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
+        let rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
 
         // Put glwe in reverse order and align on lsb
         // Only handle Body since Lut is encoded as trivial Glwe
         order::poly_order(
             hpu_lut.as_mut(),
             cpu_glwe.get_body().as_polynomial().into_container(),
-            order::PolyOrder::Reverse,
-            &mut rb_conv,
+            &rb_conv,
             |x| x,
         );
         modswitch::msb2lsb_align(&params, hpu_lut.as_mut());
@@ -46,15 +45,14 @@ impl From<HpuGlweLookuptableView<'_, u64>> for GlweCiphertextOwned<u64> {
             pbs_p.ciphertext_modulus,
         );
         // NB: GlweLut polynomial is in reversed order
-        let mut rb_conv = order::RadixBasis::new(hpu_p.ntt_params.radix, hpu_p.ntt_params.stg_nb);
+        let rb_conv = order::RadixBasis::new(hpu_p.ntt_params.radix, hpu_p.ntt_params.stg_nb);
 
         // Put HpuLut back in standard order and align on msb
         order::poly_order(
             cpu_glwe.get_mut_body().as_mut_polynomial().into_container(),
             // hpu_lut.as_view().into_container(),
             hpu_lut.as_ref(),
-            order::PolyOrder::Reverse,
-            &mut rb_conv,
+            &rb_conv,
             |x| x,
         );
         modswitch::lsb2msb_align(

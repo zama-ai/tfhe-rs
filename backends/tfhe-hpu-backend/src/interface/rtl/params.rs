@@ -151,10 +151,7 @@ impl FromRtl for HpuNttCoreArch {
         );
 
         match ntt_core_arch_val & 0xFF {
-            0 => Self::WmmCompact,
-            1 => Self::WmmPipeline,
-            2 => Self::WmmUnfold,
-            3 => Self::WmmCompactPcg,
+            // NB: Previous arch aren't supported anymore
             4 => Self::WmmUnfoldPcg,
             5 => {
                 // Extract associated radix split
