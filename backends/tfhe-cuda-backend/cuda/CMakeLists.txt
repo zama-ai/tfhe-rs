@@ -88,11 +88,34 @@ else()
   set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 
+# Fetch CPM.cmake directly from GitHub if not already present
+include(FetchContent)
+FetchContent_Declare(
+  CPM
+  GIT_REPOSITORY https://github.com/cpm-cmake/CPM.cmake
+  GIT_TAG v0.38.5 # replace with the desired version or main for latest
+)
+FetchContent_MakeAvailable(CPM)
+
+include(${cpm_SOURCE_DIR}/cmake/CPM.cmake)
+
+# This will automatically clone CCCL from GitHub and make the exported cmake targets available
+cpmaddpackage(
+  NAME
+  CCCL
+  GITHUB_REPOSITORY
+  "nvidia/cccl"
+  GIT_TAG
+  "main"
+  # The following is required to make the `CCCL::cudax` target available:
+  OPTIONS
+  "CCCL_ENABLE_UNSTABLE ON")
+
 # in production, should use -arch=sm_70 --ptxas-options=-v to see register spills -lineinfo for better debugging
 set(CMAKE_CUDA_FLAGS
     "${CMAKE_CUDA_FLAGS} -ccbin ${CMAKE_CXX_COMPILER} ${OPTIMIZATION_FLAGS}\
   -std=c++17 --no-exceptions  --expt-relaxed-constexpr -rdc=true \
-  --use_fast_math -Xcompiler -fPIC")
+  --use_fast_math -Xcompiler -fPIC  -DCCCL_DISABLE_EXCEPTIONS  -DCUDASTF_DISABLE_CODE_GENERATION")
 
 set(INCLUDE_DIR include)
 
@@ -100,6 +123,8 @@ add_subdirectory(src)
 enable_testing()
 add_subdirectory(tests_and_benchmarks)
 target_include_directories(tfhe_cuda_backend PRIVATE ${INCLUDE_DIR})
+
+target_link_libraries(tfhe_cuda_backend PRIVATE CCCL::CCCL CCCL::cudax cuda)
 
 # This is required for rust cargo build
 install(TARGETS tfhe_cuda_backend DESTINATION .)
