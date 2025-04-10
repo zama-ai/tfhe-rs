@@ -130,7 +130,7 @@ struct KskIndex {
 
 impl KskIndex {
     /// Ease out of order iteration over a ksk coefs.
-    pub fn coef_view<'a, Scalar: UnsignedInteger>(
+    fn coef_view<'a, Scalar: UnsignedInteger>(
         self,
         ksk: &'a LweKeyswitchKeyView<Scalar>,
     ) -> &'a Scalar {
@@ -152,7 +152,7 @@ impl KskIndex {
     }
 
     /// Ease out of order mutable iteration over a ksk coefs.
-    pub fn coef_mut_view<'a, Scalar: UnsignedInteger>(
+    fn coef_mut_view<'a, Scalar: UnsignedInteger>(
         self,
         ksk: &'a mut LweKeyswitchKeyMutView<Scalar>,
     ) -> &'a mut Scalar {
