@@ -30,6 +30,8 @@ pub mod classic;
 pub mod compact_public_key_only;
 #[cfg(tarpaulin)]
 pub mod coverage_parameters;
+#[cfg(feature = "hpu")]
+pub mod hpu;
 pub mod key_switching;
 pub mod ks32;
 pub mod list_compression;
