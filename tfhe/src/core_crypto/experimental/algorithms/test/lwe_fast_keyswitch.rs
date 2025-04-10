@@ -1,4 +1,5 @@
 use super::*;
+use crate::core_crypto::prelude::*;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FastKSParam<Scalar: UnsignedInteger> {

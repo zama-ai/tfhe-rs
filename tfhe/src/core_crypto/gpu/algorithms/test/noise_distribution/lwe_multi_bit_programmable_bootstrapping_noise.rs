@@ -13,6 +13,7 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, CudaStreams};
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 use itertools::Itertools;
 use rayon::prelude::*;
 

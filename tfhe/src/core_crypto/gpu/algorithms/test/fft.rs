@@ -1,4 +1,3 @@
-use super::*;
 use crate::core_crypto::commons::test_tools::{modular_distance, new_random_generator};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::gpu::vec::GpuIndex;
@@ -6,6 +5,7 @@ use crate::core_crypto::gpu::{
     fourier_transform_backward_as_torus_f128_async, fourier_transform_forward_as_torus_f128_async,
     CudaStreams,
 };
+use crate::core_crypto::prelude::*;
 use aligned_vec::avec;
 use tfhe_cuda_backend::cuda_bind::cuda_synchronize_device;
 

@@ -1,13 +1,8 @@
 use super::super::test::TestResources;
-use super::*;
 use crate::core_crypto::commons::test_tools::{check_both_ratio_under, mean, variance};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{
-    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext, encrypt_lwe_ciphertext_list,
-    LweCiphertextCount, LweCiphertextList, LweSecretKey, LweSecretKeyOwned, Plaintext,
-    PlaintextCount, PlaintextList, Variance,
-};
+use crate::core_crypto::prelude::*;
 
 use crate::core_crypto::gpu::GpuIndex;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
