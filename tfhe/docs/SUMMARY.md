@@ -58,7 +58,12 @@
 ## Configuration
 
 * [Advanced Rust setup](configuration/rust_configuration.md)
-* [GPU acceleration](configuration/run_on_gpu.md)
+* [GPU acceleration](configuration/gpu_acceleration/run_on_gpu.md)
+  * [Operations](configuration/gpu_acceleration/gpu_operations.md)
+  * [Benchmark](configuration/gpu_acceleration/benchmark.md)
+  * [Compressing ciphertexts](configuration/gpu_acceleration/compressing_ciphertexts.md)
+  * [Array types](configuration/gpu_acceleration/array_type.md)
+  * [Multi-GPU support](configuration/gpu_acceleration/multi_gpu_device_selection.md)
 * [Parallelized PBS](configuration/parallelized_pbs.md)
 
 ## Integration

@@ -1,7 +1,17 @@
-This guide walks through a practical example of performing a large batch of encrypted 64-bit additions using manual GPU 
+# Multi-GPU support
+This guide explains the multi GPU support of TFHE-rs, and walks through a practical example of performing a large batch of encrypted 64-bit additions using manual GPU 
 dispatching to improve the performance.
 
-# Improving throughput on multiple-GPUs
+## Multi-GPU support overview
+
+TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in the code to execute on such platforms**. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
+However, you can decide to have operations be executed on a single GPU of your choice.
+In many cases this provides better throughput than using all the available GPUs to perform the operation.
+Indeed, except for integer precisions above 64 bits and for the multiplication, which involves many bootstrap computations in parallel, most operations on up to 64 bits do not necessitate the full power of a GPU.
+To go further, you can learn how to select specific GPUs to perform batches of operations in this [tutorial](../tutorials/multi_gpu_device_selection.md).
+You will then be able to maximize throughput on multiple GPUs with TFHE-rs.
+
+## Improving throughput on multiple-GPUs
 
 By default, when multiple GPUs are available on the machine, TFHE-rs automatically uses them all
 to perform encrypted operations. Under the hood, it includes a hard-coded logic to dispatch work across all the GPUs and to copy essential data—like the server key—to each GPU.
@@ -9,13 +19,13 @@ This approach is efficient for operations that load the GPU extensively (e.g. th
 but not so much for smaller operations like the encrypted addition or comparison on 64-bits.
 To address this, TFHE-rs also provides a mechanism to manually select which GPU to operate on.
 
-## Dispatch operations on the GPUs of your choice
+### Dispatch operations on the GPUs of your choice
 
 When selecting a specific GPU to execute on, there are two essential requirements that are different from a default GPU execution:
 - You must create a GPU server key on each GPU individually.
 - The batch of operations must be distributed on all the GPUs manually.
 
-### Step 1: Decompress the server key to each GPU
+#### Step 1: Decompress the server key to each GPU
 Instead of a single server key being used across all GPUs automatically, you’ll need specifically decompress the server key to each GPU, so that the key is available in memory.
 For example, by default, the GPU server key is decompressed and loaded onto all available GPUs automatically as follows:
 ```rust
@@ -51,7 +61,7 @@ fn main() {
         .collect::<Vec<_>>();
 }
 ```
-### Step 2: Define the inputs to operate on
+#### Step 2: Define the inputs to operate on
 We will be doing 100 additions in parallel on each GPU:
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, FheUint64, GpuIndex};
@@ -83,7 +93,7 @@ fn main() {
 ```
 At this stage, the left and right inputs reside on the CPU. They have not yet been copied to the GPU. 
 
-### Step3: Dispatch the workloads
+#### Step3: Dispatch the workloads
 Now you need to split the calculation into as many chunks as there are GPUs.
 TFHE-rs allows you to execute additions in parallel across multiple GPUs by leveraging [CUDA streams](https://developer.nvidia.com/blog/gpu-pro-tip-cuda-7-streams-simplify-concurrency/). 
 CUDA stream management is not explicit in the High-Level(HL) API of TFHE-rs: streams are implicitly 
@@ -142,7 +152,7 @@ In this example, `par_chunks` divides the input vectors into `num_gpus` chunks�
 It’s important to note that, in this example, when using the `+` operator on encrypted inputs, data is first transferred from the CPU to the GPU before computation, the result then resides on the GPU `i`.
 You can learn more about how to inspect on which GPU a piece of data resides from the examples in this file: `tfhe/src/high_level_api/tests/gpu_selection.rs`.
 
-## Going beyond: Restrict the number of CUDA streams
+### Going beyond: Restrict the number of CUDA streams
 
 While the behavior of `.par_iter()` in TFHE-rs' HL API aligns with expectations and provides parallelism over encrypted data, it can become a performance bottleneck in some cases. This is due to the way CUDA streams are managed.
 CUDA streams allow for parallel execution on the GPU, but when too many are created, scheduling becomes inefficient. Instead of running in parallel, operations may fall back to sequential execution. In practice, having more than 10 streams already starts to negatively impact throughput.

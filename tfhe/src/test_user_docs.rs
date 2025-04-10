@@ -216,11 +216,27 @@ mod test_gpu_doc {
     use doc_comment::doctest;
 
     doctest!(
-        "../docs/configuration/run_on_gpu.md",
-        configuration_run_on_gpu
+        "../docs/configuration/gpu_acceleration/run_on_gpu.md",
+        configuration_gpu_acceleration_run_on_gpu
     );
     doctest!(
-        "../docs/tutorials/multi_gpu_device_selection.md",
-        tutorials_multi_gpu_device_selection
+        "../docs/configuration/gpu_acceleration/gpu_operations.md",
+        configuration_gpu_acceleration_gpu_operations
+    );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/compressing_ciphertexts.md",
+        configuration_gpu_acceleration_compressing_ciphertexts
+    );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/array_type.md",
+        configuration_gpu_acceleration_array_type
+    );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/benchmark.md",
+        configuration_gpu_acceleration_benchmark
+    );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/multi_gpu_device_selection.md",
+        configuration_gpu_acceleration_multi_gpu_device_selection
     );
 }
