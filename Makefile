@@ -1120,8 +1120,8 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	--bench	glwe_packing_compression-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p $(TFHE_SPEC) --
 	
-.PHONY: bench_zk_gpu
-bench_zk_gpu: install_rs_check_toolchain
+.PHONY: bench_integer_zk_gpu
+bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench zk-pke-bench \
