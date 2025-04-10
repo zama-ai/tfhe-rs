@@ -4,6 +4,8 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::keycache::KeyCacheAccess;
+use crate::core_crypto::prelude::misc::check_encrypted_content_respects_mod;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
