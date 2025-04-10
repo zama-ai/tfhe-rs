@@ -29,6 +29,7 @@ on:
           - pbs128
           - ks
           - ks_pbs
+          - integer_zk
       op_flavor:
         description: "Operations set to run"
         type: choice
