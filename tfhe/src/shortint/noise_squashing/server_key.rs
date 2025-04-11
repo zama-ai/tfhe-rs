@@ -2,15 +2,15 @@ use super::NoiseSquashingPrivateKey;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_standard_lwe_bootstrap_key_to_fourier_128;
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
-use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
     generate_programmable_bootstrap_glwe_lut,
     programmable_bootstrap_f128_lwe_ciphertext_mem_optimized,
     programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement,
 };
-use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
+use crate::core_crypto::entities::Fourier128LweBootstrapKeyOwned;
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
+use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
@@ -19,7 +19,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchNoiseReductionParams,
-    PBSOrder, PBSParameters,
+    PBSParameters,
 };
 use crate::shortint::server_key::{
     ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
@@ -221,25 +221,9 @@ impl NoiseSquashingKey {
         ciphertext: &Ciphertext,
         src_server_key: &ServerKey,
     ) -> SquashedNoiseCiphertext {
-        let mut lwe_before_noise_squashing = match src_server_key.pbs_order {
-            // Under the big key, first need to keyswitch
-            PBSOrder::KeyswitchBootstrap => {
-                let mut after_ks_ct = LweCiphertext::new(
-                    0u64,
-                    src_server_key.key_switching_key.output_lwe_size(),
-                    src_server_key.key_switching_key.ciphertext_modulus(),
-                );
-
-                keyswitch_lwe_ciphertext(
-                    &src_server_key.key_switching_key,
-                    &ciphertext.ct,
-                    &mut after_ks_ct,
-                );
-                after_ks_ct
-            }
-            // Under the small key, no need to keyswitch
-            PBSOrder::BootstrapKeyswitch => ciphertext.ct.clone(),
-        };
+        let mut lwe_before_noise_squashing = src_server_key
+            .atomic_pattern
+            .prepare_for_noise_squashing(ciphertext);
 
         let lwe_ciphertext_to_squash_noise = match &self.modulus_switch_noise_reduction_key {
             Some(key) => {
@@ -379,6 +363,22 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyCon
             message_modulus: noise_squashing_params.message_modulus,
             carry_modulus: noise_squashing_params.carry_modulus,
         })
+    }
+}
+
+impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
+    for NoiseSquashingKeyConformanceParams
+{
+    type Error = crate::Error;
+
+    fn try_from(
+        (ap_params, noise_squashing_params): (AtomicPatternParameters, NoiseSquashingParameters),
+    ) -> Result<Self, Self::Error> {
+        match ap_params {
+            AtomicPatternParameters::Standard(pbs_params) => {
+                (pbs_params, noise_squashing_params).try_into()
+            }
+        }
     }
 }
 
