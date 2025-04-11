@@ -15,7 +15,7 @@ pub fn pbs_variance_128_bits_security_gaussian(
         polynomial_size,
         ciphertext_modulus,
     );
-    Variance(pbs_variance_128_bits_security_gaussian_impl(
+    Variance(pbs_variance_impl(
         lwe_dimension.0 as f64,
         glwe_dimension.0 as f64,
         polynomial_size.0 as f64,
@@ -26,8 +26,35 @@ pub fn pbs_variance_128_bits_security_gaussian(
         ntt_modulus,
     ))
 }
+
+pub fn pbs_variance_132_bits_security_tuniform(
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    decomposition_level_count: DecompositionLevelCount,
+    decomposition_base_log: DecompositionBaseLog,
+    ciphertext_modulus: f64,
+    ntt_modulus: f64,
+) -> Variance {
+    let var_min = super::secure_noise::minimal_glwe_variance_for_132_bits_security_tuniform(
+        glwe_dimension,
+        polynomial_size,
+        ciphertext_modulus,
+    );
+    Variance(pbs_variance_impl(
+        lwe_dimension.0 as f64,
+        glwe_dimension.0 as f64,
+        polynomial_size.0 as f64,
+        var_min.0 as f64,
+        decomposition_level_count.0 as f64,
+        decomposition_base_log.0 as f64,
+        ciphertext_modulus,
+        ntt_modulus,
+    ))
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn pbs_variance_128_bits_security_gaussian_impl(
+pub fn pbs_variance_impl(
     lwe_dimension: f64,
     glwe_dimension: f64,
     polynomial_size: f64,
