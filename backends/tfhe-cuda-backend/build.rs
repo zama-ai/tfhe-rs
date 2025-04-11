@@ -61,6 +61,7 @@ fn main() {
         }
         println!("cargo:rustc-link-lib=gomp");
         println!("cargo:rustc-link-lib=cudart");
+        println!("cargo:rustc-link-lib=cuda");
         println!("cargo:rustc-link-search=native=/usr/lib/x86_64-linux-gnu/");
         println!("cargo:rustc-link-lib=stdc++");
 
