@@ -259,6 +259,7 @@ impl HpuBackend {
             // match the next 4k page boundary
             cut_size_b,
             slot_nb: config.board.ct_mem,
+            used_as_heap: config.board.heap_size,
             retry_rate_us: config.fpga.polling_us,
         };
         debug!("Ct_mem properties -> {:?}", ct_props);
