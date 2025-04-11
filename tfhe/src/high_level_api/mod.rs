@@ -50,9 +50,9 @@ pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
 use crate::{error, Error};
 pub use config::{Config, ConfigBuilder};
-#[cfg(feature = "gpu")]
-pub use global_state::CudaGpuChoice;
 pub use global_state::{set_server_key, unset_server_key, with_server_key_as_context};
+#[cfg(feature = "gpu")]
+pub use global_state::{CudaGpuChoice, CustomMultiGpuIndexes};
 
 pub use integers::{
     CompressedFheInt, CompressedFheUint, FheInt, FheUint, IntegerId, SquashedNoiseFheInt,
