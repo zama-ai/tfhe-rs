@@ -60,6 +60,14 @@ impl NoiseSquashingPrivateKey {
         post_noise_squashing_secret_key: GlweSecretKeyOwned<u128>,
         params: NoiseSquashingParameters,
     ) -> Self {
+        assert_eq!(
+            post_noise_squashing_secret_key.polynomial_size(),
+            params.polynomial_size
+        );
+        assert_eq!(
+            post_noise_squashing_secret_key.glwe_dimension(),
+            params.glwe_dimension
+        );
         Self {
             post_noise_squashing_secret_key,
             params,
