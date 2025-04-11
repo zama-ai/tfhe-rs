@@ -1232,7 +1232,6 @@ mod tests {
         let pke_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
         let ksk_params =
             TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1;
-
         let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];

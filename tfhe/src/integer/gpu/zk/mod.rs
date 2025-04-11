@@ -353,28 +353,41 @@ mod tests {
     use crate::shortint::parameters::test_params::TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
     use crate::shortint::parameters::v1_1::V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::parameters::{
+        CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
+    use crate::shortint::PBSParameters;
     use crate::zk::{CompactPkeCrs, ZkComputeLoad};
     use rand::random;
 
     #[test]
     fn test_zk_compact_ciphertext_list_encryption() {
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let params = [
+        let params: [(
+            ShortintKeySwitchingParameters,
+            CompactPublicKeyEncryptionParameters,
+            PBSParameters,
+        ); 3] = [
             (
                 V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
             (
                 PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            (
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
         ];
 
-        for (ksk_params, pke_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params {
             let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
             let num_blocks = 4usize;
@@ -442,19 +455,29 @@ mod tests {
 
     #[test]
     fn test_several_proven_lists() {
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let params = [
+        let params: [(
+            ShortintKeySwitchingParameters,
+            CompactPublicKeyEncryptionParameters,
+            PBSParameters,
+        ); 3] = [
             (
                 V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
             (
                 PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            (
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
         ];
 
-        for (ksk_params, pke_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params {
             let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
             let crs_blocks_for_64_bits =
@@ -522,19 +545,29 @@ mod tests {
     fn test_malicious_boolean_proven_lists() {
         use super::DataKind;
 
-        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let params = [
+        let params: [(
+            ShortintKeySwitchingParameters,
+            CompactPublicKeyEncryptionParameters,
+            PBSParameters,
+        ); 3] = [
             (
                 V1_1_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
             (
                 PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
                 PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+            ),
+            (
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
             ),
         ];
 
-        for (ksk_params, pke_params) in params {
+        for (ksk_params, pke_params, fhe_params) in params {
             let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
 
             let crs_blocks_for_64_bits =
