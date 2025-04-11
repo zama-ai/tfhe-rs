@@ -5,11 +5,15 @@ use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
 };
-use crate::core_crypto::commons::traits::Container;
+use crate::core_crypto::commons::traits::{CastInto, Container, UnsignedInteger};
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::shortint::parameters::{EncryptionKeyChoice, ShortintKeySwitchingParameters};
+use crate::shortint::parameters::{
+    CoreCiphertextModulus, EncryptionKeyChoice, KeySwitch32PBSParameters,
+    ShortintKeySwitchingParameters,
+};
 use crate::shortint::server_key::{
     CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
     ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
@@ -68,37 +72,51 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> ServerKey {
-        let params = &cks.parameters;
-
-        let pbs_params_base = params.pbs_parameters().unwrap();
-
-        let in_key = &cks.small_lwe_secret_key();
-
-        let out_key = &cks.glwe_secret_key;
-
-        let bootstrapping_key_base = self.new_bootstrapping_key(pbs_params_base, in_key, out_key);
-
-        // Creation of the key switching key
-        let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key(),
-            &cks.small_lwe_secret_key(),
-            params.ks_base_log(),
-            params.ks_level(),
-            params.lwe_noise_distribution(),
-            params.ciphertext_modulus(),
-            &mut self.encryption_generator,
-        );
+        let ap_key = AtomicPatternServerKey::new(cks, self);
 
         // Pack the keys in the server key set:
         ServerKey {
-            key_switching_key,
-            bootstrapping_key: bootstrapping_key_base,
-            message_modulus: params.message_modulus(),
-            carry_modulus: params.carry_modulus(),
+            atomic_pattern: ap_key,
+            message_modulus: cks.parameters.message_modulus(),
+            carry_modulus: cks.parameters.carry_modulus(),
             max_degree,
-            max_noise_level: params.max_noise_level(),
-            ciphertext_modulus: params.ciphertext_modulus(),
-            pbs_order: params.encryption_key_choice().into(),
+            max_noise_level: cks.parameters.max_noise_level(),
+            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
+        }
+    }
+
+    pub fn new_bootstrapping_key_ks32<
+        InKeycont: Container<Element = u32> + Sync,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        pbs_params: KeySwitch32PBSParameters,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+    ) -> ShortintBootstrappingKey<u32> {
+        let bsk = self.new_classic_bootstrapping_key(
+            in_key,
+            out_key,
+            pbs_params.glwe_noise_distribution,
+            pbs_params.pbs_base_log,
+            pbs_params.pbs_level,
+            pbs_params.ciphertext_modulus,
+        );
+        let modulus_switch_noise_reduction_key = pbs_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    in_key,
+                    self,
+                    CoreCiphertextModulus::new_native(),
+                    pbs_params.lwe_noise_distribution,
+                )
+            });
+
+        ShortintBootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
         }
     }
 
@@ -110,7 +128,7 @@ impl ShortintEngine {
         pbs_params_base: PBSParameters,
         in_key: &LweSecretKey<InKeycont>,
         out_key: &GlweSecretKey<OutKeyCont>,
-    ) -> ShortintBootstrappingKey {
+    ) -> ShortintBootstrappingKey<u64> {
         match pbs_params_base {
             PBSParameters::PBS(pbs_params) => {
                 let bsk = self.new_classic_bootstrapping_key(
@@ -167,7 +185,8 @@ impl ShortintEngine {
     }
 
     pub fn new_classic_bootstrapping_key<
-        InKeycont: Container<Element = u64>,
+        InputScalar: UnsignedInteger + CastInto<u64>,
+        InKeycont: Container<Element = InputScalar>,
         OutKeyCont: Container<Element = u64> + Sync,
     >(
         &mut self,

@@ -74,7 +74,7 @@ impl CudaCompactCiphertextListExpander {
                         },
                         message_modulus: current_info.info.message_modulus,
                         carry_modulus: current_info.info.carry_modulus,
-                        pbs_order: current_info.info.pbs_order,
+                        atomic_pattern: current_info.info.atomic_pattern,
                         noise_level: current_info.info.noise_level,
                     };
                     block_count

@@ -32,7 +32,9 @@ impl FheBool {
     pub fn generate_oblivious_pseudo_random(seed: Seed) -> Self {
         let (ciphertext, tag) = global_state::with_internal_keys(|key| match key {
             InternalServerKey::Cpu(key) => {
-                let ct = key.pbs_key().key.generate_oblivious_pseudo_random(seed, 1);
+                let sk = &key.pbs_key().key;
+
+                let ct = sk.generate_oblivious_pseudo_random(seed, 1);
                 (
                     InnerBoolean::Cpu(BooleanBlock::new_unchecked(ct)),
                     key.tag.clone(),

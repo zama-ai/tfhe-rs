@@ -26,7 +26,7 @@ create_parameterized_test!(integer_signed_default_left_scalar_sub);
 
 fn integer_signed_unchecked_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_sub);
     signed_unchecked_scalar_sub_test(param, executor);
@@ -34,7 +34,7 @@ where
 
 fn integer_signed_default_overflowing_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::signed_overflowing_scalar_sub_parallelized);
     signed_default_overflowing_scalar_sub_test(param, executor);
@@ -42,7 +42,7 @@ where
 
 fn integer_signed_unchecked_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_scalar_sub);
     signed_unchecked_left_scalar_sub_test(param, executor);
@@ -50,7 +50,7 @@ where
 
 fn integer_signed_smart_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_left_scalar_sub_parallelized);
     signed_smart_left_scalar_sub_test(param, executor);
@@ -58,7 +58,7 @@ where
 
 fn integer_signed_default_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_scalar_sub_parallelized);
     signed_default_left_scalar_sub_test(param, executor);
@@ -66,7 +66,7 @@ where
 
 pub(crate) fn signed_unchecked_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a SignedRadixCiphertext, i64), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -112,7 +112,7 @@ where
 
 pub(crate) fn signed_default_overflowing_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a SignedRadixCiphertext, i64),
         (SignedRadixCiphertext, BooleanBlock),
@@ -292,7 +292,7 @@ where
 
 pub(crate) fn signed_unchecked_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(i64, &'a SignedRadixCiphertext), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -342,7 +342,7 @@ where
 
 pub(crate) fn signed_smart_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(i64, &'a mut SignedRadixCiphertext), SignedRadixCiphertext>,
 {
     let param = param.into();
@@ -389,7 +389,7 @@ where
 
 pub(crate) fn signed_default_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(i64, &'a SignedRadixCiphertext), SignedRadixCiphertext>,
 {
     let param = param.into();
