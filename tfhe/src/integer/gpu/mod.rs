@@ -245,6 +245,8 @@ pub unsafe fn scalar_addition_integer_radix_assign_async<T: UnsignedInteger>(
     message_modulus: u32,
     carry_modulus: u32,
 ) {
+    assert_eq!(streams.len(), lwe_array.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), scalar_input.len);
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -313,6 +315,9 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), lwe_array.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -420,6 +425,9 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     storage_log_modulus: u32,
     num_blocks: u32,
 ) {
+    assert_eq!(streams.len(), glwe_array_out.len);
+    assert_eq!(streams.len(), lwe_array_in.len);
+    assert_eq!(streams.len(), fp_keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -506,6 +514,9 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     vec_indexes: &[u32],
     num_lwes: u32,
 ) {
+    assert_eq!(streams.len(), lwe_array_out.len);
+    assert_eq!(streams.len(), glwe_in.len);
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -582,6 +593,8 @@ pub unsafe fn unchecked_add_integer_radix_assign_async(
     radix_lwe_left: &mut CudaRadixCiphertext,
     radix_lwe_right: &CudaRadixCiphertext,
 ) {
+    assert_eq!(streams.len(), radix_lwe_left.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_right.d_blocks.0.d_vec.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -675,6 +688,10 @@ pub unsafe fn unchecked_mul_integer_radix_kb_assign_async<T: UnsignedInteger, B:
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_left.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_right.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -827,6 +844,10 @@ pub unsafe fn unchecked_bitop_integer_radix_kb_assign_async<T: UnsignedInteger, 
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_left.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_right.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -979,6 +1000,10 @@ pub unsafe fn unchecked_scalar_bitop_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), clear_blocks.len);
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1099,6 +1124,10 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_left.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_right.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1274,6 +1303,11 @@ pub unsafe fn unchecked_scalar_comparison_integer_radix_kb_async<T: UnsignedInte
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), scalar_blocks.len);
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1425,6 +1459,9 @@ pub unsafe fn full_propagate_assign_async<T: UnsignedInteger, B: Numeric>(
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1540,6 +1577,11 @@ pub(crate) unsafe fn propagate_single_carry_assign_async<T: UnsignedInteger, B: 
     uses_carry: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1687,6 +1729,12 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
     uses_carry: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), lhs_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), rhs_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1860,6 +1908,9 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -1969,6 +2020,9 @@ pub unsafe fn unchecked_scalar_logical_right_shift_integer_radix_kb_assign_async
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2077,6 +2131,9 @@ pub unsafe fn unchecked_scalar_arithmetic_right_shift_integer_radix_kb_assign_as
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2187,6 +2244,10 @@ pub unsafe fn unchecked_right_shift_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_shift.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2321,6 +2382,10 @@ pub unsafe fn unchecked_left_shift_integer_radix_kb_assign_async<T: UnsignedInte
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_shift.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2458,6 +2523,10 @@ pub unsafe fn unchecked_rotate_right_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_rotation.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2600,6 +2669,10 @@ pub unsafe fn unchecked_rotate_left_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_rotation.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2740,6 +2813,15 @@ pub unsafe fn unchecked_cmux_integer_radix_kb_async<T: UnsignedInteger, B: Numer
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_true.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_false.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(
+        streams.len(),
+        radix_lwe_condition.0.ciphertext.d_blocks.0.d_vec.len
+    );
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -2950,6 +3032,9 @@ pub unsafe fn unchecked_scalar_rotate_left_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3064,6 +3149,9 @@ pub unsafe fn unchecked_scalar_rotate_right_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_input.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3178,6 +3266,10 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), result.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_list.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3301,6 +3393,10 @@ pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
     ct_modulus: f64,
 ) {
+    assert_eq!(streams.len(), output.ptrs.len());
+    assert_eq!(streams.len(), input.ptrs.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3422,6 +3518,10 @@ pub unsafe fn apply_many_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
     ct_modulus: f64,
 ) {
+    assert_eq!(streams.len(), output.ptrs.len());
+    assert_eq!(streams.len(), input.ptrs.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3546,6 +3646,11 @@ pub unsafe fn apply_bivariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
     ct_modulus: f64,
 ) {
+    assert_eq!(streams.len(), output.ptrs.len());
+    assert_eq!(streams.len(), input_1.ptrs.len());
+    assert_eq!(streams.len(), input_2.ptrs.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3682,6 +3787,12 @@ pub unsafe fn unchecked_div_rem_integer_radix_kb_assign_async<T: UnsignedInteger
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), quotient.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), numerator.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), remainder.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), divisor.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3851,6 +3962,9 @@ pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Nume
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
     ct_modulus: f64,
 ) {
+    assert_eq!(streams.len(), output.ptrs.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -3953,6 +4067,7 @@ pub unsafe fn reverse_blocks_inplace_async(
     streams: &CudaStreams,
     radix_lwe_output: &mut CudaRadixCiphertext,
 ) {
+    assert_eq!(streams.len(), radix_lwe_output.d_blocks.0.d_vec.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -4026,6 +4141,12 @@ pub(crate) unsafe fn unchecked_unsigned_overflowing_sub_integer_radix_kb_assign_
     uses_input_borrow: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_left.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_right.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), carry_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -4192,6 +4313,9 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), ct.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -4293,6 +4417,10 @@ pub unsafe fn unchecked_is_at_least_one_comparisons_block_true_integer_radix_kb_
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -4437,6 +4565,10 @@ pub unsafe fn unchecked_are_all_comparisons_block_true_integer_radix_kb_async<
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
+    assert_eq!(streams.len(), radix_lwe_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_in.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), bootstrapping_key.gpu_indexes.len());
+    assert_eq!(streams.len(), keyswitch_key.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
@@ -4567,6 +4699,8 @@ pub unsafe fn unchecked_negate_integer_radix_async(
     message_modulus: u32,
     carry_modulus: u32,
 ) {
+    assert_eq!(streams.len(), radix_lwe_out.d_blocks.0.d_vec.gpu_indexes.len());
+    assert_eq!(streams.len(), radix_lwe_in.d_blocks.0.d_vec.gpu_indexes.len());
     for i in 0..streams.len() {
         assert_eq!(
             streams.gpu_indexes[i],
