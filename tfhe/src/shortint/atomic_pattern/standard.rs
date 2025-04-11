@@ -130,7 +130,10 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
 
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
@@ -226,7 +229,8 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
         let compressed_modulus_switched_lwe_ciphertext =
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffer, _) = engine.get_buffers(todo!());
+                let (mut ciphertext_buffer, _) = engine
+                    .get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
                 let input_ct = match self.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
@@ -308,7 +312,8 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) =
+                engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
@@ -381,7 +386,10 @@ impl StandardAtomicPatternServerKey {
 
         ShortintEngine::with_thread_local_mut(|engine| {
             // Compute the programmable bootstrapping with fixed test polynomial
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
 
             // Compute a key switch
             keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ciphertext_buffer);
