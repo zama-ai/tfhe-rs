@@ -4,6 +4,7 @@ use crate::shortint::parameters::{
     ShortintKeySwitchingParameters,
 };
 
+use crate::shortint::parameters::current_params::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
     V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -160,3 +161,8 @@ pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128:
 pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128:
     MultiBitPBSParameters =
     V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128;
+
+// GPU PKE To Compute Keyswitch
+pub const PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    ShortintKeySwitchingParameters =
+    V1_1_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;

@@ -434,8 +434,10 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 #[cfg(all(feature = "gpu", feature = "zk-pok"))]
 mod cuda {
     use super::*;
+    use crate::utilities::{cuda_local_keys, cuda_local_streams};
+    use criterion::BatchSize;
     use itertools::Itertools;
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::key_switching_key::CudaKeySwitchingKey;
     use tfhe::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use tfhe::integer::gpu::CudaServerKey;
@@ -456,18 +458,11 @@ mod cuda {
             .open(results_file)
             .expect("cannot open results file");
 
-        for (param_pke, param_ksk, param_fhe) in [
-            (
-                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            ),
-            (
-                V1_1_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-                V1_1_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-            ),
-        ] {
+        for (param_pke, param_ksk, param_fhe) in [(
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )] {
             let param_name = param_fhe.name();
             let param_name = param_name.as_str();
             let cks = ClientKey::new(param_fhe);
@@ -630,7 +625,8 @@ mod cuda {
                             });
                         }
                         BenchmarkType::Throughput => {
-                            // In throughput mode object sizes are not recorded.
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let gpu_count = get_number_of_gpus() as usize;
 
                             // Execute the operation once to know its cost.
                             let input_msg = rng.gen::<u64>();
@@ -679,6 +675,22 @@ mod cuda {
                             )
                         }).collect_vec();
 
+                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let d_ksk_vec = gpu_sks_vec
+                                .par_iter()
+                                .zip(local_streams.par_iter())
+                                .map(|(gpu_sks, local_stream)| {
+                                    CudaKeySwitchingKey::new(
+                                        (&compact_private_key, None),
+                                        (&cks, &gpu_sks),
+                                        param_ksk,
+                                        local_stream,
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            assert_eq!(d_ksk_vec.len(), gpu_count);
+
                             bench_group.bench_function(&bench_id_verify, |b| {
                                 b.iter(|| {
                                     cts.par_iter().for_each(|ct1| {
@@ -688,25 +700,53 @@ mod cuda {
                             });
 
                             bench_group.bench_function(&bench_id_expand_without_verify, |b| {
-                                b.iter(|| {
-                                    gpu_cts.iter().for_each(|gpu_ct1| {
-                                        gpu_ct1
-                                            .expand_without_verification(&d_ksk, &streams)
+                                    let setup_encrypted_values = || {
+                                        let local_streams = cuda_local_streams(num_block, elements as usize);
+
+                                        let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
+                                            CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                                                &ct, &local_streams[i],
+                                            )
+                                        }).collect_vec();
+
+                                        (gpu_cts, local_streams)
+                                    };
+
+                                b.iter_batched(setup_encrypted_values,
+                                               |(gpu_cts, local_streams)| {
+                                               gpu_cts.par_iter().zip(local_streams.par_iter()).enumerate().for_each
+                                               (|(i, (gpu_ct, local_stream))| {
+                                        gpu_ct
+                                            .expand_without_verification(&d_ksk_vec[i % gpu_count], local_stream)
                                             .unwrap();
                                     });
-                                });
+                                }, BatchSize::SmallInput);
                             });
 
                             bench_group.bench_function(&bench_id_verify_and_expand, |b| {
-                                b.iter(|| {
-                                    gpu_cts.iter().for_each(|gpu_ct1| {
-                                        gpu_ct1
+                                    let setup_encrypted_values = || {
+                                        let local_streams = cuda_local_streams(num_block, elements as usize);
+
+                                        let gpu_cts = cts.iter().enumerate().map(|(i, ct)| {
+                                            CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                                                &ct, &local_streams[i],
+                                            )
+                                        }).collect_vec();
+
+                                        (gpu_cts, local_streams)
+                                    };
+
+                                b.iter_batched(setup_encrypted_values,
+                                               |(gpu_cts, local_streams)| {
+                                               gpu_cts.par_iter().zip(local_streams.par_iter()).enumerate().for_each
+                                               (|(i, (gpu_ct, local_stream))| {
+                                        gpu_ct
                                             .verify_and_expand(
-                                                &crs, &pk, &metadata, &d_ksk, &streams,
+                                                &crs, &pk, &metadata, &d_ksk, local_stream,
                                             )
                                             .unwrap();
                                     });
-                                });
+                                }, BatchSize::SmallInput);
                             });
                         }
                     }
