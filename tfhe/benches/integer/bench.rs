@@ -1577,7 +1577,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks_vec = cuda_local_keys(&cks);
                     let gpu_count = get_number_of_gpus() as usize;
 
                     // Execute the operation once to know its cost.
@@ -1599,6 +1598,7 @@ mod cuda {
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
+                            let gpu_sks_vec = cuda_local_keys(&cks);
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
                                 .map(|i| {
@@ -1621,12 +1621,12 @@ mod cuda {
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts_0, cts_1, local_streams)
+                            (cts_0, cts_1, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts_0, mut cts_1, local_streams)| {
+                            |(mut cts_0, mut cts_1, local_streams, gpu_sks_vec)| {
                                 cts_0
                                     .par_iter_mut()
                                     .zip(cts_1.par_iter_mut())
