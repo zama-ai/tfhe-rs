@@ -1639,8 +1639,8 @@ mod cuda {
                                             ct_1,
                                             local_stream,
                                         );
-                                        local_stream.synchronize();
-                                    })
+                                    });
+                                local_streams.iter().for_each(|s| s.synchronize());
                             },
                             criterion::BatchSize::SmallInput,
                         );
