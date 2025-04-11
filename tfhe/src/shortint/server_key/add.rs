@@ -1,10 +1,11 @@
 use super::{CiphertextNoiseDegree, SmartCleaningOperation};
 use crate::core_crypto::algorithms::*;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, MaxNoiseLevel, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// This function, like all "default" operations (i.e. not smart, checked or unchecked), will
