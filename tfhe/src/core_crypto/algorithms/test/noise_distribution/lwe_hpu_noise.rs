@@ -8,15 +8,15 @@ use std::io;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_HPU_TESTS: usize = 5;
-const NB_PBS: usize = 200;
+const NB_PBS: usize = 300;
 
 #[derive(Clone, Copy)]
 pub struct HpuTestParams {
     pub lwe_dimension: LweDimension,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
-    pub lwe_modular_std_dev: StandardDev,
-    pub glwe_modular_std_dev: StandardDev,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
     pub ks_base_log: DecompositionBaseLog,
@@ -32,8 +32,8 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(1024),
-    lwe_modular_std_dev: StandardDev(1.259_780_968_897_627_7e-5),
-    glwe_modular_std_dev: StandardDev(2.2737367544323206e-13),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(1.259_780_968_897_627_7e-5)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(2.2737367544323206e-13)),
     pbs_base_log: DecompositionBaseLog(20),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(7),
@@ -50,8 +50,8 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(786),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(5.314_123_935_599_821e-6),
-    glwe_modular_std_dev: StandardDev(9.1881734381394e-16),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(5.314_123_935_599_821e-6)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(9.1881734381394e-16)),
     pbs_base_log: DecompositionBaseLog(24),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(8),
@@ -64,15 +64,33 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21: HpuTestParams = HpuTestParams {
 };
 
 #[allow(unused)]
-pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132: HpuTestParams = HpuTestParams {
+pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_GAUSSIAN: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(804),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(5.963_599_673_924_788e-6),
-    glwe_modular_std_dev: StandardDev(2.8452674713391114e-15),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(5.963_599_673_924_788e-6)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(2.8452674713391114e-15)),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(8),
+    ks_base_log: DecompositionBaseLog(2),
+    message_modulus_log: CiphertextModulusLog(4),
+    ct_width: 64,
+    ksk_width: 21,
+    norm2: 5,
+    ntt_modulus: 18446744069414584321,
+};
+
+#[allow(unused)]
+pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM: HpuTestParams = HpuTestParams {
+    lwe_dimension: LweDimension(839),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(47),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(9),
     ks_base_log: DecompositionBaseLog(2),
     message_modulus_log: CiphertextModulusLog(4),
     ct_width: 64,
@@ -86,8 +104,8 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64: HpuTestParams = HpuTestParams {
     lwe_dimension: LweDimension(742),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
-    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.000007069849454709433)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.00000000000000029403601535432533)),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -104,8 +122,8 @@ pub const HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN: HpuTestParams = H
     lwe_dimension: LweDimension(841),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_modular_std_dev: StandardDev(3.149_667_468_577_243_5e-6),
-    glwe_modular_std_dev: StandardDev(2.845267479601915e-15),
+    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(3.149_667_468_577_243_5e-6)),
+    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(2.845267479601915e-15)),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_level: DecompositionLevelCount(5),
@@ -131,8 +149,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let lwe_dimension = params.lwe_dimension;
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
-    let lwe_modular_std_dev = params.lwe_modular_std_dev;
-    let glwe_modular_std_dev = params.glwe_modular_std_dev;
+    let lwe_noise_distribution = params.lwe_noise_distribution;
+    let glwe_noise_distribution = params.glwe_noise_distribution;
     let ciphertext_modulus = CiphertextModulus::try_new_power_of_2(params.ct_width).unwrap();
     let message_modulus_log = params.message_modulus_log;
     let ks_decomp_base_log = params.ks_base_log;
@@ -144,7 +162,10 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let ksk_encoding_with_padding = get_encoding_with_padding(ksk_modulus);
-    let expected_variance = lwe_modular_std_dev.get_variance();
+    let expected_variance = match lwe_noise_distribution {
+        DynamicDistribution::Gaussian(_) => lwe_noise_distribution.gaussian_std_dev().get_variance(),
+        DynamicDistribution::TUniform(tuniform) => Variance(((2.0*(tuniform.bound_log2() as f64) + 1.0).exp2() + 1.0) / 6.0 * (-2.0 * (params.ct_width as f64)).exp2())
+    };
 
     let mut rsc = TestResources::new();
 
@@ -158,31 +179,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let mut noise_samples = (0..4)
         .map(|_| Vec::with_capacity(num_samples))
         .collect::<Vec<_>>();
-    let min_lwe_variance =
-        variance_formula::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(
-            lwe_dimension,
-            get_modulo_value(&ciphertext_modulus) as f64,
-        );
-    let min_glwe_variance =
-        variance_formula::secure_noise::minimal_glwe_variance_for_128_bits_security_gaussian(
-            glwe_dimension,
-            polynomial_size,
-            get_modulo_value(&ciphertext_modulus) as f64,
-        );
     println!("ciphertext_modulus {ciphertext_modulus:?} ksk_modulus {ksk_modulus:?} message_modulus_log {message_modulus_log:?} encoding_with_padding {encoding_with_padding } expected_variance {expected_variance:?} msg_modulus {msg_modulus} msg {msg} delta {delta}");
-    println!(
-        "min lwe var {:?} ({:?}) - param: {:?}",
-        min_lwe_variance.0,
-        min_lwe_variance.get_standard_dev(),
-        lwe_modular_std_dev
-    );
-    println!(
-        "min glwe var {:?} ({:?}) - param: {:?}",
-        min_glwe_variance.0,
-        min_glwe_variance.get_standard_dev(),
-        glwe_modular_std_dev
-    );
-
+    
     let f = |x: u64| x.wrapping_rem(msg_modulus);
 
     let accumulator = generate_programmable_bootstrap_glwe_lut(
@@ -209,15 +207,32 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         &mut rsc.secret_random_generator,
     );
     let blwe_sk = glwe_sk.clone().into_lwe_secret_key();
-    let ksk_big_to_small = allocate_and_generate_new_lwe_keyswitch_key(
+    let mut ksk_64b = allocate_and_generate_new_lwe_keyswitch_key(
         &blwe_sk,
         &lwe_sk,
         ks_decomp_base_log,
         ks_decomp_level_count,
-        DynamicDistribution::new_gaussian_from_std_dev(lwe_modular_std_dev),
-        ksk_modulus,
+        lwe_noise_distribution,
+        ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
+    let diff_between_ksk_mod_ct_mod = params.ct_width - params.ksk_width;
+    if diff_between_ksk_mod_ct_mod > 0 {
+        let mut ksk_view = ksk_64b.as_mut_view();
+        for ksk_elt in ksk_view.as_mut().iter_mut() {
+            let round = (*ksk_elt >> (diff_between_ksk_mod_ct_mod - 1)) & 0x1;
+            *ksk_elt = ((*ksk_elt >> diff_between_ksk_mod_ct_mod) + round) << diff_between_ksk_mod_ct_mod;
+        }
+        //for (i, ksk_elt) in ksk_view.as_ref().iter().enumerate() {
+        //    println!("ksk_elt ms {i:} {ksk_elt:#X}");
+        //}
+    }
+    let ksk_in_kskmod = {
+        let bl = ksk_64b.decomposition_base_log();
+        let lc = ksk_64b.decomposition_level_count();
+        let out_lwe_size = ksk_64b.output_key_lwe_dimension().to_lwe_size();
+        LweKeyswitchKeyView::from_container( ksk_64b.as_ref(), bl, lc, out_lwe_size, ksk_modulus)
+    };
     println!(
         "n {:?} k {:?} N {:?} k*N {:?}",
         lwe_sk.lwe_dimension(),
@@ -228,15 +243,28 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     // it includes variance of mod switch from KS modulus to 2N
     let (exp_add_ks_variance, _exp_modswitch_variance) =
-        variance_formula::lwe_keyswitch::keyswitch_additive_variance_128_bits_security_gaussian(
-            glwe_dimension,
-            polynomial_size,
-            lwe_sk.lwe_dimension(),
-            ks_decomp_level_count,
-            ks_decomp_base_log,
-            get_modulo_value(&ksk_modulus) as f64,
-            get_modulo_value(&ciphertext_modulus) as f64,
-        );
+        match lwe_noise_distribution {
+            DynamicDistribution::Gaussian(_) =>
+                variance_formula::lwe_keyswitch::keyswitch_additive_variance_128_bits_security_gaussian(
+                    glwe_dimension,
+                    polynomial_size,
+                    lwe_sk.lwe_dimension(),
+                    ks_decomp_level_count,
+                    ks_decomp_base_log,
+                    get_modulo_value(&ksk_modulus) as f64,
+                    get_modulo_value(&ciphertext_modulus) as f64,
+                ),
+            DynamicDistribution::TUniform(_) =>
+                variance_formula::lwe_keyswitch::keyswitch_additive_variance_132_bits_security_tuniform(
+                    glwe_dimension,
+                    polynomial_size,
+                    lwe_sk.lwe_dimension(),
+                    ks_decomp_level_count,
+                    ks_decomp_base_log,
+                    get_modulo_value(&ksk_modulus) as f64,
+                    get_modulo_value(&ciphertext_modulus) as f64,
+                )
+        }; 
     println!(
         "KS additive theo variance: {:?} theo std_dev {:?} / {:?}",
         exp_add_ks_variance.0,
@@ -257,22 +285,35 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         &lwe_sk,
         &glwe_sk,
         &mut bsk,
-        DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev),
+        glwe_noise_distribution, 
         &mut rsc.encryption_random_generator,
     );
 
     let exp_pbs_variance =
-        variance_formula::lwe_programmable_bootstrap::pbs_variance_128_bits_security_gaussian(
-            lwe_dimension,
-            glwe_dimension,
-            polynomial_size,
-            pbs_decomp_level_count,
-            pbs_decomp_base_log,
-            get_modulo_value(&ciphertext_modulus) as f64,
-            get_modulo_value(&ntt_modulus) as f64,
-        );
+        match lwe_noise_distribution {
+            DynamicDistribution::Gaussian(_) =>
+                variance_formula::lwe_programmable_bootstrap::pbs_variance_128_bits_security_gaussian(
+                    lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    pbs_decomp_level_count,
+                    pbs_decomp_base_log,
+                    get_modulo_value(&ciphertext_modulus) as f64,
+                    get_modulo_value(&ntt_modulus) as f64,
+                ),
+            DynamicDistribution::TUniform(_) =>
+                variance_formula::lwe_programmable_bootstrap::pbs_variance_132_bits_security_tuniform(
+                    lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    pbs_decomp_level_count,
+                    pbs_decomp_base_log,
+                    get_modulo_value(&ciphertext_modulus) as f64,
+                    get_modulo_value(&ntt_modulus) as f64,
+                )
+        };
     println!(
-        "PBS theo variance without modswitch: {:?} std_dev {:?}/{:?}",
+        "PBS theo variance: {:?} std_dev {:?}/{:?}",
         exp_pbs_variance.0,
         exp_pbs_variance.get_standard_dev(),
         exp_pbs_variance.get_log_standard_dev()
@@ -317,7 +358,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
             let mut ct =
                 LweCiphertext::new(0, blwe_sk.lwe_dimension().to_lwe_size(), ciphertext_modulus);
             let mut out_ks_ct =
-                LweCiphertext::new(0, ksk_big_to_small.output_lwe_size(), ksk_modulus);
+                LweCiphertext::new(0, ksk_in_kskmod.output_lwe_size(), ksk_modulus);
 
             let plaintext = Plaintext(msg * delta);
 
@@ -325,7 +366,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 &blwe_sk,
                 &mut ct,
                 plaintext,
-                DynamicDistribution::new_gaussian_from_std_dev(lwe_modular_std_dev),
+                lwe_noise_distribution, 
                 &mut rsc.encryption_random_generator,
             );
 
@@ -348,7 +389,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 &lwe_sk,
                 &glwe_sk,
                 &mut bsk,
-                DynamicDistribution::new_gaussian_from_std_dev(glwe_modular_std_dev),
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
             nbsk = NttLweBootstrapKeyOwned::<u64>::new(
@@ -404,7 +445,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 ));
 
                 // Compute key-switch
-                keyswitch_lwe_ciphertext(&ksk_big_to_small, &ct, &mut out_ks_ct);
+                keyswitch_lwe_ciphertext(&ksk_in_kskmod, &ct, &mut out_ks_ct);
 
                 assert!(check_encrypted_content_respects_mod(
                     &out_ks_ct,
@@ -469,7 +510,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     let after_ks_variance = variance(&noise_samples[2]);
     let after_pbs_variance = variance(&noise_samples[3]);
     println!(
-        "exp var {:?} encrypt var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
+        "exp encrypt var {:?} encrypt var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
         expected_variance.0,
         encryption_variance.0,
         bynorm2_variance.0,
@@ -587,6 +628,7 @@ create_parameterized_test!(hpu_noise_distribution {
     //HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
     //HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
     //HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
-    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132,
+    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_GAUSSIAN,
+    HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM,
     HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
 });
