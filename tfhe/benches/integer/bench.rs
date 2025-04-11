@@ -1639,6 +1639,7 @@ mod cuda {
                                             ct_1,
                                             local_stream,
                                         );
+                                        local_stream.synchronize();
                                     })
                             },
                             criterion::BatchSize::SmallInput,
