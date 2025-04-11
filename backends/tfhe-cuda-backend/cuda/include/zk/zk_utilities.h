@@ -204,8 +204,8 @@ template <typename Torus> struct zk_expand_mem {
       free(h_indexes_in);
       free(h_indexes_out);
       free(h_lut_indexes);
-      free(h_lwe_compact_input_indexes);
       free(h_body_id_per_compact_list);
+      free(h_lwe_compact_input_indexes);
     }
   }
 
@@ -215,8 +215,11 @@ template <typename Torus> struct zk_expand_mem {
     message_and_carry_extract_luts->release(streams, gpu_indexes, gpu_count);
     delete message_and_carry_extract_luts;
 
-    cuda_drop_async(tmp_expanded_lwes, streams[0], gpu_indexes[0]);
     cuda_drop_async(d_body_id_per_compact_list, streams[0], gpu_indexes[0]);
+    cuda_drop_async(d_lwe_compact_input_indexes, streams[0], gpu_indexes[0]);
+    cuda_drop_async(tmp_expanded_lwes, streams[0], gpu_indexes[0]);
+    cuda_drop_async(tmp_ksed_small_to_big_expanded_lwes, streams[0],
+                    gpu_indexes[0]);
   }
 };
 
