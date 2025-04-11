@@ -55,4 +55,18 @@ impl NoiseSquashingPrivateKey {
     pub fn noise_squashing_parameters(&self) -> NoiseSquashingParameters {
         self.params
     }
+
+    pub fn from_raw_parts(
+        post_noise_squashing_secret_key: GlweSecretKeyOwned<u128>,
+        params: NoiseSquashingParameters,
+    ) -> Self {
+        Self {
+            post_noise_squashing_secret_key,
+            params,
+        }
+    }
+
+    pub fn into_raw_parts(self) -> (GlweSecretKeyOwned<u128>, NoiseSquashingParameters) {
+        (self.post_noise_squashing_secret_key, self.params)
+    }
 }
