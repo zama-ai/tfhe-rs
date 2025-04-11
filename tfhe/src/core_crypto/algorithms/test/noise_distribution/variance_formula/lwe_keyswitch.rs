@@ -14,7 +14,33 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian(
         output_lwe_dimension,
         ksk_modulus,
     );
-    let (var_ks, var_modswitch) = keyswitch_additive_variance_128_bits_security_gaussian_impl(
+    let (var_ks, var_modswitch) = keyswitch_additive_variance_impl(
+        input_glwe_dimension.0 as f64,
+        input_polynomial_size.0 as f64,
+        output_lwe_dimension.0 as f64,
+        var_min.0,
+        decomposition_level_count.0 as f64,
+        decomposition_base_log.0 as i32,
+        ksk_modulus,
+        ct_modulus,
+    );
+    (Variance(var_ks), Variance(var_modswitch))
+}
+
+pub fn keyswitch_additive_variance_132_bits_security_tuniform(
+    input_glwe_dimension: GlweDimension,
+    input_polynomial_size: PolynomialSize,
+    output_lwe_dimension: LweDimension,
+    decomposition_level_count: DecompositionLevelCount,
+    decomposition_base_log: DecompositionBaseLog,
+    ksk_modulus: f64,
+    ct_modulus: f64,
+) -> (Variance, Variance) {
+    let var_min = super::secure_noise::minimal_lwe_variance_for_132_bits_security_tuniform(
+        output_lwe_dimension,
+        ksk_modulus,
+    );
+    let (var_ks, var_modswitch) = keyswitch_additive_variance_impl(
         input_glwe_dimension.0 as f64,
         input_polynomial_size.0 as f64,
         output_lwe_dimension.0 as f64,
@@ -28,7 +54,7 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn keyswitch_additive_variance_128_bits_security_gaussian_impl(
+pub fn keyswitch_additive_variance_impl(
     input_glwe_dimension: f64,
     input_polynomial_size: f64,
     output_lwe_dimension: f64,
