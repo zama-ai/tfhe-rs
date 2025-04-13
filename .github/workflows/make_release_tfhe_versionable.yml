@@ -79,14 +79,14 @@ jobs:
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package-derive.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA tfhe-versionable-derive - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-versionable-derive release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -152,14 +152,14 @@ jobs:
       - name: Slack notification (hashes comparison)
         if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA tfhe-versionable - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990 # v2.3.2
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "tfhe-versionable release finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"

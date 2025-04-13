@@ -201,7 +201,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "PKE ZK benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
@@ -225,7 +225,7 @@ jobs:
       - name: Slack Notification
         if: ${{ failure() }}
         continue-on-error: true
-        uses: rtCamp/action-slack-notify@c33737706dea87cd7784c687dadc9adf1be59990
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
           SLACK_MESSAGE: "Instance teardown (pke-zk-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
