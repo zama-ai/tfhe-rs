@@ -4,8 +4,8 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::integer::ciphertext::{
     BaseCrtCiphertext, BaseRadixCiphertext, BaseSignedRadixCiphertext, CompactCiphertextList,
-    CompressedCiphertextList, CompressedModulusSwitchedRadixCiphertext,
-    CompressedModulusSwitchedRadixCiphertextGeneric,
+    CompactCiphertextListExpander, CompressedCiphertextList,
+    CompressedModulusSwitchedRadixCiphertext, CompressedModulusSwitchedRadixCiphertextGeneric,
     CompressedModulusSwitchedSignedRadixCiphertext, DataKind, SquashedNoiseBooleanBlock,
     SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
 };
@@ -114,4 +114,9 @@ pub enum SquashedNoiseSignedRadixCiphertextVersions {
 #[derive(VersionsDispatch)]
 pub enum SquashedNoiseBooleanBlockVersions {
     V0(SquashedNoiseBooleanBlock),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompactCiphertextListExpanderVersions {
+    V0(CompactCiphertextListExpander),
 }
