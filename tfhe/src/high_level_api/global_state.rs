@@ -269,10 +269,7 @@ LazyCell::new(ctor as Box<dyn Fn(&[GpuIndex]) ->CudaStreams)
             match choice {
                 CudaGpuChoice::Multi => &self.multi,
                 CudaGpuChoice::Single(index) => &self.single[index.get() as usize],
-                CudaGpuChoice::Custom(_indexes) => self
-                    .custom
-                    .as_ref()
-                    .expect("Custom configuration for multi-gpu execution not initialized"),
+         CudaGpuChoice::Custom(_indexes) => &self.cutom
             }
         }
     }
