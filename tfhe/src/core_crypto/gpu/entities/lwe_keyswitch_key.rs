@@ -10,6 +10,7 @@ use crate::core_crypto::prelude::{
     UnsignedInteger,
 };
 
+#[derive(Clone)]
 #[allow(dead_code)]
 pub struct CudaLweKeyswitchKey<T: UnsignedInteger> {
     pub(crate) d_vec: CudaVec<T>,

@@ -1,8 +1,4 @@
-use tfhe_versionable::Versionize;
-
 use crate::backward_compatibility::compact_list::CompactCiphertextListVersions;
-#[cfg(feature = "zk-pok")]
-use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
@@ -10,7 +6,7 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::integer::ciphertext::{Compactable, DataKind, Expandable};
+use crate::integer::ciphertext::{Compactable, DataKind};
 use crate::integer::encryption::KnowsMessageModulus;
 use crate::integer::parameters::{
     CompactCiphertextListConformanceParams, IntegerCompactCiphertextListExpansionMode,
@@ -18,8 +14,13 @@ use crate::integer::parameters::{
 use crate::named::Named;
 use crate::prelude::CiphertextList;
 use crate::shortint::MessageModulus;
+use crate::HlExpandable;
+use tfhe_versionable::Versionize;
 #[cfg(feature = "zk-pok")]
 pub use zk::ProvenCompactCiphertextList;
+
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
@@ -173,7 +174,7 @@ impl CompactCiphertextList {
         self.inner
             .expand(sks.integer_compact_ciphertext_list_expansion_mode())
             .map(|inner| CompactCiphertextListExpander {
-                inner,
+                inner: InnerCompactCiphertextListExpander::Cpu(inner),
                 tag: self.tag.clone(),
             })
     }
@@ -183,9 +184,11 @@ impl CompactCiphertextList {
         if !self.inner.is_packed() && !self.inner.needs_casting() {
             // No ServerKey required, short-circuit to avoid the global state call
             return Ok(CompactCiphertextListExpander {
-                inner: self
-                    .inner
-                    .expand(IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking)?,
+                inner: InnerCompactCiphertextListExpander::Cpu(
+                    self.inner.expand(
+                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
+                    )?,
+                ),
                 tag: self.tag.clone(),
             });
         }
@@ -196,7 +199,7 @@ impl CompactCiphertextList {
                 .inner
                 .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
                 .map(|inner| CompactCiphertextListExpander {
-                    inner,
+                    inner: InnerCompactCiphertextListExpander::Cpu(inner),
                     tag: self.tag.clone(),
                 }),
             #[cfg(any(feature = "gpu", feature = "hpu"))]
@@ -228,15 +231,132 @@ impl ParameterSetConformant for CompactCiphertextList {
 #[cfg(feature = "zk-pok")]
 mod zk {
     use super::*;
+    use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
     use crate::conformance::ParameterSetConformant;
+    use crate::high_level_api::global_state::device_of_internal_keys;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
-    use crate::zk::CompactPkeCrs;
+    #[cfg(feature = "gpu")]
+    use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
+    #[cfg(feature = "gpu")]
+    use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
+    use serde::Serializer;
+
+    pub enum InnerProvenCompactCiphertextList {
+        Cpu(crate::integer::ciphertext::ProvenCompactCiphertextList),
+        #[cfg(feature = "gpu")]
+        Cuda(crate::integer::gpu::zk::CudaProvenCompactCiphertextList),
+    }
+
+    impl Clone for InnerProvenCompactCiphertextList {
+        fn clone(&self) -> Self {
+            match self {
+                Self::Cpu(inner) => Self::Cpu(inner.clone()),
+                #[cfg(feature = "gpu")]
+                Self::Cuda(inner) => {
+                    with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
+                }
+            }
+        }
+    }
 
     #[derive(Clone, Serialize, Deserialize, Versionize)]
     #[versionize(ProvenCompactCiphertextListVersions)]
     pub struct ProvenCompactCiphertextList {
-        pub(crate) inner: crate::integer::ciphertext::ProvenCompactCiphertextList,
+        pub(crate) inner: InnerProvenCompactCiphertextList,
         pub(crate) tag: Tag,
+    }
+
+    impl InnerProvenCompactCiphertextList {
+        pub(crate) fn on_cpu(&self) -> &crate::integer::ciphertext::ProvenCompactCiphertextList {
+            match self {
+                Self::Cpu(inner) => inner,
+                #[cfg(feature = "gpu")]
+                Self::Cuda(inner) => &inner.h_proved_lists,
+            }
+        }
+
+        fn move_to_device(&mut self, device: crate::Device) {
+            let new_value = match (&self, device) {
+                (Self::Cpu(_), crate::Device::Cpu) => None,
+                #[cfg(feature = "gpu")]
+                (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => {
+                    with_thread_local_cuda_streams(|streams| {
+                        if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                            None
+                        } else {
+                            Some(Self::Cuda(cuda_ct.duplicate(streams)))
+                        }
+                    })
+                }
+                #[cfg(feature = "gpu")]
+                (Self::Cuda(cuda_ct), crate::Device::Cpu) => {
+                    let cpu_ct = cuda_ct.h_proved_lists.clone();
+                    Some(Self::Cpu(cpu_ct))
+                }
+                #[cfg(feature = "gpu")]
+                (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
+                    let cuda_ct = with_thread_local_cuda_streams(|streams| {
+                        CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                            cpu_ct, streams,
+                        )
+                    });
+                    Some(Self::Cuda(cuda_ct))
+                }
+            };
+
+            if let Some(v) = new_value {
+                *self = v;
+            }
+        }
+    }
+
+    impl serde::Serialize for InnerProvenCompactCiphertextList {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            self.on_cpu().serialize(serializer)
+        }
+    }
+
+    impl<'de> serde::Deserialize<'de> for InnerProvenCompactCiphertextList {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let mut new =
+                crate::integer::ciphertext::ProvenCompactCiphertextList::deserialize(deserializer)
+                    .map(Self::Cpu)?;
+
+            if let Some(device) = device_of_internal_keys() {
+                new.move_to_device(device);
+            }
+
+            Ok(new)
+        }
+    }
+    use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
+    impl Versionize for InnerProvenCompactCiphertextList {
+        type Versioned<'vers> =
+        <crate::integer::ciphertext::ProvenCompactCiphertextList as VersionizeOwned>::VersionedOwned;
+        fn versionize(&self) -> Self::Versioned<'_> {
+            self.on_cpu().clone().versionize_owned()
+        }
+    }
+    impl VersionizeOwned for InnerProvenCompactCiphertextList {
+        type VersionedOwned =
+        <crate::integer::ciphertext::ProvenCompactCiphertextList as VersionizeOwned>::VersionedOwned;
+        fn versionize_owned(self) -> Self::VersionedOwned {
+            self.on_cpu().clone().versionize_owned()
+        }
+    }
+
+    impl Unversionize for InnerProvenCompactCiphertextList {
+        fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+            Ok(Self::Cpu(
+                crate::integer::ciphertext::ProvenCompactCiphertextList::unversionize(versioned)?,
+            ))
+        }
     }
 
     impl Tagged for ProvenCompactCiphertextList {
@@ -258,7 +378,7 @@ mod zk {
         }
 
         pub fn len(&self) -> usize {
-            self.inner.len()
+            self.inner.on_cpu().len()
         }
 
         pub fn is_empty(&self) -> bool {
@@ -266,8 +386,9 @@ mod zk {
         }
 
         pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-            self.inner.get_kind_of(index).and_then(|data_kind| {
-                crate::FheTypes::from_data_kind(data_kind, self.inner.ct_list.message_modulus())
+            let inner_cpu = self.inner.on_cpu();
+            inner_cpu.get_kind_of(index).and_then(|data_kind| {
+                crate::FheTypes::from_data_kind(data_kind, inner_cpu.ct_list.message_modulus())
             })
         }
 
@@ -277,7 +398,7 @@ mod zk {
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::zk::ZkVerificationOutcome {
-            self.inner.verify(crs, &pk.key.key, metadata)
+            self.inner.on_cpu().verify(crs, &pk.key.key, metadata)
         }
 
         pub fn verify_and_expand(
@@ -286,36 +407,112 @@ mod zk {
             pk: &CompactPublicKey,
             metadata: &[u8],
         ) -> crate::Result<CompactCiphertextListExpander> {
-            // For WASM
-            if !self.inner.is_packed() && !self.inner.needs_casting() {
-                // No ServerKey required, short circuit to avoid the global state call
-                return Ok(CompactCiphertextListExpander {
-                    inner: self.inner.verify_and_expand(
+            #[allow(irrefutable_let_patterns)]
+            if let InnerProvenCompactCiphertextList::Cpu(inner) = &self.inner {
+                // For WASM
+                if !inner.is_packed() && !inner.needs_casting() {
+                    let expander = inner.verify_and_expand(
                         crs,
                         &pk.key.key,
                         metadata,
                         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                    )?,
-                    tag: self.tag.clone(),
-                });
+                    )?;
+                    // No ServerKey required, short circuit to avoid the global state call
+                    return Ok(CompactCiphertextListExpander {
+                        inner: InnerCompactCiphertextListExpander::Cpu(expander),
+                        tag: self.tag.clone(),
+                    });
+                }
             }
 
             global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => self
-                    .inner
-                    .verify_and_expand(
-                        crs,
-                        &pk.key.key,
-                        metadata,
-                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
-                    )
-                    .map(|expander| CompactCiphertextListExpander {
-                        inner: expander,
-                        tag: self.tag.clone(),
-                    }),
-                #[cfg(any(feature = "gpu", feature = "hpu"))]
-                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+                Some(InternalServerKey::Cpu(cpu_key)) => match &self.inner {
+                    InnerProvenCompactCiphertextList::Cpu(inner) => inner
+                        .verify_and_expand(
+                            crs,
+                            &pk.key.key,
+                            metadata,
+                            cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                        )
+                        .map(|expander| CompactCiphertextListExpander {
+                            inner: InnerCompactCiphertextListExpander::Cpu(expander),
+                            tag: self.tag.clone(),
+                        }),
+                    #[cfg(feature = "gpu")]
+                    InnerProvenCompactCiphertextList::Cuda(inner) => inner
+                        .h_proved_lists
+                        .verify_and_expand(
+                            crs,
+                            &pk.key.key,
+                            metadata,
+                            cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                        )
+                        .map(|expander| CompactCiphertextListExpander {
+                            inner: InnerCompactCiphertextListExpander::Cpu(expander),
+                            tag: self.tag.clone(),
+                        }),
+                },
+                #[cfg(feature = "gpu")]
+                Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
+                    InnerProvenCompactCiphertextList::Cuda(inner) => {
+                        with_thread_local_cuda_streams(|streams| {
+                            let ksk = CudaKeySwitchingKey {
+                                key_switching_key_material: gpu_key
+                                    .key
+                                    .cpk_key_switching_key_material
+                                    .as_ref()
+                                    .unwrap(),
+                                dest_server_key: &gpu_key.key.key,
+                            };
+                            let expander = inner.verify_and_expand(
+                                crs,
+                                &pk.key.key,
+                                metadata,
+                                &ksk,
+                                streams,
+                            )?;
+
+                            Ok(CompactCiphertextListExpander {
+                                inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                                tag: self.tag.clone(),
+                            })
+                        })
+                    }
+                    InnerProvenCompactCiphertextList::Cpu(cpu_inner) => {
+                        with_thread_local_cuda_streams(|streams| {
+                            let gpu_proven_ct = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                                    cpu_inner, streams,
+                                );
+                            with_thread_local_cuda_streams(|streams| {
+                                let ksk = CudaKeySwitchingKey {
+                                    key_switching_key_material: gpu_key
+                                        .key
+                                        .cpk_key_switching_key_material
+                                        .as_ref()
+                                        .unwrap(),
+                                    dest_server_key: &gpu_key.key.key,
+                                };
+                                let expander = gpu_proven_ct.verify_and_expand(
+                                    crs,
+                                    &pk.key.key,
+                                    metadata,
+                                    &ksk,
+                                    streams,
+                                )?;
+
+                                Ok(CompactCiphertextListExpander {
+                                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                                    tag: self.tag.clone(),
+                                })
+                            })
+                        })
+                    }
+                },
+                #[cfg(feature = "hpu")]
+                Some(_) => Err(crate::Error::new(
+                    "Expected a CPU or GPU server key".to_string(),
+                )),
             })
         }
 
@@ -324,30 +521,84 @@ mod zk {
         ///
         /// If you are here you were probably looking for it: use at your own risks.
         pub fn expand_without_verification(&self) -> crate::Result<CompactCiphertextListExpander> {
-            // For WASM
-            if !self.inner.is_packed() && !self.inner.needs_casting() {
-                // No ServerKey required, short circuit to avoid the global state call
-                return Ok(CompactCiphertextListExpander {
-                    inner: self.inner.expand_without_verification(
-                        IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                    )?,
-                    tag: self.tag.clone(),
-                });
+            #[allow(irrefutable_let_patterns)]
+            if let InnerProvenCompactCiphertextList::Cpu(inner) = &self.inner {
+                // For WASM
+                if !inner.is_packed() && !inner.needs_casting() {
+                    // No ServerKey required, short circuit to avoid the global state call
+                    return Ok(CompactCiphertextListExpander {
+                        inner: InnerCompactCiphertextListExpander::Cpu(
+                            inner.expand_without_verification(
+                                IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
+                            )?,
+                        ),
+                        tag: self.tag.clone(),
+                    });
+                }
             }
 
-            global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
+            global_state::try_with_internal_keys(|maybe_keys| {
+                match maybe_keys {
                 None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-                Some(InternalServerKey::Cpu(cpu_key)) => self
-                    .inner
-                    .expand_without_verification(
-                        cpu_key.integer_compact_ciphertext_list_expansion_mode(),
-                    )
-                    .map(|expander| CompactCiphertextListExpander {
-                        inner: expander,
-                        tag: self.tag.clone(),
-                    }),
-                #[cfg(any(feature = "gpu", feature = "hpu"))]
-                Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+                    Some(InternalServerKey::Cpu(cpu_key)) => match &self.inner {
+                        InnerProvenCompactCiphertextList::Cpu(inner) => inner
+                            .expand_without_verification(
+                                cpu_key.integer_compact_ciphertext_list_expansion_mode(),
+                            )
+                            .map(|expander| CompactCiphertextListExpander {
+                                inner: InnerCompactCiphertextListExpander::Cpu(expander),
+                                tag: self.tag.clone(),
+                            }),
+                        #[cfg(feature = "gpu")]
+                        InnerProvenCompactCiphertextList::Cuda(_) => {
+                            Err(crate::Error::new("Tried expanding a ProvenCompactCiphertextList on the GPU, but the set ServerKey is a ServerKey".to_string()))
+                        }
+                    },
+                    #[cfg(feature = "gpu")]
+                    Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
+                        InnerProvenCompactCiphertextList::Cuda(inner) => {
+                            with_thread_local_cuda_streams(|streams| {
+                                let ksk = CudaKeySwitchingKey {
+                                    key_switching_key_material: gpu_key
+                                        .key
+                                        .cpk_key_switching_key_material
+                                        .as_ref()
+                                        .unwrap(),
+                                    dest_server_key: &gpu_key.key.key,
+                                };
+                                let expander = inner.expand_without_verification(&ksk, streams)?;
+
+                                Ok(CompactCiphertextListExpander {
+                                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                                    tag: self.tag.clone(),
+                                })
+                            })
+                        }
+                        InnerProvenCompactCiphertextList::Cpu(inner) => {
+                            with_thread_local_cuda_streams(|streams| {
+                               let gpu_proven_ct = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
+                                    inner, streams,
+                                );
+                                let ksk = CudaKeySwitchingKey {
+                                    key_switching_key_material: gpu_key
+                                        .key
+                                        .cpk_key_switching_key_material
+                                        .as_ref()
+                                        .unwrap(),
+                                    dest_server_key: &gpu_key.key.key,
+                                };
+                                let expander = gpu_proven_ct.expand_without_verification(&ksk, streams)?;
+
+                                Ok(CompactCiphertextListExpander {
+                                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                                    tag: self.tag.clone(),
+                                })
+                            })
+                        }
+                    },
+                #[cfg(feature = "hpu")]
+                Some(_) => Err(crate::Error::new("Expected a CPU or GPU server key".to_string())),
+                }
             })
         }
     }
@@ -356,9 +607,7 @@ mod zk {
         type ParameterSet = IntegerProvenCompactCiphertextListConformanceParams;
 
         fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
-            let Self { inner, tag: _ } = self;
-
-            inner.is_conformant(parameter_set)
+            self.inner.on_cpu().is_conformant(parameter_set)
         }
     }
 
@@ -367,7 +616,7 @@ mod zk {
         use super::*;
         use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
         use crate::shortint::parameters::*;
-        use crate::zk::CompactPkeCrs;
+
         use rand::{thread_rng, Rng};
 
         #[test]
@@ -409,14 +658,24 @@ mod zk {
     }
 }
 
+pub enum InnerCompactCiphertextListExpander {
+    Cpu(crate::integer::ciphertext::CompactCiphertextListExpander),
+    #[cfg(feature = "gpu")]
+    Cuda(crate::integer::gpu::ciphertext::compact_list::CudaCompactCiphertextListExpander),
+}
+
 pub struct CompactCiphertextListExpander {
-    pub(in crate::high_level_api) inner: crate::integer::ciphertext::CompactCiphertextListExpander,
+    pub inner: InnerCompactCiphertextListExpander,
     tag: Tag,
 }
 
 impl CiphertextList for CompactCiphertextListExpander {
     fn len(&self) -> usize {
-        self.inner.len()
+        match &self.inner {
+            InnerCompactCiphertextListExpander::Cpu(inner) => inner.len(),
+            #[cfg(feature = "gpu")]
+            InnerCompactCiphertextListExpander::Cuda(inner) => inner.len(),
+        }
     }
 
     fn is_empty(&self) -> bool {
@@ -424,16 +683,33 @@ impl CiphertextList for CompactCiphertextListExpander {
     }
 
     fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        self.inner.get_kind_of(index).and_then(|data_kind| {
-            crate::FheTypes::from_data_kind(data_kind, self.inner.message_modulus())
-        })
+        match &self.inner {
+            InnerCompactCiphertextListExpander::Cpu(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.message_modulus())
+                })
+            }
+            #[cfg(feature = "gpu")]
+            InnerCompactCiphertextListExpander::Cuda(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.message_modulus(index)?)
+                })
+            }
+        }
     }
 
     fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
-        T: Expandable + Tagged,
+        T: HlExpandable + Tagged,
     {
-        let mut expanded = self.inner.get::<T>(index);
+        let mut expanded = match &self.inner {
+            InnerCompactCiphertextListExpander::Cpu(inner) => inner.get::<T>(index),
+            #[cfg(feature = "gpu")]
+            InnerCompactCiphertextListExpander::Cuda(inner) => {
+                with_thread_local_cuda_streams(|streams| inner.get::<T>(index, streams))
+            }
+        };
+
         if let Ok(Some(inner)) = &mut expanded {
             inner.tag_mut().set_data(self.tag.data());
         }
@@ -531,7 +807,6 @@ impl CompactCiphertextListBuilder {
             })
             .expect("Internal error, invalid parameters should not have been allowed")
     }
-
     #[cfg(feature = "zk-pok")]
     pub fn build_with_proof_packed(
         &self,
@@ -542,7 +817,10 @@ impl CompactCiphertextListBuilder {
         self.inner
             .build_with_proof_packed(crs, metadata, compute_load)
             .map(|proved_list| ProvenCompactCiphertextList {
-                inner: proved_list,
+                inner:
+                    crate::high_level_api::compact_list::zk::InnerProvenCompactCiphertextList::Cpu(
+                        proved_list,
+                    ),
                 tag: self.tag.clone(),
             })
     }
