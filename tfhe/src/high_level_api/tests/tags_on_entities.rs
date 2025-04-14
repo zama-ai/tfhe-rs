@@ -144,6 +144,115 @@ fn test_tag_propagation_zk_pok() {
 }
 
 #[test]
+#[cfg(feature = "zk-pok")]
+#[cfg(feature = "gpu")]
+fn test_tag_propagation_zk_pok_gpu() {
+    use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .use_dedicated_compact_public_key_parameters((
+                PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+                PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ))
+            .build();
+    let crs = crate::zk::CompactPkeCrs::from_config(config, (2 * 32) + (2 * 64) + 2).unwrap();
+
+    let metadata = [b'h', b'l', b'a', b'p', b'i'];
+
+    let mut cks = ClientKey::generate(config);
+    let tag_value = random();
+    cks.tag_mut().set_u64(tag_value);
+    let cks = serialize_then_deserialize(&cks);
+    assert_eq!(cks.tag().as_u64(), tag_value);
+
+    let compressed_server_key = CompressedServerKey::new(&cks);
+    let gpu_sks = compressed_server_key.decompress_to_gpu();
+    assert_eq!(gpu_sks.tag(), cks.tag());
+    set_server_key(gpu_sks);
+
+    let cpk = CompactPublicKey::new(&cks);
+    assert_eq!(cpk.tag(), cks.tag());
+
+    let mut builder = CompactCiphertextList::builder(&cpk);
+
+    let list_packed = builder
+        .push(32u32)
+        .push(1u32)
+        .push(-1i64)
+        .push(i64::MIN)
+        .push(false)
+        .push(true)
+        .build_with_proof_packed(&crs, &metadata, crate::zk::ZkComputeLoad::Proof)
+        .unwrap();
+
+    let expander = list_packed
+        .verify_and_expand(&crs, &cpk, &metadata)
+        .unwrap();
+
+    {
+        let au32: FheUint32 = expander.get(0).unwrap().unwrap();
+        let bu32: FheUint32 = expander.get(1).unwrap().unwrap();
+        assert_eq!(au32.tag(), cks.tag());
+        assert_eq!(bu32.tag(), cks.tag());
+
+        let cu32 = au32 + bu32;
+        assert_eq!(cu32.tag(), cks.tag());
+    }
+
+    {
+        let ai64: FheInt64 = expander.get(2).unwrap().unwrap();
+        let bi64: FheInt64 = expander.get(3).unwrap().unwrap();
+        assert_eq!(ai64.tag(), cks.tag());
+        assert_eq!(bi64.tag(), cks.tag());
+
+        let ci64 = ai64 + bi64;
+        assert_eq!(ci64.tag(), cks.tag());
+    }
+
+    {
+        let abool: FheBool = expander.get(4).unwrap().unwrap();
+        let bbool: FheBool = expander.get(5).unwrap().unwrap();
+        assert_eq!(abool.tag(), cks.tag());
+        assert_eq!(bbool.tag(), cks.tag());
+
+        let cbool = abool & bbool;
+        assert_eq!(cbool.tag(), cks.tag());
+    }
+
+    let unverified_expander = list_packed.expand_without_verification().unwrap();
+
+    {
+        let au32: FheUint32 = unverified_expander.get(0).unwrap().unwrap();
+        let bu32: FheUint32 = unverified_expander.get(1).unwrap().unwrap();
+        assert_eq!(au32.tag(), cks.tag());
+        assert_eq!(bu32.tag(), cks.tag());
+
+        let cu32 = au32 + bu32;
+        assert_eq!(cu32.tag(), cks.tag());
+    }
+
+    {
+        let ai64: FheInt64 = unverified_expander.get(2).unwrap().unwrap();
+        let bi64: FheInt64 = unverified_expander.get(3).unwrap().unwrap();
+        assert_eq!(ai64.tag(), cks.tag());
+        assert_eq!(bi64.tag(), cks.tag());
+
+        let ci64 = ai64 + bi64;
+        assert_eq!(ci64.tag(), cks.tag());
+    }
+
+    {
+        let abool: FheBool = unverified_expander.get(4).unwrap().unwrap();
+        let bbool: FheBool = unverified_expander.get(5).unwrap().unwrap();
+        assert_eq!(abool.tag(), cks.tag());
+        assert_eq!(bbool.tag(), cks.tag());
+
+        let cbool = abool & bbool;
+        assert_eq!(cbool.tag(), cks.tag());
+    }
+}
+
+#[test]
 #[cfg(feature = "gpu")]
 fn test_tag_propagation_gpu() {
     test_tag_propagation(
