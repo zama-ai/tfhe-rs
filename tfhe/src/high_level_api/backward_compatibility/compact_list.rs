@@ -3,6 +3,9 @@ use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::{CompactCiphertextList, Tag};
 
+#[cfg(feature = "zk-pok")]
+use crate::ProvenCompactCiphertextList;
+
 #[derive(Version)]
 pub struct CompactCiphertextListV0(crate::integer::ciphertext::CompactCiphertextList);
 
@@ -16,9 +19,6 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
         })
     }
 }
-
-#[cfg(feature = "zk-pok")]
-use crate::ProvenCompactCiphertextList;
 
 #[derive(VersionsDispatch)]
 pub enum CompactCiphertextListVersions {
