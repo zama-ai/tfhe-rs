@@ -1613,46 +1613,53 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
+                    let gpu_sks_vec = cuda_local_keys(&cks);
+                    let local_streams = cuda_local_streams(num_block);
                     let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let gpu_sks_vec = cuda_local_keys(&cks);
-                            let local_streams = cuda_local_streams(num_block);
 
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
-                                    let local_index = i - gpu_index * num_elements_per_gpu;
-                                    let stream_index = local_index % num_streams_per_gpu;
-                                    let ct_0 =
-                                        cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
-                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
-                                    )
+                                    cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
                                 })
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
-                                    let local_index = i - gpu_index * num_elements_per_gpu;
-                                    let stream_index = local_index % num_streams_per_gpu;
-                                    let ct_1 =
-                                        cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
-                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_1,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
-                                    )
+                                    cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts_0, cts_1, local_streams, gpu_sks_vec)
+                            (cts_0, cts_1)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts_0, mut cts_1, local_streams, gpu_sks_vec)| {
+                            |(mut cts_0_cpu, mut cts_1_cpu)| {
+                                let mut cts_0 = cts_0_cpu.iter().enumerate()
+                                    .map(|(i, ct_0)| {
+                                        let gpu_index = (i / num_elements_per_gpu) % num_gpus;
+                                        let local_index = i - gpu_index * num_elements_per_gpu;
+                                        let stream_index = local_index % num_streams_per_gpu;
+                                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                            &ct_0,
+                                            &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        )
+                                    })
+                                    .collect::<Vec<_>>();
+                                let mut cts_1 = cts_1_cpu.iter().enumerate()
+                                    .map(|(i, ct_1)| {
+                                        let gpu_index = (i / num_elements_per_gpu) % num_gpus;
+                                        let local_index = i - gpu_index * num_elements_per_gpu;
+                                        let stream_index = local_index % num_streams_per_gpu;
+                                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                            &ct_1,
+                                            &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        )
+                                    })
+                                    .collect::<Vec<_>>();
+
                                 cts_0
                                     .par_chunks_mut(num_elements_per_gpu)
                                     .zip(cts_1.par_chunks_mut(num_elements_per_gpu))
