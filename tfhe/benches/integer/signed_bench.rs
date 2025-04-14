@@ -1497,7 +1497,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1506,7 +1506,7 @@ mod cuda {
 
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -1522,7 +1522,7 @@ mod cuda {
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -1681,7 +1681,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1690,7 +1690,7 @@ mod cuda {
 
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -1849,7 +1849,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1858,7 +1858,7 @@ mod cuda {
 
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -2042,7 +2042,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -2051,7 +2051,7 @@ mod cuda {
 
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -2067,7 +2067,7 @@ mod cuda {
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
@@ -2232,7 +2232,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -2241,7 +2241,7 @@ mod cuda {
 
                             let cts_cond = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
@@ -2253,7 +2253,7 @@ mod cuda {
                                 .collect::<Vec<_>>();
                             let cts_then = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let ct_then = cks
@@ -2268,7 +2268,7 @@ mod cuda {
 
                             let cts_else = (0..elements)
                                 .map(|i| {
-                                    let gpu_index = i % num_elements_per_gpu;
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     let ct_else = cks
