@@ -310,7 +310,7 @@ pub struct CompactCiphertextListExpander {
 }
 
 impl CompactCiphertextListExpander {
-    fn new(expanded_blocks: Vec<Ciphertext>, info: Vec<DataKind>) -> Self {
+    pub(crate) fn new(expanded_blocks: Vec<Ciphertext>, info: Vec<DataKind>) -> Self {
         Self {
             expanded_blocks,
             info,
