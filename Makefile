@@ -294,7 +294,7 @@ check_typos: install_typos_checker
 .PHONY: clippy_gpu # Run clippy lints on tfhe with "gpu" enabled
 clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats,extended-types \
+		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 
@@ -899,7 +899,7 @@ test_high_level_api: install_rs_build_toolchain
 
 test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
-		--features=integer,internal-keycache,gpu -p $(TFHE_SPEC) \
+		--features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*gpu.*/)"
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
@@ -1073,7 +1073,7 @@ check_compile_tests: install_rs_build_toolchain
 .PHONY: check_compile_tests_benches_gpu # Build tests in debug without running them
 check_compile_tests_benches_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
-		--features=experimental,boolean,shortint,integer,internal-keycache,gpu \
+		--features=experimental,boolean,shortint,integer,internal-keycache,gpu,zk-pok \
 		-p $(TFHE_SPEC)
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \

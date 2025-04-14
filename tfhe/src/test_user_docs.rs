@@ -239,6 +239,10 @@ mod test_gpu_doc {
         "../docs/configuration/gpu_acceleration/multi_gpu.md",
         configuration_gpu_acceleration_multi_gpu_device_selection
     );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/zk-pok.md",
+        configuration_gpu_acceleration_zk_pok
+    );
 }
 
 #[cfg(feature = "hpu")]

@@ -959,7 +959,7 @@ pub unsafe fn fourier_transform_backward_as_torus_f128_async<T: UnsignedInteger>
     );
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CudaLweList<T: UnsignedInteger> {
     // Pointer to GPU data
     pub d_vec: CudaVec<T>,
@@ -969,6 +969,17 @@ pub struct CudaLweList<T: UnsignedInteger> {
     pub lwe_dimension: LweDimension,
     // Ciphertext Modulus
     pub ciphertext_modulus: CiphertextModulus<T>,
+}
+
+impl<T: UnsignedInteger> CudaLweList<T> {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            d_vec: self.d_vec.duplicate(streams),
+            lwe_ciphertext_count: self.lwe_ciphertext_count,
+            lwe_dimension: self.lwe_dimension,
+            ciphertext_modulus: self.ciphertext_modulus,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

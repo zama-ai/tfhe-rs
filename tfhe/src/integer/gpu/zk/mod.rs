@@ -18,6 +18,7 @@ use crate::integer::{CompactPublicKey, ProvenCompactCiphertextList};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::AtomicPatternKind;
 use crate::zk::CompactPkeCrs;
+use crate::GpuIndex;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
@@ -28,6 +29,28 @@ pub struct CudaProvenCompactCiphertextList {
 }
 
 impl CudaProvenCompactCiphertextList {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            h_proved_lists: self.h_proved_lists.clone(),
+            d_compact_lists: self
+                .d_compact_lists
+                .iter()
+                .map(|ct_list| ct_list.duplicate(streams))
+                .collect_vec(),
+        }
+    }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.d_compact_lists
+            .first()
+            .unwrap()
+            .d_ct_list
+            .0
+            .d_vec
+            .gpu_indexes
+            .as_slice()
+    }
+
     unsafe fn flatten_async(
         slice_ciphertext_list: &[CudaCompactCiphertextList],
         streams: &CudaStreams,
@@ -152,13 +175,9 @@ impl CudaProvenCompactCiphertextList {
                     DataKind::Boolean => 1,
                     DataKind::Signed(x) => *x,
                     DataKind::Unsigned(x) => *x,
-                    _ => panic!("DataKind not supported on GPUs"),
+                    DataKind::String { .. } => panic!("DataKind not supported on GPUs"),
                 };
-                std::iter::repeat(match data_kind {
-                    DataKind::Boolean => true,
-                    _ => false,
-                })
-                .take(repetitions)
+                std::iter::repeat_n(matches!(data_kind, DataKind::Boolean), repetitions)
             })
             .collect_vec();
 
@@ -194,25 +213,22 @@ impl CudaProvenCompactCiphertextList {
                 streams,
             );
 
-            let d_input = &CudaProvenCompactCiphertextList::flatten_async(
-                self.d_compact_lists.as_slice(),
-                streams,
-            );
-            let casting_key = &key.key_switching_key;
-            let sks = key.dest_server_key;
+            let d_input = &Self::flatten_async(self.d_compact_lists.as_slice(), streams);
+            let casting_key = &key.key_switching_key_material;
+            let sks = &key.dest_server_key;
             let computing_ks_key = &key.dest_server_key.key_switching_key;
 
-            let casting_key_type: KsType = key.destination_key.into();
+            let casting_key_type: KsType = casting_key.destination_key.into();
 
             match &sks.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
                     expand_async(
                         streams,
                         &mut d_output,
-                        &d_input,
+                        d_input,
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
-                        &casting_key.d_vec,
+                        &casting_key.lwe_keyswitch_key.d_vec,
                         sks.message_modulus,
                         sks.carry_modulus,
                         d_bsk.glwe_dimension(),
@@ -220,10 +236,16 @@ impl CudaProvenCompactCiphertextList {
                         d_bsk.input_lwe_dimension(),
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        casting_key.input_key_lwe_size().to_lwe_dimension(),
-                        casting_key.output_key_lwe_size().to_lwe_dimension(),
-                        casting_key.decomposition_level_count(),
-                        casting_key.decomposition_base_log(),
+                        casting_key
+                            .lwe_keyswitch_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key
+                            .lwe_keyswitch_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key.lwe_keyswitch_key.decomposition_level_count(),
+                        casting_key.lwe_keyswitch_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -238,13 +260,10 @@ impl CudaProvenCompactCiphertextList {
                     expand_async(
                         streams,
                         &mut d_output,
-                        &CudaProvenCompactCiphertextList::flatten_async(
-                            self.d_compact_lists.as_slice(),
-                            streams,
-                        ),
+                        &Self::flatten_async(self.d_compact_lists.as_slice(), streams),
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
-                        &casting_key.d_vec,
+                        &casting_key.lwe_keyswitch_key.d_vec,
                         sks.message_modulus,
                         sks.carry_modulus,
                         d_multibit_bsk.glwe_dimension(),
@@ -252,10 +271,16 @@ impl CudaProvenCompactCiphertextList {
                         d_multibit_bsk.input_lwe_dimension(),
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        casting_key.input_key_lwe_size().to_lwe_dimension(),
-                        casting_key.output_key_lwe_size().to_lwe_dimension(),
-                        casting_key.decomposition_level_count(),
-                        casting_key.decomposition_base_log(),
+                        casting_key
+                            .lwe_keyswitch_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key
+                            .lwe_keyswitch_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key.lwe_keyswitch_key.decomposition_level_count(),
+                        casting_key.lwe_keyswitch_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
@@ -294,7 +319,7 @@ impl CudaProvenCompactCiphertextList {
             })
             .collect();
 
-        CudaProvenCompactCiphertextList {
+        Self {
             h_proved_lists: h_proved_lists.clone(),
             d_compact_lists,
         }
@@ -328,6 +353,18 @@ impl CudaProvenCompactCiphertextList {
     }
 }
 
+impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let cpu_ct = ProvenCompactCiphertextList::deserialize(deserializer)?;
+        let streams = CudaStreams::new_multi_gpu();
+
+        Ok(Self::from_proven_compact_ciphertext_list(&cpu_ct, &streams))
+    }
+}
+
 #[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
@@ -344,9 +381,12 @@ mod tests {
     use crate::integer::ciphertext::{CompactCiphertextList, DataKind};
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
-    use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
+    use crate::integer::gpu::key_switching_key::{
+        CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial,
+    };
     use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
     use crate::integer::gpu::CudaServerKey;
+    use crate::integer::key_switching_key::KeySwitchingKey;
     use crate::integer::{
         ClientKey, CompactPrivateKey, CompactPublicKey, CompressedServerKey,
         ProvenCompactCiphertextList,
@@ -405,15 +445,16 @@ mod tests {
             let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
 
             let streams = CudaStreams::new_multi_gpu();
+            let sk = compressed_server_key.decompress();
             let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
             let compact_private_key = CompactPrivateKey::new(pke_params);
-            let d_ksk = CudaKeySwitchingKey::new(
-                (&compact_private_key, None),
-                (&cks, &gpu_sk),
-                ksk_params,
-                &streams,
-            );
+            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+            let d_ksk_material =
+                CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+            let d_ksk =
+                CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sk);
+
             let pk = CompactPublicKey::new(&compact_private_key);
 
             let msgs = (0..512)
@@ -493,17 +534,17 @@ mod tests {
             .unwrap();
             let cks = ClientKey::new(fhe_params);
             let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
-
+            let sk = compressed_server_key.decompress();
             let streams = CudaStreams::new_multi_gpu();
             let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
             let compact_private_key = CompactPrivateKey::new(pke_params);
-            let d_ksk = CudaKeySwitchingKey::new(
-                (&compact_private_key, None),
-                (&cks, &gpu_sk),
-                ksk_params,
-                &streams,
-            );
+            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+            let d_ksk_material =
+                CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+            let d_ksk =
+                CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sk);
+
             let pk = CompactPublicKey::new(&compact_private_key);
 
             let msgs = (0..2).map(|_| random::<u64>()).collect::<Vec<_>>();
@@ -583,17 +624,17 @@ mod tests {
             .unwrap();
             let cks = ClientKey::new(fhe_params);
             let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
-
+            let sk = compressed_server_key.decompress();
             let streams = CudaStreams::new_multi_gpu();
             let gpu_sk = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
 
             let compact_private_key = CompactPrivateKey::new(pke_params);
-            let d_ksk = CudaKeySwitchingKey::new(
-                (&compact_private_key, None),
-                (&cks, &gpu_sk),
-                ksk_params,
-                &streams,
-            );
+            let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+            let d_ksk_material =
+                CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+            let d_ksk =
+                CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sk);
+
             let pk = CompactPublicKey::new(&compact_private_key);
 
             let msgs = (0..2).map(|_| random::<u64>()).collect::<Vec<_>>();
