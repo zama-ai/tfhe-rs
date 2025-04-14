@@ -1486,7 +1486,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1629,7 +1629,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1642,7 +1642,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1801,7 +1801,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1960,7 +1960,7 @@ mod cuda {
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1973,7 +1973,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_then,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1987,7 +1987,7 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_else,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();

@@ -1516,7 +1516,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1532,7 +1532,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1700,7 +1700,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1868,7 +1868,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2061,7 +2061,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2077,7 +2077,7 @@ mod cuda {
 
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2247,7 +2247,7 @@ mod cuda {
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2261,7 +2261,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_then,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2276,7 +2276,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_else,
-                                        &local_streams[stream_index],
+                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
