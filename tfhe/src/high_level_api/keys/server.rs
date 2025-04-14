@@ -8,6 +8,8 @@ use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 use crate::conformance::ParameterSetConformant;
 #[cfg(feature = "gpu")]
+use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
+#[cfg(feature = "gpu")]
 use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
@@ -292,6 +294,21 @@ impl CompressedServerKey {
             &self.integer_key.key,
             &streams,
         );
+        let cpk_key_switching_key_material = self
+            .integer_key
+            .cpk_key_switching_key_material
+            .as_ref()
+            .map(|cpk_ksk_material| {
+                let ksk_material = cpk_ksk_material.decompress();
+                let d_ksk = CudaLweKeyswitchKey::from_lwe_keyswitch_key(
+                    &ksk_material.material.key_switching_key,
+                    &streams,
+                );
+                CudaKeySwitchingKeyMaterial {
+                    lwe_keyswitch_key: d_ksk,
+                    destination_key: ksk_material.material.destination_key,
+                }
+            });
         let compression_key: Option<
             crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
         > = self
@@ -328,6 +345,7 @@ impl CompressedServerKey {
         CudaServerKey {
             key: Arc::new(IntegerCudaServerKey {
                 key,
+                cpk_key_switching_key_material,
                 compression_key,
                 decompression_key,
             }),
@@ -459,6 +477,9 @@ mod hpu {
 }
 
 use crate::high_level_api::keys::inner::IntegerServerKeyConformanceParams;
+
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
 
 impl ParameterSetConformant for ServerKey {
     type ParameterSet = IntegerServerKeyConformanceParams;
