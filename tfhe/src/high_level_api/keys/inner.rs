@@ -310,8 +310,11 @@ impl IntegerServerKey {
 }
 
 #[cfg(feature = "gpu")]
+#[allow(dead_code)]
 pub struct IntegerCudaServerKey {
     pub(crate) key: crate::integer::gpu::CudaServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial>,
     pub(crate) compression_key:
         Option<crate::integer::gpu::list_compression::server_keys::CudaCompressionKey>,
     pub(crate) decompression_key:
