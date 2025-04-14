@@ -333,8 +333,8 @@ mod gpu {
     }
 
     impl CustomMultiGpuIndexes {
-        pub(in crate::high_level_api) fn gpu_indexes(&self) -> Vec<GpuIndex> {
-            return self.0.clone();
+        pub(in crate::high_level_api) fn gpu_indexes(&self) -> &[GpuIndex] {
+            &self.0
         }
     }
 }
