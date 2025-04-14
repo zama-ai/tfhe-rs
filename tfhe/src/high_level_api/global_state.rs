@@ -231,7 +231,7 @@ mod gpu {
     }
 
     impl CudaStreamPool {
-        fn new(custom_streams: Option<Vec<GpuIndex>>) -> Self {
+        fn new() -> Self {
             Self {
                 multi: LazyCell::new(CudaStreams::new_multi_gpu),
                 custom: {
