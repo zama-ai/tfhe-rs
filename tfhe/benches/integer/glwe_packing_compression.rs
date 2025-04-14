@@ -165,8 +165,9 @@ fn cpu_glwe_packing(c: &mut Criterion) {
 mod cuda {
     use super::*;
     use crate::utilities::cuda_integer_utils::cuda_local_streams;
+    use crate::utilities::cuda_num_streams_per_gpu;
     use std::cmp::max;
-    use tfhe::core_crypto::gpu::CudaStreams;
+    use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
     use tfhe::integer::gpu::gen_keys_radix_gpu;
@@ -294,16 +295,20 @@ mod cuda {
                         })
                         .collect::<Vec<_>>();
 
-                    let local_streams = cuda_local_streams(num_block, elements as usize);
+                    let local_streams = cuda_local_streams(num_block);
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
 
                     bench_id_pack = format!("{bench_name}::throughput::pack_u{bit_size}");
                     bench_group.bench_function(&bench_id_pack, |b| {
                         b.iter(|| {
-                            builders.par_iter().zip(local_streams.par_iter()).for_each(
-                                |(builder, local_stream)| {
-                                    builder.build(&cuda_compression_key, local_stream);
-                                },
-                            )
+                            builders
+                                .par_chunks(elements.div_ceil(get_number_of_gpus() as u64) as usize)
+                                .zip(local_streams.par_chunks(num_streams_per_gpu))
+                                .for_each(|(builder, local_stream)| {
+                                    builder.iter().zip(local_stream.iter()).for_each(|(b, s)| {
+                                        b.build(&cuda_compression_key, s);
+                                    })
+                                })
                         })
                     });
 

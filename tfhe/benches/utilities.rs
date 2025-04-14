@@ -835,35 +835,29 @@ mod cuda_utils {
 
         /// Get number of streams usable for CUDA throughput benchmarks
         #[allow(dead_code)]
-        fn cuda_num_streams(num_block: usize) -> u64 {
-            let num_streams_per_gpu: u32 = match num_block {
-                2 => 64,
-                4 => 32,
-                8 => 16,
+        pub fn cuda_num_streams_per_gpu(num_block: usize) -> usize {
+            match num_block {
+                2 => 32,
+                4 => 16,
+                8 => 8,
                 16 => 8,
                 32 => 4,
                 64 => 2,
                 128 => 1,
-                _ => 8,
-            };
-            (num_streams_per_gpu * get_number_of_gpus()) as u64
+                _ => 4,
+            }
         }
 
         /// Get vector of CUDA streams that can be directly used for throughput benchmarks.
         #[allow(dead_code)]
-        pub fn cuda_local_streams(
-            num_block: usize,
-            throughput_elements: usize,
-        ) -> Vec<CudaStreams> {
-            (0..cuda_num_streams(num_block))
-                .map(|i| {
-                    CudaStreams::new_single_gpu(GpuIndex::new(
-                        (i % get_number_of_gpus() as u64) as u32,
-                    ))
+        pub fn cuda_local_streams(num_block: usize) -> Vec<CudaStreams> {
+            let cuda_streams: Vec<CudaStreams> = (0..get_number_of_gpus())
+                .flat_map(|gpu| {
+                    (0..cuda_num_streams_per_gpu(num_block))
+                        .map(move |_| CudaStreams::new_single_gpu(GpuIndex::new(gpu)))
                 })
-                .cycle()
-                .take(throughput_elements)
-                .collect::<Vec<_>>()
+                .collect();
+            cuda_streams
         }
 
         /// Instantiate Cuda server key to each available GPU.

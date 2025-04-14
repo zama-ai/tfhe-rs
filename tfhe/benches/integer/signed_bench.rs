@@ -1406,7 +1406,6 @@ mod cuda {
     use super::*;
     use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::criterion_group;
-    use rayon::iter::IntoParallelRefIterator;
     use std::cmp::max;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -1484,8 +1483,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_count = get_number_of_gpus() as usize;
-                    let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
                     let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -1497,13 +1494,21 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block, pbs_count);
-                    bench_group.throughput(Throughput::Elements(elements));
+                    let elements = throughput_num_threads(num_block, pbs_count) as usize;
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
+                    let num_gpus = get_number_of_gpus() as usize;
+                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let local_streams = cuda_local_streams(num_block);
+
                             let cts_0 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
@@ -1511,43 +1516,63 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
-                                    let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
-                                    let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
+                                    let clear_1 = tfhe::integer::I256::from((clearlow, clearhigh));
+                                    let ct_1 = cks.encrypt_signed_radix(clear_1, num_block);
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                        &ct_0,
-                                        &local_streams[i as usize],
+                                        &ct_1,
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts_0, cts_1, local_streams)
+                            (cts_0, cts_1, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts_0, mut cts_1, local_streams)| {
+                            |(mut cts_0, mut cts_1, local_streams, gpu_sks_vec)| {
                                 cts_0
-                                    .par_iter_mut()
-                                    .zip(cts_1.par_iter_mut())
-                                    .zip(local_streams.par_iter())
+                                    .par_chunks_mut(num_elements_per_gpu)
+                                    .zip(cts_1.par_chunks_mut(num_elements_per_gpu))
+                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
                                     .enumerate()
-                                    .for_each(|(i, ((ct_0, ct_1), local_stream))| {
-                                        binary_op(
-                                            &gpu_sks_vec[i % gpu_count],
-                                            ct_0,
-                                            ct_1,
-                                            local_stream,
-                                        );
-                                    })
+                                    .for_each(
+                                        |(i, ((ct_0_gpu_i, ct_1_gpu_i), local_streams_gpu_i))| {
+                                            let num_elements_per_stream =
+                                                ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                            ct_0_gpu_i
+                                                .par_chunks_mut(num_elements_per_stream)
+                                                .zip(
+                                                    ct_1_gpu_i
+                                                        .par_chunks_mut(num_elements_per_stream),
+                                                )
+                                                .zip(local_streams_gpu_i)
+                                                .for_each(|((ct_0, ct_1), stream)| {
+                                                    ct_0.par_iter_mut()
+                                                        .zip(ct_1.par_iter_mut())
+                                                        .for_each(|(c0, c1)| {
+                                                            binary_op(
+                                                                &gpu_sks_vec[i],
+                                                                c0,
+                                                                c1,
+                                                                stream,
+                                                            );
+                                                        })
+                                                })
+                                        },
+                                    );
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -1643,8 +1668,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_count = get_number_of_gpus() as usize;
-                    let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -1655,13 +1678,21 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block, pbs_count);
-                    bench_group.throughput(Throughput::Elements(elements));
+                    let elements = throughput_num_threads(num_block, pbs_count) as usize;
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
+                    let num_gpus = get_number_of_gpus() as usize;
+                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
-                            let cts = (0..elements)
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let local_streams = cuda_local_streams(num_block);
+
+                            let cts_0 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
@@ -1669,23 +1700,33 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts, local_streams)
+                            (cts_0, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts, local_streams)| {
-                                cts.par_iter_mut()
-                                    .zip(local_streams.par_iter())
+                            |(mut cts_0, local_streams, gpu_sks_vec)| {
+                                cts_0
+                                    .par_chunks_mut(num_elements_per_gpu)
+                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
                                     .enumerate()
-                                    .for_each(|(i, (ct_0, local_stream))| {
-                                        unary_op(&gpu_sks_vec[i % gpu_count], ct_0, local_stream);
-                                    })
+                                    .for_each(|(i, (ct_0_gpu_i, local_streams_gpu_i))| {
+                                        let num_elements_per_stream =
+                                            ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                        ct_0_gpu_i
+                                            .par_chunks_mut(num_elements_per_stream)
+                                            .zip(local_streams_gpu_i)
+                                            .for_each(|(ct_0, stream)| {
+                                                ct_0.par_iter_mut().for_each(|c| {
+                                                    unary_op(&gpu_sks_vec[i], c, stream);
+                                                })
+                                            })
+                                    });
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -1792,8 +1833,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_count = get_number_of_gpus() as usize;
-                    let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
                     let mut ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
@@ -1807,13 +1846,21 @@ mod cuda {
                     bench_id = format!(
                         "{bench_name}::throughput::{param_name}::{bit_size}_bits_scalar_{bit_size}"
                     );
-                    let elements = throughput_num_threads(num_block, pbs_count);
-                    bench_group.throughput(Throughput::Elements(elements));
+                    let elements = throughput_num_threads(num_block, pbs_count) as usize;
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
+                    let num_gpus = get_number_of_gpus() as usize;
+                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let local_streams = cuda_local_streams(num_block);
+
                             let cts_0 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
@@ -1821,7 +1868,7 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1829,25 +1876,45 @@ mod cuda {
                                 .map(|_| rng_func(&mut rng, bit_size) & max_value_for_bit_size)
                                 .collect::<Vec<_>>();
 
-                            (cts_0, clears_1, local_streams)
+                            (cts_0, clears_1, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts_0, clears_1, local_streams)| {
+                            |(mut cts_0, mut clears_1, local_streams, gpu_sks_vec)| {
                                 cts_0
-                                    .par_iter_mut()
-                                    .zip(clears_1.par_iter())
-                                    .zip(local_streams.par_iter())
+                                    .par_chunks_mut(num_elements_per_gpu)
+                                    .zip(clears_1.par_chunks_mut(num_elements_per_gpu))
+                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
                                     .enumerate()
-                                    .for_each(|(i, ((ct_0, clear_1), local_stream))| {
-                                        binary_op(
-                                            &gpu_sks_vec[i % gpu_count],
-                                            ct_0,
-                                            *clear_1,
-                                            local_stream,
-                                        );
-                                    })
+                                    .for_each(
+                                        |(
+                                            i,
+                                            ((ct_0_gpu_i, clears_1_gpu_i), local_streams_gpu_i),
+                                        )| {
+                                            let num_elements_per_stream =
+                                                ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                            ct_0_gpu_i
+                                                .par_chunks_mut(num_elements_per_stream)
+                                                .zip(
+                                                    clears_1_gpu_i
+                                                        .par_chunks(num_elements_per_stream),
+                                                )
+                                                .zip(local_streams_gpu_i)
+                                                .for_each(|((ct_0, clear_1), stream)| {
+                                                    ct_0.iter_mut().zip(clear_1.iter()).for_each(
+                                                        |(c0, c1)| {
+                                                            binary_op(
+                                                                &gpu_sks_vec[i],
+                                                                c0,
+                                                                *c1,
+                                                                stream,
+                                                            );
+                                                        },
+                                                    )
+                                                })
+                                        },
+                                    );
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -1960,8 +2027,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_count = get_number_of_gpus() as usize;
-                    let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
                     let clear_1 = rng.gen_range(0u128..bit_size as u128);
@@ -1974,13 +2039,21 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block, pbs_count);
-                    bench_group.throughput(Throughput::Elements(elements));
+                    let elements = throughput_num_threads(num_block, pbs_count) as usize;
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
+                    let num_gpus = get_number_of_gpus() as usize;
+                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let local_streams = cuda_local_streams(num_block);
+
                             let cts_0 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
@@ -1988,12 +2061,15 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let clearlow = rng.gen::<u128>();
                                     let clearhigh = rng.gen::<u128>();
                                     let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
@@ -2001,30 +2077,47 @@ mod cuda {
 
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts_0, cts_1, local_streams)
+                            (cts_0, cts_1, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(mut cts_0, mut cts_1, local_streams)| {
+                            |(mut cts_0, mut cts_1, local_streams, gpu_sks_vec)| {
                                 cts_0
-                                    .par_iter_mut()
-                                    .zip(cts_1.par_iter_mut())
-                                    .zip(local_streams.par_iter())
+                                    .par_chunks_mut(num_elements_per_gpu)
+                                    .zip(cts_1.par_chunks_mut(num_elements_per_gpu))
+                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
                                     .enumerate()
-                                    .for_each(|(i, ((ct_0, ct_1), local_stream))| {
-                                        binary_op(
-                                            &gpu_sks_vec[i % gpu_count],
-                                            ct_0,
-                                            ct_1,
-                                            local_stream,
-                                        );
-                                    })
+                                    .for_each(
+                                        |(i, ((ct_0_gpu_i, ct_1_gpu_i), local_streams_gpu_i))| {
+                                            let num_elements_per_stream =
+                                                ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                            ct_0_gpu_i
+                                                .par_chunks_mut(num_elements_per_stream)
+                                                .zip(
+                                                    ct_1_gpu_i
+                                                        .par_chunks_mut(num_elements_per_stream),
+                                                )
+                                                .zip(local_streams_gpu_i)
+                                                .for_each(|((ct_0, ct_1), stream)| {
+                                                    ct_0.iter_mut().zip(ct_1.iter_mut()).for_each(
+                                                        |(c0, c1)| {
+                                                            binary_op(
+                                                                &gpu_sks_vec[i],
+                                                                c0,
+                                                                c1,
+                                                                stream,
+                                                            );
+                                                        },
+                                                    )
+                                                })
+                                        },
+                                    );
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -2124,8 +2217,6 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_count = get_number_of_gpus() as usize;
-                    let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
                     let cond = cpu_sks.create_trivial_boolean_block(rng.gen_bool(0.5));
@@ -2138,63 +2229,110 @@ mod cuda {
                     let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                     bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
-                    let elements = throughput_num_threads(num_block, pbs_count);
-                    bench_group.throughput(Throughput::Elements(elements));
+                    let elements = throughput_num_threads(num_block, pbs_count) as usize;
+                    let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
+                    let num_gpus = get_number_of_gpus() as usize;
+                    let num_elements_per_gpu = elements.div_ceil(num_gpus);
+                    bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams(num_block, elements as usize);
+                            let gpu_sks_vec = cuda_local_keys(&cks);
+                            let local_streams = cuda_local_streams(num_block);
+
                             let cts_cond = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
                             let cts_then = (0..elements)
                                 .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
                                     let ct_then = cks
                                         .encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_then,
-                                        &local_streams[i as usize],
-                                    )
-                                })
-                                .collect::<Vec<_>>();
-                            let cts_else = (0..elements)
-                                .map(|i| {
-                                    let ct_else = cks
-                                        .encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
-                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
-                                        &ct_else,
-                                        &local_streams[i as usize],
+                                        &local_streams[stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
 
-                            (cts_cond, cts_then, cts_else, local_streams)
+                            let cts_else = (0..elements)
+                                .map(|i| {
+                                    let gpu_index = i % num_elements_per_gpu;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
+                                    let ct_else = cks
+                                        .encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
+
+                                    CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
+                                        &ct_else,
+                                        &local_streams[stream_index],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+
+                            (cts_cond, cts_then, cts_else, local_streams, gpu_sks_vec)
                         };
 
                         b.iter_batched(
                             setup_encrypted_values,
-                            |(cts_cond, cts_then, cts_else, local_streams)| {
+                            |(
+                                mut cts_cond,
+                                mut cts_then,
+                                mut cts_else,
+                                local_streams,
+                                gpu_sks_vec,
+                            )| {
                                 cts_cond
-                                    .par_iter()
-                                    .zip(cts_then.par_iter())
-                                    .zip(cts_else.par_iter())
-                                    .zip(local_streams.par_iter())
+                                    .par_chunks_mut(num_elements_per_gpu)
+                                    .zip(cts_then.par_chunks_mut(num_elements_per_gpu))
+                                    .zip(cts_else.par_chunks_mut(num_elements_per_gpu))
+                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
                                     .enumerate()
                                     .for_each(
-                                        |(i, (((ct_cond, ct_then), ct_else), local_stream))| {
-                                            let _ = gpu_sks_vec[i % gpu_count].if_then_else(
-                                                ct_cond,
-                                                ct_then,
-                                                ct_else,
-                                                local_stream,
-                                            );
+                                        |(
+                                            i,
+                                            (
+                                                ((ct_cond_gpu_i, ct_then_gpu_i), ct_else_gpu_i),
+                                                local_streams_gpu_i,
+                                            ),
+                                        )| {
+                                            let num_elements_per_stream =
+                                                ct_cond_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                            ct_cond_gpu_i
+                                                .par_chunks(num_elements_per_stream)
+                                                .zip(
+                                                    ct_then_gpu_i
+                                                        .par_chunks(num_elements_per_stream),
+                                                )
+                                                .zip(
+                                                    ct_else_gpu_i
+                                                        .par_chunks(num_elements_per_stream),
+                                                )
+                                                .zip(local_streams_gpu_i)
+                                                .for_each(
+                                                    |(((ct_cond, ct_then), ct_else), stream)| {
+                                                        ct_cond
+                                                            .iter()
+                                                            .zip(ct_then.iter().zip(ct_else))
+                                                            .for_each(|(c, (t, e))| {
+                                                                let _ = gpu_sks_vec[i]
+                                                                    .if_then_else(c, t, e, stream);
+                                                            })
+                                                    },
+                                                )
                                         },
-                                    )
+                                    );
                             },
                             criterion::BatchSize::SmallInput,
                         )
@@ -3019,6 +3157,7 @@ mod cuda {
     criterion_group!(cuda_cast_ops, cuda_cast_to_unsigned, cuda_cast_to_signed);
 }
 
+use crate::utilities::cuda_num_streams_per_gpu;
 #[cfg(feature = "gpu")]
 use cuda::{
     cuda_cast_ops, default_cuda_dedup_ops, default_cuda_ops, default_scalar_cuda_ops,
