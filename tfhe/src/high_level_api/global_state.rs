@@ -226,7 +226,7 @@ mod gpu {
 
     struct CudaStreamPool {
         multi: LazyCell<CudaStreams>,
-        custom: Option<LazyCell<CudaStreams, Box<dyn Fn() -> CudaStreams>>>,
+        custom: LazyCell<CudaStreams, Box<dyn Fn(&[GpuIndex]) -> CudaStreams>>,
         single: Vec<LazyCell<CudaStreams, Box<dyn Fn() -> CudaStreams>>>,
     }
 
