@@ -234,15 +234,11 @@ mod gpu {
         fn new() -> Self {
             Self {
                 multi: LazyCell::new(CudaStreams::new_multi_gpu),
-                custom: {
-                    if let Some(indexes) = custom_streams {
-                        let ctor =
-                            Box::new(move || CudaStreams::new_multi_gpu_with_indexes(&indexes));
-                        Some(LazyCell::new(ctor as Box<dyn Fn() -> CudaStreams>))
-                    } else {
-                        None
-                    }
-                },
+custom: { 
+let ctor = move |indexes: &[GpuIndex]| -> CudaStreams { CudaStreams::new_multi_gpu_with_indexes(&indexes))
+};
+LazyCell::new(ctor as Box<dyn Fn(&[GpuIndex]) ->CudaStreams)
+}
                 single: (0..get_number_of_gpus())
                     .map(|index| {
                         let ctor =
