@@ -7,11 +7,17 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::EncryptionKeyChoice;
 
+#[derive(Clone)]
+#[allow(dead_code)]
+pub struct CudaKeySwitchingKeyMaterial {
+    pub(crate) key_switching_key: CudaLweKeyswitchKey<u64>,
+    pub(crate) destination_key: EncryptionKeyChoice,
+}
+
 #[allow(dead_code)]
 pub struct CudaKeySwitchingKey<'keys> {
-    pub(crate) key_switching_key: CudaLweKeyswitchKey<u64>,
+    pub(crate) key_switching_key_material: CudaKeySwitchingKeyMaterial,
     pub(crate) dest_server_key: &'keys CudaServerKey,
-    pub(crate) destination_key: EncryptionKeyChoice,
 }
 
 impl<'keys> CudaKeySwitchingKey<'keys> {
@@ -51,10 +57,12 @@ impl<'keys> CudaKeySwitchingKey<'keys> {
             );
         }
 
-        CudaKeySwitchingKey {
-            key_switching_key: d_key_switching_key,
+        Self {
+            key_switching_key_material: CudaKeySwitchingKeyMaterial {
+                key_switching_key: d_key_switching_key,
+                destination_key: params.destination_key,
+            },
             dest_server_key: output_key_pair.1,
-            destination_key: params.destination_key,
         }
     }
 }
