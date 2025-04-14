@@ -1618,25 +1618,19 @@ mod cuda {
                     let num_elements_per_gpu = elements/num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
-                        let setup_encrypted_values = || {
 
-                            let cts_0 = (0..elements)
-                                .map(|i| {
-                                    cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
-                                })
-                                .collect::<Vec<_>>();
-                            let cts_1 = (0..elements)
-                                .map(|i| {
-                                    cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
-                                })
-                                .collect::<Vec<_>>();
+                        let cts_0_cpu = (0..elements)
+                            .map(|_| {
+                                cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
+                            })
+                            .collect::<Vec<_>>();
+                        let cts_1_cpu = (0..elements)
+                            .map(|_| {
+                                cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
+                            })
+                            .collect::<Vec<_>>();
 
-                            (cts_0, cts_1)
-                        };
-
-                        b.iter_batched(
-                            setup_encrypted_values,
-                            |(mut cts_0_cpu, mut cts_1_cpu)| {
+                        b.iter(|| {
                                 let mut cts_0 = cts_0_cpu.iter().enumerate()
                                     .map(|(i, ct_0)| {
                                         let gpu_index = (i / num_elements_per_gpu) % num_gpus;
@@ -1690,8 +1684,7 @@ mod cuda {
                                                 })
                                         },
                                     );
-                            },
-                            criterion::BatchSize::SmallInput,
+                            }
                         );
                     });
                 }
