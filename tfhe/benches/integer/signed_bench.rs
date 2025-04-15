@@ -1497,7 +1497,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1516,7 +1516,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1532,7 +1533,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1681,7 +1683,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1700,7 +1702,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1849,7 +1852,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1868,7 +1871,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2042,7 +2046,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -2061,7 +2065,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2077,7 +2082,8 @@ mod cuda {
 
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_1,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2232,7 +2238,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -2247,7 +2253,8 @@ mod cuda {
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2261,7 +2268,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_then,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -2276,7 +2284,8 @@ mod cuda {
 
                                     CudaSignedRadixCiphertext::from_signed_radix_ciphertext(
                                         &ct_else,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();

@@ -2040,7 +2040,6 @@ template <typename Torus> struct int_sc_prop_memory {
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
     }
-
   };
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -2061,7 +2060,6 @@ template <typename Torus> struct int_sc_prop_memory {
       delete last_lhs;
       delete last_rhs;
     }
-
   };
 };
 

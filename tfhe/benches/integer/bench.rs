@@ -1399,6 +1399,7 @@ mod cuda {
     use crate::utilities::cuda_num_streams_per_gpu;
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
+    use std::sync::Arc;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -1470,7 +1471,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1486,7 +1487,8 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1614,78 +1616,72 @@ mod cuda {
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
+                    let gpu_sks_vec = Arc::new(gpu_sks_vec);
                     let local_streams = cuda_local_streams(num_block);
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
-
                         let cts_0_cpu = (0..elements)
-                            .map(|_| {
-                                cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
-                            })
+                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
                             .collect::<Vec<_>>();
                         let cts_1_cpu = (0..elements)
-                            .map(|_| {
-                                cks.encrypt_radix(gen_random_u256(&mut rng), num_block)
-                            })
+                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
                             .collect::<Vec<_>>();
 
                         b.iter(|| {
-                                let mut cts_0 = cts_0_cpu.iter().enumerate()
-                                    .map(|(i, ct_0)| {
-                                        let gpu_index = (i / num_elements_per_gpu) % num_gpus;
-                                        let local_index = i - gpu_index * num_elements_per_gpu;
-                                        let stream_index = local_index % num_streams_per_gpu;
-                                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                            &ct_0,
-                                            &local_streams[gpu_index * num_streams_per_gpu + stream_index],
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
-                                let mut cts_1 = cts_1_cpu.iter().enumerate()
-                                    .map(|(i, ct_1)| {
-                                        let gpu_index = (i / num_elements_per_gpu) % num_gpus;
-                                        let local_index = i - gpu_index * num_elements_per_gpu;
-                                        let stream_index = local_index % num_streams_per_gpu;
-                                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                            &ct_1,
-                                            &local_streams[gpu_index * num_streams_per_gpu + stream_index],
-                                        )
-                                    })
-                                    .collect::<Vec<_>>();
+                            let mut cts_0 = cts_0_cpu
+                                .iter()
+                                .enumerate()
+                                .map(|(i, ct_0)| {
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
+                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                        &ct_0,
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
+                            let mut cts_1 = cts_1_cpu
+                                .iter()
+                                .enumerate()
+                                .map(|(i, ct_1)| {
+                                    let gpu_index = (i / num_elements_per_gpu) % num_gpus;
+                                    let local_index = i - gpu_index * num_elements_per_gpu;
+                                    let stream_index = local_index % num_streams_per_gpu;
+                                    CudaUnsignedRadixCiphertext::from_radix_ciphertext(
+                                        &ct_1,
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
+                                    )
+                                })
+                                .collect::<Vec<_>>();
 
-                                cts_0
-                                    .par_chunks_mut(num_elements_per_gpu)
-                                    .zip(cts_1.par_chunks_mut(num_elements_per_gpu))
-                                    .zip(local_streams.par_chunks(num_streams_per_gpu))
-                                    .enumerate()
-                                    .for_each(
-                                        |(i, ((ct_0_gpu_i, ct_1_gpu_i), local_streams_gpu_i))| {
-                                            let num_elements_per_stream =
-                                                ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
-                                            ct_0_gpu_i
-                                                .par_chunks_mut(num_elements_per_stream)
-                                                .zip(
-                                                    ct_1_gpu_i
-                                                        .par_chunks_mut(num_elements_per_stream),
+                            cts_0
+                                .par_chunks_mut(num_elements_per_gpu)
+                                .zip(cts_1.par_chunks_mut(num_elements_per_gpu))
+                                .zip(local_streams.par_chunks(num_streams_per_gpu))
+                                .enumerate()
+                                .for_each(
+                                    |(i, ((ct_0_gpu_i, ct_1_gpu_i), local_streams_gpu_i))| {
+                                        let num_elements_per_stream =
+                                            ct_0_gpu_i.len().div_ceil(num_streams_per_gpu);
+                                        ct_0_gpu_i
+                                            .par_chunks_mut(num_elements_per_stream)
+                                            .zip(ct_1_gpu_i.par_chunks_mut(num_elements_per_stream))
+                                            .zip(local_streams_gpu_i)
+                                            .for_each(|((ct_0, ct_1), stream)| {
+                                                let key = Arc::clone(&gpu_sks_vec);
+                                                ct_0.iter_mut().zip(ct_1.iter_mut()).for_each(
+                                                    |(c0, c1)| {
+                                                        binary_op(&key[i], c0, c1, stream);
+                                                    },
                                                 )
-                                                .zip(local_streams_gpu_i)
-                                                .for_each(|((ct_0, ct_1), stream)| {
-                                                    ct_0.iter_mut().zip(ct_1.iter_mut()).for_each(
-                                                        |(c0, c1)| {
-                                                            binary_op(
-                                                                &gpu_sks_vec[i],
-                                                                c0,
-                                                                c1,
-                                                                stream,
-                                                            );
-                                                        },
-                                                    )
-                                                })
-                                        },
-                                    );
-                            }
-                        );
+                                            })
+                                    },
+                                );
+                        });
                     });
                 }
             }
@@ -1785,7 +1781,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1801,7 +1797,8 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_0,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1945,7 +1942,7 @@ mod cuda {
                     let elements = throughput_num_threads(num_block, pbs_count) as usize;
                     let num_streams_per_gpu = cuda_num_streams_per_gpu(num_block);
                     let num_gpus = get_number_of_gpus() as usize;
-                    let num_elements_per_gpu = elements/num_gpus;
+                    let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
                         let setup_encrypted_values = || {
@@ -1960,7 +1957,8 @@ mod cuda {
                                     let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1973,7 +1971,8 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_then,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
@@ -1987,7 +1986,8 @@ mod cuda {
                                         cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                                         &ct_else,
-                                        &local_streams[gpu_index * num_streams_per_gpu + stream_index],
+                                        &local_streams
+                                            [gpu_index * num_streams_per_gpu + stream_index],
                                     )
                                 })
                                 .collect::<Vec<_>>();
