@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::*;
 
-pub fn pbs_variance_128_bits_security_gaussian(
+pub fn pbs_variance_132_bits_security_gaussian(
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -10,7 +10,7 @@ pub fn pbs_variance_128_bits_security_gaussian(
     ciphertext_modulus: f64,
     ntt_modulus: f64,
 ) -> Variance {
-    let var_min = super::secure_noise::minimal_glwe_variance_for_128_bits_security_gaussian(
+    let var_min = super::secure_noise::minimal_glwe_variance_for_132_bits_security_gaussian(
         glwe_dimension,
         polynomial_size,
         ciphertext_modulus,
