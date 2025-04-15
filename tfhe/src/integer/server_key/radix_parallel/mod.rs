@@ -134,6 +134,7 @@ impl ServerKey {
         };
 
         if self.is_eligible_for_parallel_single_carry_propagation(blocks.len()) {
+            println!("is_eligible_for_parallel_single_carry_propagation");
             let highest_degree = blocks
                 .iter()
                 .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
@@ -233,8 +234,11 @@ impl ServerKey {
             .position(|block| !block.carry_is_empty())
             .unwrap_or(num_blocks);
 
+        println!("start_index: {:?}", start_index);
         let (to_be_cleaned, to_be_propagated) = ctxt.blocks_mut().split_at_mut(start_index);
 
+        println!("to_be_cleaned.len: {:?}", to_be_cleaned.len());
+        println!("to_be_propagated.len: {:?}", to_be_propagated.len());
         rayon::scope(|s| {
             if !to_be_propagated.is_empty() {
                 s.spawn(|_| {

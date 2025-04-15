@@ -3235,6 +3235,8 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
+
+    println!("radix_list_degrees: {:?}", radix_list_degrees);
     let mut cuda_ffi_radix_list = prepare_cuda_radix_ffi(
         radix_list,
         &mut radix_list_degrees,

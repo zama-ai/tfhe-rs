@@ -889,15 +889,18 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 
     pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
+        println!("degree_before: {:?}", ct.degree);
         if ct.is_trivial() {
             self.trivial_pbs_assign(ct, acc);
+            println!("degree_after: {:?}", ct.degree);
             return;
         }
 
         self.atomic_pattern.apply_lookup_table_assign(ct, acc);
 
         ct.degree = acc.degree;
-        ct.set_noise_level_to_nominal();
+        ct.set_noise_level(NoiseLevel::NOMINAL, self.max_noise_level);
+        println!("degree_after: {:?}", ct.degree);
     }
 
     /// Compute a keyswitch and programmable bootstrap applying several functions on an input

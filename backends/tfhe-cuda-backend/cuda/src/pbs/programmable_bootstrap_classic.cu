@@ -357,16 +357,19 @@ uint64_t scratch_cuda_programmable_bootstrap_64(
 #endif
       if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
               glwe_dimension, polynomial_size, level_count,
-              input_lwe_ciphertext_count, max_shared_memory))
+              input_lwe_ciphertext_count, max_shared_memory)) {
+    printf("it is cg\n");
     return scratch_cuda_programmable_bootstrap_cg<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-  else
+  } else {
+    printf("it is default\n");
     return scratch_cuda_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
+  }
 }
 
 template <typename Torus>

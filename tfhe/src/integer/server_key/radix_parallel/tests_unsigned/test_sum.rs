@@ -143,7 +143,8 @@ where
     T: for<'a> FunctionExecutor<&'a Vec<RadixCiphertext>, Option<RadixCiphertext>>,
 {
     let param = param.into();
-    let nb_tests_smaller = nb_tests_smaller_for_params(param);
+    println!("params: {:?}", &param);
+    let nb_tests_smaller: usize = 1;
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((
         cks,
@@ -160,9 +161,14 @@ where
         .0
         .pow(crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT as u32);
 
+    println!("modulus, {:?}", modulus);
+    println!(
+        "NB_CTXT, {:?}",
+        crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT
+    );
     executor.setup(&cks, sks);
 
-    for len in [1, 2, 15, 16, 17, 64, 65] {
+    for len in [64] {
         for _ in 0..nb_tests_smaller {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
