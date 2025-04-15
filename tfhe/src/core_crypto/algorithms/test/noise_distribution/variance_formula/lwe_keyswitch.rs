@@ -1,7 +1,7 @@
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::*;
 
-pub fn keyswitch_additive_variance_128_bits_security_gaussian(
+pub fn keyswitch_additive_variance_132_bits_security_gaussian(
     input_glwe_dimension: GlweDimension,
     input_polynomial_size: PolynomialSize,
     output_lwe_dimension: LweDimension,
@@ -10,7 +10,7 @@ pub fn keyswitch_additive_variance_128_bits_security_gaussian(
     ksk_modulus: f64,
     ct_modulus: f64,
 ) -> (Variance, Variance) {
-    let var_min = super::secure_noise::minimal_lwe_variance_for_128_bits_security_gaussian(
+    let var_min = super::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian(
         output_lwe_dimension,
         ksk_modulus,
     );
