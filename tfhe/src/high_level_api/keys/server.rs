@@ -112,6 +112,12 @@ impl ServerKey {
         self.key.cpk_casting_key()
     }
 
+    pub fn noise_squashing_key(
+        &self,
+    ) -> Option<&crate::integer::noise_squashing::NoiseSquashingKey> {
+        self.key.noise_squashing_key.as_ref()
+    }
+
     pub(in crate::high_level_api) fn message_modulus(&self) -> MessageModulus {
         self.key.message_modulus()
     }
