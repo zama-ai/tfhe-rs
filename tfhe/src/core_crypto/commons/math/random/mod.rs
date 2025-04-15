@@ -47,11 +47,19 @@ where
     // pair of elements as custom modulus
     type CustomModulus: Copy;
 
+    /// Generate a value from `distribution`.
     fn generate_one<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
         distribution: D,
     ) -> Self;
 
+    /// Generate a value from `distribution` modulo the given `custom_modulus`.
+    ///
+    /// This `custom_modulus` must be able to represent all possible values from `distribution`.
+    ///
+    /// Implementations are allowed to panic if the given `custom_modulus` cannot represent all
+    /// possible values from `distribution` as the effective distribution would differ from the
+    /// desired distribution.
     fn generate_one_custom_modulus<G: ByteRandomGenerator>(
         generator: &mut RandomGenerator<G>,
         distribution: D,
