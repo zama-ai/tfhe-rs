@@ -1677,8 +1677,10 @@ mod cuda {
                                                     |(c0, c1)| {
                                                         binary_op(&key, c0, c1, stream);
                                                     },
-                                                )
-                                            })
+                                                );
+                                                stream.synchronize();
+                                            });
+                                        local_streams.iter().for_each(|s| s.synchronize());
                                     },
                                 );
                         });
