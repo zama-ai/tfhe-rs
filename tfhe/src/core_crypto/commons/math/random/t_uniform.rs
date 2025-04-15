@@ -59,8 +59,8 @@ impl<T: UnsignedInteger> TUniform<T> {
         self.bound_log2
     }
 
-    pub const fn distinct_value_count(&self) -> usize {
-        (1 << (self.bound_log2 + 1)) + 1
+    pub(crate) fn distinct_value_count(self) -> T {
+        (T::ONE << ((self.bound_log2 + 1) as usize)) + T::ONE
     }
 
     pub fn min_value_inclusive(&self) -> T::Signed {
@@ -99,6 +99,34 @@ macro_rules! implement_t_uniform_uint {
                 candidate_for_random >>= 1;
                 candidate_for_random = candidate_for_random.wrapping_add(bit_b_p_1);
                 candidate_for_random.wrapping_sub(1 << bound_log2)
+            }
+
+            fn generate_one_custom_modulus<G: ByteRandomGenerator>(
+                generator: &mut RandomGenerator<G>,
+                distribution: TUniform<$T>,
+                custom_modulus: Self::CustomModulus,
+            ) -> Self {
+                // We have to assert otherwise random generation can return invalid values
+                let tuniform_unique_values = distribution.distinct_value_count();
+                // for b = 1 we have 2^{b + 1} + 1 distinct values == 5
+                // If q = 5, we have 5 representable values, which means all TUniform values can
+                // be represented, 0 == 0, 1 == 1, 2 == 2, 3 == -2, 4 == -1
+                // So we need tuniform_unique_values <= q
+                assert!(
+                    tuniform_unique_values <= custom_modulus,
+                    "Tried to generate TUniform for a modulus {custom_modulus:?} \
+                    that cannot represent all values for bound {}",
+                    distribution.bound_log2()
+                );
+
+                let tuniform_native_mod = Self::generate_one(generator, distribution);
+                if tuniform_native_mod.into_signed() >= 0 {
+                    tuniform_native_mod
+                } else {
+                    // tuniform_native_mod is negative, so adding it, even in unsigned integer will
+                    // work as arithmetic uses 2's complement
+                    custom_modulus.wrapping_add(tuniform_native_mod)
+                }
             }
 
             fn single_sample_success_probability(

@@ -2,7 +2,7 @@ use crate::core_crypto::algorithms::misc::check_clear_content_respects_mod;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable, TUniform, Uniform};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
+use crate::core_crypto::commons::numeric::{CastFrom, CastInto, Numeric, UnsignedInteger};
 use crate::core_crypto::commons::test_tools::*;
 
 fn test_normal_random_three_sigma<T: UnsignedTorus>() {
@@ -480,6 +480,9 @@ fn test_random_from_distribution_custom_mod<Scalar, D>(
             for _ in 0..distinct_values {
                 let random_value =
                     rng.random_from_distribution_custom_mod(distribution, ciphertext_modulus);
+
+                check_clear_content_respects_mod(&[random_value], ciphertext_modulus);
+
                 let random_value_idx =
                     distribution.map_value_to_usize(random_value, ciphertext_modulus);
 
@@ -622,15 +625,17 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTe
 
     fn new_with_custom_modulus(
         value: Self::CreationInfos,
-        ciphertext_modulus: CiphertextModulus<Scalar>,
+        _ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Self {
-        assert!(ciphertext_modulus.is_native_modulus());
         Self::new(value)
     }
 
-    fn distinct_values(&self, _ciphertext_modulus: CiphertextModulus<Scalar>) -> usize {
-        // TUniform does not support non native moduli for now
-        self.distinct_value_count()
+    fn distinct_values(&self, ciphertext_modulus: CiphertextModulus<Scalar>) -> usize {
+        let distinct_value_count: u128 = self.distinct_value_count().cast_into();
+        if !ciphertext_modulus.is_native_modulus() {
+            assert!(distinct_value_count <= ciphertext_modulus.get_custom_modulus());
+        }
+        distinct_value_count.try_into().unwrap()
     }
 
     fn cumulative_distribution_function(
@@ -639,7 +644,21 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTe
         ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> f64 {
         let max_value_inclusive = self.max_value_inclusive();
-        let integer_value_signed: Scalar::Signed = integer_value.cast_into();
+
+        let integer_value_signed: Scalar::Signed = if ciphertext_modulus.is_native_modulus() {
+            integer_value.cast_into()
+        } else {
+            // Input is in [-q/2; q/2[ we need to remap first
+            let custom_modulus = Scalar::cast_from(ciphertext_modulus.get_custom_modulus());
+            // Map to native modulus
+            if integer_value < custom_modulus.div_ceil(Scalar::TWO) {
+                // First half of the modulus contains positive values
+                integer_value.cast_into()
+            } else {
+                (integer_value.wrapping_sub(custom_modulus)).cast_into()
+            }
+        };
+
         let value_index: usize = self.map_value_to_usize(integer_value, ciphertext_modulus);
         // CDF for the TUniform distribution
         if integer_value_signed == max_value_inclusive {
@@ -653,7 +672,7 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTe
     fn map_usize_to_value(
         &self,
         input: usize,
-        _ciphertext_modulus: CiphertextModulus<Scalar>,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> Scalar {
         // Input is in [0; 2^(b + 1)]
         let input_as_scalar = Scalar::cast_from(input);
@@ -662,16 +681,41 @@ impl<Scalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>> DistributionTe
         let min_value_inclusive = self.min_value_inclusive();
         // This is in [-2^b; 2^b]
         let value_as_signed = input_as_signed_scalar + min_value_inclusive;
-        Scalar::cast_from(value_as_signed)
+        if ciphertext_modulus.is_native_modulus() {
+            Scalar::cast_from(value_as_signed)
+        } else {
+            let custom_modulus = Scalar::cast_from(ciphertext_modulus.get_custom_modulus());
+            let value_as_scalar = Scalar::cast_from(value_as_signed);
+            if value_as_signed >= <Scalar::Signed as Numeric>::ZERO {
+                value_as_scalar
+            } else {
+                // value_as_scalar < 0, represented as an unsigned integer the addition works
+                // correctly with the 2's complement
+                custom_modulus.wrapping_add(value_as_scalar)
+            }
+        }
     }
 
     fn map_value_to_usize(
         &self,
         input: Scalar,
-        _ciphertext_modulus: CiphertextModulus<Scalar>,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
     ) -> usize {
         // Input is in [-2^b; 2^b]
-        let input_as_signed_scalar: Scalar::Signed = input.cast_into();
+        let input_as_signed_scalar: Scalar::Signed = if ciphertext_modulus.is_native_modulus() {
+            input.cast_into()
+        } else {
+            // Input is in [-q/2; q/2[ we need to remap first
+            let custom_modulus = Scalar::cast_from(ciphertext_modulus.get_custom_modulus());
+            // Map to native modulus
+            if input < custom_modulus.div_ceil(Scalar::TWO) {
+                // First half of the modulus contains positive values
+                input.cast_into()
+            } else {
+                (input.wrapping_sub(custom_modulus)).cast_into()
+            }
+        };
+
         let min_value_inclusive = self.min_value_inclusive();
         // This is in [0; 2^(b + 1)]
         let index_as_signed = input_as_signed_scalar - min_value_inclusive;
@@ -687,6 +731,14 @@ fn test_t_uniform_random_u64() {
     // Means the random will be in [-2048; 2048]
     let bound_log2 = 11u32;
     let ciphertext_modulus = CiphertextModulus::new_native();
+    test_random_from_distribution_custom_mod::<u64, TUniform<_>>(bound_log2, ciphertext_modulus);
+}
+
+#[test]
+fn test_t_uniform_random_custom_mod_u64() {
+    // These values are experimental parameters
+    let bound_log2 = 4u32;
+    let ciphertext_modulus = CiphertextModulus::try_new_power_of_2(21).unwrap();
     test_random_from_distribution_custom_mod::<u64, TUniform<_>>(bound_log2, ciphertext_modulus);
 }
 
