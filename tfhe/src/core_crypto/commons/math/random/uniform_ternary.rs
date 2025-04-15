@@ -28,7 +28,8 @@ macro_rules! implement_uniform_ternary {
                 _modulus: Option<Self::CustomModulus>,
             ) -> f64 {
                 // The modulus and parameters of the distribution do not impact generation success
-                1.0
+                // 4 possible cases in the generation, only 3 out of 4 yield a value, so 0.75
+                0.75
             }
 
             fn single_sample_required_random_byte_count(
