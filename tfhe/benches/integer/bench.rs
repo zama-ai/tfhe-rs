@@ -1398,6 +1398,7 @@ mod cuda {
     use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::{black_box, criterion_group};
     use std::cmp::max;
+    use std::sync::Arc;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -1577,7 +1578,7 @@ mod cuda {
                 }
                 BenchmarkType::Throughput => {
                     let (cks, cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                    let gpu_sks_vec = cuda_local_keys(&cks);
+                    let gpu_sks_vec = Arc::new(cuda_local_keys(&cks));
                     let gpu_count = get_number_of_gpus() as usize;
 
                     // Execute the operation once to know its cost.
@@ -1633,8 +1634,9 @@ mod cuda {
                                     .zip(local_streams.par_iter())
                                     .enumerate()
                                     .for_each(|(i, ((ct_0, ct_1), local_stream))| {
+                                        let key = Arc::clone(&gpu_sks_vec);
                                         binary_op(
-                                            &gpu_sks_vec[i % gpu_count],
+                                            &key[i % gpu_count],
                                             ct_0,
                                             ct_1,
                                             local_stream,
