@@ -1407,6 +1407,7 @@ mod cuda {
     use crate::utilities::cuda_integer_utils::{cuda_local_keys, cuda_local_streams};
     use criterion::criterion_group;
     use std::cmp::max;
+    use std::sync::Arc;
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -1566,7 +1567,7 @@ mod cuda {
                                                         .zip(ct_1.par_iter_mut())
                                                         .for_each(|(c0, c1)| {
                                                             binary_op(
-                                                                &gpu_sks_vec[i],
+                                                                &Arc::clone(&gpu_sks_vec[i]),
                                                                 c0,
                                                                 c1,
                                                                 stream,
@@ -1726,7 +1727,7 @@ mod cuda {
                                             .zip(local_streams_gpu_i)
                                             .for_each(|(ct_0, stream)| {
                                                 ct_0.par_iter_mut().for_each(|c| {
-                                                    unary_op(&gpu_sks_vec[i], c, stream);
+                                                    unary_op(&Arc::clone(&gpu_sks_vec[i]), c, stream);
                                                 })
                                             })
                                     });
@@ -1909,7 +1910,7 @@ mod cuda {
                                                     ct_0.iter_mut().zip(clear_1.iter()).for_each(
                                                         |(c0, c1)| {
                                                             binary_op(
-                                                                &gpu_sks_vec[i],
+                                                                &Arc::clone(&gpu_sks_vec[i]),
                                                                 c0,
                                                                 *c1,
                                                                 stream,
@@ -2114,7 +2115,7 @@ mod cuda {
                                                     ct_0.iter_mut().zip(ct_1.iter_mut()).for_each(
                                                         |(c0, c1)| {
                                                             binary_op(
-                                                                &gpu_sks_vec[i],
+                                                                &Arc::clone(&gpu_sks_vec[i]),
                                                                 c0,
                                                                 c1,
                                                                 stream,
@@ -2335,7 +2336,7 @@ mod cuda {
                                                             .iter()
                                                             .zip(ct_then.iter().zip(ct_else))
                                                             .for_each(|(c, (t, e))| {
-                                                                let _ = gpu_sks_vec[i]
+                                                                let _ = Arc::clone(&gpu_sks_vec[i])
                                                                     .if_then_else(c, t, e, stream);
                                                             })
                                                     },

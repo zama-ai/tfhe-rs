@@ -828,6 +828,7 @@ mod cuda_utils {
 
     #[cfg(feature = "integer")]
     pub mod cuda_integer_utils {
+        use std::sync::Arc;
         use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::integer::gpu::CudaServerKey;
         use tfhe::integer::ClientKey;
@@ -862,12 +863,12 @@ mod cuda_utils {
 
         /// Instantiate Cuda server key to each available GPU.
         #[allow(dead_code)]
-        pub fn cuda_local_keys(cks: &ClientKey) -> Vec<CudaServerKey> {
+        pub fn cuda_local_keys(cks: &ClientKey) -> Vec<Arc<CudaServerKey>> {
             let gpu_count = get_number_of_gpus() as usize;
             let mut gpu_sks_vec = Vec::with_capacity(gpu_count);
             for i in 0..gpu_count {
                 let stream = CudaStreams::new_single_gpu(GpuIndex::new(i as u32));
-                gpu_sks_vec.push(CudaServerKey::new(cks, &stream));
+                gpu_sks_vec.push(Arc::new(CudaServerKey::new(cks, &stream)));
             }
             gpu_sks_vec
         }

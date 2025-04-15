@@ -1511,7 +1511,7 @@ mod cuda {
                                             .zip(local_streams_gpu_i)
                                             .for_each(|(ct_0, stream)| {
                                                 ct_0.par_iter_mut().for_each(|c0| {
-                                                    unary_op(&gpu_sks_vec[i], c0, stream);
+                                                    unary_op(&Arc::clone(&gpu_sks_vec[i]), c0, stream);
                                                 })
                                             })
                                     });
@@ -1617,7 +1617,7 @@ mod cuda {
                     let num_gpus = get_number_of_gpus() as usize;
                     let gpu_sks_vec = cuda_local_keys(&cks);
                     let gpu_sks_vec = Arc::new(gpu_sks_vec);
-                    let local_streams = cuda_local_streams(num_block);
+                    let local_streams = Arc::new(cuda_local_streams(num_block));
                     let num_elements_per_gpu = elements / num_gpus;
                     bench_group.throughput(Throughput::Elements(elements as u64));
                     bench_group.bench_function(&bench_id, |b| {
@@ -1637,7 +1637,7 @@ mod cuda {
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_0,
+                                        ct_0,
                                         &local_streams
                                             [gpu_index * num_streams_per_gpu + stream_index],
                                     )
@@ -1651,7 +1651,7 @@ mod cuda {
                                     let local_index = i - gpu_index * num_elements_per_gpu;
                                     let stream_index = local_index % num_streams_per_gpu;
                                     CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                                        &ct_1,
+                                        ct_1,
                                         &local_streams
                                             [gpu_index * num_streams_per_gpu + stream_index],
                                     )
@@ -1672,10 +1672,10 @@ mod cuda {
                                             .zip(ct_1_gpu_i.par_chunks_mut(num_elements_per_stream))
                                             .zip(local_streams_gpu_i)
                                             .for_each(|((ct_0, ct_1), stream)| {
-                                                let key = Arc::clone(&gpu_sks_vec);
+                                                let key = Arc::clone(&gpu_sks_vec[i]);
                                                 ct_0.iter_mut().zip(ct_1.iter_mut()).for_each(
                                                     |(c0, c1)| {
-                                                        binary_op(&key[i], c0, c1, stream);
+                                                        binary_op(&key, c0, c1, stream);
                                                     },
                                                 )
                                             })
@@ -1836,7 +1836,7 @@ mod cuda {
                                                         .zip(clear_1.iter_mut())
                                                         .for_each(|(c0, c1)| {
                                                             binary_op(
-                                                                &gpu_sks_vec[i],
+                                                                &Arc::clone(&gpu_sks_vec[i]),
                                                                 c0,
                                                                 *c1,
                                                                 stream,
@@ -2041,7 +2041,7 @@ mod cuda {
                                                                     .zip(ct_else.iter_mut()),
                                                             )
                                                             .for_each(|(c, (t, e))| {
-                                                                let _ = gpu_sks_vec[i]
+                                                                let _ = Arc::clone(&gpu_sks_vec[i])
                                                                     .if_then_else(c, t, e, stream);
                                                             })
                                                     },
@@ -2126,7 +2126,7 @@ mod cuda {
                             (0..elements).into_par_iter().for_each(|i| {
                                 let gpu_index: u32 = i as u32 % get_number_of_gpus();
                                 let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-                                gpu_sks_vec[gpu_index as usize]
+                                Arc::clone(&gpu_sks_vec[gpu_index as usize])
                                     .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
                                         Seed(0),
                                         bit_size as u64,
