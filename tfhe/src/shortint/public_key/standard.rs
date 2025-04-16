@@ -12,6 +12,7 @@ use tfhe_versionable::Versionize;
 /// A structure containing a public key.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(PublicKeyVersions)]
+#[allow(clippy::struct_field_names)]
 pub struct PublicKey {
     pub(crate) lwe_public_key: LwePublicKeyOwned<u64>,
     pub parameters: ShortintParameterSet,
