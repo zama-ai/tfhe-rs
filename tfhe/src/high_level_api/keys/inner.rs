@@ -22,10 +22,8 @@ use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
-// Clippy complained that fields end in _parameters, :roll_eyes:
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(IntegerConfigVersions)]
-#[allow(clippy::struct_field_names)]
 pub(crate) struct IntegerConfig {
     pub(crate) block_parameters: crate::shortint::PBSParameters,
     pub(crate) dedicated_compact_public_key_parameters: Option<(
@@ -519,7 +517,6 @@ impl IntegerCompressedCompactPublicKey {
     }
 }
 
-#[allow(clippy::struct_field_names)]
 pub struct IntegerServerKeyConformanceParams {
     pub sk_param: PBSParameters,
     pub cpk_param: Option<(

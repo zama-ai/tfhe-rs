@@ -81,7 +81,6 @@ pub(crate) struct KeySwitchingKeyBuildHelper<'keys> {
 /// sends it to the server so it can cast from one set of parameters to another.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(KeySwitchingKeyVersions)]
-#[allow(clippy::struct_field_names)]
 pub struct KeySwitchingKey {
     pub(crate) key_switching_key_material: KeySwitchingKeyMaterial,
     pub(crate) dest_server_key: ServerKey,

@@ -54,6 +54,9 @@
 // Warns when iter or iter_mut are called explicitly, but it reads more nicely e.g. when there are
 // parallel and sequential iterators that are mixed
 #![allow(clippy::explicit_iter_loop)]
+// Warns for field names that have a common prefix/suffix or that include the name of the type.
+// Renaming fields would be a data breaking change, plus we often want the extra verbosity
+#![allow(clippy::struct_field_names)]
 // End allowed pedantic lints
 
 // The following lints have been temporarily allowed

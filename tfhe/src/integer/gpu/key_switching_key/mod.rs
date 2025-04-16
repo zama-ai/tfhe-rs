@@ -7,7 +7,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ShortintKeySwitchingParameters;
 use crate::shortint::EncryptionKeyChoice;
 
-#[allow(dead_code, clippy::struct_field_names)]
+#[allow(dead_code)]
 pub struct CudaKeySwitchingKey<'keys> {
     pub(crate) key_switching_key: CudaLweKeyswitchKey<u64>,
     pub(crate) dest_server_key: &'keys CudaServerKey,
