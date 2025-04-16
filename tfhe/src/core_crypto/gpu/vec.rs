@@ -101,10 +101,13 @@ impl<T: Numeric> CudaVec<T> {
     /// - `streams` __must__ be synchronized to guarantee computation has finished
     pub unsafe fn new_async(len: usize, streams: &CudaStreams, stream_index: u32) -> Self {
         let size = len as u64 * std::mem::size_of::<T>() as u64;
+        let mut size_tracker = 0;
         let ptr = cuda_malloc_async(
             size,
             streams.ptr[stream_index as usize],
             streams.gpu_indexes[stream_index as usize].0,
+            &mut size_tracker,
+            true,
         );
         cuda_memset_async(
             ptr,
@@ -112,6 +115,7 @@ impl<T: Numeric> CudaVec<T> {
             size,
             streams.ptr[stream_index as usize],
             streams.gpu_indexes[stream_index as usize].0,
+            true,
         );
 
         Self {
@@ -129,9 +133,12 @@ impl<T: Numeric> CudaVec<T> {
         let mut ptrs = Vec::with_capacity(streams.len());
         for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
             let gpu_index = streams.gpu_indexes[i];
-            let ptr = unsafe { cuda_malloc_async(size, stream_ptr, gpu_index.0) };
+            let mut size_tracker = 0;
+            let ptr = unsafe {
+                cuda_malloc_async(size, stream_ptr, gpu_index.0, &mut size_tracker, true)
+            };
             unsafe {
-                cuda_memset_async(ptr, 0u64, size, stream_ptr, gpu_index.0);
+                cuda_memset_async(ptr, 0u64, size, stream_ptr, gpu_index.0, true);
             }
             streams.synchronize_one(i as u32);
             ptrs.push(ptr);
@@ -185,6 +192,7 @@ impl<T: Numeric> CudaVec<T> {
                 size as u64,
                 streams.ptr[stream_index as usize],
                 streams.gpu_indexes[stream_index as usize].0,
+                true,
             );
         }
     }
@@ -215,6 +223,7 @@ impl<T: Numeric> CudaVec<T> {
                 size as u64,
                 streams.ptr[stream_index as usize],
                 streams.gpu_indexes[stream_index as usize].0,
+                true,
             );
         }
     }
@@ -243,6 +252,7 @@ impl<T: Numeric> CudaVec<T> {
                     size as u64,
                     stream_ptr,
                     gpu_index.0,
+                    true,
                 );
             }
         }
@@ -272,6 +282,7 @@ impl<T: Numeric> CudaVec<T> {
                 size as u64,
                 streams.ptr[stream_index as usize],
                 streams.gpu_indexes[stream_index as usize].0,
+                true,
             );
         }
     }
@@ -311,6 +322,7 @@ impl<T: Numeric> CudaVec<T> {
             size as u64,
             streams.ptr[stream_index as usize],
             streams.gpu_indexes[stream_index as usize].0,
+            true,
         );
     }
 
@@ -348,6 +360,7 @@ impl<T: Numeric> CudaVec<T> {
             size as u64,
             streams.ptr[stream_index as usize],
             streams.gpu_indexes[stream_index as usize].0,
+            true,
         );
     }
 

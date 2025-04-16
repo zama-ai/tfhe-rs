@@ -20,14 +20,16 @@
 #include <vector>
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_div_rem_kb(
+__host__ uint64_t scratch_cuda_integer_div_rem_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, bool is_signed, int_div_rem_memory<Torus> **mem_ptr,
     uint32_t num_blocks, int_radix_params params, bool allocate_gpu_memory) {
 
-  *mem_ptr =
-      new int_div_rem_memory<Torus>(streams, gpu_indexes, gpu_count, params,
-                                    is_signed, num_blocks, allocate_gpu_memory);
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_div_rem_memory<Torus>(streams, gpu_indexes, gpu_count,
+                                           params, is_signed, num_blocks,
+                                           allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus>

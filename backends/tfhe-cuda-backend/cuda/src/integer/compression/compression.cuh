@@ -107,7 +107,7 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   cuda_memset_async(tmp_glwe_array_out, 0,
                     num_glwes * (compression_params.glwe_dimension + 1) *
                         compression_params.polynomial_size * sizeof(Torus),
-                    streams[0], gpu_indexes[0]);
+                    streams[0], gpu_indexes[0], true);
   auto fp_ks_buffer = mem_ptr->fp_ks_buffer;
   auto rem_lwes = num_radix_blocks;
 
@@ -221,7 +221,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
     auto zeroed_slice = glwe_array_out + initial_out_len;
     cuda_memset_async(glwe_array_out, 0,
                       (glwe_ciphertext_size - initial_out_len) * sizeof(Torus),
-                      stream, gpu_index);
+                      stream, gpu_index, true);
   }
 
   int num_blocks = 0, num_threads = 0;
@@ -243,7 +243,7 @@ __host__ void host_integer_decompress(
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
   cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
                            indexes_array_size * sizeof(uint32_t), streams[0],
-                           gpu_indexes[0]);
+                           gpu_indexes[0], true);
 
   auto compression_params = h_mem_ptr->compression_params;
   auto lwe_per_glwe = compression_params.polynomial_size;
@@ -362,28 +362,33 @@ __host__ void host_integer_decompress(
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_compress_integer_radix_ciphertext(
+__host__ uint64_t scratch_cuda_compress_integer_radix_ciphertext(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_compression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params compression_params,
     uint32_t lwe_per_glwe, uint32_t storage_log_modulus,
     bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_compression<Torus>(
       streams, gpu_indexes, gpu_count, compression_params, num_radix_blocks,
-      lwe_per_glwe, storage_log_modulus, allocate_gpu_memory);
+      lwe_per_glwe, storage_log_modulus, allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_decompress_radix_ciphertext(
+__host__ uint64_t scratch_cuda_integer_decompress_radix_ciphertext(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_decompression<Torus> **mem_ptr,
     uint32_t num_radix_blocks, uint32_t body_count,
     int_radix_params encryption_params, int_radix_params compression_params,
     uint32_t storage_log_modulus, bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_decompression<Torus>(
       streams, gpu_indexes, gpu_count, encryption_params, compression_params,
-      num_radix_blocks, body_count, storage_log_modulus, allocate_gpu_memory);
+      num_radix_blocks, body_count, storage_log_modulus, allocate_gpu_memory,
+      &size_tracker);
+  return size_tracker;
 }
 #endif

@@ -72,26 +72,30 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
 
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
-void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
-                        uint32_t gpu_index) {
-  cuda_set_device(gpu_index);
-  void *ptr;
+void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index,
+                        uint64_t *size_tracker, bool allocate_gpu_memory) {
+  if (size_tracker != nullptr)
+    *size_tracker += size;
+  void *ptr = nullptr;
+  if (allocate_gpu_memory) {
+    cuda_set_device(gpu_index);
 
 #ifndef CUDART_VERSION
 #error CUDART_VERSION Undefined!
 #elif (CUDART_VERSION >= 11020)
-  int support_async_alloc;
-  check_cuda_error(cudaDeviceGetAttribute(
-      &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
+    int support_async_alloc;
+    check_cuda_error(cudaDeviceGetAttribute(
+        &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
-  if (support_async_alloc) {
-    check_cuda_error(cudaMallocAsync((void **)&ptr, size, stream));
-  } else {
-    check_cuda_error(cudaMalloc((void **)&ptr, size));
-  }
+    if (support_async_alloc) {
+      check_cuda_error(cudaMallocAsync((void **)&ptr, size, stream));
+    } else {
+      check_cuda_error(cudaMalloc((void **)&ptr, size));
+    }
 #else
-  check_cuda_error(cudaMalloc((void **)&ptr, size));
+    check_cuda_error(cudaMalloc((void **)&ptr, size));
 #endif
+  }
   return ptr;
 }
 
@@ -136,8 +140,9 @@ bool cuda_check_support_thread_block_clusters() {
 
 /// Copy memory to the GPU asynchronously
 void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
-                              cudaStream_t stream, uint32_t gpu_index) {
-  if (size == 0)
+                              cudaStream_t stream, uint32_t gpu_index,
+                              bool gpu_memory_allocated) {
+  if (size == 0 || !gpu_memory_allocated)
     return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));
@@ -152,8 +157,9 @@ void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
 
 /// Copy memory within a GPU asynchronously
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
-                                  cudaStream_t stream, uint32_t gpu_index) {
-  if (size == 0)
+                                  cudaStream_t stream, uint32_t gpu_index,
+                                  bool gpu_memory_allocated) {
+  if (size == 0 || !gpu_memory_allocated)
     return;
   cudaPointerAttributes attr_dest;
   check_cuda_error(cudaPointerGetAttributes(&attr_dest, dest));
@@ -206,8 +212,9 @@ void cuda_synchronize_device(uint32_t gpu_index) {
 }
 
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
-                       cudaStream_t stream, uint32_t gpu_index) {
-  if (size == 0)
+                       cudaStream_t stream, uint32_t gpu_index,
+                       bool gpu_memory_allocated) {
+  if (size == 0 || !gpu_memory_allocated)
     return;
   cudaPointerAttributes attr;
   check_cuda_error(cudaPointerGetAttributes(&attr, dest));

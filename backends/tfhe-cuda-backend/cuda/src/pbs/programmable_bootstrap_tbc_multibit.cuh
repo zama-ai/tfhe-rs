@@ -199,7 +199,7 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 }
 
 template <typename Torus, typename params>
-__host__ void scratch_tbc_multi_bit_programmable_bootstrap(
+__host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, MULTI_BIT> **buffer, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t level_count,
@@ -285,10 +285,12 @@ __host__ void scratch_tbc_multi_bit_programmable_bootstrap(
 
   auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
       gpu_index, input_lwe_ciphertext_count, polynomial_size);
+  uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<uint64_t, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::TBC,
-      allocate_gpu_memory);
+      allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus, class params>

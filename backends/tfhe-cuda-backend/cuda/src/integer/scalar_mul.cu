@@ -1,6 +1,6 @@
 #include "integer/scalar_mul.cuh"
 
-void scratch_cuda_integer_scalar_mul_kb_64(
+uint64_t scratch_cuda_integer_scalar_mul_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -14,7 +14,7 @@ void scratch_cuda_integer_scalar_mul_kb_64(
                           grouping_factor, message_modulus, carry_modulus,
                           allocate_ms_array);
 
-  scratch_cuda_integer_radix_scalar_mul_kb<uint64_t>(
+  return scratch_cuda_integer_radix_scalar_mul_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_scalar_mul_buffer<uint64_t> **)mem_ptr, num_blocks, params,
       allocate_gpu_memory);

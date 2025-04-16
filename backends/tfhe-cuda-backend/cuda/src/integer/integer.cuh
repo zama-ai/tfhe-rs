@@ -927,7 +927,7 @@ uint64_t generate_many_lookup_table(
       int index = i * box_size + lut_offset;
       for (int j = index; j < index + box_size; j++) {
         auto f_eval = functions[f](i);
-        degrees[f] = max(f_eval, degrees[f]);
+        degrees[f] = std::max(f_eval, degrees[f]);
         body[j] = f_eval * delta;
       }
     }
@@ -994,7 +994,7 @@ void generate_device_accumulator_bivariate(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
     uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    std::function<Torus(Torus, Torus)> f) {
+    std::function<Torus(Torus, Torus)> f, bool gpu_memory_allocated) {
 
   // host lut
   Torus *h_lut =
@@ -1009,7 +1009,7 @@ void generate_device_accumulator_bivariate(
   cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
                            (glwe_dimension + 1) * polynomial_size *
                                sizeof(Torus),
-                           stream, gpu_index);
+                           stream, gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1027,7 +1027,8 @@ void generate_device_accumulator_bivariate_with_factor(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc_bivariate,
     uint64_t *degree, uint64_t *max_degree, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t carry_modulus,
-    std::function<Torus(Torus, Torus)> f, int factor) {
+    std::function<Torus(Torus, Torus)> f, int factor,
+    bool gpu_memory_allocated) {
 
   // host lut
   Torus *h_lut =
@@ -1044,7 +1045,7 @@ void generate_device_accumulator_bivariate_with_factor(
   cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
                            (glwe_dimension + 1) * polynomial_size *
                                sizeof(Torus),
-                           stream, gpu_index);
+                           stream, gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1056,7 +1057,7 @@ void generate_device_accumulator_with_encoding(
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_message_modulus, uint32_t input_carry_modulus,
     uint32_t output_message_modulus, uint32_t output_carry_modulus,
-    std::function<Torus(Torus)> f) {
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated) {
 
   // host lut
   Torus *h_lut =
@@ -1071,7 +1072,7 @@ void generate_device_accumulator_with_encoding(
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
-      stream, gpu_index);
+      stream, gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1085,18 +1086,16 @@ void generate_device_accumulator_with_encoding(
  *    f - evaluating function with one Torus input
  */
 template <typename Torus>
-void generate_device_accumulator(cudaStream_t stream, uint32_t gpu_index,
-                                 Torus *acc, uint64_t *degree,
-                                 uint64_t *max_degree, uint32_t glwe_dimension,
-                                 uint32_t polynomial_size,
-                                 uint32_t message_modulus,
-                                 uint32_t carry_modulus,
-                                 std::function<Torus(Torus)> f) {
+void generate_device_accumulator(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t message_modulus, uint32_t carry_modulus,
+    std::function<Torus(Torus)> f, bool gpu_memory_allocated) {
 
   generate_device_accumulator_with_encoding(
       stream, gpu_index, acc, degree, max_degree, glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, message_modulus,
-      carry_modulus, f);
+      carry_modulus, f, gpu_memory_allocated);
 }
 
 /*
@@ -1111,7 +1110,8 @@ void generate_many_lut_device_accumulator(
     cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degrees,
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
-    std::vector<std::function<Torus(Torus)>> &functions) {
+    std::vector<std::function<Torus(Torus)>> &functions,
+    bool gpu_memory_allocated) {
 
   // host lut
   Torus *h_lut =
@@ -1125,7 +1125,7 @@ void generate_many_lut_device_accumulator(
   // copy host lut and lut_indexes_vec to device
   cuda_memcpy_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
-      stream, gpu_index);
+      stream, gpu_index, gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1450,15 +1450,18 @@ void host_full_propagate_inplace(
 }
 
 template <typename Torus>
-void scratch_cuda_full_propagation(cudaStream_t const *streams,
-                                   uint32_t const *gpu_indexes,
-                                   uint32_t gpu_count,
-                                   int_fullprop_buffer<Torus> **mem_ptr,
-                                   int_radix_params params,
-                                   bool allocate_gpu_memory) {
+uint64_t scratch_cuda_full_propagation(cudaStream_t const *streams,
+                                       uint32_t const *gpu_indexes,
+                                       uint32_t gpu_count,
+                                       int_fullprop_buffer<Torus> **mem_ptr,
+                                       int_radix_params params,
+                                       bool allocate_gpu_memory) {
 
-  *mem_ptr = new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count,
-                                            params, allocate_gpu_memory);
+  uint64_t size_tracker = 0;
+  *mem_ptr =
+      new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
+                                     allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 // (lwe_dimension+1) threads
@@ -1620,7 +1623,7 @@ __host__ void reduce_signs(
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, reduce_two_orderings_function);
+        message_modulus, carry_modulus, reduce_two_orderings_function, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     while (num_sign_blocks > 2) {
@@ -1651,7 +1654,7 @@ __host__ void reduce_signs(
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, final_lut_f);
+        message_modulus, carry_modulus, final_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a, 2, 4);
@@ -1670,7 +1673,7 @@ __host__ void reduce_signs(
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, final_lut_f);
+        message_modulus, carry_modulus, final_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -1680,22 +1683,25 @@ __host__ void reduce_signs(
 }
 
 template <typename Torus>
-void scratch_cuda_apply_univariate_lut_kb(
+uint64_t scratch_cuda_apply_univariate_lut_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
-                                      1, num_radix_blocks, allocate_gpu_memory);
+                                      1, num_radix_blocks, allocate_gpu_memory,
+                                      &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
                            (params.glwe_dimension + 1) *
                                params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0]);
+                           streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
+  return size_tracker;
 }
 
 template <typename Torus>
@@ -1713,23 +1719,25 @@ void host_apply_univariate_lut_kb(
 }
 
 template <typename Torus>
-void scratch_cuda_apply_many_univariate_lut_kb(
+uint64_t scratch_cuda_apply_many_univariate_lut_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t num_many_lut,
     uint64_t lut_degree, bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, num_many_lut,
-                                      allocate_gpu_memory);
+                                      allocate_gpu_memory, &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
                            (params.glwe_dimension + 1) *
                                params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0]);
+                           streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
+  return size_tracker;
 }
 
 template <typename Torus>
@@ -1747,22 +1755,25 @@ void host_apply_many_univariate_lut_kb(
 }
 
 template <typename Torus>
-void scratch_cuda_apply_bivariate_lut_kb(
+uint64_t scratch_cuda_apply_bivariate_lut_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_radix_lut<Torus> **mem_ptr, Torus const *input_lut,
     uint32_t num_radix_blocks, int_radix_params params, uint64_t lut_degree,
     bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
-                                      1, num_radix_blocks, allocate_gpu_memory);
+                                      1, num_radix_blocks, allocate_gpu_memory,
+                                      &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
                            (params.glwe_dimension + 1) *
                                params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0]);
+                           streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
+  return size_tracker;
 }
 
 template <typename Torus>
@@ -1782,15 +1793,17 @@ void host_apply_bivariate_lut_kb(
 }
 
 template <typename Torus>
-void scratch_cuda_propagate_single_carry_kb_inplace(
+uint64_t scratch_cuda_propagate_single_carry_kb_inplace(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_sc_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_sc_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
-      uses_carry, allocate_gpu_memory);
+      uses_carry, allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 // This function perform the three steps of Thomas' new carry propagation
 // includes the logic to extract overflow when requested
@@ -2029,15 +2042,17 @@ void host_add_and_propagate_single_carry(
 }
 
 template <typename Torus>
-void scratch_cuda_integer_overflowing_sub(
+uint64_t scratch_cuda_integer_overflowing_sub(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_borrow_prop_memory<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     uint32_t compute_overflow, bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_borrow_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      compute_overflow, allocate_gpu_memory);
+      compute_overflow, allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 // This function perform the three steps of Thomas' new borrow propagation

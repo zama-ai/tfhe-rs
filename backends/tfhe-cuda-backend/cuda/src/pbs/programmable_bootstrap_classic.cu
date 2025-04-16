@@ -71,7 +71,7 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(
 
 #if (CUDA_ARCH >= 900)
 template <typename Torus>
-void scratch_cuda_programmable_bootstrap_tbc(
+uint64_t scratch_cuda_programmable_bootstrap_tbc(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -79,47 +79,40 @@ void scratch_cuda_programmable_bootstrap_tbc(
 
   switch (polynomial_size) {
   case 256:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<256>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 512:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<512>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 1024:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<1024>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 2048:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<2048>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 4096:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<4096>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 8192:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<8192>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 16384:
-    scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<16384>>(
+    return scratch_programmable_bootstrap_tbc<Torus, AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"
@@ -204,7 +197,7 @@ void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector(
 #endif
 
 template <typename Torus>
-void scratch_cuda_programmable_bootstrap_cg(
+uint64_t scratch_cuda_programmable_bootstrap_cg(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -212,47 +205,40 @@ void scratch_cuda_programmable_bootstrap_cg(
 
   switch (polynomial_size) {
   case 256:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<256>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 512:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<512>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 1024:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<1024>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 2048:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<2048>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 4096:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<4096>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 8192:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<8192>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 16384:
-    scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<16384>>(
+    return scratch_programmable_bootstrap_cg<Torus, AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"
@@ -261,7 +247,7 @@ void scratch_cuda_programmable_bootstrap_cg(
 }
 
 template <typename Torus>
-void scratch_cuda_programmable_bootstrap(
+uint64_t scratch_cuda_programmable_bootstrap(
     void *stream, uint32_t gpu_index, pbs_buffer<Torus, CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -269,47 +255,40 @@ void scratch_cuda_programmable_bootstrap(
 
   switch (polynomial_size) {
   case 256:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<256>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 512:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<512>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 1024:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<1024>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 2048:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 4096:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<4096>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 8192:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<8192>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   case 16384:
-    scratch_programmable_bootstrap<Torus, AmortizedDegree<16384>>(
+    return scratch_programmable_bootstrap<Torus, AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
         glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-    break;
   default:
     PANIC("Cuda error (classical PBS): unsupported polynomial size. "
           "Supported N's are powers of two"
@@ -323,7 +302,7 @@ void scratch_cuda_programmable_bootstrap(
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
-void scratch_cuda_programmable_bootstrap_32(
+uint64_t scratch_cuda_programmable_bootstrap_32(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
@@ -334,7 +313,7 @@ void scratch_cuda_programmable_bootstrap_32(
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint32_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           level_count, max_shared_memory))
-    scratch_cuda_programmable_bootstrap_tbc<uint32_t>(
+    return scratch_cuda_programmable_bootstrap_tbc<uint32_t>(
         stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
@@ -343,12 +322,12 @@ void scratch_cuda_programmable_bootstrap_32(
       if (has_support_to_cuda_programmable_bootstrap_cg<uint32_t>(
               glwe_dimension, polynomial_size, level_count,
               input_lwe_ciphertext_count, max_shared_memory))
-    scratch_cuda_programmable_bootstrap_cg<uint32_t>(
+    return scratch_cuda_programmable_bootstrap_cg<uint32_t>(
         stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
   else
-    scratch_cuda_programmable_bootstrap<uint32_t>(
+    return scratch_cuda_programmable_bootstrap<uint32_t>(
         stream, gpu_index, (pbs_buffer<uint32_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
@@ -359,7 +338,7 @@ void scratch_cuda_programmable_bootstrap_32(
  * the PBS on 64 bits inputs, into `buffer`. It also configures SM options on
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
-void scratch_cuda_programmable_bootstrap_64(
+uint64_t scratch_cuda_programmable_bootstrap_64(
     void *stream, uint32_t gpu_index, int8_t **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
@@ -370,7 +349,7 @@ void scratch_cuda_programmable_bootstrap_64(
   if (has_support_to_cuda_programmable_bootstrap_tbc<uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           level_count, max_shared_memory))
-    scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
+    return scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
@@ -379,12 +358,12 @@ void scratch_cuda_programmable_bootstrap_64(
       if (has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
               glwe_dimension, polynomial_size, level_count,
               input_lwe_ciphertext_count, max_shared_memory))
-    scratch_cuda_programmable_bootstrap_cg<uint64_t>(
+    return scratch_cuda_programmable_bootstrap_cg<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
   else
-    scratch_cuda_programmable_bootstrap<uint64_t>(
+    return scratch_cuda_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, CLASSICAL> **)buffer,
         lwe_dimension, glwe_dimension, polynomial_size, level_count,
         input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
@@ -782,14 +761,14 @@ template void cuda_programmable_bootstrap_lwe_ciphertext_vector<uint64_t>(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-template void scratch_cuda_programmable_bootstrap_cg<uint64_t>(
+template uint64_t scratch_cuda_programmable_bootstrap_cg<uint64_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     bool allocate_ms_array);
 
-template void scratch_cuda_programmable_bootstrap<uint64_t>(
+template uint64_t scratch_cuda_programmable_bootstrap<uint64_t>(
     void *stream, uint32_t gpu_index, pbs_buffer<uint64_t, CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -815,14 +794,14 @@ template void cuda_programmable_bootstrap_lwe_ciphertext_vector<uint32_t>(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
 
-template void scratch_cuda_programmable_bootstrap_cg<uint32_t>(
+template uint64_t scratch_cuda_programmable_bootstrap_cg<uint32_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint32_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     bool allocate_ms_array);
 
-template void scratch_cuda_programmable_bootstrap<uint32_t>(
+template uint64_t scratch_cuda_programmable_bootstrap<uint32_t>(
     void *stream, uint32_t gpu_index, pbs_buffer<uint32_t, CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -854,13 +833,13 @@ template void cuda_programmable_bootstrap_tbc_lwe_ciphertext_vector<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride);
-template void scratch_cuda_programmable_bootstrap_tbc<uint32_t>(
+template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint32_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint32_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     bool allocate_ms_array);
-template void scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
+template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
     void *stream, uint32_t gpu_index,
     pbs_buffer<uint64_t, CLASSICAL> **pbs_buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,

@@ -1,6 +1,6 @@
 #include "scalar_shifts.cuh"
 
-void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -14,7 +14,7 @@ void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
-  scratch_cuda_integer_radix_logical_scalar_shift_kb<uint64_t>(
+  return scratch_cuda_integer_radix_logical_scalar_shift_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_logical_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks, params,
       shift_type, allocate_gpu_memory);
@@ -36,7 +36,7 @@ void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
       (uint64_t **)(ksks), ms_noise_reduction_key, lwe_array->num_radix_blocks);
 }
 
-void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -50,7 +50,7 @@ void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
-  scratch_cuda_integer_radix_arithmetic_scalar_shift_kb<uint64_t>(
+  return scratch_cuda_integer_radix_arithmetic_scalar_shift_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_arithmetic_scalar_shift_buffer<uint64_t> **)mem_ptr, num_blocks,
       params, shift_type, allocate_gpu_memory);

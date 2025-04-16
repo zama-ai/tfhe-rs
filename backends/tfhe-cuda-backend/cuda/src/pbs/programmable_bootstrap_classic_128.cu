@@ -13,7 +13,7 @@ bool has_support_to_cuda_programmable_bootstrap_128_cg(
  * the PBS on 128 bits inputs, into `buffer`. It also configures SM options on
  * the GPU in case FULLSM or PARTIALSM mode is going to be used.
  */
-void scratch_cuda_programmable_bootstrap_128(
+uint64_t scratch_cuda_programmable_bootstrap_128(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -27,35 +27,30 @@ void scratch_cuda_programmable_bootstrap_128(
           input_lwe_ciphertext_count, max_shared_memory)) {
     switch (polynomial_size) {
     case 256:
-      scratch_programmable_bootstrap_cg_128<AmortizedDegree<256>>(
+      return scratch_programmable_bootstrap_cg_128<AmortizedDegree<256>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 512:
-      scratch_programmable_bootstrap_cg_128<AmortizedDegree<512>>(
+      return scratch_programmable_bootstrap_cg_128<AmortizedDegree<512>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 1024:
-      scratch_programmable_bootstrap_cg_128<AmortizedDegree<1024>>(
+      return scratch_programmable_bootstrap_cg_128<AmortizedDegree<1024>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 2048:
-      scratch_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
+      return scratch_programmable_bootstrap_cg_128<AmortizedDegree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 4096:
-      scratch_programmable_bootstrap_cg_128<AmortizedDegree<4096>>(
+      return scratch_programmable_bootstrap_cg_128<AmortizedDegree<4096>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     default:
       PANIC("Cuda error (classical PBS128): unsupported polynomial size. "
             "Supported N's are powers of two"
@@ -64,35 +59,30 @@ void scratch_cuda_programmable_bootstrap_128(
   } else {
     switch (polynomial_size) {
     case 256:
-      scratch_programmable_bootstrap_128<AmortizedDegree<256>>(
+      return scratch_programmable_bootstrap_128<AmortizedDegree<256>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 512:
-      scratch_programmable_bootstrap_128<AmortizedDegree<512>>(
+      return scratch_programmable_bootstrap_128<AmortizedDegree<512>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 1024:
-      scratch_programmable_bootstrap_128<AmortizedDegree<1024>>(
+      return scratch_programmable_bootstrap_128<AmortizedDegree<1024>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 2048:
-      scratch_programmable_bootstrap_128<AmortizedDegree<2048>>(
+      return scratch_programmable_bootstrap_128<AmortizedDegree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     case 4096:
-      scratch_programmable_bootstrap_128<AmortizedDegree<4096>>(
+      return scratch_programmable_bootstrap_128<AmortizedDegree<4096>>(
           static_cast<cudaStream_t>(stream), gpu_index, buffer, lwe_dimension,
           glwe_dimension, polynomial_size, level_count,
           input_lwe_ciphertext_count, allocate_gpu_memory, allocate_ms_array);
-      break;
     default:
       PANIC("Cuda error (classical PBS): unsupported polynomial size. "
             "Supported N's are powers of two"

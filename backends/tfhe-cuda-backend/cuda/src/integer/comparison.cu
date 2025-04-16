@@ -1,6 +1,6 @@
 #include "integer/comparison.cuh"
 
-void scratch_cuda_integer_radix_comparison_kb_64(
+uint64_t scratch_cuda_integer_radix_comparison_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -15,10 +15,11 @@ void scratch_cuda_integer_radix_comparison_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
+  uint64_t size_tracker = 0;
   switch (op_type) {
   case EQ:
   case NE:
-    scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+    size_tracker += scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         (int_comparison_buffer<uint64_t> **)mem_ptr, num_radix_blocks, params,
         op_type, false, allocate_gpu_memory);
@@ -29,12 +30,13 @@ void scratch_cuda_integer_radix_comparison_kb_64(
   case LE:
   case MAX:
   case MIN:
-    scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+    size_tracker += scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
         (cudaStream_t *)(streams), gpu_indexes, gpu_count,
         (int_comparison_buffer<uint64_t> **)mem_ptr, num_radix_blocks, params,
         op_type, is_signed, allocate_gpu_memory);
     break;
   }
+  return size_tracker;
 }
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
@@ -97,7 +99,7 @@ void cleanup_cuda_integer_comparison(void *const *streams,
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
 
-void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -111,7 +113,7 @@ void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
-  scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+  return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_comparison_buffer<uint64_t> **)mem_ptr, num_radix_blocks, params, EQ,
       false, allocate_gpu_memory);
@@ -143,7 +145,7 @@ void cleanup_cuda_integer_are_all_comparisons_block_true(
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
 }
 
-void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -157,7 +159,7 @@ void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
-  scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
+  return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_comparison_buffer<uint64_t> **)mem_ptr, num_radix_blocks, params, EQ,
       false, allocate_gpu_memory);
