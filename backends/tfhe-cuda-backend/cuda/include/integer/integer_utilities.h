@@ -1873,15 +1873,6 @@ template <typename Torus> struct int_sc_prop_memory {
   int_radix_params params;
   uint32_t requested_flag;
 
-  uint32_t active_gpu_count;
-
-  cudaEvent_t *incoming_events1;
-  cudaEvent_t *incoming_events2;
-  cudaEvent_t *outgoing_events1;
-  cudaEvent_t *outgoing_events2;
-  cudaEvent_t *outgoing_events3;
-  cudaEvent_t *outgoing_events4;
-
   int_sc_prop_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_radix_blocks, uint32_t requested_flag_in,
@@ -2049,30 +2040,6 @@ template <typename Torus> struct int_sc_prop_memory {
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
     }
-
-    active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-
-    incoming_events1 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-    incoming_events2 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-    outgoing_events1 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-    outgoing_events2 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-    outgoing_events3 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-    outgoing_events4 =
-        (cudaEvent_t *)malloc(active_gpu_count * sizeof(cudaEvent_t));
-
-    for (uint j = 0; j < active_gpu_count; j++) {
-      incoming_events1[j] = cuda_create_event(gpu_indexes[j]);
-      incoming_events2[j] = cuda_create_event(gpu_indexes[j]);
-      outgoing_events1[j] = cuda_create_event(gpu_indexes[j]);
-      outgoing_events2[j] = cuda_create_event(gpu_indexes[j]);
-      outgoing_events3[j] = cuda_create_event(gpu_indexes[j]);
-      outgoing_events4[j] = cuda_create_event(gpu_indexes[j]);
-    }
   };
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -2093,22 +2060,6 @@ template <typename Torus> struct int_sc_prop_memory {
       delete last_lhs;
       delete last_rhs;
     }
-
-    // release events
-    for (uint j = 0; j < active_gpu_count; j++) {
-      cuda_event_destroy(incoming_events1[j], gpu_indexes[j]);
-      cuda_event_destroy(incoming_events2[j], gpu_indexes[j]);
-      cuda_event_destroy(outgoing_events1[j], gpu_indexes[j]);
-      cuda_event_destroy(outgoing_events2[j], gpu_indexes[j]);
-      cuda_event_destroy(outgoing_events3[j], gpu_indexes[j]);
-      cuda_event_destroy(outgoing_events4[j], gpu_indexes[j]);
-    }
-    free(incoming_events1);
-    free(incoming_events2);
-    free(outgoing_events1);
-    free(outgoing_events2);
-    free(outgoing_events3);
-    free(outgoing_events4);
   };
 };
 
