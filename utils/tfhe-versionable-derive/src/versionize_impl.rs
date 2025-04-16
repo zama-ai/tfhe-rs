@@ -21,7 +21,7 @@ use crate::{
 pub(crate) enum VersionizeImplementor {
     Classic(ClassicVersionizeAttribute),
     Convert(ConvertVersionizeAttribute),
-    Transparent(TransparentStruct),
+    Transparent(Box<TransparentStruct>),
 }
 
 impl VersionizeImplementor {
@@ -33,9 +33,9 @@ impl VersionizeImplementor {
         match attributes {
             VersionizeAttribute::Classic(classic) => Ok(Self::Classic(classic)),
             VersionizeAttribute::Convert(convert) => Ok(Self::Convert(convert)),
-            VersionizeAttribute::Transparent => {
-                Ok(Self::Transparent(TransparentStruct::new(decla, base_span)?))
-            }
+            VersionizeAttribute::Transparent => Ok(Self::Transparent(Box::new(
+                TransparentStruct::new(decla, base_span)?,
+            ))),
         }
     }
 
