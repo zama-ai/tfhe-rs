@@ -1,6 +1,6 @@
 #include "integer/cmux.cuh"
 
-void scratch_cuda_integer_radix_cmux_kb_64(
+uint64_t scratch_cuda_integer_radix_cmux_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -17,7 +17,7 @@ void scratch_cuda_integer_radix_cmux_kb_64(
   std::function<uint64_t(uint64_t)> predicate_lut_f =
       [](uint64_t x) -> uint64_t { return x == 1; };
 
-  scratch_cuda_integer_radix_cmux_kb<uint64_t>(
+  return scratch_cuda_integer_radix_cmux_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_cmux_buffer<uint64_t> **)mem_ptr, predicate_lut_f,
       lwe_ciphertext_count, params, allocate_gpu_memory);

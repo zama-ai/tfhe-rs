@@ -29,7 +29,6 @@ __global__ inline void print_debug_kernel(const double2 *src, int N) {
     printf("(%lf, %lf), ", src[i].x, src[i].y);
   }
 }
-
 template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("%s: ", name);
   cudaDeviceSynchronize();

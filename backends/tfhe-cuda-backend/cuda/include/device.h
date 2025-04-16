@@ -47,12 +47,27 @@ uint32_t cuda_is_available();
 
 void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 
+void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
+                                           uint32_t gpu_index,
+                                           uint64_t *size_tracker,
+                                           bool allocate_gpu_memory);
+
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
-void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
+bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
+
+void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
+                                                 uint64_t size,
+                                                 cudaStream_t stream,
+                                                 uint32_t gpu_index,
+                                                 bool gpu_memory_allocated);
 
 void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);
+
+void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+    void *dest, void const *src, uint64_t size, cudaStream_t stream,
+    uint32_t gpu_index, bool gpu_memory_allocated);
 
 void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                                   cudaStream_t stream, uint32_t gpu_index);
@@ -63,6 +78,11 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
 void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
                               cudaStream_t stream, uint32_t gpu_index);
 
+void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
+                                          uint64_t size, cudaStream_t stream,
+                                          uint32_t gpu_index,
+                                          bool gpu_memory_allocated);
+
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
                        cudaStream_t stream, uint32_t gpu_index);
 
@@ -71,6 +91,10 @@ int cuda_get_number_of_gpus();
 void cuda_synchronize_device(uint32_t gpu_index);
 
 void cuda_drop(void *ptr, uint32_t gpu_index);
+
+void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
+                                        uint32_t gpu_index,
+                                        bool gpu_memory_allocated);
 
 void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index);
 }

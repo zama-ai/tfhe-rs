@@ -408,6 +408,7 @@ pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(fp_ks_buffer),
+        true,
     );
 }
 
@@ -981,6 +982,10 @@ pub fn synchronize_devices(gpu_count: u32) {
     }
 }
 
+/// Check there is enough memory on the device to allocate the necessary data
+pub fn check_valid_cuda_malloc(size: u64, gpu_index: GpuIndex) -> bool {
+    unsafe { cuda_check_valid_malloc(size, gpu_index.get()) }
+}
 // Determine if a cuda device is available, at runtime
 pub fn is_cuda_available() -> bool {
     let result = unsafe { cuda_is_available() };

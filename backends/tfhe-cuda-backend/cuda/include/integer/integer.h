@@ -48,7 +48,7 @@ typedef struct {
   uint32_t lwe_dimension;
 } CudaRadixCiphertextFFI;
 
-void scratch_cuda_apply_univariate_lut_kb_64(
+uint64_t scratch_cuda_apply_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t ks_level,
@@ -56,7 +56,7 @@ void scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array);
-void scratch_cuda_apply_many_univariate_lut_kb_64(
+uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t ks_level,
@@ -78,7 +78,7 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void *const *streams,
                                              uint32_t gpu_count,
                                              int8_t **mem_ptr_void);
 
-void scratch_cuda_apply_bivariate_lut_kb_64(
+uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t ks_level,
@@ -109,7 +109,7 @@ void cuda_apply_many_univariate_lut_kb_64(
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     void *const *bsks, uint32_t num_luts, uint32_t lut_stride);
 
-void scratch_cuda_full_propagation_64(
+uint64_t scratch_cuda_full_propagation_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
@@ -127,7 +127,7 @@ void cleanup_cuda_full_propagation(void *const *streams,
                                    uint32_t const *gpu_indexes,
                                    uint32_t gpu_count, int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, bool const is_boolean_left, bool const is_boolean_right,
     uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
@@ -161,7 +161,7 @@ void cuda_scalar_addition_integer_radix_ciphertext_64_inplace(
     void const *h_scalar_input, uint32_t num_scalars, uint32_t message_modulus,
     uint32_t carry_modulus);
 
-void scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
+uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -176,7 +176,7 @@ void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key);
 
-void scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
+uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -199,7 +199,7 @@ void cleanup_cuda_integer_radix_arithmetic_scalar_shift(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_shift_and_rotate_kb_64(
+uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -219,7 +219,7 @@ void cleanup_cuda_integer_radix_shift_and_rotate(void *const *streams,
                                                  uint32_t gpu_count,
                                                  int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_comparison_kb_64(
+uint64_t scratch_cuda_integer_radix_comparison_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -250,7 +250,7 @@ void cleanup_cuda_integer_comparison(void *const *streams,
                                      uint32_t const *gpu_indexes,
                                      uint32_t gpu_count, int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_bitop_kb_64(
+uint64_t scratch_cuda_integer_radix_bitop_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -279,7 +279,7 @@ void cleanup_cuda_integer_bitop(void *const *streams,
                                 uint32_t const *gpu_indexes, uint32_t gpu_count,
                                 int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_cmux_kb_64(
+uint64_t scratch_cuda_integer_radix_cmux_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -301,7 +301,7 @@ void cleanup_cuda_integer_radix_cmux(void *const *streams,
                                      uint32_t const *gpu_indexes,
                                      uint32_t gpu_count, int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_scalar_rotate_kb_64(
+uint64_t scratch_cuda_integer_radix_scalar_rotate_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -321,7 +321,7 @@ void cleanup_cuda_integer_radix_scalar_rotate(void *const *streams,
                                               uint32_t gpu_count,
                                               int8_t **mem_ptr_void);
 
-void scratch_cuda_propagate_single_carry_kb_64_inplace(
+uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -330,7 +330,7 @@ void scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
     uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array);
 
-void scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -365,7 +365,7 @@ void cleanup_cuda_add_and_propagate_single_carry(void *const *streams,
                                                  uint32_t gpu_count,
                                                  int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_overflowing_sub_kb_64_inplace(
+uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -388,7 +388,7 @@ void cleanup_cuda_integer_overflowing_sub(void *const *streams,
                                           uint32_t gpu_count,
                                           int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
+uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -408,7 +408,7 @@ void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_scalar_mul_kb_64(
+uint64_t scratch_cuda_integer_scalar_mul_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -429,7 +429,7 @@ void cleanup_cuda_integer_radix_scalar_mul(void *const *streams,
                                            uint32_t gpu_count,
                                            int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     bool is_signed, int8_t **mem_ptr, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
@@ -450,7 +450,7 @@ void cleanup_cuda_integer_div_rem(void *const *streams,
                                   uint32_t const *gpu_indexes,
                                   uint32_t gpu_count, int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
+uint64_t scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t ks_level,
@@ -476,7 +476,7 @@ void cuda_integer_reverse_blocks_64_inplace(void *const *streams,
                                             uint32_t gpu_count,
                                             CudaRadixCiphertextFFI *lwe_array);
 
-void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, bool is_signed, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
@@ -496,7 +496,7 @@ void cleanup_cuda_integer_abs_inplace(void *const *streams,
                                       uint32_t gpu_count,
                                       int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -517,7 +517,7 @@ void cleanup_cuda_integer_are_all_comparisons_block_true(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
 
-void scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
+uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,

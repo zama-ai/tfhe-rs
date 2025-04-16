@@ -7,6 +7,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
+    get_add_and_propagate_single_carry_assign_async_size_on_gpu,
     unchecked_add_integer_radix_assign_async,
     unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
 };
@@ -129,6 +130,61 @@ impl CudaServerKey {
             self.add_assign_async(ct_left, ct_right, streams);
         }
         streams.synchronize();
+    }
+
+    pub fn get_add_assign_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count().0,
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count().0
+        );
+        let num_blocks = ct_left.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                get_add_and_propagate_single_carry_assign_async_size_on_gpu(
+                    streams,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    OutputFlag::None,
+                    0u32,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                )
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                get_add_and_propagate_single_carry_assign_async_size_on_gpu(
+                    streams,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    OutputFlag::None,
+                    0u32,
+                    None,
+                )
+            }
+        }
     }
 
     /// ```rust

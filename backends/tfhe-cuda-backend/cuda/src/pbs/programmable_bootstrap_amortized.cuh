@@ -253,7 +253,7 @@ uint64_t get_buffer_size_programmable_bootstrap_amortized(
 }
 
 template <typename Torus, typename params>
-__host__ void scratch_programmable_bootstrap_amortized(
+__host__ uint64_t scratch_programmable_bootstrap_amortized(
     cudaStream_t stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
@@ -280,14 +280,15 @@ __host__ void scratch_programmable_bootstrap_amortized(
         device_programmable_bootstrap_amortized<Torus, params, FULLSM>,
         cudaFuncCachePreferShared));
   }
-  if (allocate_gpu_memory) {
-    uint64_t buffer_size =
-        get_buffer_size_programmable_bootstrap_amortized<Torus>(
-            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-            max_shared_memory);
-    *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream, gpu_index);
-    check_cuda_error(cudaGetLastError());
-  }
+  uint64_t size_tracker = 0;
+  uint64_t buffer_size =
+      get_buffer_size_programmable_bootstrap_amortized<Torus>(
+          glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+          max_shared_memory);
+  *pbs_buffer = (int8_t *)cuda_malloc_with_size_tracking_async(
+      buffer_size, stream, gpu_index, &size_tracker, allocate_gpu_memory);
+  check_cuda_error(cudaGetLastError());
+  return size_tracker;
 }
 
 template <typename Torus, class params>

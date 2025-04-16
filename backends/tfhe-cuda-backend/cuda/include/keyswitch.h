@@ -19,7 +19,7 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
     uint32_t lwe_dimension_out, uint32_t base_log, uint32_t level_count,
     uint32_t num_samples);
 
-void scratch_packing_keyswitch_lwe_list_to_glwe_64(
+uint64_t scratch_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t num_lwes, bool allocate_gpu_memory);
@@ -33,7 +33,8 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 uint32_t gpu_index,
-                                                int8_t **fp_ks_buffer);
+                                                int8_t **fp_ks_buffer,
+                                                bool gpu_memory_allocated);
 }
 
 #endif // CNCRT_KS_H_

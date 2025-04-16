@@ -82,7 +82,7 @@ __host__ void host_expand_without_verification(
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_expand_without_verification(
+__host__ uint64_t scratch_cuda_expand_without_verification(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, zk_expand_mem<Torus> **mem_ptr,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
@@ -90,10 +90,12 @@ __host__ void scratch_cuda_expand_without_verification(
     int_radix_params casting_params, KS_TYPE casting_key_type,
     bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   *mem_ptr = new zk_expand_mem<Torus>(
       streams, gpu_indexes, gpu_count, computing_params, casting_params,
       casting_key_type, num_lwes_per_compact_list, is_boolean_array,
-      num_compact_lists, allocate_gpu_memory);
+      num_compact_lists, allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 #endif // CUDA_ZK_CUH
