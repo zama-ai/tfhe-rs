@@ -18,5 +18,9 @@ pub use crate::core_crypto::prelude::{CastFrom, CastInto};
 
 pub use crate::high_level_api::array::traits::FheSliceDotProduct;
 
+#[cfg(feature = "gpu")]
+pub use crate::high_level_api::gpu_utils::*;
 #[cfg(feature = "strings")]
 pub use crate::high_level_api::strings::traits::*;
+#[cfg(feature = "gpu")]
+pub use crate::high_level_api::traits::{AddAssignSizeOnGpu, SizeOnGpu};

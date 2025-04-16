@@ -13,7 +13,7 @@ void cuda_lwe_expand_64(void *const stream, uint32_t gpu_index,
                         const uint32_t *lwe_compact_input_indexes,
                         const uint32_t *output_body_id_per_compact_list);
 
-void scratch_cuda_expand_without_verification_64(
+uint64_t scratch_cuda_expand_without_verification_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension,

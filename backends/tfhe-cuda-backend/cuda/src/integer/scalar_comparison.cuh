@@ -103,7 +103,6 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     PANIC("Cuda error: input num radix blocks should not be lower "
           "than the number of blocks to operate on")
 
-  bool allocate_ms_array = ms_noise_reduction_key->num_zeros != 0;
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -154,7 +153,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     generate_device_accumulator<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_last_leaf_lut_f);
+        message_modulus, carry_modulus, scalar_last_leaf_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -253,7 +252,7 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
+        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
@@ -279,13 +278,13 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
         return (Torus)(invert_flags.second ^ overflowed);
       };
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, true);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true, nullptr);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, one_block_lut_f);
+          params.carry_modulus, one_block_lut_f, true);
 
       one_block_lut->broadcast_lut(streams, gpu_indexes, 0);
 
@@ -350,7 +349,6 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
   if (lwe_array_in->num_radix_blocks < num_radix_blocks)
     PANIC("Cuda error: input num radix blocks should not be lower "
           "than the number of blocks to operate on")
-  bool allocate_ms_array = ms_noise_reduction_key->num_zeros != 0;
   auto params = mem_ptr->params;
   auto glwe_dimension = params.glwe_dimension;
   auto polynomial_size = params.polynomial_size;
@@ -434,7 +432,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
         lut->get_max_degree(0), glwe_dimension, polynomial_size,
-        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f);
+        message_modulus, carry_modulus, scalar_bivariate_last_leaf_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_bivariate_lookup_table_kb<Torus>(
@@ -540,7 +538,7 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
         msb_streams[0], gpu_indexes[0], signed_msb_lut->get_lut(0, 0),
         signed_msb_lut->get_degree(0), signed_msb_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, lut_f);
+        params.carry_modulus, lut_f, true);
     signed_msb_lut->broadcast_lut(streams, gpu_indexes, 0);
 
     CudaRadixCiphertextFFI sign_block;
@@ -581,13 +579,13 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
                                                           message_modulus);
       };
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, true);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true, nullptr);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),
           one_block_lut->get_degree(0), one_block_lut->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
-          params.carry_modulus, one_block_lut_f);
+          params.carry_modulus, one_block_lut_f, true);
 
       one_block_lut->broadcast_lut(streams, gpu_indexes, 0);
 

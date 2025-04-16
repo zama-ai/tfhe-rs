@@ -65,7 +65,7 @@ void generate_ids_update_degrees(uint64_t *terms_degree, size_t *h_lwe_idx_in,
  * This scratch function allocates the necessary amount of data on the GPU for
  * the integer radix multiplication in keyswitch->bootstrap order.
  */
-void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, bool const is_boolean_left, bool const is_boolean_right,
     uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
@@ -88,11 +88,10 @@ void scratch_cuda_integer_mult_radix_ciphertext_kb_64(
   case 4096:
   case 8192:
   case 16384:
-    scratch_cuda_integer_mult_radix_ciphertext_kb<uint64_t>(
+    return scratch_cuda_integer_mult_radix_ciphertext_kb<uint64_t>(
         (cudaStream_t const *)(streams), gpu_indexes, gpu_count,
         (int_mul_memory<uint64_t> **)mem_ptr, is_boolean_left, is_boolean_right,
         num_radix_blocks, params, allocate_gpu_memory);
-    break;
   default:
     PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
           "Supported N's are powers of two in the interval [256..16384].")
@@ -204,7 +203,7 @@ void cleanup_cuda_integer_mult(void *const *streams,
   POP_RANGE()
 }
 
-void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
+uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
@@ -218,7 +217,7 @@ void scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
                           allocate_ms_array);
-  scratch_cuda_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
+  return scratch_cuda_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_sum_ciphertexts_vec_memory<uint64_t> **)mem_ptr, num_blocks_in_radix,
       max_num_radix_in_vec, params, allocate_gpu_memory);

@@ -53,11 +53,11 @@ void cuda_keyswitch_lwe_ciphertext_vector_64(
       base_log, level_count, num_samples);
 }
 
-void scratch_packing_keyswitch_lwe_list_to_glwe_64(
+uint64_t scratch_packing_keyswitch_lwe_list_to_glwe_64(
     void *stream, uint32_t gpu_index, int8_t **fp_ks_buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t num_lwes, bool allocate_gpu_memory) {
-  scratch_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
+  return scratch_packing_keyswitch_lwe_list_to_glwe<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index, fp_ks_buffer, lwe_dimension,
       glwe_dimension, polynomial_size, num_lwes, allocate_gpu_memory);
 }
@@ -84,6 +84,9 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 uint32_t gpu_index,
-                                                int8_t **fp_ks_buffer) {
-  cuda_drop_async(*fp_ks_buffer, static_cast<cudaStream_t>(stream), gpu_index);
+                                                int8_t **fp_ks_buffer,
+                                                bool gpu_memory_allocated) {
+  cuda_drop_with_size_tracking_async(*fp_ks_buffer,
+                                     static_cast<cudaStream_t>(stream),
+                                     gpu_index, gpu_memory_allocated);
 }

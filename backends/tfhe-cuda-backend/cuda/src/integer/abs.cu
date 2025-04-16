@@ -1,6 +1,6 @@
 #include "integer/abs.cuh"
 
-void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
+uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, bool is_signed, uint32_t glwe_dimension,
     uint32_t polynomial_size, uint32_t big_lwe_dimension,
@@ -14,7 +14,7 @@ void scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
                           message_modulus, carry_modulus, allocate_ms_array);
 
-  scratch_cuda_integer_abs_kb<uint64_t>(
+  return scratch_cuda_integer_abs_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_abs_buffer<uint64_t> **)mem_ptr, is_signed, num_blocks, params,
       allocate_gpu_memory);

@@ -12,14 +12,18 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         uint32_t const gpu_index,
                                         CudaRadixCiphertextFFI *radix,
                                         const uint32_t num_radix_blocks,
-                                        const uint32_t lwe_dimension) {
+                                        const uint32_t lwe_dimension,
+                                        uint64_t *size_tracker,
+                                        bool allocate_gpu_memory) {
   PUSH_RANGE("create zero radix ct");
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
   uint32_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-  radix->ptr = (void *)cuda_malloc_async(size, stream, gpu_index);
-  cuda_memset_async(radix->ptr, 0, size, stream, gpu_index);
+  radix->ptr = (void *)cuda_malloc_with_size_tracking_async(
+      size, stream, gpu_index, size_tracker, allocate_gpu_memory);
+  cuda_memset_with_size_tracking_async(radix->ptr, 0, size, stream, gpu_index,
+                                       allocate_gpu_memory);
 
   radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   radix->noise_levels =

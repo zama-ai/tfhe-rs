@@ -1,6 +1,6 @@
 #include "zk.cuh"
 
-void scratch_cuda_expand_without_verification_64(
+uint64_t scratch_cuda_expand_without_verification_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension,
@@ -33,7 +33,7 @@ void scratch_cuda_expand_without_verification_64(
       pbs_base_log, grouping_factor, message_modulus, carry_modulus,
       allocate_ms_array);
 
-  scratch_cuda_expand_without_verification<uint64_t>(
+  return scratch_cuda_expand_without_verification<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count,
       reinterpret_cast<zk_expand_mem<uint64_t> **>(mem_ptr),
       num_lwes_per_compact_list, is_boolean_array, num_compact_lists,

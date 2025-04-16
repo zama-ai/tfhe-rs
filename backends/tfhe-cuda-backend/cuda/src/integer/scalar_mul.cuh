@@ -28,15 +28,17 @@ __global__ void device_small_scalar_radix_multiplication(T *output_lwe_array,
 }
 
 template <typename T>
-__host__ void scratch_cuda_integer_radix_scalar_mul_kb(
+__host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_scalar_mul_buffer<T> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     bool allocate_gpu_memory) {
 
-  *mem_ptr =
-      new int_scalar_mul_buffer<T>(streams, gpu_indexes, gpu_count, params,
-                                   num_radix_blocks, allocate_gpu_memory, true);
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_scalar_mul_buffer<T>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+      allocate_gpu_memory, true, &size_tracker);
+  return size_tracker;
 }
 
 template <typename T, class params>
@@ -101,7 +103,8 @@ __host__ void host_integer_scalar_mul_radix(
 
   if (mem->anticipated_buffers_drop) {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0],
-                                   preshifted_buffer);
+                                   preshifted_buffer,
+                                   mem->gpu_memory_allocated);
     delete preshifted_buffer;
     mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
     delete (mem->logical_scalar_shift_buffer);

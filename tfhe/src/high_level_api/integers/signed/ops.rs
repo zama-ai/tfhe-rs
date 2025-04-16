@@ -3,6 +3,8 @@ use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::traits::{AddAssignSizeOnGpu, SizeOnGpu};
 use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
@@ -1937,6 +1939,49 @@ where
                     .bitnot(&*self.ciphertext.on_gpu(streams), streams);
                 FheInt::new(inner_result, cuda_key.tag.clone())
             }),
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, I> AddAssignSizeOnGpu<I> for FheInt<Id>
+where
+    Id: FheIntId,
+    I: Borrow<Self>,
+{
+    fn get_add_assign_size_on_gpu(&self, rhs: I) -> u64 {
+        let rhs = rhs.borrow();
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key.key.key.get_add_assign_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+            }),
+        });
+        tmp_buffer_size
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> SizeOnGpu for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    fn get_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                cuda_key
+                    .key
+                    .key
+                    .get_ciphertext_size_on_gpu(&*self.ciphertext.on_gpu(streams))
+            }),
+            InternalServerKey::Cpu(_) => 0,
         })
     }
 }
