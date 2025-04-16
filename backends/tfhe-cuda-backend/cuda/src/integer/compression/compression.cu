@@ -1,6 +1,6 @@
 #include "compression.cuh"
 
-void scratch_cuda_integer_compress_radix_ciphertext_64(
+uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
@@ -15,13 +15,13 @@ void scratch_cuda_integer_compress_radix_ciphertext_64(
       lwe_dimension, ks_level, ks_base_log, 0, 0, 0, message_modulus,
       carry_modulus, allocate_gpu_memory);
 
-  scratch_cuda_compress_integer_radix_ciphertext<uint64_t>(
+  return scratch_cuda_compress_integer_radix_ciphertext<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_compression<uint64_t> **)mem_ptr, num_radix_blocks,
       compression_params, lwe_per_glwe, storage_log_modulus,
       allocate_gpu_memory);
 }
-void scratch_cuda_integer_decompress_radix_ciphertext_64(
+uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t encryption_glwe_dimension,
     uint32_t encryption_polynomial_size, uint32_t compression_glwe_dimension,
@@ -43,7 +43,7 @@ void scratch_cuda_integer_decompress_radix_ciphertext_64(
       0, 0, pbs_level, pbs_base_log, 0, message_modulus, carry_modulus,
       allocate_ms_array);
 
-  scratch_cuda_integer_decompress_radix_ciphertext<uint64_t>(
+  return scratch_cuda_integer_decompress_radix_ciphertext<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_decompression<uint64_t> **)mem_ptr, num_radix_blocks, body_count,
       encryption_params, compression_params, storage_log_modulus,

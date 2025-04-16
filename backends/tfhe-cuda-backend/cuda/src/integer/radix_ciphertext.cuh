@@ -12,14 +12,18 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         uint32_t const gpu_index,
                                         CudaRadixCiphertextFFI *radix,
                                         const uint32_t num_radix_blocks,
-                                        const uint32_t lwe_dimension) {
+                                        const uint32_t lwe_dimension,
+                                        uint64_t *size_tracker,
+                                        bool allocate_gpu_memory) {
   PUSH_RANGE("create zero radix ct");
   radix->lwe_dimension = lwe_dimension;
   radix->num_radix_blocks = num_radix_blocks;
   radix->max_num_radix_blocks = num_radix_blocks;
   uint32_t size = (lwe_dimension + 1) * num_radix_blocks * sizeof(Torus);
-  radix->ptr = (void *)cuda_malloc_async(size, stream, gpu_index);
-  cuda_memset_async(radix->ptr, 0, size, stream, gpu_index);
+  radix->ptr = (void *)cuda_malloc_async(size, stream, gpu_index, size_tracker,
+                                         allocate_gpu_memory);
+  cuda_memset_async(radix->ptr, 0, size, stream, gpu_index,
+                    allocate_gpu_memory);
 
   radix->degrees = (uint64_t *)(calloc(num_radix_blocks, sizeof(uint64_t)));
   radix->noise_levels =
@@ -113,7 +117,7 @@ void copy_radix_ciphertext_slice_async(
 
   cuda_memcpy_async_gpu_to_gpu(out_ptr, in_ptr,
                                num_blocks * lwe_size * sizeof(Torus), stream,
-                               gpu_index);
+                               gpu_index, true);
   for (uint i = 0; i < num_blocks; i++) {
     output_radix->degrees[i + output_start_lwe_index] =
         input_radix->degrees[i + input_start_lwe_index];
@@ -151,7 +155,7 @@ void set_zero_radix_ciphertext_slice_async(cudaStream_t const stream,
   auto lwe_array_out_block = (Torus *)radix->ptr + start_lwe_index * lwe_size;
   cuda_memset_async(lwe_array_out_block, 0,
                     num_blocks_to_set * lwe_size * sizeof(Torus), stream,
-                    gpu_index);
+                    gpu_index, true);
   memset(&radix->degrees[start_lwe_index], 0,
          num_blocks_to_set * sizeof(uint64_t));
   memset(&radix->noise_levels[start_lwe_index], 0,

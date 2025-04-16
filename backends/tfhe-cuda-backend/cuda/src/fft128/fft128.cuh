@@ -453,20 +453,20 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
     const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      N * sizeof(__uint128_t), stream, gpu_index, nullptr, true);
 
   // copy input into device
   cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
@@ -476,7 +476,8 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index,
+                                               nullptr, true);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
@@ -527,20 +528,20 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
     const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      N * sizeof(__uint128_t), stream, gpu_index, nullptr, true);
 
   // copy input into device
   cuda_memcpy_async_to_gpu(d_standard, standard, N * sizeof(__uint128_t),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
@@ -550,7 +551,8 @@ __host__ void host_fourier_transform_forward_as_torus_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index,
+                                               nullptr, true);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {
@@ -601,26 +603,26 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
     const uint32_t N, const uint32_t number_of_samples) {
 
   // allocate device buffers
-  double *d_re0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_re1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im0 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
-  double *d_im1 =
-      (double *)cuda_malloc_async(N / 2 * sizeof(double), stream, gpu_index);
+  double *d_re0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_re1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im0 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
+  double *d_im1 = (double *)cuda_malloc_async(N / 2 * sizeof(double), stream,
+                                              gpu_index, nullptr, true);
   __uint128_t *d_standard = (__uint128_t *)cuda_malloc_async(
-      N * sizeof(__uint128_t), stream, gpu_index);
+      N * sizeof(__uint128_t), stream, gpu_index, nullptr, true);
 
   //  // copy input into device
   cuda_memcpy_async_to_gpu(d_re0, re0, N / 2 * sizeof(double), stream,
-                           gpu_index);
+                           gpu_index, true);
   cuda_memcpy_async_to_gpu(d_re1, re1, N / 2 * sizeof(double), stream,
-                           gpu_index);
+                           gpu_index, true);
   cuda_memcpy_async_to_gpu(d_im0, im0, N / 2 * sizeof(double), stream,
-                           gpu_index);
+                           gpu_index, true);
   cuda_memcpy_async_to_gpu(d_im1, im1, N / 2 * sizeof(double), stream,
-                           gpu_index);
+                           gpu_index, true);
 
   // setup launch parameters
   size_t required_shared_memory_size = sizeof(double) * N / 2 * 4;
@@ -630,7 +632,8 @@ __host__ void host_fourier_transform_backward_as_torus_f128(
       (required_shared_memory_size <= cuda_get_max_shared_memory(gpu_index));
   size_t buffer_size = full_sm ? 0 : (size_t)number_of_samples * N / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index,
+                                               nullptr, true);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {

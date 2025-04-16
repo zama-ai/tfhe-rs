@@ -109,7 +109,7 @@ unsafe extern "C" {
         lwe_per_glwe: u32,
         storage_log_modulus: u32,
         allocate_gpu_memory: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_integer_decompress_radix_ciphertext_64(
@@ -132,7 +132,7 @@ unsafe extern "C" {
         body_count: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_compress_radix_ciphertext_64(
@@ -246,7 +246,7 @@ unsafe extern "C" {
         lut_degree: u64,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_apply_many_univariate_lut_kb_64(
@@ -271,7 +271,7 @@ unsafe extern "C" {
         lut_degree: u64,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_apply_univariate_lut_kb_64(
@@ -316,7 +316,7 @@ unsafe extern "C" {
         lut_degree: u64,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_apply_bivariate_lut_kb_64(
@@ -376,7 +376,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_full_propagation_64_inplace(
@@ -421,7 +421,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_mult_radix_ciphertext_kb_64(
@@ -496,7 +496,7 @@ unsafe extern "C" {
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
@@ -533,7 +533,7 @@ unsafe extern "C" {
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
@@ -587,7 +587,7 @@ unsafe extern "C" {
         is_signed: bool,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_radix_shift_and_rotate_kb_64_inplace(
@@ -633,7 +633,7 @@ unsafe extern "C" {
         is_signed: bool,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_comparison_integer_radix_ciphertext_kb_64(
@@ -695,7 +695,7 @@ unsafe extern "C" {
         op_type: BITOP_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_bitop_integer_radix_ciphertext_kb_64(
@@ -756,7 +756,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_cmux_integer_radix_ciphertext_kb_64(
@@ -803,7 +803,7 @@ unsafe extern "C" {
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_radix_scalar_rotate_kb_64_inplace(
@@ -849,7 +849,7 @@ unsafe extern "C" {
         uses_carry: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
@@ -874,7 +874,7 @@ unsafe extern "C" {
         uses_carry: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_propagate_single_carry_kb_64_inplace(
@@ -947,7 +947,7 @@ unsafe extern "C" {
         compute_overflow: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_overflowing_sub_kb_64_inplace(
@@ -995,7 +995,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
@@ -1038,7 +1038,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
@@ -1087,7 +1087,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_div_rem_radix_ciphertext_kb_64(
@@ -1135,7 +1135,7 @@ unsafe extern "C" {
         lut_degree: u64,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_compute_prefix_sum_hillis_steele_64(
@@ -1189,7 +1189,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_abs_inplace_radix_ciphertext_kb_64(
@@ -1233,7 +1233,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_are_all_comparisons_block_true_kb_64(
@@ -1278,7 +1278,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
@@ -1345,7 +1345,7 @@ unsafe extern "C" {
         casting_key_type: KS_TYPE,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_expand_without_verification_64(
@@ -1411,7 +1411,7 @@ unsafe extern "C" {
         polynomial_size: u32,
         num_lwes: u32,
         allocate_gpu_memory: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_packing_keyswitch_lwe_list_to_glwe_64(
@@ -1624,7 +1624,7 @@ unsafe extern "C" {
         polynomial_size: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_programmable_bootstrap_amortized_64(
@@ -1635,7 +1635,7 @@ unsafe extern "C" {
         polynomial_size: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_programmable_bootstrap_amortized_lwe_ciphertext_vector_32(
@@ -1696,7 +1696,7 @@ unsafe extern "C" {
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_programmable_bootstrap_64(
@@ -1710,7 +1710,7 @@ unsafe extern "C" {
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn scratch_cuda_programmable_bootstrap_128(
@@ -1724,7 +1724,7 @@ unsafe extern "C" {
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_programmable_bootstrap_lwe_ciphertext_vector_32(
@@ -1835,7 +1835,7 @@ unsafe extern "C" {
         level_count: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-    );
+    ) -> u64;
 }
 unsafe extern "C" {
     pub fn cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(

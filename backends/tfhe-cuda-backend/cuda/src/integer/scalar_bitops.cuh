@@ -46,7 +46,7 @@ __host__ void host_integer_radix_scalar_bitop_kb(
     }
     cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
                                  num_clear_blocks * sizeof(Torus), streams[0],
-                                 gpu_indexes[0]);
+                                 gpu_indexes[0], true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(

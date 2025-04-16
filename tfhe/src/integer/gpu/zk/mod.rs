@@ -67,6 +67,7 @@ impl CudaProvenCompactCiphertextList {
                 (length * std::mem::size_of::<u64>()) as u64,
                 streams.ptr[0],
                 streams.gpu_indexes[0].get(),
+                true,
             );
 
             offset += ciphertext_list.d_ct_list.0.d_vec.len;

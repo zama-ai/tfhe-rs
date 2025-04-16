@@ -135,7 +135,7 @@ __host__ void are_all_comparisons_block_true(
             is_max_value_lut->get_degree(1),
             is_max_value_lut->get_max_degree(1), glwe_dimension,
             polynomial_size, message_modulus, carry_modulus,
-            is_equal_to_num_blocks_lut_f);
+            is_equal_to_num_blocks_lut_f, true);
 
         Torus *h_lut_indexes = is_max_value_lut->h_lut_indexes;
         for (int index = 0; index < num_chunks; index++) {
@@ -147,7 +147,7 @@ __host__ void are_all_comparisons_block_true(
         }
         cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                  h_lut_indexes, num_chunks * sizeof(Torus),
-                                 streams[0], gpu_indexes[0]);
+                                 streams[0], gpu_indexes[0], true);
         is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       }
       lut = is_max_value_lut;
@@ -166,7 +166,7 @@ __host__ void are_all_comparisons_block_true(
       cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                is_max_value_lut->h_lut_indexes,
                                is_max_value_lut->num_blocks * sizeof(Torus),
-                               streams[0], gpu_indexes[0]);
+                               streams[0], gpu_indexes[0], true);
       is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
@@ -497,7 +497,7 @@ __host__ void tree_sign_reduction(
   generate_device_accumulator<Torus>(
       streams[0], gpu_indexes[0], last_lut->get_lut(0, 0),
       last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
-      polynomial_size, message_modulus, carry_modulus, f);
+      polynomial_size, message_modulus, carry_modulus, f, true);
   last_lut->broadcast_lut(streams, gpu_indexes, 0);
 
   // Last leaf
@@ -674,15 +674,17 @@ __host__ void host_integer_radix_difference_check_kb(
 }
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_radix_comparison_check_kb(
+__host__ uint64_t scratch_cuda_integer_radix_comparison_check_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_comparison_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params, COMPARISON_TYPE op,
     bool is_signed, bool allocate_gpu_memory) {
 
-  *mem_ptr = new int_comparison_buffer<Torus>(streams, gpu_indexes, gpu_count,
-                                              op, params, num_radix_blocks,
-                                              is_signed, allocate_gpu_memory);
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_comparison_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, op, params, num_radix_blocks, is_signed,
+      allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus>
