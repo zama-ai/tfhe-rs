@@ -21,7 +21,7 @@ extern "C" {
         allocate_gpu_memory: bool,
     ) -> *mut c_void;
 
-    pub fn cuda_check_valid_malloc(size: u64, gpu_index: u32);
+    pub fn cuda_check_valid_malloc(size: u64, gpu_index: u32) -> bool;
 
     pub fn cuda_memcpy_async_to_gpu(
         dest: *mut c_void,

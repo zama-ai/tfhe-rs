@@ -100,14 +100,14 @@ void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index,
 }
 
 /// Check that allocation is valid
-void cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
+bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
   cuda_set_device(gpu_index);
   size_t total_mem, free_mem;
   check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
   if (size > free_mem) {
-    PANIC("Cuda error: not enough memory on device. "
-          "Available: %zu vs Requested: %lu",
-          free_mem, size)
+    return false;
+  } else {
+    return true;
   }
 }
 

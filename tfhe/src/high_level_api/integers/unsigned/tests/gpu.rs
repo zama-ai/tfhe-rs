@@ -1,6 +1,9 @@
+use crate::high_level_api::traits::AddAssignSizeOnGpu;
+use crate::prelude::{check_valid_cuda_malloc, FheTryEncrypt};
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::shortint::{ClassicPBSParameters, PBSParameters};
-use crate::{set_server_key, ClientKey, ConfigBuilder};
+use crate::{set_server_key, ClientKey, ConfigBuilder, FheUint32, GpuIndex};
+use rand::Rng;
 
 /// GPU setup for tests
 ///
@@ -144,4 +147,19 @@ fn test_ilog2_gpu() {
 fn test_ilog2_multibit() {
     let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     super::test_case_ilog2(&client_key);
+}
+
+#[test]
+fn test_gpu_get_add_assign_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen_range(1..=u32::MAX);
+    let clear_b = rng.gen_range(1..=u32::MAX);
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+    a.move_to_current_device();
+    b.move_to_current_device();
+
+    let tmp_buffer_size = a.get_add_assign_size_on_gpu(b);
+    assert!(check_valid_cuda_malloc(tmp_buffer_size, GpuIndex::new(0)));
 }
