@@ -17,6 +17,7 @@ use crate::integer::parameters::LweDimension;
 use crate::integer::{CompactPublicKey, ProvenCompactCiphertextList};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::zk::CompactPkeCrs;
+use crate::GpuIndex;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tfhe_cuda_backend::cuda_bind::cuda_memcpy_async_gpu_to_gpu;
@@ -27,6 +28,28 @@ pub struct CudaProvenCompactCiphertextList {
 }
 
 impl CudaProvenCompactCiphertextList {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            h_proved_lists: self.h_proved_lists.clone(),
+            d_compact_lists: self
+                .d_compact_lists
+                .iter()
+                .map(|ct_list| ct_list.duplicate(streams))
+                .collect_vec(),
+        }
+    }
+
+    pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        self.d_compact_lists
+            .first()
+            .unwrap()
+            .d_ct_list
+            .0
+            .d_vec
+            .gpu_indexes
+            .as_slice()
+    }
+
     unsafe fn flatten_async(
         slice_ciphertext_list: &[CudaCompactCiphertextList],
         streams: &CudaStreams,
@@ -197,11 +220,11 @@ impl CudaProvenCompactCiphertextList {
                 self.d_compact_lists.as_slice(),
                 streams,
             );
-            let casting_key = &key.key_switching_key;
+            let casting_key = &key.key_switching_key_material;
             let sks = key.dest_server_key;
             let computing_ks_key = &key.dest_server_key.key_switching_key;
 
-            let casting_key_type: KsType = key.destination_key.into();
+            let casting_key_type: KsType = casting_key.destination_key.into();
 
             match &sks.bootstrapping_key {
                 CudaBootstrappingKey::Classic(d_bsk) => {
@@ -211,7 +234,7 @@ impl CudaProvenCompactCiphertextList {
                         &d_input,
                         &d_bsk.d_vec,
                         &computing_ks_key.d_vec,
-                        &casting_key.d_vec,
+                        &casting_key.key_switching_key.d_vec,
                         sks.message_modulus,
                         sks.carry_modulus,
                         d_bsk.glwe_dimension(),
@@ -219,10 +242,16 @@ impl CudaProvenCompactCiphertextList {
                         d_bsk.input_lwe_dimension(),
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        casting_key.input_key_lwe_size().to_lwe_dimension(),
-                        casting_key.output_key_lwe_size().to_lwe_dimension(),
-                        casting_key.decomposition_level_count(),
-                        casting_key.decomposition_base_log(),
+                        casting_key
+                            .key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key
+                            .key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key.key_switching_key.decomposition_level_count(),
+                        casting_key.key_switching_key.decomposition_base_log(),
                         d_bsk.decomp_level_count,
                         d_bsk.decomp_base_log,
                         PBSType::Classical,
@@ -243,7 +272,7 @@ impl CudaProvenCompactCiphertextList {
                         ),
                         &d_multibit_bsk.d_vec,
                         &computing_ks_key.d_vec,
-                        &casting_key.d_vec,
+                        &casting_key.key_switching_key.d_vec,
                         sks.message_modulus,
                         sks.carry_modulus,
                         d_multibit_bsk.glwe_dimension(),
@@ -251,10 +280,16 @@ impl CudaProvenCompactCiphertextList {
                         d_multibit_bsk.input_lwe_dimension(),
                         computing_ks_key.decomposition_level_count(),
                         computing_ks_key.decomposition_base_log(),
-                        casting_key.input_key_lwe_size().to_lwe_dimension(),
-                        casting_key.output_key_lwe_size().to_lwe_dimension(),
-                        casting_key.decomposition_level_count(),
-                        casting_key.decomposition_base_log(),
+                        casting_key
+                            .key_switching_key
+                            .input_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key
+                            .key_switching_key
+                            .output_key_lwe_size()
+                            .to_lwe_dimension(),
+                        casting_key.key_switching_key.decomposition_level_count(),
+                        casting_key.key_switching_key.decomposition_base_log(),
                         d_multibit_bsk.decomp_level_count,
                         d_multibit_bsk.decomp_base_log,
                         PBSType::MultiBit,
@@ -324,6 +359,18 @@ impl CudaProvenCompactCiphertextList {
             .d_ct_list
             .0
             .ciphertext_modulus
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for CudaProvenCompactCiphertextList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let cpu_ct = ProvenCompactCiphertextList::deserialize(deserializer)?;
+        let streams = CudaStreams::new_multi_gpu();
+
+        Ok(CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(&cpu_ct, &streams))
     }
 }
 

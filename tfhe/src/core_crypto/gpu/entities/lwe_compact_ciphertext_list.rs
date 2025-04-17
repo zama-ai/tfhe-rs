@@ -10,6 +10,10 @@ use crate::core_crypto::prelude::{
 pub struct CudaLweCompactCiphertextList<T: UnsignedInteger>(pub CudaLweList<T>);
 
 impl<T: UnsignedInteger> CudaLweCompactCiphertextList<T> {
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self(self.0.duplicate(streams))
+    }
+
     pub fn from_lwe_compact_ciphertext_list<C: Container<Element = T>>(
         h_ct: &LweCompactCiphertextList<C>,
         streams: &CudaStreams,

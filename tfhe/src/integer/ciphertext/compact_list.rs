@@ -303,14 +303,17 @@ impl CompactCiphertextListBuilder {
         })
     }
 }
+use crate::integer::backward_compatibility::ciphertext::CompactCiphertextListExpanderVersions;
 
+#[derive(Versionize)]
+#[versionize(CompactCiphertextListExpanderVersions)]
 pub struct CompactCiphertextListExpander {
     expanded_blocks: Vec<Ciphertext>,
     info: Vec<DataKind>,
 }
 
 impl CompactCiphertextListExpander {
-    fn new(expanded_blocks: Vec<Ciphertext>, info: Vec<DataKind>) -> Self {
+    pub(crate) fn new(expanded_blocks: Vec<Ciphertext>, info: Vec<DataKind>) -> Self {
         Self {
             expanded_blocks,
             info,
