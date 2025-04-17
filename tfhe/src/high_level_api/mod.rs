@@ -141,6 +141,9 @@ mod strings;
 mod traits;
 mod utils;
 
+#[cfg(feature = "gpu")]
+mod gpu_utils;
+
 pub mod array;
 pub mod backward_compatibility;
 mod compact_list;
