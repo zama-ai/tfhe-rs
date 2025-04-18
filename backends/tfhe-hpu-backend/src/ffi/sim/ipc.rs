@@ -126,8 +126,8 @@ pub(crate) fn memory_channel() -> (MemoryFfi, MemorySim) {
     )
 }
 
-// Gather Register/Memory interface together to easily exchange them across OneShot server
 /// FFI side of IPC channel used for Memory xfer
+/// Gather Register/Memory interface together to easily exchange them across OneShot server
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct IpcFfi {
     pub(crate) register: RegisterFfi,
