@@ -177,7 +177,7 @@ pub fn main() {
     let sks_compressed = CompressedServerKey::new_radix_compressed_server_key(&cks);
 
     // Init Hpu device with server key and firmware
-    tfhe::integer::hpu::init_device(&hpu_device, sks_compressed);
+    tfhe::integer::hpu::init_device(&hpu_device, sks_compressed).expect("Invalid key");
 
     // Create IOps/Width list ------------------------------------------------
     let bench_iop = if !args.iop.is_empty() {
