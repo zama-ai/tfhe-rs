@@ -10,6 +10,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 };
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
@@ -27,7 +28,7 @@ create_parameterized_test!(integer_default_overflowing_scalar_sub);
 
 fn integer_smart_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_sub_parallelized);
     smart_scalar_sub_test(param, executor);
@@ -35,7 +36,7 @@ where
 
 fn integer_default_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_sub_parallelized);
     default_scalar_sub_test(param, executor);
@@ -43,7 +44,7 @@ where
 
 fn integer_unchecked_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_left_scalar_sub);
     unchecked_left_scalar_sub_test(param, executor);
@@ -51,7 +52,7 @@ where
 
 fn integer_smart_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_left_scalar_sub_parallelized);
     smart_left_scalar_sub_test(param, executor);
@@ -59,7 +60,7 @@ where
 
 fn integer_default_left_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::left_scalar_sub_parallelized);
     default_left_scalar_sub_test(param, executor);
@@ -67,7 +68,7 @@ where
 
 fn integer_default_overflowing_scalar_sub<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized);
@@ -76,7 +77,7 @@ where
 
 pub(crate) fn unchecked_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(u64, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -123,7 +124,7 @@ where
 
 pub(crate) fn smart_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(u64, &'a mut RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -167,7 +168,7 @@ where
 
 pub(crate) fn default_left_scalar_sub_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(u64, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();

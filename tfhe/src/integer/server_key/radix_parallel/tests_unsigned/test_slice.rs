@@ -17,7 +17,7 @@ use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
 
-use super::{nb_tests_for_params, CpuFunctionExecutor, FunctionExecutor, PBSParameters, NB_CTXT};
+use super::{nb_tests_for_params, CpuFunctionExecutor, FunctionExecutor, NB_CTXT};
 
 create_parameterized_test!(integer_unchecked_scalar_slice);
 create_parameterized_test!(integer_unchecked_scalar_slice_assign);
@@ -46,7 +46,7 @@ where
 
 pub(crate) fn scalar_blockslice_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, Range<usize>),
         Result<RadixCiphertext, InvalidRangeError>,
@@ -93,7 +93,7 @@ where
 
 pub(crate) fn scalar_blockslice_assign_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, usize, usize), ()>,
 {
     let param = param.into();
@@ -137,7 +137,7 @@ where
 
 pub(crate) fn unchecked_scalar_bitslice_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, Range<u32>),
         Result<RadixCiphertext, InvalidRangeError>,
@@ -181,7 +181,7 @@ where
 
 pub(crate) fn unchecked_scalar_bitslice_assign_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, Range<u32>),
         Result<(), InvalidRangeError>,
@@ -225,7 +225,7 @@ where
 
 pub(crate) fn default_scalar_bitslice_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, Range<u32>),
         Result<RadixCiphertext, InvalidRangeError>,
@@ -275,7 +275,7 @@ where
 
 pub(crate) fn default_scalar_bitslice_assign_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, Range<u32>),
         Result<(), InvalidRangeError>,
@@ -325,7 +325,7 @@ where
 
 pub(crate) fn smart_scalar_bitslice_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, Range<u32>),
         Result<RadixCiphertext, InvalidRangeError>,
@@ -375,7 +375,7 @@ where
 
 pub(crate) fn smart_scalar_bitslice_assign_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, Range<u32>),
         Result<(), InvalidRangeError>,
@@ -425,7 +425,7 @@ where
 
 fn integer_unchecked_scalar_slice<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice_parallelized);
     unchecked_scalar_bitslice_test(param, executor);
@@ -433,7 +433,7 @@ where
 
 fn integer_unchecked_scalar_slice_assign<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor =
         CpuFunctionExecutor::new(&ServerKey::unchecked_scalar_bitslice_assign_parallelized);
@@ -442,7 +442,7 @@ where
 
 fn integer_default_scalar_slice<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_parallelized);
     default_scalar_bitslice_test(param, executor);
@@ -450,7 +450,7 @@ where
 
 fn integer_default_scalar_slice_assign<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_bitslice_assign_parallelized);
     default_scalar_bitslice_assign_test(param, executor);
@@ -458,7 +458,7 @@ where
 
 fn integer_smart_scalar_slice<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_parallelized);
     smart_scalar_bitslice_test(param, executor);
@@ -466,7 +466,7 @@ where
 
 fn integer_smart_scalar_slice_assign<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_scalar_bitslice_assign_parallelized);
     smart_scalar_bitslice_assign_test(param, executor);

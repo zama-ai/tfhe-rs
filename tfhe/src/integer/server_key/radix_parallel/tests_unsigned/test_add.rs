@@ -63,7 +63,7 @@ create_parameterized_test!(
 
 fn integer_unchecked_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_parallelized);
     unchecked_add_test(param, executor);
@@ -71,7 +71,7 @@ where
 
 fn integer_unchecked_add_assign<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unchecked_add_assign_parallelized);
     unchecked_add_assign_test(param, executor);
@@ -79,7 +79,7 @@ where
 
 fn integer_smart_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::smart_add_parallelized);
     smart_add_test(param, executor);
@@ -87,7 +87,7 @@ where
 
 fn integer_default_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     default_add_test(param, executor);
@@ -95,7 +95,7 @@ where
 
 fn integer_extensive_trivial_default_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     extensive_trivial_default_add_test(param, executor);
@@ -103,7 +103,7 @@ where
 
 fn integer_advanced_overflowing_add_assign_with_carry_at_least_4_bits<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     // We explicitly call the 4 bit function to make sure it's being tested,
     // no matter the number of blocks / threads available
@@ -136,7 +136,7 @@ where
 
 fn integer_extensive_trivial_overflowing_advanced_add_assign_with_carry_at_least_4_bits<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     // We explicitly call the 4 bit function to make sure it's being tested,
     // no matter the number of blocks / threads available
@@ -169,7 +169,7 @@ where
 
 fn integer_advanced_add_assign_with_carry_sequential<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
@@ -200,7 +200,7 @@ where
 
 fn integer_extensive_trivial_advanced_overflowing_add_assign_with_carry_sequential<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let func = |sks: &ServerKey, lhs: &RadixCiphertext, rhs: &RadixCiphertext| {
         let mut result = lhs.clone();
@@ -231,7 +231,7 @@ where
 
 fn integer_default_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
     default_overflowing_add_test(param, executor);
@@ -239,7 +239,7 @@ where
 
 fn integer_extensive_trivial_default_overflowing_add<P>(param: P)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
     extensive_trivial_default_overflowing_add_test(param, executor);
@@ -275,7 +275,7 @@ impl ExpectedDegrees {
 
 pub(crate) fn unchecked_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -331,7 +331,7 @@ where
 
 pub(crate) fn unchecked_add_assign_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, &'a RadixCiphertext), ()>,
 {
     let param = param.into();
@@ -387,7 +387,7 @@ where
 
 pub(crate) fn smart_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a mut RadixCiphertext, &'a mut RadixCiphertext),
         RadixCiphertext,
@@ -447,7 +447,7 @@ where
 
 pub(crate) fn default_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -509,7 +509,7 @@ where
 /// or extremely extremely fast in general, or if its plugged just as a one time thing.
 pub(crate) fn extensive_trivial_default_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
 {
     let param = param.into();
@@ -552,7 +552,7 @@ where
 
 pub(crate) fn default_overflowing_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),
@@ -681,7 +681,7 @@ where
 /// or extremely extremely fast in general, or if its plugged just as a one time thing.
 pub(crate) fn extensive_trivial_default_overflowing_add_test<P, T>(param: P, mut executor: T)
 where
-    P: Into<PBSParameters>,
+    P: Into<AtomicPatternParameters>,
     T: for<'a> FunctionExecutor<
         (&'a RadixCiphertext, &'a RadixCiphertext),
         (RadixCiphertext, BooleanBlock),

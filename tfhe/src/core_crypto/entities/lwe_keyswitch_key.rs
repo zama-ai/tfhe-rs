@@ -443,7 +443,9 @@ pub struct LweKeyswitchKeyConformanceParams {
     pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for LweKeyswitchKey<C> {
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for LweKeyswitchKey<C>
+{
     type ParameterSet = LweKeyswitchKeyConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
@@ -455,7 +457,11 @@ impl<C: Container<Element = u64>> ParameterSetConformant for LweKeyswitchKey<C> 
             ciphertext_modulus,
         } = self;
 
-        *ciphertext_modulus == parameter_set.ciphertext_modulus
+        let Ok(parameters_modulus) = parameter_set.ciphertext_modulus.try_to() else {
+            return false;
+        };
+
+        *ciphertext_modulus == parameters_modulus
             && data.container_len()
                 == parameter_set.input_lwe_dimension.0
                     * lwe_keyswitch_key_input_key_element_encrypted_size(
