@@ -3,11 +3,15 @@ name = "tfhe-hpu-backend"
 version = "0.1.0"
 edition = "2021"
 authors = ["Zama Hardware team"]
+license = "BSD-3-Clause-Clear"
+description = "HPU implementation on FPGA of TFHE-rs primitives."
+homepage = "https://www.zama.ai/"
+documentation = "https://docs.zama.ai/tfhe-rs"
+repository = "https://github.com/zama-ai/tfhe-rs"
 readme = "README.md"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
-default = []
 hw-xrt = []
 hw-v80 = []
 io-dump = ["num-traits"]

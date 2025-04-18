@@ -8,8 +8,8 @@
 use std::fs::OpenOptions;
 use std::path::Path;
 
-use hpu_sim::{HpuSim, MockupOptions, MockupParameters};
 use tfhe::tfhe_hpu_backend::prelude::*;
+use tfhe_hpu_mockup::{HpuSim, MockupOptions, MockupParameters};
 
 /// Define CLI arguments
 use clap::Parser;

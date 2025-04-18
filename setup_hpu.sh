@@ -1,4 +1,4 @@
-#! /usr/bin/bash
+#! /usr/bin/env/ bash
 
 # Find current script directory. This should be PROJECT_DIR
 CUR_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)

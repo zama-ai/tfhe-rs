@@ -176,8 +176,7 @@ where
         let mod_mask = Scalar::MAX >> (Scalar::BITS - rep_bit_count);
         res &= mod_mask;
         // Control bit about whether we should balance the state
-        // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random ==
-        // 1)
+        // This is equivalent to res > 2^(base_log * l) || (res == 2^(base_log * l) && random == 1)
         let need_balance = balanced_rounding_condition_bit_trick(res, rep_bit_count, rounding_bit);
         // Balance depending on the control bit
         res.wrapping_sub(need_balance << rep_bit_count)
