@@ -67,7 +67,7 @@ macro_rules! hpu_testbundle {
                 let sks_compressed = tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
 
                 // Init Hpu device with server key and firmware
-                tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into());
+                tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into()).expect("Invalid key");
                 (std::sync::Mutex::new(hpu_device), cks)
             });
             let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
