@@ -12,6 +12,7 @@ members = [
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
     "mockups/tfhe-hpu-mockup",
+    "tests",
 ]
 
 exclude = [
