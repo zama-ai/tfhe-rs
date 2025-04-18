@@ -457,7 +457,7 @@ mod hpu {
     impl From<(HpuDevice, CompressedServerKey)> for InternalServerKey {
         fn from((device, csks): (HpuDevice, CompressedServerKey)) -> Self {
             let CompressedServerKey { integer_key, tag } = csks;
-            crate::integer::hpu::init_device(&device, integer_key.key);
+            crate::integer::hpu::init_device(&device, integer_key.key).expect("Invalid key");
             Self::Hpu(HpuTaggedDevice { device, tag })
         }
     }
