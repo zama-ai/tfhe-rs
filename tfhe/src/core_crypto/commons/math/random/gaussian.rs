@@ -73,7 +73,7 @@ macro_rules! implement_gaussian {
                 _modulus: Option<Self::CustomModulus>,
             ) -> f64 {
                 // The modulus and parameters of the distribution do not impact generation success
-                // The sample is valid if it's in the circle of radius pi and
+                // The sample is valid if it's in the circle of radius 1 and
                 // Samples are drawn in a 2 by 2 square, use area(circle) / area(square) as
                 // probability
                 std::f64::consts::PI / 4.0
