@@ -81,7 +81,7 @@ Other optional configuration knobs are available:
 On top of that `tfhe-hpu-mockup` could generate a detailed set of trace points at runtime to help during the debug/exploration phase (e.g. When writing new Hpu firmware).
 Those trace points rely on `tokio-tracing` and could be activated on a path::verbosity based through the `RUST_LOG` environment variable.
 For example the following value will enable the info trace for all the design and the debug one for the ucore submodule:
-`RUST_LOG=info,hpu_sim::modules::ucore=debug`.
+`RUST_LOG=info,tfhe_hpu_mockup::modules::ucore=debug`.
 
 > NB: With the mockup estimated IOp performances must be read from the mockup log, not from the user application report.
 > Indeed, the user application reports the execution time of the mockup binary not the expected performance on real Hpu hardware.

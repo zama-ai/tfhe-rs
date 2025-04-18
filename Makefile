@@ -56,8 +56,7 @@ TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # tfhe-hpu-backend
-CUR_SCRIPT_DIR=$(shell cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
-HPU_BACKEND_DIR=$(CUR_SCRIPT_DIR)/backends/tfhe-hpu-backend
+HPU_BACKEND_DIR=backends/tfhe-hpu-backend
 HPU_CONFIG=v80
 V80_PCIE_DEV=$(shell lspci -d 10ee:50b5 | sed -e "s/\(..\).*/\1/")
 
