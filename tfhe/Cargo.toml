@@ -48,10 +48,6 @@ hex = "0.4.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 clap-num = {version = "1.1.1"}
 # End hpu-demo deps
-# Begin hpu-tests deps
-# Only one Hpu device -> Tests have to be executed in series
-serial_test = "3.1.1"
-# End hpu-tests deps
 
 [build-dependencies]
 cbindgen = { version = "0.28", optional = true }

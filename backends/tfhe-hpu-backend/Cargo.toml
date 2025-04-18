@@ -17,9 +17,6 @@ utils = ["clap", "clap-num", "bitvec", "serde_json"]
 [build-dependencies]
 cxx-build = "1.0"
 
-[dev-dependencies]
-serial_test = "3.1.1"
-
 [dependencies]
 cxx = "1.0"
 hw_regmap = {git = "ssh://git@github.com/zama-ai/hw_regmap.git", rev="2573477b"}
