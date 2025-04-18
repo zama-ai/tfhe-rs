@@ -8,7 +8,10 @@ use crate::serialization::{
 use core::ops::{Index, IndexMut};
 use rand::{Rng, RngCore};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::fmt::Display;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::OnceLock;
 use tfhe_versionable::Versionize;
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -286,6 +289,63 @@ where
 }
 
 pub const HASH_METADATA_LEN_BYTES: usize = 256;
+
+// The verifier is meant to be executed on a large server with a high number of core. However, some
+// arkworks operations do not scale well in that case, and we actually see decreased performance
+// for pke_v2 with a higher thread cound. This is supposed to be a temporary fix.
+//
+// See this issue for more information: https://github.com/arkworks-rs/algebra/issues/976
+
+/// Number of threads used to run the verification.
+///
+/// This value has been determined empirically by running the `pke_v2_verify` benchmark on an aws
+/// hpc7 96xlarge. Values between 30/50 seem to give good result but 32 is on the lower side (more
+/// throughput), is a power of 2 and a divisor of 192 (number of CPU cores of the hpc7).
+const VERIF_THREADS_COUNT: usize = 32;
+static VERIF_POOLS: OnceLock<Vec<OnceLock<ThreadPool>>> = OnceLock::new();
+static VERIF_POOLS_NEXT_INDEX: AtomicUsize = AtomicUsize::new(0);
+
+/// Initialize the list of pools, based on the number of available CPU cores
+fn get_or_init_pools() -> &'static Vec<OnceLock<ThreadPool>> {
+    VERIF_POOLS.get_or_init(|| {
+        let total_cores = rayon::max_num_threads();
+
+        // If the number of avaible cores is smaller than the pool size, default to one pool.
+        let pools_count = total_cores.div_ceil(VERIF_THREADS_COUNT).max(1);
+
+        (0..pools_count).map(|_| OnceLock::new()).collect()
+    })
+}
+
+/// Run the target function in dedicated rayon threadpool with a limited number of threads.
+///
+/// When multiple calls of this function are made in parallel, each of them is executed in a
+/// dedicated pool, if there is enough free cores on the CPU.
+fn run_in_pool<OP, R>(f: OP) -> R
+where
+    OP: FnOnce() -> R + Send,
+    R: Send,
+{
+    let pools = get_or_init_pools();
+    let pools_count = pools.len();
+
+    // Use a simple round-robin to select the next pool to use, potentially reusing an active pool
+    // if there is more verification in parallel than available pools.
+    let pool_index = VERIF_POOLS_NEXT_INDEX
+        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |i| {
+            Some((i + 1) % pools_count)
+        })
+        .unwrap(); // This cannot fail as the inner function always return "Some"
+
+    let pool = pools[pool_index].get_or_init(|| {
+        ThreadPoolBuilder::new()
+            .num_threads(VERIF_THREADS_COUNT)
+            .build()
+            .expect("Failed to build verification thread pool")
+    });
+
+    pool.install(f)
+}
 
 pub mod binary;
 pub mod index;
