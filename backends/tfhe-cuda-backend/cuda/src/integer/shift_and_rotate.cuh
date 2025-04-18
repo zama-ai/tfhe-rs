@@ -13,14 +13,16 @@
 #include "utils/kernel_dimensions.cuh"
 
 template <typename Torus>
-__host__ void scratch_cuda_integer_radix_shift_and_rotate_kb(
+__host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_shift_and_rotate_buffer<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
     SHIFT_OR_ROTATE_TYPE shift_type, bool is_signed, bool allocate_gpu_memory) {
+  uint64_t size_tracker = 0;
   *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, is_signed, params,
-      num_radix_blocks, allocate_gpu_memory);
+      num_radix_blocks, allocate_gpu_memory, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus>

@@ -300,7 +300,7 @@ uint64_t get_buffer_size_programmable_bootstrap(
 }
 
 template <typename Torus, typename params>
-__host__ void scratch_programmable_bootstrap(
+__host__ uint64_t scratch_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index,
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
@@ -380,10 +380,12 @@ __host__ void scratch_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
+  uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, allocate_ms_array);
+      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+  return size_tracker;
 }
 
 template <typename Torus, class params, bool first_iter>

@@ -60,42 +60,42 @@ void programmable_bootstrap_classical_setup(
 
   // Initialize and copy things in/to the device
   *d_lut_pbs_identity = (uint64_t *)cuda_malloc_async(
-      (glwe_dimension + 1) * polynomial_size * sizeof(uint64_t), stream, gpu_index);
+      (glwe_dimension + 1) * polynomial_size * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   cuda_memcpy_async_to_gpu(
       *d_lut_pbs_identity, lut_pbs_identity,
-      polynomial_size * (glwe_dimension + 1) * sizeof(uint64_t), stream, gpu_index);
+      polynomial_size * (glwe_dimension + 1) * sizeof(uint64_t), stream, gpu_index, true);
   *d_lut_pbs_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   cuda_memset_async(*d_lut_pbs_indexes, 0, number_of_inputs * sizeof(uint64_t),
-                    stream, gpu_index);
+                    stream, gpu_index, true);
 
   // Input and output LWEs
   *d_lwe_ct_out_array =
       (uint64_t *)cuda_malloc_async((glwe_dimension * polynomial_size + 1) *
                                         number_of_inputs * sizeof(uint64_t),
-                                    stream, gpu_index);
+                                    stream, gpu_index, nullptr, true);
   *d_lwe_ct_in_array = (uint64_t *)cuda_malloc_async(
       (lwe_dimension + 1) * number_of_inputs * repetitions * samples *
           sizeof(uint64_t),
-      stream, gpu_index);
+      stream, gpu_index, nullptr, true);
 
   cuda_memcpy_async_to_gpu(*d_lwe_ct_in_array, lwe_ct_in_array,
                            repetitions * samples * number_of_inputs *
                                (lwe_dimension + 1) * sizeof(uint64_t),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
 
   uint64_t *h_lwe_indexes =
       (uint64_t *)malloc(number_of_inputs * sizeof(uint64_t));
   *d_lwe_input_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   *d_lwe_output_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   for (int i = 0; i < number_of_inputs; i++)
     h_lwe_indexes[i] = i;
   cuda_memcpy_async_to_gpu(*d_lwe_input_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
 
   cuda_synchronize_stream(stream, gpu_index);
 
@@ -189,42 +189,42 @@ void programmable_bootstrap_multibit_setup(
 
   // Initialize and copy things in/to the device
   *d_lut_pbs_identity = (uint64_t *)cuda_malloc_async(
-      (glwe_dimension + 1) * polynomial_size * sizeof(uint64_t), stream, gpu_index);
+      (glwe_dimension + 1) * polynomial_size * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   cuda_memcpy_async_to_gpu(
       *d_lut_pbs_identity, lut_pbs_identity,
-      polynomial_size * (glwe_dimension + 1) * sizeof(uint64_t), stream, gpu_index);
+      polynomial_size * (glwe_dimension + 1) * sizeof(uint64_t), stream, gpu_index, true);
   *d_lut_pbs_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   cuda_memset_async(*d_lut_pbs_indexes, 0, number_of_inputs * sizeof(uint64_t),
-                    stream, gpu_index);
+                    stream, gpu_index, true);
 
   // Input and output LWEs
   *d_lwe_ct_out_array =
       (uint64_t *)cuda_malloc_async((glwe_dimension * polynomial_size + 1) *
                                         number_of_inputs * sizeof(uint64_t),
-                                    stream, gpu_index);
+                                    stream, gpu_index, nullptr, true);
   *d_lwe_ct_in_array = (uint64_t *)cuda_malloc_async(
       (lwe_dimension + 1) * number_of_inputs * repetitions * samples *
           sizeof(uint64_t),
-      stream, gpu_index);
+      stream, gpu_index, nullptr, true);
 
   cuda_memcpy_async_to_gpu(*d_lwe_ct_in_array, lwe_ct_in_array,
                            repetitions * samples * number_of_inputs *
                                (lwe_dimension + 1) * sizeof(uint64_t),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
 
   uint64_t *h_lwe_indexes =
       (uint64_t *)malloc(number_of_inputs * sizeof(uint64_t));
   *d_lwe_input_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   *d_lwe_output_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   for (int i = 0; i < number_of_inputs; i++)
     h_lwe_indexes[i] = i;
   cuda_memcpy_async_to_gpu(*d_lwe_input_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
 
   cuda_synchronize_stream(stream, gpu_index);
 
@@ -287,11 +287,11 @@ void keyswitch_setup(
                                     repetitions, samples);
 
   *d_lwe_ct_out_array = (uint64_t *)cuda_malloc_async(
-      (output_lwe_dimension + 1) * number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      (output_lwe_dimension + 1) * number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   *d_lwe_ct_in_array = (uint64_t *)cuda_malloc_async(
       (input_lwe_dimension + 1) * number_of_inputs * repetitions * samples *
           sizeof(uint64_t),
-      stream, gpu_index);
+      stream, gpu_index, nullptr, true);
   uint64_t *lwe_ct_in_array =
       (uint64_t *)malloc((input_lwe_dimension + 1) * number_of_inputs *
                          repetitions * samples * sizeof(uint64_t));
@@ -317,21 +317,21 @@ void keyswitch_setup(
   cuda_memcpy_async_to_gpu(*d_lwe_ct_in_array, lwe_ct_in_array,
                            repetitions * samples * number_of_inputs *
                                (input_lwe_dimension + 1) * sizeof(uint64_t),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
 
   uint64_t *h_lwe_indexes =
       (uint64_t *)malloc(number_of_inputs * sizeof(uint64_t));
   *d_lwe_input_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   *d_lwe_output_indexes = (uint64_t *)cuda_malloc_async(
-      number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+      number_of_inputs * sizeof(uint64_t), stream, gpu_index, nullptr, true);
   for (int i = 0; i < number_of_inputs; i++)
     h_lwe_indexes[i] = i;
   cuda_memcpy_async_to_gpu(*d_lwe_input_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
   cuda_memcpy_async_to_gpu(*d_lwe_output_indexes, h_lwe_indexes,
-                           number_of_inputs * sizeof(uint64_t), stream, gpu_index);
+                           number_of_inputs * sizeof(uint64_t), stream, gpu_index, true);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lwe_indexes);
@@ -375,9 +375,9 @@ void fft_setup(cudaStream_t stream, uint32_t gpu_index, double **_poly1, double 
   h_cpoly1 = (double2 *)malloc(polynomial_size / 2 * samples * sizeof(double2));
   h_cpoly2 = (double2 *)malloc(polynomial_size / 2 * samples * sizeof(double2));
   d_cpoly1 = (double2 *)cuda_malloc_async(
-      polynomial_size / 2 * samples * sizeof(double2), stream, gpu_index);
+      polynomial_size / 2 * samples * sizeof(double2), stream, gpu_index, nullptr, true);
   d_cpoly2 = (double2 *)cuda_malloc_async(
-      polynomial_size / 2 * samples * sizeof(double2), stream, gpu_index);
+      polynomial_size / 2 * samples * sizeof(double2), stream, gpu_index, nullptr, true);
 
   double lower_bound = -1;
   double upper_bound = 1;
@@ -408,10 +408,10 @@ void fft_setup(cudaStream_t stream, uint32_t gpu_index, double **_poly1, double 
   // copy memory cpu->gpu
   cuda_memcpy_async_to_gpu(d_cpoly1, h_cpoly1,
                            polynomial_size / 2 * samples * sizeof(double2),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
   cuda_memcpy_async_to_gpu(d_cpoly2, h_cpoly2,
                            polynomial_size / 2 * samples * sizeof(double2),
-                           stream, gpu_index);
+                           stream, gpu_index, true);
   cuda_synchronize_stream(stream, gpu_index);
 }
 

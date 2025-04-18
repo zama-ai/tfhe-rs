@@ -4,7 +4,7 @@
 #include "../../pbs/pbs_enums.h"
 
 extern "C" {
-void scratch_cuda_integer_compress_radix_ciphertext_64(
+uint64_t scratch_cuda_integer_compress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t compression_glwe_dimension,
     uint32_t compression_polynomial_size, uint32_t lwe_dimension,
@@ -13,7 +13,7 @@ void scratch_cuda_integer_compress_radix_ciphertext_64(
     uint32_t lwe_per_glwe, uint32_t storage_log_modulus,
     bool allocate_gpu_memory);
 
-void scratch_cuda_integer_decompress_radix_ciphertext_64(
+uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t encryption_glwe_dimension,
     uint32_t encryption_polynomial_size, uint32_t compression_glwe_dimension,

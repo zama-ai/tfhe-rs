@@ -129,6 +129,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                 size as u64,
                 streams.ptr[0],
                 streams.gpu_indexes[0].get(),
+                true,
             );
             ptr = ptr.wrapping_byte_add(size);
             for list in cuda_ciphertexts_list_vec {
@@ -138,6 +139,7 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
                     size as u64,
                     streams.ptr[0],
                     streams.gpu_indexes[0].get(),
+                    true,
                 );
                 ptr = ptr.wrapping_byte_add(size);
             }

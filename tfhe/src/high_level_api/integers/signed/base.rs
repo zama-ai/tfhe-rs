@@ -151,6 +151,13 @@ where
         self.ciphertext.move_to_device(device)
     }
 
+    /// Moves (in-place) the ciphertext to the current device.
+    ///
+    /// Does nothing if the ciphertext is already in the current device
+    pub fn move_to_current_device(&mut self) {
+        self.ciphertext.move_to_device_of_server_key_if_set()
+    }
+
     /// Returns the device where the ciphertext is currently on
     pub fn current_device(&self) -> Device {
         self.ciphertext.current_device()

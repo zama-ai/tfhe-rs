@@ -442,7 +442,7 @@ __global__ void device_programmable_bootstrap_cg_128(
 }
 
 template <typename params>
-__host__ void scratch_programmable_bootstrap_cg_128(
+__host__ uint64_t scratch_programmable_bootstrap_cg_128(
     cudaStream_t stream, uint32_t gpu_index, pbs_buffer_128<CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -473,14 +473,16 @@ __host__ void scratch_programmable_bootstrap_cg_128(
     check_cuda_error(cudaGetLastError());
   }
 
+  uint64_t size_tracker = 0;
   *buffer = new pbs_buffer_128<CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::CG,
-      allocate_gpu_memory, allocate_ms_array);
+      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+  return size_tracker;
 }
 
 template <typename params>
-__host__ void scratch_programmable_bootstrap_128(
+__host__ uint64_t scratch_programmable_bootstrap_128(
     cudaStream_t stream, uint32_t gpu_index, pbs_buffer_128<CLASSICAL> **buffer,
     uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
@@ -577,10 +579,12 @@ __host__ void scratch_programmable_bootstrap_128(
     check_cuda_error(cudaGetLastError());
   }
 
+  uint64_t size_tracker = 0;
   *buffer = new pbs_buffer_128<CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, allocate_ms_array);
+      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+  return size_tracker;
 }
 
 template <class params, bool first_iter>

@@ -6,54 +6,54 @@
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
-void scratch_cuda_programmable_bootstrap_amortized_32(
+uint64_t scratch_cuda_programmable_bootstrap_amortized_32(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
   switch (polynomial_size) {
   case 256:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<256>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<256>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 512:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<512>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<512>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 1024:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<1024>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<1024>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 2048:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<2048>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<2048>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 4096:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<4096>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<4096>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 8192:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<8192>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<8192>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   case 16384:
-    scratch_programmable_bootstrap_amortized<uint32_t, AmortizedDegree<16384>>(
+    return scratch_programmable_bootstrap_amortized<uint32_t,
+                                                    AmortizedDegree<16384>>(
         static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
         glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
         allocate_gpu_memory);
-    break;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two in the interval [256..16384].")
@@ -66,54 +66,69 @@ void scratch_cuda_programmable_bootstrap_amortized_32(
  * configures SM options on the GPU in case FULLSM or PARTIALSM mode is going to
  * be used.
  */
-void scratch_cuda_programmable_bootstrap_amortized_64(
+uint64_t scratch_cuda_programmable_bootstrap_amortized_64(
     void *stream, uint32_t gpu_index, int8_t **pbs_buffer,
     uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory) {
 
+  uint64_t size_tracker = 0;
   switch (polynomial_size) {
   case 256:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<256>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<256>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 512:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<512>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<512>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 1024:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<1024>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<1024>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 2048:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<2048>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<2048>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 4096:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<4096>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<4096>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 8192:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<8192>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<8192>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   case 16384:
-    scratch_programmable_bootstrap_amortized<uint64_t, AmortizedDegree<16384>>(
-        static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
-        glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
-        allocate_gpu_memory);
-    break;
+    size_tracker =
+        scratch_programmable_bootstrap_amortized<uint64_t,
+                                                 AmortizedDegree<16384>>(
+            static_cast<cudaStream_t>(stream), gpu_index, pbs_buffer,
+            glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
+            allocate_gpu_memory);
+    return size_tracker;
   default:
     PANIC("Cuda error (amortized PBS): unsupported polynomial size. Supported "
           "N's are powers of two"

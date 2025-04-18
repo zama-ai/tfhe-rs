@@ -210,3 +210,12 @@ pub trait SquashNoise {
 
     fn squash_noise(&self) -> crate::Result<Self::Output>;
 }
+
+#[cfg(feature = "gpu")]
+pub trait SizeOnGpu<Rhs = Self> {
+    fn get_size_on_gpu(&self) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait AddAssignSizeOnGpu<Rhs = Self> {
+    fn get_add_assign_size_on_gpu(&self, amount: Rhs) -> u64;
+}
