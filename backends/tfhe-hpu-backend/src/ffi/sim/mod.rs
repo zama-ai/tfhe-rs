@@ -1,5 +1,5 @@
 //! Implement a simple mockup interface for ffi.
-//! It enable to simulate the tfhe-hpu-backend behavior without the real HW
+//! It enables to simulate the tfhe-hpu-backend behavior without the real HW
 //!
 //! Simply provide IPC to communicate with an Hpu simulation mockup
 
