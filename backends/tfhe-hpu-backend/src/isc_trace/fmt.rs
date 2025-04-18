@@ -1,6 +1,6 @@
+use super::packed_struct::{Len, NoMoreBits, PackedStructLsb};
 use crate::asm::dop::DOp;
 use bitvec::prelude::*;
-use packed_struct::{Len, NoMoreBits, PackedStructLsb};
 use serde::Serialize;
 use std::error::Error;
 use std::fmt::Display;
