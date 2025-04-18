@@ -19,12 +19,7 @@ impl<C: Container> std::ops::Index<usize> for HpuLweKeyswitchKey<C> {
     type Output = C::Element;
 
     fn index(&self, index: usize) -> &Self::Output {
-        let ksk_pc = self.params.pc_params.ksk_pc;
-        let chunk_size = self.params.ks_params.lby / ksk_pc;
-        let (pc, ofst) = (
-            (index / chunk_size) % ksk_pc,
-            (((index / chunk_size) / ksk_pc) * chunk_size) + (index % chunk_size),
-        );
+        let (pc, ofst) = self.get_pc_offset_from_index(index);
         &self.pc_data[pc].as_ref()[ofst]
     }
 }
@@ -32,30 +27,19 @@ impl<C: Container> std::ops::Index<usize> for HpuLweKeyswitchKey<C> {
 /// IndexMut inside the container abstracting away the inner pc split
 impl<C: ContainerMut> std::ops::IndexMut<usize> for HpuLweKeyswitchKey<C> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let ksk_pc = self.params.pc_params.ksk_pc;
-        let chunk_size = self.params.ks_params.lby / ksk_pc;
-        let (pc, ofst) = (
-            (index / chunk_size) % ksk_pc,
-            (((index / chunk_size) / ksk_pc) * chunk_size) + (index % chunk_size),
-        );
+        let (pc, ofst) = self.get_pc_offset_from_index(index);
         &mut self.pc_data[pc].as_mut()[ofst]
     }
 }
 
 pub fn hpu_lwe_keyswitch_key_size(params: &HpuParameters) -> usize {
-    #[inline]
-    fn divide_ceil(numerator: usize, denominator: usize) -> usize {
-        let (div, rem) = (numerator / denominator, numerator % denominator);
-        div + (rem != 0) as usize
-    }
-
     // HwkeyswitchKey is a polyhedron padded with 0 to be multiple of lbx,lby,lbz
     let ks_p = &params.ks_params;
     let pbs_p = &params.pbs_params;
-    let hw_ksk_x = ks_p.lbx * divide_ceil(pbs_p.lwe_dimension + 1, ks_p.lbx);
-    let hw_ksk_y = ks_p.lby * divide_ceil(pbs_p.glwe_dimension * pbs_p.polynomial_size, ks_p.lby);
+    let hw_ksk_x = ks_p.lbx * (pbs_p.lwe_dimension + 1).div_ceil(ks_p.lbx);
+    let hw_ksk_y = ks_p.lby * (pbs_p.glwe_dimension * pbs_p.polynomial_size).div_ceil(ks_p.lby);
     // coefs over z are packed in u64
-    let hw_ksk_z = divide_ceil(pbs_p.ks_level, ks_p.lbz);
+    let hw_ksk_z = pbs_p.ks_level.div_ceil(ks_p.lbz);
 
     hw_ksk_x * hw_ksk_y * hw_ksk_z
 }
@@ -67,10 +51,6 @@ impl<C: Container> HpuLweKeyswitchKey<C> {
             container.len(),
             params.pc_params.ksk_pc,
             "Container chunk mismatch with ksk_pc number"
-        );
-        assert!(
-            container.iter().map(|x| x.container_len()).sum::<usize>() > 0,
-            "Got an empty container to create a HpuLweKeyswitchKey"
         );
         assert_eq!(
             container.iter().map(|x| x.container_len()).sum::<usize>(),
@@ -120,6 +100,17 @@ impl<C: Container> HpuLweKeyswitchKey<C> {
             params: self.params.clone(),
         }
     }
+
+    /// Utility function to retrieved pc/offset from a global index in the key
+    /// Use by the Index/IndexMut trait implementation
+    fn get_pc_offset_from_index(&self, index: usize) -> (usize, usize) {
+        let ksk_pc = self.params.pc_params.ksk_pc;
+        let chunk_size = self.params.ks_params.lby / ksk_pc;
+        (
+            (index / chunk_size) % ksk_pc,
+            (((index / chunk_size) / ksk_pc) * chunk_size) + (index % chunk_size),
+        )
+    }
 }
 
 impl<C: ContainerMut> HpuLweKeyswitchKey<C> {
@@ -149,7 +140,7 @@ impl<Scalar: std::clone::Clone> HpuLweKeyswitchKeyOwned<Scalar> {
     ///
     /// See [`HpuLweKeyswitchKey::from_container`] for usage.
     pub fn new(fill_with: Scalar, params: HpuParameters) -> Self {
-        let chunk_size = hpu_lwe_keyswitch_key_size(&params).div_euclid(params.pc_params.ksk_pc);
+        let chunk_size = hpu_lwe_keyswitch_key_size(&params) / params.pc_params.ksk_pc;
         let pc_data = (0..params.pc_params.ksk_pc)
             .map(|_| vec![fill_with.clone(); chunk_size])
             .collect::<Vec<_>>();
