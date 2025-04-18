@@ -1829,7 +1829,18 @@ fn compute_a_theta<G: Curve>(
 }
 
 #[allow(clippy::result_unit_err)]
-pub fn verify<G: Curve>(
+pub fn verify<G: Curve + Send + Sync>(
+    proof: &Proof<G>,
+    public: (&PublicParams<G>, &PublicCommit<G>),
+    metadata: &[u8],
+) -> Result<(), ()> {
+    // By running it in a limited thread pool, we make sure that the rayon overhead stays minimal
+    // compared to the actual verification work
+    run_in_pool(|| verify_inner(proof, public, metadata))
+}
+
+#[allow(clippy::result_unit_err)]
+pub fn verify_inner<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
