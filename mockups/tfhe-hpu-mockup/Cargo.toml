@@ -1,8 +1,10 @@
 [package]
-name = "hpu-sim"
+name = "tfhe-hpu-mockup"
 version = "0.1.0"
 edition = "2021"
 authors = ["Zama Hardware team"]
+license = "BSD-3-Clause-Clear"
+description = "Simulation model of HPU hardware."
 readme = "README.md"
 
 [features]

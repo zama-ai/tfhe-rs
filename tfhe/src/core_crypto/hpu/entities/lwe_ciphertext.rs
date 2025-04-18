@@ -21,7 +21,7 @@ impl<Scalar: UnsignedInteger> FromWith<LweCiphertextView<'_, Scalar>, HpuParamet
         let pbs_p = &params.pbs_params;
         let poly_size = pbs_p.polynomial_size;
 
-        // NB: Glwe polynomial must be in reversed order
+        // NB: lwe mask is view as polynomial and must be in reversed order
         // Allocate translation buffer and reversed vector here
         let rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
         let lwe_len = hpu_lwe.len();
