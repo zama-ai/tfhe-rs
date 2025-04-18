@@ -148,3 +148,8 @@ pub enum CompressedCiphertextListVersions {
 pub enum SquashedNoiseCiphertextVersions {
     V0(SquashedNoiseCiphertext),
 }
+
+#[derive(VersionsDispatch)]
+pub enum CompressedSquashedNoiseCiphertextListVersions {
+    V0(CompressedSquashedNoiseCiphertextList),
+}
