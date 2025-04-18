@@ -1,13 +1,13 @@
 //! This ffi layer implement a wrapper around multiple ffi implementation
-//! Aims is to completely hide underlying specificities and enable compile-time
+//! The aim is to completely hide underlying specificities and enable compile-time
 //! swapping.
 //!
-//! Mainly replacing Xrt(u55c)/V80 by a simulation interface for ease CI
+//! Mainly replacing Xrt(u55c)/V80 by a simulation interface to ease CI
 
 use crate::interface::FFIMode;
 
 /// Enumeration to define the synchronisation of data between Host and Device
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum SyncMode {
     Host2Device,
     Device2Host,
@@ -16,16 +16,16 @@ pub enum SyncMode {
 /// Specify kind of the target memory
 /// Used for target that has DDR and HBM
 /// Hbm is targeted based on attach PC number, the DDR otherwise is targeted based on offset
-/// For seak of simplicity and prevent issue with large xfer, memory is always view as a chunk of
+/// For the sake of simplicity and prevent issue with large xfer, memory is always viewed as a chunk of
 /// 16MiB This is inherited from XRT allocator limitation...
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum MemKind {
     Ddr { offset: usize },
     Hbm { pc: usize },
 }
 
 /// Define memory zone properties
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MemZoneProperties {
     pub mem_kind: MemKind,
     pub size_b: usize,

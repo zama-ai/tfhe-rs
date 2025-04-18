@@ -1,10 +1,10 @@
-//! Contain definition af Hpu architecture related parameters
+//! Contains definition of Hpu architecture related parameters
 //! Those parameters are architecture dependents and have direct impact over memory order
 //! They are required to correctly arrange entities data in an Hpu usable order.
 
 /// Parameters related to Tfhe scheme computation
 /// Couldn't rely on ClassicPBSParameters to prevent dependency loop
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HpuPBSParameters {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
@@ -35,7 +35,7 @@ impl HpuPBSParameters {
 
 /// Parameters related to Keyswitch computation
 /// Related to architectural implementation of Ks in Hpu
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuKeyswitchParameters {
     /// Bit width
     pub width: usize,
@@ -83,7 +83,7 @@ pub enum HpuNttCoreArch {
     GF64(Vec<u8>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HpuNttPrime {
     GF64 = 0,
     Solinas3_32_17_13 = 1,
@@ -124,9 +124,9 @@ impl HpuNttParameters {
 
 /// Parameters related to Hbm PC
 /// Related to memory connection and allocated channel
-/// Only specify the number of Pc in used the mapping of the pc is define by the user in the
-/// top-level configuration file.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Only specify the number of Pc allocated to each interface.
+/// The concrete mapping of pc on memory channel is defined by the user in the top-level configuration file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuPcParameters {
     pub ksk_pc: usize,
     pub ksk_bytes_w: usize,
@@ -139,7 +139,7 @@ pub struct HpuPcParameters {
 }
 
 /// Parameters related to regfile
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuRegfileParameters {
     /// Number of register
     pub reg_nb: usize,
@@ -148,7 +148,7 @@ pub struct HpuRegfileParameters {
 }
 
 /// Parameters related to Instruction Scheduler
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuIscParameters {
     /// HPU lookahead buffer depth
     /// Number of instruction that are considered in advance
