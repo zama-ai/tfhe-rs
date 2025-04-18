@@ -12,7 +12,7 @@ hw-xrt = []
 hw-v80 = []
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
-utils = ["clap", "clap-num", "packed_struct", "bitvec", "serde_json"]
+utils = ["clap", "clap-num", "bitvec", "serde_json"]
 
 [build-dependencies]
 cxx-build = "1.0"
@@ -58,7 +58,6 @@ nix = { version = "0.29.0", features = ["ioctl", "uio"] }
 dot2 = { version = "*", optional=true }
 
 bitvec = { version = "*", optional=true }
-packed_struct = { path = "src/packed_struct", optional=true }
 serde_json = { version = "*", optional=true }
 
 # Binary for manual debugging

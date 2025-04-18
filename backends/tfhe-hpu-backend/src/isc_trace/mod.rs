@@ -1,4 +1,5 @@
 pub mod fmt;
+pub mod packed_struct;
 
 use crate::ffi;
 pub use crate::isc_trace::fmt::{IscQueryCmd, IscTraceStream, TRACE_W};
