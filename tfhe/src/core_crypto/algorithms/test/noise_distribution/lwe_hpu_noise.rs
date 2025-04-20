@@ -86,7 +86,7 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM: HpuTestParams = HpuT
     lwe_dimension: LweDimension(839),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_t_uniform(47),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(4),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
     pbs_base_log: DecompositionBaseLog(23),
     pbs_level: DecompositionLevelCount(1),
@@ -162,8 +162,8 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     let encoding_with_padding = get_encoding_with_padding(ciphertext_modulus);
     let ksk_encoding_with_padding = get_encoding_with_padding(ksk_modulus);
-    let expected_variance = match lwe_noise_distribution {
-        DynamicDistribution::Gaussian(_) => lwe_noise_distribution.gaussian_std_dev().get_variance(),
+    let expected_variance = match glwe_noise_distribution {
+        DynamicDistribution::Gaussian(_) => glwe_noise_distribution.gaussian_std_dev().get_variance(),
         DynamicDistribution::TUniform(tuniform) => Variance(((2.0*(tuniform.bound_log2() as f64) + 1.0).exp2() + 1.0) / 6.0 * (-2.0 * (params.ct_width as f64)).exp2())
     };
 
@@ -207,32 +207,16 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         &mut rsc.secret_random_generator,
     );
     let blwe_sk = glwe_sk.clone().into_lwe_secret_key();
-    let mut ksk_64b = allocate_and_generate_new_lwe_keyswitch_key(
+    let ksk_in_kskmod = allocate_and_generate_new_lwe_keyswitch_key(
         &blwe_sk,
         &lwe_sk,
         ks_decomp_base_log,
         ks_decomp_level_count,
         lwe_noise_distribution,
-        ciphertext_modulus,
+        ksk_modulus,
         &mut rsc.encryption_random_generator,
     );
-    let diff_between_ksk_mod_ct_mod = params.ct_width - params.ksk_width;
-    if diff_between_ksk_mod_ct_mod > 0 {
-        let mut ksk_view = ksk_64b.as_mut_view();
-        for ksk_elt in ksk_view.as_mut().iter_mut() {
-            let round = (*ksk_elt >> (diff_between_ksk_mod_ct_mod - 1)) & 0x1;
-            *ksk_elt = ((*ksk_elt >> diff_between_ksk_mod_ct_mod) + round) << diff_between_ksk_mod_ct_mod;
-        }
-        //for (i, ksk_elt) in ksk_view.as_ref().iter().enumerate() {
-        //    println!("ksk_elt ms {i:} {ksk_elt:#X}");
-        //}
-    }
-    let ksk_in_kskmod = {
-        let bl = ksk_64b.decomposition_base_log();
-        let lc = ksk_64b.decomposition_level_count();
-        let out_lwe_size = ksk_64b.output_key_lwe_dimension().to_lwe_size();
-        LweKeyswitchKeyView::from_container( ksk_64b.as_ref(), bl, lc, out_lwe_size, ksk_modulus)
-    };
+
     println!(
         "n {:?} k {:?} N {:?} k*N {:?}",
         lwe_sk.lwe_dimension(),
@@ -366,7 +350,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 &blwe_sk,
                 &mut ct,
                 plaintext,
-                lwe_noise_distribution, 
+                glwe_noise_distribution,
                 &mut rsc.encryption_random_generator,
             );
 
@@ -616,12 +600,12 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
         expected variance: {expected_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
     );
-    //assert!(
-    //    (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit - after_ks_errbit < 1f64)),
-    //    "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
-    //    got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
-    //    expected variance: {expected_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
-    //);
+    assert!(
+        (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit - after_ks_errbit < 1f64)),
+        "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
+        got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
+        expected variance: {expected_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
+    );
 }
 
 create_parameterized_test!(hpu_noise_distribution {
