@@ -11,6 +11,10 @@ on:
 
 env:
   ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
   verify_tag:
@@ -84,11 +88,7 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: failure
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "SLSA tfhe-fft crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
@@ -96,8 +96,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-          SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
           SLACK_MESSAGE: "tfhe-fft release failed: (${{ env.ACTION_RUN_URL }})"
-          SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
