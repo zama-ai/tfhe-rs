@@ -240,3 +240,13 @@ mod test_gpu_doc {
         configuration_gpu_acceleration_multi_gpu_device_selection
     );
 }
+
+#[cfg(feature = "hpu")]
+mod test_hpu_doc {
+    use doc_comment::doctest;
+
+    doctest!(
+        "../docs/configuration/hpu_acceleration/run_on_hpu.md",
+        configuration_hpu_acceleration_run_on_hpu
+    );
+}
