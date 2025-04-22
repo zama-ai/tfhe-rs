@@ -16,8 +16,8 @@ pub enum SyncMode {
 /// Specify kind of the target memory
 /// Used for target that has DDR and HBM
 /// Hbm is targeted based on attach PC number, the DDR otherwise is targeted based on offset
-/// For the sake of simplicity and prevent issue with large xfer, memory is always viewed as a chunk of
-/// 16MiB This is inherited from XRT allocator limitation...
+/// For the sake of simplicity and prevent issue with large xfer, memory is always viewed as a chunk
+/// of 16MiB This is inherited from XRT allocator limitation...
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum MemKind {
     Ddr { offset: usize },
