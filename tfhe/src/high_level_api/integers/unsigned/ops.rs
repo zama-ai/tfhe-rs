@@ -2294,7 +2294,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("Hpu Not")
+                todo!("Hpu does not support bitnot (operator `!`)")
             }
         })
     }

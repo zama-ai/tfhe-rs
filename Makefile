@@ -2,6 +2,7 @@ SHELL:=$(shell /usr/bin/env which bash)
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
+CARGO_BUILD_JOBS=default
 CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 RS_BUILD_TOOLCHAIN:=stable
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
@@ -56,7 +57,7 @@ TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # tfhe-hpu-backend
-HPU_BACKEND_DIR=backends/tfhe-hpu-backend
+HPU_BACKEND_DIR=$(shell pwd)/backends/tfhe-hpu-backend
 HPU_CONFIG=v80
 V80_PCIE_DEV=$(shell lspci -d 10ee:50b5 | sed -e "s/\(..\).*/\1/")
 
@@ -873,6 +874,8 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+		--build-jobs=$(CARGO_BUILD_JOBS) \
+		--test-threads=1 \
 		--features=integer,internal-keycache,hpu -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*hpu.*/)"
 

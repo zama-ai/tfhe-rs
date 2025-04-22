@@ -76,97 +76,101 @@ fn test_case_uint256_trivial(client_key: &ClientKey) {
 
 #[allow(clippy::eq_op)]
 fn test_case_uint8_compare(client_key: &ClientKey) {
-    let clear_a = 27u8;
-    let clear_b = 128u8;
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u8>();
+    let clear_b = rng.gen::<u8>();
 
     let a = FheUint8::encrypt(clear_a, client_key);
     let b = FheUint8::encrypt(clear_b, client_key);
 
-    // Test comparing encrypted with encrypted
-    {
-        let result = &a.eq(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a == clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.eq(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a == clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.eq(&a);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a == clear_a;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.eq(&a);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a == clear_a;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.ne(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a != clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.ne(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a != clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.ne(&a);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a != clear_a;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.ne(&a);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a != clear_a;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.le(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a <= clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.le(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a <= clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.lt(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a < clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.lt(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a < clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.ge(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a >= clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.ge(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a >= clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.gt(&b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a > clear_b;
-        assert_eq!(decrypted_result, clear_result);
-    }
+    let result = &a.gt(&b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a > clear_b;
+    assert_eq!(decrypted_result, clear_result);
+}
 
-    // Test comparing encrypted with clear
-    {
-        let result = &a.eq(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a == clear_b;
-        assert_eq!(decrypted_result, clear_result);
+#[allow(clippy::eq_op)]
+fn test_case_uint8_compare_scalar(client_key: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u8>();
+    let clear_b = rng.gen::<u8>();
 
-        let result = &a.eq(clear_a);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a == clear_a;
-        assert_eq!(decrypted_result, clear_result);
+    let a = FheUint8::encrypt(clear_a, client_key);
 
-        let result = &a.ne(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a != clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.eq(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a == clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.ne(clear_a);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a != clear_a;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.eq(clear_a);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a == clear_a;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.le(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a <= clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.ne(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a != clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.lt(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a < clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.ne(clear_a);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a != clear_a;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.ge(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a >= clear_b;
-        assert_eq!(decrypted_result, clear_result);
+    let result = &a.le(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a <= clear_b;
+    assert_eq!(decrypted_result, clear_result);
 
-        let result = &a.gt(clear_b);
-        let decrypted_result = result.decrypt(client_key);
-        let clear_result = clear_a > clear_b;
-        assert_eq!(decrypted_result, clear_result);
-    }
+    let result = &a.lt(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a < clear_b;
+    assert_eq!(decrypted_result, clear_result);
+
+    let result = &a.ge(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a >= clear_b;
+    assert_eq!(decrypted_result, clear_result);
+
+    let result = &a.gt(clear_b);
+    let decrypted_result = result.decrypt(client_key);
+    let clear_result = clear_a > clear_b;
+    assert_eq!(decrypted_result, clear_result);
 }
 
 fn test_case_uint32_shift(cks: &ClientKey) {
