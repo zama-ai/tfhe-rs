@@ -16,7 +16,7 @@ Homomorphic integer types (`FheUint` and `FheInt`) support the following arithme
 Specifications for operations with zero:
 
 * **Division by zero**: returns modulus - 1.
-  * Example: for FheUint8 (modulus = $$2^8=256$$), dividing by zero returns an ecryption of 255.
+  * Example: for FheUint8 (modulus = $$2^8=256$$), dividing by zero returns an encryption of 255.
 * **Remainder operator**: returns the first input unchanged.
   * Example: if `ct1 = FheUint8(63)` and `ct2 = FheUint8(0)`, then ct1 % ct2 returns FheUint8(63).
 
