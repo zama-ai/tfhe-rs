@@ -435,7 +435,7 @@ mod hpu_test {
         "erc_20"
     ]);
 
-    /// Simple test dedicated to check entities convertion from/to Cpu
+    /// Simple test dedicated to check entities conversion from/to Cpu
     #[cfg(feature = "hpu")]
     #[test]
     fn hpu_key_loopback() {
