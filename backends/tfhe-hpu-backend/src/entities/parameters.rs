@@ -125,7 +125,8 @@ impl HpuNttParameters {
 /// Parameters related to Hbm PC
 /// Related to memory connection and allocated channel
 /// Only specify the number of Pc allocated to each interface.
-/// The concrete mapping of pc on memory channel is defined by the user in the top-level configuration file.
+/// The concrete mapping of pc on memory channel is defined by the user in the top-level
+/// configuration file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct HpuPcParameters {
     pub ksk_pc: usize,
