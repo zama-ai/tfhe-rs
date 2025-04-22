@@ -142,7 +142,7 @@ jobs:
           echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
 
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
