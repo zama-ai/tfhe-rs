@@ -84,7 +84,7 @@ jobs:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA tfhe-versionable-derive - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:
@@ -157,7 +157,7 @@ jobs:
           SLACK_COLOR: failure
           SLACK_MESSAGE: "SLSA tfhe-versionable - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
         env:

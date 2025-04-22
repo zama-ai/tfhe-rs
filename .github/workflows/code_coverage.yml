@@ -106,7 +106,7 @@ jobs:
           files: integer/cobertura.xml
 
       - name: Slack Notification
-        if: ${{ failure() }}
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
