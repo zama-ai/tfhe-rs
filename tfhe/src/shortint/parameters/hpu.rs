@@ -6,16 +6,21 @@ use crate::shortint::prelude::*;
 
 impl From<&HpuParameters> for ClassicPBSParameters {
     fn from(value: &HpuParameters) -> Self {
+        let lwe_noise_distribution = match value.pbs_params.lwe_noise_distribution {
+            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev)),
+            HpuNoiseDistributionInput::TUniformBound(log2_bound) => DynamicDistribution::new_t_uniform(log2_bound),
+        };
+        let glwe_noise_distribution = match value.pbs_params.glwe_noise_distribution {
+            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev)),
+            HpuNoiseDistributionInput::TUniformBound(log2_bound) => DynamicDistribution::new_t_uniform(log2_bound),
+        };
+
         Self::new(
             LweDimension(value.pbs_params.lwe_dimension),
             GlweDimension(value.pbs_params.glwe_dimension),
             PolynomialSize(value.pbs_params.polynomial_size),
-            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-                value.pbs_params.lwe_modular_std_dev,
-            )),
-            DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-                value.pbs_params.glwe_modular_std_dev,
-            )),
+            lwe_noise_distribution,
+            glwe_noise_distribution,
             DecompositionBaseLog(value.pbs_params.pbs_base_log),
             DecompositionLevelCount(value.pbs_params.pbs_level),
             DecompositionBaseLog(value.pbs_params.ks_base_log),

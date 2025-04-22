@@ -2,6 +2,12 @@
 //! Those parameters are architecture dependents and have direct impact over memory order
 //! They are required to correctly arrange entities data in an Hpu usable order.
 
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum HpuNoiseDistributionInput {
+    GaussianStdDev(f64),
+    TUniformBound(u32),
+}
+
 /// Parameters related to Tfhe scheme computation
 /// Couldn't rely on ClassicPBSParameters to prevent dependency loop
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -9,8 +15,8 @@ pub struct HpuPBSParameters {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
     pub polynomial_size: usize,
-    pub lwe_modular_std_dev: f64,
-    pub glwe_modular_std_dev: f64,
+    pub lwe_noise_distribution: HpuNoiseDistributionInput,
+    pub glwe_noise_distribution: HpuNoiseDistributionInput,
     pub pbs_base_log: usize,
     pub pbs_level: usize,
     pub ks_base_log: usize,
