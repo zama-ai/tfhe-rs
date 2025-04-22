@@ -724,6 +724,15 @@ test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_n
 test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
 	cargo test --release -p $(TFHE_SPEC) --features hpu-v80 --test hpu
 
+.PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
+test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
+	source ./setup_hpu.sh --config sim ; \
+	cargo build --release --bin hpu_mockup; \
+    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tfhers_64b_pfail64_psi64.toml > mockup.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- alu_u32 && \
+	kill %1
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -1171,9 +1180,7 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
-	source ./setup_hpu.sh --config $(HPU_CONFIG)
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" V80_PCIE_DEV="$(V80_PCIE_DEV)" \
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p $(TFHE_SPEC) -- --quick
