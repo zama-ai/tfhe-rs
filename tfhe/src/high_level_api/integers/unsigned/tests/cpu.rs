@@ -81,6 +81,12 @@ fn test_uint8_compare() {
 }
 
 #[test]
+fn test_uint8_compare_scalar() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint8_compare_scalar(&client_key);
+}
+
+#[test]
 fn test_uint32_shift() {
     let client_key = setup_default_cpu();
     super::test_case_uint32_shift(&client_key);
