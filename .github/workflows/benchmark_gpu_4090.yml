@@ -22,6 +22,9 @@ on:
     # Weekly benchmarks will be triggered each Friday at 9p.m.
     - cron: "0 21 * * 5"
 
+
+permissions: {}
+
 jobs:
   cuda-integer-benchmarks:
     name: Cuda integer benchmarks (RTX 4090)
@@ -69,15 +72,17 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "rtx4090" \
           --backend gpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -88,7 +93,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification
@@ -145,14 +150,14 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "rtx4090" \
           --backend gpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
       
 
@@ -166,14 +171,14 @@ jobs:
         shell: bash
         run: |
           echo "Computing HMac on results file"
-          SIGNATURE="$(slab/scripts/hmac_calculator.sh ${{ env.RESULTS_FILENAME }} '${{ secrets.JOB_SECRET }}')"
+          SIGNATURE="$(slab/scripts/hmac_calculator.sh "${RESULTS_FILENAME}" '${{ secrets.JOB_SECRET }}')"
           echo "Sending results to Slab..."
           curl -v -k \
           -H "Content-Type: application/json" \
           -H "X-Slab-Repository: ${{ github.repository }}" \
           -H "X-Slab-Command: store_data_v2" \
           -H "X-Hub-Signature-256: sha256=${SIGNATURE}" \
-          -d @${{ env.RESULTS_FILENAME }} \
+          -d "@${RESULTS_FILENAME}" \
           ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification

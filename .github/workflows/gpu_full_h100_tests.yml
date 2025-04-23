@@ -15,6 +15,9 @@ env:
 on:
   workflow_dispatch:
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (cuda-h100-tests)

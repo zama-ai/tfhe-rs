@@ -26,6 +26,9 @@ on:
     types: [ labeled ]
 
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
@@ -103,7 +106,7 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${{ env.EXTERNAL_CONTRIBUTION_RUNNER }}" >> "$GITHUB_OUTPUT"
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
     name: CUDA H100 signed integer tests
@@ -156,7 +159,9 @@ jobs:
       - name: Set pull-request URL
         if: env.SECRETS_AVAILABLE == 'true' && github.event_name == 'pull_request'
         run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
 
       - name: Send message
         if: env.SECRETS_AVAILABLE == 'true'

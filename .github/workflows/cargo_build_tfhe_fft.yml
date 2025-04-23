@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 
+
+permissions: {}
+
 jobs:
   cargo-builds-fft:
     runs-on: ${{ matrix.runner_type }}

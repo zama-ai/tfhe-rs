@@ -30,6 +30,9 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   BENCH_TYPE: ${{ inputs.bench_type || 'latency' }}
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
@@ -114,22 +117,24 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make BENCH_TYPE=${{ env.BENCH_TYPE }} bench_tfhe_zk_pok
+          make BENCH_TYPE="${BENCH_TYPE}" bench_tfhe_zk_pok
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --crate tfhe-zk-pok \
           --hardware "hpc7a.96xlarge" \
           --backend cpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ env.BENCH_TYPE }}
+          --bench-type "${BENCH_TYPE}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -148,7 +153,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification

@@ -10,3 +10,13 @@ self-hosted-runner:
 # organization. `null` means disabling configuration variables check.
 # Empty array means no configuration variable is allowed.
 config-variables: null
+
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    # List of regular expressions to filter errors by the error messages.
+    ignore:
+      # Ignore the specific error from shellcheck
+      # Allow string search/replace with Sed instead of ${variable//search/replace} pattern.
+      # Sed is used to extract a value from a string in our case, this task cannot be
+      # performed by the ${variable//search/replace} pattern.
+      - 'shellcheck reported issue in this script: SC2001:.+'

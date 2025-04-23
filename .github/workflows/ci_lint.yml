@@ -8,6 +8,9 @@ env:
   ACTIONLINT_VERSION: 1.6.27
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
+
+permissions: {}
+
 jobs:
   lint-check:
     name: Lint and checks
