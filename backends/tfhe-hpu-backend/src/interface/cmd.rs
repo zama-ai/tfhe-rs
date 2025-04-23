@@ -81,7 +81,14 @@ impl HpuCmd {
         let op = IOp::new(opcode, dst_op, src_op, imm_op);
         // TODO set op_width
 
-        let dst = dst.iter().map(|var| (*var).clone()).collect::<Vec<_>>();
+        let dst = dst
+            .iter()
+            .map(|var| {
+                // Update dst state to OpPending
+                var.inner.lock().unwrap().operation_pending();
+                (*var).clone()
+            })
+            .collect::<Vec<_>>();
         let src = src.iter().map(|var| (*var).clone()).collect::<Vec<_>>();
         Self { op, dst, src }
     }

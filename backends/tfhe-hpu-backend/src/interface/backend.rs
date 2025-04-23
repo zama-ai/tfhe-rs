@@ -811,11 +811,6 @@ impl HpuBackend {
             }
         }
 
-        // 3. Update dst state to OpPending
-        cmd.dst
-            .iter()
-            .for_each(|dst| dst.inner.lock().unwrap().operation_pending());
-
         // Keep track of op in cmd_q for lifetime tracking
         cmd_q.push_back(cmd);
 
