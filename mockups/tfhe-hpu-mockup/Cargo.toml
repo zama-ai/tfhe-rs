@@ -12,7 +12,7 @@ default = []
 isc-order-check = []
 
 [dependencies]
-tfhe = { path= "../../tfhe", features = ["hpu", "hpu-debug"] }
+tfhe = { path = "../../tfhe", features = ["hpu", "hpu-debug"] }
 
 ipc-channel = "0.18.3"
 
@@ -34,4 +34,3 @@ bitflags = "2.6.0"
 name = "hpu_mockup"
 path = "src/mockup.rs"
 required-features = []
-
