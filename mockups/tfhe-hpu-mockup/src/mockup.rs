@@ -32,7 +32,7 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "${HPU_MOCKUP_DIR}/params/tfhers_64b_fast.toml"
+        default_value = "${HPU_MOCKUP_DIR}/params/gaussian_64b_fast.toml"
     )]
     pub params: ShellString,
 
