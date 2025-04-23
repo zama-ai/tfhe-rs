@@ -80,14 +80,40 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedGlweCiphertextVersions)]
 pub struct CompressedModulusSwitchedGlweCiphertext<Scalar: UnsignedInteger> {
-    pub(crate) packed_integers: PackedIntegers<Scalar>,
-    pub(crate) glwe_dimension: GlweDimension,
-    pub(crate) polynomial_size: PolynomialSize,
-    pub(crate) bodies_count: LweCiphertextCount,
-    pub(crate) uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    packed_integers: PackedIntegers<Scalar>,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    bodies_count: LweCiphertextCount,
+    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
+impl<Scalar: UnsignedInteger> CompressedModulusSwitchedGlweCiphertext<Scalar> {
+    pub fn from_raw_parts(
+        packed_integers: PackedIntegers<Scalar>,
+        glwe_dimension: GlweDimension,
+        polynomial_size: PolynomialSize,
+        bodies_count: LweCiphertextCount,
+        uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        assert_eq!(
+            glwe_dimension.0 * polynomial_size.0 + bodies_count.0,
+            packed_integers.initial_len()
+        );
+
+        assert!(
+            packed_integers.log_modulus().0
+                <= CiphertextModulusLog::from(uncompressed_ciphertext_modulus).0
+        );
+
+        Self {
+            packed_integers,
+            glwe_dimension,
+            polynomial_size,
+            bodies_count,
+            uncompressed_ciphertext_modulus,
+        }
+    }
+
     pub fn glwe_dimension(&self) -> GlweDimension {
         self.glwe_dimension
     }
@@ -99,6 +125,10 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
     }
     pub fn uncompressed_ciphertext_modulus(&self) -> CiphertextModulus<Scalar> {
         self.uncompressed_ciphertext_modulus
+    }
+
+    pub fn packed_integers(&self) -> &PackedIntegers<Scalar> {
+        &self.packed_integers
     }
 
     /// Compresses a ciphertext by reducing its modulus
@@ -160,7 +190,7 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
     /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> GlweCiphertextOwned<Scalar> {
-        let log_modulus = self.packed_integers.log_modulus.0;
+        let log_modulus = self.packed_integers.log_modulus().0;
 
         let number_bits_to_unpack =
             (self.glwe_dimension.0 * self.polynomial_size.0 + self.bodies_count.0) * log_modulus;
@@ -168,9 +198,9 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedGlweCiphertext<Scalar> {
         let len: usize = number_bits_to_unpack.div_ceil(Scalar::BITS);
 
         assert_eq!(
-            self.packed_integers.packed_coeffs.len(), len,
+            self.packed_integers.packed_coeffs().len(), len,
             "Mismatch between actual(={}) and maximal(={len}) CompressedModulusSwitchedGlweCiphertext packed_coeffs size",
-            self.packed_integers.packed_coeffs.len(),
+            self.packed_integers.packed_coeffs().len(),
         );
 
         let container = self
@@ -205,14 +235,14 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
             bodies_count,
             uncompressed_ciphertext_modulus,
         } = self;
-        let log_modulus = packed_integers.log_modulus.0;
+        let log_modulus = packed_integers.log_modulus().0;
 
         let number_bits_to_unpack =
             (glwe_dimension.0 * polynomial_size.0 + bodies_count.0) * log_modulus;
 
         let len = number_bits_to_unpack.div_ceil(Scalar::BITS);
 
-        packed_integers.packed_coeffs.len() == len
+        packed_integers.packed_coeffs().len() == len
             && *glwe_dimension == lwe_ct_parameters.glwe_dim
             && *polynomial_size == lwe_ct_parameters.polynomial_size
             && lwe_ct_parameters.ct_modulus.is_power_of_two()

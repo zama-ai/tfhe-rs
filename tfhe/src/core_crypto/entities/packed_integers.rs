@@ -7,12 +7,30 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(PackedIntegersVersions)]
 pub struct PackedIntegers<Scalar: UnsignedInteger> {
-    pub(crate) packed_coeffs: Vec<Scalar>,
-    pub(crate) log_modulus: CiphertextModulusLog,
-    pub(crate) initial_len: usize,
+    packed_coeffs: Vec<Scalar>,
+    log_modulus: CiphertextModulusLog,
+    initial_len: usize,
 }
 
 impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
+    pub(crate) fn from_raw_parts(
+        packed_coeffs: Vec<Scalar>,
+        log_modulus: CiphertextModulusLog,
+        initial_len: usize,
+    ) -> Self {
+        let required_bits_packed = initial_len * log_modulus.0;
+        let bits_packed = packed_coeffs.len() * Scalar::BITS;
+
+        assert!(required_bits_packed > bits_packed - Scalar::BITS);
+        assert!(required_bits_packed <= bits_packed);
+
+        Self {
+            packed_coeffs,
+            log_modulus,
+            initial_len,
+        }
+    }
+
     pub fn pack(slice: &[Scalar], log_modulus: CiphertextModulusLog) -> Self {
         let log_modulus = log_modulus.0;
 
@@ -165,6 +183,18 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
                 (first_part | second_part) & mask
             }
         })
+    }
+
+    pub fn log_modulus(&self) -> CiphertextModulusLog {
+        self.log_modulus
+    }
+
+    pub fn packed_coeffs(&self) -> &[Scalar] {
+        &self.packed_coeffs
+    }
+
+    pub fn initial_len(&self) -> usize {
+        self.initial_len
     }
 }
 
