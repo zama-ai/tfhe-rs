@@ -1,7 +1,6 @@
 use std::sync::LazyLock;
 use tfhe_hpu_backend::prelude::HpuDevice;
 
-use crate::high_level_api::tests::setup_default_cpu;
 use crate::{set_server_key, ClientKey, CompressedServerKey, Config};
 
 fn setup_hpu(hpu_device_cfg_path: &str) -> ClientKey {
@@ -50,6 +49,6 @@ fn test_uint8_compare_hpu() {
 
 #[test]
 fn test_uint32_bitwise() {
-    let client_key = setup_default_cpu();
+    let client_key = setup_default_hpu();
     super::test_case_uint32_bitwise(&client_key);
 }
