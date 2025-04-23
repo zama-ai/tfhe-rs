@@ -29,6 +29,9 @@ on:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest

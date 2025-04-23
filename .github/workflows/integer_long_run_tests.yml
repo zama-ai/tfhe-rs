@@ -18,6 +18,9 @@ on:
     # Weekly tests will be triggered each Friday at 9p.m.
     - cron: "0 21 * * 5"
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (cpu-tests)

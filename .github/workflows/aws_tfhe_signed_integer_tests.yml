@@ -30,6 +30,9 @@ on:
     branches:
       - main
 
+
+permissions: {}
+
 jobs:
   should-run:
     if:

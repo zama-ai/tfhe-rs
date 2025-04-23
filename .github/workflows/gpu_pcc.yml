@@ -21,6 +21,9 @@ env:
 on:
   pull_request:
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (cuda-pcc)

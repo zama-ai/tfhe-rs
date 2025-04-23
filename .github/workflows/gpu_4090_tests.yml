@@ -22,6 +22,9 @@ on:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
 
+
+permissions: {}
+
 jobs:
   cuda-tests-linux:
     name: CUDA tests (RTX 4090)

@@ -17,22 +17,29 @@ on:
           - "multi-h100-nvlink (n3-H100x8-NVLink)"
           - "multi-h100-sxm5 (n3-H100x8-SXM5)"
 
+
+permissions: {}
+
 jobs:
   parse-inputs:
     runs-on: ubuntu-latest
     outputs:
       profile: ${{ steps.parse_profile.outputs.profile }}
       hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+    env:
+      INPUTS_PROFILE: ${{ inputs.profile }}
     steps:
       - name: Parse profile
         id: parse_profile
         run: |
-          echo "profile=$(echo '${{ inputs.profile }}' | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
+          echo "${INPUTS_PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|'
+          echo "profile=$?" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
-          echo "name=$(echo '${{ inputs.profile }}' | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
+          echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|'
+          echo "name=$?" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks:
     name: Run benchmarks

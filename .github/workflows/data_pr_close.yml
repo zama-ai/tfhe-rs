@@ -25,6 +25,9 @@ on:
 # the script will always return 0 because of the "echo EOF".
 
 
+
+permissions: {}
+
 jobs:
   auto_close_job:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
@@ -39,14 +42,17 @@ jobs:
           curl --fail-with-body --no-progress-meter -L -X GET \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28"  \
-          ${{ env.TARGET_REPO_API_URL }}/pulls\?head=${{ github.repository_owner }}:${{ env.PR_BRANCH }} | jq -e '.[0]' | sed 's/null/{ "message": "corresponding PR not found" }/'
+          "${TARGET_REPO_API_URL}"/pulls\?head="${REPO_OWNER}":"${PR_BRANCH}" | jq -e '.[0]' | sed 's/null/{ "message": "corresponding PR not found" }/'
           RES="$?"
           echo EOF
         } >> "${GITHUB_ENV}"
         exit $RES
+      env:
+        REPO_OWNER: ${{ github.repository_owner }}
 
     - name: Comment on the PR to indicate the reason of the close
       run: |
+        BODY="'{ \"body\": \"PR ${CLOSE_TYPE}d because the corresponding PR in main repo was ${CLOSE_TYPE}d: ${REPO}#${EVENT_NUMBER}\" }'"
         {
           set +e
           set -o pipefail
@@ -56,11 +62,16 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           ${{ fromJson(env.TARGET_REPO_PR).comments_url }} \
-          -d '{ "body": "PR ${{ env.CLOSE_TYPE }}d because the corresponding PR in main repo was ${{ env.CLOSE_TYPE }}d: ${{ github.repository }}#${{ github.event.number  }}" }'
+          -d "${BODY}"
           RES="$?"
           echo EOF
         } >> "${GITHUB_ENV}"
         exit $RES
+      env:
+        REPO: ${{ github.repository }}
+        EVENT_NUMBER: ${{ github.event.number }}
+
+#          -d '{ "body": "PR ${CLOSE_TYPE}d because the corresponding PR in main repo was ${CLOSE_TYPE}d: ${REPO}#${EVENT_NUMBER}" }'
 
     - name: Merge the Pull Request in the data repo
       if: ${{ github.event.pull_request.merged }}
@@ -108,7 +119,7 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          ${{ env.TARGET_REPO_API_URL }}/git/refs/heads/${{ env.PR_BRANCH }}
+          "${TARGET_REPO_API_URL}"/git/refs/heads/"${PR_BRANCH}"
           RES="$?"
           echo EOF
         } >> "${GITHUB_ENV}"

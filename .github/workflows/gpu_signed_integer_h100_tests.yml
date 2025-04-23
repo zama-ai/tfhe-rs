@@ -26,6 +26,9 @@ on:
     types: [ labeled ]
 
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
