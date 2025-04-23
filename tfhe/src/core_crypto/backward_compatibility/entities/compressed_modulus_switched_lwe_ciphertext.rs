@@ -22,17 +22,17 @@ impl<Scalar: UnsignedInteger> Upgrade<CompressedModulusSwitchedLweCiphertext<Sca
     type Error = Infallible;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchedLweCiphertext<Scalar>, Self::Error> {
-        let packed_integers = PackedIntegers {
-            packed_coeffs: self.packed_coeffs,
-            log_modulus: self.log_modulus,
-            initial_len: self.lwe_dimension.to_lwe_size().0,
-        };
+        let packed_integers = PackedIntegers::from_raw_parts(
+            self.packed_coeffs,
+            self.log_modulus,
+            self.lwe_dimension.to_lwe_size().0,
+        );
 
-        Ok(CompressedModulusSwitchedLweCiphertext {
+        Ok(CompressedModulusSwitchedLweCiphertext::from_raw_parts(
             packed_integers,
-            lwe_dimension: self.lwe_dimension,
-            uncompressed_ciphertext_modulus: self.uncompressed_ciphertext_modulus,
-        })
+            self.lwe_dimension,
+            self.uncompressed_ciphertext_modulus,
+        ))
     }
 }
 
