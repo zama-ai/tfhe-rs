@@ -14,6 +14,7 @@ use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOw
 
 #[cfg(feature = "hpu")]
 use crate::high_level_api::keys::HpuTaggedDevice;
+#[cfg(feature = "hpu")]
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 
 /// Enum that manages the current inner representation of a boolean.
