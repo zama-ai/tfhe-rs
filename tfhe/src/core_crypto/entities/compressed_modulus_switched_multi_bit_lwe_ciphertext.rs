@@ -323,7 +323,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
         let diffs = |a: usize| {
             self.packed_diffs.as_ref().map_or(0, |packed_diffs| {
                 let diffs_two_complement: usize = diffs_two_complement[a];
-                let used_space_log = packed_diffs.log_modulus.0;
+                let used_space_log = packed_diffs.log_modulus().0;
                 // rebuild from two complement representation on used_space_log bits
                 let used_space = 1 << used_space_log;
                 if diffs_two_complement >= used_space / 2 {
@@ -358,7 +358,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
                 }
 
                 switched_modulus_input_mask_per_group
-                    .push(monomial_degree % (1 << self.packed_mask.log_modulus.0));
+                    .push(monomial_degree % (1 << self.packed_mask.log_modulus().0));
             }
         }
 
@@ -416,7 +416,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
 
         let lwe_dim = lwe_dimension.0;
 
-        body >> packed_mask.log_modulus.0 == 0
+        body >> packed_mask.log_modulus().0 == 0
             && packed_mask.is_conformant(&lwe_dim)
             && packed_diffs
                 .as_ref()

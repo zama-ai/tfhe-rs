@@ -217,17 +217,19 @@ impl CudaCompressedCiphertextList {
             let number_bits_to_pack = initial_len * storage_log_modulus.0;
             let len = number_bits_to_pack.div_ceil(u64::BITS as usize);
             let chunk_end = chunk_start + len;
-            modulus_switched_glwe_ciphertext_list.push(CompressedModulusSwitchedGlweCiphertext {
-                packed_integers: PackedIntegers {
-                    packed_coeffs: flat_cpu_data[chunk_start..chunk_end].to_vec(),
-                    log_modulus: storage_log_modulus,
-                    initial_len,
-                },
-                glwe_dimension,
-                polynomial_size,
-                bodies_count,
-                uncompressed_ciphertext_modulus: ciphertext_modulus,
-            });
+            modulus_switched_glwe_ciphertext_list.push(
+                CompressedModulusSwitchedGlweCiphertext::from_raw_parts(
+                    PackedIntegers::from_raw_parts(
+                        flat_cpu_data[chunk_start..chunk_end].to_vec(),
+                        storage_log_modulus,
+                        initial_len,
+                    ),
+                    glwe_dimension,
+                    polynomial_size,
+                    bodies_count,
+                    ciphertext_modulus,
+                ),
+            );
             num_bodies_left = num_bodies_left.saturating_sub(lwe_per_glwe.0);
             chunk_start = chunk_end;
         }
@@ -345,10 +347,10 @@ impl CompressedCiphertextList {
             &self.packed_list.modulus_switched_glwe_ciphertext_list;
 
         let first_ct = modulus_switched_glwe_ciphertext_list.first().unwrap();
-        let storage_log_modulus = first_ct.packed_integers.log_modulus;
+        let storage_log_modulus = first_ct.packed_integers().log_modulus();
         let initial_len = modulus_switched_glwe_ciphertext_list
             .iter()
-            .map(|glwe| glwe.packed_integers.initial_len)
+            .map(|glwe| glwe.packed_integers().initial_len())
             .sum();
 
         let message_modulus = self.packed_list.message_modulus;
@@ -356,7 +358,7 @@ impl CompressedCiphertextList {
 
         let flat_cpu_data = modulus_switched_glwe_ciphertext_list
             .iter()
-            .flat_map(|ct| ct.packed_integers.packed_coeffs.clone())
+            .flat_map(|ct| ct.packed_integers().packed_coeffs().to_vec())
             .collect_vec();
 
         let flat_gpu_data = unsafe {

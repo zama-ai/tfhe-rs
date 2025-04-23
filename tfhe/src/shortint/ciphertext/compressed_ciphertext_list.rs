@@ -25,7 +25,7 @@ impl CompressedCiphertextList {
     pub(crate) fn flat_len(&self) -> usize {
         self.modulus_switched_glwe_ciphertext_list
             .iter()
-            .map(|glwe| glwe.packed_integers.packed_coeffs.len())
+            .map(|glwe| glwe.packed_integers().packed_coeffs().len())
             .sum()
     }
 }
