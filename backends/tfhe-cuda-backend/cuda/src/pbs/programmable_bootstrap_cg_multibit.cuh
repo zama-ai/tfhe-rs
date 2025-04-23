@@ -108,13 +108,13 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                            accumulator_rotated);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
     NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain<grid_group, params>(
         accumulator_fft, block_join_buffer, keybundle, i, grid);
     NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
-    synchronize_threads_in_block();
+    __syncthreads();
 
     add_to_torus<Torus, params>(accumulator_fft, accumulator_rotated, true);
   }

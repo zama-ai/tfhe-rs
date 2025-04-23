@@ -80,7 +80,7 @@ mul_ggsw_glwe_in_fourier_domain(double2 *fft, double2 *join_buffer,
     polynomial_accumulate_in_fourier_domain<params>(fft, cur_src_acc, l == 0);
   }
 
-  synchronize_threads_in_block();
+  __syncthreads();
 }
 
 template <typename Torus>

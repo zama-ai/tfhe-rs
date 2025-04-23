@@ -107,7 +107,7 @@ __global__ void device_programmable_bootstrap_tbc(
       false);
 
   for (int i = 0; i < lwe_dimension; i++) {
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Put "a" in [0, 2N[
     Torus a_hat = 0;
@@ -125,7 +125,7 @@ __global__ void device_programmable_bootstrap_tbc(
                                   params::degree / params::opt>(
         accumulator_rotated, base_log, level_count);
 
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
@@ -134,14 +134,14 @@ __global__ void device_programmable_bootstrap_tbc(
                                            accumulator_rotated);
     gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
     NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain<cluster_group, params>(
         accumulator_fft, block_join_buffer, bootstrapping_key, i, cluster,
         support_dsm);
     NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
-    synchronize_threads_in_block();
+    __syncthreads();
 
     add_to_torus<Torus, params>(accumulator_fft, accumulator);
   }

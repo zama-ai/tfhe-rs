@@ -96,7 +96,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
                  params::log2_degree + 1); // 2 * params::log2_degree + 1);
 
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Perform ACC * (X^ä - 1)
   multiply_by_monomial_negacyclic_and_sub_polynomial<
@@ -109,7 +109,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                 params::degree / params::opt>(
       accumulator, base_log, level_count);
 
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Decompose the accumulator. Each block gets one level of the
   // decomposition, for the mask and the body (so block 0 will have the

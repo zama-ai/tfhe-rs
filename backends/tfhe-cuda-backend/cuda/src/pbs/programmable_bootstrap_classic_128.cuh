@@ -71,7 +71,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128(
                                                         l == 0);
   }
 
-  synchronize_threads_in_block();
+  __syncthreads();
 }
 
 template <typename Torus, class params, sharedMemDegree SMD, bool first_iter>
@@ -150,7 +150,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   modulus_switch(block_lwe_array_in[lwe_iteration], a_hat,
                  params::log2_degree + 1); // 2 * params::log2_degree + 1);
 
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Perform ACC * (X^ä - 1)
   multiply_by_monomial_negacyclic_and_sub_polynomial<
@@ -163,7 +163,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                 params::degree / params::opt>(
       accumulator, base_log, level_count);
 
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Decompose the accumulator. Each block gets one level of the
   // decomposition, for the mask and the body (so block 0 will have the
@@ -378,7 +378,7 @@ __global__ void device_programmable_bootstrap_cg_128(
       false);
 
   for (int i = 0; i < lwe_dimension; i++) {
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Put "a" in [0, 2N[
     Torus a_hat = 0;
@@ -395,7 +395,7 @@ __global__ void device_programmable_bootstrap_cg_128(
                                   params::degree / params::opt>(
         accumulator_rotated, base_log, level_count);
 
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
@@ -411,14 +411,14 @@ __global__ void device_programmable_bootstrap_cg_128(
 
     negacyclic_forward_fft_f128<HalfDegree<params>>(
         acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
-    synchronize_threads_in_block();
+    __syncthreads();
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain_128<grid_group, params>(
         accumulator_fft, block_join_buffer, bootstrapping_key, i, grid);
 
     negacyclic_backward_fft_f128<HalfDegree<params>>(
         acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi, acc_fft_im_lo);
-    synchronize_threads_in_block();
+    __syncthreads();
 
     add_to_torus_128<Torus, params>(acc_fft_re_hi, acc_fft_re_lo, acc_fft_im_hi,
                                     acc_fft_im_lo, accumulator);

@@ -105,7 +105,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
           lwe_array_group, threadIdx.x, grouping_factor);
     }
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Accumulate the other terms
     for (int g = 1; g < (1 << grouping_factor); g++) {
@@ -117,8 +117,8 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
       polynomial_accumulate_monic_monomial_mul_on_regs<Torus, params>(
           reg_acc, bsk_poly, monomial_degree);
     }
-    synchronize_threads_in_block(); // needed because we are going to reuse the
-                                    // shared memory for the fft
+    __syncthreads(); // needed because we are going to reuse the
+                     // shared memory for the fft
 
     // Move from local memory back to shared memory but as complex
     int tid = threadIdx.x;
@@ -309,7 +309,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                           params::degree];
 
   add_to_torus<Torus, params>(accumulator_fft, global_slice, true);
-  synchronize_threads_in_block();
+  __syncthreads();
 
   if constexpr (is_last_iter) {
     // Last iteration
