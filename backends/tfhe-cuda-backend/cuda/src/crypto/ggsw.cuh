@@ -29,11 +29,11 @@ __global__ void device_batch_fft_ggsw_vector(double2 *dest, T *src,
     selected_memory[tid].y = y / (double)std::numeric_limits<T>::max();
     tid += params::degree / params::opt;
   }
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Switch to the FFT space
   NSMFFT_direct<HalfDegree<params>>(selected_memory);
-  synchronize_threads_in_block();
+  __syncthreads();
 
   // Write the output to global memory
   tid = threadIdx.x;

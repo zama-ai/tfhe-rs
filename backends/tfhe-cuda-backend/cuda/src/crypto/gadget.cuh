@@ -80,7 +80,7 @@ public:
 
       tid += params::degree / params::opt;
     }
-    synchronize_threads_in_block();
+    __syncthreads();
   }
 
   // Decomposes a single polynomial
@@ -123,7 +123,7 @@ public:
 
       tid += params::degree / params::opt;
     }
-    synchronize_threads_in_block();
+    __syncthreads();
   }
 
   __device__ void decompose_and_compress_level(double2 *result, int level) {

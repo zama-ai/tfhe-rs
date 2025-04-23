@@ -101,7 +101,7 @@ __global__ void device_programmable_bootstrap_amortized(
   // into level_count polynomials, and performing polynomial multiplication
   // via an FFT with the RGSW encrypted secret key
   for (int iteration = 0; iteration < lwe_dimension; iteration++) {
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Put "a" in [0, 2N[ instead of Zq
     Torus a_hat = 0;
@@ -113,7 +113,7 @@ __global__ void device_programmable_bootstrap_amortized(
         Torus, params::opt, params::degree / params::opt>(
         accumulator, accumulator_rotated, a_hat, glwe_dimension + 1);
 
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
@@ -159,25 +159,25 @@ __global__ void device_programmable_bootstrap_amortized(
               res_fft_poly, accumulator_fft, bsk_poly);
         }
       }
-      synchronize_threads_in_block();
+      __syncthreads();
     }
 
     // Come back to the coefficient representation
     if constexpr (SMD == FULLSM || SMD == NOSM) {
-      synchronize_threads_in_block();
+      __syncthreads();
 
       for (int i = 0; i < (glwe_dimension + 1); i++) {
         auto res_fft_slice = res_fft + i * params::degree / 2;
         NSMFFT_inverse<HalfDegree<params>>(res_fft_slice);
       }
-      synchronize_threads_in_block();
+      __syncthreads();
 
       for (int i = 0; i < (glwe_dimension + 1); i++) {
         auto accumulator_slice = accumulator + i * params::degree;
         auto res_fft_slice = res_fft + i * params::degree / 2;
         add_to_torus<Torus, params>(res_fft_slice, accumulator_slice);
       }
-      synchronize_threads_in_block();
+      __syncthreads();
     } else {
 #pragma unroll
       for (int i = 0; i < (glwe_dimension + 1); i++) {
@@ -188,14 +188,14 @@ __global__ void device_programmable_bootstrap_amortized(
           accumulator_fft[tid] = res_fft_slice[tid];
           tid = tid + params::degree / params::opt;
         }
-        synchronize_threads_in_block();
+        __syncthreads();
 
         NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
-        synchronize_threads_in_block();
+        __syncthreads();
 
         add_to_torus<Torus, params>(accumulator_fft, accumulator_slice);
       }
-      synchronize_threads_in_block();
+      __syncthreads();
     }
   }
 

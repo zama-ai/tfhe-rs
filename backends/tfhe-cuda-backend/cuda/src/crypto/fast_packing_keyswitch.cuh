@@ -56,7 +56,7 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
   lwe_out[write_val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
-  synchronize_threads_in_block();
+  __syncthreads();
   lwe_out[write_state_idx] = state;
 }
 
@@ -81,12 +81,12 @@ decompose_vectorize_step_inplace(Torus *buffer_in, uint32_t lwe_dimension,
   auto state_idx = num_lwe * lwe_dimension + val_idx;
 
   Torus state = buffer_in[state_idx];
-  synchronize_threads_in_block();
+  __syncthreads();
 
   Torus mod_b_mask = (1ll << base_log) - 1ll;
 
   buffer_in[val_idx] = decompose_one<Torus>(state, mod_b_mask, base_log);
-  synchronize_threads_in_block();
+  __syncthreads();
   buffer_in[state_idx] = state;
 }
 
@@ -153,7 +153,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
     } else {
       Bs[innerRowB * BN + innerColB] = 0;
     }
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Advance blocktile for the next iteration of this loop
     A += BK;
@@ -169,7 +169,7 @@ __global__ void tgemm(int M, int N, int K, const Torus *A, const Torus *B,
             As[(threadRow * TM + resIdx) * BK + dotIdx] * tmp;
       }
     }
-    synchronize_threads_in_block();
+    __syncthreads();
   }
 
   // Initialize the pointer to the output block of size (BLOCK_SIZE_GEMM,

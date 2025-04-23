@@ -221,7 +221,7 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
         (Torus *)lwe_array_out + (ptrdiff_t)(z * params::degree);
     Torus *glwe_slice = (Torus *)glwe + (ptrdiff_t)(z * params::degree);
 
-    synchronize_threads_in_block();
+    __syncthreads();
     // Reverse the glwe
     // Set ACC = -ACC
     int tid = threadIdx.x;
@@ -232,7 +232,7 @@ __device__ void sample_extract_mask(Torus *lwe_array_out, Torus const *glwe,
       result[i] = SEL(-x, x, tid >= params::degree - nth);
       tid = tid + params::degree / params::opt;
     }
-    synchronize_threads_in_block();
+    __syncthreads();
 
     // Perform ACC * X
     // (equivalent to multiply_by_monomial_negacyclic_inplace(1))
