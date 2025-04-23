@@ -36,6 +36,9 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_BENCH: TRUE
 
+
+permissions: {}
+
 jobs:
   prepare-matrix:
     name: Prepare operations matrix
@@ -60,10 +63,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
-          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
-            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
           fi
 
       - name: Default benchmark type
@@ -150,26 +153,35 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} bench_${{ matrix.command }}
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" bench_"${BENCH_COMMAND}"
+        env:
+          OP_FLAVOR: ${{ matrix.op_flavor }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
+          BENCH_COMMAND: ${{ matrix.command }}
 
       # Run these benchmarks only once per benchmark type
       - name: Run compression benchmarks with AVX512
         if: matrix.op_flavor == 'default' && matrix.command == 'integer'
         run: |
-          make BENCH_TYPE=${{ matrix.bench_type }} bench_integer_compression
+          make BENCH_TYPE="${BENCH_TYPE}" bench_integer_compression
+        env:
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpc7a.96xlarge" \
           --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
+          --branch "${REF_NAME}" \
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ matrix.bench_type }}
+          --bench-type "${BENCH_TYPE}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -180,7 +192,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification

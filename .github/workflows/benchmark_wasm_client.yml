@@ -21,6 +21,9 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
@@ -143,15 +146,17 @@ jobs:
       - name: Parse results
         run: |
           make parse_wasm_benchmarks
-          python3 ./ci/benchmark_parser.py tfhe/wasm_pk_gen.csv ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py tfhe/wasm_pk_gen.csv "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "m6i.4xlarge" \
           --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
+          --branch "${REF_NAME}" \
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --key-gen
           rm tfhe/wasm_pk_gen.csv
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       # Run these benchmarks only once
       - name: Measure public key and ciphertext sizes in HL Api
@@ -162,7 +167,7 @@ jobs:
       - name: Parse key and ciphertext sizes results
         if:  matrix.browser == 'chrome'
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
           --key-gen \
           --append-results
 
@@ -183,7 +188,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification

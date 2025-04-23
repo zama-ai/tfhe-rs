@@ -16,6 +16,8 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+permissions: {}
+
 jobs:
   verify_tag:
     uses: ./.github/workflows/verify_tagged_commit.yml
@@ -76,7 +78,7 @@ jobs:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          cargo publish -p tfhe-fft --token ${{ env.CRATES_TOKEN }} ${{ env.DRY_RUN }}
+          cargo publish -p tfhe-fft --token "${CRATES_TOKEN}" "${DRY_RUN}"
 
       - name: Generate hash
         id: published_hash

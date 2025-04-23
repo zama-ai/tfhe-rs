@@ -24,6 +24,9 @@ on:
   workflow_dispatch:
   pull_request:
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
@@ -269,7 +272,9 @@ jobs:
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
         run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
 
       - name: Slack Notification
         if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}

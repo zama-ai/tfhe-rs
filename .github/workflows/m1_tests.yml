@@ -27,6 +27,8 @@ concurrency:
   group: ${{ github.workflow_ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   cargo-builds-m1:
     if: ${{ (github.event_name == 'schedule' &&  github.repository == 'zama-ai/tfhe-rs') ||
