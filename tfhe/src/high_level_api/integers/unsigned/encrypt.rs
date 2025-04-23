@@ -125,7 +125,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support trivial encryption")
             }
         })
     }

@@ -103,7 +103,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support trivial encryption")
             }
         });
         Ok(Self::new(ciphertext, tag))

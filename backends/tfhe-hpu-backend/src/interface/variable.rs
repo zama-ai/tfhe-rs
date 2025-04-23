@@ -171,7 +171,7 @@ impl HpuVarWrapped {
             (VarMode::Native, VarMode::Half) => width / 2,
             (VarMode::Half, VarMode::Native) => 2 * width,
             (VarMode::Half, VarMode::Half) => width,
-            _ => panic!("Unsupported mode, couldn't used Boolean to built bigger variable"),
+            _ => panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable"),
         };
         Self::new_in(pool, cmd_api, params, width, trgt_mode)
     }
