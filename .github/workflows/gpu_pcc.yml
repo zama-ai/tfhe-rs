@@ -1,4 +1,4 @@
-# Perfom tfhe-cuda-backend post-commit checks on an AWS instance
+# Perform tfhe-cuda-backend post-commit checks on an AWS instance
 name: Cuda - Post-commit Checks
 
 env:
