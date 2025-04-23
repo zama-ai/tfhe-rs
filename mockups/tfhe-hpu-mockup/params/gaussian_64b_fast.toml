@@ -2,8 +2,8 @@
     lwe_dimension=20
     glwe_dimension=2
     polynomial_size=1024
-    lwe_modular_std_dev=0.0
-    glwe_modular_std_dev=0.0
+    lwe_noise_distribution={GaussianStdDev=0.0}
+    glwe_noise_distribution={GaussianStdDev=0.0}
     pbs_base_log=20
     pbs_level=1
     ks_base_log=2

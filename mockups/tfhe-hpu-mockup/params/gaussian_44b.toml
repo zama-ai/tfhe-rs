@@ -1,16 +1,16 @@
 [pbs_params]
-    lwe_dimension=20
+    lwe_dimension=724
     glwe_dimension=2
     polynomial_size=1024
-    lwe_modular_std_dev=0.0
-    glwe_modular_std_dev=0.0
-    pbs_base_log=20
-    pbs_level=1
-    ks_base_log=2
-    ks_level=7
-    message_width=2
-    carry_width=2
-    ciphertext_width=44
+    lwe_noise_distribution={GaussianStdDev=1.2597809688976277e-05}
+    glwe_noise_distribution={GaussianStdDev=2.2737367544323206e-13}
+    pbs_base_log= 20
+    pbs_level= 1
+    ks_base_log= 2
+    ks_level= 7
+    message_width= 2
+    carry_width= 2
+    ciphertext_width= 44
 
 [ntt_params]
     core_arch="WmmUnfoldPcg"
