@@ -218,7 +218,7 @@ impl SignedRadixCiphertext {
                 // Nothing to do, we already are on the correct device
             }
             #[cfg(feature = "gpu")]
-            (Self::Cuda(_), Device::CudaGpu) => {
+            (Self::Cuda(cuda_ct), Device::CudaGpu) => {
                 // We are on a GPU, but it may not be the correct one
                 let new = with_thread_local_cuda_streams(|streams| {
                     if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
@@ -247,7 +247,7 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "hpu")]
             (_, Device::Hpu) => {
-                panic!("Hpu device do not support integer yet",)
+                panic!("Hpu device do not support signed integer yet",)
             }
         }
     }
