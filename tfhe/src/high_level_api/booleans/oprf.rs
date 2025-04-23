@@ -13,7 +13,7 @@ use tfhe_csprng::seeders::Seed;
 impl FheBool {
     /// Generates an encrypted boolean
     /// taken uniformly using the given seed.
-    /// The encryted value is oblivious to the server.
+    /// The encrypted value is oblivious to the server.
     /// It can be useful to make server random generation deterministic.
     ///
     /// ```rust
@@ -55,7 +55,7 @@ impl FheBool {
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support random bool generation")
             }
         });
         Self::new(ciphertext, tag)
