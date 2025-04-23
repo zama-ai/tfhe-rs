@@ -232,7 +232,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support if_then_else with clear input")
             }
         })
     }
@@ -283,7 +283,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support if_then_else with clear input")
             }
         })
     }
@@ -334,7 +334,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support if_then_else with clear input")
             }
         })
     }
@@ -385,7 +385,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support if_then_else with clear input")
             }
         })
     }
@@ -419,7 +419,7 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support if_then_else with clear input")
             }
         });
         Self::new(ciphertext, tag)
@@ -519,7 +519,7 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support signed integers")
             }
         })
     }
@@ -551,7 +551,7 @@ impl IfThenElse<Self> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bool if then else")
             }
         });
         Self::new(ciphertext, tag)
@@ -614,7 +614,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support FheBool::eq")
             }
         })
     }
@@ -661,7 +661,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support FheBool::ne")
             }
         })
     }
@@ -710,7 +710,7 @@ impl FheEq<bool> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support FheBool::eq with a bool")
             }
         });
         Self::new(ciphertext, tag)
@@ -758,7 +758,7 @@ impl FheEq<bool> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support FheBool::ne with a bool")
             }
         });
         Self::new(ciphertext, tag)
@@ -843,7 +843,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitand (&)")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -932,7 +932,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitor (|)")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -1021,7 +1021,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitxor (^)")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -1102,7 +1102,7 @@ impl BitAnd<bool> for &FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("hpu does not bitand (&) with a bool")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -1183,7 +1183,7 @@ impl BitOr<bool> for &FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("hpu does not bitor (|) with a bool")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -1264,7 +1264,7 @@ impl BitXor<bool> for &FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("hpu does not bitxor (^) with a bool")
             }
         });
         FheBool::new(ciphertext, tag)
@@ -1467,7 +1467,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitand assign (&=)")
             }
         });
     }
@@ -1515,7 +1515,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitor assign (|=)")
             }
         });
     }
@@ -1563,7 +1563,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitxor assign (^=)")
             }
         });
     }
@@ -1605,7 +1605,7 @@ impl BitAndAssign<bool> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitand assign (&=) with a bool")
             }
         });
     }
@@ -1647,7 +1647,7 @@ impl BitOrAssign<bool> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitor assign (|=) with a bool")
             }
         });
     }
@@ -1689,7 +1689,7 @@ impl BitXorAssign<bool> for FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitor assign (^=) with a bool")
             }
         });
     }
@@ -1763,7 +1763,7 @@ impl std::ops::Not for &FheBool {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!()
+                panic!("Hpu does not support bitnot (!)")
             }
         });
         FheBool::new(ciphertext, tag)

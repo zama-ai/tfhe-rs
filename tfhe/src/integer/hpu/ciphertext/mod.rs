@@ -79,12 +79,13 @@ impl HpuRadixCiphertext {
             self.0.is_boolean(),
             "Error try to extract boolean value from invalid ciphertext"
         );
-        let boolean_ct = self
+        let mut boolean_ct = self
             .to_radix_ciphertext()
             .blocks
             .into_iter()
             .next()
             .unwrap();
+        boolean_ct.degree = Degree::new(1);
         BooleanBlock::new_unchecked(boolean_ct)
     }
 }
