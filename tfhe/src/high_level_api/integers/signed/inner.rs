@@ -248,7 +248,7 @@ impl SignedRadixCiphertext {
             }
             #[cfg(feature = "hpu")]
             (_, Device::Hpu) => {
-                panic!("Hpu device do not support integer yet",)
+                panic!("Hpu device do not support signed integer yet",)
             }
         }
     }
