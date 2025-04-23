@@ -225,7 +225,7 @@ pub trait FheWait {
     fn wait(&self);
 }
 
-/// Trait used to have a generic way of starting custom Hpu IOp
+/// Struct used to have a generic way of starting custom Hpu IOp
 #[cfg(feature = "hpu")]
 pub struct HpuHandle<T> {
     pub native: Vec<T>,
