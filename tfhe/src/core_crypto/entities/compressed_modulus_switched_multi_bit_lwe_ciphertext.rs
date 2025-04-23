@@ -1,8 +1,9 @@
 use self::packed_integers::PackedIntegers;
 use crate::conformance::ParameterSetConformant;
-use crate::core_crypto::backward_compatibility::entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::CompressedModulusSwitchedMultiBitLweCiphertextVersions;
+use crate::core_crypto::backward_compatibility::entities;
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
+use entities::compressed_modulus_switched_multi_bit_lwe_ciphertext::*;
 use itertools::Itertools;
 use tfhe_versionable::Versionize;
 
@@ -180,6 +181,83 @@ pub struct CompressedModulusSwitchedMultiBitLweCiphertext<
 impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>
 {
+    pub(crate) fn from_raw_parts(
+        body: usize,
+        packed_mask: PackedIntegers<usize>,
+        packed_diffs: Option<PackedIntegers<usize>>,
+        lwe_dimension: LweDimension,
+        uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> Self {
+        assert_eq!(
+            packed_mask.initial_len() % grouping_factor.0,
+            0,
+            "Packed mask len (={}) should be a multiple of grouping factor (={})",
+            packed_mask.initial_len(),
+            grouping_factor.0
+        );
+        assert_eq!(packed_mask.initial_len(), lwe_dimension.0,
+            "Packed mask list is not of the correct size for the uncompressed LWE: expected {}, got {}",
+            lwe_dimension.0,
+            packed_mask.initial_len());
+
+        if let Some(diffs) = packed_diffs.as_ref() {
+            let multi_bit_elements = packed_mask.initial_len() / grouping_factor.0;
+            let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element().0;
+            let num_powers_of_2 =
+                (usize::BITS - ggsw_per_multi_bit_element.leading_zeros()) as usize;
+            let expected_diffs_len =
+                (ggsw_per_multi_bit_element - num_powers_of_2) * multi_bit_elements;
+            assert_eq!(
+                diffs.initial_len(),
+                expected_diffs_len,
+                "Packed diff list is not of the correct size for the uncompressed LWE: expected {}, got {}",
+                diffs.initial_len(),
+                expected_diffs_len
+            );
+        }
+
+        Self {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        }
+    }
+
+    #[cfg(test)]
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn into_raw_parts(
+        self,
+    ) -> (
+        usize,
+        PackedIntegers<usize>,
+        Option<PackedIntegers<usize>>,
+        LweDimension,
+        CiphertextModulus<Scalar>,
+        LweBskGroupingFactor,
+    ) {
+        let Self {
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        } = self;
+
+        (
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        )
+    }
+
     /// Compresses a ciphertext by reducing its modulus
     /// This operation adds a lot of noise
     pub fn compress<Cont: Container<Element = Scalar>>(
@@ -212,7 +290,7 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
 
         let body = modulus_switch(*input_lwe_body.data, log_modulus).cast_into();
 
-        let modulus_switched: Vec<usize> = ct
+        let modulus_switched: Vec<usize> = input_lwe_mask
             .as_ref()
             .iter()
             .map(|a| modulus_switch(*a, log_modulus).cast_into())
@@ -313,6 +391,14 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>>
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> FromCompressionMultiBitModulusSwitchedCt {
         let masks: Vec<usize> = self.packed_mask.unpack().collect();
+
+        assert_eq!(
+            masks.len() % self.grouping_factor.0,
+            0,
+            "Mask len (={}) should be a multiple of grouping factor (={})",
+            masks.len(),
+            self.grouping_factor.0
+        );
 
         let mut diffs_two_complement: Vec<usize> = vec![];
 
@@ -430,5 +516,53 @@ impl<Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>> ParameterSetCo
                 }
             }
             && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use rand::Rng;
+
+    use super::*;
+    #[test]
+    fn test_from_raw_parts() {
+        type Scalar = u64;
+
+        let len = 694;
+        let log_modulus = 12;
+        let grouping_factor = LweBskGroupingFactor(3);
+
+        let ciphertext_modulus = CiphertextModulus::new_native();
+
+        let mut lwe = LweCiphertext::new(Scalar::ZERO, LweSize(len), ciphertext_modulus);
+
+        // We don't care about the exact content here
+        rand::thread_rng().fill(lwe.as_mut());
+
+        let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::compress(
+            &lwe,
+            CiphertextModulusLog(log_modulus),
+            grouping_factor,
+        );
+
+        let (
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        ) = compressed.into_raw_parts();
+
+        let rebuilt = CompressedModulusSwitchedMultiBitLweCiphertext::from_raw_parts(
+            body,
+            packed_mask,
+            packed_diffs,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+            grouping_factor,
+        );
+
+        let _ = rebuilt.extract();
     }
 }
