@@ -31,6 +31,9 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+
+permissions: {}
+
 jobs:
   should-run:
     runs-on: ubuntu-latest
@@ -74,10 +77,10 @@ jobs:
       - name: Set benchmark types
         if: github.event_name == 'workflow_dispatch'
         run: |
-          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
-            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
           fi
 
       - name: Default benchmark type
@@ -156,25 +159,30 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_TYPE=${{ matrix.bench_type }} bench_integer_zk
+          make BENCH_TYPE="${BENCH_TYPE}" bench_integer_zk
+        env:
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpc7a.96xlarge" \
           --backend cpu \
           --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
+          --branch "${REF_NAME}" \
           --commit-date "${{ env.COMMIT_DATE }}" \
           --bench-date "${{ env.BENCH_DATE }}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ matrix.bench_type }}
+          --bench-type "${BENCH_TYPE}"
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse CRS sizes results
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/pke_zk_crs_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py tfhe/pke_zk_crs_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
@@ -195,7 +203,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification

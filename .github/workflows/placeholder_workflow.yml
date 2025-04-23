@@ -4,6 +4,8 @@ name: Placeholder Workflow
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   placeholder:
     name: Placeholder

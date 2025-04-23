@@ -6,6 +6,9 @@ on:
     # Weekly benchmarks will be triggered each Saturday at 5a.m.
     - cron: '0 5 * * 6'
 
+
+permissions: {}
+
 jobs:
   run-benchmarks-1-h100:
     name: Run benchmarks (1xH100)
