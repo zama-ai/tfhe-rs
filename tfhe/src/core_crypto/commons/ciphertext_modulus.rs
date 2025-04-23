@@ -10,6 +10,8 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use std::marker::PhantomData;
 
+use super::parameters::CiphertextModulusLog;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 /// Private enum to avoid end user instantiating a bad CiphertextModulus
 ///
@@ -274,6 +276,15 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
         }
     }
 
+    pub fn into_modulus_log(self) -> CiphertextModulusLog {
+        match self.inner {
+            CiphertextModulusInner::Native => CiphertextModulusLog(Scalar::BITS),
+            CiphertextModulusInner::Custom(custom_mod) => {
+                CiphertextModulusLog(custom_mod.get().ceil_ilog2() as usize)
+            }
+        }
+    }
+
     pub fn get_custom_modulus_as_optional_scalar(&self) -> Option<Scalar> {
         match self.inner {
             CiphertextModulusInner::Native => None,
@@ -351,6 +362,12 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             CiphertextModulusInner::Native => 2_f64.powi(Scalar::BITS as i32),
             CiphertextModulusInner::Custom(non_zero) => non_zero.get() as f64,
         }
+    }
+}
+
+impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for CiphertextModulusLog {
+    fn from(value: CiphertextModulus<Scalar>) -> Self {
+        value.into_modulus_log()
     }
 }
 

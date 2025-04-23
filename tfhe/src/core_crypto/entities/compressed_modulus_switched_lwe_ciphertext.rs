@@ -63,12 +63,50 @@ use crate::core_crypto::prelude::*;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedModulusSwitchedLweCiphertextVersions)]
 pub struct CompressedModulusSwitchedLweCiphertext<Scalar: UnsignedInteger> {
-    pub(crate) packed_integers: PackedIntegers<Scalar>,
-    pub(crate) lwe_dimension: LweDimension,
-    pub(crate) uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    packed_integers: PackedIntegers<Scalar>,
+    lwe_dimension: LweDimension,
+    uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
+impl<Scalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Scalar> {
+    pub(crate) fn from_raw_parts(
+        packed_integers: PackedIntegers<Scalar>,
+        lwe_dimension: LweDimension,
+        uncompressed_ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        assert_eq!(packed_integers.initial_len(), lwe_dimension.to_lwe_size().0,
+            "Packed integers list is not of the correct size for the uncompressed LWE: expected {}, got {}",
+            lwe_dimension.to_lwe_size().0,
+            packed_integers.initial_len());
+
+        Self {
+            packed_integers,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn into_raw_parts(
+        self,
+    ) -> (
+        PackedIntegers<Scalar>,
+        LweDimension,
+        CiphertextModulus<Scalar>,
+    ) {
+        let Self {
+            packed_integers,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+        } = self;
+
+        (
+            packed_integers,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+        )
+    }
+
     /// Compresses a ciphertext by reducing its modulus
     /// This operation adds a lot of noise
     pub fn compress<Cont: Container<Element = Scalar>>(
@@ -117,17 +155,17 @@ impl<Scalar: UnsignedTorus> CompressedModulusSwitchedLweCiphertext<Scalar> {
     pub fn extract(&self) -> LweCiphertextOwned<Scalar> {
         let lwe_size = self.lwe_dimension.to_lwe_size().0;
 
-        let log_modulus = self.packed_integers.log_modulus.0;
+        let log_modulus = self.packed_integers.log_modulus().0;
 
         let number_bits_to_unpack = lwe_size * log_modulus;
 
         let len = number_bits_to_unpack.div_ceil(Scalar::BITS);
 
         assert_eq!(
-            self.packed_integers.packed_coeffs.len(),
+            self.packed_integers.packed_coeffs().len(),
             len,
             "Mismatch between actual(={}) and expected(={len}) CompressedModulusSwitchedLweCiphertext packed_coeffs size",
-            self.packed_integers.packed_coeffs.len(),
+            self.packed_integers.packed_coeffs().len(),
         );
 
         let container = self
@@ -155,11 +193,11 @@ impl<Scalar: UnsignedInteger> ParameterSetConformant
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
 
-        let number_bits_to_pack = lwe_size * packed_integers.log_modulus.0;
+        let number_bits_to_pack = lwe_size * packed_integers.log_modulus().0;
 
         let len = number_bits_to_pack.div_ceil(Scalar::BITS);
 
-        packed_integers.packed_coeffs.len() == len
+        packed_integers.packed_coeffs().len() == len
             && *lwe_dimension == lwe_ct_parameters.lwe_dim
             && lwe_ct_parameters.ct_modulus.is_power_of_two()
             && *uncompressed_ciphertext_modulus == lwe_ct_parameters.ct_modulus
@@ -225,6 +263,54 @@ mod test {
 
             assert_eq!(
                 output >> (Scalar::BITS - log_modulus),
+                modulus_switch(lwe[i], CiphertextModulusLog(log_modulus))
+            )
+        }
+    }
+
+    #[test]
+    fn test_from_raw_parts() {
+        type Scalar = u64;
+
+        let mut rsc: TestResources = TestResources::new();
+        let len = 751;
+        let log_modulus = 12;
+
+        let ciphertext_modulus = CiphertextModulus::new_native();
+
+        let mut lwe = vec![u64::ZERO; len];
+
+        rsc.encryption_random_generator
+            .fill_slice_with_random_uniform_mask(&mut lwe);
+
+        let lwe = LweCiphertextOwned::from_container(lwe, ciphertext_modulus);
+
+        let compressed = CompressedModulusSwitchedLweCiphertext::compress(
+            &lwe,
+            CiphertextModulusLog(log_modulus),
+        );
+
+        let (packed_integers, lwe_dimension, uncompressed_ciphertext_modulus) =
+            compressed.into_raw_parts();
+
+        let rebuilt = CompressedModulusSwitchedLweCiphertext::from_raw_parts(
+            packed_integers,
+            lwe_dimension,
+            uncompressed_ciphertext_modulus,
+        );
+
+        let lwe_ms_ed = rebuilt.extract().into_container();
+        let lwe = lwe.into_container();
+
+        for (i, output) in lwe_ms_ed.into_iter().enumerate() {
+            assert_eq!(
+                output,
+                (output >> (Scalar::BITS as usize - log_modulus))
+                    << (Scalar::BITS as usize - log_modulus),
+            );
+
+            assert_eq!(
+                output >> (Scalar::BITS as usize - log_modulus),
                 modulus_switch(lwe[i], CiphertextModulusLog(log_modulus))
             )
         }
