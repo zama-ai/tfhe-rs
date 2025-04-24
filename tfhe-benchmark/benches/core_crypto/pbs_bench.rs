@@ -726,7 +726,11 @@ fn mem_optimized_pbs_ntt(c: &mut Criterion) {
             bsk.ciphertext_modulus(),
         );
 
-        par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+        par_convert_standard_lwe_bootstrap_key_to_ntt64(
+            &bsk,
+            &mut nbsk,
+            NttLweBootstrapKeyOption::Normalize,
+        );
 
         drop(bsk);
 

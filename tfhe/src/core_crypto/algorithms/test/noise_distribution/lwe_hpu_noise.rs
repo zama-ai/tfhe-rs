@@ -304,7 +304,7 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     buffers.resize(stack_size);
 
-    par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+    par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk, NttLweBootstrapKeyOption::Raw);
 
     assert!(check_encrypted_content_respects_mod(
         &*bsk,
@@ -360,7 +360,11 @@ fn hpu_noise_distribution(params: HpuTestParams) {
                 bsk.decomposition_level_count(),
                 ntt_modulus,
             );
-            par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+            par_convert_standard_lwe_bootstrap_key_to_ntt64(
+                &bsk,
+                &mut nbsk,
+                NttLweBootstrapKeyOption::Raw,
+            );
             assert!(check_encrypted_content_respects_mod(
                 &*bsk,
                 ciphertext_modulus
