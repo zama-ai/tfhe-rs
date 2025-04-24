@@ -4,17 +4,17 @@ use hpu_asm::PbsLut;
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::{modswitch, order};
-use super::{FromWith, IntoWith};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CiphertextModulus, GlweDimension, PolynomialSize};
 
-impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParameters>
+impl<Scalar: UnsignedInteger> CreateFrom<GlweCiphertextView<'_, Scalar>>
     for HpuGlweLookuptableOwned<Scalar>
 {
-    fn from_with(cpu_glwe: GlweCiphertextView<'_, Scalar>, params: HpuParameters) -> Self {
-        let mut hpu_lut = Self::new(Scalar::ZERO, params.clone());
-        let ntt_p = &params.ntt_params;
+    type Metadata = HpuParameters;
+    fn create_from(cpu_glwe: GlweCiphertextView<'_, Scalar>, meta: Self::Metadata) -> Self {
+        let mut hpu_lut = Self::new(Scalar::ZERO, meta.clone());
+        let ntt_p = &meta.ntt_params;
 
         // NB: Glwe polynomial must be in reversed order
         let rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
@@ -27,7 +27,7 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
             &rb_conv,
             |x| x,
         );
-        modswitch::msb2lsb_align(&params, hpu_lut.as_mut());
+        modswitch::msb2lsb_align(&meta, hpu_lut.as_mut());
         hpu_lut
     }
 }
@@ -130,5 +130,5 @@ pub fn create_hpu_lookuptable(
     // Rotate the accumulator
     body_u64.rotate_left(half_box_size);
 
-    cpu_acc.as_view().into_with(params)
+    HpuGlweLookuptableOwned::create_from(cpu_acc.as_view(), params)
 }

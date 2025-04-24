@@ -1,6 +1,6 @@
-use crate::core_crypto::hpu::from_with::IntoWith;
+use crate::core_crypto::prelude::CreateFrom;
 use crate::shortint::ClassicPBSParameters;
-use tfhe_hpu_backend::prelude::HpuDevice;
+use tfhe_hpu_backend::prelude::*;
 
 use super::CompressedServerKey;
 pub mod ciphertext;
@@ -43,7 +43,7 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate
             Err("Hpu currently not support multibit. Required a Classic BSK")
         }
     }?;
-    let hpu_bsk = bsk.as_view().into_with(params.clone());
+    let hpu_bsk = HpuLweBootstrapKeyOwned::create_from(bsk.as_view(), params.clone());
     // Extract and convert ksk
     let ksk = server_key
         .key
@@ -56,7 +56,7 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate
     if tfhe_params.ks_level != ksk.decomposition_level_count() {
         return Err("KeyswitchingKey has incompatible decomposition_level_count".into());
     }
-    let hpu_ksk = ksk.as_view().into_with(params);
+    let hpu_ksk = HpuLweKeyswitchKeyOwned::create_from(ksk.as_view(), params);
 
     // Upload them on Hpu and configure internal Fw/Lut
     device.init(
