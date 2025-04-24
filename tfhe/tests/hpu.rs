@@ -439,7 +439,6 @@ mod hpu_test {
     #[cfg(feature = "hpu")]
     #[test]
     fn hpu_key_loopback() {
-        use tfhe::core_crypto::hpu::from_with::FromWith;
         use tfhe::core_crypto::prelude::*;
         use tfhe::*;
         use tfhe_hpu_backend::prelude::*;
@@ -484,7 +483,7 @@ mod hpu_test {
             .key_switching_key
             .decompress_into_lwe_keyswitch_key();
         let hpu_ksk =
-            HpuLweKeyswitchKeyOwned::from_with(cpu_ksk_orig.as_view(), hpu_params.clone());
+            HpuLweKeyswitchKeyOwned::create_from(cpu_ksk_orig.as_view(), hpu_params.clone());
         let cpu_ksk_lb = LweKeyswitchKeyOwned::from(hpu_ksk.as_view());
 
         // NB: Some hw modifications such as bit shrinki couldn't be reversed
@@ -542,7 +541,7 @@ mod hpu_test {
             ntt_bsk
         };
         let hpu_bsk =
-            HpuLweBootstrapKeyOwned::from_with(cpu_bsk_orig.as_view(), hpu_params.clone());
+            HpuLweBootstrapKeyOwned::create_from(cpu_bsk_orig.as_view(), hpu_params.clone());
 
         let cpu_bsk_lb = NttLweBootstrapKeyOwned::from(hpu_bsk.as_view());
 
