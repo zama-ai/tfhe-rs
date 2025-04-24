@@ -35,7 +35,7 @@ impl RadixBasis {
     /// * Nat_order from 0..rank
     /// * Rev_order from rank..digits
     pub fn idx_pdrev(&self, digits: usize, rank: usize, nat_val: usize) -> usize {
-        let mask = (1 << (digits - rank) * self.radix_lg.0) - 1;
+        let mask = (1 << ((digits - rank) * self.radix_lg.0)) - 1;
         let to_be_reversed = (nat_val >> (rank * self.radix_lg.0)) & mask;
         let reversed = Self::new(1 << self.radix_lg.0, digits - rank).idx_rev(to_be_reversed);
 

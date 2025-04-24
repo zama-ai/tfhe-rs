@@ -377,6 +377,7 @@ impl<'a> FheTryTrivialEncrypt<EncryptableString<'a>> for FheAsciiString {
             }
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(_)) => Err(crate::error!("CUDA does not support string")),
+            Some(InternalServerKey::Hpu(_)) => Err(crate::error!("Hpu does not support string")),
             None => Err(UninitializedServerKey.into()),
         })
     }
