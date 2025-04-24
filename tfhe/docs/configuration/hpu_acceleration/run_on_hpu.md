@@ -6,9 +6,9 @@ This guide explains how to update your existing program to leverage HPU accelera
 
 ## Prerequisites
 
-* AMD versal V80 board
-* AMI linux device driver version >= TODO set correct version
-* QDMA linux device driver version >= TODO set correct version
+* an [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
+* AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
+* QDMA linux device driver version rom this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust_configuration.md)
 
 ## Importing to your project
@@ -16,7 +16,7 @@ This guide explains how to update your existing program to leverage HPU accelera
 To use the **TFHE-rs** HPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.1.0", features = ["integer", "hpu-v80"] }
+tfhe = { version = "~1.2.0", features = ["integer", "hpu-v80"] }
 ```
 
 {% hint style="success" %}
@@ -29,8 +29,8 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 | OS      | x86         | aarch64       |
 | ------- | ----------- | ------------- |
-| Linux   | Supported   | Supported\*   |
-| macOS   | Unsupported | Unsupported\* |
+| Linux   | Supported   | Unsupported   |
+| macOS   | Unsupported | Unsupported   |
 | Windows | Unsupported | Unsupported   |
 
 ## A first example
@@ -80,7 +80,7 @@ fn main() {
 
 ### Setting the hpu
 
-Hpu device are built for a given parameter set that can be retrieved from an instantiated HpuDevice. Once retrieved the parameters is used by the client to generate both client and compressed server keys.
+An HPU device is built for a given parameter set that is retrieved by software from an instantiated HpuDevice. Once retrieved, reading some HPU registers, this parameter set is used by the client to generate both client and compressed server keys.
 Server key has then to be decompressed by the server to be converted into the right format and uploaded to the device.
 Once decompressed, the operations between CPU and HPU are identical.
 
@@ -116,7 +116,7 @@ Then, homomorphic computations are performed using the same approach as the [CPU
 
 ### Decryption
 
-Finally, the client decrypts the results using:
+Finally, the client decrypts the result using:
 
 ```Rust
     let decrypted_result: u8 = result.decrypt(&client_key);
