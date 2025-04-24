@@ -384,7 +384,7 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
         }),
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
-            todo!()
+            panic!("Hpu does not support Array yet.")
         }
     })
 }
@@ -428,7 +428,7 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
         }),
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
-            todo!()
+            panic!("Hpu does not support Array yet.")
         }
     })
 }
