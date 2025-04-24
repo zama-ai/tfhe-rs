@@ -2,7 +2,7 @@
 //! Those parameters are architecture dependents and have direct impact over memory order
 //! They are required to correctly arrange entities data in an Hpu usable order.
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HpuNoiseDistributionInput {
     GaussianStdDev(f64),
     TUniformBound(u32),

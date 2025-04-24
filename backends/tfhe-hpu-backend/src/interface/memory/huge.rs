@@ -53,19 +53,19 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         let mut cut_mem = Vec::new();
         for mem_kind in props.mem_cut.into_iter() {
             let mut cut_mz = Vec::new();
-            let mut mem_kind = mem_kind.clone();
+            let mut cur_mem_kind = mem_kind;
 
             for _chunk in 0..all_chunks {
                 let chunk_props = ffi::MemZoneProperties {
-                    mem_kind: mem_kind.clone(),
+                    mem_kind: cur_mem_kind,
                     size_b: MEM_CHUNK_SIZE_B,
                 };
                 // Update mem_kind if needed (i.e. update DDR offset for next chunk
-                mem_kind = match mem_kind {
+                cur_mem_kind = match cur_mem_kind {
                     ffi::MemKind::Ddr { offset } => ffi::MemKind::Ddr {
                         offset: offset + MEM_CHUNK_SIZE_B,
                     },
-                    ffi::MemKind::Hbm { .. } => mem_kind,
+                    ffi::MemKind::Hbm { .. } => cur_mem_kind,
                 };
                 let mz = ffi_hw.alloc(chunk_props);
                 cut_mz.push(mz);

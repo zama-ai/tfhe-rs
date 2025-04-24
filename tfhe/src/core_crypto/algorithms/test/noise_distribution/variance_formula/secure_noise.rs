@@ -60,10 +60,11 @@ pub fn minimal_variance_for_132_bits_security_tuniform_impl(
 ) -> f64 {
     let log2_modulus = modulus.log2();
     let epsilon_var_log2 = 2.0 * (2.2 - log2_modulus);
-    let slope=-0.025167785;
-    let biais=68.100671;
+    let slope = -0.025167785;
+    let biais = 68.100671;
     let min_bound = (slope * lwe_dimension + biais + (log2_modulus - 64.0)).ceil();
-    let theorical_secure_var_log2 = (((2.0*min_bound + 1.0).exp2() + 1.0)/6.0).log2() - 2.0*log2_modulus;
-    println!("log2_modulus: {log2_modulus:?} min_bound: {min_bound:?} theorical_secure_var_log2: {theorical_secure_var_log2:?}");
-    f64::max(theorical_secure_var_log2.exp2(),epsilon_var_log2.exp2())
+    let theoretical_secure_var_log2 =
+        (((2.0 * min_bound + 1.0).exp2() + 1.0) / 6.0).log2() - 2.0 * log2_modulus;
+    println!("log2_modulus: {log2_modulus:?} min_bound: {min_bound:?} theoretical_secure_var_log2: {theoretical_secure_var_log2:?}");
+    f64::max(theoretical_secure_var_log2.exp2(), epsilon_var_log2.exp2())
 }
