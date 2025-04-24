@@ -464,8 +464,8 @@ pub fn cached_add(
         .or_else(|| {
             dirty = true;
             (1..=prog.params().blk_w())
-                .map(|x| AddCfg::Kogge(x))
-                .chain([AddCfg::Ripple].into_iter())
+                .map(AddCfg::Kogge)
+                .chain([AddCfg::Ripple])
                 .map(|cfg| {
                     // Build a new tree for every par_w trial, which means that we
                     // need to get fresh variables for each trial.

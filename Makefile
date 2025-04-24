@@ -728,7 +728,7 @@ test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --release --bin hpu_mockup; \
-    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tfhers_64b_pfail64_psi64.toml > mockup.log; \
+    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/gaussian_64b_pfail64_psi64.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
 	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- alu_u32 && \
 	kill %1

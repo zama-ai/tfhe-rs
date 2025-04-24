@@ -7,12 +7,20 @@ use crate::shortint::prelude::*;
 impl From<&HpuParameters> for ClassicPBSParameters {
     fn from(value: &HpuParameters) -> Self {
         let lwe_noise_distribution = match value.pbs_params.lwe_noise_distribution {
-            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev)),
-            HpuNoiseDistributionInput::TUniformBound(log2_bound) => DynamicDistribution::new_t_uniform(log2_bound),
+            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => {
+                DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev))
+            }
+            HpuNoiseDistributionInput::TUniformBound(log2_bound) => {
+                DynamicDistribution::new_t_uniform(log2_bound)
+            }
         };
         let glwe_noise_distribution = match value.pbs_params.glwe_noise_distribution {
-            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev)),
-            HpuNoiseDistributionInput::TUniformBound(log2_bound) => DynamicDistribution::new_t_uniform(log2_bound),
+            HpuNoiseDistributionInput::GaussianStdDev(std_dev) => {
+                DynamicDistribution::new_gaussian_from_std_dev(StandardDev(std_dev))
+            }
+            HpuNoiseDistributionInput::TUniformBound(log2_bound) => {
+                DynamicDistribution::new_t_uniform(log2_bound)
+            }
         };
 
         Self::new(
