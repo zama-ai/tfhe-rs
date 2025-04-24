@@ -1,0 +1,12 @@
+This contains a small library to read trace files retrieved from the hardware or the mockup.
+
+To run, please add the lib directory to your PYTHONPATH:
+
+export PYTHONPATH=$(readlink -m ./lib)
+
+Make sure you start from a fresh python virtual environment and install the requirements in
+requirements.txt:
+
+python -m venv new_env
+source new_env/bin/activate
+pip3 install -r requirements.txt
