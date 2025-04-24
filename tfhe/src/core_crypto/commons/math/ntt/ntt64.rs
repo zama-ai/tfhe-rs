@@ -248,13 +248,6 @@ impl Ntt64View<'_> {
         let mut standard = standard;
         let ntt = ntt.as_mut();
         let standard = standard.as_mut();
-        #[cfg(feature = "hpu")]
-        {
-            // NB: With Hpu implementation, normalization is embedded in phi
-            //    and thus freely apply on each bwd path.
-            self.plan.normalize(ntt);
-        }
-
         self.plan.inv(ntt);
         self.modswitch_from_ntt_prime_to_power_of_two(output_modulus_width, ntt);
 

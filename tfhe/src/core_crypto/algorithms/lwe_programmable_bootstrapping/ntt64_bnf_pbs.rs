@@ -92,8 +92,12 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Raw,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///
@@ -345,8 +349,12 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputCont, OutputCont, KeyCon
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Raw,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///
@@ -650,7 +658,9 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                     .into_chunks(poly_size)
                     .map(PolynomialMutView::from_container),
             )
-            .for_each(|(out, ntt_poly)| {
+            .for_each(|(out, mut ntt_poly)| {
+                // NB: Bnf implementation apply normalization on each bwd path
+                ntt.plan.normalize(ntt_poly.as_mut());
                 ntt.add_backward_on_power_of_two_modulus(power_of_two_modulus_width, out, ntt_poly);
             });
         }

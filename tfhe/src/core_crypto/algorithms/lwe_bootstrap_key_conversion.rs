@@ -295,6 +295,7 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_fourier_128<Scalar, InputCont, 
 pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,
+    option: NttLweBootstrapKeyOption,
 ) where
     InputCont: Container<Element = u64>,
     OutputCont: ContainerMut<Element = u64>,
@@ -355,17 +356,14 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
                 output_poly.as_mut_view(),
                 input_poly,
             );
-            #[cfg(not(feature = "hpu"))]
-            ntt.plan.normalize(output_poly.as_mut());
-            // else feature = hpu
-            // NB: With Hpu implementation, normalization is embedded in phi
-            //    and thus freely apply on each bwd path
-        } else if cfg!(feature = "hpu") {
-            // NB: With Hpu implementation, normalization is embedded in phi
-            //    and thus freely apply on each bwd path
-            ntt.forward(output_poly, input_poly);
+            if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+                ntt.plan.normalize(output_poly.as_mut());
+            }
         } else {
-            ntt.forward_normalized(output_poly, input_poly);
+            ntt.forward(output_poly.as_mut_view(), input_poly);
+            if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+                ntt.plan.normalize(output_poly.as_mut());
+            }
         }
     }
 }
@@ -373,6 +371,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
 pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     input_bsk: &LweBootstrapKey<InputCont>,
     output_bsk: &mut NttLweBootstrapKey<OutputCont>,
+    option: NttLweBootstrapKeyOption,
 ) where
     InputCont: Container<Element = u64> + std::marker::Sync,
     OutputCont: ContainerMut<Element = u64>,
@@ -442,17 +441,14 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
                         output_poly.as_mut_view(),
                         input_poly,
                     );
-                    #[cfg(not(feature = "hpu"))]
-                    ntt.plan.normalize(output_poly.as_mut());
-                    // else feature = hpu
-                    // NB: With Hpu implementation, normalization is embedded in phi
-                    //    and thus freely apply on each bwd path
-                } else if cfg!(feature = "hpu") {
-                    // NB: With Hpu implementation, normalization is embedded in phi
-                    //    and thus freely apply on each bwd path
-                    ntt.forward(output_poly, input_poly);
+                    if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+                        ntt.plan.normalize(output_poly.as_mut());
+                    }
                 } else {
-                    ntt.forward_normalized(output_poly, input_poly);
+                    ntt.forward(output_poly.as_mut_view(), input_poly);
+                    if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+                        ntt.plan.normalize(output_poly.as_mut());
+                    }
                 }
             }
         });
