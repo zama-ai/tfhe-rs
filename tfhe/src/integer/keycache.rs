@@ -82,8 +82,7 @@ impl IntegerKeyCache {
             let sks_compressed = super::CompressedServerKey::new_radix_compressed_server_key(&cks);
 
             // Init Hpu device with server key and firmware
-            crate::integer::hpu::init_device(&hpu_device, sks_compressed.into())
-                .expect("Invalid key");
+            crate::integer::hpu::init_device(&hpu_device, sks_compressed).expect("Invalid key");
             Mutex::new(hpu_device)
         });
 

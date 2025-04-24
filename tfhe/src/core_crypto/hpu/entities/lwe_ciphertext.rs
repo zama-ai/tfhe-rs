@@ -71,10 +71,10 @@ impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
             .chunks_mut(poly_size)
             .enumerate()
             .for_each(|(pid, poly)| {
-                for idx in 0..poly_size {
+                for (idx, coeff) in poly.iter_mut().enumerate().take(poly_size) {
                     let src_poly_idx = rb_conv.idx_rev(idx);
                     let src_idx = pid * poly_size + src_poly_idx;
-                    poly[idx] = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[src_idx]);
+                    *coeff = modswitch::lsb2msb(hpu_lwe.params(), hpu_lwe[src_idx]);
                 }
             });
         // Add body

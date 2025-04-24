@@ -236,18 +236,13 @@ impl InnerBoolean {
     }
 
     #[cfg(feature = "gpu")]
-    pub(crate) fn into_gpu(
-        self,
-        streams: &CudaStreams,
-    ) -> CudaBooleanBlock {
+    pub(crate) fn into_gpu(self, streams: &CudaStreams) -> CudaBooleanBlock {
         #[allow(clippy::match_wildcard_for_single_variants)]
         let cpu_bool = match self {
             Self::Cuda(gpu_bool) => return gpu_bool.move_to_stream(streams),
             _ => self.into_cpu(),
         };
-        CudaBooleanBlock::from_boolean_block(
-            &cpu_bool, streams,
-        )
+        CudaBooleanBlock::from_boolean_block(&cpu_bool, streams)
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]
