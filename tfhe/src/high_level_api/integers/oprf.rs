@@ -52,7 +52,7 @@ impl<Id: FheUintId> FheUint<Id> {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -106,7 +106,7 @@ impl<Id: FheUintId> FheUint<Id> {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -160,7 +160,7 @@ impl<Id: FheIntId> FheInt<Id> {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -216,7 +216,7 @@ impl<Id: FheIntId> FheInt<Id> {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }

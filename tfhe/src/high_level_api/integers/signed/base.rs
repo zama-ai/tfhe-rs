@@ -205,7 +205,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -246,7 +246,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -287,7 +287,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -337,7 +337,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -387,7 +387,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -437,7 +437,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -487,7 +487,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -528,7 +528,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -569,7 +569,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -621,7 +621,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -683,7 +683,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -761,7 +761,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -812,7 +812,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu");
+                panic!("Hpu does not support this operation yet.");
             }
         })
     }
@@ -878,7 +878,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -927,7 +927,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -979,7 +979,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
