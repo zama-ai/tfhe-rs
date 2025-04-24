@@ -7,8 +7,7 @@ use super::algorithms::{modswitch, order};
 use super::{FromWith, IntoWith};
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::CiphertextModulus;
-use crate::shortint::{ClassicPBSParameters, PaddingBit, ShortintEncoding};
+use crate::core_crypto::prelude::{CiphertextModulus, GlweDimension, PolynomialSize};
 
 impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParameters>
     for HpuGlweLookuptableOwned<Scalar>
@@ -36,13 +35,14 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
 impl From<HpuGlweLookuptableView<'_, u64>> for GlweCiphertextOwned<u64> {
     fn from(hpu_lut: HpuGlweLookuptableView<'_, u64>) -> Self {
         let hpu_p = hpu_lut.params();
-        let pbs_p = ClassicPBSParameters::from(hpu_p);
+        let pbs_p = hpu_p.pbs_params;
 
         let mut cpu_glwe = Self::new(
             0,
-            pbs_p.glwe_dimension.to_glwe_size(),
-            pbs_p.polynomial_size,
-            pbs_p.ciphertext_modulus,
+            GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
+            PolynomialSize(pbs_p.polynomial_size),
+            CiphertextModulus::try_new_power_of_2(pbs_p.ciphertext_width)
+                .expect("Invalid ciphertext width"),
         );
         // NB: GlweLut polynomial is in reversed order
         let rb_conv = order::RadixBasis::new(hpu_p.ntt_params.radix, hpu_p.ntt_params.stg_nb);
@@ -68,12 +68,13 @@ pub fn create_hpu_lookuptable(
     pbs: &hpu_asm::Pbs,
 ) -> HpuGlweLookuptableOwned<u64> {
     // Create Glwe
-    let pbs_p = ClassicPBSParameters::from(params.clone());
+    let pbs_p = params.pbs_params;
     let mut cpu_acc = GlweCiphertext::new(
         0,
-        pbs_p.glwe_dimension.to_glwe_size(),
-        pbs_p.polynomial_size,
-        pbs_p.ciphertext_modulus,
+        GlweDimension(pbs_p.glwe_dimension).to_glwe_size(),
+        PolynomialSize(pbs_p.polynomial_size),
+        CiphertextModulus::try_new_power_of_2(pbs_p.ciphertext_width)
+            .expect("Invalid ciphertext width"),
     );
 
     // Zeroed mask
@@ -82,17 +83,19 @@ pub fn create_hpu_lookuptable(
 
     // Populate body
     // Modulus of the msg contained in the msg bits and operations buffer
-    let modulus_sup = (pbs_p.message_modulus.0 * pbs_p.carry_modulus.0) as usize;
+    let modulus_sup = 1 << (pbs_p.message_width + pbs_p.carry_width);
 
     // N/(p/2) = size of each block
-    let box_size = pbs_p.polynomial_size.0 / modulus_sup;
+    let box_size = pbs_p.polynomial_size / modulus_sup;
 
     // Value of the shift we multiply our messages by
-    let encoding = ShortintEncoding {
-        ciphertext_modulus: CiphertextModulus::new_native(),
-        message_modulus: pbs_p.message_modulus,
-        carry_modulus: pbs_p.carry_modulus,
-        padding_bit: PaddingBit::Yes,
+    // NB: Tfhe-rs always align information in MSB whatever power_of_two modulus is used
+    //     This is why we compute the encoding delta based on container width instead of
+    //     real modulus width
+    let encode = |x: Cleartext<u64>| {
+        let cleartext_and_padding_width = pbs_p.message_width + pbs_p.carry_width + 1;
+        let delta = 1 << (u64::BITS - cleartext_and_padding_width as u32);
+        Plaintext(x.0.wrapping_mul(delta))
     };
 
     let mut body = cpu_acc_view.get_mut_body();
@@ -113,7 +116,7 @@ pub fn create_hpu_lookuptable(
     {
         for (msg_value, sub_lut_box) in function_sub_lut.chunks_exact_mut(box_size).enumerate() {
             let function_eval = pbs.fn_at(pos, &digits_params, msg_value) as u64;
-            sub_lut_box.fill(encoding.encode(Cleartext(function_eval)).0);
+            sub_lut_box.fill(encode(Cleartext(function_eval)).0);
         }
     }
 
