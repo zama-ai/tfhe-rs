@@ -1,7 +1,7 @@
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweBskGroupingFactor, LweDimension,
-    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PolynomialSize,
+    MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PolynomialSize, StandardDev,
 };
 
 // p-fail = 2^-136.056, algorithmic cost ~ 63, 2-norm = 3
