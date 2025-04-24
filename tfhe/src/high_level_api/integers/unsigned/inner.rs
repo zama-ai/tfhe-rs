@@ -166,7 +166,7 @@ impl RadixCiphertext {
     pub(crate) fn on_gpu(
         &self,
         streams: &CudaStreams,
-    ) -> MaybeCloned<'_, crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext> {
+    ) -> MaybeCloned<'_, CudaUnsignedRadixCiphertext> {
         #[allow(clippy::match_wildcard_for_single_variants)]
         let cpu_radix = match self {
             Self::Cuda(gpu_radix) => {
@@ -178,10 +178,7 @@ impl RadixCiphertext {
             _ => self.on_cpu(),
         };
 
-        let gpu_radix =
-            crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                &cpu_radix, streams,
-            );
+        let gpu_radix = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&cpu_radix, streams);
         MaybeCloned::Cloned(gpu_radix)
     }
 
@@ -209,10 +206,7 @@ impl RadixCiphertext {
     }
 
     #[cfg(feature = "gpu")]
-    pub(crate) fn as_gpu_mut(
-        &mut self,
-        streams: &CudaStreams,
-    ) -> &mut crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext {
+    pub(crate) fn as_gpu_mut(&mut self, streams: &CudaStreams) -> &mut CudaUnsignedRadixCiphertext {
         let cpu_radix = if let Self::Cuda(cuda_ct) = self {
             if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
                 *cuda_ct = cuda_ct.duplicate(streams);
@@ -221,11 +215,8 @@ impl RadixCiphertext {
         } else {
             self.on_cpu()
         };
-      
-        let cuda_ct =
-            crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
-                &cpu_radix, streams,
-            );
+
+        let cuda_ct = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&cpu_radix, streams);
         *self = Self::Cuda(cuda_ct);
         let Self::Cuda(cuda_ct) = self else {
             unreachable!()
@@ -273,9 +264,16 @@ impl RadixCiphertext {
     pub(crate) fn move_to_device(&mut self, target_device: Device) {
         let current_device = self.current_device();
 
-        // TODO here we lost the logic of when the target is Cuda, but
-        // the gpu indexes are not the same
         if current_device == target_device {
+            #[cfg(feature = "gpu")]
+            // We may not be on the correct Cuda device
+            if let Self::Cuda(cuda_ct) = self {
+                with_thread_local_cuda_streams(|streams| {
+                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                        *cuda_ct = cuda_ct.duplicate(streams);
+                    }
+                })
+            }
             return;
         }
 
