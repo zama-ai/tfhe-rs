@@ -205,15 +205,11 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M1
 // p-fail = 2^-134.345, algorithmic cost ~ 100, 2-norm = 5
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     MultiBitPBSParameters = MultiBitPBSParameters {
-    lwe_dimension: LweDimension(872),
+    lwe_dimension: LweDimension(932),
     glwe_dimension: GlweDimension(1),
     polynomial_size: PolynomialSize(2048),
-    lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        1.844927811696596e-06,
-    )),
-    glwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(
-        2.845267479601915e-15,
-    )),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
     pbs_base_log: DecompositionBaseLog(22),
     pbs_level: DecompositionLevelCount(1),
     ks_base_log: DecompositionBaseLog(3),
