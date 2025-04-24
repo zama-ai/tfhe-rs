@@ -11,7 +11,7 @@ fn main() {
             .file("src/ffi/xrt/cxx/hpu_hw.cc")
             .file("src/ffi/xrt/cxx/mem_zone.cc")
             .flag_if_supported("-std=c++23")
-            .include("/opt/xilinx/xrt/include") // TODO support parsing bash env instead of hard path
+            .include("/opt/xilinx/xrt/include") // Enhance: support parsing bash env instead of hard path
             .flag("-fmessage-length=0")
             .compile("hpu-hw-ffi");
 
