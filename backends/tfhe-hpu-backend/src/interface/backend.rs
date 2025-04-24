@@ -232,14 +232,14 @@ impl HpuBackend {
 
         // Allocate memory for GlweLut
         let lut_props = memory::HugeMemoryProperties {
-            mem_cut: vec![config.board.lut_pc.clone()],
+            mem_cut: vec![config.board.lut_pc],
             cut_coefs: config.board.lut_mem * params.pbs_params.polynomial_size,
         };
         let lut_mem = memory::HugeMemory::alloc(&mut hpu_hw, lut_props);
 
         // Allocate memory for Fw translation table
         let fw_props = memory::HugeMemoryProperties {
-            mem_cut: vec![config.board.fw_pc.clone()],
+            mem_cut: vec![config.board.fw_pc],
             cut_coefs: config.board.fw_size, // NB: here `size` is used as raw size (!= slot nb)
         };
         let fw_mem = memory::HugeMemory::alloc(&mut hpu_hw, fw_props);
@@ -267,7 +267,7 @@ impl HpuBackend {
 
         // load trace ptr from config (size does not matter so putting 256)
         let trace_props = memory::HugeMemoryProperties {
-            mem_cut: vec![config.board.trace_pc.clone()],
+            mem_cut: vec![config.board.trace_pc],
             cut_coefs: 256,
         };
         let trace_mem = memory::HugeMemory::alloc(&mut hpu_hw, trace_props);

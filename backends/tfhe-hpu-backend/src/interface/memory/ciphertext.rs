@@ -32,7 +32,7 @@ impl CiphertextSlot {
             .iter()
             .map(|kind| {
                 let cut_props = ffi::MemZoneProperties {
-                    mem_kind: kind.clone(),
+                    mem_kind: *kind,
                     size_b: props.cut_size_b,
                 };
                 ffi_hw.alloc(cut_props)
