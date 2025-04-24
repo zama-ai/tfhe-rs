@@ -20,7 +20,11 @@ impl CreateFrom<LweBootstrapKey<&[u64]>> for HpuLweBootstrapKeyOwned<u64> {
         );
 
         // Conversion to ntt domain
-        par_convert_standard_lwe_bootstrap_key_to_ntt64(&cpu_bsk, &mut ntt_bsk);
+        par_convert_standard_lwe_bootstrap_key_to_ntt64(
+            &cpu_bsk,
+            &mut ntt_bsk,
+            NttLweBootstrapKeyOption::Raw,
+        );
 
         Self::create_from(ntt_bsk.as_view(), meta)
     }

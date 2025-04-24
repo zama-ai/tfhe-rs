@@ -12,6 +12,17 @@ use crate::core_crypto::entities::polynomial_list::{PolynomialListMutView, Polyn
 use aligned_vec::ABox;
 use tfhe_versionable::Versionize;
 
+/// Enum option for BootstrapKey conversion in the Ntt domain.
+/// It enables to choose to embed Ntt normalization inside bootstrap_key or not.
+///
+/// NB: Embed normalization inside BSK enable to use a denaturate version of the INtt without
+/// normalisation and could save some computations on some architectures
+#[derive(Debug, Clone, Copy)]
+pub enum NttLweBootstrapKeyOption {
+    Raw,
+    Normalize,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(NttLweBootstrapKeyVersions)]
 pub struct NttLweBootstrapKey<C: Container>

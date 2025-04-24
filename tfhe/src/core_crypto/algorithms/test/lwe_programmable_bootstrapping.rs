@@ -784,7 +784,11 @@ fn lwe_encrypt_pbs_ntt64_decrypt_custom_mod(params: ClassicTestParams<u64>) {
 
     buffers.resize(stack_size);
 
-    par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+    par_convert_standard_lwe_bootstrap_key_to_ntt64(
+        &bsk,
+        &mut nbsk,
+        NttLweBootstrapKeyOption::Normalize,
+    );
 
     drop(bsk);
 
@@ -1079,7 +1083,11 @@ fn lwe_encrypt_pbs_ntt64_bnf_decrypt(params: ClassicTestParams<u64>) {
 
         buffers.resize(stack_size);
 
-        par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk);
+        par_convert_standard_lwe_bootstrap_key_to_ntt64(
+            &bsk,
+            &mut nbsk,
+            NttLweBootstrapKeyOption::Raw,
+        );
 
         drop(bsk);
 

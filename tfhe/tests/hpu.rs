@@ -537,7 +537,11 @@ mod hpu_test {
             );
 
             // Conversion to ntt domain
-            par_convert_standard_lwe_bootstrap_key_to_ntt64(&cpu_bsk_orig, &mut ntt_bsk);
+            par_convert_standard_lwe_bootstrap_key_to_ntt64(
+                &cpu_bsk_orig,
+                &mut ntt_bsk,
+                NttLweBootstrapKeyOption::Raw,
+            );
             ntt_bsk
         };
         let hpu_bsk =
