@@ -166,39 +166,36 @@ where
 {
     fn iop_exec(iop: &hpu_asm::AsmIOpcode, src: HpuHandle<&Self>) -> HpuHandle<Self> {
         use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Hpu(device) => {
-                let mut srcs = Vec::new();
-                for n in src.native.iter() {
-                    srcs.push(n.ciphertext.on_hpu(device).clone());
-                }
-                for b in src.boolean.iter() {
-                    srcs.push(b.ciphertext.on_hpu(device).clone());
-                }
-
-                let (opcode, proto) = {
-                    (
-                        iop.opcode(),
-                        &iop.format().expect("Unspecified IOP format").proto,
-                    )
-                };
-                // These clones are cheap are they are just Arc
-                let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
-                HpuHandle {
-                    native: hpu_res
-                        .iter()
-                        .filter(|x| !x.0.is_boolean())
-                        .map(|x| Self::new(x.clone(), device.tag.clone()))
-                        .collect::<Vec<_>>(),
-                    boolean: hpu_res
-                        .iter()
-                        .filter(|x| x.0.is_boolean())
-                        .map(|x| FheBool::new(x.clone(), device.tag.clone()))
-                        .collect::<Vec<_>>(),
-                    imm: Vec::new(),
-                }
+        global_state::with_thread_local_hpu_device(|device| {
+            let mut srcs = Vec::new();
+            for n in src.native.iter() {
+                srcs.push(n.ciphertext.on_hpu(device).clone());
             }
-            _ => panic!("FheHw only supported on Hpu device"),
+            for b in src.boolean.iter() {
+                srcs.push(b.ciphertext.on_hpu(device).clone());
+            }
+
+            let (opcode, proto) = {
+                (
+                    iop.opcode(),
+                    &iop.format().expect("Unspecified IOP format").proto,
+                )
+            };
+            // These clones are cheap are they are just Arc
+            let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
+            HpuHandle {
+                native: hpu_res
+                    .iter()
+                    .filter(|x| !x.0.is_boolean())
+                    .map(|x| Self::new(x.clone(), device.tag.clone()))
+                    .collect::<Vec<_>>(),
+                boolean: hpu_res
+                    .iter()
+                    .filter(|x| x.0.is_boolean())
+                    .map(|x| FheBool::new(x.clone(), device.tag.clone()))
+                    .collect::<Vec<_>>(),
+                imm: Vec::new(),
+            }
         })
     }
 }

@@ -189,7 +189,7 @@ fn unshuffle_gf64(
 /// custom Bsk layout
 fn shuffle_wmm(
     ntt_bsk: &NttLweBootstrapKeyView<u64>,
-    params: HpuParameters,
+    params: &HpuParameters,
 ) -> HpuLweBootstrapKeyOwned<u64> {
     let mut hpu_bsk = HpuLweBootstrapKeyOwned::<u64>::new(0_u64, params.clone());
 
@@ -360,7 +360,7 @@ impl<'a> FromWith<NttLweBootstrapKeyView<'a, u64>, HpuParameters> for HpuLweBoot
             // Shuffle required by GF64 Ntt without internal network
             HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(&cpu_bsk, &params, &cut_w),
             // Legacy shuffle required by WmmNtt with internal network
-            HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(&cpu_bsk, params),
+            HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(&cpu_bsk, &params),
         }
     }
 }
