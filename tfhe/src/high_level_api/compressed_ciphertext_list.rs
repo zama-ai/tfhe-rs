@@ -265,7 +265,8 @@ impl InnerCompressedCiphertextList {
         }
     }
 
-    fn move_to_device(&mut self, target_device: crate::Device) {
+    #[allow(clippy::needless_pass_by_ref_mut)]
+    fn move_to_device(&mut self, target_device: Device) {
         let current_device = self.current_device();
 
         if current_device == target_device {
