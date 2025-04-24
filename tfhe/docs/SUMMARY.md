@@ -14,6 +14,8 @@
   * [GPU Benchmarks](getting_started/benchmarks/gpu/README.md)
     * [Integer](getting_started/benchmarks/gpu/gpu_integer_operations.md)
     * [Programmable bootstrapping](getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md)
+  * [HPU Benchmarks](getting_started/benchmarks/hpu/README.md)
+    * [Integer](getting_started/benchmarks/hpu/hpu_integer_operations.md)
   * [Zero-knowledge proof benchmarks](getting_started/benchmarks/zk_proof_benchmarks.md)
 * [Security and cryptography](getting_started/security_and_cryptography.md)
 
@@ -64,6 +66,8 @@
   * [Compressing ciphertexts](configuration/gpu_acceleration/compressing_ciphertexts.md)
   * [Array types](configuration/gpu_acceleration/array_type.md)
   * [Multi-GPU support](configuration/gpu_acceleration/multi_gpu.md)
+* [HPU acceleration](configuration/hpu_acceleration/run_on_hpu.md)
+  * [Benchmark](configuration/hpu_acceleration/benchmark.md)
 * [Parallelized PBS](configuration/parallelized_pbs.md)
 
 ## Integration
