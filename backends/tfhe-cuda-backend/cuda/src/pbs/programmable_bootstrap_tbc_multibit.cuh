@@ -16,7 +16,10 @@
 #include "polynomial/polynomial_math.cuh"
 #include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
+#include <cuda/experimental/stf.cuh>
 #include <vector>
+
+namespace cudastf = cuda::experimental::stf;
 
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -404,23 +407,44 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
     uint32_t num_many_lut, uint32_t lut_stride) {
   cuda_set_device(gpu_index);
 
+  // Generate a CUDA graph if the USE_CUDA_GRAPH is set to a non-null value
+  const char *use_graph_env = getenv("USE_CUDA_GRAPH");
+
+  cudastf::context ctx(stream);
+  if (use_graph_env && atoi(use_graph_env) != 0) {
+    ctx = cudastf::graph_ctx(stream);
+  }
+
   auto lwe_chunk_size = buffer->lwe_chunk_size;
+  auto buffer_token = ctx.logical_token();
   for (uint32_t lwe_offset = 0; lwe_offset < (lwe_dimension / grouping_factor);
        lwe_offset += lwe_chunk_size) {
 
+    auto key_token = ctx.logical_token();
+    auto result_token = ctx.logical_token();
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+    ctx.task(key_token.write(), buffer_token.write())
+            .set_symbol("compute_keybundle")
+            ->*[&](cudaStream_t stf_stream) {
+                  execute_compute_keybundle<Torus, params>(
+                      stf_stream, gpu_index, lwe_array_in, lwe_input_indexes,
+                      bootstrapping_key, buffer, num_samples, lwe_dimension,
+                      glwe_dimension, polynomial_size, grouping_factor,
+                      level_count, lwe_offset);
+                };
 
     // Accumulate
-    execute_tbc_external_product_loop<Torus, params>(
-        stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
-        lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
-        num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
-        lut_stride);
+    ctx.task(key_token.read(), buffer_token.rw(), result_token.write())
+            .set_symbol("accumulate")
+            ->*
+        [&](cudaStream_t stf_stream) {
+          execute_tbc_external_product_loop<Torus, params>(
+              stream, gpu_index, lut_vector, lut_vector_indexes, lwe_array_in,
+              lwe_input_indexes, lwe_array_out, lwe_output_indexes, buffer,
+              num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+              grouping_factor, base_log, level_count, lwe_offset, num_many_lut,
+              lut_stride);
+        };
   }
 }
 
