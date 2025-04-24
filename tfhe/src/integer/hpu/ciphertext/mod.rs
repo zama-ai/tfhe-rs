@@ -1,8 +1,7 @@
 use hpu_asm::iop::*;
 use tfhe_hpu_backend::prelude::*;
 
-use crate::core_crypto::hpu::from_with::FromWith;
-use crate::core_crypto::prelude::LweCiphertextOwned;
+use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned};
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::{Ciphertext, ClassicPBSParameters};
@@ -26,7 +25,7 @@ impl HpuRadixCiphertext {
         let hpu_ct = cpu_ct
             .blocks
             .iter()
-            .map(|blk| HpuLweCiphertextOwned::from_with(blk.ct.as_view(), params.clone()))
+            .map(|blk| HpuLweCiphertextOwned::create_from(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
         Self(device.new_var_from(hpu_ct, VarMode::Native))
@@ -62,7 +61,7 @@ impl HpuRadixCiphertext {
     pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
         let params = device.params();
 
-        let hpu_ct = vec![HpuLweCiphertextOwned::from_with(
+        let hpu_ct = vec![HpuLweCiphertextOwned::create_from(
             cpu_ct.0.ct.as_view(),
             params,
         )];
