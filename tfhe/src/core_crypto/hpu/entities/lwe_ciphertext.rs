@@ -7,18 +7,18 @@
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::{modswitch, order};
-use super::FromWith;
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 
-impl<Scalar: UnsignedInteger> FromWith<LweCiphertextView<'_, Scalar>, HpuParameters>
+impl<Scalar: UnsignedInteger> CreateFrom<LweCiphertextView<'_, Scalar>>
     for HpuLweCiphertextOwned<Scalar>
 {
-    fn from_with(cpu_lwe: LweCiphertextView<'_, Scalar>, params: HpuParameters) -> Self {
-        let mut hpu_lwe = Self::new(Scalar::ZERO, params.clone());
-        let ntt_p = &params.ntt_params;
-        let pbs_p = &params.pbs_params;
+    type Metadata = HpuParameters;
+    fn create_from(cpu_lwe: LweCiphertextView<'_, Scalar>, meta: Self::Metadata) -> Self {
+        let mut hpu_lwe = Self::new(Scalar::ZERO, meta.clone());
+        let ntt_p = &meta.ntt_params;
+        let pbs_p = &meta.pbs_params;
         let poly_size = pbs_p.polynomial_size;
 
         // NB: lwe mask is view as polynomial and must be in reversed order
@@ -35,11 +35,11 @@ impl<Scalar: UnsignedInteger> FromWith<LweCiphertextView<'_, Scalar>, HpuParamet
                 for idx in 0..poly_size {
                     let dst_idx = pid * poly_size + idx;
                     let src_poly_idx = rb_conv.idx_rev(idx);
-                    hpu_lwe[dst_idx] = modswitch::msb2lsb(&params, poly[src_poly_idx]);
+                    hpu_lwe[dst_idx] = modswitch::msb2lsb(&meta, poly[src_poly_idx]);
                 }
             });
         // Add body
-        hpu_lwe[lwe_len - 1] = modswitch::msb2lsb(&params, *cpu_lwe.get_body().data);
+        hpu_lwe[lwe_len - 1] = modswitch::msb2lsb(&meta, *cpu_lwe.get_body().data);
 
         hpu_lwe
     }

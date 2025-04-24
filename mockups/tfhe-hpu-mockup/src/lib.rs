@@ -14,7 +14,6 @@ use tfhe::core_crypto::entities::{
     Plaintext,
 };
 use tfhe::core_crypto::hpu::algorithms::lwe_keyswitch::hpu_keyswitch_lwe_ciphertext;
-use tfhe::core_crypto::hpu::from_with::FromWith;
 use tfhe::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable;
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::prelude::ClassicPBSParameters;
@@ -694,7 +693,7 @@ impl HpuSim {
 
     /// Insert a cpu value into the register file
     fn cpu2reg(&mut self, reg_id: hpu_asm::RegId, cpu: LweCiphertextView<u64>) {
-        let hpu = HpuLweCiphertextOwned::<u64>::from_with(cpu, self.params.rtl_params.clone());
+        let hpu = HpuLweCiphertextOwned::<u64>::create_from(cpu, self.params.rtl_params.clone());
         std::iter::zip(
             self.regfile[reg_id.0 as usize]
                 .as_mut_view()

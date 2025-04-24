@@ -3,18 +3,17 @@
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::{modswitch, order};
-use super::FromWith;
-use crate::core_crypto::commons::traits::*;
-use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::*;
 
-impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParameters>
+impl<Scalar: UnsignedInteger> CreateFrom<GlweCiphertextView<'_, Scalar>>
     for HpuGlweCiphertextOwned<Scalar>
 {
-    fn from_with(cpu_glwe: GlweCiphertextView<'_, Scalar>, params: HpuParameters) -> Self {
-        let mut hpu_glwe = Self::new(Scalar::ZERO, params.clone());
+    type Metadata = HpuParameters;
+    fn create_from(cpu_glwe: GlweCiphertextView<'_, Scalar>, meta: Self::Metadata) -> Self {
+        let mut hpu_glwe = Self::new(Scalar::ZERO, meta.clone());
 
-        let ntt_p = &params.ntt_params;
-        let pbs_p = &params.pbs_params;
+        let ntt_p = &meta.ntt_params;
+        let pbs_p = &meta.pbs_params;
 
         // NB: Glwe polynomial must be in reversed order
         let rb_conv = order::RadixBasis::new(ntt_p.radix, ntt_p.stg_nb);
@@ -26,7 +25,7 @@ impl<Scalar: UnsignedInteger> FromWith<GlweCiphertextView<'_, Scalar>, HpuParame
         )
         .for_each(|(hw, cpu)| {
             order::poly_order(hw, cpu.into_container(), &rb_conv, |x| x);
-            modswitch::msb2lsb_align(&params, hw);
+            modswitch::msb2lsb_align(&meta, hw);
         });
         hpu_glwe
     }
