@@ -106,7 +106,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -156,7 +156,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -206,7 +206,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -267,7 +267,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -310,7 +310,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -379,7 +379,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -422,7 +422,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -465,7 +465,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -508,7 +508,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -597,7 +597,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -680,7 +680,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -727,7 +727,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -774,7 +774,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -819,7 +819,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -864,7 +864,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -909,7 +909,7 @@ generic_integer_impl_operation!(
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -963,7 +963,7 @@ generic_integer_impl_operation!(
                 }),
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -1018,7 +1018,7 @@ generic_integer_impl_operation!(
                 }),
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
-                    todo!("hpu")
+                    panic!("Hpu does not support this operation yet.")
                 }
             })
         }
@@ -1135,7 +1135,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1183,7 +1183,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1231,7 +1231,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1279,7 +1279,7 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
-                        todo!("hpu")
+                        panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1335,7 +1335,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1386,7 +1386,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1437,7 +1437,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1486,7 +1486,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1535,7 +1535,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1584,7 +1584,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1640,7 +1640,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1696,7 +1696,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1755,7 +1755,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1813,7 +1813,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1872,7 +1872,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1931,7 +1931,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -2006,7 +2006,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -2079,7 +2079,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }

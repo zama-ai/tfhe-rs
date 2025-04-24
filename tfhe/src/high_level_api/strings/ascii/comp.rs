@@ -20,7 +20,7 @@ impl FheEq<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -39,7 +39,7 @@ impl FheEq<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -58,7 +58,7 @@ impl FheEq<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -75,7 +75,7 @@ impl FheEq<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -96,7 +96,7 @@ impl FheOrd<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -115,7 +115,7 @@ impl FheOrd<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -134,7 +134,7 @@ impl FheOrd<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -153,7 +153,7 @@ impl FheOrd<&Self> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -172,7 +172,7 @@ impl FheOrd<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -189,7 +189,7 @@ impl FheOrd<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -206,7 +206,7 @@ impl FheOrd<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -223,7 +223,7 @@ impl FheOrd<&ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -266,7 +266,7 @@ impl FheEqIgnoreCase for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -309,7 +309,7 @@ impl FheEqIgnoreCase<ClearString> for FheAsciiString {
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }

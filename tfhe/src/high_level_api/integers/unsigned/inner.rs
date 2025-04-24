@@ -54,7 +54,7 @@ impl Clone for RadixCiphertext {
                 with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
             }
             #[cfg(feature = "hpu")]
-            Self::Hpu(_) => todo!("hpu"),
+            Self::Hpu(_) => panic!("Hpu does not support this operation yet."),
         }
     }
 }

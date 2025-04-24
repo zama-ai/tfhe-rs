@@ -70,7 +70,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -113,7 +113,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -162,7 +162,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -205,7 +205,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -248,7 +248,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -291,7 +291,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -342,7 +342,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -393,7 +393,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -447,7 +447,7 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                todo!("hpu")
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -542,7 +542,7 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                 }
                                 #[cfg(feature = "hpu")]
                                 InternalServerKey::Hpu(_device) => {
-                                    todo!("hpu")
+                                    panic!("Hpu does not support this operation yet.")
                                 }
                             }
                         })
@@ -722,7 +722,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -755,7 +755,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -788,7 +788,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -821,7 +821,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -851,7 +851,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -881,7 +881,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -911,7 +911,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -941,7 +941,7 @@ macro_rules! define_scalar_rotate_shifts {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1061,7 +1061,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1094,7 +1094,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1127,7 +1127,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1161,7 +1161,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1194,7 +1194,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1228,7 +1228,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1261,7 +1261,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1295,7 +1295,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1344,7 +1344,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1442,7 +1442,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1477,7 +1477,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1508,7 +1508,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1540,7 +1540,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1571,7 +1571,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1601,7 +1601,7 @@ macro_rules! define_scalar_ops {
                         }
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1630,7 +1630,7 @@ macro_rules! define_scalar_ops {
                         }),
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
@@ -1659,7 +1659,7 @@ macro_rules! define_scalar_ops {
                         }),
                         #[cfg(feature = "hpu")]
                         InternalServerKey::Hpu(_device) => {
-                            todo!("hpu")
+                            panic!("Hpu does not support this operation yet.")
                         }
                     })
                 }
