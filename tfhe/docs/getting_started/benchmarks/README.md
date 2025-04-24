@@ -1,6 +1,6 @@
 # Benchmarks
 
-This document summarizes the timings of some homomorphic operations over 64-bit encrypted integers, depending on the hardware. More details are given for [the CPU](cpu/README.md), [the GPU](gpu/README.md), or [zeros-knowledge proofs](zk_proof_benchmarks.md).
+This document summarizes the timings of some homomorphic operations over 64-bit encrypted integers, depending on the hardware. More details are given for [the CPU](cpu/README.md), [the GPU](gpu/README.md), [the HPU](hpu/README.md) or [zeros-knowledge proofs](zk_proof_benchmarks.md).
 
 The cryptographic parameters used for benchmarking follow a tweaked uniform (TUniform) noise distribution instead of a Gaussian. The main advantage of this distribution is to be bounded, whereas the usual Gaussian one is not. In some practical cases, this can simplify the use of homomorphic computation. See the [noise section](../security_and_cryptography.md#noise) of the Security and cryptography documentation page for more information on the noise distributions.
 
