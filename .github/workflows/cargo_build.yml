@@ -8,6 +8,7 @@ env:
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -29,6 +30,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1

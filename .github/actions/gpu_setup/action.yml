@@ -45,10 +45,14 @@ runs:
       shell: bash
       run: |
         CUDA_PATH=/usr/local/cuda-${CUDA_VERSION}
-        echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
-        echo "PATH=$PATH:$CUDA_PATH/bin" >> "${GITHUB_PATH}"
-        echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-        echo "CUDA_MODULE_LOADER=EAGER" >> "${GITHUB_ENV}"
+        {
+          echo "CUDA_PATH=$CUDA_PATH";
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH";
+          echo "CUDA_MODULE_LOADER=EAGER";
+        } >> "${GITHUB_ENV}"
+        {
+          echo "PATH=$PATH:$CUDA_PATH/bin"; 
+        } >> "${GITHUB_PATH}"
       env:
         CUDA_VERSION: ${{ inputs.cuda-version }}
 

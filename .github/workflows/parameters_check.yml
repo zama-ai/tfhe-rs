@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Checkout lattice-estimator
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -27,6 +30,7 @@ jobs:
           repository: malb/lattice-estimator
           path: lattice_estimator
           ref: 'e80ec6bbbba212428b0e92d0467c18629cf9ed67'
+          persist-credentials: 'false'
 
       - name: Install Sage
         run: |

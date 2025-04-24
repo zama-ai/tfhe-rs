@@ -86,11 +86,12 @@ jobs:
 
       - name: Get backward compat branch head SHA
         id: backward_compat_sha
+        run: |
+          SHA=$(git ls-remote ${{ env.REPO_URL }} refs/heads/"${BACKWARD_COMPAT_BRANCH}" | awk '{print $1}')
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
         env:
           REPO_URL: "https://github.com/zama-ai/tfhe-backward-compat-data"
-        run: |
-          SHA=$(git ls-remote ${{ env.REPO_URL }} refs/heads/${{ steps.backward_compat_branch.outputs.branch }} | awk '{print $1}')
-          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+          BACKWARD_COMPAT_BRANCH: ${{ steps.backward_compat_branch.outputs.branch }}
 
       - name: Retrieve data from cache
         id: retrieve-data-cache
@@ -104,6 +105,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
           repository: zama-ai/tfhe-backward-compat-data
           path: tests/tfhe-backward-compat-data
           lfs: 'true'
