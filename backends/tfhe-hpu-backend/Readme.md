@@ -199,6 +199,13 @@ There are some example applications already available in `tfhe/examples/hpu`:
  * hpu_bench: Depict the used of HPU device through Integer abstraction level.
 
 In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-v80` features:
+
+> NB: Running examples required to have correctly pulled the `.pdi` files. Those files, due to their size, are backed by git-lfs and disabled by default.
+> In order to retrieve them, use the following command:
+> ```bash
+> git lfs pull --include="*" --exclude=""
+> ```
+
 ``` bash
 cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
 # Correctly setup environment with setup_hpu.sh script
