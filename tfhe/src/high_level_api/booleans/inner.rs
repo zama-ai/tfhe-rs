@@ -14,7 +14,9 @@ use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOw
 
 #[cfg(feature = "hpu")]
 use crate::high_level_api::keys::HpuTaggedDevice;
+#[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+#[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
 #[cfg(feature = "hpu")]
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
@@ -218,6 +220,7 @@ impl InnerBoolean {
         &mut cuda_ct.0
     }
 
+    #[cfg(feature = "gpu")]
     pub(crate) fn into_cpu(self) -> BooleanBlock {
         match self {
             Self::Cpu(cpu_ct) => cpu_ct,
@@ -236,13 +239,13 @@ impl InnerBoolean {
     pub(crate) fn into_gpu(
         self,
         streams: &CudaStreams,
-    ) -> crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock {
+    ) -> CudaBooleanBlock {
         #[allow(clippy::match_wildcard_for_single_variants)]
         let cpu_bool = match self {
             Self::Cuda(gpu_bool) => return gpu_bool.move_to_stream(streams),
             _ => self.into_cpu(),
         };
-        crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock::from_boolean_block(
+        CudaBooleanBlock::from_boolean_block(
             &cpu_bool, streams,
         )
     }
