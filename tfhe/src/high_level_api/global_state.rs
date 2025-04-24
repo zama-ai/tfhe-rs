@@ -160,6 +160,7 @@ where
             .as_ref()
             .ok_or(UninitializedServerKey)
             .unwrap_display();
+        #[allow(irrefutable_let_patterns, reason = "It depends on hardware features")]
         let InternalServerKey::Cpu(cpu_key) = key else {
             panic!(
                 "Cpu key requested but only the key for {:?} is available",
