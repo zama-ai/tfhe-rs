@@ -2,7 +2,6 @@
 name = "tfhe-hpu-backend"
 version = "0.1.0"
 edition = "2021"
-authors = ["Zama Hardware team"]
 license = "BSD-3-Clause-Clear"
 description = "HPU implementation on FPGA of TFHE-rs primitives."
 homepage = "https://www.zama.ai/"
