@@ -22,4 +22,7 @@ def analyze_iop(iop):
     print(f"batches: {latency_table['count'].sum()}")
     print(f"Runtime: {runtime}us")
 
+if __name__ == "__main__":
+    analyze_iop(iops[0])
+
 # vim: fdm=marker
