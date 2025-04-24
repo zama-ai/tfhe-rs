@@ -3,26 +3,25 @@
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::order;
-use super::FromWith;
 use crate::core_crypto::prelude::*;
 
-impl<Scalar> FromWith<LweKeyswitchKeyView<'_, Scalar>, HpuParameters>
-    for HpuLweKeyswitchKeyOwned<u64>
+impl<Scalar> CreateFrom<LweKeyswitchKeyView<'_, Scalar>> for HpuLweKeyswitchKeyOwned<u64>
 where
     Scalar: UnsignedInteger + CastInto<u64>,
 {
-    fn from_with(cpu_ksk: LweKeyswitchKeyView<'_, Scalar>, params: HpuParameters) -> Self {
-        let mut hpu_ksk = Self::new(0, params.clone());
+    type Metadata = HpuParameters;
+    fn create_from(cpu_ksk: LweKeyswitchKeyView<'_, Scalar>, meta: Self::Metadata) -> Self {
+        let mut hpu_ksk = Self::new(0, meta.clone());
 
         // Allocate radix_basis converter
-        let rb_conv = order::RadixBasis::new(params.ntt_params.radix, params.ntt_params.stg_nb);
+        let rb_conv = order::RadixBasis::new(meta.ntt_params.radix, meta.ntt_params.stg_nb);
 
         // Extract params inner values for ease of writing
-        let pbs_p = &params.pbs_params;
+        let pbs_p = &meta.pbs_params;
         let lwe_k = pbs_p.lwe_dimension;
         let glwe_k = pbs_p.glwe_dimension;
         let glwe_n = pbs_p.polynomial_size;
-        let ks_p = &params.ks_params;
+        let ks_p = &meta.ks_params;
 
         // View KsK as a polyhedral with rectangles faces.
         // Front face is a rectangle of size (N*Glwe_k)x(Lwe_k + 1)

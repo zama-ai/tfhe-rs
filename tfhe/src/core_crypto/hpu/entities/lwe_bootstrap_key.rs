@@ -3,11 +3,11 @@
 use tfhe_hpu_backend::prelude::*;
 
 use super::algorithms::order;
-use super::FromWith;
 use crate::core_crypto::prelude::*;
 
-impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
-    fn from_with(cpu_bsk: LweBootstrapKey<&[u64]>, params: HpuParameters) -> Self {
+impl CreateFrom<LweBootstrapKey<&[u64]>> for HpuLweBootstrapKeyOwned<u64> {
+    type Metadata = HpuParameters;
+    fn create_from(cpu_bsk: LweBootstrapKey<&[u64]>, meta: Self::Metadata) -> Self {
         // Convert the LweBootstrapKey in Ntt domain
         let mut ntt_bsk = NttLweBootstrapKeyOwned::<u64>::new(
             0_u64,
@@ -16,13 +16,13 @@ impl FromWith<LweBootstrapKey<&[u64]>, HpuParameters> for HpuLweBootstrapKeyOwne
             cpu_bsk.polynomial_size(),
             cpu_bsk.decomposition_base_log(),
             cpu_bsk.decomposition_level_count(),
-            CiphertextModulus::new(u64::from(&params.ntt_params.prime_modulus) as u128),
+            CiphertextModulus::new(u64::from(&meta.ntt_params.prime_modulus) as u128),
         );
 
         // Conversion to ntt domain
         par_convert_standard_lwe_bootstrap_key_to_ntt64(&cpu_bsk, &mut ntt_bsk);
 
-        Self::from_with(ntt_bsk.as_view(), params)
+        Self::create_from(ntt_bsk.as_view(), meta)
     }
 }
 
@@ -354,13 +354,14 @@ impl GgswIndex {
     }
 }
 
-impl<'a> FromWith<NttLweBootstrapKeyView<'a, u64>, HpuParameters> for HpuLweBootstrapKeyOwned<u64> {
-    fn from_with(cpu_bsk: NttLweBootstrapKeyView<'a, u64>, params: HpuParameters) -> Self {
-        match params.ntt_params.core_arch.clone() {
+impl<'a> CreateFrom<NttLweBootstrapKeyView<'a, u64>> for HpuLweBootstrapKeyOwned<u64> {
+    type Metadata = HpuParameters;
+    fn create_from(cpu_bsk: NttLweBootstrapKeyView<'a, u64>, meta: Self::Metadata) -> Self {
+        match meta.ntt_params.core_arch.clone() {
             // Shuffle required by GF64 Ntt without internal network
-            HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(&cpu_bsk, &params, &cut_w),
+            HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(&cpu_bsk, &meta, &cut_w),
             // Legacy shuffle required by WmmNtt with internal network
-            HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(&cpu_bsk, &params),
+            HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(&cpu_bsk, &meta),
         }
     }
 }
