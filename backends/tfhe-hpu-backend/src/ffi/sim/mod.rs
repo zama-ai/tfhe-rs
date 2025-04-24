@@ -32,7 +32,7 @@ impl HpuHw {
 
         // Send request
         let cmd = MemoryReq::Allocate {
-            mem_kind: props.mem_kind.clone(),
+            mem_kind: props.mem_kind,
             size_b: props.size_b,
         };
         tracing::trace!("Req => {cmd:x?}");
@@ -57,7 +57,7 @@ impl HpuHw {
 
         // Send request
         let cmd = MemoryReq::Release {
-            mem_kind: zone.mem_kind.clone(),
+            mem_kind: zone.mem_kind,
             addr: zone.addr,
         };
         tracing::trace!("Req => {cmd:x?}");
@@ -211,7 +211,7 @@ impl MemZone {
                 let ipc_lock = ipc.0.lock().unwrap();
 
                 let req = MemoryReq::Sync {
-                    mem_kind: mem_kind.clone(),
+                    mem_kind: *mem_kind,
                     addr: *addr,
                     mode,
                     data: Some(hw_data),
@@ -238,7 +238,7 @@ impl MemZone {
                 let ipc_lock = ipc.0.lock().unwrap();
 
                 let req = MemoryReq::Sync {
-                    mem_kind: mem_kind.clone(),
+                    mem_kind: *mem_kind,
                     addr: *addr,
                     mode,
                     data: None,
