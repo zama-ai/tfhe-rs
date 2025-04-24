@@ -356,14 +356,11 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
                 output_poly.as_mut_view(),
                 input_poly,
             );
-            if matches!(option, NttLweBootstrapKeyOption::Normalize) {
-                ntt.plan.normalize(output_poly.as_mut());
-            }
         } else {
             ntt.forward(output_poly.as_mut_view(), input_poly);
-            if matches!(option, NttLweBootstrapKeyOption::Normalize) {
-                ntt.plan.normalize(output_poly.as_mut());
-            }
+        }
+        if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+            ntt.plan.normalize(output_poly.as_mut());
         }
     }
 }
@@ -441,14 +438,11 @@ pub fn par_convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
                         output_poly.as_mut_view(),
                         input_poly,
                     );
-                    if matches!(option, NttLweBootstrapKeyOption::Normalize) {
-                        ntt.plan.normalize(output_poly.as_mut());
-                    }
                 } else {
                     ntt.forward(output_poly.as_mut_view(), input_poly);
-                    if matches!(option, NttLweBootstrapKeyOption::Normalize) {
-                        ntt.plan.normalize(output_poly.as_mut());
-                    }
+                }
+                if matches!(option, NttLweBootstrapKeyOption::Normalize) {
+                    ntt.plan.normalize(output_poly.as_mut());
                 }
             }
         });
