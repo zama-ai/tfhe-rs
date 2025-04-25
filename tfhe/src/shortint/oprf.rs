@@ -6,7 +6,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::NoiseLevel;
+use crate::shortint::parameters::{AtomicPatternKind, NoiseLevel};
 use crate::shortint::server_key::{
     apply_programmable_bootstrap_no_ms_noise_reduction, LookupTableOwned,
 };
@@ -180,7 +180,7 @@ impl ServerKey {
             NoiseLevel::NOMINAL,
             self.message_modulus,
             self.carry_modulus,
-            self.pbs_order,
+            AtomicPatternKind::Standard(self.pbs_order),
         )
     }
 }

@@ -1,10 +1,14 @@
 use std::convert::Infallible;
 
+use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    CompressedModulusSwitchedLweCiphertext, LweCompactCiphertextListOwned,
+    CiphertextCount, CiphertextModulus, CompressedModulusSwitchedLweCiphertext, LweCiphertextOwned,
+    LweCompactCiphertextListOwned, SeededLweCiphertext,
 };
 use crate::shortint::ciphertext::*;
-use crate::shortint::parameters::CompactCiphertextListExpansionKind;
+use crate::shortint::parameters::{
+    AtomicPatternKind, CompactCiphertextListExpansionKind, LweCiphertextCount,
+};
 use crate::shortint::{CarryModulus, MessageModulus};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
@@ -28,19 +32,45 @@ pub enum DegreeVersions {
     V0(Degree),
 }
 
+#[derive(Version)]
+pub struct CiphertextV0 {
+    ct: LweCiphertextOwned<u64>,
+    degree: Degree,
+    noise_level: NoiseLevel,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+}
+
+impl Upgrade<Ciphertext> for CiphertextV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<Ciphertext, Self::Error> {
+        Ok(Ciphertext::new(
+            self.ct,
+            self.degree,
+            self.noise_level,
+            self.message_modulus,
+            self.carry_modulus,
+            AtomicPatternKind::Standard(self.pbs_order),
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CiphertextVersions {
-    V0(Ciphertext),
+    V0(CiphertextV0),
+    V1(Ciphertext),
 }
 
 #[derive(Version)]
 pub struct CompactCiphertextListV0 {
-    pub ct_list: LweCompactCiphertextListOwned<u64>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
-    pub noise_level: NoiseLevel,
+    ct_list: LweCompactCiphertextListOwned<u64>,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+    noise_level: NoiseLevel,
 }
 
 impl Upgrade<CompactCiphertextListV1> for CompactCiphertextListV0 {
@@ -60,12 +90,12 @@ impl Upgrade<CompactCiphertextListV1> for CompactCiphertextListV0 {
 
 #[derive(Version)]
 pub struct CompactCiphertextListV1 {
-    pub ct_list: LweCompactCiphertextListOwned<u64>,
-    pub degree: Degree,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub expansion_kind: CompactCiphertextListExpansionKind,
-    pub noise_level: NoiseLevel,
+    ct_list: LweCompactCiphertextListOwned<u64>,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    expansion_kind: CompactCiphertextListExpansionKind,
+    noise_level: NoiseLevel,
 }
 
 impl Upgrade<CompactCiphertextList> for CompactCiphertextListV1 {
@@ -95,26 +125,51 @@ pub enum ProvenCompactCiphertextListVersions {
     V0(ProvenCompactCiphertextList),
 }
 
+#[derive(Version)]
+pub struct CompressedCiphertextV0 {
+    ct: SeededLweCiphertext<u64>,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+    noise_level: NoiseLevel,
+}
+
+impl Upgrade<CompressedCiphertext> for CompressedCiphertextV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedCiphertext, Self::Error> {
+        Ok(CompressedCiphertext::from_raw_parts(
+            self.ct,
+            self.degree,
+            self.message_modulus,
+            self.carry_modulus,
+            AtomicPatternKind::Standard(self.pbs_order),
+            self.noise_level,
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedCiphertextVersions {
-    V0(CompressedCiphertext),
+    V0(CompressedCiphertextV0),
+    V1(CompressedCiphertext),
 }
 
 #[derive(Version)]
 pub struct CompressedModulusSwitchedCiphertextV0 {
-    pub(crate) compressed_modulus_switched_lwe_ciphertext:
-        CompressedModulusSwitchedLweCiphertext<u64>,
-    pub(crate) degree: Degree,
-    pub(crate) message_modulus: MessageModulus,
-    pub(crate) carry_modulus: CarryModulus,
-    pub(crate) pbs_order: PBSOrder,
+    compressed_modulus_switched_lwe_ciphertext: CompressedModulusSwitchedLweCiphertext<u64>,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
 }
 
-impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV0 {
+impl Upgrade<CompressedModulusSwitchedCiphertextV1> for CompressedModulusSwitchedCiphertextV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
-        Ok(CompressedModulusSwitchedCiphertext {
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertextV1, Self::Error> {
+        Ok(CompressedModulusSwitchedCiphertextV1 {
             compressed_modulus_switched_lwe_ciphertext:
                 InternalCompressedModulusSwitchedCiphertext::Classic(
                     self.compressed_modulus_switched_lwe_ciphertext,
@@ -127,10 +182,36 @@ impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedC
     }
 }
 
+#[derive(Version)]
+pub struct CompressedModulusSwitchedCiphertextV1 {
+    compressed_modulus_switched_lwe_ciphertext: InternalCompressedModulusSwitchedCiphertext,
+    degree: Degree,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+}
+
+impl Upgrade<CompressedModulusSwitchedCiphertext> for CompressedModulusSwitchedCiphertextV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedModulusSwitchedCiphertext, Self::Error> {
+        Ok(CompressedModulusSwitchedCiphertext {
+            compressed_modulus_switched_lwe_ciphertext: self
+                .compressed_modulus_switched_lwe_ciphertext,
+
+            degree: self.degree,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedModulusSwitchedCiphertextVersions {
     V0(CompressedModulusSwitchedCiphertextV0),
-    V1(CompressedModulusSwitchedCiphertext),
+    V1(CompressedModulusSwitchedCiphertextV1),
+    V2(CompressedModulusSwitchedCiphertext),
 }
 
 #[derive(VersionsDispatch)]
@@ -139,9 +220,37 @@ pub(crate) enum InternalCompressedModulusSwitchedCiphertextVersions {
     V0(InternalCompressedModulusSwitchedCiphertext),
 }
 
+#[derive(Version)]
+pub struct CompressedCiphertextListV0 {
+    modulus_switched_glwe_ciphertext_list: Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
+    ciphertext_modulus: CiphertextModulus<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_order: PBSOrder,
+    lwe_per_glwe: LweCiphertextCount,
+    count: CiphertextCount,
+}
+
+impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedCiphertextList, Self::Error> {
+        Ok(CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list: self.modulus_switched_glwe_ciphertext_list,
+            ciphertext_modulus: self.ciphertext_modulus,
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
+            lwe_per_glwe: self.lwe_per_glwe,
+            count: self.count,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedCiphertextListVersions {
-    V0(CompressedCiphertextList),
+    V0(CompressedCiphertextListV0),
+    V1(CompressedCiphertextList),
 }
 
 #[derive(VersionsDispatch)]

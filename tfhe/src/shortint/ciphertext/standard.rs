@@ -5,7 +5,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
 use crate::shortint::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -22,7 +22,7 @@ pub struct Ciphertext {
     noise_level: NoiseLevel,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPatternKind,
 }
 
 impl crate::named::Named for Ciphertext {
@@ -39,13 +39,13 @@ impl ParameterSetConformant for Ciphertext {
             noise_level,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
         } = self;
 
         ct.is_conformant(&param.ct_params)
             && *message_modulus == param.message_modulus
             && *carry_modulus == param.carry_modulus
-            && *pbs_order == param.pbs_order
+            && *atomic_pattern == param.atomic_pattern
             && *degree == param.degree
             && *noise_level == param.noise_level
     }
@@ -63,7 +63,7 @@ impl Clone for Ciphertext {
             degree: src_degree,
             message_modulus: src_message_modulus,
             carry_modulus: src_carry_modulus,
-            pbs_order: src_pbs_order,
+            atomic_pattern: src_atomic_pattern,
             noise_level: src_noise_level,
         } = self;
 
@@ -72,7 +72,7 @@ impl Clone for Ciphertext {
             degree: *src_degree,
             message_modulus: *src_message_modulus,
             carry_modulus: *src_carry_modulus,
-            pbs_order: *src_pbs_order,
+            atomic_pattern: *src_atomic_pattern,
             noise_level: *src_noise_level,
         }
     }
@@ -83,7 +83,7 @@ impl Clone for Ciphertext {
             degree: dst_degree,
             message_modulus: dst_message_modulus,
             carry_modulus: dst_carry_modulus,
-            pbs_order: dst_pbs_order,
+            atomic_pattern: dst_atomic_pattern,
             noise_level: dst_noise_level,
         } = self;
 
@@ -92,7 +92,7 @@ impl Clone for Ciphertext {
             degree: src_degree,
             message_modulus: src_message_modulus,
             carry_modulus: src_carry_modulus,
-            pbs_order: src_pbs_order,
+            atomic_pattern: src_atomic_pattern,
             noise_level: src_noise_level,
         } = source;
 
@@ -106,7 +106,7 @@ impl Clone for Ciphertext {
         *dst_degree = *src_degree;
         *dst_message_modulus = *src_message_modulus;
         *dst_carry_modulus = *src_carry_modulus;
-        *dst_pbs_order = *src_pbs_order;
+        *dst_atomic_pattern = *src_atomic_pattern;
         *dst_noise_level = *src_noise_level;
     }
 }
@@ -118,7 +118,7 @@ impl Ciphertext {
         noise_level: NoiseLevel,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
-        pbs_order: PBSOrder,
+        atomic_pattern: AtomicPatternKind,
     ) -> Self {
         Self {
             ct,
@@ -126,7 +126,7 @@ impl Ciphertext {
             noise_level,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
         }
     }
     pub fn carry_is_empty(&self) -> bool {
@@ -252,7 +252,7 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
     lwe_size: LweSize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
-    pbs_order: PBSOrder,
+    atomic_pattern: AtomicPatternKind,
     ciphertext_modulus: CiphertextModulus,
 ) -> Ciphertext {
     let encoded = ShortintEncoding {
@@ -274,7 +274,7 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
         NoiseLevel::ZERO,
         message_modulus,
         carry_modulus,
-        pbs_order,
+        atomic_pattern,
     )
 }
 
@@ -293,7 +293,7 @@ mod tests {
             degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
-            pbs_order: PBSOrder::KeyswitchBootstrap,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
         };
 
@@ -305,7 +305,7 @@ mod tests {
             degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
-            pbs_order: PBSOrder::BootstrapKeyswitch,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
         };
 
@@ -325,7 +325,7 @@ mod tests {
             degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
-            pbs_order: PBSOrder::KeyswitchBootstrap,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
         };
 
@@ -337,7 +337,7 @@ mod tests {
             degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
-            pbs_order: PBSOrder::BootstrapKeyswitch,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
         };
 
@@ -357,7 +357,7 @@ mod tests {
             degree: Degree::new(1),
             message_modulus: MessageModulus(1),
             carry_modulus: CarryModulus(1),
-            pbs_order: PBSOrder::KeyswitchBootstrap,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
             noise_level: NoiseLevel::NOMINAL,
         };
 
@@ -369,7 +369,7 @@ mod tests {
             degree: Degree::new(42),
             message_modulus: MessageModulus(2),
             carry_modulus: CarryModulus(2),
-            pbs_order: PBSOrder::BootstrapKeyswitch,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
             noise_level: NoiseLevel::NOMINAL,
         };
 

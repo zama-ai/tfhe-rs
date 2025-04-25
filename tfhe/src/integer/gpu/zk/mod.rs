@@ -16,6 +16,7 @@ use crate::integer::gpu::PBSType;
 use crate::integer::parameters::LweDimension;
 use crate::integer::{CompactPublicKey, ProvenCompactCiphertextList};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::AtomicPatternKind;
 use crate::zk::CompactPkeCrs;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -173,7 +174,7 @@ impl CudaProvenCompactCiphertextList {
                     },
                     message_modulus,
                     carry_modulus,
-                    pbs_order: key.dest_server_key.pbs_order,
+                    atomic_pattern: AtomicPatternKind::Standard(key.dest_server_key.pbs_order),
                     noise_level: NoiseLevel::NOMINAL,
                 },
                 data_kind: *x,

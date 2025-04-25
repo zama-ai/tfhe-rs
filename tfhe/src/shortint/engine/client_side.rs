@@ -1,13 +1,13 @@
 //! All the `ShortintEngine` method related to client side (encrypt / decrypt)
+
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
 use crate::shortint::{
-    Ciphertext, ClientKey, CompressedCiphertext, PBSOrder, PaddingBit, ShortintEncoding,
-    ShortintParameterSet,
+    Ciphertext, ClientKey, CompressedCiphertext, PaddingBit, ShortintEncoding, ShortintParameterSet,
 };
 
 impl ShortintEngine {
@@ -86,7 +86,8 @@ impl ShortintEngine {
         message: u64,
         message_modulus: MessageModulus,
     ) -> Ciphertext {
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let params_atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -111,7 +112,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             CarryModulus(carry_modulus),
-            params_op_order,
+            params_atomic_pattern,
         )
     }
 
@@ -130,7 +131,8 @@ impl ShortintEngine {
             smaller or equal to the max given by the parameter set."
         );
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -149,7 +151,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
-            params_op_order,
+            atomic_pattern,
         )
     }
 
@@ -170,7 +172,8 @@ impl ShortintEngine {
         let encoded =
             ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes).encode(m);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -188,13 +191,14 @@ impl ShortintEngine {
             degree: Degree::new(message_modulus.0 - 1),
             message_modulus,
             carry_modulus: CarryModulus(carry_modulus),
-            pbs_order: params_op_order,
+            atomic_pattern,
             noise_level: NoiseLevel::NOMINAL,
         }
     }
 
     pub(crate) fn unchecked_encrypt(&mut self, client_key: &ClientKey, message: u64) -> Ciphertext {
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -219,7 +223,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             client_key.parameters.message_modulus(),
             client_key.parameters.carry_modulus(),
-            params_op_order,
+            atomic_pattern,
         )
     }
 
@@ -231,7 +235,8 @@ impl ShortintEngine {
         let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
             .encode(Cleartext(message));
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -250,7 +255,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             client_key.parameters.message_modulus(),
             client_key.parameters.carry_modulus(),
-            params_op_order,
+            atomic_pattern,
         )
     }
 
@@ -262,7 +267,8 @@ impl ShortintEngine {
         let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
             .encode(Cleartext(message));
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -280,7 +286,7 @@ impl ShortintEngine {
             degree: Degree::new(client_key.parameters.message_modulus().0 - 1),
             message_modulus: client_key.parameters.message_modulus(),
             carry_modulus: client_key.parameters.carry_modulus(),
-            pbs_order: params_op_order,
+            atomic_pattern,
             noise_level: NoiseLevel::NOMINAL,
         }
     }
@@ -297,7 +303,8 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -316,7 +323,7 @@ impl ShortintEngine {
             NoiseLevel::NOMINAL,
             message_modulus,
             carry_modulus,
-            params_op_order,
+            atomic_pattern,
         )
     }
 
@@ -332,7 +339,8 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let params_op_order: PBSOrder = client_key.parameters.encryption_key_choice().into();
+        let atomic_pattern =
+            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -350,7 +358,7 @@ impl ShortintEngine {
             degree: Degree::new(message_modulus.0 - 1),
             message_modulus,
             carry_modulus,
-            pbs_order: params_op_order,
+            atomic_pattern,
             noise_level: NoiseLevel::NOMINAL,
         }
     }

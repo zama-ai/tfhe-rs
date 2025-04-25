@@ -758,7 +758,7 @@ mod cuda_utils {
     impl<T: UnsignedInteger> CudaLocalKeys<T> {
         pub fn from_cpu_keys(
             cpu_keys: &CpuKeys<T>,
-            ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+            ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
             stream: &CudaStreams,
         ) -> Self {
             Self {
@@ -783,7 +783,7 @@ mod cuda_utils {
     #[allow(dead_code)]
     pub fn cuda_local_keys_core<T: UnsignedInteger>(
         cpu_keys: &CpuKeys<T>,
-        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
     ) -> Vec<CudaLocalKeys<T>> {
         let gpu_count = get_number_of_gpus() as usize;
         let mut gpu_keys_vec = Vec::with_capacity(gpu_count);

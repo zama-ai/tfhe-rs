@@ -1,5 +1,6 @@
 #![allow(clippy::large_enum_variant)]
 
+pub mod atomic_pattern;
 pub mod ciphertext;
 pub mod client_key;
 pub mod key_switching_key;

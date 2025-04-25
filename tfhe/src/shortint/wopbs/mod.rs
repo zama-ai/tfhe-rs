@@ -803,7 +803,7 @@ mod experimental {
                     NoiseLevel::NOMINAL,
                     ct_in.message_modulus,
                     ct_in.carry_modulus,
-                    ct_in.pbs_order,
+                    ct_in.atomic_pattern,
                 ))
             })
             .unwrap()
@@ -837,7 +837,7 @@ mod experimental {
                 NoiseLevel::NOMINAL,
                 ct_clean.message_modulus,
                 ct_clean.carry_modulus,
-                ct_in.pbs_order,
+                ct_in.atomic_pattern,
             )
         }
 
@@ -941,7 +941,7 @@ mod experimental {
                 NoiseLevel::NOMINAL,
                 sks.message_modulus,
                 sks.carry_modulus,
-                ct_in.pbs_order,
+                ct_in.atomic_pattern,
             )
         }
     }
