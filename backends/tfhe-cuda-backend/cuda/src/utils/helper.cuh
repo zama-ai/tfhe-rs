@@ -23,6 +23,12 @@ template <typename T> __global__ void print_debug_kernel(const T *src, int N) {
   }
 }
 
+template <>
+__global__ inline void print_debug_kernel(const double2 *src, int N) {
+  for (int i = 0; i < N; i++) {
+    printf("(%lf, %lf), ", src[i].x, src[i].y);
+  }
+}
 template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("%s: ", name);
   cudaDeviceSynchronize();

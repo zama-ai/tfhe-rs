@@ -147,7 +147,7 @@ __host__ void are_all_comparisons_block_true(
         }
         cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                  h_lut_indexes, num_chunks * sizeof(Torus),
-                                 streams[0], gpu_indexes[0], true);
+                                 streams[0], gpu_indexes[0]);
         is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       }
       lut = is_max_value_lut;
@@ -166,7 +166,7 @@ __host__ void are_all_comparisons_block_true(
       cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                is_max_value_lut->h_lut_indexes,
                                is_max_value_lut->num_blocks * sizeof(Torus),
-                               streams[0], gpu_indexes[0], true);
+                               streams[0], gpu_indexes[0]);
       is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;

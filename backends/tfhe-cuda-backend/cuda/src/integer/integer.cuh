@@ -1013,10 +1013,10 @@ void generate_device_accumulator_bivariate(
       f);
 
   // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
-                           (glwe_dimension + 1) * polynomial_size *
-                               sizeof(Torus),
-                           stream, gpu_index, gpu_memory_allocated);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc_bivariate, h_lut,
+      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
+      gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1050,10 +1050,10 @@ void generate_device_accumulator_bivariate_with_factor(
 
   cuda_synchronize_stream(stream, gpu_index);
   // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_async_to_gpu(acc_bivariate, h_lut,
-                           (glwe_dimension + 1) * polynomial_size *
-                               sizeof(Torus),
-                           stream, gpu_index, gpu_memory_allocated);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc_bivariate, h_lut,
+      (glwe_dimension + 1) * polynomial_size * sizeof(Torus), stream, gpu_index,
+      gpu_memory_allocated);
 
   cuda_synchronize_stream(stream, gpu_index);
   free(h_lut);
@@ -1078,7 +1078,7 @@ void generate_device_accumulator_with_encoding(
       input_carry_modulus, output_message_modulus, output_carry_modulus, f);
 
   // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_async_to_gpu(
+  cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
 
@@ -1134,7 +1134,7 @@ void generate_many_lut_device_accumulator(
       carry_modulus, functions);
 
   // copy host lut and lut_indexes_vec to device
-  cuda_memcpy_async_to_gpu(
+  cuda_memcpy_with_size_tracking_async_to_gpu(
       acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
       stream, gpu_index, gpu_memory_allocated);
 
@@ -1707,10 +1707,10 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
                                       &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
-  cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-                           (params.glwe_dimension + 1) *
-                               params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0], allocate_gpu_memory);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
+      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
   return size_tracker;
@@ -1743,10 +1743,10 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
                                       allocate_gpu_memory, &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
-  cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-                           (params.glwe_dimension + 1) *
-                               params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0], allocate_gpu_memory);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
+      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
   return size_tracker;
@@ -1779,10 +1779,10 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
                                       &size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
-  cuda_memcpy_async_to_gpu((*mem_ptr)->get_lut(0, 0), (void *)input_lut,
-                           (params.glwe_dimension + 1) *
-                               params.polynomial_size * sizeof(Torus),
-                           streams[0], gpu_indexes[0], allocate_gpu_memory);
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      (*mem_ptr)->get_lut(0, 0), (void *)input_lut,
+      (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus),
+      streams[0], gpu_indexes[0], allocate_gpu_memory);
   *(*mem_ptr)->get_degree(0) = lut_degree;
   (*mem_ptr)->broadcast_lut(streams, gpu_indexes, 0);
   return size_tracker;

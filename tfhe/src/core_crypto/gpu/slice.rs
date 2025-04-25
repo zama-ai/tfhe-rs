@@ -104,7 +104,6 @@ where
                 size as u64,
                 streams.ptr[index],
                 streams.gpu_indexes[index].get(),
-                true,
             );
         }
     }

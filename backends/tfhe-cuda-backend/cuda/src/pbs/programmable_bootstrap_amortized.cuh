@@ -285,8 +285,8 @@ __host__ uint64_t scratch_programmable_bootstrap_amortized(
       get_buffer_size_programmable_bootstrap_amortized<Torus>(
           glwe_dimension, polynomial_size, input_lwe_ciphertext_count,
           max_shared_memory);
-  *pbs_buffer = (int8_t *)cuda_malloc_async(buffer_size, stream, gpu_index,
-                                            &size_tracker, allocate_gpu_memory);
+  *pbs_buffer = (int8_t *)cuda_malloc_with_size_tracking_async(
+      buffer_size, stream, gpu_index, &size_tracker, allocate_gpu_memory);
   check_cuda_error(cudaGetLastError());
   return size_tracker;
 }

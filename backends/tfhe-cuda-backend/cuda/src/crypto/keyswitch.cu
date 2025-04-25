@@ -84,6 +84,9 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 uint32_t gpu_index,
-                                                int8_t **fp_ks_buffer) {
-  cuda_drop_async(*fp_ks_buffer, static_cast<cudaStream_t>(stream), gpu_index);
+                                                int8_t **fp_ks_buffer,
+                                                bool gpu_memory_allocated) {
+  cuda_drop_with_size_tracking_async(*fp_ks_buffer,
+                                     static_cast<cudaStream_t>(stream),
+                                     gpu_index, gpu_memory_allocated);
 }

@@ -217,16 +217,17 @@ template <typename Torus> struct int_radix_lut {
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
     for (uint i = 0; i < active_gpu_count; i++) {
-      auto lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size,
-                                            streams[i], gpu_indexes[i],
-                                            size_tracker, allocate_gpu_memory);
-      auto lut_indexes = (Torus *)cuda_malloc_async(
+      auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
+          num_luts * lut_buffer_size, streams[i], gpu_indexes[i], size_tracker,
+          allocate_gpu_memory);
+      auto lut_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
           lut_indexes_size, streams[i], gpu_indexes[i], size_tracker,
           allocate_gpu_memory);
       // lut_indexes is initialized to 0 by default
       // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[i],
-                        gpu_indexes[i], allocate_gpu_memory);
+      cuda_memset_with_size_tracking_async(lut_indexes, 0, lut_indexes_size,
+                                           streams[i], gpu_indexes[i],
+                                           allocate_gpu_memory);
 
       lut_vec.push_back(lut);
       lut_indexes_vec.push_back(lut_indexes);
@@ -236,13 +237,13 @@ template <typename Torus> struct int_radix_lut {
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
-    lwe_indexes_in = (Torus *)cuda_malloc_async(
+    lwe_indexes_in = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_indexes_out = (Torus *)cuda_malloc_async(
+    lwe_indexes_out = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_trivial_indexes = (Torus *)cuda_malloc_async(
+    lwe_trivial_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
@@ -252,15 +253,15 @@ template <typename Torus> struct int_radix_lut {
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
 
-    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_in, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_out, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_trivial_indexes, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
            num_radix_blocks * sizeof(Torus));
 
@@ -337,16 +338,17 @@ template <typename Torus> struct int_radix_lut {
     // this constructor
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     for (uint i = 0; i < active_gpu_count; i++) {
-      auto lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size,
-                                            streams[i], gpu_indexes[i],
-                                            size_tracker, allocate_gpu_memory);
-      auto lut_indexes = (Torus *)cuda_malloc_async(
+      auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
+          num_luts * lut_buffer_size, streams[i], gpu_indexes[i], size_tracker,
+          allocate_gpu_memory);
+      auto lut_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
           lut_indexes_size, streams[i], gpu_indexes[i], size_tracker,
           allocate_gpu_memory);
       // lut_indexes is initialized to 0 by default
       // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[i],
-                        gpu_indexes[i], allocate_gpu_memory);
+      cuda_memset_with_size_tracking_async(lut_indexes, 0, lut_indexes_size,
+                                           streams[i], gpu_indexes[i],
+                                           allocate_gpu_memory);
 
       lut_vec.push_back(lut);
       lut_indexes_vec.push_back(lut_indexes);
@@ -356,13 +358,13 @@ template <typename Torus> struct int_radix_lut {
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
-    lwe_indexes_in = (Torus *)cuda_malloc_async(
+    lwe_indexes_in = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_indexes_out = (Torus *)cuda_malloc_async(
+    lwe_indexes_out = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_trivial_indexes = (Torus *)cuda_malloc_async(
+    lwe_trivial_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
@@ -372,15 +374,15 @@ template <typename Torus> struct int_radix_lut {
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
 
-    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_in, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_out, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_trivial_indexes, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
            num_radix_blocks * sizeof(Torus));
     h_lut_indexes = (Torus *)(calloc(num_radix_blocks, sizeof(Torus)));
@@ -432,16 +434,17 @@ template <typename Torus> struct int_radix_lut {
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
     for (uint i = 0; i < active_gpu_count; i++) {
-      auto lut = (Torus *)cuda_malloc_async(num_luts * lut_buffer_size,
-                                            streams[i], gpu_indexes[i],
-                                            size_tracker, allocate_gpu_memory);
-      auto lut_indexes = (Torus *)cuda_malloc_async(
+      auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
+          num_luts * lut_buffer_size, streams[i], gpu_indexes[i], size_tracker,
+          allocate_gpu_memory);
+      auto lut_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
           lut_indexes_size, streams[i], gpu_indexes[i], size_tracker,
           allocate_gpu_memory);
       // lut_indexes is initialized to 0 by default
       // if a different behavior is wanted, it should be rewritten later
-      cuda_memset_async(lut_indexes, 0, lut_indexes_size, streams[i],
-                        gpu_indexes[i], allocate_gpu_memory);
+      cuda_memset_with_size_tracking_async(lut_indexes, 0, lut_indexes_size,
+                                           streams[i], gpu_indexes[i],
+                                           allocate_gpu_memory);
 
       lut_vec.push_back(lut);
       lut_indexes_vec.push_back(lut_indexes);
@@ -451,13 +454,13 @@ template <typename Torus> struct int_radix_lut {
 
     // lwe_(input/output)_indexes are initialized to range(num_radix_blocks)
     // by default
-    lwe_indexes_in = (Torus *)cuda_malloc_async(
+    lwe_indexes_in = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_indexes_out = (Torus *)cuda_malloc_async(
+    lwe_indexes_out = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    lwe_trivial_indexes = (Torus *)cuda_malloc_async(
+    lwe_trivial_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
@@ -467,15 +470,15 @@ template <typename Torus> struct int_radix_lut {
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
 
-    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lwe_trivial_indexes, h_lwe_indexes_in,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_in, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_out, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_trivial_indexes, h_lwe_indexes_in, num_radix_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
     memcpy(h_lwe_indexes_out, h_lwe_indexes_in,
            num_radix_blocks * sizeof(Torus));
 
@@ -546,12 +549,12 @@ template <typename Torus> struct int_radix_lut {
     memcpy(h_lwe_indexes_in, h_indexes_in, num_blocks * sizeof(Torus));
     memcpy(h_lwe_indexes_out, h_indexes_out, num_blocks * sizeof(Torus));
 
-    cuda_memcpy_async_to_gpu(lwe_indexes_in, h_lwe_indexes_in,
-                             num_blocks * sizeof(Torus), stream, gpu_index,
-                             gpu_memory_allocated);
-    cuda_memcpy_async_to_gpu(lwe_indexes_out, h_lwe_indexes_out,
-                             num_blocks * sizeof(Torus), stream, gpu_index,
-                             gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_in, h_lwe_indexes_in, num_blocks * sizeof(Torus), stream,
+        gpu_index, gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_out, h_lwe_indexes_out, num_blocks * sizeof(Torus), stream,
+        gpu_index, gpu_memory_allocated);
 
     using_trivial_lwe_indexes = false;
   }
@@ -569,12 +572,12 @@ template <typename Torus> struct int_radix_lut {
       if (i != src_gpu_idx) {
         auto dst_lut = lut_vec[i];
         auto dst_lut_indexes = lut_indexes_vec[i];
-        cuda_memcpy_async_gpu_to_gpu(
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
             dst_lut, src_lut, num_luts * lut_size * sizeof(Torus), streams[i],
             gpu_indexes[i], gpu_memory_allocated);
-        cuda_memcpy_async_gpu_to_gpu(dst_lut_indexes, src_lut_indexes,
-                                     num_blocks * sizeof(Torus), streams[i],
-                                     gpu_indexes[i], gpu_memory_allocated);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            dst_lut_indexes, src_lut_indexes, num_blocks * sizeof(Torus),
+            streams[i], gpu_indexes[i], gpu_memory_allocated);
       }
     }
   }
@@ -582,18 +585,21 @@ template <typename Torus> struct int_radix_lut {
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
     free(this->gpu_indexes);
-    if (gpu_memory_allocated) {
-      for (uint i = 0; i < active_gpu_count; i++) {
-        cuda_drop_async(lut_vec[i], streams[i], gpu_indexes[i]);
-        cuda_drop_async(lut_indexes_vec[i], streams[i], gpu_indexes[i]);
-      }
-
-      cuda_drop_async(lwe_indexes_in, streams[0], gpu_indexes[0]);
-      cuda_drop_async(lwe_indexes_out, streams[0], gpu_indexes[0]);
-      cuda_drop_async(lwe_trivial_indexes, streams[0], gpu_indexes[0]);
-
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_drop_with_size_tracking_async(lut_vec[i], streams[i], gpu_indexes[i],
+                                         gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(lut_indexes_vec[i], streams[i],
+                                         gpu_indexes[i], gpu_memory_allocated);
     }
+
+    cuda_drop_with_size_tracking_async(lwe_indexes_in, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(lwe_indexes_out, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(lwe_trivial_indexes, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     lut_vec.clear();
     lut_indexes_vec.clear();
     free(h_lwe_indexes_in);
@@ -682,9 +688,10 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
       for (int i = 0; i < bits_per_block; i++)
         h_lut_indexes[i + j * bits_per_block] = i;
     }
-    cuda_memcpy_async_to_gpu(lut->get_lut_indexes(0, 0), h_lut_indexes,
-                             num_radix_blocks * bits_per_block * sizeof(Torus),
-                             streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lut->get_lut_indexes(0, 0), h_lut_indexes,
+        num_radix_blocks * bits_per_block * sizeof(Torus), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
     /**
@@ -948,8 +955,9 @@ template <typename Torus> struct int_fullprop_buffer {
     for (int i = 0; i < 2; i++)
       h_lwe_indexes[i] = i;
     Torus *lwe_indexes = lut->get_lut_indexes(0, 0);
-    cuda_memcpy_async_to_gpu(lwe_indexes, h_lwe_indexes, lwe_indexes_size,
-                             streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
 
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
@@ -1004,17 +1012,18 @@ template <typename Torus> struct int_overflowing_sub_memory {
     auto big_lwe_size_bytes = big_lwe_size * sizeof(Torus);
 
     // allocate memory for intermediate calculations
-    generates_or_propagates = (Torus *)cuda_malloc_async(
+    generates_or_propagates = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    step_output = (Torus *)cuda_malloc_async(
+    step_output = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * big_lwe_size_bytes, streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    cuda_memset_async(generates_or_propagates, 0,
-                      num_radix_blocks * big_lwe_size_bytes, streams[0],
-                      gpu_indexes[0], allocate_gpu_memory);
-    cuda_memset_async(step_output, 0, num_radix_blocks * big_lwe_size_bytes,
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        generates_or_propagates, 0, num_radix_blocks * big_lwe_size_bytes,
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        step_output, 0, num_radix_blocks * big_lwe_size_bytes, streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
 
     // declare functions for lut generation
     auto f_lut_does_block_generate_carry = [message_modulus](Torus x) -> Torus {
@@ -1091,10 +1100,10 @@ template <typename Torus> struct int_overflowing_sub_memory {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    if (gpu_memory_allocated) {
-      cuda_drop_async(generates_or_propagates, streams[0], gpu_indexes[0]);
-      cuda_drop_async(step_output, streams[0], gpu_indexes[0]);
-    }
+    cuda_drop_with_size_tracking_async(generates_or_propagates, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(step_output, streams[0], gpu_indexes[0],
+                                       gpu_memory_allocated);
 
     luts_array->release(streams, gpu_indexes, gpu_count);
     luts_borrow_propagation_sum->release(streams, gpu_indexes, gpu_count);
@@ -1149,16 +1158,18 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         streams[0], gpu_indexes[0], small_lwe_vector, max_pbs_count,
         params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    d_smart_copy_in = (int32_t *)cuda_malloc_async(
+    d_smart_copy_in = (int32_t *)cuda_malloc_with_size_tracking_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    d_smart_copy_out = (int32_t *)cuda_malloc_async(
+    d_smart_copy_out = (int32_t *)cuda_malloc_with_size_tracking_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    cuda_memset_async(d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t),
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
-    cuda_memset_async(d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t),
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
   }
 
   int_sum_ciphertexts_vec_memory(
@@ -1183,24 +1194,26 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         streams[0], gpu_indexes[0], new_blocks_copy, max_pbs_count,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    d_smart_copy_in = (int32_t *)cuda_malloc_async(
+    d_smart_copy_in = (int32_t *)cuda_malloc_with_size_tracking_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    d_smart_copy_out = (int32_t *)cuda_malloc_async(
+    d_smart_copy_out = (int32_t *)cuda_malloc_with_size_tracking_async(
         max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    cuda_memset_async(d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t),
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
-    cuda_memset_async(d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t),
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    if (gpu_memory_allocated) {
-      cuda_drop_async(d_smart_copy_in, streams[0], gpu_indexes[0]);
-      cuda_drop_async(d_smart_copy_out, streams[0], gpu_indexes[0]);
-    }
+    cuda_drop_with_size_tracking_async(d_smart_copy_in, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_smart_copy_out, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
 
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_blocks,
@@ -1264,9 +1277,9 @@ template <typename Torus> struct int_seq_group_prop_memory {
       h_seq_lut_indexes[index] = index;
     }
     Torus *seq_lut_indexes = lut_sequential_algorithm->get_lut_indexes(0, 0);
-    cuda_memcpy_async_to_gpu(seq_lut_indexes, h_seq_lut_indexes,
-                             num_seq_luts * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        seq_lut_indexes, h_seq_lut_indexes, num_seq_luts * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
 
     lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes, 0);
     free(h_seq_lut_indexes);
@@ -1496,8 +1509,9 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
 
     // copy the indexes to the gpu
     Torus *lut_indexes = luts_array_first_step->get_lut_indexes(0, 0);
-    cuda_memcpy_async_to_gpu(lut_indexes, h_lut_indexes, lut_indexes_size,
-                             streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lut_indexes, h_lut_indexes, lut_indexes_size, streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
 
     luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
@@ -1580,11 +1594,12 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     create_zero_radix_ciphertext_async<Torus>(
         streams[0], gpu_indexes[0], grouping_pgns, num_groups,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    scalar_array_cum_sum = (Torus *)cuda_malloc_async(
+    scalar_array_cum_sum = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
-    cuda_memset_async(scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus),
-                      streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memset_with_size_tracking_async(
+        scalar_array_cum_sum, 0, num_radix_blocks * sizeof(Torus), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
     h_scalar_array_cum_sum = new Torus[num_radix_blocks]();
 
     // create lut objects for step 2
@@ -1752,13 +1767,14 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
 
     // copy the indexes to the gpu
     Torus *second_lut_indexes = luts_array_second_step->get_lut_indexes(0, 0);
-    cuda_memcpy_async_to_gpu(second_lut_indexes, h_second_lut_indexes,
-                             lut_indexes_size, streams[0], gpu_indexes[0],
-                             allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        second_lut_indexes, h_second_lut_indexes, lut_indexes_size, streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
 
-    cuda_memcpy_async_to_gpu(scalar_array_cum_sum, h_scalar_array_cum_sum,
-                             num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        scalar_array_cum_sum, h_scalar_array_cum_sum,
+        num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
+        allocate_gpu_memory);
     luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
@@ -1781,15 +1797,15 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
                           uint32_t const *gpu_indexes, Torus *new_lut_indexes,
                           Torus *new_scalars, uint32_t new_num_blocks) {
     Torus *lut_indexes = luts_array_second_step->get_lut_indexes(0, 0);
-    cuda_memcpy_async_gpu_to_gpu(lut_indexes, new_lut_indexes,
-                                 new_num_blocks * sizeof(Torus), streams[0],
-                                 gpu_indexes[0], gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+        lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], gpu_memory_allocated);
 
     luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
 
-    cuda_memcpy_async_gpu_to_gpu(scalar_array_cum_sum, new_scalars,
-                                 new_num_blocks * sizeof(Torus), streams[0],
-                                 gpu_indexes[0], gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+        scalar_array_cum_sum, new_scalars, new_num_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], gpu_memory_allocated);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1804,9 +1820,8 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
                                    gpu_memory_allocated);
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], resolved_carries,
                                    gpu_memory_allocated);
-    if (gpu_memory_allocated) {
-      cuda_drop_async(scalar_array_cum_sum, streams[0], gpu_indexes[0]);
-    }
+    cuda_drop_with_size_tracking_async(scalar_array_cum_sum, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
     luts_array_second_step->release(streams, gpu_indexes, gpu_count);
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
@@ -1989,10 +2004,10 @@ template <typename Torus> struct int_sc_prop_memory {
           h_lut_indexes[index] = 1;
         }
       }
-      cuda_memcpy_async_to_gpu(lut_message_extract->get_lut_indexes(0, 0),
-                               h_lut_indexes,
-                               (num_radix_blocks + 1) * sizeof(Torus),
-                               streams[0], gpu_indexes[0], allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
+          (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0],
+          allocate_gpu_memory);
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
     }
@@ -2017,10 +2032,10 @@ template <typename Torus> struct int_sc_prop_memory {
           h_lut_indexes[index] = 1;
         }
       }
-      cuda_memcpy_async_to_gpu(lut_message_extract->get_lut_indexes(0, 0),
-                               h_lut_indexes,
-                               (num_radix_blocks + 1) * sizeof(Torus),
-                               streams[0], gpu_indexes[0], allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          lut_message_extract->get_lut_indexes(0, 0), h_lut_indexes,
+          (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0],
+          allocate_gpu_memory);
 
       lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
     }
@@ -2212,8 +2227,9 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     }
     // copy the indexes to the gpu
     Torus *lut_indexes = luts_array_first_step->get_lut_indexes(0, 0);
-    cuda_memcpy_async_to_gpu(lut_indexes, h_lut_indexes, lut_indexes_size,
-                             streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lut_indexes, h_lut_indexes, lut_indexes_size, streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
 
     luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
@@ -2224,9 +2240,9 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
                           uint32_t const *gpu_indexes, Torus *new_lut_indexes,
                           uint32_t new_num_blocks) {
     Torus *lut_indexes = luts_array_first_step->get_lut_indexes(0, 0);
-    cuda_memcpy_async_gpu_to_gpu(lut_indexes, new_lut_indexes,
-                                 new_num_blocks * sizeof(Torus), streams[0],
-                                 gpu_indexes[0], gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+        lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
+        streams[0], gpu_indexes[0], gpu_memory_allocated);
     luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3077,10 +3093,10 @@ template <typename Torus> struct int_cmux_buffer {
         h_lut_indexes[index] = 1;
       }
     }
-    cuda_memcpy_async_to_gpu(predicate_lut->get_lut_indexes(0, 0),
-                             h_lut_indexes,
-                             2 * num_radix_blocks * sizeof(Torus), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        predicate_lut->get_lut_indexes(0, 0), h_lut_indexes,
+        2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
+        allocate_gpu_memory);
 
     predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
     message_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
@@ -4042,9 +4058,10 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
 
     // Extra indexes for the luts in first step
     for (int nb = 1; nb <= num_blocks; nb++) {
-      first_indexes_for_overflow_sub[nb - 1] = (Torus *)cuda_malloc_async(
-          nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
-          allocate_gpu_memory);
+      first_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)cuda_malloc_with_size_tracking_async(
+              nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
+              allocate_gpu_memory);
       for (int index = 0; index < nb; index++) {
         uint32_t grouping_index = index / group_size;
         bool is_in_first_grouping = (grouping_index == 0);
@@ -4062,18 +4079,20 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           h_lut_indexes[index] = index_in_grouping + group_size;
         }
       }
-      cuda_memcpy_async_to_gpu(first_indexes_for_overflow_sub[nb - 1],
-                               h_lut_indexes, nb * sizeof(Torus), streams[0],
-                               gpu_indexes[0], allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          first_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
+          nb * sizeof(Torus), streams[0], gpu_indexes[0], allocate_gpu_memory);
     }
     // Extra indexes for the luts in second step
     for (int nb = 1; nb <= num_blocks; nb++) {
-      second_indexes_for_overflow_sub[nb - 1] = (Torus *)cuda_malloc_async(
-          nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
-          allocate_gpu_memory);
-      scalars_for_overflow_sub[nb - 1] = (Torus *)cuda_malloc_async(
-          nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
-          allocate_gpu_memory);
+      second_indexes_for_overflow_sub[nb - 1] =
+          (Torus *)cuda_malloc_with_size_tracking_async(
+              nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
+              allocate_gpu_memory);
+      scalars_for_overflow_sub[nb - 1] =
+          (Torus *)cuda_malloc_with_size_tracking_async(
+              nb * sizeof(Torus), streams[0], gpu_indexes[0], size_tracker,
+              allocate_gpu_memory);
 
       for (int index = 0; index < nb; index++) {
         uint32_t grouping_index = index / group_size;
@@ -4106,12 +4125,12 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           h_scalar[index] = 0;
         }
       }
-      cuda_memcpy_async_to_gpu(second_indexes_for_overflow_sub[nb - 1],
-                               h_lut_indexes, nb * sizeof(Torus), streams[0],
-                               gpu_indexes[0], allocate_gpu_memory);
-      cuda_memcpy_async_to_gpu(scalars_for_overflow_sub[nb - 1], h_scalar,
-                               nb * sizeof(Torus), streams[0], gpu_indexes[0],
-                               allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          second_indexes_for_overflow_sub[nb - 1], h_lut_indexes,
+          nb * sizeof(Torus), streams[0], gpu_indexes[0], allocate_gpu_memory);
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          scalars_for_overflow_sub[nb - 1], h_scalar, nb * sizeof(Torus),
+          streams[0], gpu_indexes[0], allocate_gpu_memory);
     }
     free(h_lut_indexes);
     free(h_scalar);
@@ -4250,15 +4269,16 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     delete at_least_one_upper_block_is_non_zero;
     delete cleaned_merged_interesting_remainder;
 
-    if (gpu_memory_allocated) {
-      for (int i = 0; i < max_indexes_to_erase; i++) {
-        cuda_drop_async(first_indexes_for_overflow_sub[i], streams[0],
-                        gpu_indexes[0]);
-        cuda_drop_async(second_indexes_for_overflow_sub[i], streams[0],
-                        gpu_indexes[0]);
-        cuda_drop_async(scalars_for_overflow_sub[i], streams[0],
-                        gpu_indexes[0]);
-      }
+    for (int i = 0; i < max_indexes_to_erase; i++) {
+      cuda_drop_with_size_tracking_async(first_indexes_for_overflow_sub[i],
+                                         streams[0], gpu_indexes[0],
+                                         gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(second_indexes_for_overflow_sub[i],
+                                         streams[0], gpu_indexes[0],
+                                         gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(scalars_for_overflow_sub[i],
+                                         streams[0], gpu_indexes[0],
+                                         gpu_memory_allocated);
     }
     free(first_indexes_for_overflow_sub);
     free(second_indexes_for_overflow_sub);

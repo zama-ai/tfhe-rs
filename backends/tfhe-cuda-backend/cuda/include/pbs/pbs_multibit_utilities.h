@@ -109,12 +109,14 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   double2 *global_join_buffer;
 
   PBS_VARIANT pbs_variant;
+  bool gpu_memory_allocated;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t glwe_dimension,
              uint32_t polynomial_size, uint32_t level_count,
              uint32_t input_lwe_ciphertext_count, uint32_t lwe_chunk_size,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
              uint64_t *size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
 
     this->pbs_variant = pbs_variant;
@@ -167,7 +169,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
     // Keybundle
     if (max_shared_memory < full_sm_keybundle)
-      d_mem_keybundle = (int8_t *)cuda_malloc_async(
+      d_mem_keybundle = (int8_t *)cuda_malloc_with_size_tracking_async(
           num_blocks_keybundle * full_sm_keybundle, stream, gpu_index,
           size_tracker, allocate_gpu_memory);
 
@@ -175,28 +177,28 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     case PBS_VARIANT::CG:
       // Accumulator CG
       if (max_shared_memory < partial_sm_cg_accumulate)
-        d_mem_acc_cg = (int8_t *)cuda_malloc_async(
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_cg * full_sm_cg_accumulate, stream, gpu_index,
             size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_cg_accumulate)
-        d_mem_acc_cg = (int8_t *)cuda_malloc_async(
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_cg * partial_sm_cg_accumulate, stream, gpu_index,
             size_tracker, allocate_gpu_memory);
       break;
     case PBS_VARIANT::DEFAULT:
       // Accumulator step one
       if (max_shared_memory < partial_sm_accumulate_step_one)
-        d_mem_acc_step_one = (int8_t *)cuda_malloc_async(
+        d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_step_one * full_sm_accumulate_step_one, stream,
             gpu_index, size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_accumulate_step_one)
-        d_mem_acc_step_one = (int8_t *)cuda_malloc_async(
+        d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream,
             gpu_index, size_tracker, allocate_gpu_memory);
 
       // Accumulator step two
       if (max_shared_memory < full_sm_accumulate_step_two)
-        d_mem_acc_step_two = (int8_t *)cuda_malloc_async(
+        d_mem_acc_step_two = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_step_two * full_sm_accumulate_step_two, stream,
             gpu_index, size_tracker, allocate_gpu_memory);
       break;
@@ -214,11 +216,11 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
       // Accumulator TBC
       if (max_shared_memory < partial_sm_tbc_accumulate + minimum_sm_tbc)
-        d_mem_acc_tbc = (int8_t *)cuda_malloc_async(
+        d_mem_acc_tbc = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_tbc * full_sm_tbc_accumulate, stream, gpu_index,
             size_tracker, allocate_gpu_memory);
       else if (max_shared_memory < full_sm_tbc_accumulate + minimum_sm_tbc)
-        d_mem_acc_tbc = (int8_t *)cuda_malloc_async(
+        d_mem_acc_tbc = (int8_t *)cuda_malloc_with_size_tracking_async(
             num_blocks_acc_tbc * partial_sm_tbc_accumulate, stream, gpu_index,
             size_tracker, allocate_gpu_memory);
       break;
@@ -227,14 +229,14 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
 
-    keybundle_fft = (double2 *)cuda_malloc_async(
+    keybundle_fft = (double2 *)cuda_malloc_with_size_tracking_async(
         num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2), stream,
         gpu_index, size_tracker, allocate_gpu_memory);
-    global_accumulator = (Torus *)cuda_malloc_async(
+    global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
         input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
             sizeof(Torus),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
-    global_join_buffer = (double2 *)cuda_malloc_async(
+    global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
         level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
             (polynomial_size / 2) * sizeof(double2),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -243,31 +245,39 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   void release(cudaStream_t stream, uint32_t gpu_index) {
 
     if (d_mem_keybundle)
-      cuda_drop_async(d_mem_keybundle, stream, gpu_index);
+      cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
+                                         gpu_memory_allocated);
     switch (pbs_variant) {
     case DEFAULT:
       if (d_mem_acc_step_one)
-        cuda_drop_async(d_mem_acc_step_one, stream, gpu_index);
+        cuda_drop_with_size_tracking_async(d_mem_acc_step_one, stream,
+                                           gpu_index, gpu_memory_allocated);
       if (d_mem_acc_step_two)
-        cuda_drop_async(d_mem_acc_step_two, stream, gpu_index);
+        cuda_drop_with_size_tracking_async(d_mem_acc_step_two, stream,
+                                           gpu_index, gpu_memory_allocated);
       break;
     case CG:
       if (d_mem_acc_cg)
-        cuda_drop_async(d_mem_acc_cg, stream, gpu_index);
+        cuda_drop_with_size_tracking_async(d_mem_acc_cg, stream, gpu_index,
+                                           gpu_memory_allocated);
       break;
 #if CUDA_ARCH >= 900
     case TBC:
       if (d_mem_acc_tbc)
-        cuda_drop_async(d_mem_acc_tbc, stream, gpu_index);
+        cuda_drop_with_size_tracking_async(d_mem_acc_tbc, stream, gpu_index,
+                                           gpu_memory_allocated);
       break;
 #endif
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }
 
-    cuda_drop_async(keybundle_fft, stream, gpu_index);
-    cuda_drop_async(global_accumulator, stream, gpu_index);
-    cuda_drop_async(global_join_buffer, stream, gpu_index);
+    cuda_drop_with_size_tracking_async(keybundle_fft, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
+                                       gpu_memory_allocated);
   }
 };
 

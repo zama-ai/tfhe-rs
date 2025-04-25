@@ -127,8 +127,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
   double2 *h_bsk;
   cudaMallocHost((void **)&h_bsk, buffer_size);
 
-  double2 *d_bsk = (double2 *)cuda_malloc_async(buffer_size, stream, gpu_index,
-                                                nullptr, true);
+  double2 *d_bsk = (double2 *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   constexpr double two_pow_torus_bits = get_two_pow_torus_bits<T>();
   // compress real bsk to complex and divide it on DOUBLE_MAX
@@ -144,12 +143,11 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     }
   }
 
-  cuda_memcpy_async_to_gpu(d_bsk, h_bsk, buffer_size, stream, gpu_index, true);
+  cuda_memcpy_async_to_gpu(d_bsk, h_bsk, buffer_size, stream, gpu_index);
 
   auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
 
-  double2 *buffer =
-      (double2 *)cuda_malloc_async(0, stream, gpu_index, nullptr, true);
+  double2 *buffer = (double2 *)cuda_malloc_async(0, stream, gpu_index);
   switch (polynomial_size) {
   case 256:
     if (shared_memory_size <= max_shared_memory) {
@@ -163,9 +161,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<256>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -182,9 +179,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<512>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -201,9 +197,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<1024>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -220,9 +215,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<2048>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -239,9 +233,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<4096>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -258,9 +251,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<8192>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -277,9 +269,8 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
           <<<gridSize, blockSize, shared_memory_size, stream>>>(d_bsk, dest,
                                                                 buffer);
     } else {
-      buffer =
-          (double2 *)cuda_malloc_async(shared_memory_size * total_polynomials,
-                                       stream, gpu_index, nullptr, true);
+      buffer = (double2 *)cuda_malloc_async(
+          shared_memory_size * total_polynomials, stream, gpu_index);
       batch_NSMFFT<FFTDegree<AmortizedDegree<16384>, ForwardFFT>, NOSM>
           <<<gridSize, blockSize, 0, stream>>>(d_bsk, dest, buffer);
     }
@@ -309,8 +300,7 @@ void convert_u128_to_f128_and_forward_fft_128(cudaStream_t stream,
   size_t buffer_size =
       full_sm ? 0 : (size_t)number_of_samples * params::degree / 2 * 4;
   size_t shared_memory_size = full_sm ? required_shared_memory_size : 0;
-  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index,
-                                               nullptr, true);
+  double *buffer = (double *)cuda_malloc_async(buffer_size, stream, gpu_index);
 
   // configure shared memory for batch fft kernel
   if (full_sm) {

@@ -33,7 +33,8 @@ void cuda_packing_keyswitch_lwe_list_to_glwe_64(
 
 void cleanup_packing_keyswitch_lwe_list_to_glwe(void *stream,
                                                 uint32_t gpu_index,
-                                                int8_t **fp_ks_buffer);
+                                                int8_t **fp_ks_buffer,
+                                                bool gpu_memory_allocated);
 }
 
 #endif // CNCRT_KS_H_

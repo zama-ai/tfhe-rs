@@ -141,7 +141,6 @@ impl CudaCompressionKey {
                 size as u64,
                 streams.ptr[0],
                 streams.gpu_indexes[0].get(),
-                true,
             );
 
             offset += ciphertext.d_blocks.0.d_vec.len;

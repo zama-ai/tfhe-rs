@@ -107,7 +107,7 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
   cuda_memset_async(tmp_glwe_array_out, 0,
                     num_glwes * (compression_params.glwe_dimension + 1) *
                         compression_params.polynomial_size * sizeof(Torus),
-                    streams[0], gpu_indexes[0], true);
+                    streams[0], gpu_indexes[0]);
   auto fp_ks_buffer = mem_ptr->fp_ks_buffer;
   auto rem_lwes = num_radix_blocks;
 
@@ -221,7 +221,7 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
     auto zeroed_slice = glwe_array_out + initial_out_len;
     cuda_memset_async(glwe_array_out, 0,
                       (glwe_ciphertext_size - initial_out_len) * sizeof(Torus),
-                      stream, gpu_index, true);
+                      stream, gpu_index);
   }
 
   int num_blocks = 0, num_threads = 0;
@@ -243,7 +243,7 @@ __host__ void host_integer_decompress(
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
   cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
                            indexes_array_size * sizeof(uint32_t), streams[0],
-                           gpu_indexes[0], true);
+                           gpu_indexes[0]);
 
   auto compression_params = h_mem_ptr->compression_params;
   auto lwe_per_glwe = compression_params.polynomial_size;

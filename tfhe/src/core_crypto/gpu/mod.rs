@@ -400,6 +400,7 @@ pub unsafe fn packing_keyswitch_list_async<T: UnsignedInteger>(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(fp_ks_buffer),
+        true,
     );
 }
 

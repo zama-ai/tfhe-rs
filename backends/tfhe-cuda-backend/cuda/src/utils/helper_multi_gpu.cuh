@@ -9,18 +9,18 @@ void multi_gpu_alloc_array_async(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
                                  uint32_t elements_per_gpu,
-                                 uint64_t *size_tracker_0,
+                                 uint64_t *size_tracker_on_gpu_0,
                                  bool allocate_gpu_memory) {
 
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
-    uint64_t size_tracker = 0;
-    Torus *d_array = (Torus *)cuda_malloc_async(
+    uint64_t size_tracker_on_gpu_i = 0;
+    Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         elements_per_gpu * sizeof(Torus), streams[i], gpu_indexes[i],
-        &size_tracker, allocate_gpu_memory);
+        &size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_0 != nullptr) {
-      *size_tracker_0 = size_tracker;
+    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
+      *size_tracker_on_gpu_0 = size_tracker_on_gpu_i;
     }
   }
 }
@@ -33,9 +33,9 @@ void multi_gpu_copy_array_async(cudaStream_t const *streams,
                                 bool gpu_memory_allocated) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
-    cuda_memcpy_async_gpu_to_gpu(dest[i], src, elements_per_gpu * sizeof(Torus),
-                                 streams[i], gpu_indexes[i],
-                                 gpu_memory_allocated);
+    cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+        dest[i], src, elements_per_gpu * sizeof(Torus), streams[i],
+        gpu_indexes[i], gpu_memory_allocated);
   }
 }
 /// Allocates the input/output vector for all devices
@@ -45,18 +45,19 @@ template <typename Torus>
 void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
                                uint32_t const *gpu_indexes, uint32_t gpu_count,
                                std::vector<Torus *> &dest, uint32_t num_inputs,
-                               uint32_t lwe_size, uint64_t *size_tracker_0,
+                               uint32_t lwe_size,
+                               uint64_t *size_tracker_on_gpu_0,
                                bool allocate_gpu_memory) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
-    uint64_t size_tracker = 0;
+    uint64_t size_tracker_on_gpu_i = 0;
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
-    Torus *d_array = (Torus *)cuda_malloc_async(
+    Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         inputs_on_gpu * lwe_size * sizeof(Torus), streams[i], gpu_indexes[i],
-        &size_tracker, allocate_gpu_memory);
+        &size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_0 != nullptr) {
-      *size_tracker_0 = size_tracker;
+    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
+      *size_tracker_on_gpu_0 = size_tracker_on_gpu_i;
     }
   }
 }
@@ -68,18 +69,18 @@ template <typename Torus>
 void multi_gpu_alloc_lwe_many_lut_output_async(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, std::vector<Torus *> &dest, uint32_t num_inputs,
-    uint32_t num_many_lut, uint32_t lwe_size, uint64_t *size_tracker_0,
+    uint32_t num_many_lut, uint32_t lwe_size, uint64_t *size_tracker_on_gpu_0,
     bool allocate_gpu_memory) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
     uint64_t size_tracker = 0;
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
-    Torus *d_array = (Torus *)cuda_malloc_async(
+    Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         num_many_lut * inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
         gpu_indexes[i], &size_tracker, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_0 != nullptr) {
-      *size_tracker_0 = size_tracker;
+    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
+      *size_tracker_on_gpu_0 = size_tracker;
     }
   }
 }
@@ -108,9 +109,9 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
     if (is_trivial_index) {
       auto d_dest = dest[i];
       auto d_src = src + gpu_offset * lwe_size;
-      cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
-                                   inputs_on_gpu * lwe_size * sizeof(Torus),
-                                   streams[i], gpu_indexes[i], true);
+      cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+          d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
+          gpu_indexes[i], true);
 
     } else {
       auto src_indexes = h_src_indexes + gpu_offset;
@@ -119,8 +120,9 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
         auto d_dest = dest[i] + j * lwe_size;
         auto d_src = src + src_indexes[j] * lwe_size;
 
-        cuda_memcpy_async_gpu_to_gpu(d_dest, d_src, lwe_size * sizeof(Torus),
-                                     streams[i], gpu_indexes[i], true);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            d_dest, d_src, lwe_size * sizeof(Torus), streams[i], gpu_indexes[i],
+            true);
       }
     }
   }
@@ -147,9 +149,9 @@ void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
       auto d_dest = dest + gpu_offset * lwe_size;
       auto d_src = src[i];
 
-      cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
-                                   inputs_on_gpu * lwe_size * sizeof(Torus),
-                                   streams[i], gpu_indexes[i], true);
+      cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+          d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
+          gpu_indexes[i], true);
     } else {
       auto dest_indexes = h_dest_indexes + gpu_offset;
 
@@ -157,8 +159,9 @@ void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
         auto d_dest = dest + dest_indexes[j] * lwe_size;
         auto d_src = src[i] + j * lwe_size;
 
-        cuda_memcpy_async_gpu_to_gpu(d_dest, d_src, lwe_size * sizeof(Torus),
-                                     streams[i], gpu_indexes[i], true);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            d_dest, d_src, lwe_size * sizeof(Torus), streams[i], gpu_indexes[i],
+            true);
       }
     }
   }
@@ -187,9 +190,9 @@ void multi_gpu_gather_many_lut_lwe_async(
             dest + gpu_offset * lwe_size + lut_id * num_inputs * lwe_size;
         auto d_src = src[i] + lut_id * inputs_on_gpu * lwe_size;
 
-        cuda_memcpy_async_gpu_to_gpu(d_dest, d_src,
-                                     inputs_on_gpu * lwe_size * sizeof(Torus),
-                                     streams[i], gpu_indexes[i], true);
+        cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+            d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
+            gpu_indexes[i], true);
       } else {
         auto dest_indexes = h_dest_indexes + gpu_offset;
 
@@ -199,8 +202,9 @@ void multi_gpu_gather_many_lut_lwe_async(
           auto d_src =
               src[i] + j * lwe_size + lut_id * inputs_on_gpu * lwe_size;
 
-          cuda_memcpy_async_gpu_to_gpu(d_dest, d_src, lwe_size * sizeof(Torus),
-                                       streams[i], gpu_indexes[i], true);
+          cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
+              d_dest, d_src, lwe_size * sizeof(Torus), streams[i],
+              gpu_indexes[i], true);
         }
       }
     }

@@ -71,7 +71,7 @@ __host__ void host_expand_without_verification(
   // Apply LUT
   cuda_memset_async(lwe_array_out, 0,
                     (lwe_dimension + 1) * num_lwes * 2 * sizeof(Torus),
-                    streams[0], gpu_indexes[0], true);
+                    streams[0], gpu_indexes[0]);
   auto output = new CudaRadixCiphertextFFI;
   into_radix_ciphertext(output, lwe_array_out, 2 * num_lwes, lwe_dimension);
   auto input = new CudaRadixCiphertextFFI;

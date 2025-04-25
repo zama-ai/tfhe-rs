@@ -149,7 +149,7 @@ void generate_lwe_programmable_bootstrap_keys(cudaStream_t stream, uint32_t gpu_
 
   uint64_t *bsk_array = (uint64_t *)malloc(bsk_array_size * sizeof(uint64_t));
   *d_fourier_bsk_array =
-      (double *)cuda_malloc_async(bsk_array_size * sizeof(double), stream, gpu_index, nullptr, true);
+      (double *)cuda_malloc_async(bsk_array_size * sizeof(double), stream, gpu_index);
   int shift_in = 0;
   int shift_out = 0;
   int shift_bsk = 0;
@@ -189,7 +189,7 @@ void generate_lwe_multi_bit_programmable_bootstrap_keys(
   uint64_t *bsk_array = (uint64_t *)malloc(bsk_array_size * sizeof(uint64_t));
 
   *d_bsk_array =
-      (uint64_t *)cuda_malloc_async(bsk_array_size * sizeof(uint64_t), stream, gpu_index, nullptr, true);
+      (uint64_t *)cuda_malloc_async(bsk_array_size * sizeof(uint64_t), stream, gpu_index);
   for (uint r = 0; r < repetitions; r++) {
     int shift_in = 0;
     int shift_out = 0;
@@ -224,7 +224,7 @@ void generate_lwe_keyswitch_keys(
 
   uint64_t *ksk_array = (uint64_t *)malloc(ksk_array_size * sizeof(uint64_t));
   *d_ksk_array =
-      (uint64_t *)cuda_malloc_async(ksk_array_size * sizeof(uint64_t), stream, gpu_index, nullptr, true);
+      (uint64_t *)cuda_malloc_async(ksk_array_size * sizeof(uint64_t), stream, gpu_index);
   int shift_in = 0;
   int shift_out = 0;
   int shift_ksk = 0;
@@ -238,7 +238,7 @@ void generate_lwe_keyswitch_keys(
         noise_distribution, seed->lo, seed->hi);
     uint64_t *d_ksk = *d_ksk_array + (ptrdiff_t)(shift_ksk);
     uint64_t *ksk = ksk_array + (ptrdiff_t)(shift_ksk);
-    cuda_memcpy_async_to_gpu(d_ksk, ksk, ksk_size * sizeof(uint64_t), stream, gpu_index, true);
+    cuda_memcpy_async_to_gpu(d_ksk, ksk, ksk_size * sizeof(uint64_t), stream, gpu_index);
 
     shift_in += input_lwe_dimension;
     shift_out += output_lwe_dimension;

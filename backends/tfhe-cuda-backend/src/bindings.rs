@@ -1434,6 +1434,7 @@ unsafe extern "C" {
         stream: *mut ffi::c_void,
         gpu_index: u32,
         fp_ks_buffer: *mut *mut i8,
+        gpu_memory_allocated: bool,
     );
 }
 unsafe extern "C" {

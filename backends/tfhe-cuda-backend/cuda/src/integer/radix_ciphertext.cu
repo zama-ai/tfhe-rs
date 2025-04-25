@@ -3,9 +3,10 @@
 void release_radix_ciphertext_async(cudaStream_t const stream,
                                     uint32_t const gpu_index,
                                     CudaRadixCiphertextFFI *data,
-                                    bool gpu_memory_allocated) {
+                                    const bool gpu_memory_allocated) {
   if (gpu_memory_allocated)
-    cuda_drop_async(data->ptr, stream, gpu_index);
+    cuda_drop_with_size_tracking_async(data->ptr, stream, gpu_index,
+                                       gpu_memory_allocated);
   free(data->degrees);
   free(data->noise_levels);
 }

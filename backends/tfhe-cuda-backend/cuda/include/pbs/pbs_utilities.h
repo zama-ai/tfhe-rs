@@ -84,18 +84,20 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
 
   PBS_VARIANT pbs_variant;
   bool uses_noise_reduction;
+  bool gpu_memory_allocated;
 
   pbs_buffer(cudaStream_t stream, uint32_t gpu_index, uint32_t lwe_dimension,
              uint32_t glwe_dimension, uint32_t polynomial_size,
              uint32_t level_count, uint32_t input_lwe_ciphertext_count,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
              bool allocate_ms_array, uint64_t *size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->uses_noise_reduction = allocate_ms_array;
     this->pbs_variant = pbs_variant;
 
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
-    this->temp_lwe_array_in = (Torus *)cuda_malloc_async(
+    this->temp_lwe_array_in = (Torus *)cuda_malloc_with_size_tracking_async(
         (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(Torus),
         stream, gpu_index, size_tracker, allocate_ms_array);
     switch (pbs_variant) {
@@ -126,15 +128,15 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
                      level_count * (glwe_dimension + 1);
       }
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double2 *)cuda_malloc_async(
+      global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
           (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
               (polynomial_size / 2) * sizeof(double2),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_accumulator = (Torus *)cuda_malloc_async(
+      global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
           (glwe_dimension + 1) * input_lwe_ciphertext_count * polynomial_size *
               sizeof(Torus),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -160,10 +162,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       }
 
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double2 *)cuda_malloc_async(
+      global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
           (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
               polynomial_size / 2 * sizeof(double2),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -208,10 +210,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       }
 
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double2 *)cuda_malloc_async(
+      global_join_buffer = (double2 *)cuda_malloc_with_size_tracking_async(
           (glwe_dimension + 1) * level_count * input_lwe_ciphertext_count *
               polynomial_size / 2 * sizeof(double2),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -223,14 +225,18 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   }
 
   void release(cudaStream_t stream, uint32_t gpu_index) {
-    cuda_drop_async(d_mem, stream, gpu_index);
-    cuda_drop_async(global_join_buffer, stream, gpu_index);
+    cuda_drop_with_size_tracking_async(d_mem, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
+                                       gpu_memory_allocated);
 
     if (pbs_variant == DEFAULT)
-      cuda_drop_async(global_accumulator, stream, gpu_index);
+      cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
+                                         gpu_memory_allocated);
 
     if (uses_noise_reduction)
-      cuda_drop_async(temp_lwe_array_in, stream, gpu_index);
+      cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
+                                         gpu_memory_allocated);
   }
 };
 
@@ -245,6 +251,7 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
 
   PBS_VARIANT pbs_variant;
   bool uses_noise_reduction;
+  bool gpu_memory_allocated;
 
   pbs_buffer_128(cudaStream_t stream, uint32_t gpu_index,
                  uint32_t lwe_dimension, uint32_t glwe_dimension,
@@ -252,12 +259,15 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
                  uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
                  bool allocate_gpu_memory, bool allocate_ms_array,
                  uint64_t *size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
     this->uses_noise_reduction = allocate_ms_array;
-    this->temp_lwe_array_in = (__uint128_t *)cuda_malloc_async(
-        (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(__uint128_t),
-        stream, gpu_index, size_tracker, allocate_ms_array);
+    this->temp_lwe_array_in =
+        (__uint128_t *)cuda_malloc_with_size_tracking_async(
+            (lwe_dimension + 1) * input_lwe_ciphertext_count *
+                sizeof(__uint128_t),
+            stream, gpu_index, size_tracker, allocate_ms_array);
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
     size_t global_join_buffer_size = (glwe_dimension + 1) * level_count *
                                      input_lwe_ciphertext_count *
@@ -291,14 +301,14 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
                      level_count * (glwe_dimension + 1);
       }
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double *)cuda_malloc_async(
+      global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
 
-      global_accumulator = (__uint128_t *)cuda_malloc_async(
+      global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
           (glwe_dimension + 1) * input_lwe_ciphertext_count * polynomial_size *
               sizeof(__uint128_t),
           stream, gpu_index, size_tracker, allocate_gpu_memory);
@@ -324,10 +334,10 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
       }
 
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double *)cuda_malloc_async(
+      global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
     } break;
@@ -371,10 +381,10 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
       }
 
       // Otherwise, both kernels run all in shared memory
-      d_mem = (int8_t *)cuda_malloc_async(device_mem, stream, gpu_index,
-                                          size_tracker, allocate_gpu_memory);
+      d_mem = (int8_t *)cuda_malloc_with_size_tracking_async(
+          device_mem, stream, gpu_index, size_tracker, allocate_gpu_memory);
 
-      global_join_buffer = (double *)cuda_malloc_async(
+      global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
           global_join_buffer_size, stream, gpu_index, size_tracker,
           allocate_gpu_memory);
     } break;
@@ -385,14 +395,18 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
   }
 
   void release(cudaStream_t stream, uint32_t gpu_index) {
-    cuda_drop_async(d_mem, stream, gpu_index);
-    cuda_drop_async(global_join_buffer, stream, gpu_index);
+    cuda_drop_with_size_tracking_async(d_mem, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
+                                       gpu_memory_allocated);
 
     if (pbs_variant == DEFAULT)
-      cuda_drop_async(global_accumulator, stream, gpu_index);
+      cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
+                                         gpu_memory_allocated);
 
     if (uses_noise_reduction)
-      cuda_drop_async(temp_lwe_array_in, stream, gpu_index);
+      cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
+                                         gpu_memory_allocated);
   }
 };
 

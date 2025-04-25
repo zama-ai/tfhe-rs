@@ -126,12 +126,14 @@ template <typename Torus> struct zk_expand_mem {
     auto h_lwe_compact_input_indexes =
         static_cast<uint32_t *>(malloc(num_lwes * sizeof(uint32_t)));
 
-    d_body_id_per_compact_list = static_cast<uint32_t *>(
-        cuda_malloc_async(num_lwes * sizeof(uint32_t), streams[0],
-                          gpu_indexes[0], size_tracker, allocate_gpu_memory));
-    d_lwe_compact_input_indexes = static_cast<uint32_t *>(
-        cuda_malloc_async(num_lwes * sizeof(uint32_t), streams[0],
-                          gpu_indexes[0], size_tracker, allocate_gpu_memory));
+    d_body_id_per_compact_list =
+        static_cast<uint32_t *>(cuda_malloc_with_size_tracking_async(
+            num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
+            size_tracker, allocate_gpu_memory));
+    d_lwe_compact_input_indexes =
+        static_cast<uint32_t *>(cuda_malloc_with_size_tracking_async(
+            num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
+            size_tracker, allocate_gpu_memory));
 
     auto compact_list_id = 0;
     auto idx = 0;
@@ -184,26 +186,28 @@ template <typename Torus> struct zk_expand_mem {
     auto lut_indexes = message_and_carry_extract_luts->get_lut_indexes(0, 0);
     message_and_carry_extract_luts->broadcast_lut(streams, gpu_indexes, 0);
 
-    cuda_memcpy_async_to_gpu(d_lwe_compact_input_indexes,
-                             h_lwe_compact_input_indexes,
-                             num_lwes * sizeof(uint32_t), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(lut_indexes, h_lut_indexes,
-                             packed_messages_per_lwe * num_lwes * sizeof(Torus),
-                             streams[0], gpu_indexes[0], allocate_gpu_memory);
-    cuda_memcpy_async_to_gpu(d_body_id_per_compact_list,
-                             h_body_id_per_compact_list,
-                             num_lwes * sizeof(uint32_t), streams[0],
-                             gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        d_lwe_compact_input_indexes, h_lwe_compact_input_indexes,
+        num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
+        allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lut_indexes, h_lut_indexes,
+        packed_messages_per_lwe * num_lwes * sizeof(Torus), streams[0],
+        gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        d_body_id_per_compact_list, h_body_id_per_compact_list,
+        num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
+        allocate_gpu_memory);
 
     // The expanded LWEs will always be on the casting key format
-    tmp_expanded_lwes = (Torus *)cuda_malloc_async(
+    tmp_expanded_lwes = (Torus *)cuda_malloc_with_size_tracking_async(
         num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),
         streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
-    tmp_ksed_small_to_big_expanded_lwes = (Torus *)cuda_malloc_async(
-        num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
+    tmp_ksed_small_to_big_expanded_lwes =
+        (Torus *)cuda_malloc_with_size_tracking_async(
+            num_lwes * (casting_params.big_lwe_dimension + 1) * sizeof(Torus),
+            streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     free(h_indexes_in);
@@ -219,11 +223,15 @@ template <typename Torus> struct zk_expand_mem {
     message_and_carry_extract_luts->release(streams, gpu_indexes, gpu_count);
     delete message_and_carry_extract_luts;
 
-    cuda_drop_async(d_body_id_per_compact_list, streams[0], gpu_indexes[0]);
-    cuda_drop_async(d_lwe_compact_input_indexes, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_expanded_lwes, streams[0], gpu_indexes[0]);
-    cuda_drop_async(tmp_ksed_small_to_big_expanded_lwes, streams[0],
-                    gpu_indexes[0]);
+    cuda_drop_with_size_tracking_async(d_body_id_per_compact_list, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_lwe_compact_input_indexes, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(tmp_expanded_lwes, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(tmp_ksed_small_to_big_expanded_lwes,
+                                       streams[0], gpu_indexes[0],
+                                       gpu_memory_allocated);
   }
 };
 

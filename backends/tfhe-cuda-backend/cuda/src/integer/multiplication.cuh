@@ -327,9 +327,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
     size_t copy_size = sm_copy_count * sizeof(int32_t);
     cuda_memcpy_async_to_gpu(d_smart_copy_in, h_smart_copy_in, copy_size,
-                             streams[0], gpu_indexes[0], true);
+                             streams[0], gpu_indexes[0]);
     cuda_memcpy_async_to_gpu(d_smart_copy_out, h_smart_copy_out, copy_size,
-                             streams[0], gpu_indexes[0], true);
+                             streams[0], gpu_indexes[0]);
 
     // inside d_smart_copy_in there are only -1 values
     // it's fine to call smart_copy with same pointer
