@@ -5,9 +5,9 @@ on:
   pull_request:
 
 env:
-  ACTIONLINT_VERSION: 1.6.27
+  ACTIONLINT_VERSION: 1.7.7
+  ACTIONLINT_CHECKSUM: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
-
 
 permissions: {}
 
@@ -24,9 +24,10 @@ jobs:
 
       - name: Get actionlint
         run: |
-          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) ${{ env.ACTIONLINT_VERSION }}
-          echo "f2ee6d561ce00fa93aab62a7791c1a0396ec7e8876b2a8f2057475816c550782  actionlint" > checksum
+          wget "https://github.com/rhysd/actionlint/releases/download/v${{ env.ACTIONLINT_VERSION }}/actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz"
+          echo "${{ env.ACTIONLINT_CHECKSUM }} actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz" > checksum
           sha256sum -c checksum
+          tar -xf actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz actionlint
           ln -s "$(pwd)/actionlint" /usr/local/bin/
 
       - name: Lint workflows
