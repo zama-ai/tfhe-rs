@@ -83,7 +83,7 @@ pub struct HpuVarWrapped {
     pub(crate) pool: memory::CiphertextMemory,
     /// Way to push cmd inside the backend without need of locking
     pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
-    pub(crate) params: HpuParameters,
+    pub(crate) params: Arc<HpuParameters>,
     pub(crate) width: usize,
     pub(crate) mode: VarMode,
 }
@@ -99,7 +99,7 @@ impl HpuVarWrapped {
     fn new_in(
         pool: memory::CiphertextMemory,
         cmd_api: mpsc::Sender<cmd::HpuCmd>,
-        params: HpuParameters,
+        params: Arc<HpuParameters>,
         width: usize,
         mode: VarMode,
     ) -> Self {
@@ -122,7 +122,7 @@ impl HpuVarWrapped {
     pub(crate) fn new_from(
         pool: memory::CiphertextMemory,
         cmd_api: mpsc::Sender<cmd::HpuCmd>,
-        params: HpuParameters,
+        params: Arc<HpuParameters>,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
         mode: VarMode,
     ) -> Self {
@@ -194,7 +194,7 @@ impl HpuVarWrapped {
         for slot in inner.bundle.iter() {
             // Allocate HpuLwe
             // and view inner buffer as cut
-            let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, self.params.clone());
+            let mut hpu_lwe = HpuLweCiphertextOwned::<u64>::new(0, (*self.params).clone());
             let mut hw_slice = hpu_lwe.as_mut_view().into_container();
 
             // Copy from Xrt memory
