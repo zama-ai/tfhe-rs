@@ -163,6 +163,12 @@ install_typos_checker: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install typos-cli || \
 	( echo "Unable to install typos-cli, unknown error." && exit 1 )
 
+.PHONY: install_zizmor # Install zizmor workflow security checker
+install_zizmor: install_rs_build_toolchain
+	@zizmor --version > /dev/null 2>&1 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install zizmor || \
+	( echo "Unable to install zizmor, unknown error." && exit 1 )
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
@@ -306,6 +312,10 @@ check_newline: check_linelint_installed
 .PHONY: lint_workflow # Run static linter on GitHub workflows
 lint_workflow: check_actionlint_installed
 	actionlint
+
+.PHONY: check_workflow_security # Run zizmor security checker on GitHub workflows
+check_workflow_security: install_zizmor
+	zizmor --persona pedantic .
 
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
