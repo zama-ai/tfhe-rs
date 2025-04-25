@@ -7,15 +7,79 @@
 mod hpu_test {
     use std::str::FromStr;
 
-    pub use rand::Rng;
+    use rand::rngs::StdRng;
+    use rand::{Rng, RngCore, SeedableRng};
+    use tfhe::core_crypto::commons::generators::DeterministicSeeder;
+    use tfhe::core_crypto::prelude::DefaultRandomGenerator;
 
+    use tfhe::Seed;
     pub use tfhe_hpu_backend::prelude::*;
 
     /// Variable to store initialized HpuDevice and associated client key for fast iteration
-    static HPU_DEVICE_CKS: std::sync::OnceLock<(
-        std::sync::Mutex<HpuDevice>,
+    static HPU_DEVICE_RNG_CKS: std::sync::OnceLock<(
+        std::sync::Mutex<(HpuDevice, StdRng)>,
         tfhe::integer::ClientKey,
     )> = std::sync::OnceLock::new();
+
+    fn init_hpu_and_associated_material() -> (
+        std::sync::Mutex<(HpuDevice, StdRng)>,
+        tfhe::integer::ClientKey,
+    ) {
+        // Instantiate HpuDevice --------------------------------------------------
+        let hpu_device = {
+            let config_file = ShellString::new(
+                "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+            );
+            HpuDevice::from_config(&config_file.expand())
+        };
+
+        // Check if user force a seed
+        let seed = match std::env::var("HPU_TEST_SEED") {
+            Ok(var) => if let Some(hex) = var.strip_prefix("0x").or_else(|| var.strip_prefix("0X"))
+            {
+                u128::from_str_radix(hex, 16)
+            } else if let Some(bin) = var.strip_prefix("0b").or_else(|| var.strip_prefix("0B")) {
+                u128::from_str_radix(bin, 2)
+            } else if let Some(oct) = var.strip_prefix("0o").or_else(|| var.strip_prefix("0O")) {
+                u128::from_str_radix(oct, 8)
+            } else {
+                var.parse::<u128>() // default: base 10
+            }
+            .unwrap_or_else(|_| {
+                panic!("HPU_TEST_ITER env variable {var} couldn't be casted in u128")
+            }),
+            _ => {
+                // Use tread_rng to generate the seed
+                let lsb = rand::thread_rng().next_u64() as u128;
+                let msb = rand::thread_rng().next_u64() as u128;
+                (msb << u64::BITS) | lsb
+            }
+        };
+        // Show on stdout and on trace
+        println!("HPU_TEST_SEED => {seed} [i.e. 0x{seed:x}]");
+
+        // Instanciate a shared rng for cleartext input generation
+        let rng: StdRng = SeedableRng::seed_from_u64((seed & u64::MAX as u128) as u64);
+
+        // Force key seeder for easily reproduce failure
+        let mut key_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+        let shortint_engine =
+            tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut key_seeder);
+        tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+            std::mem::replace(engine, shortint_engine)
+        });
+
+        // Extract pbs_configuration from Hpu and create Client/Server Key
+        let cks = tfhe::integer::ClientKey::new(tfhe::shortint::ClassicPBSParameters::from(
+            hpu_device.params(),
+        ));
+        let sks_compressed =
+            tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
+
+        // Init Hpu device with server key and firmware
+        tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into()).expect("Invalid key");
+        (std::sync::Mutex::new((hpu_device, rng)), cks)
+    }
 
     // NB: Currently u55c didn't check for workq overflow.
     // -> Use default value < queue depth to circumvent this limitation
@@ -45,33 +109,16 @@ mod hpu_test {
             };
 
             // Retrieved HpuDevice or init ---------------------------------------------
-            let (hpu_mutex, cks)= HPU_DEVICE_CKS.get_or_init(|| {
-                // Instantiate HpuDevice --------------------------------------------------
-                let hpu_device = {
-                    let config_file = ShellString::new(
-                        "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
-                    );
-                    HpuDevice::from_config(&config_file.expand())
-                };
-
-                // Extract pbs_configuration from Hpu and create Client/Server Key
-                let cks = tfhe::integer::ClientKey::new(tfhe::shortint::ClassicPBSParameters::from(
-                    hpu_device.params(),
-                ));
-                let sks_compressed = tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
-
-                // Init Hpu device with server key and firmware
-                tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into()).expect("Invalid key");
-                (std::sync::Mutex::new(hpu_device), cks)
-            });
-            let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
+            let (hpu_rng_mutex, cks)= HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+            let mut hpu_rng_lock = hpu_rng_mutex.lock().expect("Error with HpuDevice Mutex");
+            let (ref mut hpu_device, ref mut rng) = *hpu_rng_lock;
             assert!(hpu_device.config().firmware.integer_w.contains(&($integer_width as usize)), "Current Hpu configuration doesn't support {}b integer [has {:?}]", $integer_width, hpu_device.config().firmware.integer_w);
 
             // Run test-case ---------------------------------------------------------
             let mut acc_status = true;
             $(
                 {
-                let status = [<hpu_ $testcase _u $integer_width>](hpu_test_iter, &mut hpu_device, &cks);
+                let status = [<hpu_ $testcase _u $integer_width>](hpu_test_iter, hpu_device, rng, &cks);
                 if !status {
                     println!("Error: in testcase {}", stringify!([<hpu_ $testcase _u $integer_width>]));
                 }
@@ -79,7 +126,7 @@ mod hpu_test {
                 }
             )*
 
-            drop(hpu_device);
+            drop(hpu_rng_lock);
             assert!(acc_status, "At least one testcase failed in the testbundle");
        }
     }
@@ -92,7 +139,7 @@ mod hpu_test {
             $(
             #[cfg(feature = "hpu")]
             #[allow(unused)]
-            pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, cks: &tfhe::integer::ClientKey) -> bool {
+            pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
                 use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
 
                 let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
@@ -118,7 +165,7 @@ mod hpu_test {
                                 hpu_asm::iop::VarMode::Bool => (1, 1),
                             };
 
-                            let clear = rand::thread_rng().gen_range(0..$user_type::MAX >> ($user_type::BITS - (bw as u32)));
+                            let clear = rng.gen_range(0..$user_type::MAX >> ($user_type::BITS - (bw as u32)));
                             let fhe = cks.encrypt_radix(clear, block);
                             let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
                             (clear, hpu_fhe)
@@ -126,7 +173,7 @@ mod hpu_test {
                         .unzip();
 
                     let imms = (0..proto.imm)
-                        .map(|pos| rand::thread_rng().gen_range(0..$user_type::MAX) as u128)
+                        .map(|pos| rng.gen_range(0..$user_type::MAX) as u128)
                         .collect::<Vec<_>>();
 
                     // execute on Hpu
@@ -445,32 +492,9 @@ mod hpu_test {
 
         // Retrieved HpuDevice or init ---------------------------------------------
         // Used hpu_device backed in static variable to automatically serialize tests
-        let (hpu_mutex, cks) = HPU_DEVICE_CKS.get_or_init(|| {
-            // Instantiate HpuDevice --------------------------------------------------
-            let hpu_device = {
-                let config_file = ShellString::new(
-                    "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
-                );
-                HpuDevice::from_config(&config_file.expand())
-            };
-
-            // Extract pbs_configuration from Hpu and create Client/Server Key
-            let cks = tfhe::integer::ClientKey::new(tfhe::shortint::ClassicPBSParameters::from(
-                hpu_device.params(),
-            ));
-            let sks_compressed =
-                tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
-
-            // Init Hpu device with server key and firmware
-            tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into())
-                .expect("Invalid key");
-            (std::sync::Mutex::new(hpu_device), cks)
-        });
-        let hpu_params = hpu_mutex
-            .lock()
-            .expect("Error with HpuDevice Mutex")
-            .params()
-            .clone();
+        let (hpu_rng_mutex, cks) = HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+        let hpu_rng_lock = hpu_rng_mutex.lock().expect("Error with HpuDevice Mutex");
+        let hpu_params = hpu_rng_lock.0.params().clone();
 
         // Generate Keys ---------------------------------------------------------
         let sks_compressed =
