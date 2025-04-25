@@ -11,8 +11,7 @@ pub struct HpuDevice {
     pub(crate) backend: backend::HpuBackendWrapped,
     pub(crate) ct_mem: memory::CiphertextMemory,
     pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
-    // TODO use reference to prevent costly clone
-    pub(crate) params: HpuParameters,
+    pub(crate) params: Arc<HpuParameters>,
     bg_poll: Arc<atomic::AtomicBool>,
     bg_handles: Option<(std::thread::JoinHandle<()>, std::thread::JoinHandle<()>)>,
 }
@@ -50,7 +49,7 @@ impl HpuDevice {
             backend,
             ct_mem,
             cmd_api,
-            params,
+            params: Arc::new(params),
             bg_poll: Arc::new(atomic::AtomicBool::new(false)),
             bg_handles: None,
         };
@@ -80,8 +79,8 @@ impl Drop for HpuDevice {
 
 /// Retrieved Hw parameters & configuration
 impl HpuDevice {
-    pub fn params(&self) -> HpuParameters {
-        self.backend.lock().unwrap().params.clone()
+    pub fn params(&self) -> &HpuParameters {
+        &self.params
     }
     pub fn config(&self) -> &HpuConfig {
         &self.config

@@ -20,7 +20,7 @@ impl HpuRadixCiphertext {
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
     pub fn from_radix_ciphertext(cpu_ct: &RadixCiphertext, device: &HpuDevice) -> Self {
-        let params = device.params();
+        let params = device.params().clone();
 
         let hpu_ct = cpu_ct
             .blocks
@@ -59,7 +59,7 @@ impl HpuRadixCiphertext {
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
     pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
-        let params = device.params();
+        let params = device.params().clone();
 
         let hpu_ct = vec![HpuLweCiphertextOwned::create_from(
             cpu_ct.0.ct.as_view(),
