@@ -5,7 +5,6 @@ on:
   pull_request:
 
 env:
-  ACTIONLINT_VERSION: 1.6.27
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 
@@ -22,16 +21,10 @@ jobs:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
 
-      - name: Get actionlint
-        run: |
-          bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) ${{ env.ACTIONLINT_VERSION }}
-          echo "f2ee6d561ce00fa93aab62a7791c1a0396ec7e8876b2a8f2057475816c550782  actionlint" > checksum
-          sha256sum -c checksum
-          ln -s "$(pwd)/actionlint" /usr/local/bin/
-
       - name: Lint workflows
-        run: |
-          make lint_workflow
+        uses: raven-actions/actionlint@01fce4f43a270a612932cb1c64d40505a029f821 # v2.0.0
+        with:
+          version: 1.7.7
 
       - name: Check workflows security
         run: |
