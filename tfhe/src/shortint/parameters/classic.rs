@@ -1,9 +1,9 @@
-use crate::core_crypto::prelude::MsDecompressionType;
+use crate::core_crypto::prelude::{LweCiphertextConformanceParams, MsDecompressionType};
 use crate::shortint::backward_compatibility::parameters::ClassicPBSParametersVersions;
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextConformanceParams, CiphertextModulus, DecompositionBaseLog,
-    DecompositionLevelCount, Degree, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
-    LweCiphertextConformanceParams, LweDimension, MaxNoiseLevel, MessageModulus,
+    AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
+    DecompositionBaseLog, DecompositionLevelCount, Degree, DynamicDistribution,
+    EncryptionKeyChoice, GlweDimension, LweDimension, MaxNoiseLevel, MessageModulus,
     ModulusSwitchNoiseReductionParams, NoiseLevel, PBSOrder, PolynomialSize,
 };
 
@@ -97,13 +97,16 @@ impl ClassicPBSParameters {
     }
 
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
-        let (pbs_order, expected_dim) = match self.encryption_key_choice {
+        let (atomic_pattern, expected_dim) = match self.encryption_key_choice {
             EncryptionKeyChoice::Big => (
-                PBSOrder::KeyswitchBootstrap,
+                AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
                 self.glwe_dimension
                     .to_equivalent_lwe_dimension(self.polynomial_size),
             ),
-            EncryptionKeyChoice::Small => (PBSOrder::BootstrapKeyswitch, self.lwe_dimension),
+            EncryptionKeyChoice::Small => (
+                AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch),
+                self.lwe_dimension,
+            ),
         };
 
         let message_modulus = self.message_modulus;
@@ -122,7 +125,7 @@ impl ClassicPBSParameters {
             },
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             degree,
             noise_level,
         }
