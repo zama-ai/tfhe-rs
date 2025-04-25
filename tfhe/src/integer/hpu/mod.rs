@@ -8,7 +8,7 @@ pub mod ciphertext;
 /// Utility function for HpuDevice initialisation
 /// Init from Compressed material
 pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate::Result<()> {
-    let params = device.params();
+    let params = device.params().clone();
     let tfhe_params = ClassicPBSParameters::from(&params);
 
     // Extract and convert bsk
