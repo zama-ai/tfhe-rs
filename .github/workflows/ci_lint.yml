@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  ACTIONLINT_VERSION: 1.6.27
+  ACTIONLINT_VERSION: 1.7.7
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 
@@ -25,7 +25,7 @@ jobs:
       - name: Get actionlint
         run: |
           bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) ${{ env.ACTIONLINT_VERSION }}
-          echo "f2ee6d561ce00fa93aab62a7791c1a0396ec7e8876b2a8f2057475816c550782  actionlint" > checksum
+          echo "9f7dedb4e23f89f2922073d1a6720405b7b520d4f5832ebb96f0d55a2958886c  actionlint" > checksum
           sha256sum -c checksum
           ln -s "$(pwd)/actionlint" /usr/local/bin/
 
