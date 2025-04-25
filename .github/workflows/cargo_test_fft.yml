@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
-        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+        runner_type: [ ubuntu-latest, macos-latest, windows-latest ]
       fail-fast: false
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -82,7 +82,7 @@ jobs:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
-        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+        runner_type: [ ubuntu-latest, macos-latest, windows-latest ]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
