@@ -113,7 +113,7 @@ impl CudaServerKey {
                 .first()
                 .unwrap()
                 .carry_modulus,
-            pbs_order: lhs
+            atomic_pattern: lhs
                 .first()
                 .unwrap()
                 .as_ref()
@@ -121,7 +121,7 @@ impl CudaServerKey {
                 .blocks
                 .first()
                 .unwrap()
-                .pbs_order,
+                .atomic_pattern,
             noise_level: NoiseLevel::ZERO,
         };
         let info = CudaRadixCiphertextInfo {

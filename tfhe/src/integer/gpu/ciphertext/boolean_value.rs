@@ -71,7 +71,7 @@ impl CudaBooleanBlock {
             degree: boolean_block.0.degree,
             message_modulus: boolean_block.0.message_modulus,
             carry_modulus: boolean_block.0.carry_modulus,
-            pbs_order: boolean_block.0.pbs_order,
+            atomic_pattern: boolean_block.0.atomic_pattern,
             noise_level: boolean_block.0.noise_level(),
         };
         let radix_info = vec![info; 1];
@@ -96,7 +96,7 @@ impl CudaBooleanBlock {
             degree: boolean_block.0.degree,
             message_modulus: boolean_block.0.message_modulus,
             carry_modulus: boolean_block.0.carry_modulus,
-            pbs_order: boolean_block.0.pbs_order,
+            atomic_pattern: boolean_block.0.atomic_pattern,
             noise_level: boolean_block.0.noise_level(),
         };
         let radix_info = vec![info; 1];
@@ -146,7 +146,7 @@ impl CudaBooleanBlock {
             self.0.ciphertext.info.blocks[0].noise_level,
             self.0.ciphertext.info.blocks[0].message_modulus,
             self.0.ciphertext.info.blocks[0].carry_modulus,
-            self.0.ciphertext.info.blocks[0].pbs_order,
+            self.0.ciphertext.info.blocks[0].atomic_pattern,
         );
 
         BooleanBlock::new_unchecked(block)
