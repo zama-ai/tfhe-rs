@@ -49,7 +49,7 @@ use crate::shortint::engine::{
     fill_many_lut_accumulator, ShortintEngine,
 };
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
+    AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
 };
 use crate::shortint::{EncryptionKeyChoice, PBSOrder, PaddingBit, ShortintEncoding};
 use aligned_vec::ABox;
@@ -612,7 +612,7 @@ impl ServerKey {
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
             degree: Degree::new(self.message_modulus.0 - 1),
-            pbs_order: self.pbs_order,
+            atomic_pattern: AtomicPatternKind::Standard(self.pbs_order),
             noise_level: NoiseLevel::NOMINAL,
         }
     }
@@ -1126,7 +1126,7 @@ impl ServerKey {
             lwe_size,
             self.message_modulus,
             self.carry_modulus,
-            self.pbs_order,
+            AtomicPatternKind::Standard(self.pbs_order),
             self.ciphertext_modulus,
         )
     }

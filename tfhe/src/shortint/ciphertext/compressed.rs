@@ -5,7 +5,7 @@ use super::standard::Ciphertext;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
 use crate::shortint::backward_compatibility::ciphertext::CompressedCiphertextVersions;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -19,7 +19,7 @@ pub struct CompressedCiphertext {
     pub degree: Degree,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
-    pub pbs_order: PBSOrder,
+    pub atomic_pattern: AtomicPatternKind,
     pub noise_level: NoiseLevel,
 }
 
@@ -32,14 +32,14 @@ impl ParameterSetConformant for CompressedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             noise_level,
         } = self;
 
         ct.is_conformant(&param.ct_params)
             && *message_modulus == param.message_modulus
             && *carry_modulus == param.carry_modulus
-            && *pbs_order == param.pbs_order
+            && *atomic_pattern == param.atomic_pattern
             && *degree == param.degree
             && *noise_level == param.noise_level
     }
@@ -52,7 +52,7 @@ impl CompressedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             noise_level,
         } = self;
 
@@ -62,7 +62,7 @@ impl CompressedCiphertext {
             *noise_level,
             *message_modulus,
             *carry_modulus,
-            *pbs_order,
+            *atomic_pattern,
         )
     }
 
@@ -74,7 +74,7 @@ impl CompressedCiphertext {
         Degree,
         MessageModulus,
         CarryModulus,
-        PBSOrder,
+        AtomicPatternKind,
         NoiseLevel,
     ) {
         let Self {
@@ -82,7 +82,7 @@ impl CompressedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             noise_level,
         } = self;
 
@@ -91,7 +91,7 @@ impl CompressedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             noise_level,
         )
     }
@@ -102,7 +102,7 @@ impl CompressedCiphertext {
         degree: Degree,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
-        pbs_order: PBSOrder,
+        atomic_pattern: AtomicPatternKind,
         noise_level: NoiseLevel,
     ) -> Self {
         Self {
@@ -110,7 +110,7 @@ impl CompressedCiphertext {
             degree,
             message_modulus,
             carry_modulus,
-            pbs_order,
+            atomic_pattern,
             noise_level,
         }
     }
