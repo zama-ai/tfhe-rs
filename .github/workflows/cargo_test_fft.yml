@@ -10,6 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -28,6 +29,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
 
       - name: Check for file changes
         id: changed-files
@@ -46,7 +48,7 @@ jobs:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
-        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+        runner_type: [ ubuntu-latest, macos-latest, windows-latest ]
       fail-fast: false
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -74,7 +76,7 @@ jobs:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
-        runner_type: [ubuntu-latest, macos-latest, windows-latest]
+        runner_type: [ ubuntu-latest, macos-latest, windows-latest ]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
