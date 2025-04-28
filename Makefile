@@ -55,6 +55,8 @@ REGEX_PATTERN?=''
 TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
+# Not a meaningful change. It's just to test 'approved' label handling.
+#blah
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
 --exclude-files apps/trivium/src/trivium/* \
