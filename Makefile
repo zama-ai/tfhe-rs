@@ -454,10 +454,15 @@ clippy_tfhe_lints: install_cargo_dylint # the toolchain is selected with toolcha
 	rustup toolchain install && \
 	cargo clippy --all-targets -- --no-deps -D warnings
 
+.PHONY: clippy_param_dedup # Run clippy lints on param_dedup tool
+clippy_param_dedup: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p param_dedup -- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable clippy_tfhe_lints clippy_ws_tests
+clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_param_dedup
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \

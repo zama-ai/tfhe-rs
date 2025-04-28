@@ -1,0 +1,14 @@
+[package]
+name = "param_dedup"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+syn = { version = "2.0.101", features = ["parsing", "full", "extra-traits"] }
+semver = "1.0.26"
+cargo_toml = "0.22"
+walkdir = "2.5.0"
+clap = { version = "=4.4.4", features = ["derive"] }
+prettyplease = "0.2.32"
+rayon = "1"
