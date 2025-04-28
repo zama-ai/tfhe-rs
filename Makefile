@@ -1293,6 +1293,18 @@ bench_hlapi_erc20_gpu: install_rs_check_toolchain
 	--bench hlapi-erc20 \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
 
+.PHONY: bench_hlapi_dex # Run benchmarks for ECR20 operations
+bench_hlapi_dex: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-dex \
+	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+
+.PHONY: bench_hlapi_dex_gpu # Run benchmarks for ECR20 operations on GPU
+bench_hlapi_dex_gpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-dex \
+	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p $(TFHE_SPEC) --
+
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \

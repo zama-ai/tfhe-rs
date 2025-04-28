@@ -655,6 +655,7 @@ mod cuda_utils {
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
     use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
+    use tfhe::{set_server_key, ClientKey, CompressedServerKey};
 
     #[allow(dead_code)]
     pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
@@ -879,6 +880,13 @@ mod cuda_utils {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn configure_gpu(client_key: &ClientKey) {
+        let compressed_sks = CompressedServerKey::new(client_key);
+        let sks = compressed_sks.decompress_to_gpu();
+        rayon::broadcast(|_| set_server_key(sks.clone()));
+        set_server_key(sks);
+    }
     #[allow(unused_imports)]
     #[cfg(feature = "integer")]
     pub use cuda_integer_utils::*;
