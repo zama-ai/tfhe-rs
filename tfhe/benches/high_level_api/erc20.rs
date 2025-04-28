@@ -1,6 +1,8 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
+#[cfg(feature = "gpu")]
+use crate::utilities::configure_gpu;
 use crate::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
@@ -18,7 +20,7 @@ use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBoo
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
 /// and cmuxes based on the comparison result
-fn transfer_whitepaper<FheType>(
+pub fn transfer_whitepaper<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -177,13 +179,6 @@ mod pbs_stats {
     }
 }
 
-#[cfg(feature = "gpu")]
-fn configure_gpu(client_key: &ClientKey) {
-    let compressed_sks = CompressedServerKey::new(client_key);
-    let sks = compressed_sks.decompress_to_gpu();
-    rayon::broadcast(|_| set_server_key(sks.clone()));
-    set_server_key(sks);
-}
 fn bench_transfer_latency<FheType, F>(
     c: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
@@ -383,7 +378,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::erc20::transfer";
+    let bench_name = "hlapi::erc20";
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -393,14 +388,14 @@ fn main() {
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
@@ -414,7 +409,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_latency(
@@ -422,7 +417,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "no_cmux",
+            "transfer::no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
@@ -430,7 +425,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
@@ -438,7 +433,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "safe",
+            "transfer::safe",
             transfer_safe::<FheUint64>,
         );
 
@@ -453,7 +448,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_throughput(
@@ -461,7 +456,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "no_cmux",
+            "transfer::no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_throughput(
@@ -469,7 +464,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         bench_transfer_throughput(
@@ -477,9 +472,10 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "safe",
+            "transfer::safe",
             transfer_safe::<FheUint64>,
         );
+
         group.finish();
     }
 
@@ -495,7 +491,7 @@ fn main() {
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
 
-    let bench_name = "hlapi::cuda::erc20::transfer";
+    let bench_name = "hlapi::cuda::erc20";
 
     // FheUint64 PBS counts
     // We don't run multiple times since every input is encrypted
@@ -505,14 +501,14 @@ fn main() {
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
@@ -526,7 +522,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_latency(
@@ -534,7 +530,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "no_cmux",
+            "transfer::no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
@@ -542,7 +538,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
@@ -550,7 +546,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "safe",
+            "transfer::safe",
             transfer_safe::<FheUint64>,
         );
 
@@ -565,7 +561,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "whitepaper",
+            "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
@@ -573,7 +569,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "no_cmux",
+            "transfer::no_cmux",
             transfer_no_cmux::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
@@ -581,7 +577,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "overflow",
+            "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
@@ -589,7 +585,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "safe",
+            "transfer::safe",
             transfer_safe::<FheUint64>,
         );
         group.finish();
