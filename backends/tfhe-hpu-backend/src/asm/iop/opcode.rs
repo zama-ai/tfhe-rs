@@ -55,3 +55,7 @@ pub const IF_THEN_ELSE: u8 = 0xCB;
 // ERC20 -> Found xfer algorithm
 // 2Ct <- func(3Ct)
 pub const ERC_20: u8 = 0x80;
+
+// Utility operations
+// Used to handle real clone of ciphertext already uploaded in the Hpu memory
+pub const MEMCPY: u8 = 0xFF;
