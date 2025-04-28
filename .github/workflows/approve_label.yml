@@ -34,3 +34,10 @@ jobs:
           # We need to use a PAT to be able to trigger `labeled` event for the other workflow.
           github_token: ${{ secrets.FHE_ACTIONS_TOKEN }}
           labels: approved
+
+      - name: Check if maintainer needs to handle label manually
+        if: ${{ failure() }}
+        run: |
+          echo "Pull-request from an external contributor."
+          echo "A maintainer need to manually add/remove the 'approved' label."
+          exit 1
