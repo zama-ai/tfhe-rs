@@ -484,3 +484,15 @@ impl<const N: usize> Numeric for StaticUnsignedBigInt<N> {
 impl<const N: usize> UnsignedNumeric for StaticUnsignedBigInt<N> {
     type NumericSignedType = super::static_signed::StaticSignedBigInt<N>;
 }
+
+impl<const N: usize> TryFrom<StaticUnsignedBigInt<N>> for u128 {
+    type Error = &'static str;
+
+    fn try_from(value: StaticUnsignedBigInt<N>) -> Result<Self, Self::Error> {
+        if N > 2 && value.0[2..].iter().any(|e| *e != 0) {
+            Err("Value is too big to be converted to u128")
+        } else {
+            Ok(Self::cast_from(value))
+        }
+    }
+}

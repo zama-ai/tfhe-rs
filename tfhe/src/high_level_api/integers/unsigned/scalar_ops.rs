@@ -1064,8 +1064,11 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let lhs = lhs.ciphertext.on_hpu(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                            RadixCiphertext::Hpu(&*lhs + rhs)
                         }
                     })
                 }
@@ -1097,8 +1100,11 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let lhs = lhs.ciphertext.on_hpu(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                            RadixCiphertext::Hpu(&*lhs - rhs)
                         }
                     })
                 }
@@ -1130,8 +1136,11 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                             let lhs = lhs.ciphertext.on_hpu(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                            RadixCiphertext::Hpu(&*lhs * rhs)
                         }
                     })
                 }
@@ -1443,8 +1452,11 @@ macro_rules! define_scalar_ops {
                                     .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                           *lhs += rhs;
                         }
                     })
                 }
@@ -1477,8 +1489,11 @@ macro_rules! define_scalar_ops {
                                     .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                            *lhs -= rhs;
                         }
                     })
                 }
@@ -1507,8 +1522,11 @@ macro_rules! define_scalar_ops {
                                     .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let lhs = lhs.ciphertext.as_hpu_mut(device);
+                            let rhs = u128::try_from(rhs).unwrap();
+
+                            *lhs *= rhs;
                         }
                     })
                 }
