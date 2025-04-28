@@ -20,8 +20,6 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && contains(fromJSON(env.LABELS), 'approved') }}
         uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
-          # We use a PAT to have the same user (zama-bot) for label deletion as for creation.
-          github_token: ${{ secrets.FHE_ACTIONS_TOKEN }}
           labels: approved
 
       # Add label only if the review is approved and if the label doesn't already exist
@@ -31,8 +29,6 @@ jobs:
           && github.event.review.state == 'approved'
           && !contains(fromJSON(env.LABELS), 'approved') }}
         with:
-          # We need to use a PAT to be able to trigger `labeled` event for the other workflow.
-          github_token: ${{ secrets.FHE_ACTIONS_TOKEN }}
           labels: approved
 
       - name: Check if maintainer needs to handle label manually
