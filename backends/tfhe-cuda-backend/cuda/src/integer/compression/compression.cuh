@@ -208,7 +208,6 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
   // Calculates how many bits this particular GLWE shall use
   auto number_bits_to_unpack = initial_out_len * log_modulus;
   auto nbits = sizeof(Torus) * 8;
-  auto input_len = (number_bits_to_unpack + nbits - 1) / nbits;
 
   // Calculates how many bits a full-packed GLWE shall use
   number_bits_to_unpack = glwe_ciphertext_size * log_modulus;
@@ -218,7 +217,6 @@ __host__ void host_extract(cudaStream_t stream, uint32_t gpu_index,
 
   // Ensure the tail of the GLWE is zeroed
   if (initial_out_len < glwe_ciphertext_size) {
-    auto zeroed_slice = glwe_array_out + initial_out_len;
     cuda_memset_async(glwe_array_out, 0,
                       (glwe_ciphertext_size - initial_out_len) * sizeof(Torus),
                       stream, gpu_index);

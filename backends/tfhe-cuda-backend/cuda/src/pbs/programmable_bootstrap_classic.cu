@@ -670,9 +670,10 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void const *lut_vector_indexes, void const *lwe_array_in,
     void const *lwe_input_indexes, void const *bootstrapping_key,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    int8_t *mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
-    uint32_t polynomial_size, uint32_t base_log, uint32_t level_count,
-    uint32_t num_samples, uint32_t num_many_lut, uint32_t lut_stride) {
+    void *ms_noise_reduction_ptr, int8_t *mem_ptr, uint32_t lwe_dimension,
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
+    uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
+    uint32_t lut_stride) {
   if (base_log > 64)
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
@@ -687,8 +688,8 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
           static_cast<cudaStream_t>(stream), gpu_index,
           buffer->temp_lwe_array_in,
           static_cast<uint64_t const *>(lwe_array_in),
-          static_cast<const uint64_t *>(ms_noise_reduction_key->ptr[gpu_index]),
-          lwe_dimension + 1, num_samples, ms_noise_reduction_key->num_zeros,
+          static_cast<uint64_t *>(ms_noise_reduction_ptr), lwe_dimension + 1,
+          num_samples, ms_noise_reduction_key->num_zeros,
           ms_noise_reduction_key->ms_input_variance,
           ms_noise_reduction_key->ms_r_sigma, ms_noise_reduction_key->ms_bound,
           log_modulus);
