@@ -42,7 +42,7 @@ pub mod shortint_utils {
     use std::vec::IntoIter;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     #[cfg(feature = "hpu")]
-    use tfhe::shortint::parameters::current_params::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
+    use tfhe::shortint::parameters::current_params::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
     #[cfg(not(any(feature = "gpu", feature = "hpu")))]
     use tfhe::shortint::parameters::current_params::V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
@@ -96,7 +96,7 @@ pub mod shortint_utils {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
                 #[cfg(feature = "hpu")]
-                let params = vec![V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64.into()];
+                let params = vec![V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into()];
                 #[cfg(not(feature = "hpu"))]
                 let params = vec![PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
 
