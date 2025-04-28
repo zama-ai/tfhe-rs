@@ -2,10 +2,9 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 pub use crate::core_crypto::commons::parameters::{
-    CiphertextModulus as CoreCiphertextModulus, CiphertextModulusLog, DecompositionBaseLog,
-    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
-    LweBskGroupingFactor, LweCiphertextCount, LweDimension, NoiseEstimationMeasureBound,
-    PolynomialSize, RSigmaFactor,
+    CiphertextModulusLog, DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution,
+    EncryptionKeyChoice, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension,
+    NoiseEstimationMeasureBound, PolynomialSize, RSigmaFactor,
 };
 use crate::core_crypto::prelude::{
     LweCiphertextConformanceParams, LweKeyswitchKeyConformanceParams, MsDecompressionType,
@@ -13,8 +12,9 @@ use crate::core_crypto::prelude::{
 use crate::shortint::backward_compatibility::parameters::KeySwitch32PBSParametersVersions;
 
 use super::{
-    AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus, Degree,
-    MaxNoiseLevel, MessageModulus, ModulusSwitchNoiseReductionParams, NoiseLevel,
+    AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
+    CiphertextModulus32, Degree, MaxNoiseLevel, MessageModulus, ModulusSwitchNoiseReductionParams,
+    NoiseLevel,
 };
 
 /// A set of cryptographic parameters used with the atomic pattern [`KeySwitch32`]
@@ -36,6 +36,7 @@ pub struct KeySwitch32PBSParameters {
     pub carry_modulus: CarryModulus,
     pub max_noise_level: MaxNoiseLevel,
     pub log2_p_fail: f64,
+    pub post_keyswitch_ciphertext_modulus: CiphertextModulus32,
     pub ciphertext_modulus: CiphertextModulus,
     pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
 }
@@ -50,8 +51,7 @@ impl From<&KeySwitch32PBSParameters> for LweKeyswitchKeyConformanceParams<u32> {
             input_lwe_dimension: value
                 .glwe_dimension()
                 .to_equivalent_lwe_dimension(value.polynomial_size()),
-            // For the moment we only handle the native u32 modulus for the KSK
-            ciphertext_modulus: CoreCiphertextModulus::new_native(),
+            ciphertext_modulus: value.post_keyswitch_ciphertext_modulus(),
         }
     }
 }
@@ -103,6 +103,10 @@ impl KeySwitch32PBSParameters {
 
     pub const fn max_noise_level(&self) -> MaxNoiseLevel {
         self.max_noise_level
+    }
+
+    pub const fn post_keyswitch_ciphertext_modulus(&self) -> CiphertextModulus32 {
+        self.post_keyswitch_ciphertext_modulus
     }
 
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {

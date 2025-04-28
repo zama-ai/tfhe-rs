@@ -109,7 +109,7 @@ impl ShortintEngine {
                     modulus_switch_noise_reduction_params,
                     in_key,
                     self,
-                    CoreCiphertextModulus::new_native(),
+                    pbs_params.post_keyswitch_ciphertext_modulus,
                     pbs_params.lwe_noise_distribution,
                 )
             });

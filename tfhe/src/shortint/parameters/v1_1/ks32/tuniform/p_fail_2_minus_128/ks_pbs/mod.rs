@@ -1,7 +1,7 @@
 use crate::core_crypto::prelude::DynamicDistribution;
 use crate::shortint::parameters::{
-    KeySwitch32PBSParameters, LweCiphertextCount, ModulusSwitchNoiseReductionParams,
-    NoiseEstimationMeasureBound, RSigmaFactor, Variance,
+    CiphertextModulus32, KeySwitch32PBSParameters, LweCiphertextCount,
+    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound, RSigmaFactor, Variance,
 };
 use crate::shortint::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
@@ -25,6 +25,7 @@ pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSPa
         carry_modulus: CarryModulus(4),
         max_noise_level: MaxNoiseLevel::new(5),
         log2_p_fail: -128., // TODO: precise value not provided with parameters
+        post_keyswitch_ciphertext_modulus: CiphertextModulus32::new_native(),
         ciphertext_modulus: CiphertextModulus::new_native(),
         modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
             modulus_switch_zeros_count: LweCiphertextCount(1449),
