@@ -896,11 +896,19 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 		-E "test(/high_level_api::.*gpu.*/)"
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
+ifeq ($(HPU_CONFIG), v80)
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+		--build-jobs=$(CARGO_BUILD_JOBS) \
+		--test-threads=1 \
+		--features=integer,internal-keycache,hpu,hpu-v80 -p $(TFHE_SPEC) \
+		-E "test(/high_level_api::.*hpu.*/)"
+else
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*hpu.*/)"
+endif
 
 
 .PHONY: test_strings # Run the tests for strings ci
