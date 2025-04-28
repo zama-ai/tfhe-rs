@@ -15,6 +15,8 @@ use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaUnsignedRa
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::Device;
 use serde::{Deserializer, Serializer};
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
 
 pub(crate) enum RadixCiphertext {
@@ -54,7 +56,23 @@ impl Clone for RadixCiphertext {
                 with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
             }
             #[cfg(feature = "hpu")]
-            Self::Hpu(_) => panic!("Hpu does not support this operation yet."),
+            Self::Hpu(inner) => {
+                // NB: Hpu backends flavor behavs differently regarding memory.
+                //  Some of them has duplicated memory on Host with sync mechanism.
+                //  But it's not the case for all.
+                // To prevent special cases, all the "deep" clone are made on HPU side
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_MEMCPY;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                let deep_clone = HpuRadixCiphertext::exec(proto, opcode, &[inner.clone()], &[])
+                    .pop()
+                    .expect("IOP_MEMCPY must return 1 operand");
+                Self::Hpu(deep_clone)
+            }
         }
     }
 }
