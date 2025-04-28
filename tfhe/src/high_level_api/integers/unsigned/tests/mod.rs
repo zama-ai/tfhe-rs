@@ -60,11 +60,136 @@ fn test_case_uint64_quickstart(cks: &ClientKey) {
     assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
 }
 
+fn test_case_clone(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
+
+    let c = &a + &b;
+
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    // We expect clones to be full clones and not some incremented ref-count
+    let mut cloned_a = a.clone();
+
+    let decrypted: u32 = cloned_a.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
+    let decrypted: u32 = b.decrypt(cks);
+    assert_eq!(decrypted, clear_b);
+
+    let c = &cloned_a + &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    cloned_a += &b;
+
+    let decrypted: u32 = cloned_a.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+    let decrypted: u32 = b.decrypt(cks);
+    assert_eq!(decrypted, clear_b);
+    let decrypted: u32 = a.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
+    let decrypted: u32 = b.decrypt(cks);
+    assert_eq!(decrypted, clear_b);
+}
+
 fn test_case_uint8_trivial(client_key: &ClientKey) {
     let a = FheUint8::try_encrypt_trivial(234u8).unwrap();
 
     let clear: u8 = a.decrypt(client_key);
     assert_eq!(clear, 234);
+}
+
+fn test_case_uint32_arith(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
+
+    let c = &a + &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    let c = &a - &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_sub(clear_b));
+
+    let c = &a * &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_mul(clear_b));
+}
+
+fn test_case_uint32_arith_assign(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let mut clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
+
+    a += &b;
+    clear_a = clear_a.wrapping_add(clear_b);
+    let decrypted: u32 = a.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
+
+    a -= &b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a = clear_a.wrapping_sub(clear_b);
+    assert_eq!(decrypted, clear_a);
+
+    a *= &b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a = clear_a.wrapping_mul(clear_b);
+    assert_eq!(decrypted, clear_a);
+}
+
+fn test_case_uint32_scalar_arith(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+    let c = &a + clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_add(clear_b));
+
+    let c = &a - clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_sub(clear_b));
+
+    let c = &a * clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a.wrapping_mul(clear_b));
+}
+
+fn test_case_uint32_scalar_arith_assign(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let mut clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
+
+    let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+
+    a += clear_b;
+    clear_a = clear_a.wrapping_add(clear_b);
+    let decrypted: u32 = a.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
+
+    a -= clear_b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a = clear_a.wrapping_sub(clear_b);
+    assert_eq!(decrypted, clear_a);
+
+    a *= clear_b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a = clear_a.wrapping_mul(clear_b);
+    assert_eq!(decrypted, clear_a);
 }
 
 fn test_case_uint256_trivial(client_key: &ClientKey) {
@@ -232,65 +357,72 @@ fn test_case_uint32_bitwise(cks: &ClientKey) {
     let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
 
-    // encrypted bitwise
-    {
-        let c = &a | &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a | clear_b);
+    let c = &a | &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a | clear_b);
 
-        let c = &a & &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a & clear_b);
+    let c = &a & &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a & clear_b);
 
-        let c = &a ^ &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a ^ clear_b);
+    let c = &a ^ &b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a ^ clear_b);
+}
 
-        let mut c = a.clone();
-        c |= &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a | clear_b);
+fn test_case_uint32_bitwise_assign(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let mut clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
 
-        let mut c = a.clone();
-        c &= &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a & clear_b);
+    let mut a = FheUint32::try_encrypt(clear_a, cks).unwrap();
+    let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
 
-        let mut c = a.clone();
-        c ^= &b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a ^ clear_b);
-    }
+    a &= &b;
+    clear_a &= clear_b;
+    let decrypted: u32 = a.decrypt(cks);
+    assert_eq!(decrypted, clear_a);
 
-    // clear bitwise
-    {
-        let c = &a | b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a | clear_b);
+    a |= &b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a |= clear_b;
+    assert_eq!(decrypted, clear_a);
 
-        let c = &a & clear_b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a & clear_b);
+    a ^= &b;
+    let decrypted: u32 = a.decrypt(cks);
+    clear_a ^= clear_b;
+    assert_eq!(decrypted, clear_a);
+}
 
-        let c = &a ^ clear_b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a ^ clear_b);
+fn test_case_uint32_scalar_bitwise(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen::<u32>();
+    let clear_b = rng.gen::<u32>();
 
-        let mut c = a.clone();
-        c |= clear_b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a | clear_b);
+    let a = FheUint32::try_encrypt(clear_a, cks).unwrap();
 
-        let mut c = a.clone();
-        c &= clear_b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a & clear_b);
+    let c = &a & clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a & clear_b);
 
-        let mut c = a;
-        c ^= clear_b;
-        let decrypted: u32 = c.decrypt(cks);
-        assert_eq!(decrypted, clear_a ^ clear_b);
-    }
+    let c = &a ^ clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a ^ clear_b);
+
+    let mut c = a.clone();
+    c |= clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a | clear_b);
+
+    let mut c = a.clone();
+    c &= clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a & clear_b);
+
+    let mut c = a;
+    c ^= clear_b;
+    let decrypted: u32 = c.decrypt(cks);
+    assert_eq!(decrypted, clear_a ^ clear_b);
 }
 
 fn test_case_uint32_rotate(cks: &ClientKey) {

@@ -242,15 +242,18 @@ impl RadixCiphertext {
         cuda_ct
     }
 
-    // TODO as_xx_mut should also have a device as input, same for GPU
-    // maybe that would require to make move_to_device generic on some device spec
     #[cfg(feature = "hpu")]
-    pub(crate) fn as_hpu_mut(&mut self) -> &mut HpuRadixCiphertext {
+    pub(crate) fn as_hpu_mut(&mut self, device: &HpuTaggedDevice) -> &mut HpuRadixCiphertext {
         if let Self::Hpu(radix_ct) = self {
             radix_ct
         } else {
-            self.move_to_device(Device::Hpu);
-            self.as_hpu_mut()
+            let cpu_ct = self.on_cpu();
+            let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device);
+            *self = Self::Hpu(hpu_ct);
+            let Self::Hpu(hpu_ct) = self else {
+                unreachable!()
+            };
+            hpu_ct
         }
     }
 
@@ -276,6 +279,16 @@ impl RadixCiphertext {
             _ => self.into_cpu(),
         };
         CudaUnsignedRadixCiphertext::from_radix_ciphertext(&cpu_radix, streams)
+    }
+
+    #[cfg(feature = "hpu")]
+    pub(crate) fn into_hpu(self, device: &HpuTaggedDevice) -> HpuRadixCiphertext {
+        if let Self::Hpu(radix_ct) = self {
+            radix_ct
+        } else {
+            let cpu_ct = self.on_cpu();
+            HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device)
+        }
     }
 
     #[allow(clippy::needless_pass_by_ref_mut)]

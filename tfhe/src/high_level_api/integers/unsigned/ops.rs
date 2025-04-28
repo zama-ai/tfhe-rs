@@ -18,15 +18,14 @@ use crate::high_level_api::traits::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::{FheBool, FheUint};
 use std::borrow::Borrow;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
-
-#[cfg(feature = "hpu")]
-use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
 
@@ -100,8 +99,13 @@ where
                 Self::new(inner, cuda_key.tag.clone())
             }),
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let mut iter = iter;
+                let mut result = iter.next().unwrap().ciphertext.into_hpu(device);
+                for o in iter {
+                    result += o.ciphertext.into_hpu(device);
+                }
+                Self::new(result, device.tag.clone())
             }
         })
     }
@@ -197,8 +201,19 @@ where
                 })
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let mut iter = iter;
+                let first = iter.next().unwrap().ciphertext.on_hpu(device);
+
+                let Some(second) = iter.next() else {
+                    return Self::new(first.clone(), device.tag.clone());
+                };
+
+                let mut result = &*first + &*second.ciphertext.on_hpu(device);
+                for o in iter {
+                    result += &*o.ciphertext.on_hpu(device);
+                }
+                Self::new(result, device.tag.clone())
             }
         })
     }
@@ -1548,7 +1563,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs += &*hpu_rhs;
             }
@@ -1599,7 +1614,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs -= &*hpu_rhs;
             }
@@ -1650,7 +1665,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs *= &*hpu_rhs;
             }
@@ -1699,7 +1714,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs &= &*hpu_rhs;
             }
@@ -1748,7 +1763,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs |= &*hpu_rhs;
             }
@@ -1797,7 +1812,7 @@ where
             }),
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
-                let hpu_lhs = self.ciphertext.as_hpu_mut();
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
                 let hpu_rhs = rhs.ciphertext.on_hpu(device);
                 *hpu_lhs ^= &*hpu_rhs;
             }

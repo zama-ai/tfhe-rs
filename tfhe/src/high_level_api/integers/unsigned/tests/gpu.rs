@@ -92,6 +92,18 @@ fn test_uint32_bitwise_gpu_multibit() {
 }
 
 #[test]
+fn test_uint32_scalar_bitwise_gpu() {
+    let client_key = setup_default_gpu();
+    super::test_case_uint32_scalar_bitwise(&client_key);
+}
+
+#[test]
+fn test_uint32_scalar_bitwise_gpu_multibit() {
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    super::test_case_uint32_scalar_bitwise(&client_key);
+}
+
+#[test]
 fn test_if_then_else_gpu() {
     let client_key = setup_default_gpu();
     super::test_case_if_then_else(&client_key);
