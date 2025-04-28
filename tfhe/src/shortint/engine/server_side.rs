@@ -7,6 +7,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::{CastInto, Container, UnsignedInteger};
 use crate::core_crypto::entities::*;
+use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
@@ -338,30 +339,79 @@ impl ShortintEngine {
         cks: &ClientKey,
         max_degree: MaxDegree,
     ) -> CompressedServerKey {
-        let params = &cks.parameters;
+        let compressed_ap_server_key = CompressedAtomicPatternServerKey::new(cks, self);
 
-        let bootstrapping_key = match params.pbs_parameters().unwrap() {
+        let params = cks.parameters;
+        let message_modulus = params.message_modulus();
+        let carry_modulus = params.carry_modulus();
+        let max_noise_level = params.max_noise_level();
+
+        // Pack the keys in the server key set:
+        CompressedServerKey {
+            compressed_ap_server_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+        }
+    }
+
+    pub fn new_compressed_bootstrapping_key_ks32<
+        InKeycont: Container<Element = u32> + Sync,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        pbs_params: KeySwitch32PBSParameters,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+    ) -> ShortintCompressedBootstrappingKey<u32> {
+        let bsk = self.new_compressed_classic_bootstrapping_key(
+            in_key,
+            out_key,
+            pbs_params.glwe_noise_distribution,
+            pbs_params.pbs_base_log,
+            pbs_params.pbs_level,
+            pbs_params.ciphertext_modulus,
+        );
+        let modulus_switch_noise_reduction_key = pbs_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                let seed = self.seeder.seed();
+
+                CompressedModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    in_key,
+                    self,
+                    pbs_params.post_keyswitch_ciphertext_modulus,
+                    pbs_params.lwe_noise_distribution,
+                    CompressionSeed { seed },
+                )
+            });
+
+        ShortintCompressedBootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
+        }
+    }
+
+    pub fn new_compressed_bootstrapping_key<
+        InKeycont: Container<Element = u64> + Sync,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        pbs_params_base: PBSParameters,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+    ) -> ShortintCompressedBootstrappingKey<u64> {
+        match pbs_params_base {
             crate::shortint::PBSParameters::PBS(pbs_params) => {
-                #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
-                let bootstrapping_key = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                    &cks.small_lwe_secret_key(),
-                    &cks.glwe_secret_key,
+                let bootstrapping_key = self.new_compressed_classic_bootstrapping_key(
+                    in_key,
+                    out_key,
+                    pbs_params.glwe_noise_distribution,
                     pbs_params.pbs_base_log,
                     pbs_params.pbs_level,
-                    pbs_params.glwe_noise_distribution,
                     pbs_params.ciphertext_modulus,
-                    &mut self.seeder,
-                );
-
-                #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-                let bootstrapping_key = allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                    &cks.small_lwe_secret_key(),
-                    &cks.glwe_secret_key,
-                    pbs_params.pbs_base_log,
-                    pbs_params.pbs_level,
-                    pbs_params.glwe_noise_distribution,
-                    pbs_params.ciphertext_modulus,
-                    &mut self.seeder,
                 );
 
                 let modulus_switch_noise_reduction_key = pbs_params
@@ -371,7 +421,7 @@ impl ShortintEngine {
 
                         CompressedModulusSwitchNoiseReductionKey::new(
                             modulus_switch_noise_reduction_params,
-                            &cks.small_lwe_secret_key(),
+                            in_key,
                             self,
                             pbs_params.ciphertext_modulus,
                             pbs_params.lwe_noise_distribution,
@@ -385,60 +435,74 @@ impl ShortintEngine {
                 }
             }
             crate::shortint::PBSParameters::MultiBitPBS(pbs_params) => {
-                #[cfg(any(not(feature = "__wasm_api"), feature = "parallel-wasm-api"))]
                 let bootstrapping_key =
-                    par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key(),
-                        &cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.grouping_factor,
-                        pbs_params.ciphertext_modulus,
-                        &mut self.seeder,
-                    );
-
-                #[cfg(all(feature = "__wasm_api", not(feature = "parallel-wasm-api")))]
-                let bootstrapping_key =
-                    allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
-                        &cks.small_lwe_secret_key(),
-                        &cks.glwe_secret_key,
-                        pbs_params.pbs_base_log,
-                        pbs_params.pbs_level,
-                        pbs_params.glwe_noise_distribution,
-                        pbs_params.grouping_factor,
-                        pbs_params.ciphertext_modulus,
-                        &mut self.seeder,
-                    );
+                    if cfg!(feature = "__wasm_api") && !cfg!(feature = "parallel-wasm-api") {
+                        // WASM and no parallelism -> sequential generation
+                        allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                            in_key,
+                            out_key,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.grouping_factor,
+                            pbs_params.ciphertext_modulus,
+                            &mut self.seeder,
+                        )
+                    } else {
+                        par_allocate_and_generate_new_seeded_lwe_multi_bit_bootstrap_key(
+                            in_key,
+                            out_key,
+                            pbs_params.pbs_base_log,
+                            pbs_params.pbs_level,
+                            pbs_params.glwe_noise_distribution,
+                            pbs_params.grouping_factor,
+                            pbs_params.ciphertext_modulus,
+                            &mut self.seeder,
+                        )
+                    };
 
                 ShortintCompressedBootstrappingKey::MultiBit {
                     seeded_bsk: bootstrapping_key,
                     deterministic_execution: pbs_params.deterministic_execution,
                 }
             }
-        };
+        }
+    }
 
-        // Creation of the key switching key
-        let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
-            &cks.large_lwe_secret_key(),
-            &cks.small_lwe_secret_key(),
-            params.ks_base_log(),
-            params.ks_level(),
-            params.lwe_noise_distribution(),
-            params.ciphertext_modulus(),
-            &mut self.seeder,
-        );
-
-        // Pack the keys in the server key set:
-        CompressedServerKey {
-            key_switching_key,
-            bootstrapping_key,
-            message_modulus: params.message_modulus(),
-            carry_modulus: params.carry_modulus(),
-            max_degree,
-            max_noise_level: params.max_noise_level(),
-            ciphertext_modulus: params.ciphertext_modulus(),
-            pbs_order: params.encryption_key_choice().into(),
+    pub fn new_compressed_classic_bootstrapping_key<
+        InputScalar: UnsignedInteger + CastInto<u64>,
+        InKeycont: Container<Element = InputScalar>,
+        OutKeyCont: Container<Element = u64> + Sync,
+    >(
+        &mut self,
+        in_key: &LweSecretKey<InKeycont>,
+        out_key: &GlweSecretKey<OutKeyCont>,
+        glwe_noise_distribution: DynamicDistribution<u64>,
+        pbs_base_log: DecompositionBaseLog,
+        pbs_level: DecompositionLevelCount,
+        ciphertext_modulus: CiphertextModulus,
+    ) -> SeededLweBootstrapKeyOwned<u64> {
+        if cfg!(feature = "__wasm_api") && !cfg!(feature = "parallel-wasm-api") {
+            // WASM and no parallelism -> sequential generation
+            allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                in_key,
+                out_key,
+                pbs_base_log,
+                pbs_level,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut self.seeder,
+            )
+        } else {
+            par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
+                in_key,
+                out_key,
+                pbs_base_log,
+                pbs_level,
+                glwe_noise_distribution,
+                ciphertext_modulus,
+                &mut self.seeder,
+            )
         }
     }
 }

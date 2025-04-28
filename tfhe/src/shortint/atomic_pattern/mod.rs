@@ -4,6 +4,7 @@
 //! For example, in TFHE the standard atomic pattern is the chain of n linear operations, a
 //! Keyswitch and a PBS.
 
+pub mod compressed;
 pub mod ks32;
 pub mod standard;
 
