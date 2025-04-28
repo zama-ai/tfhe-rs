@@ -66,6 +66,10 @@ impl ServerKey {
         random_bits_count: u64,
     ) -> Ciphertext {
         assert!(
+            random_bits_count < 64,
+            "random_bits_count >= 64 is not supported",
+        );
+        assert!(
             1 << random_bits_count <= self.message_modulus.0,
             "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [0, {}[",
             random_bits_count, self.message_modulus.0
