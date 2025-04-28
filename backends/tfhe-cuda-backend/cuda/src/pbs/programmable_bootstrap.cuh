@@ -137,7 +137,6 @@ void execute_pbs_async(
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
-      break;
     }
     break;
   case sizeof(uint64_t):
@@ -194,11 +193,14 @@ void execute_pbs_async(
         auto d_lut_vector_indexes =
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
+        void *zeros = nullptr;
+        if (ms_noise_reduction_key != nullptr)
+          zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], current_lwe_array_out,
             current_lwe_output_indexes, lut_vec[i], d_lut_vector_indexes,
             current_lwe_array_in, current_lwe_input_indexes,
-            bootstrapping_keys[i], ms_noise_reduction_key, pbs_buffer[i],
+            bootstrapping_keys[i], ms_noise_reduction_key, zeros, pbs_buffer[i],
             lwe_dimension, glwe_dimension, polynomial_size, base_log,
             level_count, num_inputs_on_gpu, num_many_lut, lut_stride);
       }

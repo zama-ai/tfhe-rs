@@ -129,6 +129,9 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
 
     let ms_noise_reduction_key_ffi =
         prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let ms_noise_reduction_ptr = noise_reduction_key.map_or(std::ptr::null_mut(), |ms_key| {
+        ms_key.modulus_switch_zeros.ptr[0]
+    });
 
     let allocate_ms_noise_array = noise_reduction_key.is_some();
     scratch_cuda_programmable_bootstrap_64(
@@ -155,6 +158,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         lwe_in_indexes.as_c_ptr(0),
         bootstrapping_key.as_c_ptr(0),
         &ms_noise_reduction_key_ffi,
+        ms_noise_reduction_ptr,
         pbs_buffer,
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
@@ -198,6 +202,9 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
     let ms_noise_reduction_key_ffi =
         prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let ms_noise_reduction_ptr = noise_reduction_key.map_or(std::ptr::null_mut(), |ms_key| {
+        ms_key.modulus_switch_zeros.ptr[0]
+    });
     let allocate_ms_noise_array = noise_reduction_key.is_some();
     scratch_cuda_programmable_bootstrap_128(
         streams.ptr[0],
@@ -220,6 +227,7 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
         lwe_array_in.as_c_ptr(0),
         bootstrapping_key.as_c_ptr(0),
         &ms_noise_reduction_key_ffi,
+        ms_noise_reduction_ptr,
         pbs_buffer,
         lwe_dimension.0 as u32,
         glwe_dimension.0 as u32,
