@@ -11,8 +11,7 @@ use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::parameters::{
-    CoreCiphertextModulus, EncryptionKeyChoice, KeySwitch32PBSParameters,
-    ShortintKeySwitchingParameters,
+    EncryptionKeyChoice, KeySwitch32PBSParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::server_key::{
     CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
@@ -109,7 +108,7 @@ impl ShortintEngine {
                     modulus_switch_noise_reduction_params,
                     in_key,
                     self,
-                    CoreCiphertextModulus::new_native(),
+                    pbs_params.post_keyswitch_ciphertext_modulus,
                     pbs_params.lwe_noise_distribution,
                 )
             });

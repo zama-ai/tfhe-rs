@@ -81,7 +81,7 @@ impl KS32AtomicPatternServerKey {
             params.ks_base_log(),
             params.ks_level(),
             pbs_params.lwe_noise_distribution(),
-            CoreCiphertextModulus::new_native(), // Does it make sense to parametrize this ?
+            pbs_params.post_keyswitch_ciphertext_modulus(),
             &mut engine.encryption_generator,
         );
 
