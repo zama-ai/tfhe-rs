@@ -120,6 +120,11 @@ impl std::str::FromStr for IOpProto {
 }
 
 // Define some common iop format
+pub const IOP_CT_F_CT: ConstIOpProto<1, 1> = ConstIOpProto {
+    dst: [VarMode::Native; 1],
+    src: [VarMode::Native; 1],
+    imm: 0,
+};
 pub const IOP_CT_F_2CT: ConstIOpProto<1, 2> = ConstIOpProto {
     dst: [VarMode::Native; 1],
     src: [VarMode::Native; 2],
@@ -135,19 +140,16 @@ pub const IOP_CT_F_CT_BOOL: ConstIOpProto<1, 2> = ConstIOpProto {
     src: [VarMode::Native, VarMode::Bool],
     imm: 0,
 };
-
 pub const IOP_CT_F_CT_SCALAR: ConstIOpProto<1, 1> = ConstIOpProto {
     dst: [VarMode::Native; 1],
     src: [VarMode::Native; 1],
     imm: 1,
 };
-
 pub const IOP_CMP: ConstIOpProto<1, 2> = ConstIOpProto {
     dst: [VarMode::Bool; 1],
     src: [VarMode::Native; 2],
     imm: 0,
 };
-
 pub const IOP_2CT_F_3CT: ConstIOpProto<2, 3> = ConstIOpProto {
     dst: [VarMode::Native; 2],
     src: [VarMode::Native; 3],
@@ -178,4 +180,5 @@ iop!(
     [IOP_CT_F_CT_BOOL -> "IF_THEN_ZERO", opcode::IF_THEN_ZERO],
     [IOP_CT_F_2CT_BOOL -> "IF_THEN_ELSE", opcode::IF_THEN_ELSE],
     [IOP_2CT_F_3CT -> "ERC_20", opcode::ERC_20],
+    [IOP_CT_F_CT -> "MEMCPY", opcode::MEMCPY],
 );

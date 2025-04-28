@@ -41,6 +41,7 @@ crate::impl_fw!("Llt" [
     IF_THEN_ELSE => fw_impl::ilp::iop_if_then_else;
 
     ERC_20 => fw_impl::llt::iop_erc_20;
+    MEMCPY => fw_impl::ilp::iop_memcpy;
 ]);
 
 // ----------------------------------------------------------------------------
