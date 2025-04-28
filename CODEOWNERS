@@ -3,3 +3,10 @@
 # See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#example-of-a-codeowners-file
 /tfhe/src/core_crypto/                  @IceTDrinker
 /tfhe/src/core_crypto/gpu
+
+/tfhe/src/shortint/                     @mayeul-zama
+
+/tfhe/src/integer/                      @tmontaigu
+/tfhe/src/integer/gpu
+
+/tfhe/src/high_level_api/               @tmontaigu
