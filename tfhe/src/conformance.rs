@@ -60,8 +60,12 @@ impl ListSizeConstraint {
     }
 
     pub fn is_valid(&self, size: usize) -> bool {
-        size % self.group_size == 0
-            && size >= self.min_inclusive_group_count * self.group_size
-            && size <= self.max_inclusive_group_count * self.group_size
+        if self.group_size == 0 {
+            size == 0
+        } else {
+            size % self.group_size == 0
+                && size >= self.min_inclusive_group_count * self.group_size
+                && size <= self.max_inclusive_group_count * self.group_size
+        }
     }
 }
