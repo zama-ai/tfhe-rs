@@ -40,6 +40,7 @@ crate::impl_fw!("Ilp" [
 
     ERC_20 => fw_impl::ilp::iop_erc_20;
 
+    MEMCPY => fw_impl::ilp::iop_memcpy;
 ]);
 
 #[instrument(level = "info", skip(prog))]
@@ -846,4 +847,21 @@ pub fn iop_erc_20(prog: &mut Program) {
         dst_to[blk] <<= add_msg;
         dst_from[blk] <<= sub_msg;
     });
+}
+
+/// Implement memcpy operation
+/// Utilities IOp used to duplicate a ciphertext when already uploaded on HPU
+/// Use to enforce clone semantic at the HL-Api level
+#[instrument(level = "info", skip(prog))]
+pub fn iop_memcpy(prog: &mut Program) {
+    // Allocate metavariables:
+    let dst = prog.iop_template_var(OperandKind::Dst, 0);
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+
+    // NB: Move from memory -> memory isn't supported by HPU
+    // Thus we have to go through register file and LD->RegFile->ST
+    for (mut d, s) in itertools::izip!(dst, src) {
+        s.reg_alloc_mv();
+        d <<= s;
+    }
 }
