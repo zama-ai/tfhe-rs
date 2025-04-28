@@ -153,10 +153,8 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
-                self.intermediate_lwe_dimension(),
-                CiphertextModulus::new_native(),
-            );
+            let (mut ciphertext_buffer, buffers) =
+                engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
@@ -349,10 +347,8 @@ impl StandardAtomicPatternServerKey {
         let mut acc = lut.acc.clone();
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
-                self.intermediate_lwe_dimension(),
-                CiphertextModulus::new_native(),
-            );
+            let (mut ciphertext_buffer, buffers) =
+                engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             // Compute a key switch
             keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ciphertext_buffer);
