@@ -383,7 +383,8 @@ where
 /// assert!(!ksk.as_ref().iter().all(|&x| x == 0));
 /// ```
 pub fn generate_seeded_lwe_keyswitch_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -396,11 +397,12 @@ pub fn generate_seeded_lwe_keyswitch_key<
     noise_distribution: NoiseDistribution,
     noise_seeder: &mut NoiseSeeder,
 ) where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
-    KSKeyCont: ContainerMut<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    KSKeyCont: ContainerMut<Element = OutputScalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
@@ -418,6 +420,13 @@ pub fn generate_seeded_lwe_keyswitch_key<
         lwe_keyswitch_key.output_key_lwe_dimension(),
         input_lwe_sk.lwe_dimension()
     );
+    assert!(
+        lwe_keyswitch_key.decomposition_base_log().0
+            * lwe_keyswitch_key.decomposition_level_count().0
+            <= OutputScalar::BITS,
+        "This operation only supports a DecompositionBaseLog and DecompositionLevelCount product \
+        smaller than the OutputScalar bit count."
+    );
 
     let decomp_base_log = lwe_keyswitch_key.decomposition_base_log();
     let decomp_level_count = lwe_keyswitch_key.decomposition_level_count();
@@ -426,7 +435,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
 
     // The plaintexts used to encrypt a key element will be stored in this buffer
     let mut decomposition_plaintexts_buffer =
-        PlaintextListOwned::new(Scalar::ZERO, PlaintextCount(decomp_level_count.0));
+        PlaintextListOwned::new(OutputScalar::ZERO, PlaintextCount(decomp_level_count.0));
 
     let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
         lwe_keyswitch_key.compression_seed().seed,
@@ -448,9 +457,13 @@ pub fn generate_seeded_lwe_keyswitch_key<
             // Here  we take the decomposition term from the native torus, bring it to the torus we
             // are working with by dividing by the scaling factor and the encryption will take care
             // of mapping that back to the native torus
-            *message.0 = DecompositionTerm::new(level, decomp_base_log, *input_key_element)
-                .to_recomposition_summand()
-                .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
+            *message.0 = DecompositionTerm::new(
+                level,
+                decomp_base_log,
+                CastInto::<OutputScalar>::cast_into(*input_key_element),
+            )
+            .to_recomposition_summand()
+            .wrapping_div(ciphertext_modulus.get_power_of_two_scaling_to_native_torus());
         }
 
         encrypt_seeded_lwe_ciphertext_list_with_pre_seeded_generator(
@@ -467,7 +480,8 @@ pub fn generate_seeded_lwe_keyswitch_key<
 /// keyswitching key constructed from an input and an output key
 /// [`LWE secret key`](`LweSecretKey`).
 pub fn allocate_and_generate_new_seeded_lwe_keyswitch_key<
-    Scalar,
+    InputScalar,
+    OutputScalar,
     NoiseDistribution,
     InputKeyCont,
     OutputKeyCont,
@@ -478,19 +492,20 @@ pub fn allocate_and_generate_new_seeded_lwe_keyswitch_key<
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: NoiseDistribution,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
+    ciphertext_modulus: CiphertextModulus<OutputScalar>,
     noise_seeder: &mut NoiseSeeder,
-) -> SeededLweKeyswitchKeyOwned<Scalar>
+) -> SeededLweKeyswitchKeyOwned<OutputScalar>
 where
-    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
     NoiseDistribution: Distribution,
-    InputKeyCont: Container<Element = Scalar>,
-    OutputKeyCont: Container<Element = Scalar>,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
     let mut new_lwe_keyswitch_key = SeededLweKeyswitchKeyOwned::new(
-        Scalar::ZERO,
+        OutputScalar::ZERO,
         decomp_base_log,
         decomp_level_count,
         input_lwe_sk.lwe_dimension(),

@@ -20,9 +20,7 @@ use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
     LookupTableSize, ManyLookupTableOwned, PBSConformanceParams, ShortintBootstrappingKey,
 };
-use crate::shortint::{
-    Ciphertext, CiphertextModulus, ClientKey, EncryptionKeyChoice, PBSOrder, PBSParameters,
-};
+use crate::shortint::{Ciphertext, CiphertextModulus, ClientKey, PBSOrder, PBSParameters};
 
 /// The definition of the server key elements used in the [`Standard`] atomic pattern
 ///
@@ -53,11 +51,8 @@ impl ParameterSetConformant for StandardAtomicPatternServerKey {
 
         let ks_key_ok = key_switching_key.is_conformant(&param);
 
-        let pbs_order_ok = matches!(
-            (*pbs_order, parameter_set.encryption_key_choice()),
-            (PBSOrder::KeyswitchBootstrap, EncryptionKeyChoice::Big)
-                | (PBSOrder::BootstrapKeyswitch, EncryptionKeyChoice::Small)
-        );
+        let params_pbs_order: PBSOrder = parameter_set.encryption_key_choice().into();
+        let pbs_order_ok = *pbs_order == params_pbs_order;
 
         pbs_key_ok && ks_key_ok && pbs_order_ok
     }

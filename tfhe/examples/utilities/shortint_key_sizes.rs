@@ -6,6 +6,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::current_params::*;
 use tfhe::shortint::parameters::*;
@@ -101,9 +102,7 @@ fn client_server_key_sizes(results_file: &Path) {
         );
 
         let sks_compressed = CompressedServerKey::new(cks);
-        let bsk_compressed_size = sks_compressed
-            .bootstrapping_key
-            .bootstrapping_key_size_bytes();
+        let bsk_compressed_size = sks_compressed.bootstrapping_key_size_bytes();
         let test_name = format!("shortint_key_sizes_{}_bsk_compressed", params.name());
 
         write_result(&mut file, &test_name, bsk_compressed_size);
@@ -119,9 +118,7 @@ fn client_server_key_sizes(results_file: &Path) {
 
         println!(
             "Element in BSK compressed: {}, size in bytes: {}",
-            sks_compressed
-                .bootstrapping_key
-                .bootstrapping_key_size_elements(),
+            sks_compressed.bootstrapping_key_size_elements(),
             bsk_compressed_size,
         );
 
@@ -173,6 +170,15 @@ fn tuniform_key_set_sizes(results_file: &Path) {
     let compressed_sks = CompressedServerKey::new(&cks);
     let sks = StandardServerKey::try_from(compressed_sks.decompress()).unwrap();
 
+    let std_compressed_ap_key = match &compressed_sks.compressed_ap_server_key {
+        CompressedAtomicPatternServerKey::Standard(
+            compressed_standard_atomic_pattern_server_key,
+        ) => compressed_standard_atomic_pattern_server_key,
+        CompressedAtomicPatternServerKey::KeySwitch32(_) => {
+            panic!("KS32 is unsupported to measure key sizes at the moment")
+        }
+    };
+
     measure_serialized_size(
         &sks.atomic_pattern.key_switching_key,
         <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
@@ -182,7 +188,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
         &mut file,
     );
     measure_serialized_size(
-        &compressed_sks.key_switching_key,
+        std_compressed_ap_key.key_switching_key(),
         <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
         &param_fhe_name,
         "ksk_compressed",
@@ -199,7 +205,7 @@ fn tuniform_key_set_sizes(results_file: &Path) {
         &mut file,
     );
     measure_serialized_size(
-        &compressed_sks.bootstrapping_key,
+        &std_compressed_ap_key.bootstrapping_key(),
         <ClassicPBSParameters as Into<PBSParameters>>::into(param_fhe),
         &param_fhe_name,
         "bsk_compressed",

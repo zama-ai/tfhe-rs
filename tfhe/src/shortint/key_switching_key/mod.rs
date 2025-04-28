@@ -1005,10 +1005,12 @@ impl CompressedKeySwitchingKey {
                 );
 
                 assert_eq!(
-                    src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+                    src_server_key.ciphertext_modulus(),
+                    dest_server_key.ciphertext_modulus(),
                     "Mismatch between the source CompressedServerKey CiphertextModulus ({:?}) \
                     and the destination CompressedServerKey CiphertextModulus ({:?})",
-                    src_server_key.ciphertext_modulus, dest_server_key.ciphertext_modulus,
+                    src_server_key.ciphertext_modulus(),
+                    dest_server_key.ciphertext_modulus(),
                 );
             }
             None => assert!(
@@ -1018,9 +1020,16 @@ impl CompressedKeySwitchingKey {
             ),
         }
 
+        let std_dest_server_key = dest_server_key
+            .as_compressed_standard_atomic_pattern_server_key()
+            .expect(
+                "Trying to build a shortint::CompressedKeySwitchingKey \
+            with an unsupported atomic pattern",
+            );
+        let dest_bootstrapping_key = std_dest_server_key.bootstrapping_key();
         let dst_lwe_dimension = match key_switching_key_material.destination_key {
-            EncryptionKeyChoice::Big => dest_server_key.bootstrapping_key.output_lwe_dimension(),
-            EncryptionKeyChoice::Small => dest_server_key.bootstrapping_key.input_lwe_dimension(),
+            EncryptionKeyChoice::Big => dest_bootstrapping_key.output_lwe_dimension(),
+            EncryptionKeyChoice::Small => dest_bootstrapping_key.input_lwe_dimension(),
         };
 
         assert_eq!(
@@ -1039,13 +1048,13 @@ impl CompressedKeySwitchingKey {
             key_switching_key_material
                 .key_switching_key
                 .ciphertext_modulus(),
-            dest_server_key.ciphertext_modulus,
+            dest_server_key.ciphertext_modulus(),
             "Mismatch between the SeededLweKeyswitchKey CiphertextModulus ({:?}) \
             and the destination CompressedServerKey CiphertextModulus ({:?})",
             key_switching_key_material
                 .key_switching_key
                 .ciphertext_modulus(),
-            dest_server_key.ciphertext_modulus,
+            dest_server_key.ciphertext_modulus(),
         );
 
         Self {

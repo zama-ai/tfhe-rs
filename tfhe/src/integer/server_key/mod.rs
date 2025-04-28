@@ -324,17 +324,12 @@ impl ParameterSetConformant for CompressedServerKey {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
-        let AtomicPatternParameters::Standard(parameters) = *parameter_set else {
-            // Server key compression is only supported for classical AP
-            return false;
-        };
-
         let expected_max_degree = MaxDegree::integer_radix_server_key(
-            parameters.message_modulus(),
-            parameters.carry_modulus(),
+            parameter_set.message_modulus(),
+            parameter_set.carry_modulus(),
         );
 
-        key.is_conformant(&(parameters, expected_max_degree))
+        key.is_conformant(&(*parameter_set, expected_max_degree))
     }
 }
 
