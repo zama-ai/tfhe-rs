@@ -5,7 +5,7 @@ _targets:
 
 # Default values ---------------------------------------------------------------
 DEFAULT_RUST_LOG := "info"
-DEFAULT_MOCKUP_PARAMS := "tfhers_64b_fast.toml"
+DEFAULT_MOCKUP_PARAMS := "gaussian_64b_fast.toml"
 DEFAULT_TEST_ITER := "5"
 CARGO_HOME := "$(pwd)/../.."
 BUILD_PROFILE := "release"

@@ -119,7 +119,7 @@ Two parameter kinds are provided for convenience:
 # For convenience, `just mockup` could be also used
 cargo build --release --bin hpu_mockup
 ./target/release/hpu_mockup \
-  --params mockups/tfhe-hpu-mockup/params/tfhers_64b_fast.ron \
+  --params mockups/tfhe-hpu-mockup/params/gaussian_64b_fast.ron \
   [--freq-hz --register --isc-depth]
   [--dump-out mockup_out/ --dump-reg]\
   [--report-out mockup_rpt/ --report-trace]

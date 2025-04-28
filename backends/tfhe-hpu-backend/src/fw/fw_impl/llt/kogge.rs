@@ -64,7 +64,7 @@ impl KoggeBlockCfg {
             KoggeBlockCfg::try_with_filename(filename, |f| std::fs::read_to_string(f))
         {
             let mut res: KoggeBlockCfg = toml::from_str(&contents)
-                .unwrap_or_else(|_| panic!("{filename} is not a valid KoggeBlockCfg"));
+                .unwrap_or_else(|e| panic!("{filename} is not a valid KoggeBlockCfg: {e}"));
             res.filename = String::from(filename);
             res
         } else {
