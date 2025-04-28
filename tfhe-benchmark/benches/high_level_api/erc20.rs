@@ -416,7 +416,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 {
     let mut rng = thread_rng();
 
-    for num_elems in [10, 100, 300] {
+    for num_elems in [10, 100] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
