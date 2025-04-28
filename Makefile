@@ -57,9 +57,7 @@ TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
 
 # tfhe-hpu-backend
-HPU_BACKEND_DIR=$(shell pwd)/backends/tfhe-hpu-backend
 HPU_CONFIG=v80
-V80_PCIE_DEV=$(shell lspci -d 10ee:50b5 | sed -e "s/\(..\).*/\1/")
 
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
@@ -1181,6 +1179,7 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p $(TFHE_SPEC) -- --quick
@@ -1378,8 +1377,8 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
-	source ./setup_hpu.sh --config $(HPU_CONFIG)
-	RUSTFLAGS="$(RUSTFLAGS)" HPU_BACKEND_DIR="$(HPU_BACKEND_DIR)" HPU_CONFIG="$(HPU_CONFIG)" V80_PCIE_DEV="$(V80_PCIE_DEV)" \
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
+	RUSTFLAGS="$(RUSTFLAGS)" \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc20 \
 	--features=integer,internal-keycache,hpu,hpu-v80 -p $(TFHE_SPEC) -- --quick
