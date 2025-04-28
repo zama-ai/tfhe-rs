@@ -2,6 +2,9 @@ pub mod modulus_switch_noise_reduction;
 
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{Container, PBSOrder, UnsignedInteger};
+use crate::shortint::atomic_pattern::compressed::{
+    CompressedAtomicPatternServerKey, CompressedStandardAtomicPatternServerKey,
+};
 use crate::shortint::atomic_pattern::{AtomicPatternServerKey, StandardAtomicPatternServerKey};
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::server_key::*;
@@ -131,7 +134,7 @@ pub enum ServerKeyVersions<AP> {
     V2(GenericServerKey<AP>),
 }
 
-impl Deprecable for ShortintCompressedBootstrappingKey {
+impl<InputScalar: UnsignedInteger> Deprecable for ShortintCompressedBootstrappingKey<InputScalar> {
     const TYPE_NAME: &'static str = "ShortintCompressedBootstrappingKey";
     const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
@@ -145,10 +148,12 @@ pub enum ShortintCompressedBootstrappingKeyV1 {
     },
 }
 
-impl Upgrade<ShortintCompressedBootstrappingKey> for ShortintCompressedBootstrappingKeyV1 {
+impl<InputScalar: UnsignedInteger> Upgrade<ShortintCompressedBootstrappingKey<InputScalar>>
+    for ShortintCompressedBootstrappingKeyV1
+{
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<ShortintCompressedBootstrappingKey, Self::Error> {
+    fn upgrade(self) -> Result<ShortintCompressedBootstrappingKey<InputScalar>, Self::Error> {
         Ok(match self {
             Self::Classic(seeded_lwe_bootstrap_key) => {
                 ShortintCompressedBootstrappingKey::Classic {
@@ -168,10 +173,16 @@ impl Upgrade<ShortintCompressedBootstrappingKey> for ShortintCompressedBootstrap
 }
 
 #[derive(VersionsDispatch)]
-pub enum ShortintCompressedBootstrappingKeyVersions {
-    V0(Deprecated<ShortintCompressedBootstrappingKey>),
+pub enum ShortintCompressedBootstrappingKeyVersions<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
+    V0(Deprecated<ShortintCompressedBootstrappingKey<InputScalar>>),
     V1(ShortintCompressedBootstrappingKeyV1),
-    V2(ShortintCompressedBootstrappingKey),
+    // Here a generic `InputScalar` has been added but it does not requires a new version since it
+    // is only added through the `CompressedModulusSwitchNoiseReductionKey`, which handles the
+    // upgrade itself.
+    V2(ShortintCompressedBootstrappingKey<InputScalar>),
 }
 
 impl Deprecable for CompressedServerKey {
@@ -179,9 +190,58 @@ impl Deprecable for CompressedServerKey {
     const MIN_SUPPORTED_APP_VERSION: &'static str = "TFHE-rs v0.10";
 }
 
+#[derive(Version)]
+pub struct CompressedServerKeyV2 {
+    pub key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
+    pub bootstrapping_key: ShortintCompressedBootstrappingKey<u64>,
+    // Size of the message buffer
+    pub message_modulus: MessageModulus,
+    // Size of the carry buffer
+    pub carry_modulus: CarryModulus,
+    // Maximum number of operations that can be done before emptying the operation buffer
+    pub max_degree: MaxDegree,
+    pub max_noise_level: MaxNoiseLevel,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub pbs_order: PBSOrder,
+}
+
+impl Upgrade<CompressedServerKey> for CompressedServerKeyV2 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedServerKey, Self::Error> {
+        let Self {
+            key_switching_key,
+            bootstrapping_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+            ciphertext_modulus: _, // Ciphertext modulus is on the compressed bootstrapping_key
+            pbs_order,
+        } = self;
+
+        let compressed_ap_server_key = CompressedAtomicPatternServerKey::Standard(
+            CompressedStandardAtomicPatternServerKey::from_raw_parts(
+                key_switching_key,
+                bootstrapping_key,
+                pbs_order,
+            ),
+        );
+
+        Ok(CompressedServerKey {
+            compressed_ap_server_key,
+            message_modulus,
+            carry_modulus,
+            max_degree,
+            max_noise_level,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedServerKeyVersions {
     V0(Deprecated<CompressedServerKey>),
     V1(Deprecated<CompressedServerKey>),
-    V2(CompressedServerKey),
+    V2(CompressedServerKeyV2),
+    V3(CompressedServerKey),
 }

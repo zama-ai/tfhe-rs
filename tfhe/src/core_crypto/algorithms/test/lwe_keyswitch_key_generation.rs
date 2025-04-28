@@ -28,7 +28,7 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
 
     for _ in 0..NB_TESTS {
         // Create the LweSecretKey
-        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
+        let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key::<Scalar, _>(
             input_lwe_dimension,
             &mut secret_generator,
         );

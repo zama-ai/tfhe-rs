@@ -10,6 +10,7 @@ use crate::core_crypto::prelude::{
 use crate::integer::gpu::UnsignedInteger;
 use crate::integer::server_key::num_bits_to_represent_unsigned_value;
 use crate::integer::ClientKey;
+use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey;
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
@@ -215,15 +216,20 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> Self {
         let crate::shortint::CompressedServerKey {
-            key_switching_key,
-            bootstrapping_key,
+            compressed_ap_server_key,
             message_modulus,
             carry_modulus,
             max_degree,
             max_noise_level,
-            ciphertext_modulus,
-            pbs_order,
         } = cpu_key.key.clone();
+
+        // Generate a regular keyset and convert to the GPU
+        let CompressedAtomicPatternServerKey::Standard(std_key) = compressed_ap_server_key else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
+
+        let ciphertext_modulus = std_key.ciphertext_modulus();
+        let (key_switching_key, bootstrapping_key, pbs_order) = std_key.into_raw_parts();
 
         let h_key_switching_key = key_switching_key.par_decompress_into_lwe_keyswitch_key();
         let key_switching_key =
