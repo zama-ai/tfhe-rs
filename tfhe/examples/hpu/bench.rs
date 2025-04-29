@@ -229,7 +229,7 @@ pub fn main() {
                         .src
                         .get(pos)
                         .unwrap_or(
-                            &rng.gen_range(0..u128::max_value() >> (u128::BITS - (bw as u32))),
+                            &rng.gen_range(0..=u128::max_value() >> (u128::BITS - (bw as u32))),
                         )
                         .clone();
                     let fhe = if args.trivial {
