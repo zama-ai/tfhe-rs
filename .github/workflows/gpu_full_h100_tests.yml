@@ -65,18 +65,6 @@ jobs:
             cuda: "12.2"
             gcc: 11 
     steps:
-      # Mandatory on hyperstack since a bootable volume is not re-usable yet.
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y checkinstall zlib1g-dev libssl-dev libclang-dev
-          wget https://github.com/Kitware/CMake/releases/download/v${{ env.CMAKE_VERSION }}/cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          tar -zxvf cmake-${{ env.CMAKE_VERSION }}.tar.gz
-          cd cmake-${{ env.CMAKE_VERSION }}
-          ./bootstrap
-          make -j"$(nproc)"
-          sudo make install
-
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
