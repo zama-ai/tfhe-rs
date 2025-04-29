@@ -188,7 +188,7 @@ mod hpu_test {
                                 hpu_asm::iop::VarMode::Bool => (1, 1),
                             };
 
-                            let clear = rng.gen_range(0..$user_type::MAX >> ($user_type::BITS - (bw as u32)));
+                            let clear = rng.gen_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
                             let fhe = cks.encrypt_radix(clear, block);
                             let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
                             (clear, hpu_fhe)
