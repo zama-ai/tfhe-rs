@@ -55,7 +55,7 @@ impl<const N: usize, T> Index<usize> for StaticDeque<N, T> {
     /// 0 is youngest
     fn index(&self, i: usize) -> &T {
         if i >= N {
-            panic!("Index {:?} too high for size {:?}", i, N);
+            panic!("Index {i:?} too high for size {N:?}");
         }
         &self.arr[(N + self.cursor - i - 1) % N]
     }
@@ -66,7 +66,7 @@ impl<const N: usize, T> IndexMut<usize> for StaticDeque<N, T> {
     /// 0 is youngest
     fn index_mut(&mut self, i: usize) -> &mut T {
         if i >= N {
-            panic!("Index {:?} too high for size {:?}", i, N);
+            panic!("Index {i:?} too high for size {N:?}");
         }
         &mut self.arr[(N + self.cursor - i - 1) % N]
     }

@@ -277,8 +277,7 @@ pub fn test_hl_clientkey(
     if test_params != key_params {
         Err(test.failure(
             format!(
-                "Invalid {} parameters:\n Expected :\n{:?}\nGot:\n{:?}",
-                format, test_params, key_params
+                "Invalid {format} parameters:\n Expected :\n{test_params:?}\nGot:\n{key_params:?}",
             ),
             format,
         ))
@@ -327,8 +326,7 @@ pub fn test_hl_pubkey(
     if decrypted != value {
         Err(test.failure(
             format!(
-                "Failed to decrypt value encrypted with public key, got {} expected {}",
-                decrypted, value
+                "Failed to decrypt value encrypted with public key, got {decrypted} expected {value}",
             ),
             format,
         ))

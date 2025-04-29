@@ -45,7 +45,7 @@ fn build_branches(
     re: &RegExpr,
     c_pos: usize,
 ) -> Vec<(LazyExecution, usize)> {
-    trace!("program pointer: regex={:?}, content pos={}", re, c_pos);
+    trace!("program pointer: regex={re:?}, content pos={c_pos}");
     match re {
         RegExpr::Sof => {
             if c_pos == 0 {

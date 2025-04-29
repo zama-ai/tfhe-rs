@@ -87,7 +87,7 @@ impl Display for InvalidSerializedAffineError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InvalidSerializedAffineError::InvalidFp(fp_error) => {
-                write!(f, "Invalid fp element in affine: {}", fp_error)
+                write!(f, "Invalid fp element in affine: {fp_error}")
             }
             InvalidSerializedAffineError::InvalidCompressedXCoordinate => {
                 write!(
@@ -262,10 +262,10 @@ impl Display for InvalidSerializedGroupElementsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InvalidSerializedGroupElementsError::InvalidAffine(affine_error) => {
-                write!(f, "Invalid Affine in GroupElement: {}", affine_error)
+                write!(f, "Invalid Affine in GroupElement: {affine_error}")
             }
             InvalidSerializedGroupElementsError::InvalidGlistDimension(arr_error) => {
-                write!(f, "invalid number of elements in g_list: {}", arr_error)
+                write!(f, "invalid number of elements in g_list: {arr_error}")
             }
         }
     }
@@ -357,10 +357,10 @@ impl Display for InvalidSerializedPublicParamsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InvalidSerializedPublicParamsError::InvalidGroupElements(group_error) => {
-                write!(f, "Invalid PublicParams: {}", group_error)
+                write!(f, "Invalid PublicParams: {group_error}")
             }
             InvalidSerializedPublicParamsError::InvalidHashDimension(arr_error) => {
-                write!(f, "invalid size of hash: {}", arr_error)
+                write!(f, "invalid size of hash: {arr_error}")
             }
         }
     }

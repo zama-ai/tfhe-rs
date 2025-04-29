@@ -616,7 +616,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         bootstrapping_key.ptr.as_ptr(),
         computing_ks_key.ptr.as_ptr(),
         casting_key.ptr.as_ptr(),
-        &ms_noise_reduction_key_ffi,
+        &raw const ms_noise_reduction_key_ffi,
     );
     cleanup_expand_without_verification_64(
         streams.ptr.as_ptr(),

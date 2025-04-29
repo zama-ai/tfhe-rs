@@ -119,7 +119,7 @@ impl fmt::Debug for RegExpr {
                 at_most,
             } => {
                 let stringify_opt_n = |opt_n: &Option<usize>| -> String {
-                    opt_n.map_or("*".to_string(), |n| format!("{:?}", n))
+                    opt_n.map_or("*".to_string(), |n| format!("{n:?}"))
                 };
                 repeat_re.fmt(f)?;
                 write!(

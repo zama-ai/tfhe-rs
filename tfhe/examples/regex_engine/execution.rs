@@ -241,7 +241,7 @@ impl std::fmt::Debug for Executed {
                 1 => write!(f, "t"),
                 _ => write!(f, "{}", u8_to_char(*c)),
             },
-            Self::CtPos { at } => write!(f, "ct_{}", at),
+            Self::CtPos { at } => write!(f, "ct_{at}"),
             Self::And { a, b } => {
                 write!(f, "(")?;
                 a.fmt(f)?;

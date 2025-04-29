@@ -139,7 +139,7 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
 ) {
     let serialized = bincode::serialize(to_serialize).unwrap();
     let size = serialized.len();
-    let test_name = format!("shortint_key_sizes_{}_{}", param_name, test_name_suffix);
+    let test_name = format!("shortint_key_sizes_{param_name}_{test_name_suffix}");
     write_result(file, &test_name, size);
     write_to_json::<u64, _>(
         &test_name,
@@ -151,10 +151,7 @@ fn measure_serialized_size<T: serde::Serialize, P: Into<CryptoParametersRecord<u
         vec![],
     );
 
-    println!(
-        "{} {} -> size: {} bytes",
-        test_name_suffix, param_name, size,
-    );
+    println!("{test_name_suffix} {param_name} -> size: {size} bytes",);
 }
 
 fn tuniform_key_set_sizes(results_file: &Path) {
