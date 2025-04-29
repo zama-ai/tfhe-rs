@@ -74,7 +74,7 @@ fn main() {
         };
         let mut headers_modified = bindings_modified;
         for header in headers {
-            println!("cargo:rerun-if-changed={}", header);
+            println!("cargo:rerun-if-changed={header}");
             // Check modification times
             let header_modified = std::fs::metadata(header).unwrap().modified().unwrap();
             if header_modified > headers_modified {

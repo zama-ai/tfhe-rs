@@ -158,7 +158,7 @@ pub fn bools_to_hex(bools: Vec<bool>) -> String {
         counter += 1;
 
         if counter == 8 {
-            hex_string.push_str(&format!("{:02x}", byte));
+            hex_string.push_str(&format!("{byte:02x}"));
             byte = 0;
             counter = 0;
         }
@@ -167,7 +167,7 @@ pub fn bools_to_hex(bools: Vec<bool>) -> String {
     // Handle any remaining bits in case the bools vector length is not a multiple of 8
     if counter > 0 {
         byte <<= 8 - counter;
-        hex_string.push_str(&format!("{:02x}", byte));
+        hex_string.push_str(&format!("{byte:02x}"));
     }
 
     hex_string
