@@ -33,7 +33,7 @@ fn main() {
 
     input = input.trim_end_matches('\n').to_string();
 
-    println!("You entered: \"{}\"", input);
+    println!("You entered: \"{input}\"");
 
     // CLIENT PADS DATA AND ENCRYPTS IT
 
@@ -52,7 +52,7 @@ fn main() {
     let output = decrypt_bools(&encrypted_output, &ck);
     let outhex = bools_to_hex(output);
 
-    println!("{}", outhex);
+    println!("{outhex}");
 }
 
 fn encrypt_bools(bools: &Vec<bool>, ck: &ClientKey) -> Vec<Ciphertext> {

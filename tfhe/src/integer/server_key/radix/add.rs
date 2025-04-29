@@ -159,7 +159,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_add(&ct1, &ct2);
     ///
     /// match ct_res {
-    ///     Err(x) => panic!("{:?}", x),
+    ///     Err(x) => panic!("{x:?}"),
     ///     Ok(y) => {
     ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg1 + msg2, clear);

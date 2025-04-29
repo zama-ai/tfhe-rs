@@ -331,7 +331,7 @@ mod test {
             Compress::Yes => Params::uncompress(bincode::deserialize(&bincode::serialize(
                 &public_params.compress(),
             )?)?)
-            .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {}", e)))),
+            .map_err(|e| Box::new(ErrorKind::Custom(format!("Failed to uncompress: {e}")))),
             Compress::No => bincode::deserialize(&bincode::serialize(&public_params)?),
         }
     }
