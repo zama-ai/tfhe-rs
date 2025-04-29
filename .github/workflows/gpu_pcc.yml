@@ -17,6 +17,8 @@ env:
   # Secrets will be available only to zama-ai organization members
   SECRETS_AVAILABLE: ${{ secrets.JOB_SECRET != '' }}
   EXTERNAL_CONTRIBUTION_RUNNER: "large_ubuntu_16-22.04"
+  CUDA_KEYRING_PACKAGE: cuda-keyring_1.1-1_all.deb
+  CUDA_KEYRING_SHA: "d93190d50b98ad4699ff40f4f7af50f16a76dac3bb8da1eaaf366d47898ff8df"
 
 on:
   pull_request:
@@ -48,7 +50,7 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${{ env.EXTERNAL_CONTRIBUTION_RUNNER }}" >> "$GITHUB_OUTPUT"
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-pcc:
     name: CUDA post-commit checks
@@ -80,8 +82,10 @@ jobs:
         shell: bash
         run: |
           TOOLKIT_VERSION="$(echo ${{ matrix.cuda }} | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/"${CUDA_KEYRING_PACKAGE}"
+          echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
+          sha256sum -c checksum
+          sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
           sudo apt update
           sudo apt -y install "cuda-toolkit-${TOOLKIT_VERSION}" cmake-format
 
