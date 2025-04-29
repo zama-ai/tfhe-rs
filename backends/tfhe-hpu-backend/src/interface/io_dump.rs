@@ -1,5 +1,5 @@
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io::{BufWriter, Write};
 /// Feature io_dump
 /// Enable to log hpu object in hex file for debug purpose
 use std::path::PathBuf;
@@ -134,6 +134,9 @@ pub trait HexMem {
     fn as_bytes(&self) -> &[u8];
 
     fn write_hex(&self, into: &mut File, line_w: usize, pad_with: Option<&str>) {
+        // Use write buffer for performances purpose
+        let mut into_wrbfr = BufWriter::new(into);
+
         let bytes = self.as_bytes();
 
         let lines = bytes.len() / line_w;
@@ -143,9 +146,9 @@ pub trait HexMem {
         for l in 0..lines {
             let cur_slice = &bytes[l * line_w..(l + 1) * line_w];
             for c in cur_slice.iter().rev() {
-                write!(into, "{:02x}", c).unwrap();
+                write!(into_wrbfr, "{:02x}", c).unwrap();
             }
-            writeln!(into).unwrap();
+            writeln!(into_wrbfr).unwrap();
         }
 
         // Add padding if requested
@@ -157,15 +160,15 @@ pub trait HexMem {
             );
             let pad_len = if 0 != residual { line_w - residual } else { 0 };
             for _ in 0..pad_len {
-                write!(into, "{padder}").unwrap();
+                write!(into_wrbfr, "{padder}").unwrap();
             }
         }
         // Write residual line
         let res_slice = &bytes[lines * line_w..];
         for c in res_slice.iter().rev() {
-            write!(into, "{:02x}", c).unwrap();
+            write!(into_wrbfr, "{:02x}", c).unwrap();
         }
-        writeln!(into).unwrap();
+        writeln!(into_wrbfr).unwrap();
     }
 }
 
