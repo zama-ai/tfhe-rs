@@ -22,29 +22,37 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        wget https://github.com/Kitware/CMake/releases/download/v"${CMAKE_VERSION}"/cmake-"${CMAKE_VERSION}"-linux-x86_64.sh
+        echo "${CMAKE_SCRIPT_SHA} cmake-${CMAKE_VERSION}-linux-x86_64.sh" > checksum
+        sha256sum -c checksum
+        bash cmake-"${CMAKE_VERSION}"-linux-x86_64.sh --skip-license
+        ln -s cmake-"${CMAKE_VERSION}"-linux-x86_64/bin/cmake /usr/local/bin
         sudo apt update
-        curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc | sudo gpg --dearmour -o /etc/apt/trusted.gpg.d/kitware.gpg
-        sudo chmod 644 /etc/apt/trusted.gpg.d/kitware.gpg
-        echo 'deb [signed-by=/etc/apt/trusted.gpg.d/kitware.gpg] https://apt.kitware.com/ubuntu/ jammy main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
-        sudo apt update
-        sudo apt install -y cmake cmake-format libclang-dev
+        sudo apt install -y cmake-format libclang-dev
+      env:
+        CMAKE_VERSION: ${{ inputs.cmake-version }}
+        CMAKE_SCRIPT_SHA: "6e4fada5cba3472ae503a11232b6580786802f0879cead2741672bf65d97488a"
 
     - name: Install CUDA
       if: inputs.github-instance == 'true'
       shell: bash
       run: |
         TOOLKIT_VERSION="$(echo ${CUDA_VERSION} | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-        sudo dpkg -i cuda-keyring_1.1-1_all.deb
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${env.CUDA_KEYRING_PACKAGE}
+        echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
+        sha256sum -c checksum
+        sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
         sudo apt update
-        sudo apt -y install cuda-toolkit-${TOOLKIT_VERSION}
+        sudo apt -y install cuda-toolkit-"${TOOLKIT_VERSION}"
       env:
         CUDA_VERSION: ${{ inputs.cuda-version }}
+        CUDA_KEYRING_PACKAGE: cuda-keyring_1.1-1_all.deb
+        CUDA_KEYRING_SHA: "d93190d50b98ad4699ff40f4f7af50f16a76dac3bb8da1eaaf366d47898ff8df"
 
     - name: Export CUDA variables
       shell: bash
       run: |
-        CUDA_PATH=/usr/local/cuda-${CUDA_VERSION}
+        CUDA_PATH=/usr/local/cuda-"${CUDA_VERSION}"
         {
           echo "CUDA_PATH=$CUDA_PATH";
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH";
