@@ -3,7 +3,7 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::prelude::Numeric;
 use crate::high_level_api::global_state;
-use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::keys::InternalServerKeyRef;
 use crate::high_level_api::traits::Tagged;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{Compactable, DataKind};
@@ -28,6 +28,14 @@ use crate::{CompactPublicKey, Tag};
 
 #[cfg(feature = "strings")]
 use super::ClearString;
+
+use crate::high_level_api::global_state::device_of_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList;
+#[cfg(feature = "gpu")]
+use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
+use serde::Serializer;
+use tfhe_versionable::{Unversionize, UnversionizeError, VersionizeOwned};
 
 impl crate::FheTypes {
     pub(crate) fn from_data_kind(
@@ -137,10 +145,138 @@ impl crate::FheTypes {
     }
 }
 
+pub enum InnerCompactCiphertextList {
+    Cpu(crate::integer::ciphertext::CompactCiphertextList),
+    #[cfg(feature = "gpu")]
+    // A InnerCompactCiphertextList is a CudaFlattenedVecCompactCiphertextList initialized as a
+    // vector of a single compact list
+    Cuda(crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList),
+}
+
+impl Clone for InnerCompactCiphertextList {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Cpu(inner) => Self::Cpu(inner.clone()),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                Self::Cuda(inner.duplicate(streams))
+            }),
+        }
+    }
+}
+
+impl serde::Serialize for InnerCompactCiphertextList {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.on_cpu().serialize(serializer)
+    }
+}
+
+impl InnerCompactCiphertextList {
+    pub(crate) fn on_cpu(&self) -> crate::integer::ciphertext::CompactCiphertextList {
+        match self {
+            Self::Cpu(inner) => inner.clone(),
+            #[cfg(feature = "gpu")]
+            Self::Cuda(inner) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                inner.to_integer_compact_ciphertext_list(streams).unwrap()
+            }),
+        }
+    }
+    #[allow(clippy::unnecessary_wraps)] // Method can return an error if hpu is enabled
+    fn move_to_device(&mut self, device: crate::Device) -> Result<(), crate::Error> {
+        let new_value = match (&self, device) {
+            (Self::Cpu(_), crate::Device::Cpu) => None,
+            #[cfg(feature = "gpu")]
+            (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                    None
+                } else {
+                    Some(Self::Cuda(cuda_ct.duplicate(streams)))
+                }
+            }),
+            #[cfg(feature = "gpu")]
+            (Self::Cuda(cuda_ct), crate::Device::Cpu) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                Some(Self::Cpu(
+                    cuda_ct.to_integer_compact_ciphertext_list(streams).unwrap(),
+                ))
+            }),
+            #[cfg(feature = "gpu")]
+            (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
+                let cuda_ct = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    CudaFlattenedVecCompactCiphertextList::from_integer_compact_ciphertext_list(
+                        cpu_ct, streams,
+                    )
+                });
+                Some(Self::Cuda(cuda_ct))
+            }
+            #[cfg(feature = "hpu")]
+            (Self::Cpu(_), crate::Device::Hpu) => {
+                return Err(crate::error!("HPU device does not support compact list"));
+            }
+            #[cfg(all(feature = "hpu", feature = "gpu"))]
+            (Self::Cuda(_), crate::Device::Hpu) => {
+                return Err(crate::error!("HPU device does not support compact list"));
+            }
+        };
+
+        if let Some(v) = new_value {
+            *self = v;
+        }
+        Ok(())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for InnerCompactCiphertextList {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut new = crate::integer::ciphertext::CompactCiphertextList::deserialize(deserializer)
+            .map(Self::Cpu)?;
+
+        if let Some(device) = device_of_internal_keys() {
+            new.move_to_device(device)
+                .map_err(serde::de::Error::custom)?;
+        }
+
+        Ok(new)
+    }
+}
+
+impl Versionize for InnerCompactCiphertextList {
+    type Versioned<'vers> =
+        <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.on_cpu().versionize_owned()
+    }
+}
+impl VersionizeOwned for InnerCompactCiphertextList {
+    type VersionedOwned =
+        <crate::integer::ciphertext::CompactCiphertextList as VersionizeOwned>::VersionedOwned;
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.on_cpu().versionize_owned()
+    }
+}
+
+impl Unversionize for InnerCompactCiphertextList {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        Ok(Self::Cpu(
+            crate::integer::ciphertext::CompactCiphertextList::unversionize(versioned)?,
+        ))
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Versionize)]
 #[versionize(CompactCiphertextListVersions)]
 pub struct CompactCiphertextList {
-    pub(crate) inner: crate::integer::ciphertext::CompactCiphertextList,
+    pub(crate) inner: InnerCompactCiphertextList,
     pub(crate) tag: Tag,
 }
 
@@ -154,7 +290,11 @@ impl CompactCiphertextList {
     }
 
     pub fn len(&self) -> usize {
-        self.inner.len()
+        match &self.inner {
+            InnerCompactCiphertextList::Cpu(inner) => inner.len(),
+            #[cfg(feature = "gpu")]
+            InnerCompactCiphertextList::Cuda(inner) => inner.lwe_ciphertext_count.0,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -162,48 +302,132 @@ impl CompactCiphertextList {
     }
 
     pub fn get_kind_of(&self, index: usize) -> Option<crate::FheTypes> {
-        self.inner.get_kind_of(index).and_then(|data_kind| {
-            crate::FheTypes::from_data_kind(data_kind, self.inner.ct_list.message_modulus)
-        })
+        match &self.inner {
+            InnerCompactCiphertextList::Cpu(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.ct_list.message_modulus)
+                })
+            }
+            #[cfg(feature = "gpu")]
+            InnerCompactCiphertextList::Cuda(inner) => {
+                inner.get_kind_of(index).and_then(|data_kind| {
+                    crate::FheTypes::from_data_kind(data_kind, inner.message_modulus)
+                })
+            }
+        }
     }
 
-    pub fn expand_with_key(
+    pub fn expand_with_key<'a>(
         &self,
-        sks: &crate::ServerKey,
+        sks: impl Into<InternalServerKeyRef<'a>>,
     ) -> crate::Result<CompactCiphertextListExpander> {
-        self.inner
-            .expand(sks.integer_compact_ciphertext_list_expansion_mode())
-            .map(|inner| CompactCiphertextListExpander {
-                inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                tag: self.tag.clone(),
-            })
+        let sks = sks.into();
+        match (&self.inner, sks) {
+            (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cpu(cpu_key)) => {
+                // CPU data, CPU key case
+                cpu_inner
+                    .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
+                    .map(|inner| CompactCiphertextListExpander {
+                        inner: InnerCompactCiphertextListExpander::Cpu(inner),
+                        tag: self.tag.clone(),
+                    })
+            }
+            #[cfg(feature = "gpu")]
+            (InnerCompactCiphertextList::Cpu(cpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
+                // CPU data, CUDA key case
+                // We copy data to GPU and then expand it
+                let streams = &cuda_key.streams;
+                let gpu_inner =
+                    CudaFlattenedVecCompactCiphertextList::from_integer_compact_ciphertext_list(
+                        cpu_inner, streams,
+                    );
+
+                let ksk = CudaKeySwitchingKey {
+                    key_switching_key_material: cuda_key
+                        .key
+                        .cpk_key_switching_key_material
+                        .as_ref()
+                        .unwrap(),
+                    dest_server_key: &cuda_key.key.key,
+                };
+                let expander = gpu_inner.expand(&ksk, streams)?;
+
+                Ok(CompactCiphertextListExpander {
+                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                    tag: self.tag.clone(),
+                })
+            }
+            #[cfg(feature = "gpu")]
+            (InnerCompactCiphertextList::Cuda(gpu_inner), InternalServerKeyRef::Cpu(cpu_key)) => {
+                // CUDA data, CPU key case
+                // We copy data to CPU and then expand it
+                let cpu_inner = with_cuda_internal_keys(|cuda_key| {
+                    let streams = &cuda_key.streams;
+                    gpu_inner.to_integer_compact_ciphertext_list(streams)
+                })?;
+
+                cpu_inner
+                    .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
+                    .map(|inner| CompactCiphertextListExpander {
+                        inner: InnerCompactCiphertextListExpander::Cpu(inner),
+                        tag: self.tag.clone(),
+                    })
+            }
+            #[cfg(feature = "gpu")]
+            (InnerCompactCiphertextList::Cuda(gpu_inner), InternalServerKeyRef::Cuda(cuda_key)) => {
+                // CUDA data, CUDA key case
+                assert!(
+                    cuda_key.key.cpk_key_switching_key_material.is_some(),
+                    "cpk_key_switching_key_material must not be None"
+                );
+
+                let ksk = CudaKeySwitchingKey {
+                    key_switching_key_material: cuda_key
+                        .key
+                        .cpk_key_switching_key_material
+                        .as_ref()
+                        .unwrap(),
+                    dest_server_key: &cuda_key.key.key,
+                };
+                let streams = &cuda_key.streams;
+                let expander = gpu_inner.expand(&ksk, streams)?;
+
+                Ok(CompactCiphertextListExpander {
+                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                    tag: self.tag.clone(),
+                })
+            }
+            #[cfg(feature = "hpu")]
+            (InnerCompactCiphertextList::Cpu(_), InternalServerKeyRef::Hpu(_)) => Err(
+                crate::Error::new("Expand not supported for HPU".to_string()),
+            ),
+            #[cfg(all(feature = "hpu", feature = "gpu"))]
+            (InnerCompactCiphertextList::Cuda(_), InternalServerKeyRef::Hpu(_)) => Err(
+                crate::Error::new("Expand not supported for HPU".to_string()),
+            ),
+        }
     }
 
     pub fn expand(&self) -> crate::Result<CompactCiphertextListExpander> {
         // For WASM
-        if !self.inner.is_packed() && !self.inner.needs_casting() {
-            // No ServerKey required, short-circuit to avoid the global state call
-            return Ok(CompactCiphertextListExpander {
-                inner: InnerCompactCiphertextListExpander::Cpu(
-                    self.inner.expand(
+        #[allow(irrefutable_let_patterns)]
+        if let InnerCompactCiphertextList::Cpu(inner) = &self.inner {
+            if !inner.is_packed() && !inner.needs_casting() {
+                // No ServerKey required, short-circuit to avoid the global state call
+                return Ok(CompactCiphertextListExpander {
+                    inner: InnerCompactCiphertextListExpander::Cpu(inner.expand(
                         IntegerCompactCiphertextListExpansionMode::NoCastingAndNoUnpacking,
-                    )?,
-                ),
-                tag: self.tag.clone(),
-            });
+                    )?),
+                    tag: self.tag.clone(),
+                });
+            }
         }
 
-        global_state::try_with_internal_keys(|maybe_keys| match maybe_keys {
-            None => Err(crate::high_level_api::errors::UninitializedServerKey.into()),
-            Some(InternalServerKey::Cpu(cpu_key)) => self
-                .inner
-                .expand(cpu_key.integer_compact_ciphertext_list_expansion_mode())
-                .map(|inner| CompactCiphertextListExpander {
-                    inner: InnerCompactCiphertextListExpander::Cpu(inner),
-                    tag: self.tag.clone(),
-                }),
-            #[cfg(any(feature = "gpu", feature = "hpu"))]
-            Some(_) => Err(crate::Error::new("Expected a CPU server key".to_string())),
+        global_state::try_with_internal_keys(|maybe_keys| {
+            maybe_keys.map_or_else(
+                || Err(crate::high_level_api::errors::UninitializedServerKey.into()),
+                |internal_key| self.expand_with_key(internal_key),
+            )
         })
     }
 }
@@ -223,8 +447,7 @@ impl ParameterSetConformant for CompactCiphertextList {
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { inner, tag: _ } = self;
-
-        inner.is_conformant(parameter_set)
+        inner.on_cpu().is_conformant(parameter_set)
     }
 }
 
@@ -234,6 +457,7 @@ mod zk {
     use crate::backward_compatibility::compact_list::ProvenCompactCiphertextListVersions;
     use crate::conformance::ParameterSetConformant;
     use crate::high_level_api::global_state::device_of_internal_keys;
+    use crate::high_level_api::keys::InternalServerKey;
     use crate::integer::ciphertext::IntegerProvenCompactCiphertextListConformanceParams;
     #[cfg(feature = "gpu")]
     use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
@@ -811,7 +1035,9 @@ impl CompactCiphertextListBuilder {
 
     pub fn build(&self) -> CompactCiphertextList {
         CompactCiphertextList {
-            inner: self.inner.build(),
+            inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(
+                self.inner.build(),
+            ),
             tag: self.tag.clone(),
         }
     }
@@ -820,7 +1046,7 @@ impl CompactCiphertextListBuilder {
         self.inner
             .build_packed()
             .map(|list| CompactCiphertextList {
-                inner: list,
+                inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(list),
                 tag: self.tag.clone(),
             })
             .expect("Internal error, invalid parameters should not have been allowed")
@@ -877,7 +1103,7 @@ mod tests {
     use crate::shortint::parameters::*;
     use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
 
-    #[cfg(all(feature = "zk-pok", feature = "gpu"))]
+    #[cfg(feature = "gpu")]
     use crate::CompressedServerKey;
 
     #[test]
@@ -933,6 +1159,68 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_compact_list() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let compressed_server_key = CompressedServerKey::new(&ck);
+        let gpu_sk = compressed_server_key.decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push(17u32)
+            .push(-1i64)
+            .push(false)
+            .push(true)
+            .push_with_num_bits(3u8, 2)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand().unwrap();
+
+        {
+            let a: FheUint32 = expander.get(0).unwrap().unwrap();
+            let b: FheInt64 = expander.get(1).unwrap().unwrap();
+            let c: FheBool = expander.get(2).unwrap().unwrap();
+            let d: FheBool = expander.get(3).unwrap().unwrap();
+            let e: FheUint2 = expander.get(4).unwrap().unwrap();
+
+            let a: u32 = a.decrypt(&ck);
+            assert_eq!(a, 17);
+            let b: i64 = b.decrypt(&ck);
+            assert_eq!(b, -1);
+            let c = c.decrypt(&ck);
+            assert!(!c);
+            let d = d.decrypt(&ck);
+            assert!(d);
+            let e: u8 = e.decrypt(&ck);
+            assert_eq!(e, 3);
+
+            assert!(expander.get::<FheBool>(5).unwrap().is_none());
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheInt64>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheUint16>(0).is_err());
+        }
+    }
+
     #[cfg(feature = "extended-types")]
     #[test]
     fn test_compact_list_extended_types() {
@@ -943,6 +1231,56 @@ mod tests {
         let pk = crate::CompactPublicKey::new(&ck);
 
         set_server_key(sk);
+
+        let compact_list = CompactCiphertextList::builder(&pk)
+            .push_with_num_bits(-17i64, 40)
+            .unwrap()
+            .push_with_num_bits(3u8, 24)
+            .unwrap()
+            .build_packed();
+
+        let serialized = bincode::serialize(&compact_list).unwrap();
+        let compact_list: CompactCiphertextList = bincode::deserialize(&serialized).unwrap();
+        let expander = compact_list.expand().unwrap();
+
+        {
+            let a: crate::FheInt40 = expander.get(0).unwrap().unwrap();
+            let b: crate::FheUint24 = expander.get(1).unwrap().unwrap();
+
+            let a: i64 = a.decrypt(&ck);
+            assert_eq!(a, -17);
+            let b: u8 = b.decrypt(&ck);
+            assert_eq!(b, 3);
+        }
+
+        {
+            // Incorrect type
+            assert!(expander.get::<FheUint32>(0).is_err());
+
+            // Correct type but wrong number of bits
+            assert!(expander.get::<FheInt64>(0).is_err());
+        }
+    }
+
+    #[cfg(feature = "extended-types")]
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn test_gpu_compact_list_extended_types() {
+        let config = crate::ConfigBuilder::with_custom_parameters(
+            PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        )
+        .use_dedicated_compact_public_key_parameters((
+            PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ))
+        .build();
+
+        let ck = crate::ClientKey::generate(config);
+        let compressed_server_key = CompressedServerKey::new(&ck);
+        let gpu_sk = compressed_server_key.decompress_to_gpu();
+        let pk = crate::CompactPublicKey::new(&ck);
+
+        set_server_key(gpu_sk);
 
         let compact_list = CompactCiphertextList::builder(&pk)
             .push_with_num_bits(-17i64, 40)
