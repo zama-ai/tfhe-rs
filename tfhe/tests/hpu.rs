@@ -17,24 +17,17 @@ mod hpu_test {
 
     /// Variable to store initialized HpuDevice and associated client key for fast iteration
     static HPU_DEVICE_RNG_CKS: std::sync::OnceLock<(
-        std::sync::Mutex<(HpuDevice, StdRng)>,
+        std::sync::Mutex<HpuDevice>,
         tfhe::integer::ClientKey,
+        u128,
     )> = std::sync::OnceLock::new();
 
-    fn init_hpu_and_associated_material() -> (
-        std::sync::Mutex<(HpuDevice, StdRng)>,
-        tfhe::integer::ClientKey,
-    ) {
-        // Instantiate HpuDevice --------------------------------------------------
-        let hpu_device = {
-            let config_file = ShellString::new(
-                "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
-            );
-            HpuDevice::from_config(&config_file.expand())
-        };
+    // // Instantiate a shared rng for cleartext input generation
+    // let rng: StdRng = SeedableRng::seed_from_u64((seed & u64::MAX as u128) as u64);
 
-        // Check if user force a seed
-        let seed = match std::env::var("HPU_TEST_SEED") {
+    /// Simple function used to retrieved or generate a seed from environment
+    fn get_or_init_seed(name: &str) -> u128 {
+        match std::env::var(name) {
             Ok(var) => if let Some(hex) = var.strip_prefix("0x").or_else(|| var.strip_prefix("0X"))
             {
                 u128::from_str_radix(hex, 16)
@@ -45,24 +38,31 @@ mod hpu_test {
             } else {
                 var.parse::<u128>() // default: base 10
             }
-            .unwrap_or_else(|_| {
-                panic!("HPU_TEST_ITER env variable {var} couldn't be casted in u128")
-            }),
+            .unwrap_or_else(|_| panic!("{name} env variable {var} couldn't be casted in u128")),
             _ => {
                 // Use tread_rng to generate the seed
                 let lsb = rand::thread_rng().next_u64() as u128;
                 let msb = rand::thread_rng().next_u64() as u128;
                 (msb << u64::BITS) | lsb
             }
-        };
-        // Show on stdout and on trace
-        println!("HPU_TEST_SEED => {seed} [i.e. 0x{seed:x}]");
+        }
+    }
 
-        // Instanciate a shared rng for cleartext input generation
-        let rng: StdRng = SeedableRng::seed_from_u64((seed & u64::MAX as u128) as u64);
+    fn init_hpu_and_associated_material(
+    ) -> (std::sync::Mutex<HpuDevice>, tfhe::integer::ClientKey, u128) {
+        // Instantiate HpuDevice --------------------------------------------------
+        let hpu_device = {
+            let config_file = ShellString::new(
+                "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
+            );
+            HpuDevice::from_config(&config_file.expand())
+        };
+
+        // Check if user force a seed for the key generation
+        let key_seed = get_or_init_seed("HPU_KEY_SEED");
 
         // Force key seeder for easily reproduce failure
-        let mut key_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
+        let mut key_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(key_seed));
         let shortint_engine =
             tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut key_seeder);
         tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
@@ -78,7 +78,7 @@ mod hpu_test {
 
         // Init Hpu device with server key and firmware
         tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into()).expect("Invalid key");
-        (std::sync::Mutex::new((hpu_device, rng)), cks)
+        (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
     // NB: Currently u55c didn't check for workq overflow.
@@ -109,16 +109,33 @@ mod hpu_test {
             };
 
             // Retrieved HpuDevice or init ---------------------------------------------
-            let (hpu_rng_mutex, cks)= HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
-            let mut hpu_rng_lock = hpu_rng_mutex.lock().expect("Error with HpuDevice Mutex");
-            let (ref mut hpu_device, ref mut rng) = *hpu_rng_lock;
+            let (hpu_mutex, cks, key_seed)= HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+            let mut hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
             assert!(hpu_device.config().firmware.integer_w.contains(&($integer_width as usize)), "Current Hpu configuration doesn't support {}b integer [has {:?}]", $integer_width, hpu_device.config().firmware.integer_w);
+
+            // Instantiate a Rng for cleartest input generation
+            // Create a fresh one for each testbundle to be reproducible even if execution order
+            // of testbundle are not stable
+            let test_seed = get_or_init_seed("HPU_TEST_SEED");
+            // Display used seed value in a reusable manner (i.e. valid bash syntax)
+            println!("HPU_KEY_SEED={key_seed} #[i.e. 0x{key_seed:x}]");
+            println!("HPU_TEST_SEED={test_seed} #[i.e. 0x{test_seed:x}]");
+
+            let mut rng: StdRng = SeedableRng::seed_from_u64((test_seed & u64::MAX as u128) as u64);
+
+            // Reseed shortint engine for reproducible noise generation.
+            let mut noise_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(test_seed));
+            let shortint_engine =
+                tfhe::shortint::engine::ShortintEngine::new_from_seeder(&mut noise_seeder);
+            tfhe::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+                std::mem::replace(engine, shortint_engine)
+            });
 
             // Run test-case ---------------------------------------------------------
             let mut acc_status = true;
             $(
                 {
-                let status = [<hpu_ $testcase _u $integer_width>](hpu_test_iter, hpu_device, rng, &cks);
+                let status = [<hpu_ $testcase _u $integer_width>](hpu_test_iter, &mut hpu_device, &mut rng, &cks);
                 if !status {
                     println!("Error: in testcase {}", stringify!([<hpu_ $testcase _u $integer_width>]));
                 }
@@ -126,7 +143,7 @@ mod hpu_test {
                 }
             )*
 
-            drop(hpu_rng_lock);
+            drop(hpu_device);
             assert!(acc_status, "At least one testcase failed in the testbundle");
        }
     }
@@ -492,9 +509,13 @@ mod hpu_test {
 
         // Retrieved HpuDevice or init ---------------------------------------------
         // Used hpu_device backed in static variable to automatically serialize tests
-        let (hpu_rng_mutex, cks) = HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
-        let hpu_rng_lock = hpu_rng_mutex.lock().expect("Error with HpuDevice Mutex");
-        let hpu_params = hpu_rng_lock.0.params().clone();
+        let (hpu_params, cks, key_seed) = {
+            let (hpu_mutex, cks, key_seed) =
+                HPU_DEVICE_RNG_CKS.get_or_init(init_hpu_and_associated_material);
+            let hpu_device = hpu_mutex.lock().expect("Error with HpuDevice Mutex");
+            (hpu_device.params().clone(), cks, key_seed)
+        };
+        println!("HPU_KEY_SEED={key_seed} #[i.e. 0x{key_seed:x}]");
 
         // Generate Keys ---------------------------------------------------------
         let sks_compressed =
