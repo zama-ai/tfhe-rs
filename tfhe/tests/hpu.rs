@@ -50,6 +50,12 @@ mod hpu_test {
 
     fn init_hpu_and_associated_material(
     ) -> (std::sync::Mutex<HpuDevice>, tfhe::integer::ClientKey, u128) {
+        // Hpu io dump for debug  -------------------------------------------------
+        #[cfg(feature = "hpu-debug")]
+        if let Some(dump_path) = std::env::var("HPU_IO_DUMP").ok() {
+            set_hpu_io_dump(&dump_path);
+        }
+
         // Instantiate HpuDevice --------------------------------------------------
         let hpu_device = {
             let config_file = ShellString::new(
