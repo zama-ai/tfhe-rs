@@ -536,14 +536,14 @@ impl From<EncryptionKeyChoice> for KsType {
 ///
 ///
 /// In this method, the input `lwe_flattened_compact_array_in` represents a flattened compact list.
-/// Instead of receiving a `Vec<CudaCompactCiphertextList>`, it takes a concatenation of all LWEs
+/// Instead of receiving a `Vec<CompactCiphertextList>`, it takes a concatenation of all LWEs
 /// that were inside that vector of compact list. Handling the input this way removes the need
 /// to process multiple compact lists separately, simplifying GPU-based operations. The variable
 /// name `lwe_flattened_compact_array_in` makes this intent explicit.
 pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaLweCiphertextList<T>,
-    lwe_flattened_compact_array_in: &CudaLweCiphertextList<T>,
+    lwe_flattened_compact_array_in: &CudaVec<T>,
     bootstrapping_key: &CudaVec<B>,
     computing_ks_key: &CudaVec<T>,
     casting_key: &CudaVec<T>,
@@ -567,9 +567,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
     is_boolean: &[bool],
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
-    let ct_modulus = lwe_flattened_compact_array_in
-        .ciphertext_modulus()
-        .raw_modulus_float();
+    let ct_modulus = lwe_array_out.ciphertext_modulus().raw_modulus_float();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let num_compact_lists = num_lwes_per_compact_list.len();
 
@@ -612,7 +610,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
         lwe_array_out.0.d_vec.as_mut_c_ptr(0),
-        lwe_flattened_compact_array_in.0.d_vec.as_c_ptr(0),
+        lwe_flattened_compact_array_in.as_c_ptr(0),
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         computing_ks_key.ptr.as_ptr(),
