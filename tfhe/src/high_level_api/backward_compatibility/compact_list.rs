@@ -14,7 +14,7 @@ impl Upgrade<CompactCiphertextList> for CompactCiphertextListV0 {
 
     fn upgrade(self) -> Result<CompactCiphertextList, Self::Error> {
         Ok(CompactCiphertextList {
-            inner: self.0,
+            inner: crate::high_level_api::compact_list::InnerCompactCiphertextList::Cpu(self.0),
             tag: Tag::default(),
         })
     }
