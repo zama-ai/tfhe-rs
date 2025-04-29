@@ -12,7 +12,7 @@ pub fn pad_sha256_input(input: &str) -> Vec<bool> {
             // hex value can be converted to bytes
             no_prefix.to_string()
         } else {
-            format!("0{}", no_prefix) // pad hex value to ensure a correct conversion to bytes
+            format!("0{no_prefix}") // pad hex value to ensure a correct conversion to bytes
         };
         hex_input
             .as_bytes()

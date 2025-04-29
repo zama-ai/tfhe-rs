@@ -107,7 +107,7 @@ fn main() {
     match ops() {
         Ok(_) => (),
         Err(e) => {
-            println!("correctness of operations is not guaranteed due to error: {}", e);
+            println!("correctness of operations is not guaranteed due to error: {e}");
             return;
         },
     }

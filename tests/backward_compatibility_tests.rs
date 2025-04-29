@@ -74,9 +74,9 @@ fn run_test<M: TestedModule>(
     let test_result = M::run_test(test_dir, testcase, format);
 
     match &test_result {
-        TestResult::Success(r) => println!("{}", r),
-        TestResult::Failure(r) => println!("{}", r),
-        TestResult::Skipped(r) => println!("{}", r),
+        TestResult::Success(r) => println!("{r}"),
+        TestResult::Failure(r) => println!("{r}"),
+        TestResult::Skipped(r) => println!("{r}"),
     }
 
     test_result
