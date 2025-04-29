@@ -101,8 +101,9 @@ where
                                     } else {
                                         0
                                     };
-                                    coef_info + coef_rounding
+                                    (coef_info + coef_rounding) & ((1 << ks_p.width as u32) - 1)
                                 };
+                                // println!("@{inner_z} => 0x{acc:x} [0x{coef_rounded_ralign:x}]");
                                 acc + (coef_rounded_ralign << (inner_z * ks_p.width))
                             });
                             hpu_ksk[hw_idx] = pack_z;
