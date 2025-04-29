@@ -13,7 +13,6 @@ use tfhe::core_crypto::entities::{
     Cleartext, LweCiphertextOwned, LweCiphertextView, LweKeyswitchKey, NttLweBootstrapKey,
     Plaintext,
 };
-use tfhe::core_crypto::hpu::algorithms::lwe_keyswitch::hpu_keyswitch_lwe_ciphertext;
 use tfhe::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable;
 use tfhe::core_crypto::prelude::*;
 use tfhe::shortint::prelude::ClassicPBSParameters;
@@ -654,7 +653,7 @@ impl HpuSim {
 
         // TODO add a check on trivialness for fast simulation ?
         // TODO assert ordering (i.e. KS+PBS)
-        hpu_keyswitch_lwe_ciphertext(ksk, &cpu_reg, bfr_after_ks);
+        keyswitch_lwe_ciphertext(ksk, &cpu_reg, bfr_after_ks);
         blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
 
         assert_eq!(
