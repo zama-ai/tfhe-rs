@@ -309,6 +309,7 @@ impl CompressedServerKey {
                     destination_key: ksk_material.material.destination_key,
                 }
             });
+
         let compression_key: Option<
             crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
         > = self
@@ -417,6 +418,39 @@ pub enum InternalServerKey {
     Cuda(CudaServerKey),
     #[cfg(feature = "hpu")]
     Hpu(HpuTaggedDevice),
+}
+
+pub enum InternalServerKeyRef<'a> {
+    Cpu(&'a ServerKey),
+    #[cfg(feature = "gpu")]
+    Cuda(&'a CudaServerKey),
+    #[cfg(feature = "hpu")]
+    Hpu(&'a HpuTaggedDevice),
+}
+
+impl<'a> From<&'a InternalServerKey> for InternalServerKeyRef<'a> {
+    fn from(value: &'a InternalServerKey) -> Self {
+        match value {
+            InternalServerKey::Cpu(sk) => InternalServerKeyRef::Cpu(sk),
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(sk) => InternalServerKeyRef::Cuda(sk),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(sk) => InternalServerKeyRef::Hpu(sk),
+        }
+    }
+}
+
+impl<'a> From<&'a ServerKey> for InternalServerKeyRef<'a> {
+    fn from(key: &'a ServerKey) -> Self {
+        Self::Cpu(key)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<'a> From<&'a CudaServerKey> for InternalServerKeyRef<'a> {
+    fn from(key: &'a CudaServerKey) -> Self {
+        Self::Cuda(key)
+    }
 }
 
 impl InternalServerKey {
