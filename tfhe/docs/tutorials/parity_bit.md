@@ -135,14 +135,14 @@ fn main() {
     let fhe_parity_bit = compute_parity_bit(&fhe_bits, mode);
     let decrypted_parity_bit = fhe_parity_bit.decrypt(&client_key);
     let is_parity_bit_valid = check_parity_bit_validity(&clear_bits, mode, decrypted_parity_bit);
-    println!("Parity bit is set: {} for mode: {:?}", decrypted_parity_bit, mode);
+    println!("Parity bit is set: {decrypted_parity_bit} for mode: {mode:?}");
     assert!(is_parity_bit_valid);
 
     let mode = ParityMode::Even;
     let fhe_parity_bit = compute_parity_bit(&fhe_bits, mode);
     let decrypted_parity_bit = fhe_parity_bit.decrypt(&client_key);
     let is_parity_bit_valid = check_parity_bit_validity(&clear_bits, mode, decrypted_parity_bit);
-    println!("Parity bit is set: {} for mode: {:?}", decrypted_parity_bit, mode);
+    println!("Parity bit is set: {decrypted_parity_bit} for mode: {mode:?}");
     assert!(is_parity_bit_valid);
 }
 ```
@@ -348,7 +348,7 @@ fn main() {
     let fhe_parity_bit = compute_parity_bit(&fhe_bits, mode);
     let decrypted_parity_bit = fhe_parity_bit.decrypt(&client_key);
     let is_parity_bit_valid = check_parity_bit_validity(&clear_bits, mode, decrypted_parity_bit);
-    println!("Parity bit is set: {} for mode: {:?}", decrypted_parity_bit, mode);
+    println!("Parity bit is set: {decrypted_parity_bit} for mode: {mode:?}");
     assert!(is_parity_bit_valid);
     assert_eq!(decrypted_parity_bit, clear_parity_bit);
 
@@ -357,7 +357,7 @@ fn main() {
     let fhe_parity_bit = compute_parity_bit(&fhe_bits, mode);
     let decrypted_parity_bit = fhe_parity_bit.decrypt(&client_key);
     let is_parity_bit_valid = check_parity_bit_validity(&clear_bits, mode, decrypted_parity_bit);
-    println!("Parity bit is set: {} for mode: {:?}", decrypted_parity_bit, mode);
+    println!("Parity bit is set: {decrypted_parity_bit} for mode: {mode:?}");
     assert!(is_parity_bit_valid);
     assert_eq!(decrypted_parity_bit, clear_parity_bit);
 }

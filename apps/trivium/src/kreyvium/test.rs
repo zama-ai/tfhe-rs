@@ -66,7 +66,7 @@ fn get_hexagonal_string_from_bytes(a: Vec<u8>) -> String {
     assert!(a.len() % 8 == 0);
     let mut hexadecimal: String = "".to_string();
     for test in a {
-        hexadecimal.push_str(&format!("{:02X?}", test));
+        hexadecimal.push_str(&format!("{test:02X?}"));
     }
     hexadecimal
 }
@@ -74,7 +74,7 @@ fn get_hexagonal_string_from_bytes(a: Vec<u8>) -> String {
 fn get_hexagonal_string_from_u64(a: Vec<u64>) -> String {
     let mut hexadecimal: String = "".to_string();
     for test in a {
-        hexadecimal.push_str(&format!("{:016X?}", test));
+        hexadecimal.push_str(&format!("{test:016X?}"));
     }
     hexadecimal
 }
