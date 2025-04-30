@@ -38,6 +38,9 @@ pub use multi_bit::tuniform::p_fail_2_minus_64::ks_pbs::*;
 pub use multi_bit::tuniform::p_fail_2_minus_64::ks_pbs_gpu::*;
 pub use noise_squashing::p_fail_2_minus_128::*;
 
+#[cfg(feature = "hpu")]
+pub use hpu::*;
+
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
     MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
@@ -1687,3 +1690,6 @@ pub const VEC_ALL_NOISE_SQUASHING_PARAMETERS: [(&NoiseSquashingParameters, &str)
     &V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     "V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
 )];
+
+#[cfg(feature = "hpu")]
+pub mod hpu;
