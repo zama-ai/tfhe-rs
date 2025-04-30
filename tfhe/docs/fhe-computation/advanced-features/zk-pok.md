@@ -47,6 +47,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
 
+    set_server_key(server_key);
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
@@ -54,7 +55,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Server side
     let result = {
-        set_server_key(server_key);
 
         // Verify the ciphertexts
         let expander =
@@ -128,6 +128,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_a = rng.gen::<u64>();
     let clear_b = rng.gen::<u64>();
 
+    set_server_key(server_key);
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
@@ -135,7 +136,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Server side
     let result = {
-        set_server_key(server_key);
 
         // Verify the ciphertexts
         let expander =

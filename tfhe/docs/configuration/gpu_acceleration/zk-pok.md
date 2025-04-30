@@ -47,6 +47,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_key = tfhe::ClientKey::generate(config);
     let compressed_server_key = CompressedServerKey::new(&client_key);
     let gpu_server_key = compressed_server_key.decompress_to_gpu();
+
     let public_key = tfhe::CompactPublicKey::try_new(&client_key).unwrap();
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
     let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
@@ -54,6 +55,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clear_a = random::<u64>();
     let clear_b = random::<u64>();
 
+    // We need to set the server key before building the list
+    set_server_key(gpu_server_key);
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
         .push(clear_b)
@@ -61,7 +64,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Server side
     let result = {
-        set_server_key(gpu_server_key);
 
         // Verify the ciphertexts
         let expander =
