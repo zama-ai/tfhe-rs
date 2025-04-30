@@ -414,9 +414,9 @@ named_params_impl!( ShortintParameterSet =>
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,
 
     #[cfg(feature ="hpu")]
-    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64,
     #[cfg(feature ="hpu")]
-    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64,
 );
 
 impl NamedParam for ClassicPBSParameters {
