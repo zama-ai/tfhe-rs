@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::CreateFrom;
-use crate::shortint::ClassicPBSParameters;
+use crate::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe_hpu_backend::prelude::*;
 
 use super::CompressedServerKey;
@@ -9,14 +9,23 @@ pub mod ciphertext;
 /// Init from Compressed material
 pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate::Result<()> {
     let params = device.params().clone();
-    let tfhe_params = ClassicPBSParameters::from(&params);
+    let tfhe_params = KeySwitch32PBSParameters::from(&params);
+
+    let ap_key =  match server_key.key.compressed_ap_server_key {
+            crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey::Standard(_) => {
+                Err("Hpu not support Standard keys. Required a KeySwitch32 keys")
+                }
+            crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey::KeySwitch32(keys) => Ok(keys),
+    }?;
 
     // Extract and convert bsk
-    let bsk = match server_key.key.bootstrapping_key {
+    let bsk = match ap_key.bootstrapping_key() {
         crate::shortint::server_key::ShortintCompressedBootstrappingKey::Classic {
             bsk, ..
         } => {
-            let bsk = bsk.decompress_into_lwe_bootstrap_key();
+            let bsk = bsk
+                .clone() // TODO fix API this shouldn't be needed
+                .decompress_into_lwe_bootstrap_key();
 
             // Check that given key is compliant with current device configuration
             if tfhe_params.lwe_dimension != bsk.input_lwe_dimension() {
@@ -45,9 +54,9 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate
     }?;
     let hpu_bsk = HpuLweBootstrapKeyOwned::create_from(bsk.as_view(), params.clone());
     // Extract and convert ksk
-    let ksk = server_key
-        .key
-        .key_switching_key
+    let ksk = ap_key
+        .key_switching_key()
+        .clone() // TODO fix API this shouldn't be needed
         .decompress_into_lwe_keyswitch_key();
     // Check that given key is compliant with current device configuration
     if tfhe_params.ks_base_log != ksk.decomposition_base_log() {

@@ -88,23 +88,14 @@ where
                                     _ => Scalar::ZERO, /* At least one dimension overflow
                                                         * -> return 0 */
                                 };
-                                // NB: Ksk modulus used within Hw could be different that the one
-                                // used in Sw. In Sw, the
-                                // information is kept in MSB, but Hw required them in LSB
-                                // Handle rounding and bit alignment
-                                let coef_rounded_ralign = {
+                                // NB: In Sw, the information is kept in MSB, but Hw required them
+                                // in LSB Handle bit alignment
+                                let coef_ralign = {
                                     let coef_orig: u64 = cur_coef.cast_into();
-                                    // Extract info bits and rounding if required
-                                    let coef_info = coef_orig >> (u64::BITS - ks_p.width as u32);
-                                    let coef_rounding = if (ks_p.width as u32) < u64::BITS {
-                                        (coef_orig >> (u64::BITS - (ks_p.width + 1) as u32)) & 0x1
-                                    } else {
-                                        0
-                                    };
-                                    (coef_info + coef_rounding) & ((1 << ks_p.width as u32) - 1)
+                                    coef_orig >> (Scalar::BITS - ks_p.width)
                                 };
                                 // println!("@{inner_z} => 0x{acc:x} [0x{coef_rounded_ralign:x}]");
-                                acc + (coef_rounded_ralign << (inner_z * ks_p.width))
+                                acc + (coef_ralign << (inner_z * ks_p.width))
                             });
                             hpu_ksk[hw_idx] = pack_z;
                             hw_idx += 1;
@@ -175,12 +166,13 @@ impl KskIndex {
     }
 }
 
-impl<'a, Scalar> From<HpuLweKeyswitchKeyView<'a, Scalar>> for LweKeyswitchKeyOwned<Scalar>
+impl<'a, Scalar> From<HpuLweKeyswitchKeyView<'a, u64>> for LweKeyswitchKeyOwned<Scalar>
 where
-    Scalar: UnsignedInteger,
+    Scalar: UnsignedInteger + CastFrom<u64>,
 {
-    fn from(hpu_ksk: HpuLweKeyswitchKeyView<'a, Scalar>) -> Self {
+    fn from(hpu_ksk: HpuLweKeyswitchKeyView<'a, u64>) -> Self {
         let pbs_p = &hpu_ksk.params().pbs_params;
+        let ks_p = &hpu_ksk.params().ks_params;
 
         let mut cpu_ksk = Self::new(
             Scalar::ZERO,
@@ -188,7 +180,7 @@ where
             DecompositionLevelCount(pbs_p.ks_level),
             LweDimension(pbs_p.glwe_dimension * pbs_p.polynomial_size),
             LweDimension(pbs_p.lwe_dimension),
-            CiphertextModulus::new(1_u128 << pbs_p.ciphertext_width),
+            CiphertextModulus::new(1_u128 << ks_p.width),
         );
 
         // Unshuffle Keyswitch key from Hw order to Cpu order
@@ -251,9 +243,10 @@ where
                                     let cpu_coef =
                                         KskIndex { x, y, z }.coef_mut_view(&mut cpu_ksk_view);
                                     let hpu_val = (hpu_ksk[hw_idx] >> (inner_z * ks_p.width))
-                                        & Scalar::cast_from((1 << ks_p.width) - 1);
+                                        & ((1_u64 << ks_p.width) - 1);
                                     // Cpu expect value MSB Align
-                                    *cpu_coef = hpu_val << (u64::BITS - ks_p.width as u32) as usize;
+                                    *cpu_coef =
+                                        Scalar::cast_from(hpu_val << (Scalar::BITS - ks_p.width));
                                 }
                                 // Otherwise, at least one dimension overflow, it's padded with 0 in
                                 // the Hw view => Skipped

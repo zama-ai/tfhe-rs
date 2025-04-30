@@ -9,12 +9,12 @@ use std::collections::{HashMap, HashSet};
 pub use std::time::{Duration, Instant};
 
 use integer::hpu::ciphertext::HpuRadixCiphertext;
-use shortint::ClassicPBSParameters;
 use tfhe::integer::{ClientKey, CompressedServerKey, ServerKey};
 
 use itertools::Itertools;
 use tfhe::core_crypto::commons::generators::DeterministicSeeder;
 use tfhe::core_crypto::prelude::DefaultRandomGenerator;
+use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::*;
 use tfhe_hpu_backend::prelude::*;
 
@@ -172,7 +172,7 @@ pub fn main() {
     }
 
     // Extract pbs_configuration from Hpu and create Client/Server Key
-    let cks = ClientKey::new(ClassicPBSParameters::from(hpu_device.params()));
+    let cks = ClientKey::new(KeySwitch32PBSParameters::from(hpu_device.params()));
     let sks = ServerKey::new_radix_server_key(&cks);
     let sks_compressed = CompressedServerKey::new_radix_compressed_server_key(&cks);
 

@@ -4,7 +4,8 @@ use tfhe_hpu_backend::prelude::*;
 use crate::core_crypto::prelude::{CreateFrom, LweCiphertextOwned};
 use crate::integer::{BooleanBlock, RadixCiphertext};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::{Ciphertext, ClassicPBSParameters};
+use crate::shortint::parameters::KeySwitch32PBSParameters;
+use crate::shortint::{AtomicPatternKind, Ciphertext};
 
 /// Simple wrapper over HpuVar
 /// Add method to convert from/to cpu radix ciphertext
@@ -39,7 +40,7 @@ impl HpuRadixCiphertext {
         let cpu_ct = hpu_ct
             .into_iter()
             .map(|ct| {
-                let pbs_p = ClassicPBSParameters::from(ct.params());
+                let pbs_p = KeySwitch32PBSParameters::from(ct.params());
                 let cpu_ct = LweCiphertextOwned::from(ct.as_view());
                 // Hpu output clean ciphertext without carry
                 Ciphertext::new(
@@ -48,7 +49,7 @@ impl HpuRadixCiphertext {
                     NoiseLevel::NOMINAL,
                     pbs_p.message_modulus,
                     pbs_p.carry_modulus,
-                    pbs_p.encryption_key_choice.into(),
+                    AtomicPatternKind::KeySwitch32,
                 )
             })
             .collect::<Vec<_>>();

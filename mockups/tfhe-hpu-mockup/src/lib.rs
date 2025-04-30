@@ -15,7 +15,7 @@ use tfhe::core_crypto::entities::{
 };
 use tfhe::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable;
 use tfhe::core_crypto::prelude::*;
-use tfhe::shortint::prelude::ClassicPBSParameters;
+use tfhe::shortint::parameters::KeySwitch32PBSParameters;
 use tfhe::tfhe_hpu_backend::fw::isc_sim::PeConfigStore;
 
 mod ipc;
@@ -66,8 +66,8 @@ pub struct HpuSim {
     /// computation
     /// Also store buffer for ks-pbs computation
     sks: Option<(
-        LweKeyswitchKeyOwned<u64>,
-        LweCiphertextOwned<u64>,
+        LweKeyswitchKeyOwned<u32>,
+        LweCiphertextOwned<u32>,
         NttLweBootstrapKeyOwned<u64>,
     )>,
 
@@ -652,8 +652,7 @@ impl HpuSim {
         let (ksk, ref mut bfr_after_ks, bsk) = self.get_server_key();
 
         // TODO add a check on trivialness for fast simulation ?
-        // TODO assert ordering (i.e. KS+PBS)
-        keyswitch_lwe_ciphertext(ksk, &cpu_reg, bfr_after_ks);
+        keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
         blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
 
         assert_eq!(
@@ -709,8 +708,8 @@ impl HpuSim {
     fn get_server_key(
         &mut self,
     ) -> (
-        &LweKeyswitchKeyOwned<u64>,
-        &mut LweCiphertextOwned<u64>,
+        &LweKeyswitchKeyOwned<u32>,
+        &mut LweCiphertextOwned<u32>,
         &NttLweBootstrapKeyOwned<u64>,
     ) {
         if self.sks.is_none() {
@@ -772,11 +771,11 @@ impl HpuSim {
                 ksk
             };
             // Allocate Pbs intermediate buffer
-            let pbs_p = ClassicPBSParameters::from(self.params.rtl_params.clone());
+            let pbs_p = KeySwitch32PBSParameters::from(self.params.rtl_params.clone());
             let bfr_after_ks = LweCiphertext::new(
                 0,
                 pbs_p.lwe_dimension.to_lwe_size(),
-                pbs_p.ciphertext_modulus,
+                pbs_p.post_keyswitch_ciphertext_modulus(),
             );
 
             // Construct Cpu server_key version

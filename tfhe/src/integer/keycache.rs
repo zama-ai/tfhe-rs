@@ -57,7 +57,7 @@ impl IntegerKeyCache {
     #[cfg(feature = "hpu")]
     pub fn get_hpu_device<P>(&self, param: P) -> &Mutex<HpuDevice>
     where
-        P: Into<PBSParameters> + crate::keycache::NamedParam + Clone,
+        P: Into<crate::shortint::AtomicPatternParameters> + crate::keycache::NamedParam + Clone,
     {
         let hpu_device = self.hpu_device.get_or_init(|| {
             // Instantiate HpuDevice --------------------------------------------------
@@ -68,10 +68,11 @@ impl IntegerKeyCache {
                 HpuDevice::from_config(&config_file.expand())
             };
             // Check compatibility with key
-            let hpu_pbs_params = crate::shortint::ClassicPBSParameters::from(hpu_device.params());
+            let hpu_pbs_params =
+                crate::shortint::parameters::KeySwitch32PBSParameters::from(hpu_device.params());
             assert_eq!(
                 param.clone().into(),
-                PBSParameters::from(hpu_pbs_params),
+                crate::shortint::AtomicPatternParameters::from(hpu_pbs_params),
                 "Error: Current Hpu device isn't compatible with {}",
                 param.name()
             );
