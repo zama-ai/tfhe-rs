@@ -12,4 +12,8 @@ make print_doc_bench_parameters
 
 ### Operation time over FheUint 64
 
+{% hint style="info" %}
+All CPU benchmarks in the Table below were launched on an `AWS hpc7a.96xlarge` instance equipped with a 96-core `AMD EPYC 9R14 CPU @ 2.60GHz` and 740GB of RAM, while all GPU benchmarks were launched on 1xH100 GPU, and rely on the multithreaded PBS algorithm.
+{% endhint %}
+
 ![](../../_static/cpu_gpu_integer_benchmark_fheuint64_tuniform_2m64_ciphertext.svg)
