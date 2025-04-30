@@ -468,8 +468,7 @@ mod zk {
                                         .key
                                         .cpk_key_switching_key_material
                                         .as_ref()
-                                        .unwrap()
-                                        .clone(),
+                                        .unwrap(),
                                     dest_server_key: &gpu_key.key.key,
                                 };
                                 let expander = inner.verify_and_expand(
@@ -536,12 +535,11 @@ mod zk {
                     Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
                         InnerProvenCompactCiphertextList::Cuda(inner) => {
                             with_thread_local_cuda_streams(|streams| {
-                                // FIXME: We should NOT be copying ksk here
                                 let ksk = CudaKeySwitchingKey {
                                     key_switching_key_material: gpu_key
                                         .key
                                         .cpk_key_switching_key_material
-                                        .clone()
+                                        .as_ref()
                                         .unwrap(),
                                     dest_server_key: &gpu_key.key.key,
                                 };
@@ -561,12 +559,11 @@ mod zk {
                                let gpu_proven_ct = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                     &inner, streams,
                                 );
-                                // FIXME: We should NOT be copying ksk here
                                 let ksk = CudaKeySwitchingKey {
                                     key_switching_key_material: gpu_key
                                         .key
                                         .cpk_key_switching_key_material
-                                        .clone()
+                                        .as_ref()
                                         .unwrap(),
                                     dest_server_key: &gpu_key.key.key,
                                 };

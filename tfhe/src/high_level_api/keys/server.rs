@@ -303,7 +303,7 @@ impl CompressedServerKey {
                     &streams,
                 );
                 CudaKeySwitchingKeyMaterial {
-                    key_switching_key: d_ksk,
+                    lwe_keyswitch_key: d_ksk,
                     destination_key: ksk_material.material.destination_key,
                 }
             });
