@@ -38,8 +38,6 @@ pub use boolean_utils::*;
 pub mod shortint_utils {
     use super::*;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
-    #[cfg(feature = "hpu")]
-    use tfhe::shortint::parameters::current_params::V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     use tfhe::shortint::parameters::ShortintKeySwitchingParameters;
     use tfhe::shortint::{

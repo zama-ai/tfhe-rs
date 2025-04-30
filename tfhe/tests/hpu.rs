@@ -76,9 +76,9 @@ mod hpu_test {
         });
 
         // Extract pbs_configuration from Hpu and create Client/Server Key
-        let cks = tfhe::integer::ClientKey::new(tfhe::shortint::ClassicPBSParameters::from(
-            hpu_device.params(),
-        ));
+        let cks = tfhe::integer::ClientKey::new(
+            tfhe::shortint::parameters::KeySwitch32PBSParameters::from(hpu_device.params()),
+        );
         let sks_compressed =
             tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
 
@@ -528,28 +528,37 @@ mod hpu_test {
             tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks)
                 .into_raw_parts();
 
+        // Unwrap compressed key ---------------------------------------------------
+        let ap_key =  match sks_compressed.compressed_ap_server_key {
+                tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey::Standard(_) => {
+                    panic!("Hpu not support Standard keys. Required a KeySwitch32 keys")
+                    }
+                tfhe::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKey::KeySwitch32(keys) => keys,
+        };
+
         // KSK Loopback conversion and check -------------------------------------
         // Extract and convert ksk
-        let mut cpu_ksk_orig = sks_compressed
-            .key_switching_key
+        let cpu_ksk_orig = ap_key
+            .key_switching_key()
+            .clone()
             .decompress_into_lwe_keyswitch_key();
         let hpu_ksk =
             HpuLweKeyswitchKeyOwned::create_from(cpu_ksk_orig.as_view(), hpu_params.clone());
-        let cpu_ksk_lb = LweKeyswitchKeyOwned::from(hpu_ksk.as_view());
+        let cpu_ksk_lb = LweKeyswitchKeyOwned::<u32>::from(hpu_ksk.as_view());
 
         // NB: Some hw modifications such as bit shrinki couldn't be reversed
-        cpu_ksk_orig.as_mut().iter_mut().for_each(|coef| {
-            let ks_p = hpu_params.ks_params;
-            // Apply Hw rounding
-            // Extract info bits and rounding if required
-            let coef_info = *coef >> (u64::BITS - ks_p.width as u32);
-            let coef_rounding = if (ks_p.width as u32) < u64::BITS {
-                (*coef >> (u64::BITS - (ks_p.width + 1) as u32)) & 0x1
-            } else {
-                0
-            };
-            *coef = (coef_info + coef_rounding) << (u64::BITS - ks_p.width as u32);
-        });
+        // cpu_ksk_orig.as_mut().iter_mut().for_each(|coef| {
+        //     let ks_p = hpu_params.ks_params;
+        //     // Apply Hw rounding
+        //     // Extract info bits and rounding if required
+        //     let coef_info = *coef >> (u32::BITS - ks_p.width as u32);
+        //     let coef_rounding = if (ks_p.width as u32) < u32::BITS {
+        //         (*coef >> (u32::BITS - (ks_p.width + 1) as u32)) & 0x1
+        //     } else {
+        //         0
+        //     };
+        //     *coef = (coef_info + coef_rounding) << (u32::BITS - ks_p.width as u32);
+        // });
 
         let ksk_mismatch: usize =
             std::iter::zip(cpu_ksk_orig.as_ref().iter(), cpu_ksk_lb.as_ref().iter())
@@ -566,11 +575,11 @@ mod hpu_test {
 
         // BSK Loopback conversion and check -------------------------------------
         // Extract and convert ksk
-        let cpu_bsk_orig = match sks_compressed.bootstrapping_key {
+        let cpu_bsk_orig = match ap_key.bootstrapping_key() {
             tfhe::shortint::server_key::ShortintCompressedBootstrappingKey::Classic {
                 bsk: seeded_bsk,
                 ..
-            } => seeded_bsk.decompress_into_lwe_bootstrap_key(),
+            } => seeded_bsk.clone().decompress_into_lwe_bootstrap_key(),
             tfhe::shortint::server_key::ShortintCompressedBootstrappingKey::MultiBit { .. } => {
                 panic!("Hpu currently not support multibit. Required a Classic BSK")
             }
