@@ -3,7 +3,7 @@ use crate::shortint::parameters::{
     DynamicDistribution, GlweDimension, LweCiphertextCount, PolynomialSize, StandardDev,
 };
 
-// p-fail = 2^-129.053, algorithmic cost ~ 41458
+/// p-fail = 2^-129.053, algorithmic cost ~ 41458
 pub const V1_1_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: CompressionParameters =
     CompressionParameters {
         br_level: DecompositionLevelCount(1),
@@ -17,7 +17,7 @@ pub const V1_1_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: CompressionPa
         packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
     };
 
-// p-fail = 2^-129.053, algorithmic cost ~ 41458
+/// p-fail = 2^-129.053, algorithmic cost ~ 41458
 pub const V1_1_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     CompressionParameters = CompressionParameters {
     br_level: DecompositionLevelCount(1),
@@ -31,7 +31,7 @@ pub const V1_1_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFOR
     packing_ks_key_noise_distribution: DynamicDistribution::new_t_uniform(43),
 };
 
-// p-fail = 2^-128.0, algorithmic cost ~ 42199
+/// p-fail = 2^-128.0, algorithmic cost ~ 42199
 pub const V1_1_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: CompressionParameters =
     CompressionParameters {
         br_level: DecompositionLevelCount(1),
@@ -47,7 +47,7 @@ pub const V1_1_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128: CompressionPa
         ),
     };
 
-// p-fail = 2^-128.0, algorithmic cost ~ 42199
+/// p-fail = 2^-128.0, algorithmic cost ~ 42199
 pub const V1_1_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128:
     CompressionParameters = CompressionParameters {
     br_level: DecompositionLevelCount(1),

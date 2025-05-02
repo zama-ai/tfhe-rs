@@ -4,7 +4,7 @@ use crate::shortint::parameters::{
     MaxNoiseLevel, MessageModulus, MultiBitPBSParameters, PolynomialSize, StandardDev,
 };
 
-// p-fail = 2^-40.693, algorithmic cost ~ 44, 2-norm = 3
+/// p-fail = 2^-40.693, algorithmic cost ~ 44, 2-norm = 3
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(718),
@@ -30,7 +30,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.711, algorithmic cost ~ 78, 2-norm = 5
+/// p-fail = 2^-40.711, algorithmic cost ~ 78, 2-norm = 5
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(792),
@@ -56,7 +56,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-41.361, algorithmic cost ~ 618, 2-norm = 9
+/// p-fail = 2^-41.361, algorithmic cost ~ 618, 2-norm = 9
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(920),
@@ -82,7 +82,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.214, algorithmic cost ~ 4122, 2-norm = 17
+/// p-fail = 2^-40.214, algorithmic cost ~ 4122, 2-norm = 17
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(1048),
@@ -108,7 +108,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_2_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.879, algorithmic cost ~ 48, 2-norm = 3
+/// p-fail = 2^-40.879, algorithmic cost ~ 48, 2-norm = 3
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(747),
@@ -134,7 +134,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.812, algorithmic cost ~ 74, 2-norm = 5
+/// p-fail = 2^-40.812, algorithmic cost ~ 74, 2-norm = 5
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(789),
@@ -160,7 +160,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.216, algorithmic cost ~ 600, 2-norm = 9
+/// p-fail = 2^-40.216, algorithmic cost ~ 600, 2-norm = 9
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(915),
@@ -186,7 +186,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.925, algorithmic cost ~ 3992, 2-norm = 17
+/// p-fail = 2^-40.925, algorithmic cost ~ 3992, 2-norm = 17
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(1044),
@@ -212,7 +212,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.879, algorithmic cost ~ 62, 2-norm = 3
+/// p-fail = 2^-40.879, algorithmic cost ~ 62, 2-norm = 3
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(748),
@@ -238,7 +238,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.296, algorithmic cost ~ 91, 2-norm = 5
+/// p-fail = 2^-40.296, algorithmic cost ~ 91, 2-norm = 5
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(836),
@@ -264,7 +264,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-40.024, algorithmic cost ~ 380, 2-norm = 9
+/// p-fail = 2^-40.024, algorithmic cost ~ 380, 2-norm = 9
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(932),
@@ -290,7 +290,7 @@ pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M4
     deterministic_execution: false,
 };
 
-// p-fail = 2^-43.231, algorithmic cost ~ 4756, 2-norm = 17
+/// p-fail = 2^-43.231, algorithmic cost ~ 4756, 2-norm = 17
 pub const V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_4_CARRY_4_KS_PBS_GAUSSIAN_2M40:
     MultiBitPBSParameters = MultiBitPBSParameters {
     lwe_dimension: LweDimension(1044),

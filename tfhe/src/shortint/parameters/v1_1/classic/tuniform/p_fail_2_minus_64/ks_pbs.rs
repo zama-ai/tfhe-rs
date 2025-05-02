@@ -4,7 +4,7 @@ use crate::shortint::parameters::{
     MaxNoiseLevel, MessageModulus, PolynomialSize,
 };
 
-// p-fail = 2^-72.226, algorithmic cost ~ 64, 2-norm = 3
+/// p-fail = 2^-72.226, algorithmic cost ~ 64, 2-norm = 3
 pub const V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(839),
@@ -25,7 +25,7 @@ pub const V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameter
         modulus_switch_noise_reduction_params: None,
     };
 
-// p-fail = 2^-72.178, algorithmic cost ~ 112, 2-norm = 5
+/// p-fail = 2^-72.178, algorithmic cost ~ 112, 2-norm = 5
 pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(879),
@@ -46,7 +46,7 @@ pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameter
         modulus_switch_noise_reduction_params: None,
     };
 
-// p-fail = 2^-64.454, algorithmic cost ~ 850, 2-norm = 9
+/// p-fail = 2^-64.454, algorithmic cost ~ 850, 2-norm = 9
 pub const V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(998),
@@ -67,7 +67,7 @@ pub const V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M64: ClassicPBSParameter
         modulus_switch_noise_reduction_params: None,
     };
 
-// p-fail = 2^-64.037, algorithmic cost ~ 6737, 2-norm = 17
+/// p-fail = 2^-64.037, algorithmic cost ~ 6737, 2-norm = 17
 pub const V1_1_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
         lwe_dimension: LweDimension(1117),
