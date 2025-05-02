@@ -32,10 +32,10 @@ These default parameters may be updated with in future releases of **TFHE-rs**, 
 
 Parameter sets are versioned for backward compatibility. This means that each set of parameters can be tied to a specific version of **TFHE-rs**, so that they remain unchanged and compatible after an upgrade.
 
-All parameter sets are stored as variables inside the `tfhe::shortint::parameters` module, with submodules named after the versions of **TFHE-rs** in which these parameters where added. For example, parameters added in **TFHE-rs** v1.0 can be found inside `tfhe::shortint::parameters::v1_1`.
+All parameter sets are stored as variables inside the `tfhe::shortint::parameters` module, with submodules named after the versions of **TFHE-rs** in which these parameters where added. For example, parameters added in **TFHE-rs** v1.0 can be found inside `tfhe::shortint::parameters::v1_0`.
 
-The naming convention of these parameters indicates their capabilities. Taking `tfhe::parameters::v1_1::V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128` as an example:
-- `V1_1`: these parameters were introduced in **TFHE-rs** v1.0
+The naming convention of these parameters indicates their capabilities. Taking `tfhe::parameters::v1_0::V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128` as an example:
+- `V1_0`: these parameters were introduced in **TFHE-rs** v1.0
 - `MESSAGE_2`: LWE blocks include 2 bits of message
 - `CARRY_2`: LWE blocks include 2 bits of carry
 - `KS_PBS`: the keyswitch is computed before the bootstrap
@@ -50,11 +50,11 @@ You can override the default parameters with the `with_custom_parameters(block_p
 
 ```rust
 use tfhe::{ConfigBuilder, generate_keys};
-use tfhe::shortint::parameters::v1_1::V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+use tfhe::shortint::parameters::v1_2::V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
 fn main() {
     let config =
-        ConfigBuilder::with_custom_parameters(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
+        ConfigBuilder::with_custom_parameters(V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128)
             .build();
 
     // Client-side
