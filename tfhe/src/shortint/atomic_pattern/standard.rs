@@ -20,6 +20,7 @@ use crate::shortint::ciphertext::{
     NoiseLevel,
 };
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::oprf::generate_pseudo_random_from_pbs;
 use crate::shortint::server_key::{
     apply_modulus_switch_noise_reduction, apply_programmable_bootstrap_no_ms_noise_reduction,
     LookupTableOwned, LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
@@ -128,7 +129,10 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
 
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
@@ -197,7 +201,13 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
         random_bits_count: u64,
         full_bits_count: u64,
     ) -> (LweCiphertextOwned<u64>, Degree) {
-        let (ct, degree) = todo!();
+        let (ct, degree) = generate_pseudo_random_from_pbs(
+            &self.bootstrapping_key,
+            seed,
+            random_bits_count,
+            full_bits_count,
+            self.ciphertext_modulus(),
+        );
 
         match self.pbs_order {
             PBSOrder::KeyswitchBootstrap => (ct, degree),
@@ -218,7 +228,8 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
     fn switch_modulus_and_compress(&self, ct: &Ciphertext) -> CompressedModulusSwitchedCiphertext {
         let compressed_modulus_switched_lwe_ciphertext =
             ShortintEngine::with_thread_local_mut(|engine| {
-                let (mut ciphertext_buffer, _) = engine.get_buffers(todo!());
+                let (mut ciphertext_buffer, _) = engine
+                    .get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
                 let input_ct = match self.pbs_order {
                     PBSOrder::KeyswitchBootstrap => {
@@ -301,7 +312,8 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) =
+                engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             match self.pbs_order {
                 PBSOrder::KeyswitchBootstrap => {
@@ -355,7 +367,10 @@ impl StandardAtomicPatternServerKey {
         let mut acc = lut.acc.clone();
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(todo!());
+            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+                self.intermediate_lwe_dimension(),
+                CiphertextModulus::new_native(),
+            );
 
             // Compute a key switch
             keyswitch_lwe_ciphertext(&self.key_switching_key, &ct.ct, &mut ciphertext_buffer);
