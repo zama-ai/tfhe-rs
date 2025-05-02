@@ -10,7 +10,7 @@ use crate::shortint::{CarryModulus, CiphertextModulus, MaxNoiseLevel, MessageMod
 
 // p-fail = 2^-129.358, algorithmic cost ~ 113, 2-norm = 5
 // Average number of encryptions of 0s ~ 17, peak noise ~ Variance(0.00000140546154228955)
-pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
+pub const V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
     KeySwitch32PBSParameters {
         lwe_dimension: LweDimension(918),
         glwe_dimension: GlweDimension(1),

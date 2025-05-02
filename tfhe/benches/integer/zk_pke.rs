@@ -39,10 +39,10 @@ fn pke_zk_proof(c: &mut Criterion) {
             PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
-        // Non default params use the V1_1 prefix
+        // Non default params use the V1_2 prefix
         (
-            V1_1_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-            V1_1_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_2_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_2_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
@@ -182,10 +182,10 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
-        // Non default params use the V1_1 prefix
+        // Non default params use the V1_2 prefix
         (
-            V1_1_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
-            V1_1_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_2_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+            V1_2_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         ),
     ] {
