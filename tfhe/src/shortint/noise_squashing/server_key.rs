@@ -11,6 +11,7 @@ use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
+use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
 use crate::shortint::client_key::ClientKey;
@@ -23,6 +24,7 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::server_key::{
     ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
+    StandardServerKeyView,
 };
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -213,25 +215,40 @@ impl NoiseSquashingKey {
             ));
         }
 
+        // For the moment, noise squashing is only implemented for the Standard AP
+        let src_server_key: StandardServerKeyView =
+            src_server_key.as_view().try_into().map_err(|_| {
+                crate::error!(
+                    "Noise squashing is not supported by the selected atomic pattern ({:?})",
+                    src_server_key.atomic_pattern.kind()
+                )
+            })?;
+
         Ok(self.unchecked_squash_ciphertext_noise(ciphertext, src_server_key))
     }
 
     pub fn unchecked_squash_ciphertext_noise(
         &self,
         ciphertext: &Ciphertext,
-        src_server_key: &ServerKey,
+        src_server_key: StandardServerKeyView,
     ) -> SquashedNoiseCiphertext {
-        let mut lwe_before_noise_squashing = match src_server_key.pbs_order {
+        let mut lwe_before_noise_squashing = match src_server_key.atomic_pattern.pbs_order {
             // Under the big key, first need to keyswitch
             PBSOrder::KeyswitchBootstrap => {
                 let mut after_ks_ct = LweCiphertext::new(
                     0u64,
-                    src_server_key.key_switching_key.output_lwe_size(),
-                    src_server_key.key_switching_key.ciphertext_modulus(),
+                    src_server_key
+                        .atomic_pattern
+                        .key_switching_key
+                        .output_lwe_size(),
+                    src_server_key
+                        .atomic_pattern
+                        .key_switching_key
+                        .ciphertext_modulus(),
                 );
 
                 keyswitch_lwe_ciphertext(
-                    &src_server_key.key_switching_key,
+                    &src_server_key.atomic_pattern.key_switching_key,
                     &ciphertext.ct,
                     &mut after_ks_ct,
                 );
@@ -379,6 +396,22 @@ impl TryFrom<(PBSParameters, NoiseSquashingParameters)> for NoiseSquashingKeyCon
             message_modulus: noise_squashing_params.message_modulus,
             carry_modulus: noise_squashing_params.carry_modulus,
         })
+    }
+}
+
+impl TryFrom<(AtomicPatternParameters, NoiseSquashingParameters)>
+    for NoiseSquashingKeyConformanceParams
+{
+    type Error = crate::Error;
+
+    fn try_from(
+        (ap_params, noise_squashing_params): (AtomicPatternParameters, NoiseSquashingParameters),
+    ) -> Result<Self, Self::Error> {
+        match ap_params {
+            AtomicPatternParameters::Standard(pbs_params) => {
+                (pbs_params, noise_squashing_params).try_into()
+            }
+        }
     }
 }
 

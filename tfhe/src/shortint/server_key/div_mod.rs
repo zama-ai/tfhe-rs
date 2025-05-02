@@ -1,6 +1,8 @@
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::atomic_pattern::AtomicPattern;
+use crate::shortint::server_key::GenericServerKey;
+use crate::shortint::Ciphertext;
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute a division between two ciphertexts.
     ///
     /// The result is returned in a _new_ ciphertext.
