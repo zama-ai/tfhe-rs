@@ -2,8 +2,8 @@ use crate::utilities::{write_to_json, OperatorType};
 use criterion::Criterion;
 use rayon::prelude::*;
 use tfhe::shortint::parameters::current_params::{
-    V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
-    V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    V1_2_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
+    V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
 };
 use tfhe::shortint::prelude::*;
 
@@ -12,12 +12,12 @@ pub fn pack_cast_64(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
-    let ks_param = V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
-    let ks_param_name = "V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
+    let ks_param = V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
+    let ks_param_name = "V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),
@@ -63,12 +63,12 @@ pub fn pack_cast(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
-    let ks_param = V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
-    let ks_param_name = "V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
+    let ks_param = V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
+    let ks_param_name = "V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),
@@ -104,12 +104,12 @@ pub fn cast(c: &mut Criterion) {
     let mut bench_group = c.benchmark_group(bench_name);
 
     let (client_key_1, server_key_1): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128);
     let (client_key_2, server_key_2): (ClientKey, ServerKey) =
-        gen_keys(V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+        gen_keys(V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
 
-    let ks_param = V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
-    let ks_param_name = "V1_1_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
+    let ks_param = V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
+    let ks_param_name = "V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128";
 
     let ksk = KeySwitchingKey::new(
         (&client_key_1, Some(&server_key_1)),
