@@ -43,7 +43,7 @@ pub mod shortint_utils {
     use tfhe::shortint::atomic_pattern::AtomicPatternParameters;
     use tfhe::shortint::parameters::compact_public_key_only::CompactPublicKeyEncryptionParameters;
     #[cfg(not(feature = "gpu"))]
-    use tfhe::shortint::parameters::current_params::V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+    use tfhe::shortint::parameters::current_params::V1_2_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
     use tfhe::shortint::parameters::list_compression::CompressionParameters;
     #[cfg(feature = "gpu")]
     use tfhe::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
@@ -74,7 +74,7 @@ pub mod shortint_utils {
                 let params = vec![PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.into()];
                 #[cfg(not(feature = "gpu"))]
                 let params = vec![
-                    V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
+                    V1_2_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
                 ];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
