@@ -82,6 +82,8 @@ jobs:
       - name: Set multiple commands
         if: ${{ contains(inputs.command, ',')}}
         run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
           PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
           echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
 
@@ -93,6 +95,8 @@ jobs:
       - name: Set multiple operations flavors
         if: ${{ contains(inputs.op_flavor, ',')}}
         run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
           PARSED_OP_FLAVOR=$(echo "${INPUTS_OP_FLAVOR}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
           echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
 

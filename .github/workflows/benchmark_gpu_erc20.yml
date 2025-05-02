@@ -32,12 +32,16 @@ jobs:
       - name: Parse profile
         id: parse_profile
         run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
           PROFILE=$(echo "${INPUTS_PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
           echo "profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
           NAME=$(echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
           echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
