@@ -12,10 +12,11 @@ use super::backward_compatibility::server_key::{CompressedServerKeyVersions, Ser
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::integer::client_key::ClientKey;
+use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::ciphertext::{Degree, MaxDegree};
 /// Error returned when the carry buffer is full.
 pub use crate::shortint::CheckError;
-use crate::shortint::{CarryModulus, MessageModulus, PBSParameters};
+use crate::shortint::{CarryModulus, MessageModulus};
 pub use radix::scalar_mul::ScalarMultiplier;
 pub use radix::scalar_sub::TwosComplementNegation;
 pub use radix_parallel::{MatchValues, MiniUnsignedInteger, Reciprocable};
@@ -195,12 +196,12 @@ impl ServerKey {
     }
 
     pub fn deterministic_pbs_execution(&self) -> bool {
-        self.key.deterministic_pbs_execution()
+        self.key.deterministic_execution()
     }
 
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.key
-            .set_deterministic_pbs_execution(new_deterministic_execution);
+            .set_deterministic_execution(new_deterministic_execution);
     }
 
     pub fn message_modulus(&self) -> MessageModulus {
@@ -303,7 +304,7 @@ where
 }
 
 impl ParameterSetConformant for ServerKey {
-    type ParameterSet = PBSParameters;
+    type ParameterSet = AtomicPatternParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
@@ -318,17 +319,22 @@ impl ParameterSetConformant for ServerKey {
 }
 
 impl ParameterSetConformant for CompressedServerKey {
-    type ParameterSet = PBSParameters;
+    type ParameterSet = AtomicPatternParameters;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { key } = self;
 
+        let AtomicPatternParameters::Standard(parameters) = *parameter_set else {
+            // Server key compression is only supported for classical AP
+            return false;
+        };
+
         let expected_max_degree = MaxDegree::integer_radix_server_key(
-            parameter_set.message_modulus(),
-            parameter_set.carry_modulus(),
+            parameters.message_modulus(),
+            parameters.carry_modulus(),
         );
 
-        key.is_conformant(&(*parameter_set, expected_max_degree))
+        key.is_conformant(&(parameters, expected_max_degree))
     }
 }
 

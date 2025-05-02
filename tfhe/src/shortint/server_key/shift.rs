@@ -1,10 +1,11 @@
 use super::CiphertextNoiseDegree;
+use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::scalar_mul::unchecked_scalar_mul_assign;
-use crate::shortint::server_key::CheckError;
-use crate::shortint::{Ciphertext, ServerKey};
+use crate::shortint::server_key::{CheckError, GenericServerKey};
+use crate::shortint::Ciphertext;
 
-impl ServerKey {
+impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// Compute homomorphically a right shift of the bits.
     ///
     /// This returns a new ciphertext.

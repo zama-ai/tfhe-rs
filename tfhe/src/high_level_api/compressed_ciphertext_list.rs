@@ -882,8 +882,8 @@ mod tests {
     #[cfg(feature = "strings")]
     #[test]
     fn test_compressed_strings_cpu() {
-        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
-        let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let config = crate::ConfigBuilder::with_custom_parameters(params)
             .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
             .build();
 
