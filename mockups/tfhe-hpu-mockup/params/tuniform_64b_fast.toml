@@ -19,7 +19,7 @@
     total_pbs_nb= 32
     ct_width= 64
     radix= 2
-    stg_nb= 10
+    stg_nb= 11
     prime_modulus="GF64"
     psi= 32
     delta= 5

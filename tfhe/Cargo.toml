@@ -223,6 +223,11 @@ path = "examples/hpu/hlapi.rs"
 required-features = ["hpu"]
 
 [[example]]
+name = "hpu_matmul"
+path = "examples/hpu/matmul.rs"
+required-features = ["hpu"]
+
+[[example]]
 name = "hpu_bench"
 path = "examples/hpu/bench.rs"
 required-features = ["hpu"]
