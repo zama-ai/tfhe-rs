@@ -29,7 +29,7 @@ pub struct Args {
     #[clap(
         long,
         value_parser,
-        default_value = "${HPU_MOCKUP_DIR}/params/tfhers_64b_fast.toml"
+        default_value = "${HPU_MOCKUP_DIR}/params/gaussian_64b_fast.toml"
     )]
     pub params: ShellString,
 
@@ -155,6 +155,7 @@ fn main() -> Result<(), anyhow::Error> {
         register: params.regf_params.reg_nb,
         isc_depth: params.isc_params.depth,
         heap_size: args.heap,
+        min_iop_size: params.isc_params.min_iop_size,
         min_pbs_batch_w: config.firmware.min_batch_size,
         total_pbs_nb: params.ntt_params.total_pbs_nb,
         pbs_batch_w: params.ntt_params.batch_pbs_nb,
