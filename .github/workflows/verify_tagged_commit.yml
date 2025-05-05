@@ -9,6 +9,8 @@ on:
       READ_ORG_TOKEN:
         required: true
 
+permissions: {}
+
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -26,7 +28,10 @@ jobs:
 
       - name: Actor authorized
         run: |
-          if [ "${{ steps.actor_check.outputs.authorized }}" == "false" ]; then
-            echo "Actor '${{ github.triggering_actor }}' is not authorized to perform release"
+          if [ "${ACTOR_CHECK_OUTPUT}" == "false" ]; then
+            echo "Actor '${TRIGGERING_ACTOR}' is not authorized to perform release"
             exit 1
           fi
+        env:
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          ACTOR_CHECK_OUTPUT: ${{ steps.actor_check.outputs.authorized }}

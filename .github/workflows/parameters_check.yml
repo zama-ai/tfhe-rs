@@ -12,6 +12,8 @@ on:
       - "main"
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   params-curves-security-check:
     runs-on: large_ubuntu_16-22.04

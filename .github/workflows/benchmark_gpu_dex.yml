@@ -17,6 +17,8 @@ on:
           - "multi-h100-nvlink (n3-H100x8-NVLink)"
           - "multi-h100-sxm5 (n3-H100x8-SXM5)"
 
+permissions: {}
+
 jobs:
   parse-inputs:
     runs-on: ubuntu-latest
@@ -27,12 +29,14 @@ jobs:
       - name: Parse profile
         id: parse_profile
         run: |
-          echo "profile=$(echo '${{ inputs.profile }}' | sed 's|\(.*\)[[:space:]](.*)|\1|')" >> "${GITHUB_OUTPUT}"
+          PROFILE=$(echo "${INPUTS_PROFILE}" | sed 's|\(.*\)[[:space:]](.*)|\1|')
+          echo "profile=${PROFILE}" >> "${GITHUB_OUTPUT}"
 
       - name: Parse hardware name
         id: parse_hardware_name
         run: |
-          echo "name=$(echo '${{ inputs.profile }}' | sed 's|.*[[:space:]](\(.*\))|\1|')" >> "${GITHUB_OUTPUT}"
+          NAME=$(echo "${INPUTS_PROFILE}" | sed 's|.*[[:space:]](\(.*\))|\1|')
+          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
   run-benchmarks:
     name: Run benchmarks
@@ -41,4 +45,12 @@ jobs:
     with:
       profile: ${{ needs.parse-inputs.outputs.profile }}
       hardware_name: ${{ needs.parse-inputs.outputs.hardware_name }}
-    secrets: inherit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}

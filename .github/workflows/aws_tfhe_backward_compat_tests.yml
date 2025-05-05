@@ -23,6 +23,9 @@ on:
   workflow_dispatch:
   pull_request:
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (backward-compat-tests)
@@ -47,7 +50,7 @@ jobs:
         id: start-github-instance
         if: env.SECRETS_AVAILABLE == 'false'
         run: |
-          echo "runner_group=${{ env.EXTERNAL_CONTRIBUTION_RUNNER }}" >> "$GITHUB_OUTPUT"
+          echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   backward-compat-tests:
     name: Backward compatibility tests
@@ -83,11 +86,12 @@ jobs:
 
       - name: Get backward compat branch head SHA
         id: backward_compat_sha
+        run: |
+          SHA=$(git ls-remote "${REPO_URL}" refs/heads/"${BACKWARD_COMPAT_BRANCH}" | awk '{print $1}')
+          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
         env:
           REPO_URL: "https://github.com/zama-ai/tfhe-backward-compat-data"
-        run: |
-          SHA=$(git ls-remote ${{ env.REPO_URL }} refs/heads/${{ steps.backward_compat_branch.outputs.branch }} | awk '{print $1}')
-          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+          BACKWARD_COMPAT_BRANCH: ${{ steps.backward_compat_branch.outputs.branch }}
 
       - name: Retrieve data from cache
         id: retrieve-data-cache
@@ -101,6 +105,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
           repository: zama-ai/tfhe-backward-compat-data
           path: tests/tfhe-backward-compat-data
           lfs: 'true'
@@ -121,7 +126,9 @@ jobs:
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
         run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${{ vars.PR_BASE_URL }}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+        env:
+          PR_BASE_URL: ${{ vars.PR_BASE_URL }}
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
