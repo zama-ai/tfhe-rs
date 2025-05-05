@@ -2,8 +2,8 @@ use crate::high_level_api::integers::signed::tests::{
     test_case_ilog2, test_case_leading_trailing_zeros_ones,
 };
 use crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu;
-use crate::high_level_api::traits::AddAssignSizeOnGpu;
-use crate::prelude::{check_valid_cuda_malloc, FheTryEncrypt};
+use crate::high_level_api::traits::AddSizeOnGpu;
+use crate::prelude::{check_valid_cuda_malloc, FheTryEncrypt, SubSizeOnGpu};
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{FheInt32, GpuIndex};
 use rand::Rng;
@@ -73,7 +73,7 @@ fn test_leading_trailing_zeros_ones() {
 }
 
 #[test]
-fn test_gpu_get_add_assign_size_on_gpu() {
+fn test_gpu_get_add_sub_size_on_gpu() {
     let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen_range(1..=i32::MAX);
@@ -82,7 +82,30 @@ fn test_gpu_get_add_assign_size_on_gpu() {
     let mut b = FheInt32::try_encrypt(clear_b, &cks).unwrap();
     a.move_to_current_device();
     b.move_to_current_device();
+    let a = &a;
+    let b = &b;
 
-    let tmp_buffer_size = a.get_add_assign_size_on_gpu(b);
-    assert!(check_valid_cuda_malloc(tmp_buffer_size, GpuIndex::new(0)));
+    let add_tmp_buffer_size = a.get_add_size_on_gpu(b);
+    let sub_tmp_buffer_size = a.get_sub_size_on_gpu(b);
+    let scalar_add_tmp_buffer_size = clear_a.get_add_size_on_gpu(b);
+    let scalar_sub_tmp_buffer_size = clear_a.get_sub_size_on_gpu(b);
+    assert!(check_valid_cuda_malloc(
+        add_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        sub_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_add_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_sub_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert_eq!(add_tmp_buffer_size, sub_tmp_buffer_size);
+    assert_eq!(add_tmp_buffer_size, scalar_add_tmp_buffer_size);
+    assert_eq!(add_tmp_buffer_size, scalar_sub_tmp_buffer_size);
 }
