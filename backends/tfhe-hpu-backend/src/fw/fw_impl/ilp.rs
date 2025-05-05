@@ -860,6 +860,13 @@ pub fn iop_memcpy(prog: &mut Program) {
 
     // NB: Move from memory -> memory isn't supported by HPU
     // Thus we have to go through register file and LD->RegFile->ST
+    // Memcpy is a small IOp and could triggered issue with `min_iop_size`
+    // If required padded the iop with linear operaation
+    let iop_len = src.len().min(dst.len()) * 2;
+    for _ in 0..(prog.params().min_iop_size as isize - iop_len as isize) {
+        let _ = prog.new_cst(0);
+    }
+
     for (mut d, s) in itertools::izip!(dst, src) {
         s.reg_alloc_mv();
         d <<= s;
