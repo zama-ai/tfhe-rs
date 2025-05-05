@@ -43,6 +43,9 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (cuda-erc20-benchmarks)
@@ -73,9 +76,11 @@ jobs:
         if: steps.start-remote-instance.outcome == 'failure' &&
           inputs.profile != 'single-h100'
         run: |
-          echo "Remote instance instance has failed to start (profile provided: '${{ inputs.profile }}')"
+          echo "Remote instance instance has failed to start (profile provided: '${INPUTS_PROFILE}')"
           echo "Permanent instance instance cannot be used as a substitute (profile needed: 'single-h100')"
           exit 1
+        env:
+          INPUTS_PROFILE: ${{ inputs.profile }}
 
       # This will allow to fallback on permanent instances running on Hyperstack.
       - name: Use permanent remote instance
@@ -132,16 +137,19 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "${{ inputs.hardware_name }}" \
+          --hardware "${INPUTS_HARDWARE_NAME}" \
           --backend gpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
           --name-suffix avx512
+        env:
+          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
+          REF_NAME: ${{ github.ref_name }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -160,7 +168,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
   slack-notify:

@@ -3,6 +3,9 @@ name: Check commit and PR compliance
 on:
   pull_request:
 
+
+permissions: {}
+
 jobs:
   check-commit-pr:
     name: Check commit and PR

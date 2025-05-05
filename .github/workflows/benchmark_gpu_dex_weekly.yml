@@ -6,6 +6,8 @@ on:
     # Weekly benchmarks will be triggered each Saturday at 9a.m.
     - cron: '0 9 * * 6'
 
+permissions: {}
+
 jobs:
   run-benchmarks-1-h100:
     name: Run benchmarks (1xH100)
@@ -14,7 +16,15 @@ jobs:
     with:
       profile: single-h100
       hardware_name: n3-H100x1
-    secrets: inherit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-2-h100:
     name: Run benchmarks (2xH100)
@@ -23,7 +33,15 @@ jobs:
     with:
       profile: 2-h100
       hardware_name: n3-H100x2
-    secrets: inherit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
   run-benchmarks-8-h100:
     name: Run benchmarks (8xH100)
@@ -32,4 +50,12 @@ jobs:
     with:
       profile: multi-h100
       hardware_name: n3-H100x8
-    secrets: inherit
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}

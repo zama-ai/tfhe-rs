@@ -58,6 +58,9 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   FAST_BENCH: TRUE
 
+
+permissions: {}
+
 jobs:
   prepare-matrix:
     name: Prepare operations matrix
@@ -67,44 +70,52 @@ jobs:
       op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
       bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
       params_type: ${{ steps.set_params_type.outputs.params_type }}
+    env:
+      INPUTS_COMMAND: ${{ inputs.command }}
+      INPUTS_OP_FLAVOR: ${{ inputs.op_flavor }}
     steps:
       - name: Set single command
         if: ${{ !contains(inputs.command, ',')}}
         run: |
-          echo "COMMAND=[\"${{ inputs.command }}\"]" >> "${GITHUB_ENV}"
+          echo "COMMAND=[\"${INPUTS_COMMAND}\"]" >> "${GITHUB_ENV}"
 
       - name: Set multiple commands
         if: ${{ contains(inputs.command, ',')}}
         run: |
-          PARSED_COMMAND=$(echo "${{ inputs.command }}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
+          PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
           echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
 
       - name: Set single operations flavor
         if: ${{ !contains(inputs.op_flavor, ',')}}
         run: |
-          echo "OP_FLAVOR=[\"${{ inputs.op_flavor }}\"]" >> "${GITHUB_ENV}"
+          echo "OP_FLAVOR=[\"${INPUTS_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
 
       - name: Set multiple operations flavors
         if: ${{ contains(inputs.op_flavor, ',')}}
         run: |
-          PARSED_OP_FLAVOR=$(echo "${{ inputs.op_flavor }}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
+          PARSED_OP_FLAVOR=$(echo "${INPUTS_OP_FLAVOR}" | sed 's/[[:space:]]*,[[:space:]]*/", "/g')
           echo "OP_FLAVOR=[\"${PARSED_OP_FLAVOR}\"]" >> "${GITHUB_ENV}"
 
       - name: Set benchmark types
         run: |
-          if [[ "${{ inputs.bench_type }}" == "both" ]]; then
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
             echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
           else
-            echo "BENCH_TYPE=[\"${{ inputs.bench_type }}\"]" >> "${GITHUB_ENV}"
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
           fi
+        env:
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
 
       - name: Set parameters types
         run: |
-          if [[ "${{ inputs.params_type }}" == "both" ]]; then
+          if [[ "${INPUTS_PARAMS_TYPE}" == "both" ]]; then
             echo "PARAMS_TYPE=[\"classical\", \"multi_bit\"]" >> "${GITHUB_ENV}"
           else
-            echo "PARAMS_TYPE=[\"${{ inputs.params_type }}\"]" >> "${GITHUB_ENV}"
+            echo "PARAMS_TYPE=[\"${INPUTS_PARAMS_TYPE}\"]" >> "${GITHUB_ENV}"
           fi
+        env:
+          INPUTS_PARAMS_TYPE: ${{ inputs.params_type }}
+
 
       - name: Set command output
         id: set_command
@@ -154,9 +165,11 @@ jobs:
         if: steps.start-remote-instance.outcome == 'failure' &&
           inputs.profile != 'single-h100'
         run: |
-          echo "Remote instance instance has failed to start (profile provided: '${{ inputs.profile }}')"
+          echo "Remote instance instance has failed to start (profile provided: '${INPUTS_PROFILE}')"
           echo "Permanent instance instance cannot be used as a substitute (profile needed: 'single-h100')"
           exit 1
+        env:
+          INPUTS_PROFILE: ${{ inputs.profile }}
 
       # This will allow to fallback on permanent instances running on Hyperstack.
       - name: Use permanent remote instance
@@ -259,21 +272,30 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} BENCH_TYPE=${{ matrix.bench_type }} BENCH_PARAM_TYPE=${{ matrix.params_type }} bench_${{ matrix.command }}_gpu
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${PARAMS_TYPE}" bench_"${COMMAND}"_gpu
+        env:
+          OP_FLAVOR: ${{ matrix.op_flavor }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
+          BENCH_PARAM_TYPE: ${{ matrix.params_type }}
+          BENCH_COMMAND: ${{ matrix.command }}
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
-          --hardware "${{ inputs.hardware_name }}" \
+          --hardware "${INPUTS_HARDWARE_NAME}" \
           --backend gpu \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
           --name-suffix avx512 \
-          --bench-type ${{ matrix.bench_type }}
+          --bench-type "${BENCH_TYPE}"
+        env:
+          INPUTS_HARDWARE_NAME: ${{ inputs.hardware_name }}
+          REF_NAME: ${{ github.ref_name }}
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -292,7 +314,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
   slack-notify:

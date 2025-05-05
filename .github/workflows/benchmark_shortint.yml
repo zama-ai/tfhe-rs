@@ -22,6 +22,9 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+
+permissions: {}
+
 jobs:
   prepare-matrix:
     name: Prepare operations matrix
@@ -108,21 +111,23 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make BENCH_OP_FLAVOR=${{ matrix.op_flavor }} bench_shortint
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" bench_shortint
+        env:
+          OP_FLAVOR: ${{ matrix.op_flavor }}
 
       - name: Parse results
         run: |
-          COMMIT_DATE="$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})"
-          COMMIT_HASH="$(git describe --tags --dirty)"
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpc7a.96xlarge" \
           --project-version "${COMMIT_HASH}" \
-          --branch ${{ github.ref_name }} \
+          --branch "${REF_NAME}" \
           --commit-date "${COMMIT_DATE}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
           --name-suffix avx512
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       # This small benchmark needs to be executed only once.
       - name: Measure key sizes
@@ -133,7 +138,7 @@ jobs:
       - name: Parse key sizes results
         if: matrix.op_flavor == 'default'
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
@@ -146,7 +151,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification

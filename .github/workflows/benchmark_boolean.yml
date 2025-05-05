@@ -18,6 +18,9 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
+
+permissions: {}
+
 jobs:
   setup-instance:
     name: Setup instance (boolean-benchmarks)
@@ -73,15 +76,17 @@ jobs:
 
       - name: Parse results
         run: |
-          python3 ./ci/benchmark_parser.py target/criterion ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "hpc7a.96xlarge" \
-          --project-version "${{ env.COMMIT_HASH }}" \
-          --branch ${{ github.ref_name }} \
-          --commit-date "${{ env.COMMIT_DATE }}" \
-          --bench-date "${{ env.BENCH_DATE }}" \
+          --project-version "${COMMIT_HASH}" \
+          --branch "${REF_NAME}" \
+          --commit-date "${COMMIT_DATE}" \
+          --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
           --name-suffix avx512
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       - name: Measure key sizes
         run: |
@@ -89,7 +94,7 @@ jobs:
 
       - name: Parse key sizes results
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv ${{ env.RESULTS_FILENAME }} \
+          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
@@ -110,7 +115,7 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py ${{ env.RESULTS_FILENAME }} "${{ secrets.JOB_SECRET }}" \
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
           --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification
