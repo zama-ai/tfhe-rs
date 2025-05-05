@@ -11,6 +11,8 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::traits::{AddSizeOnGpu, SubSizeOnGpu};
 use crate::high_level_api::traits::{
     BitSlice, DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
@@ -595,6 +597,37 @@ macro_rules! generic_integer_impl_scalar_operation {
 
 pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_operation;
 
+#[cfg(feature = "gpu")]
+macro_rules! generic_integer_impl_get_scalar_operation_size_on_gpu {
+    (
+        rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
+        implem: {
+            // A closure that must return a u64
+            $closure:expr
+        },
+        // A 'list' of tuple, where the first element is the concrete Fhe type
+        // e.g (FheUint8 and the rest is scalar types (u8, u16, etc)
+        fhe_and_scalar_type: $(
+            ($concrete_type:ty, $($scalar_type:ty),* $(,)?)
+        ),*
+        $(,)?
+    ) => {
+        $( // First repeating pattern
+            $( // Second repeating pattern
+                impl $rust_trait_name<$scalar_type> for $concrete_type
+                {
+                    fn $rust_trait_method(&self, rhs: $scalar_type) -> u64 {
+                        $closure(&self, rhs)
+                    }
+                }
+            )* // Closing second repeating pattern
+        )* // Closing first repeating pattern
+    };
+}
+
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api::integers) use generic_integer_impl_get_scalar_operation_size_on_gpu;
+
 // Scalar / Ciphertext ops
 macro_rules! generic_integer_impl_scalar_left_operation {
     (
@@ -661,6 +694,43 @@ macro_rules! generic_integer_impl_scalar_left_operation {
 }
 
 pub(in crate::high_level_api::integers) use generic_integer_impl_scalar_left_operation;
+
+#[cfg(feature = "gpu")]
+macro_rules! generic_integer_impl_get_scalar_left_operation_size_on_gpu {
+    (
+        rust_trait: $rust_trait_name:ident($rust_trait_method:ident),
+        implem: {
+            // A closure that must return a u64
+            $closure:expr
+        },
+        // A 'list' of tuple, where the first element is the concrete Fhe type
+        // e.g (FheUint8 and the rest is scalar types (u8, u16, etc)
+        fhe_and_scalar_type: $(
+            ($concrete_type:ty, $($scalar_type:ty),* $(,)?)
+        ),*
+        $(,)?
+    ) => {
+        $( // First repeating pattern
+            $( // Second repeating pattern
+                impl $rust_trait_name<&$concrete_type> for $scalar_type
+                {
+                    fn $rust_trait_method(&self, rhs: &$concrete_type) -> u64 {
+                        $closure(&self, rhs)
+                    }
+                }
+                impl $rust_trait_name<$concrete_type> for $scalar_type
+                {
+                    fn $rust_trait_method(&self, rhs: $concrete_type) -> u64 {
+                        $closure(&self, &rhs)
+                    }
+                }
+            )* // Closing second repeating pattern
+        )* // Closing first repeating pattern
+    };
+}
+
+#[cfg(feature = "gpu")]
+pub(in crate::high_level_api::integers) use generic_integer_impl_get_scalar_left_operation_size_on_gpu;
 
 // Scalar assign ops
 macro_rules! generic_integer_impl_scalar_operation_assign {
@@ -1075,6 +1145,32 @@ macro_rules! define_scalar_ops {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: AddSizeOnGpu(get_add_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    let mut tmp_buffer_size = 0;
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(_) => {
+                            tmp_buffer_size = 0;
+                        }
+                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                            tmp_buffer_size = cuda_key.key.key.get_scalar_add_size_on_gpu(
+                                &*lhs.ciphertext.on_gpu(streams),
+                                streams,
+                            );
+                        }),
+                    });
+                    tmp_buffer_size
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
         generic_integer_impl_scalar_operation!(
             rust_trait: Sub(sub),
             implem: {
@@ -1103,6 +1199,32 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Hpu(&*lhs - rhs)
                         }
                     })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: SubSizeOnGpu(get_sub_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    let mut tmp_buffer_size = 0;
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(_) => {
+                            tmp_buffer_size = 0;
+                        }
+                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                            tmp_buffer_size = cuda_key.key.key.get_scalar_sub_size_on_gpu(
+                                &*lhs.ciphertext.on_gpu(streams),
+                                streams,
+                            );
+                        }),
+                    });
+                    tmp_buffer_size
                 }
             },
             fhe_and_scalar_type:
@@ -1332,6 +1454,32 @@ macro_rules! define_scalar_ops {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_left_operation_size_on_gpu!(
+            rust_trait: AddSizeOnGpu(get_add_size_on_gpu),
+            implem: {
+                |_lhs, rhs: &FheUint<_>| {
+                    let mut tmp_buffer_size = 0;
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(_) => {
+                            tmp_buffer_size = 0;
+                        }
+                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                            tmp_buffer_size = cuda_key.key.key.get_scalar_add_size_on_gpu(
+                                &*rhs.ciphertext.on_gpu(streams),
+                                streams,
+                            );
+                        }),
+                    });
+                    tmp_buffer_size
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
 
         generic_integer_impl_scalar_left_operation!(
             rust_trait: Sub(sub),
@@ -1364,7 +1512,31 @@ macro_rules! define_scalar_ops {
                 )*
         );
 
-
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_left_operation_size_on_gpu!(
+            rust_trait: SubSizeOnGpu(get_sub_size_on_gpu),
+            implem: {
+                |_lhs, rhs: &FheUint<_>| {
+                    let mut tmp_buffer_size = 0;
+                    global_state::with_internal_keys(|key| match key {
+                        InternalServerKey::Cpu(_) => {
+                            tmp_buffer_size = 0;
+                        }
+                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                            tmp_buffer_size = cuda_key.key.key.get_scalar_sub_size_on_gpu(
+                                &*rhs.ciphertext.on_gpu(streams),
+                                streams,
+                            );
+                        }),
+                    });
+                    tmp_buffer_size
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
 
         generic_integer_impl_scalar_left_operation!(
             rust_trait: Mul(mul),

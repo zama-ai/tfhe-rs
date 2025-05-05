@@ -216,8 +216,13 @@ pub trait SizeOnGpu<Rhs = Self> {
     fn get_size_on_gpu(&self) -> u64;
 }
 #[cfg(feature = "gpu")]
-pub trait AddAssignSizeOnGpu<Rhs = Self> {
-    fn get_add_assign_size_on_gpu(&self, amount: Rhs) -> u64;
+pub trait AddSizeOnGpu<Rhs = Self> {
+    fn get_add_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait SubSizeOnGpu<Rhs = Self> {
+    fn get_sub_size_on_gpu(&self, amount: Rhs) -> u64;
 }
 
 /// Trait used to have a generic way of waiting Hw accelerator result
