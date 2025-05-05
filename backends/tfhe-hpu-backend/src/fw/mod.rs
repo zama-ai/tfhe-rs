@@ -22,6 +22,7 @@ pub struct FwParameters {
     pub register: usize,
     pub isc_depth: usize,
     pub heap_size: usize,
+    pub min_iop_size: usize,
     pub min_pbs_batch_w: usize,
     pub pbs_batch_w: usize,
     pub total_pbs_nb: usize,
