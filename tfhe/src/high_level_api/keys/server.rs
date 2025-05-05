@@ -444,7 +444,7 @@ mod hpu {
     pub struct HpuTaggedDevice {
         // The device holds the keys (there can only be one set of keys)
         // So we attach the tag to it instead of the key
-        pub(in crate::high_level_api) device: HpuDevice,
+        pub(in crate::high_level_api) device: Box<HpuDevice>,
         pub(in crate::high_level_api) tag: Tag,
     }
 
@@ -452,7 +452,10 @@ mod hpu {
         fn from((device, csks): (HpuDevice, CompressedServerKey)) -> Self {
             let CompressedServerKey { integer_key, tag } = csks;
             crate::integer::hpu::init_device(&device, integer_key.key).expect("Invalid key");
-            Self::Hpu(HpuTaggedDevice { device, tag })
+            Self::Hpu(HpuTaggedDevice {
+                device: Box::new(device),
+                tag,
+            })
         }
     }
 }
