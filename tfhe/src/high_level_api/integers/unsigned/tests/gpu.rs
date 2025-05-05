@@ -1,5 +1,5 @@
-use crate::high_level_api::traits::AddAssignSizeOnGpu;
-use crate::prelude::{check_valid_cuda_malloc, FheTryEncrypt};
+use crate::high_level_api::traits::AddSizeOnGpu;
+use crate::prelude::{check_valid_cuda_malloc, FheTryEncrypt, SubSizeOnGpu};
 use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
 };
@@ -152,7 +152,7 @@ fn test_ilog2_multibit() {
 }
 
 #[test]
-fn test_gpu_get_add_assign_size_on_gpu() {
+fn test_gpu_get_add_and_sub_size_on_gpu() {
     let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     let mut rng = rand::thread_rng();
     let clear_a = rng.gen_range(1..=u32::MAX);
@@ -162,6 +162,30 @@ fn test_gpu_get_add_assign_size_on_gpu() {
     a.move_to_current_device();
     b.move_to_current_device();
 
-    let tmp_buffer_size = a.get_add_assign_size_on_gpu(b);
-    assert!(check_valid_cuda_malloc(tmp_buffer_size, GpuIndex::new(0)));
+    let a = &a;
+    let b = &b;
+
+    let add_tmp_buffer_size = a.get_add_size_on_gpu(b);
+    let sub_tmp_buffer_size = a.get_sub_size_on_gpu(b);
+    let scalar_add_tmp_buffer_size = clear_a.get_add_size_on_gpu(b);
+    let scalar_sub_tmp_buffer_size = clear_a.get_sub_size_on_gpu(b);
+    assert!(check_valid_cuda_malloc(
+        add_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        sub_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_add_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_sub_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert_eq!(add_tmp_buffer_size, sub_tmp_buffer_size);
+    assert_eq!(add_tmp_buffer_size, scalar_add_tmp_buffer_size);
+    assert_eq!(add_tmp_buffer_size, scalar_sub_tmp_buffer_size);
 }

@@ -10,7 +10,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::traits::{AddAssignSizeOnGpu, SizeOnGpu};
+use crate::high_level_api::traits::{AddSizeOnGpu, SizeOnGpu, SubSizeOnGpu};
 use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
@@ -2014,12 +2014,12 @@ where
     }
 }
 #[cfg(feature = "gpu")]
-impl<Id, I> AddAssignSizeOnGpu<I> for FheUint<Id>
+impl<Id, I> AddSizeOnGpu<I> for FheUint<Id>
 where
     Id: FheUintId,
     I: Borrow<Self>,
 {
-    fn get_add_assign_size_on_gpu(&self, rhs: I) -> u64 {
+    fn get_add_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
         let mut tmp_buffer_size = 0;
         global_state::with_internal_keys(|key| match key {
@@ -2027,7 +2027,32 @@ where
                 tmp_buffer_size = 0;
             }
             InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_add_assign_size_on_gpu(
+                tmp_buffer_size = cuda_key.key.key.get_add_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+            }),
+        });
+        tmp_buffer_size
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, I> SubSizeOnGpu<I> for FheUint<Id>
+where
+    Id: FheUintId,
+    I: Borrow<Self>,
+{
+    fn get_sub_size_on_gpu(&self, rhs: I) -> u64 {
+        let rhs = rhs.borrow();
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key.key.key.get_sub_size_on_gpu(
                     &*self.ciphertext.on_gpu(streams),
                     &rhs.ciphertext.on_gpu(streams),
                     streams,
