@@ -140,6 +140,14 @@ impl CudaServerKey {
         result
     }
 
+    pub fn get_scalar_sub_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_scalar_sub_assign_size_on_gpu(ct, streams)
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -170,6 +178,13 @@ impl CudaServerKey {
             self.scalar_sub_assign_async(ct, scalar, streams);
         }
         streams.synchronize();
+    }
+
+    pub fn get_scalar_sub_assign_size_on_gpu<T>(&self, ct: &T, streams: &CudaStreams) -> u64
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        self.get_scalar_add_assign_size_on_gpu(ct, streams)
     }
 
     /// ```rust

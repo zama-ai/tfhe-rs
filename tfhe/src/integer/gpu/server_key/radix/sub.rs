@@ -210,6 +210,15 @@ impl CudaServerKey {
         result
     }
 
+    pub fn get_sub_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_sub_assign_size_on_gpu(ct_left, ct_right, streams)
+    }
+
     /// # Safety
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -280,6 +289,15 @@ impl CudaServerKey {
             None,
             OutputFlag::None,
         );
+    }
+
+    pub fn get_sub_assign_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_add_assign_size_on_gpu(ct_left, ct_right, streams)
     }
 
     pub fn unsigned_overflowing_sub(

@@ -23,4 +23,4 @@ pub use crate::high_level_api::gpu_utils::*;
 #[cfg(feature = "strings")]
 pub use crate::high_level_api::strings::traits::*;
 #[cfg(feature = "gpu")]
-pub use crate::high_level_api::traits::{AddAssignSizeOnGpu, SizeOnGpu};
+pub use crate::high_level_api::traits::{AddSizeOnGpu, SizeOnGpu, SubSizeOnGpu};

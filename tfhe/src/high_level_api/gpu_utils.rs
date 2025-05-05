@@ -27,7 +27,7 @@ use crate::GpuIndex;
 /// a.move_to_current_device();
 /// b.move_to_current_device();
 ///
-/// let tmp_buffer_size = a.get_add_assign_size_on_gpu(&b);
+/// let tmp_buffer_size = a.get_add_size_on_gpu(&b);
 /// assert!(check_valid_cuda_malloc(tmp_buffer_size, GpuIndex::new(0)));
 /// a += &b;
 /// ```
