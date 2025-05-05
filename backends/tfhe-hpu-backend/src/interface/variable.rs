@@ -5,6 +5,7 @@ use super::*;
 use crate::asm::iop::VarMode;
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use crate::ffi;
+use std::num::NonZeroUsize;
 use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug)]
@@ -13,7 +14,7 @@ enum SyncState {
     CpuSync,
     HpuSync,
     BothSync,
-    OperationPending,
+    OperationPending(NonZeroUsize),
 }
 
 pub(crate) struct HpuVar {
@@ -35,7 +36,7 @@ impl std::fmt::Debug for HpuVar {
 impl HpuVar {
     pub fn try_cpu_sync(&mut self) -> Result<(), HpuInternalError> {
         match self.state {
-            SyncState::None | SyncState::OperationPending => Err(HpuInternalError::SyncPending),
+            SyncState::None | SyncState::OperationPending(_) => Err(HpuInternalError::SyncPending),
             SyncState::CpuSync | SyncState::BothSync => Ok(()),
             SyncState::HpuSync => {
                 for slot in self.bundle.iter_mut() {
@@ -52,7 +53,7 @@ impl HpuVar {
     pub(crate) fn try_hpu_sync(&mut self) -> Result<(), HpuInternalError> {
         match self.state {
             SyncState::None => Err(HpuInternalError::SyncPending),
-            SyncState::HpuSync | SyncState::BothSync | SyncState::OperationPending => Ok(()),
+            SyncState::HpuSync | SyncState::BothSync | SyncState::OperationPending(_) => Ok(()),
             SyncState::CpuSync => {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
@@ -68,10 +69,30 @@ impl HpuVar {
 
 impl HpuVar {
     pub(crate) fn operation_pending(&mut self) {
-        self.state = SyncState::OperationPending;
+        self.state = match self.state {
+            SyncState::OperationPending(pending) => SyncState::OperationPending(
+                NonZeroUsize::new(pending.get() + 1).expect("Invalid OperationPending management"),
+            ),
+            _ => SyncState::OperationPending(NonZeroUsize::MIN),
+        };
     }
     pub(crate) fn operation_done(&mut self) {
-        self.state = SyncState::HpuSync;
+        self.state = match self.state {
+            SyncState::OperationPending(pending) => {
+                if pending.get() == 1 {
+                    SyncState::HpuSync
+                } else {
+                    SyncState::OperationPending(
+                        NonZeroUsize::new(pending.get() - 1)
+                            .expect("Invalid OperationPending management"),
+                    )
+                }
+            }
+            _ => panic!(
+                "`operation_done` called on invalid variable state (i.e. {:?})",
+                self.state
+            ),
+        };
     }
 }
 
