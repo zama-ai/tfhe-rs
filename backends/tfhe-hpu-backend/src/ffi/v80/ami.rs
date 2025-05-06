@@ -2,10 +2,17 @@
 //!
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
+use lazy_static::lazy_static;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::os::fd::AsRawFd;
 use std::time::Duration;
+
+const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
+const AMI_VERSION_PATTERN: &str = r"3\.0\.\d+-zama";
+
+const HIS_VERSION_FILE: &str = "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/amc_version";
+const HIS_VERSION_PATTERN: &str = r".*- zama ucore 2.0";
 
 pub struct AmiDriver {
     ami_dev: File,
@@ -14,6 +21,8 @@ pub struct AmiDriver {
 
 impl AmiDriver {
     pub fn new(ami_path: &str, retry_rate: Duration) -> Self {
+        Self::check_version();
+
         let ami_dev = OpenOptions::new()
             .read(true)
             .write(true)
@@ -23,6 +32,75 @@ impl AmiDriver {
         Self {
             ami_dev,
             retry_rate,
+        }
+    }
+
+    /// Check if current ami version is compliant
+    ///
+    /// For this purpose we use a regex.
+    /// it's easy to expressed and understand breaking rules with it
+    pub fn check_version() {
+        // Check AMI version
+        lazy_static! {
+            static ref AMI_VERSION_RE: regex::Regex =
+                regex::Regex::new(AMI_VERSION_PATTERN).expect("Invalid regex");
+        };
+
+        // Read ami string-version
+        let mut ami_ver_f = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create(false)
+            .open(AMI_VERSION_FILE)
+            .unwrap();
+
+        let ami_version = {
+            let mut ver = String::new();
+            ami_ver_f
+                .read_to_string(&mut ver)
+                .expect("Invalid AMI_VERSION string format");
+
+            ver
+        };
+
+        if !AMI_VERSION_RE.is_match(&ami_version) {
+            panic!(
+                "Invalid ami version. Get {} expect something matching pattern {}",
+                ami_version, AMI_VERSION_PATTERN
+            )
+        }
+
+        // Check HIS version
+        // Known through amc version retrieved by ami driver
+        lazy_static! {
+            static ref HIS_VERSION_RE: regex::Regex =
+                regex::Regex::new(HIS_VERSION_PATTERN).expect("Invalid regex");
+        };
+
+        // Read ami string-version
+        // NB: Rely on shell interpretation to get PCI device
+        let his_version_file = crate::prelude::ShellString::new(HIS_VERSION_FILE.to_string());
+        let mut his_ver_f = OpenOptions::new()
+            .read(true)
+            .write(false)
+            .create(false)
+            .open(his_version_file.expand())
+            .unwrap();
+
+        let his_version = {
+            let mut ver = String::new();
+            his_ver_f
+                .read_to_string(&mut ver)
+                .expect("Invalid HIS_VERSION string format");
+
+            ver
+        };
+
+        if !HIS_VERSION_RE.is_match(&his_version) {
+            panic!(
+                "Invalid his version. Get {} expect something matching pattern {}",
+                his_version, HIS_VERSION_PATTERN
+            )
         }
     }
 
