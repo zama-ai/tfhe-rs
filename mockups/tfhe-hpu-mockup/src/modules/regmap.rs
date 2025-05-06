@@ -118,6 +118,7 @@ impl RegisterMap {
                     .fold(0, |acc, (id, val)| acc + ((*val as u32) << (id * 4)))
             }
             "info::ntt_architecture" => match self.rtl_params.ntt_params.core_arch {
+                HpuNttCoreArch::WmmCompactPcg => NTT_CORE_ARCH_OFS + 4,
                 HpuNttCoreArch::WmmUnfoldPcg => NTT_CORE_ARCH_OFS + 4,
                 HpuNttCoreArch::GF64(_) => NTT_CORE_ARCH_OFS + 5,
             },

@@ -365,7 +365,9 @@ impl<'a> CreateFrom<NttLweBootstrapKeyView<'a, u64>> for HpuLweBootstrapKeyOwned
             // Shuffle required by GF64 Ntt without internal network
             HpuNttCoreArch::GF64(cut_w) => shuffle_gf64(&cpu_bsk, &meta, &cut_w),
             // Legacy shuffle required by WmmNtt with internal network
-            HpuNttCoreArch::WmmUnfoldPcg => shuffle_wmm(&cpu_bsk, &meta),
+            HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => {
+                shuffle_wmm(&cpu_bsk, &meta)
+            }
         }
     }
 }
@@ -376,7 +378,7 @@ impl<'a> From<HpuLweBootstrapKeyView<'a, u64>> for NttLweBootstrapKeyOwned<u64> 
             // Shuffle required by GF64 Ntt without internal network
             HpuNttCoreArch::GF64(cut_w) => unshuffle_gf64(&hpu_bsk, &cut_w),
             // Legacy shuffle required by WmmNtt with internal network
-            HpuNttCoreArch::WmmUnfoldPcg => unshuffle_wmm(&hpu_bsk),
+            HpuNttCoreArch::WmmCompactPcg | HpuNttCoreArch::WmmUnfoldPcg => unshuffle_wmm(&hpu_bsk),
         }
     }
 }
