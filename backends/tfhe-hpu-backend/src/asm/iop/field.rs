@@ -418,11 +418,16 @@ impl IOp {
     pub fn asm_opcode(&self) -> AsmIOpcode {
         self.header.opcode.into()
     }
-    // Compute table entry
-    // Based on dst_alignment for the lut blk and opcode for inner offset
+
+    // Compute associated fw block size
+    // Used to compute fw_entry offset and fw translation validity
+    pub fn fw_blk_width(&self) -> usize {
+        std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize
+    }
+
+    // Compute fw table entry
     pub fn fw_entry(&self) -> usize {
-        std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize * 0x100
-            + self.header.opcode.0 as usize
+        self.fw_blk_width() * 0x100 + self.header.opcode.0 as usize
     }
     pub fn dst(&self) -> &OperandBundle {
         &self.dst
