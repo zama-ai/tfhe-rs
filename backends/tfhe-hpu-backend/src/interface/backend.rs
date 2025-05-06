@@ -37,6 +37,7 @@ pub struct HpuBackend {
     // Lut and Fw memory
     lut_mem: memory::HugeMemory<u64>,
     fw_mem: memory::HugeMemory<u32>,
+    init_fw_width: Vec<usize>,
 
     // Memory management
     // Board memory is abstract as a bunch of ciphertext slot
@@ -289,6 +290,7 @@ impl HpuBackend {
                 ksk_key,
                 lut_mem,
                 fw_mem,
+                init_fw_width: Vec::new(),
                 ct_mem,
                 trace_mem,
                 cmd_q: VecDeque::new(),
@@ -771,6 +773,9 @@ impl HpuBackend {
                 blk_ofst * std::mem::size_of::<u32>()
             );
             tracing::trace!(" LutTable=> {tr_lut:x?}");
+
+            // Update init_fw_width list enable to runtime check
+            self.init_fw_width.push(*integer_w);
         }
     }
 }
@@ -785,6 +790,16 @@ impl HpuBackend {
             cmd_q,
             ..
         } = self;
+
+        // Check if issued command
+        // NB: fw_blk_width is 0 encoded => 0 ~ 1 block ciphertext
+        assert!(
+        self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
+        ),
+        "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
+        cmd.op.fw_blk_width() * self.params.pbs_params.message_width,
+        self.init_fw_width
+    );
 
         // Steps are as follow
         // 1. Enforce that source ops are synced on Hw
