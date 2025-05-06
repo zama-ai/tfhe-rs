@@ -17,7 +17,6 @@ pub use entities::*;
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
-
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<GpuIndex>,
@@ -37,6 +36,22 @@ impl CudaStreams {
         for i in 0..gpu_count {
             ptr_array.push(unsafe { cuda_create_stream(i) });
             gpu_indexes.push(GpuIndex::new(i));
+        }
+        Self {
+            ptr: ptr_array,
+            gpu_indexes,
+        }
+    }
+    /// Create a new `CudaStreams` structure with the GPUs with id provided in a list
+    pub fn new_multi_gpu_with_indexes(indexes: &[GpuIndex]) -> Self {
+        let _gpu_count = setup_multi_gpu();
+
+        let mut gpu_indexes = Vec::with_capacity(indexes.len());
+        let mut ptr_array = Vec::with_capacity(indexes.len());
+
+        for &i in indexes {
+            ptr_array.push(unsafe { cuda_create_stream(i.get()) });
+            gpu_indexes.push(i);
         }
         Self {
             ptr: ptr_array,
@@ -85,6 +100,14 @@ impl CudaStreams {
     pub(crate) fn gpu_indexes_ptr(&self) -> *const u32 {
         // The cast here is safe as GpuIndex is repr(transparent)
         self.gpu_indexes.as_ptr().cast()
+    }
+}
+
+impl Clone for CudaStreams {
+    fn clone(&self) -> Self {
+        // The `new_multi_gpu_with_indexes()` function is used here to adapt to any specific type of
+        // streams being cloned (single, multi, or custom)
+        Self::new_multi_gpu_with_indexes(self.gpu_indexes.as_slice())
     }
 }
 
