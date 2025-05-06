@@ -13,7 +13,7 @@
     ciphertext_width=44
 
 [ntt_params]
-    core_arch="WmmUnfoldPcg"
+    core_arch="WmmCompactPcg"
     min_pbs_nb= 10
     batch_pbs_nb= 16
     total_pbs_nb= 32
