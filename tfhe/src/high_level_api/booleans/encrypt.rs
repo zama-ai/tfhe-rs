@@ -90,7 +90,8 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                 (ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner: CudaUnsignedRadixCiphertext =
                     cuda_key
                         .key
@@ -100,7 +101,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                     inner.into_inner(),
                 ));
                 (ct, cuda_key.tag.clone())
-            }),
+            }
         });
         Ok(Self::new(ciphertext, tag))
     }

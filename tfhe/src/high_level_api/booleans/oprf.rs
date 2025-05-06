@@ -41,7 +41,8 @@ impl FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -52,7 +53,7 @@ impl FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         Self::new(ciphertext, tag)
     }
