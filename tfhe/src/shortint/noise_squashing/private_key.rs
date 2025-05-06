@@ -5,6 +5,7 @@ use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingPriv
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -76,5 +77,22 @@ impl NoiseSquashingPrivateKey {
 
     pub fn into_raw_parts(self) -> (GlweSecretKeyOwned<u128>, NoiseSquashingParameters) {
         (self.post_noise_squashing_secret_key, self.params)
+    }
+}
+
+impl From<NoiseSquashingCompressionPrivateKey> for NoiseSquashingPrivateKey {
+    fn from(value: NoiseSquashingCompressionPrivateKey) -> Self {
+        Self {
+            post_noise_squashing_secret_key: value.post_packing_ks_key,
+            params: NoiseSquashingParameters {
+                glwe_dimension: value.params.packing_ks_glwe_dimension,
+                polynomial_size: value.params.packing_ks_polynomial_size,
+                glwe_noise_distribution: value.params.packing_ks_key_noise_distribution,
+                decomp_base_log: value.params.packing_ks_base_log,
+                decomp_level_count: value.params.packing_ks_level,
+                modulus_switch_noise_reduction_params: None,
+                ciphertext_modulus: value.params.ciphertext_modulus,
+            },
+        }
     }
 }

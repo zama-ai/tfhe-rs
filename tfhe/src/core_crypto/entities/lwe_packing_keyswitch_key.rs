@@ -402,17 +402,19 @@ impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntit
         Self: 'this;
 }
 
-pub struct LwePackingKeyswitchKeyConformanceParams {
+pub struct LwePackingKeyswitchKeyConformanceParams<Scalar: UnsignedInteger> {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub input_lwe_dimension: LweDimension,
     pub output_glwe_size: GlweSize,
     pub output_polynomial_size: PolynomialSize,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for LwePackingKeyswitchKey<C> {
-    type ParameterSet = LwePackingKeyswitchKeyConformanceParams;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for LwePackingKeyswitchKey<C>
+{
+    type ParameterSet = LwePackingKeyswitchKeyConformanceParams<Scalar>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
