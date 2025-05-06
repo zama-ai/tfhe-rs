@@ -5,7 +5,6 @@ use super::*;
 use crate::asm::iop::VarMode;
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
 use crate::ffi;
-use std::num::NonZeroUsize;
 use std::sync::{mpsc, Arc, Mutex};
 
 #[derive(Debug)]
@@ -14,12 +13,12 @@ enum SyncState {
     CpuSync,
     HpuSync,
     BothSync,
-    OperationPending(NonZeroUsize),
 }
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
     state: SyncState,
+    pending: usize,
 }
 
 impl std::fmt::Debug for HpuVar {
@@ -35,32 +34,48 @@ impl std::fmt::Debug for HpuVar {
 /// Handle sync between Hpu and Cpu
 impl HpuVar {
     pub fn try_cpu_sync(&mut self) -> Result<(), HpuInternalError> {
-        match self.state {
-            SyncState::None | SyncState::OperationPending(_) => Err(HpuInternalError::SyncPending),
-            SyncState::CpuSync | SyncState::BothSync => Ok(()),
-            SyncState::HpuSync => {
-                for slot in self.bundle.iter_mut() {
-                    slot.mz
-                        .iter_mut()
-                        .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
+        if self.pending > 0 {
+            Err(HpuInternalError::OperationPending)
+        } else {
+            match self.state {
+                SyncState::CpuSync | SyncState::BothSync => Ok(()),
+                SyncState::HpuSync => {
+                    for slot in self.bundle.iter_mut() {
+                        slot.mz
+                            .iter_mut()
+                            .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
+                    }
+                    self.state = SyncState::BothSync;
+                    Ok(())
                 }
-                self.state = SyncState::BothSync;
-                Ok(())
+                SyncState::None => Err(HpuInternalError::UninitData),
             }
         }
     }
 
     pub(crate) fn try_hpu_sync(&mut self) -> Result<(), HpuInternalError> {
+        // Nb: synced on hpu could be achieved even with registered pending IOp
+        //    Indeed, this is used for assign IOp since dst == src.
         match self.state {
-            SyncState::None => Err(HpuInternalError::SyncPending),
-            SyncState::HpuSync | SyncState::BothSync | SyncState::OperationPending(_) => Ok(()),
+            SyncState::None => {
+                if self.pending > 0 {
+                    Ok(()) // Use of future result
+                } else {
+                    Err(HpuInternalError::UninitData)
+                }
+            }
+            SyncState::HpuSync | SyncState::BothSync => Ok(()),
             SyncState::CpuSync => {
                 for slot in self.bundle.iter_mut() {
                     slot.mz
                         .iter_mut()
                         .for_each(|mz| mz.sync(ffi::SyncMode::Host2Device));
                 }
-                self.state = SyncState::BothSync;
+                self.state = if self.pending > 0 {
+                    SyncState::HpuSync
+                } else {
+                    SyncState::BothSync
+                };
                 Ok(())
             }
         }
@@ -69,30 +84,15 @@ impl HpuVar {
 
 impl HpuVar {
     pub(crate) fn operation_pending(&mut self) {
-        self.state = match self.state {
-            SyncState::OperationPending(pending) => SyncState::OperationPending(
-                NonZeroUsize::new(pending.get() + 1).expect("Invalid OperationPending management"),
-            ),
-            _ => SyncState::OperationPending(NonZeroUsize::MIN),
-        };
+        self.pending += 1;
     }
     pub(crate) fn operation_done(&mut self) {
-        self.state = match self.state {
-            SyncState::OperationPending(pending) => {
-                if pending.get() == 1 {
-                    SyncState::HpuSync
-                } else {
-                    SyncState::OperationPending(
-                        NonZeroUsize::new(pending.get() - 1)
-                            .expect("Invalid OperationPending management"),
-                    )
-                }
-            }
-            _ => panic!(
-                "`operation_done` called on invalid variable state (i.e. {:?})",
-                self.state
-            ),
-        };
+        if self.pending > 0 {
+            self.pending -= 1;
+            self.state = SyncState::HpuSync;
+        } else {
+            panic!("`operation_done` called on variable without pending operations");
+        }
     }
 }
 
@@ -136,6 +136,7 @@ impl HpuVarWrapped {
             inner: Arc::new(Mutex::new(HpuVar {
                 bundle,
                 state: SyncState::None,
+                pending: 0,
             })),
         }
     }
@@ -202,10 +203,13 @@ impl HpuVarWrapped {
         let mut inner = self.inner.lock().unwrap();
         match inner.try_cpu_sync() {
             Ok(_) => {}
-            Err(x) => {
+            Err(err) => {
                 drop(inner);
-                match x {
-                    HpuInternalError::SyncPending => return Err(HpuError::SyncPending(self)),
+                match err {
+                    HpuInternalError::OperationPending => return Err(HpuError::SyncPending(self)),
+                    HpuInternalError::UninitData => {
+                        panic!("Encounter unrecoverable HpuInternalError: {err:?}")
+                    }
                 }
             }
         }
@@ -260,7 +264,10 @@ impl HpuVarWrapped {
             match self.inner.lock().unwrap().try_cpu_sync() {
                 Ok(_) => break,
                 Err(err) => match err {
-                    HpuInternalError::SyncPending => {}
+                    HpuInternalError::OperationPending => {}
+                    HpuInternalError::UninitData => {
+                        panic!("Encounter unrecoverable HpuInternalError: {err:?}")
+                    }
                 },
             }
         }
