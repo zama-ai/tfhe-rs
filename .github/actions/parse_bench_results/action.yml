@@ -1,0 +1,86 @@
+name: Parse benchmark results
+description: Parse, upload and send to database benchmark results
+
+inputs:
+  hardware-name:
+    description: Name of hardware used to run benchmarks
+    required: true
+  commit-hash:
+    description: Commit hash as git describe format
+    required: true
+  commit-date:
+    description: Commit date
+    required: true
+  bench-date:
+    description: Benchmark date
+    required: true
+  results-filename:
+    description: File name storing parsed results
+    required: true
+  upload-suffix:
+    description: Suffix added to commit SHA to craft unique artifact name
+    required: true
+  bench-name-suffix:
+    description: Suffix added to each benchmark results
+  additional-bench-file:
+    description: Additional benchmark raw results file to parse
+  additional-bench-type:
+    description: Benchmark type to parse (object-size or key-gen)
+
+runs:
+  using: "composite"
+  steps:
+    - name: Parse results
+      shell: bash
+      run: |
+        python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+        --database tfhe_rs \
+        --hardware "${HARDWARE_NAME}" \
+        --project-version "${COMMIT_HASH}" \
+        --branch "${REF_NAME}" \
+        --commit-date "${COMMIT_DATE}" \
+        --bench-date "${BENCH_DATE}" \
+        --walk-subdirs \
+        --name-suffix "${BENCH_NAME_SUFFIX}"
+      env:
+        RESULTS_FILENAME: ${{ inputs.results-filename }}
+        REF_NAME: ${{ github.ref_name }}
+        HARDWARE_NAME: ${{ inputs.hardware-name }}
+        COMMIT_HASH: ${{ inputs.commit-hash }}
+        COMMIT_DATE: ${{ inputs.commit-date }}
+        BENCH_DATE: ${{ inputs.bench-date }}
+        BENCH_NAME_SUFFIX: ${{ inputs.bench-name-suffix }}
+
+    - name: Parse additional results
+      shell: bash
+      if: inputs.additional-bench-file != '' && inputs.additional-bench-type != ''
+      run: |
+        python3 "${BENCH_RESULTS_FILE}" "${RESULTS_FILENAME}" \
+        --"${BENCH_TYPE}" \
+        --append-results
+      env:
+        RESULTS_FILENAME: ${{ inputs.results-filename }}
+        BENCH_RESULTS_FILE: ${{ inputs.additional-bench-file }}
+        BENCH_TYPE: ${{ inputs.additional-bench-type }}
+
+    - name: Upload parsed results artifact
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: ${{ github.sha }}_${{ inputs.upload-suffix }}
+        path: ${{ inputs.results-filename }}
+
+    - name: Checkout Slab repo
+      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      with:
+        repository: zama-ai/slab
+        path: slab
+        persist-credentials: 'false'
+        token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+    - name: Send data to Slab
+      shell: bash
+      run: |
+        python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
+        --slab-url "${{ secrets.SLAB_URL }}"
+      env:
+        RESULTS_FILENAME: ${{ inputs.results-filename }}

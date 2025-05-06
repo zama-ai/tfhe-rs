@@ -74,49 +74,66 @@ jobs:
         run: |
           make bench_boolean
 
-      - name: Parse results
-        run: |
-          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
-          --database tfhe_rs \
-          --hardware "hpc7a.96xlarge" \
-          --project-version "${COMMIT_HASH}" \
-          --branch "${REF_NAME}" \
-          --commit-date "${COMMIT_DATE}" \
-          --bench-date "${BENCH_DATE}" \
-          --walk-subdirs \
-          --name-suffix avx512
-        env:
-          REF_NAME: ${{ github.ref_name }}
-
       - name: Measure key sizes
         run: |
           make measure_boolean_key_sizes
 
-      - name: Parse key sizes results
-        run: |
-          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv "${RESULTS_FILENAME}" \
-          --object-sizes \
-          --append-results
-
-      - name: Upload parsed results artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Parse and send results
+        uses: ./.github/actions/parse_bench_results
         with:
-          name: ${{ github.sha }}_boolean
-          path: ${{ env.RESULTS_FILENAME }}
+          results-filename: ${{ env.RESULTS_FILENAME }}
+          hardware-name: "hpc7a.96xlarge"
+          commit-date: ${{ env.COMMIT_DATE }}
+          commit-hash: ${{ env.COMMIT_HASH }}
+          bench-date: ${{ env.BENCH_DATE }}
+          bench-name-suffix: "avx512"
+          upload-suffix: "boolean"
+          additional-bench-file: "./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv"
+          additional-bench-type: "object-sizes"
 
-      - name: Checkout Slab repo
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          repository: zama-ai/slab
-          path: slab
-          persist-credentials: 'false'
-          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-
-      - name: Send data to Slab
-        shell: bash
-        run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
-          --slab-url "${{ secrets.SLAB_URL }}"
+#      - name: Parse results
+#        run: |
+#          python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
+#          --database tfhe_rs \
+#          --hardware "hpc7a.96xlarge" \
+#          --project-version "${COMMIT_HASH}" \
+#          --branch "${REF_NAME}" \
+#          --commit-date "${COMMIT_DATE}" \
+#          --bench-date "${BENCH_DATE}" \
+#          --walk-subdirs \
+#          --name-suffix avx512
+#        env:
+#          REF_NAME: ${{ github.ref_name }}
+#
+#      - name: Measure key sizes
+#        run: |
+#          make measure_boolean_key_sizes
+#
+#      - name: Parse key sizes results
+#        run: |
+#          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv "${RESULTS_FILENAME}" \
+#          --object-sizes \
+#          --append-results
+#
+#      - name: Upload parsed results artifact
+#        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+#        with:
+#          name: ${{ github.sha }}_boolean
+#          path: ${{ env.RESULTS_FILENAME }}
+#
+#      - name: Checkout Slab repo
+#        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+#        with:
+#          repository: zama-ai/slab
+#          path: slab
+#          persist-credentials: 'false'
+#          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+#
+#      - name: Send data to Slab
+#        shell: bash
+#        run: |
+#          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
+#          --slab-url "${{ secrets.SLAB_URL }}"
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
