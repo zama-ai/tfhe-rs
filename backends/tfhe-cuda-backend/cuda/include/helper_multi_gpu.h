@@ -8,7 +8,7 @@ extern std::mutex m;
 extern bool p2p_enabled;
 
 extern "C" {
-int32_t cuda_setup_multi_gpu();
+int32_t cuda_setup_multi_gpu(int device_0_id);
 }
 
 // Define a variant type that can be either a vector or a single pointer
