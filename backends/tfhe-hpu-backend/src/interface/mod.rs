@@ -23,9 +23,12 @@ pub use variable::HpuVarWrapped;
 /// Common error type reported by Hpu
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub(crate) enum HpuInternalError {
+    #[error("Couldn't sync uninitialized variable.")]
+    UninitData,
+
     // Recoreverable errors
     #[error("Couldn't sync yet. Operation is pending")]
-    SyncPending,
+    OperationPending,
 }
 
 /// Common error type exposed to user
