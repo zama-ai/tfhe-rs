@@ -27,13 +27,13 @@ impl HpuHw {
     /// Handle ffi instantiation
     #[inline(always)]
     pub fn new_hpu_hw(
-        ami_path: &str,
+        ami_id: usize,
         ami_retry: std::time::Duration,
         h2c_path: &str,
         c2h_path: &str,
     ) -> HpuHw {
         Self {
-            ami: AmiDriver::new(ami_path, ami_retry),
+            ami: AmiDriver::new(ami_id, ami_retry),
             qdma: Arc::new(Mutex::new(QdmaDriver::new(h2c_path, c2h_path))),
             allocator: None,
         }
