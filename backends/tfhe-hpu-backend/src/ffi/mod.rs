@@ -168,11 +168,11 @@ impl HpuHw {
         {
             match mode {
                 FFIMode::V80 {
-                    ami_dev,
+                    ami_id,
                     qdma_h2c,
                     qdma_c2h,
                 } => Self(v80::HpuHw::new_hpu_hw(
-                    &ami_dev.expand(),
+                    *ami_id,
                     retry_rate,
                     &qdma_h2c.expand(),
                     &qdma_c2h.expand(),
