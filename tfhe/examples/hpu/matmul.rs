@@ -1,7 +1,6 @@
 // tfhe
 use tfhe::prelude::*;
 // hpu
-use crate::tfhe_hpu_backend::prelude::ShellString;
 use crate::tfhe_hpu_backend::prelude::*;
 use tfhe::{set_server_key, FheUint64, *};
 // misc

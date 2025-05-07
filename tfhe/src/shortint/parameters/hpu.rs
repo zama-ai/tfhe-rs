@@ -4,6 +4,7 @@ use tfhe_hpu_backend::prelude::*;
 use crate::shortint::parameters::DynamicDistribution;
 use crate::shortint::prelude::*;
 
+#[allow(clippy::fallible_impl_from)]
 impl From<&HpuParameters> for ClassicPBSParameters {
     fn from(value: &HpuParameters) -> Self {
         let lwe_noise_distribution = match value.pbs_params.lwe_noise_distribution {

@@ -45,6 +45,7 @@ impl<Scalar: UnsignedInteger> CreateFrom<LweCiphertextView<'_, Scalar>>
     }
 }
 
+#[allow(clippy::fallible_impl_from)]
 impl<Scalar: UnsignedInteger> From<HpuLweCiphertextView<'_, Scalar>>
     for LweCiphertextOwned<Scalar>
 {
