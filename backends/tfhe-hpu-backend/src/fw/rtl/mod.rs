@@ -1407,7 +1407,7 @@ impl Arch {
                         op.free_wr();
                         (false, Some(op))
                     }
-                    _ => panic!("Received an unexpected event: {:?}", event_type),
+                    _ => panic!("Received an unexpected event: {event_type:?}"),
                 }
             } else {
                 (false, None)

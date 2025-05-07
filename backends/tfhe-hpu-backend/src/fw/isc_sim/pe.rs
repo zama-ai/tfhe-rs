@@ -516,7 +516,7 @@ impl From<(&HpuParameters, &HpuConfig)> for PeConfigStore {
         ) / batch_pbs;
 
         for i in 0..pbs_pe_nb {
-            let name = format!("KsPbs_{}", i);
+            let name = format!("KsPbs_{i}");
             let cost = PeCost {
                 rd_lock: BatchCost::Fixed(kspbs_rd_cycle),
                 wr_lock: BatchCost::Linear {

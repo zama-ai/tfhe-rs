@@ -3080,7 +3080,7 @@ mod hpu {
                                         &input.1,
                                     )
                                 })
-                                .last()
+                                .next_back()
                                 .unwrap();
                             last_res.into_iter().for_each(|ct| {
                                 ct.wait();

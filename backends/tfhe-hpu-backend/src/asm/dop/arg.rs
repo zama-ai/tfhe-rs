@@ -28,11 +28,11 @@ pub enum Arg {
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Arg::Reg(inner) => write!(f, "{inner: <width$}", width = ARG_MIN_WIDTH),
-            Arg::Mem(inner) => write!(f, "{inner: <width$}", width = ARG_MIN_WIDTH),
-            Arg::Imm(inner) => write!(f, "{inner: <width$}", width = ARG_MIN_WIDTH),
-            Arg::Pbs(inner) => write!(f, "{inner: <width$}", width = ARG_MIN_WIDTH),
-            Arg::Sync(inner) => write!(f, "{inner: <width$}", width = ARG_MIN_WIDTH),
+            Arg::Reg(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Arg::Mem(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Arg::Imm(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Arg::Pbs(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Arg::Sync(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
         }
     }
 }
