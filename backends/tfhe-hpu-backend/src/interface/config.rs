@@ -21,7 +21,7 @@ impl ShellString {
         let cow = shell_regex.replace_all(&self.0, |caps: &regex::Captures| {
             let shell_var = &caps[1];
             std::env::var(shell_var).unwrap_or_else(|_| {
-                panic!("Error: ShellString used env_var <{}> not found", shell_var)
+                panic!("Error: ShellString used env_var <{shell_var}> not found")
             })
         });
         cow.to_string()

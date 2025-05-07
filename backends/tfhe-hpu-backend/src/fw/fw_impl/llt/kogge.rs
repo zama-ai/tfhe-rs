@@ -48,7 +48,7 @@ struct KoggeBlockCfg {
 fn append_bin(name: &str) -> String {
     let exe = env::current_exe().unwrap();
     let exe_dir = exe.parent().and_then(|p| p.to_str()).unwrap_or(".");
-    format!("{}/{}", exe_dir, name)
+    format!("{exe_dir}/{name}")
 }
 
 impl KoggeBlockCfg {
@@ -64,7 +64,7 @@ impl KoggeBlockCfg {
             KoggeBlockCfg::try_with_filename(filename, |f| std::fs::read_to_string(f))
         {
             let mut res: KoggeBlockCfg = toml::from_str(&contents)
-                .unwrap_or_else(|_| panic!("{} is not a valid KoggeBlockCfg", filename));
+                .unwrap_or_else(|_| panic!("{filename} is not a valid KoggeBlockCfg"));
             res.filename = String::from(filename);
             res
         } else {
@@ -99,7 +99,7 @@ impl KoggeBlockCfg {
                 .create(true)
                 .open(name)
         })?;
-        write!(&mut file, "{}", toml)?;
+        write!(&mut file, "{toml}")?;
         Ok(())
     }
 }

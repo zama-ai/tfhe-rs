@@ -9,13 +9,16 @@ use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
+#[cfg(not(feature = "hpu"))]
 use rayon::prelude::*;
-use std::ops::{Add, Mul, Sub};
+#[cfg(not(feature = "hpu"))]
+use std::ops::Mul;
+use std::ops::{Add, Sub};
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 #[cfg(feature = "gpu")]
 use tfhe::GpuIndex;
-use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheBool, FheUint64};
+use tfhe::{ClientKey, CompressedServerKey, FheBool, FheUint64};
 
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
@@ -51,6 +54,7 @@ where
 
 /// This one also uses a comparison, but it leverages the 'boolean' multiplication
 /// instead of cmuxes, so it is faster
+#[cfg(not(feature = "hpu"))]
 fn transfer_no_cmux<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
@@ -74,6 +78,7 @@ where
 
 /// This one uses overflowing sub to remove the need for comparison
 /// it also uses the 'boolean' multiplication
+#[cfg(not(feature = "hpu"))]
 fn transfer_overflow<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
@@ -100,6 +105,7 @@ where
 
 /// This ones uses both overflowing_add/sub to check that both
 /// the sender has enough funds, and the receiver will not overflow its balance
+#[cfg(not(feature = "hpu"))]
 fn transfer_safe<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
@@ -148,7 +154,7 @@ where
     (new_from, new_to)
 }
 
-#[cfg(feature = "pbs-stats")]
+#[cfg(all(feature = "pbs-stats", not(feature = "hpu")))]
 mod pbs_stats {
     use super::*;
     use std::fs::{File, OpenOptions};
@@ -464,8 +470,6 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     }
 }
 
-#[cfg(feature = "pbs-stats")]
-use pbs_stats::print_transfer_pbs_counts;
 #[cfg(feature = "gpu")]
 use tfhe::core_crypto::gpu::get_number_of_gpus;
 

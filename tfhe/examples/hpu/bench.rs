@@ -28,7 +28,6 @@ pub use clap_num::maybe_hex;
 #[clap(
     long_about = "HPU stimulus generation application: Start operation on HPU for RTL test purpose."
 )]
-
 pub struct Args {
     // Fpga configuration ------------------------------------------------------
     /// Toml top-level configuration file
@@ -94,6 +93,12 @@ pub struct Args {
 
 #[derive(Debug)]
 pub struct BenchReport(HashMap<String, Duration>);
+
+impl Default for BenchReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl BenchReport {
     pub fn new() -> Self {
@@ -225,13 +230,10 @@ pub fn main() {
                         hpu_asm::iop::VarMode::Bool => (1, 1),
                     };
 
-                    let clear = args
+                    let clear = *args
                         .src
                         .get(pos)
-                        .unwrap_or(
-                            &rng.gen_range(0..=u128::max_value() >> (u128::BITS - (bw as u32))),
-                        )
-                        .clone();
+                        .unwrap_or(&rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))));
                     let fhe = if args.trivial {
                         sks.create_trivial_radix(clear, block)
                     } else {
@@ -244,12 +246,10 @@ pub fn main() {
 
             let imms = (0..proto.imm)
                 .map(|pos| {
-                    args.imm
+                    *args
+                        .imm
                         .get(pos)
-                        .unwrap_or(
-                            &rng.gen_range(0..u128::max_value() >> (u128::BITS - (*width as u32))),
-                        )
-                        .clone()
+                        .unwrap_or(&rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))))
                 })
                 .collect::<Vec<_>>();
 
@@ -265,7 +265,7 @@ pub fn main() {
                     std::hint::black_box(&res);
                     res
                 })
-                .last()
+                .next_back()
                 .expect("Iteration must be greater than 0");
 
             // let res_fhe = $fhe_type::from(res_hpu);
