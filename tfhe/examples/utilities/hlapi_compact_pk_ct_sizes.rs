@@ -76,7 +76,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
+        println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
         write_to_json::<u64, _>(
@@ -134,7 +134,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
+        println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
         write_to_json::<u64, _>(
@@ -183,7 +183,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
+        println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
         write_to_json::<u64, _>(
@@ -231,7 +231,7 @@ pub fn cpk_and_cctl_sizes(results_file: &Path) {
             .build();
         let cctl_size = bincode::serialize(&encrypted_inputs).unwrap().len();
 
-        println!("Compact CT list for {NB_CTXT} CTs: {} bytes", cctl_size);
+        println!("Compact CT list for {NB_CTXT} CTs: {cctl_size} bytes");
 
         write_result(&mut file, &test_name, cctl_size);
         write_to_json::<u64, _>(

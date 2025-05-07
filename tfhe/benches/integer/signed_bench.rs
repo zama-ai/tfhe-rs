@@ -812,9 +812,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                         let clear_1 = rng_func(&mut rng, bit_size);
                         assert!(
                             range.contains(&clear_1),
-                            "{:?} is not within the range {:?}",
-                            clear_1,
-                            range
+                            "{clear_1:?} is not within the range {range:?}",
                         );
 
                         (ct_0, clear_1)
@@ -844,9 +842,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
                             let clear_1 = rng_func(&mut rng, bit_size);
                             assert!(
                                 range.contains(&clear_1),
-                                "{:?} is not within the range {:?}",
-                                clear_1,
-                                range
+                                "{clear_1:?} is not within the range {range:?}"
                             );
                             clear_1
                         })

@@ -178,7 +178,7 @@ impl ServerKey {
     /// let ct_res = sks.checked_small_scalar_mul(&ct, scalar);
     ///
     /// match ct_res {
-    ///     Err(x) => panic!("{:?}", x),
+    ///     Err(x) => panic!("{x:?}"),
     ///     Ok(y) => {
     ///         let clear: u64 = cks.decrypt(&y);
     ///         assert_eq!(msg * scalar, clear);

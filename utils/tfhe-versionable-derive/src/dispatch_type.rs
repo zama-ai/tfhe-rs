@@ -62,8 +62,7 @@ impl AssociatedType for DispatchType {
                 return Err(syn::Error::new(
                     lt.lifetime.span(),
                     format!(
-                        "Lifetime name {} conflicts with the one used by macro `Version`",
-                        LIFETIME_NAME
+                        "Lifetime name {LIFETIME_NAME} conflicts with the one used by macro `Version`"
                     ),
                 ));
             }

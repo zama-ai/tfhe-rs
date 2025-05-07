@@ -20,9 +20,8 @@ impl AesBlockCipher for AesniBlockCipher {
         if !(aes_detected && sse2_detected) {
             panic!(
                 "The AesniBlockCipher requires both aes and sse2 x86 CPU features.\n\
-                aes feature available: {}\nsse2 feature available: {}\n\
+                aes feature available: {aes_detected}\nsse2 feature available: {sse2_detected}\n\
                 Please consider enabling the SoftwareRandomGenerator with the `software-prng` feature",
-                aes_detected, sse2_detected
             )
         }
 

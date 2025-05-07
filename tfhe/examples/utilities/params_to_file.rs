@@ -280,14 +280,14 @@ fn write_all_params_in_file<U: UnsignedInteger, T: ParamDetails<U> + Copy + Name
         let (ref_param, ref_param_name) = &group[0];
         let formatted_param = match key.parameters_format {
             ParametersFormat::Lwe => {
-                param_names_augmented.push(format!("{}_LWE", ref_param_name));
+                param_names_augmented.push(format!("{ref_param_name}_LWE"));
                 format_lwe_parameters_to_lattice_estimator(
                     (ref_param, ref_param_name.as_str()),
                     &similar_params,
                 )
             }
             ParametersFormat::Glwe => {
-                param_names_augmented.push(format!("{}_GLWE", ref_param_name));
+                param_names_augmented.push(format!("{ref_param_name}_GLWE"));
                 format_glwe_parameters_to_lattice_estimator(
                     (ref_param, ref_param_name.as_str()),
                     &similar_params,

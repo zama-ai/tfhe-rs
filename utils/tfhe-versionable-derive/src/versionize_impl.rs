@@ -210,7 +210,7 @@ impl VersionizeImplementor {
                 add_trait_where_clause(
                     &mut generics,
                     [&parse_quote!(#dispatch_enum_path #dispatch_ty_generics)],
-                    &[format!("{}<Self>", DISPATCH_TRAIT_NAME,)],
+                    &[format!("{DISPATCH_TRAIT_NAME}<Self>")],
                 )?;
             }
             Self::Convert(convert_attr) => {
@@ -220,7 +220,7 @@ impl VersionizeImplementor {
                     [&parse_quote!(#convert_type_path)],
                     &[
                         VERSIONIZE_OWNED_TRAIT_NAME,
-                        &format!("{}<Self>", FROM_TRAIT_NAME),
+                        &format!("{FROM_TRAIT_NAME}<Self>"),
                     ],
                 )?;
             }
@@ -252,7 +252,7 @@ impl VersionizeImplementor {
                 let mut generics = input_generics.clone();
                 let convert_type_path = &convert_attr.conversion_target;
                 let into_trait = match convert_attr.conversion_type {
-                    ConversionType::Direct => format!("{}<Self>", INTO_TRAIT_NAME),
+                    ConversionType::Direct => format!("{INTO_TRAIT_NAME}<Self>"),
                     ConversionType::Try => {
                         // Doing a TryFrom requires that the error
                         // impl Error + Send + Sync + 'static
@@ -268,7 +268,7 @@ impl VersionizeImplementor {
                             &[STATIC_LIFETIME_NAME],
                         )?;
 
-                        format!("{}<Self>", TRY_INTO_TRAIT_NAME)
+                        format!("{TRY_INTO_TRAIT_NAME}<Self>")
                     }
                 };
                 add_trait_where_clause(
@@ -276,7 +276,7 @@ impl VersionizeImplementor {
                     [&parse_quote!(#convert_type_path)],
                     &[
                         UNVERSIONIZE_TRAIT_NAME,
-                        &format!("{}<Self>", FROM_TRAIT_NAME),
+                        &format!("{FROM_TRAIT_NAME}<Self>"),
                         &into_trait,
                     ],
                 )?;

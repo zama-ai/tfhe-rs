@@ -463,9 +463,9 @@ pub unsafe fn add_lwe_ciphertext_vector_async<T: UnsignedInteger>(
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
-        &mut lwe_array_out_data,
-        &lwe_array_in_1_data,
-        &lwe_array_in_2_data,
+        &raw mut lwe_array_out_data,
+        &raw const lwe_array_in_1_data,
+        &raw const lwe_array_in_2_data,
     );
 }
 
@@ -503,9 +503,9 @@ pub unsafe fn add_lwe_ciphertext_vector_assign_async<T: UnsignedInteger>(
     cuda_add_lwe_ciphertext_vector_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
-        &mut lwe_array_out_data,
-        &lwe_array_out_data,
-        &lwe_array_in_data,
+        &raw mut lwe_array_out_data,
+        &raw const lwe_array_out_data,
+        &raw const lwe_array_in_data,
     );
 }
 
