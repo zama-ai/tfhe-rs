@@ -25,6 +25,8 @@ jobs:
     outputs:
       profile: ${{ steps.parse_profile.outputs.profile }}
       hardware_name: ${{ steps.parse_hardware_name.outputs.name }}
+    env:
+      INPUTS_PROFILE: ${{ inputs.profile }}
     steps:
       - name: Parse profile
         id: parse_profile
