@@ -18,10 +18,7 @@ use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 #[cfg(feature = "gpu")]
 use tfhe::GpuIndex;
-use tfhe::{ClientKey, CompressedServerKey, FheBool, FheUint64};
-
-#[cfg(feature = "hpu")]
-use tfhe_hpu_backend::prelude::*;
+use tfhe::{set_server_key, ClientKey, CompressedServerKey, FheBool, FheUint64};
 
 /// Transfer as written in the original FHEvm white-paper,
 /// it uses a comparison to check if the sender has enough,
@@ -142,6 +139,7 @@ fn transfer_hpu<FheType>(
 where
     FheType: FheHpu,
 {
+    use tfhe_hpu_backend::prelude::hpu_asm;
     let src = HpuHandle {
         native: vec![from_amount, to_amount, amount],
         boolean: vec![],
@@ -477,7 +475,7 @@ use tfhe::core_crypto::gpu::get_number_of_gpus;
 fn main() {
     let params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-    let config = ConfigBuilder::with_custom_parameters(params).build();
+    let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
     let compressed_sks = CompressedServerKey::new(&cks);
 
@@ -495,20 +493,25 @@ fn main() {
     // PBS count is always the same
     #[cfg(feature = "pbs-stats")]
     {
-        print_transfer_pbs_counts(
+        pbs_stats::print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
-        print_transfer_pbs_counts(
+        pbs_stats::print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "no_cmux",
+            transfer_no_cmux::<FheUint64>,
+        );
+        pbs_stats::print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        pbs_stats::print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
@@ -596,7 +599,7 @@ fn main() {
 fn main() {
     let params = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-    let config = ConfigBuilder::with_custom_parameters(params).build();
+    let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
 
     let mut c = Criterion::default().sample_size(10).configure_from_args();
@@ -707,7 +710,7 @@ fn main() {
 fn main() {
     let cks = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
-        use tfhe::{set_server_key, Config};
+        use tfhe::Config;
         use tfhe_hpu_backend::prelude::*;
 
         // Use environment variable to construct path to configuration file

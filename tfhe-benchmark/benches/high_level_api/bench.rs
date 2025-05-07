@@ -209,6 +209,7 @@ fn main() {
     };
     #[cfg(not(feature = "hpu"))]
     let cks = {
+        use tfhe::{set_server_key, ConfigBuilder};
         let config = ConfigBuilder::with_custom_parameters(
             BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         )
