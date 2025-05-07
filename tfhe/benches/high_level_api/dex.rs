@@ -52,26 +52,30 @@ fn swap_request<FheType>(
     amount1: &FheType,
 ) -> (FheType, FheType, FheType, FheType)
 where
-    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Clone,
+    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Clone + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
-    let (_, new_current_balance_0) =
-        transfer_whitepaper(from_balance_0, current_dex_balance_0, amount0);
-    let (_, new_current_balance_1) =
-        transfer_whitepaper(from_balance_1, current_dex_balance_1, amount1);
-    let sent0 = &new_current_balance_0 - current_dex_balance_0;
-    let sent1 = &new_current_balance_1 - current_dex_balance_1;
-    let pending_0_in = to_balance_0 + &sent0;
-    let pending_total_token_0_in = total_dex_token_0_in + &sent0;
-    let pending_1_in = to_balance_1 + &sent1;
-    let pending_total_token_1_in = total_dex_token_1_in + &sent1;
-    (
-        pending_0_in,
-        pending_total_token_0_in,
-        pending_1_in,
-        pending_total_token_1_in,
-    )
+    let (res0, res1) = rayon::join(
+        || {
+            let (_, new_current_balance_0) =
+                transfer_whitepaper(from_balance_0, current_dex_balance_0, amount0);
+            let sent0 = &new_current_balance_0 - current_dex_balance_0;
+            let pending_0_in = to_balance_0 + &sent0;
+            let pending_total_token_0_in = total_dex_token_0_in + &sent0;
+            (pending_0_in, pending_total_token_0_in)
+        },
+        || {
+            let (_, new_current_balance_1) =
+                transfer_whitepaper(from_balance_1, current_dex_balance_1, amount1);
+            let sent1 = &new_current_balance_1 - current_dex_balance_1;
+            let pending_1_in = to_balance_1 + &sent1;
+            let pending_total_token_1_in = total_dex_token_1_in + &sent1;
+            (pending_1_in, pending_total_token_1_in)
+        },
+    );
+
+    (res0.0, res0.1, res1.0, res1.1)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -92,31 +96,41 @@ where
         + for<'a> FheOrd<&'a FheType>
         + CastFrom<BigFheType>
         + Clone
-        + Add<Output = FheType>,
+        + Add<Output = FheType>
+        + Send
+        + Sync,
     BigFheType: CastFrom<FheType> + Mul<u128, Output = BigFheType> + Div<u128, Output = BigFheType>,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
-    let mut new_balance_0 = old_balance_0.clone();
-    let mut new_balance_1 = old_balance_1.clone();
-    if total_dex_token_1_in != 0 {
-        let big_pending_1_in = BigFheType::cast_from(pending_1_in.clone());
-        let big_amount_0_out =
-            (big_pending_1_in * total_dex_token_0_out as u128) / total_dex_token_1_in as u128;
-        let amount_0_out = FheType::cast_from(big_amount_0_out);
-        let (_, new_balance_0_tmp) =
-            transfer_whitepaper(current_dex_balance_0, old_balance_0, &amount_0_out);
-        new_balance_0 = new_balance_0_tmp;
-    }
-    if total_dex_token_0_in != 0 {
-        let big_pending_0_in = BigFheType::cast_from(pending_0_in.clone());
-        let big_amount_1_out =
-            (big_pending_0_in * total_dex_token_1_out as u128) / total_dex_token_0_in as u128;
-        let amount_1_out = FheType::cast_from(big_amount_1_out);
-        let (_, new_balance_1_tmp) =
-            transfer_whitepaper(current_dex_balance_1, old_balance_1, &amount_1_out);
-        new_balance_1 = new_balance_1_tmp;
-    }
+    let (new_balance_0, new_balance_1) = rayon::join(
+        || {
+            let mut new_balance_0 = old_balance_0.clone();
+            if total_dex_token_1_in != 0 {
+                let big_pending_1_in = BigFheType::cast_from(pending_1_in.clone());
+                let big_amount_0_out = (big_pending_1_in * total_dex_token_0_out as u128)
+                    / total_dex_token_1_in as u128;
+                let amount_0_out = FheType::cast_from(big_amount_0_out);
+                let (_, new_balance_0_tmp) =
+                    transfer_whitepaper(current_dex_balance_0, old_balance_0, &amount_0_out);
+                new_balance_0 = new_balance_0_tmp;
+            }
+            new_balance_0
+        },
+        || {
+            let mut new_balance_1 = old_balance_1.clone();
+            if total_dex_token_0_in != 0 {
+                let big_pending_0_in = BigFheType::cast_from(pending_0_in.clone());
+                let big_amount_1_out = (big_pending_0_in * total_dex_token_1_out as u128)
+                    / total_dex_token_0_in as u128;
+                let amount_1_out = FheType::cast_from(big_amount_1_out);
+                let (_, new_balance_1_tmp) =
+                    transfer_whitepaper(current_dex_balance_1, old_balance_1, &amount_1_out);
+                new_balance_1 = new_balance_1_tmp;
+            }
+            new_balance_1
+        },
+    );
 
     (new_balance_0, new_balance_1)
 }
