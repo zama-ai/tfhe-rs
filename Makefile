@@ -726,9 +726,18 @@ test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --release --bin hpu_mockup; \
-    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/gaussian_64b_pfail64_psi64.toml > mockup.log; \
+    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- alu_u32 && \
+	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
+	kill %1
+
+.PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
+test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextest
+	source ./setup_hpu.sh --config sim ; \
+	cargo build --profile devo --bin hpu_mockup; \
+    coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
 	kill %1
 
 .PHONY: test_boolean # Run the tests of the boolean module
@@ -1481,6 +1490,9 @@ tfhe_lints
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
 clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
+
+.PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
+pcc_hpu: clippy_hpu clippy_hpu_backend test_integer_hpu_mockup_ci_fast 
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \

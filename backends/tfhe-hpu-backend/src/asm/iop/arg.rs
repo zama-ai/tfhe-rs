@@ -86,7 +86,7 @@ impl std::fmt::Display for AsmIOpcode {
         } else {
             &format!("IOP[0x{:x}]", self.opcode.0)
         };
-        write!(f, "{name: <width$}", width = ASM_OPCODE_WIDTH)
+        write!(f, "{name: <ASM_OPCODE_WIDTH$}")
     }
 }
 
