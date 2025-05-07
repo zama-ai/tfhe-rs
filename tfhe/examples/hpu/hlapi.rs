@@ -8,8 +8,8 @@ macro_rules! impl_hlapi_showcase {
             println!("Start showcase on {} ----------------------------------------", stringify!($fhe_type));
             // Sum -------------------------------------------------------------
             // Generate random inputs value and compute expected result
-            let in_a = rng.gen_range(0..$user_type::max_value());
-            let in_b = rng.gen_range(0..$user_type::max_value());
+            let in_a = rng.gen_range(0..$user_type::MAX);
+            let in_b = rng.gen_range(0..$user_type::MAX);
             let clear_sum_ab = in_a.wrapping_add(in_b);
 
             // Encrypt input value
@@ -29,8 +29,8 @@ macro_rules! impl_hlapi_showcase {
 
             // Product ---------------------------------------------------------
             // Generate random inputs value and compute expected result
-            let in_a = rng.gen_range(0..$user_type::max_value());
-            let in_b = rng.gen_range(0..$user_type::max_value());
+            let in_a = rng.gen_range(0..$user_type::MAX);
+            let in_b = rng.gen_range(0..$user_type::MAX);
 
             let clear_mul_ab = in_a.wrapping_mul(in_b);
 
@@ -51,8 +51,8 @@ macro_rules! impl_hlapi_showcase {
 
             // BW_XOR ----------------------------------------------------------
             // Generate random inputs value and compute expected result
-            let in_a = rng.gen_range(0..$user_type::max_value());
-            let in_b = rng.gen_range(0..$user_type::max_value());
+            let in_a = rng.gen_range(0..$user_type::MAX);
+            let in_b = rng.gen_range(0..$user_type::MAX);
 
             let clear_bw_xor_ab = in_a ^ in_b;
 
@@ -74,8 +74,8 @@ macro_rules! impl_hlapi_showcase {
 
             // CMP_GTE ---------------------------------------------------------
             // Generate random inputs value and compute expected result
-            let in_a = rng.gen_range(0..$user_type::max_value());
-            let in_b = rng.gen_range(0..$user_type::max_value());
+            let in_a = rng.gen_range(0..$user_type::MAX);
+            let in_b = rng.gen_range(0..$user_type::MAX);
 
             let clear_cmp_gte_ab = in_a >= in_b;
 

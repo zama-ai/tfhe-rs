@@ -83,7 +83,7 @@ mod hpu_test {
             tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks);
 
         // Init Hpu device with server key and firmware
-        tfhe::integer::hpu::init_device(&hpu_device, sks_compressed.into()).expect("Invalid key");
+        tfhe::integer::hpu::init_device(&hpu_device, sks_compressed).expect("Invalid key");
         (std::sync::Mutex::new(hpu_device), cks, key_seed)
     }
 
@@ -226,49 +226,49 @@ mod hpu_test {
     // Define testcase implementation for all supported IOp
     // Alu IOp with Ct x Imm
     hpu_testcase!("ADDS" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_add(imm[0])]);
+    |ct, imm| [ct[0].wrapping_add(imm[0])]);
     hpu_testcase!("SUBS" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_sub(imm[0])]);
+    |ct, imm| [ct[0].wrapping_sub(imm[0])]);
     hpu_testcase!("SSUB" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![imm[0].wrapping_sub(ct[0])]);
+    |ct, imm| [imm[0].wrapping_sub(ct[0])]);
     hpu_testcase!("MULS" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_mul(imm[0])]);
+    |ct, imm| [ct[0].wrapping_mul(imm[0])]);
 
     // Alu IOp with Ct x Ct
     hpu_testcase!("ADD" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_add(ct[1])]);
+    |ct, imm| [ct[0].wrapping_add(ct[1])]);
     hpu_testcase!("SUB" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_sub(ct[1])]);
+    |ct, imm| [ct[0].wrapping_sub(ct[1])]);
     hpu_testcase!("MUL" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0].wrapping_mul(ct[1])]);
+    |ct, imm| [ct[0].wrapping_mul(ct[1])]);
 
     // Bitwise IOp
     hpu_testcase!("BW_AND" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] & ct[1]]);
+    |ct, imm| [ct[0] & ct[1]]);
     hpu_testcase!("BW_OR" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] | ct[1]]);
+    |ct, imm| [ct[0] | ct[1]]);
     hpu_testcase!("BW_XOR" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] ^ ct[1]]);
+    |ct, imm| [ct[0] ^ ct[1]]);
 
     // Comparison IOp
     hpu_testcase!("CMP_GT" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] > ct[1]]);
+    |ct, imm| [ct[0] > ct[1]]);
     hpu_testcase!("CMP_GTE" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] >= ct[1]]);
+    |ct, imm| [ct[0] >= ct[1]]);
     hpu_testcase!("CMP_LT" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] < ct[1]]);
+    |ct, imm| [ct[0] < ct[1]]);
     hpu_testcase!("CMP_LTE" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] <= ct[1]]);
+    |ct, imm| [ct[0] <= ct[1]]);
     hpu_testcase!("CMP_EQ" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] == ct[1]]);
+    |ct, imm| [ct[0] == ct[1]]);
     hpu_testcase!("CMP_NEQ" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![ct[0] != ct[1]]);
+    |ct, imm| [ct[0] != ct[1]]);
 
     // Ternary IOp
     hpu_testcase!("IF_THEN_ZERO" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![if ct[1] != 0 {ct[0]} else { 0}]);
+    |ct, imm| [if ct[1] != 0 {ct[0]} else { 0}]);
     hpu_testcase!("IF_THEN_ELSE" => [u8, u16, u32, u64, u128]
-    |ct, imm| vec![if ct[2] != 0 {ct[0]} else { ct[1]}]);
+    |ct, imm| [if ct[2] != 0 {ct[0]} else { ct[1]}]);
 
     // ERC 20 found xfer
     hpu_testcase!("ERC_20" => [u8, u16, u32, u64, u128]
@@ -525,7 +525,7 @@ mod hpu_test {
 
         // Generate Keys ---------------------------------------------------------
         let sks_compressed =
-            tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(&cks)
+            tfhe::integer::CompressedServerKey::new_radix_compressed_server_key(cks)
                 .into_raw_parts();
 
         // Unwrap compressed key ---------------------------------------------------

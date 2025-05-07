@@ -322,7 +322,7 @@ impl Program<iop::IOp> {
                 AsmOp::Stmt(op) => {
                     op.to_words()
                         .into_iter()
-                        .try_for_each(|word| writeln!(wr_f, "{:0>8x}", word))?;
+                        .try_for_each(|word| writeln!(wr_f, "{word:0>8x}"))?;
                 }
             }
         }

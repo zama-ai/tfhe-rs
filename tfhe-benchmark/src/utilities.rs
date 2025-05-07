@@ -402,6 +402,9 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
     }
     #[cfg(feature = "hpu")]
     {
+        // NB: unused with HPU
+        let _ = minimum_loading;
+        let _ = op_pbs_count;
         // Enforce that a minimum of 64 IOp is sent
         block_multiplicator.min(64.0) as u64
     }

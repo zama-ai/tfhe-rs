@@ -32,7 +32,6 @@ fn main() {
     /// Define CLI arguments
     #[derive(clap::Parser, Debug, Clone, serde::Serialize)]
     #[clap(long_about = "HPU example that shows the use of the HighLevelAPI.")]
-
     pub struct Args {
         #[clap(
             long,
@@ -151,8 +150,8 @@ fn main() {
                 .collect::<Vec<u64>>()
         })
         .collect::<Vec<Vec<u64>>>();
-    println!("\n> decrypted result {:?}", dec_result);
-    println!("> cleartext result {:?}", clear_result);
+    println!("\n> decrypted result {dec_result:?}");
+    println!("> cleartext result {clear_result:?}");
 
     assert!(clear_result == dec_result, "matrices are not the same");
 }

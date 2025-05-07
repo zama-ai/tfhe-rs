@@ -5,8 +5,8 @@ use std::fmt::Write;
 use std::ops::*;
 use tfhe::prelude::*;
 use tfhe::{
-    set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheUint10, FheUint12,
-    FheUint128, FheUint14, FheUint16, FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
+    ClientKey, CompressedServerKey, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16,
+    FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
 };
 
 fn bench_fhe_type<FheType>(c: &mut Criterion, client_key: &ClientKey, type_name: &str)

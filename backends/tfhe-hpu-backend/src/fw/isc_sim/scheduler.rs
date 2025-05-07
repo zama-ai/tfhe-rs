@@ -138,7 +138,7 @@ impl Scheduler {
                                 });
                             }
                         }
-                        _ => panic!("Unexpected unit required a timeout registration {:?}", kind),
+                        _ => panic!("Unexpected unit required a timeout registration {kind:?}"),
                     };
                     false
                 }

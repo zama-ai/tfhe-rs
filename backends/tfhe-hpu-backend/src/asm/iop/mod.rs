@@ -32,7 +32,7 @@ impl std::str::FromStr for VarMode {
             "n" | "nat" | "native" => Ok(VarMode::Native),
             "h" | "half" => Ok(VarMode::Half),
             "b" | "bool" => Ok(VarMode::Bool),
-            _ => Err(ParsingError::InvalidArg(format!("Invalid VarMode: {}", s))),
+            _ => Err(ParsingError::InvalidArg(format!("Invalid VarMode: {s}"))),
         }
     }
 }
