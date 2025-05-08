@@ -6,17 +6,17 @@ This document details the HPU performance benchmarks of homomorphic operations o
 All HPU benchmarks were launched on AMD Alveo v80 FPGAs.
 {% endhint %}
 
-The cryptographic parameters `HPU_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64` were used.
+The cryptographic parameters `HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64` were used.
 
-## 1xAlveoV80
+## 1xHPU
 Below come the results for the execution on a single Alveo v80 board.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-![](../../../_static/hpu_integer_benchmark_hpux1_gaussian_2m64_ciphertext.svg)
+![](../../../_static/hpu_integer_benchmark_hpux1_tuniform_2m64_ciphertext.svg)
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-![](../../../_static/hpu_integer_benchmark_hpux1_gaussian_2m64_plaintext.svg)
+![](../../../_static/hpu_integer_benchmark_hpux1_tuniform_2m64_plaintext.svg)
 
 ## Reproducing TFHE-rs benchmarks
 
