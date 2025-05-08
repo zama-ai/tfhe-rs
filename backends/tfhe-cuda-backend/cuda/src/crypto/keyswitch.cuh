@@ -142,6 +142,7 @@ void execute_keyswitch_async(cudaStream_t const *streams,
 
   /// If the number of radix blocks is lower than the number of GPUs, not all
   /// GPUs will be active and there will be 1 input per GPU
+  #pragma omp parallel for num_threads(gpu_count)
   for (uint i = 0; i < gpu_count; i++) {
     int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
 

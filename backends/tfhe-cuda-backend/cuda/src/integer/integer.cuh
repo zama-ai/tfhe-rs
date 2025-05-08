@@ -536,7 +536,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-  if (active_gpu_count == 1) {
+  if (active_gpu_count == 1 || num_radix_blocks < 8) {
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], (Torus *)lwe_array_in->ptr,
@@ -593,6 +593,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  #pragma omp parallel for
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
@@ -641,7 +642,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-  if (active_gpu_count == 1) {
+  if (active_gpu_count == 1 || num_radix_blocks < 8) {
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], (Torus *)lwe_array_in->ptr,
@@ -698,6 +699,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  #pragma omp parallel for
   for (uint i = 0; i < lwe_array_out->num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
@@ -744,7 +746,6 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   // In the case of extracting a single LWE this parameters are dummy
   uint32_t num_many_lut = 1;
   uint32_t lut_stride = 0;
-
   // Left message is shifted
   auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
   host_pack_bivariate_blocks<Torus>(
@@ -761,7 +762,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
-  if (active_gpu_count == 1) {
+  if (active_gpu_count == 1 || num_radix_blocks < 8) {
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, lwe_after_ks_vec[0],
         lwe_trivial_indexes_vec[0], (Torus *)lwe_array_pbs_in->ptr,
@@ -814,6 +815,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
   }
+  #pragma omp parallel for
   for (uint i = 0; i < num_radix_blocks; i++) {
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];

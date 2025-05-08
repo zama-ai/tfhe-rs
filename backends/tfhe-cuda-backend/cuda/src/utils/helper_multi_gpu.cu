@@ -23,6 +23,8 @@ int32_t cuda_setup_multi_gpu() {
         if (has_peer_access_to_device_0) {
           cuda_set_device(i);
           check_cuda_error(cudaDeviceEnablePeerAccess(0, 0));
+          cuda_set_device(0);
+          check_cuda_error(cudaDeviceEnablePeerAccess(i, 0));
         }
         num_used_gpus += 1;
       }
@@ -31,6 +33,14 @@ int32_t cuda_setup_multi_gpu() {
         num_used_gpus += 1;
     }
     m.unlock();
+  }
+  // Warmup omp threads
+  omp_set_num_threads(num_used_gpus);
+  #pragma omp parallel
+  {
+    int gpu_index = omp_get_thread_num();
+    cuda_set_device(gpu_index);
+    cuda_synchronize_device(gpu_index);
   }
   return (int32_t)(num_used_gpus);
 }
