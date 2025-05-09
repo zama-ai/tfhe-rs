@@ -1291,7 +1291,7 @@ void host_compute_prefix_sum_hillis_steele(
 }
 
 // This function is used to perform step 2 of Thomas' new propagation algorithm
-// Consist three steps:
+// Consists of three steps:
 // - propagates the carry within each group with cheap LWE operations stored in
 // simulators
 // - calculates the propagation state of each group
