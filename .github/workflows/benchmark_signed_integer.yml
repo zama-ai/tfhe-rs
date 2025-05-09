@@ -111,7 +111,6 @@ jobs:
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
-    continue-on-error: true
     timeout-minutes: 1440  # 24 hours
     strategy:
       max-parallel: 1

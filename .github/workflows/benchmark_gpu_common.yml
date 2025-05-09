@@ -215,7 +215,6 @@ jobs:
     needs: [ prepare-matrix, setup-instance, install-dependencies ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
-    continue-on-error: true
     strategy:
       fail-fast: false
       max-parallel: 1
