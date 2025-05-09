@@ -5,7 +5,7 @@ use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::math::random::{Distribution, RandomGenerable};
 use crate::core_crypto::entities::*;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
+use crate::shortint::parameters::{CarryModulus, MessageModulus};
 use crate::shortint::{
     Ciphertext, ClientKey, CompressedCiphertext, PaddingBit, ShortintEncoding, ShortintParameterSet,
 };
@@ -86,8 +86,7 @@ impl ShortintEngine {
         message: u64,
         message_modulus: MessageModulus,
     ) -> Ciphertext {
-        let params_atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let params_atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -131,8 +130,7 @@ impl ShortintEngine {
             smaller or equal to the max given by the parameter set."
         );
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -172,8 +170,7 @@ impl ShortintEngine {
         let encoded =
             ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::Yes).encode(m);
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -197,8 +194,7 @@ impl ShortintEngine {
     }
 
     pub(crate) fn unchecked_encrypt(&mut self, client_key: &ClientKey, message: u64) -> Ciphertext {
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -235,8 +231,7 @@ impl ShortintEngine {
         let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
             .encode(Cleartext(message));
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -267,8 +262,7 @@ impl ShortintEngine {
         let encoded = ShortintEncoding::from_parameters(client_key.parameters, PaddingBit::No)
             .encode(Cleartext(message));
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -303,8 +297,7 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -339,8 +332,7 @@ impl ShortintEngine {
 
         let encoded = Plaintext(shifted_message);
 
-        let atomic_pattern =
-            AtomicPatternKind::Standard(client_key.parameters.encryption_key_choice().into());
+        let atomic_pattern = client_key.parameters.atomic_pattern();
 
         let (encryption_lwe_sk, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();

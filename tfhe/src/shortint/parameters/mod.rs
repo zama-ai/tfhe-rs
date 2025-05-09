@@ -291,6 +291,7 @@ impl PBSParameters {
             Self::MultiBitPBS(params) => params.encryption_key_choice,
         }
     }
+
     pub const fn grouping_factor(&self) -> LweBskGroupingFactor {
         match self {
             Self::PBS(_) => {
@@ -548,6 +549,21 @@ impl ShortintParameterSet {
             ShortintParameterSetInner::WopbsOnly(params) => params.ciphertext_modulus,
             ShortintParameterSetInner::PBSAndWopbs(params, _) => params.ciphertext_modulus(),
             ShortintParameterSetInner::KS32PBS(params) => params.ciphertext_modulus(),
+        }
+    }
+
+    pub const fn atomic_pattern(&self) -> AtomicPatternKind {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => {
+                AtomicPatternKind::Standard(params.encryption_key_choice().into_pbs_order())
+            }
+            ShortintParameterSetInner::WopbsOnly(_params) => {
+                panic!("WopbsOnly parameters do not support Atomic Patterns")
+            }
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => {
+                AtomicPatternKind::Standard(params.encryption_key_choice().into_pbs_order())
+            }
+            ShortintParameterSetInner::KS32PBS(_params) => AtomicPatternKind::KeySwitch32,
         }
     }
 
