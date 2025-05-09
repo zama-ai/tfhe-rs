@@ -17,7 +17,7 @@ This function returns a Boolean (`true` or `false`) so that the total count of `
 ```toml
 # Cargo.toml
 
-tfhe = { version = "~1.1.0", features = ["integer"] }
+tfhe = { version = "~1.2.0", features = ["integer"] }
 ```
 
 First, define the verification function.
