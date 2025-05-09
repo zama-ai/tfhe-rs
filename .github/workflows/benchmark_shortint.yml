@@ -137,7 +137,7 @@ jobs:
       - name: Parse key sizes results
         if: matrix.op_flavor == 'default'
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/shortint_key_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 

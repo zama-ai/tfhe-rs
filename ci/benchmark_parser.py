@@ -348,7 +348,7 @@ def get_parameters(bench_id, directory):
 
     :return: :class:`tuple` as ``(benchmark parameters, display name, operator type)``
     """
-    params_dir = pathlib.Path(directory, "benchmarks_parameters", bench_id)
+    params_dir = pathlib.Path("tfhe-benchmark", "benchmarks_parameters", bench_id)
     params = _parse_file_to_json(params_dir, "parameters.json")
 
     display_name = params.pop("display_name")
