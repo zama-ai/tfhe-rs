@@ -137,7 +137,7 @@ fn main() {
     println!("work_dir: {}", std::env::current_dir().unwrap().display());
     // Change workdir so that the location of the keycache matches the one for tests
     let mut new_work_dir = work_dir;
-    new_work_dir.push("tfhe");
+    new_work_dir.push("tfhe-benchmark");
     std::env::set_current_dir(new_work_dir).unwrap();
 
     let results_file = Path::new("hlapi_cpk_and_cctl_sizes.csv");
