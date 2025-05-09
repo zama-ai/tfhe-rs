@@ -10,7 +10,7 @@ use crate::core_crypto::algorithms::lwe_encryption::{
 };
 use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_linear_algebra::lwe_ciphertext_plaintext_sub_assign;
-use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft128::programmable_bootstrap_f128_lwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft128_pbs::programmable_bootstrap_f128_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::generate_programmable_bootstrap_glwe_lut;
 use crate::core_crypto::algorithms::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::algorithms::test::round_decode;
@@ -52,6 +52,7 @@ use crate::core_crypto::entities::{
 };
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKeyOwned;
+use crate::shortint::atomic_pattern::{AtomicPatternParameters, AtomicPatternServerKey};
 use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::{CompressionKey, CompressionPrivateKeys, DecompressionKey};
@@ -62,6 +63,7 @@ use crate::shortint::parameters::compact_public_key_only::{
 use crate::shortint::parameters::key_switching::ShortintKeySwitchingParameters;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::v1_0::*;
+use crate::shortint::parameters::v1_2::V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DynamicDistribution,
     EncryptionKeyChoice, MessageModulus, ModulusSwitchNoiseReductionParams, ShortintParameterSet,
@@ -109,10 +111,21 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
         DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
     };
 
-    let input_ks_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
+    let input_ks_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let output_ks_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let ks_decomp_level_count = key_switching_key.decomposition_level_count();
 
     // Compute expected variance after encryption and the first compute loop until blind rotation,
     // we check the noise before entering the blind rotation
@@ -199,13 +212,13 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
 
                 let mut after_ks_lwe = LweCiphertext::new(
                     0u64,
-                    sks.key_switching_key.output_lwe_size(),
-                    sks.key_switching_key.ciphertext_modulus(),
+                    key_switching_key.output_lwe_size(),
+                    key_switching_key.ciphertext_modulus(),
                 );
 
-                keyswitch_lwe_ciphertext(&sks.key_switching_key, &ct.ct, &mut after_ks_lwe);
+                keyswitch_lwe_ciphertext(&key_switching_key, &ct.ct, &mut after_ks_lwe);
 
-                let after_ms = match &sks.bootstrapping_key {
+                let after_ms = match bootstrapping_key {
                     ShortintBootstrappingKey::Classic {
                         bsk: _,
                         modulus_switch_noise_reduction_key,
@@ -273,13 +286,13 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
         let noise_for_security = match params.lwe_noise_distribution() {
             DynamicDistribution::Gaussian(_) => {
                 minimal_lwe_variance_for_132_bits_security_gaussian(
-                    sks.bootstrapping_key.input_lwe_dimension(),
+                    bootstrapping_key.input_lwe_dimension(),
                     modulus_as_f64,
                 )
             }
             DynamicDistribution::TUniform(_) => {
                 minimal_lwe_variance_for_132_bits_security_tuniform(
-                    sks.bootstrapping_key.input_lwe_dimension(),
+                    bootstrapping_key.input_lwe_dimension(),
                     modulus_as_f64,
                 )
             }
@@ -430,16 +443,27 @@ fn classic_pbs_atomic_pattern_inner_helper(
         LweCiphertext::from_container(raw_data, params.ciphertext_modulus())
     };
 
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
     let mut after_pbs_shortint_ct = sks.unchecked_create_trivial_with_lwe_size(
         Cleartext(0),
-        sks.bootstrapping_key.output_lwe_dimension().to_lwe_size(),
+        bootstrapping_key.output_lwe_dimension().to_lwe_size(),
     );
 
-    let (_, buffers) = engine.get_buffers(sks);
+    let buffers = engine.get_computation_buffers();
 
     // Apply the PBS only and no noise reduction as we have a noiseless input ciphertext
     apply_programmable_bootstrap_no_ms_noise_reduction(
-        &sks.bootstrapping_key,
+        bootstrapping_key,
         &input_pbs_lwe_ct,
         &mut after_pbs_shortint_ct.ct,
         &identity_lut.acc,
@@ -459,17 +483,17 @@ fn classic_pbs_atomic_pattern_inner_helper(
 
     let mut after_ks_lwe = LweCiphertext::new(
         0u64,
-        sks.key_switching_key.output_lwe_size(),
-        sks.key_switching_key.ciphertext_modulus(),
+        key_switching_key.output_lwe_size(),
+        key_switching_key.ciphertext_modulus(),
     );
 
     keyswitch_lwe_ciphertext(
-        &sks.key_switching_key,
+        &key_switching_key,
         &after_pbs_shortint_ct.ct,
         &mut after_ks_lwe,
     );
 
-    let (after_drift_mitigation, after_ms) = match &sks.bootstrapping_key {
+    let (after_drift_mitigation, after_ms) = match bootstrapping_key {
         ShortintBootstrappingKey::Classic {
             bsk: _,
             modulus_switch_noise_reduction_key,
@@ -584,8 +608,26 @@ fn classic_pbs_atomic_pattern_pfail_helper(
     }
 }
 
-fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParameters) {
-    assert!(params.modulus_switch_noise_reduction_params.is_some());
+fn noise_check_shortint_classic_pbs_atomic_pattern_noise<P: Into<AtomicPatternParameters>>(
+    params: P,
+) {
+    let params: AtomicPatternParameters = params.into();
+    match params {
+        AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+            crate::shortint::PBSParameters::PBS(classic_pbsparameters) => {
+                assert!(classic_pbsparameters
+                    .modulus_switch_noise_reduction_params
+                    .is_some())
+            }
+            crate::shortint::PBSParameters::MultiBitPBS(_multi_bit_pbsparameters) => (),
+        },
+        AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+            assert!(key_switch32_pbsparameters
+                .modulus_switch_noise_reduction_params
+                .is_some())
+        }
+    };
+
     let params: ShortintParameterSet = params.into();
     assert!(
         matches!(params.encryption_key_choice(), EncryptionKeyChoice::Big),
@@ -607,16 +649,27 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
-    let input_pbs_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
-    let output_glwe_dimension = sks.bootstrapping_key.glwe_size().to_glwe_dimension();
-    let output_polynomial_size = sks.bootstrapping_key.polynomial_size();
-    let pbs_decomp_base_log = sks.bootstrapping_key.decomposition_base_log();
-    let pbs_decomp_level_count = sks.bootstrapping_key.decomposition_level_count();
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
 
-    let input_ks_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let input_pbs_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+    let output_glwe_dimension = bootstrapping_key.glwe_size().to_glwe_dimension();
+    let output_polynomial_size = bootstrapping_key.polynomial_size();
+    let pbs_decomp_base_log = bootstrapping_key.decomposition_base_log();
+    let pbs_decomp_level_count = bootstrapping_key.decomposition_level_count();
+
+    let input_ks_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let output_ks_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let ks_decomp_level_count = key_switching_key.decomposition_level_count();
 
     // Compute expected variance after getting out of a PBS and doing a full AP until the next mod
     // switch
@@ -852,7 +905,8 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise {
     V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
-    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    V1_0_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128
 });
 
 fn noise_check_shortint_classic_pbs_atomic_pattern_pfail(mut params: ClassicPBSParameters) {
@@ -1071,6 +1125,17 @@ fn pke_encrypt_ks_to_compute_inner_helper(
         (single_cpk, single_ksk, single_cks, single_sks)
     };
 
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let br_input_modulus_log = block_params
         .polynomial_size()
@@ -1105,7 +1170,7 @@ fn pke_encrypt_ks_to_compute_inner_helper(
                     expanded_ct.noise_level(),
                     expanded_ct.message_modulus,
                     expanded_ct.carry_modulus,
-                    expanded_ct.pbs_order,
+                    expanded_ct.atomic_pattern,
                 );
 
                 // First remove the msg from the ciphertext to avoid a problem with the mul result
@@ -1128,12 +1193,12 @@ fn pke_encrypt_ks_to_compute_inner_helper(
 
                 let mut lwe_keyswitchted = LweCiphertext::new(
                     0u64,
-                    sks.key_switching_key.output_lwe_size(),
-                    sks.key_switching_key.ciphertext_modulus(),
+                    key_switching_key.output_lwe_size(),
+                    key_switching_key.ciphertext_modulus(),
                 );
 
                 keyswitch_lwe_ciphertext(
-                    &sks.key_switching_key,
+                    &key_switching_key,
                     &shortint_ct_after_pke_ks.ct,
                     &mut lwe_keyswitchted,
                 );
@@ -1145,7 +1210,7 @@ fn pke_encrypt_ks_to_compute_inner_helper(
         }
     };
 
-    let after_ms = match &sks.bootstrapping_key {
+    let after_ms = match bootstrapping_key {
         ShortintBootstrappingKey::Classic {
             bsk: _,
             modulus_switch_noise_reduction_key,
@@ -1306,12 +1371,23 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         .key_switching_key
         .decomposition_level_count();
 
-    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
 
-    let compute_pbs_input_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
+    let compute_ks_input_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = key_switching_key.decomposition_level_count();
+
+    let compute_pbs_input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
 
     // Only in the Big key case
     let scalar_for_multiplication = block_params.max_noise_level().get();
@@ -1479,13 +1555,13 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         let noise_for_security = match block_params.lwe_noise_distribution() {
             DynamicDistribution::Gaussian(_) => {
                 minimal_lwe_variance_for_132_bits_security_gaussian(
-                    sks.bootstrapping_key.input_lwe_dimension(),
+                    bootstrapping_key.input_lwe_dimension(),
                     modulus_as_f64,
                 )
             }
             DynamicDistribution::TUniform(_) => {
                 minimal_lwe_variance_for_132_bits_security_tuniform(
-                    sks.bootstrapping_key.input_lwe_dimension(),
+                    bootstrapping_key.input_lwe_dimension(),
                     modulus_as_f64,
                 )
             }
@@ -1807,7 +1883,7 @@ fn pbs_compress_and_classic_ap_inner_helper(
             );
         }
         CompressionSpecialPfailCase::DoesNotNeedSpecialCase => (),
-    };
+    }
 
     assert!(block_params.pbs_only());
     assert!(
@@ -1870,8 +1946,18 @@ fn pbs_compress_and_classic_ap_inner_helper(
     let compression_delta = (1u64 << 63) / compression_cleartext_modulus;
     let msg = msg % compression_cleartext_modulus;
 
-    let compute_br_input_modulus_log = sks
-        .bootstrapping_key
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
+    let compute_br_input_modulus_log = bootstrapping_key
         .polynomial_size()
         .to_blind_rotation_input_modulus_log();
     let shift_to_map_to_native = u64::BITS - compute_br_input_modulus_log.0 as u32;
@@ -1911,12 +1997,12 @@ fn pbs_compress_and_classic_ap_inner_helper(
 
             let identity_lut = sks.generate_lookup_table(|x| x);
 
-            let (_, buffers) = engine.get_buffers(sks);
+            let buffers = engine.get_computation_buffers();
 
             // Apply the PBS to get out noisy and under the proper encryption key
             // and no modulus switch noise reduction as we have a noiseless input ciphertext
             apply_programmable_bootstrap_no_ms_noise_reduction(
-                &sks.bootstrapping_key,
+                bootstrapping_key,
                 &encrypted_lwe_under_br_modulus,
                 &mut shortint_ct.ct,
                 &identity_lut.acc,
@@ -1991,16 +2077,16 @@ fn pbs_compress_and_classic_ap_inner_helper(
 
             let mut after_ks_lwe = LweCiphertext::new(
                 0u64,
-                sks.key_switching_key.output_lwe_size(),
-                sks.key_switching_key.ciphertext_modulus(),
+                key_switching_key.output_lwe_size(),
+                key_switching_key.ciphertext_modulus(),
             );
 
-            keyswitch_lwe_ciphertext(&sks.key_switching_key, &decompressed.ct, &mut after_ks_lwe);
+            keyswitch_lwe_ciphertext(&key_switching_key, &decompressed.ct, &mut after_ks_lwe);
 
             // The previous computations were:
             // PBS -> Packing KS -> Storage MS -> BR to decompress -> KS | We are here
             // So we need to apply the drift noise reduction technique and then the mod switch
-            match &sks.bootstrapping_key {
+            match bootstrapping_key {
                 ShortintBootstrappingKey::Classic {
                     bsk: _,
                     modulus_switch_noise_reduction_key,
@@ -2183,16 +2269,27 @@ fn noise_check_shortint_pbs_compression_ap_noise(
     let (compression_key, decompression_key) =
         cks.new_compression_decompression_keys(&compression_private_key);
 
-    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
 
-    let compute_pbs_input_lwe_dimension = sks.bootstrapping_key.input_lwe_dimension();
-    let compute_pbs_output_glwe_dimension = sks.bootstrapping_key.glwe_size().to_glwe_dimension();
-    let compute_pbs_output_polynomial_size = sks.bootstrapping_key.polynomial_size();
-    let compute_pbs_decomp_base_log = sks.bootstrapping_key.decomposition_base_log();
-    let compute_pbs_decomp_level_count = sks.bootstrapping_key.decomposition_level_count();
+    let compute_ks_input_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = key_switching_key.decomposition_level_count();
+
+    let compute_pbs_input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+    let compute_pbs_output_glwe_dimension = bootstrapping_key.glwe_size().to_glwe_dimension();
+    let compute_pbs_output_polynomial_size = bootstrapping_key.polynomial_size();
+    let compute_pbs_decomp_base_log = bootstrapping_key.decomposition_base_log();
+    let compute_pbs_decomp_level_count = bootstrapping_key.decomposition_level_count();
 
     let scalar_for_ap_multiplication = block_params.max_noise_level().get();
 
@@ -3018,10 +3115,10 @@ fn br_to_squash_pbs_128_inner_helper(
     block_params: ShortintParameterSet,
     pbs128_params: PBS128Parameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
+    single_input_br_key: &ShortintBootstrappingKey<u64>,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
-    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
@@ -3097,10 +3194,19 @@ fn br_to_squash_pbs_128_inner_helper(
                     &thread_decompression_key.blind_rotate_key,
                 )
             }
-            PBS128InputBRParams::Compute => (
-                thread_cks.small_lwe_secret_key(),
-                &thread_sks.bootstrapping_key,
-            ),
+            PBS128InputBRParams::Compute => {
+                let (_key_switching_key, bootstrapping_key) = match &thread_sks.atomic_pattern {
+                    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                        standard_atomic_pattern_server_key
+                            .key_switching_key
+                            .as_view(),
+                        &standard_atomic_pattern_server_key.bootstrapping_key,
+                    ),
+                    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+                    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+                };
+                (thread_cks.small_lwe_secret_key(), bootstrapping_key)
+            }
         };
 
         thread_pbs_128_key = {
@@ -3122,7 +3228,7 @@ fn br_to_squash_pbs_128_inner_helper(
                 );
 
             let std_bootstrapping_key =
-                par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+                par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                     &thread_input_lwe_secret_key_as_u128,
                     &thread_output_pbs_128_glwe_secret_key,
                     pbs128_params.decomp_base_log,
@@ -3168,6 +3274,17 @@ fn br_to_squash_pbs_128_inner_helper(
         )
     };
 
+    let (key_switching_key, _bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
     let identity_lut = sks.generate_lookup_table(|x| x);
 
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
@@ -3211,7 +3328,7 @@ fn br_to_squash_pbs_128_inner_helper(
         input_br_key.output_lwe_dimension().to_lwe_size(),
     );
 
-    let (_, buffers) = engine.get_buffers(sks);
+    let buffers = engine.get_computation_buffers();
 
     // Apply the PBS only and no modulus switch noise reduction as we have a noiseless input
     // ciphertext
@@ -3233,12 +3350,12 @@ fn br_to_squash_pbs_128_inner_helper(
 
     let mut after_ks_lwe = LweCiphertext::new(
         0u64,
-        sks.key_switching_key.output_lwe_size(),
-        sks.key_switching_key.ciphertext_modulus(),
+        key_switching_key.output_lwe_size(),
+        key_switching_key.ciphertext_modulus(),
     );
 
     keyswitch_lwe_ciphertext(
-        &sks.key_switching_key,
+        &key_switching_key,
         &after_pbs_shortint_ct.ct,
         &mut after_ks_lwe,
     );
@@ -3340,10 +3457,10 @@ fn br_to_squash_pbs_128_noise_helper(
     block_params: ShortintParameterSet,
     pbs128_params: PBS128Parameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
+    single_input_br_key: &ShortintBootstrappingKey<u64>,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
-    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
@@ -3407,10 +3524,10 @@ fn br_to_squash_pbs_128_pfail_helper(
     block_params: ShortintParameterSet,
     pbs128_params: PBS128Parameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
+    single_input_br_key: &ShortintBootstrappingKey<u64>,
     single_cks: &ClientKey,
     single_sks: &ServerKey,
-    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey>,
+    single_before_pbs_128_ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
     single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
     single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
     msg: u64,
@@ -3517,7 +3634,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         );
 
         let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                 &input_lwe_secret_key_as_u128,
                 &output_pbs_128_glwe_secret_key,
                 pbs128_params.decomp_base_log,
@@ -3557,7 +3674,19 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
                 &decompression_key.blind_rotate_key,
             )
         }
-        PBS128InputBRParams::Compute => (&cks.small_lwe_secret_key(), &sks.bootstrapping_key),
+        PBS128InputBRParams::Compute => {
+            let (_key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+                AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                    standard_atomic_pattern_server_key
+                        .key_switching_key
+                        .as_view(),
+                    &standard_atomic_pattern_server_key.bootstrapping_key,
+                ),
+                AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+                AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+            };
+            (&cks.small_lwe_secret_key(), bootstrapping_key)
+        }
     };
 
     // We get out under the big key of the compute params, so we can check this noise distribution
@@ -3584,10 +3713,21 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
     let expected_variance_after_multiplication =
         scalar_multiplication_variance(expected_variance_after_input_br, scalar_for_multiplication);
 
-    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
+    let (key_switching_key, _bootstrapping_key) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
+    let compute_ks_input_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = key_switching_key.decomposition_level_count();
 
     let keyswitch_additive_variance = match block_params.lwe_noise_distribution() {
         DynamicDistribution::Gaussian(_) => keyswitch_additive_variance_132_bits_security_gaussian(
@@ -3928,7 +4068,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         );
 
         let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
+            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
                 &input_lwe_secret_key_as_u128,
                 &output_pbs_128_glwe_secret_key,
                 pbs128_params.decomp_base_log,
@@ -3968,7 +4108,19 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
                 &decompression_key.blind_rotate_key,
             )
         }
-        PBS128InputBRParams::Compute => (&cks.small_lwe_secret_key(), &sks.bootstrapping_key),
+        PBS128InputBRParams::Compute => {
+            let (_key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+                AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                    standard_atomic_pattern_server_key
+                        .key_switching_key
+                        .as_view(),
+                    &standard_atomic_pattern_server_key.bootstrapping_key,
+                ),
+                AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+                AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+            };
+            (&cks.small_lwe_secret_key(), bootstrapping_key)
+        }
     };
 
     let scalar_for_multiplication = block_params.max_noise_level().get();

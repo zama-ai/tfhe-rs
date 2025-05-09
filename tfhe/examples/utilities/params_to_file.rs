@@ -8,7 +8,7 @@ use tfhe::core_crypto::prelude::{DynamicDistribution, TUniform, UnsignedInteger}
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::current_params::{
     VEC_ALL_CLASSIC_PBS_PARAMETERS, VEC_ALL_COMPACT_PUBLIC_KEY_ENCRYPTION_PARAMETERS,
-    VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
+    VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_KS32_PBS_PARAMETERS, VEC_ALL_MULTI_BIT_PBS_PARAMETERS,
     VEC_ALL_NOISE_SQUASHING_PARAMETERS,
 };
 use tfhe::shortint::parameters::{
@@ -22,6 +22,7 @@ pub trait ParamDetails<T: UnsignedInteger> {
     fn lwe_noise_distribution(&self) -> DynamicDistribution<T>;
     fn glwe_noise_distribution(&self) -> DynamicDistribution<T>;
     fn polynomial_size(&self) -> PolynomialSize;
+    fn log_ciphertext_modulus_after_ks(&self) -> usize;
     fn log_ciphertext_modulus(&self) -> usize;
 }
 
@@ -45,6 +46,10 @@ impl ParamDetails<u32> for BooleanParameters {
         self.polynomial_size
     }
 
+    fn log_ciphertext_modulus_after_ks(&self) -> usize {
+        32
+    }
+
     fn log_ciphertext_modulus(&self) -> usize {
         32
     }
@@ -62,12 +67,17 @@ impl ParamDetails<u64> for ShortintParameterSet {
     fn lwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         self.lwe_noise_distribution()
     }
+
     fn glwe_noise_distribution(&self) -> DynamicDistribution<u64> {
         self.glwe_noise_distribution()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size()
+    }
+
+    fn log_ciphertext_modulus_after_ks(&self) -> usize {
+        todo!()
     }
 
     fn log_ciphertext_modulus(&self) -> usize {
@@ -98,6 +108,10 @@ impl ParamDetails<u64> for CompactPublicKeyEncryptionParameters {
         panic!("polynomial_size not applicable for compact public-key encryption parameters")
     }
 
+    fn log_ciphertext_modulus_after_ks(&self) -> usize {
+        panic!("Irrelevant")
+    }
+
     fn log_ciphertext_modulus(&self) -> usize {
         assert!(self.ciphertext_modulus.is_native_modulus());
         64
@@ -124,6 +138,10 @@ impl ParamDetails<u64> for CompressionParameters {
         self.packing_ks_polynomial_size
     }
 
+    fn log_ciphertext_modulus_after_ks(&self) -> usize {
+        panic!("Irrelevant")
+    }
+
     fn log_ciphertext_modulus(&self) -> usize {
         64
     }
@@ -148,6 +166,10 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
 
     fn polynomial_size(&self) -> PolynomialSize {
         self.polynomial_size
+    }
+
+    fn log_ciphertext_modulus_after_ks(&self) -> usize {
+        panic!("Irrelevant")
     }
 
     fn log_ciphertext_modulus(&self) -> usize {
@@ -393,6 +415,16 @@ fn main() {
     write_all_params_in_file(
         "shortint_classic_parameters_lattice_estimator.sage",
         &classic_pbs,
+        ParametersFormat::LweGlwe,
+    );
+
+    let ks32_pbs: Vec<_> = VEC_ALL_KS32_PBS_PARAMETERS
+        .into_iter()
+        .map(|p| (ShortintParameterSet::from(*p.0), Some(p.1)))
+        .collect();
+    write_all_params_in_file(
+        "shortint_ks32_parameters_lattice_estimator.sage",
+        &ks32_pbs,
         ParametersFormat::LweGlwe,
     );
 
