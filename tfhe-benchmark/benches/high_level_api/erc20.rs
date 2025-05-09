@@ -14,6 +14,8 @@ use rayon::prelude::*;
 #[cfg(not(feature = "hpu"))]
 use std::ops::Mul;
 use std::ops::{Add, Sub};
+#[cfg(feature = "gpu")]
+use tfhe::core_crypto::gpu::get_number_of_gpus;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 #[cfg(feature = "gpu")]
@@ -468,11 +470,9 @@ fn hpu_bench_transfer_throughput<FheType, F>(
     }
 }
 
-#[cfg(feature = "gpu")]
-use tfhe::core_crypto::gpu::get_number_of_gpus;
-
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn main() {
+    use crate::pbs_stats::print_transfer_pbs_counts;
     let params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
@@ -493,25 +493,20 @@ fn main() {
     // PBS count is always the same
     #[cfg(feature = "pbs-stats")]
     {
-        pbs_stats::print_transfer_pbs_counts(
+        print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
-        pbs_stats::print_transfer_pbs_counts(
-            &cks,
-            "FheUint64",
-            "no_cmux",
-            transfer_no_cmux::<FheUint64>,
-        );
-        pbs_stats::print_transfer_pbs_counts(
+        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
             transfer_overflow::<FheUint64>,
         );
-        pbs_stats::print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
