@@ -9,7 +9,7 @@ This guide explains how to update your existing program to leverage HPU accelera
 * an [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
 * a HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/README.md)
 * AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
-* QDMA linux device driver version rom this [fork](https://github.com/zama-ai/dma_ip_drivers)
+* QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust_configuration.md)
 
 ## Importing to your project
@@ -81,7 +81,7 @@ fn main() {
 
 ### Setting the hpu
 
-An HPU device is built for a given parameter set that is retrieved by software from an instantiated HpuDevice. Once retrieved, reading some HPU registers, this parameter set is used by the client to generate both client and compressed server keys.
+An HPU device is built for a given parameter set. At this point, because HPU is still a prototype, the software provided is retrieving this parameter set from an instantiated HpuDevice. Once retrieved, reading some HPU registers, this parameter set is used by the example applications to generate both client and compressed server keys.
 Server key has then to be decompressed by the server to be converted into the right format and uploaded to the device.
 Once decompressed, the operations between CPU and HPU are identical.
 
