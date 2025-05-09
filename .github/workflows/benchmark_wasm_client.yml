@@ -146,7 +146,7 @@ jobs:
       - name: Parse results
         run: |
           make parse_wasm_benchmarks
-          python3 ./ci/benchmark_parser.py tfhe/wasm_pk_gen.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/wasm_pk_gen.csv "${RESULTS_FILENAME}" \
           --database tfhe_rs \
           --hardware "m6i.4xlarge" \
           --project-version "${COMMIT_HASH}" \
@@ -154,7 +154,7 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --key-gen
-          rm tfhe/wasm_pk_gen.csv
+          rm tfhe-benchmark/wasm_pk_gen.csv
         env:
           REF_NAME: ${{ github.ref_name }}
 
@@ -167,7 +167,7 @@ jobs:
       - name: Parse key and ciphertext sizes results
         if:  matrix.browser == 'chrome'
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
           --key-gen \
           --append-results
 
