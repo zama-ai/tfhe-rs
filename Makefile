@@ -974,8 +974,8 @@ lint_doc: install_rs_check_toolchain
 lint_docs: lint_doc
 
 .PHONY: format_doc_latex # Format the documentation latex equations to avoid broken rendering.
-format_doc_latex:
-	RUSTFLAGS="" cargo xtask format_latex_doc
+format_doc_latex: install_rs_build_toolchain
+	RUSTFLAGS="" cargo "$(CARGO_RS_BUILD_TOOLCHAIN)" xtask format_latex_doc
 	@"$(MAKE)" --no-print-directory fmt
 	@printf "\n===============================\n\n"
 	@printf "Please manually inspect changes made by format_latex_doc, rustfmt can break equations \
@@ -983,8 +983,8 @@ format_doc_latex:
 	@printf "\n===============================\n"
 
 .PHONY: check_md_docs_are_tested # Checks that the rust codeblocks in our .md files are tested
-check_md_docs_are_tested:
-	RUSTFLAGS="" cargo xtask check_tfhe_docs_are_tested
+check_md_docs_are_tested: install_rs_build_toolchain
+	RUSTFLAGS="" cargo "$(CARGO_RS_BUILD_TOOLCHAIN)" xtask check_tfhe_docs_are_tested
 
 .PHONY: check_intra_md_links # Checks broken internal links in Markdown docs
 check_intra_md_links: install_mlc
