@@ -59,7 +59,7 @@ tfhe-fft = { version = "0.9.0", path = "../tfhe-fft", features = [
 ] }
 tfhe-ntt = { version = "0.6.0", path = "../tfhe-ntt" }
 pulp = { workspace = true, features = ["default"] }
-tfhe-cuda-backend = { version = "0.9.0", path = "../backends/tfhe-cuda-backend", optional = true }
+tfhe-cuda-backend = { version = "0.10.0", path = "../backends/tfhe-cuda-backend", optional = true }
 aligned-vec = { workspace = true, features = ["default", "serde"] }
 dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
@@ -90,7 +90,10 @@ integer = ["shortint", "dep:strum"]
 strings = ["integer"]
 internal-keycache = ["dep:fs2"]
 gpu = ["dep:tfhe-cuda-backend", "shortint"]
-gpu-experimental-multi-arch = ["gpu", "tfhe-cuda-backend/experimental-multi-arch"]
+gpu-experimental-multi-arch = [
+    "gpu",
+    "tfhe-cuda-backend/experimental-multi-arch",
+]
 gpu-profile = ["gpu", "tfhe-cuda-backend/profile"]
 zk-pok = ["dep:tfhe-zk-pok"]
 
