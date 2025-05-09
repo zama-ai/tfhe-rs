@@ -26,17 +26,22 @@ pub fn transfer_whitepaper<FheType>(
     amount: &FheType,
 ) -> (FheType, FheType)
 where
-    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType>,
+    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
     let has_enough_funds = (from_amount).ge(amount);
 
-    let mut new_to_amount = to_amount + amount;
-    new_to_amount = has_enough_funds.if_then_else(&new_to_amount, to_amount);
-
-    let mut new_from_amount = from_amount - amount;
-    new_from_amount = has_enough_funds.if_then_else(&new_from_amount, from_amount);
+    let (new_to_amount, new_from_amount) = rayon::join(
+        || {
+            let new_to_amount = to_amount + amount;
+            has_enough_funds.if_then_else(&new_to_amount, to_amount)
+        },
+        || {
+            let new_from_amount = from_amount - amount;
+            has_enough_funds.if_then_else(&new_from_amount, from_amount)
+        },
+    );
 
     (new_from_amount, new_to_amount)
 }
@@ -49,7 +54,7 @@ fn transfer_no_cmux<FheType>(
     amount: &FheType,
 ) -> (FheType, FheType)
 where
-    FheType: Add<Output = FheType> + CastFrom<FheBool> + for<'a> FheOrd<&'a FheType>,
+    FheType: Add<Output = FheType> + CastFrom<FheBool> + for<'a> FheOrd<&'a FheType> + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType:
         Add<Output = FheType> + Sub<Output = FheType> + Mul<FheType, Output = FheType>,
@@ -58,8 +63,8 @@ where
 
     let amount = amount * FheType::cast_from(has_enough_funds);
 
-    let new_to_amount = to_amount + &amount;
-    let new_from_amount = from_amount - &amount;
+    let (new_to_amount, new_from_amount) =
+        rayon::join(|| to_amount + &amount, || from_amount - &amount);
 
     (new_from_amount, new_to_amount)
 }
@@ -96,17 +101,22 @@ fn transfer_safe<FheType>(
     amount: &FheType,
 ) -> (FheType, FheType)
 where
+    FheType: Send + Sync,
     for<'a> &'a FheType: OverflowingSub<&'a FheType, Output = FheType>
         + OverflowingAdd<&'a FheType, Output = FheType>,
     FheBool: IfThenElse<FheType>,
 {
-    let (new_from, did_not_have_enough_funds) = (from_amount).overflowing_sub(amount);
-    let (new_to, did_not_have_enough_space) = (to_amount).overflowing_add(amount);
+    let ((new_from, did_not_have_enough_funds), (new_to, did_not_have_enough_space)) = rayon::join(
+        || (from_amount).overflowing_sub(amount),
+        || (to_amount).overflowing_add(amount),
+    );
 
     let something_not_ok = did_not_have_enough_funds | did_not_have_enough_space;
 
-    let new_from_amount = something_not_ok.if_then_else(from_amount, &new_from);
-    let new_to_amount = something_not_ok.if_then_else(to_amount, &new_to);
+    let (new_from_amount, new_to_amount) = rayon::join(
+        || something_not_ok.if_then_else(from_amount, &new_from),
+        || something_not_ok.if_then_else(to_amount, &new_to),
+    );
 
     (new_from_amount, new_to_amount)
 }
