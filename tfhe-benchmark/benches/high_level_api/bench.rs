@@ -191,7 +191,7 @@ fn main() {
     #[cfg(feature = "hpu")]
     let cks = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
-        use tfhe::{set_server_key, Config};
+        use tfhe::Config;
         use tfhe_hpu_backend::prelude::*;
 
         // Use environment variable to construct path to configuration file
