@@ -2,8 +2,6 @@
 use crate::core_crypto::commons::numeric::CastFrom;
 use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::inner::SignedRadixCiphertext;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
@@ -55,14 +53,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result = cuda_key.key.key.scalar_max(
-                        &*self.ciphertext.on_gpu(streams),
-                        rhs,
-                        streams,
-                    );
-                    Self::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_max(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                Self::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -103,14 +100,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result = cuda_key.key.key.scalar_min(
-                        &*self.ciphertext.on_gpu(streams),
-                        rhs,
-                        streams,
-                    );
-                    Self::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_min(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                Self::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -150,14 +146,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_eq(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_eq(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -191,14 +186,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_ne(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_ne(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -237,14 +231,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_lt(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_lt(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -277,14 +270,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_le(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_le(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -317,14 +309,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_gt(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_gt(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -357,14 +348,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    let inner_result =
-                        cuda_key
-                            .key
-                            .key
-                            .scalar_ge(&*self.ciphertext.on_gpu(streams), rhs, streams);
-                    FheBool::new(inner_result, cuda_key.tag.clone())
-                })
+                let streams = &cuda_key.streams;
+                let inner_result =
+                    cuda_key
+                        .key
+                        .key
+                        .scalar_ge(&*self.ciphertext.on_gpu(streams), rhs, streams);
+                FheBool::new(inner_result, cuda_key.tag.clone())
             }
         })
     }
@@ -408,11 +398,11 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                             }
                             #[cfg(feature = "gpu")]
                             InternalServerKey::Cuda(cuda_key) => {
-                                let (inner_q, inner_r) = with_thread_local_cuda_streams(|streams| {
+                                let (inner_q, inner_r) = {let streams = &cuda_key.streams;
                                     cuda_key.key.key.signed_scalar_div_rem(
                                         &*self.ciphertext.on_gpu(streams), rhs, streams
                                     )
-                                });
+                                };
                                 let (q, r) = (
                                     SignedRadixCiphertext::Cuda(inner_q),
                                     SignedRadixCiphertext::Cuda(inner_r),
@@ -456,11 +446,11 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_left_shift(
                                     &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -485,11 +475,11 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_right_shift(
                                     &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -514,11 +504,11 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_left(
                                     &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -543,11 +533,11 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_rotate_right(
                                     &*lhs.ciphertext.on_gpu(streams), u64::cast_from(rhs), streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -570,11 +560,10 @@ macro_rules! define_scalar_rotate_shifts {
                                 .scalar_left_shift_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                        InternalServerKey::Cuda(cuda_key) =>
+                            {let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_left_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -597,10 +586,9 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_right_shift_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -622,11 +610,10 @@ macro_rules! define_scalar_rotate_shifts {
                                 .scalar_rotate_left_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                        InternalServerKey::Cuda(cuda_key) =>
+                            {let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_rotate_left_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -649,10 +636,10 @@ macro_rules! define_scalar_rotate_shifts {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            {let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_rotate_right_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
+                            }
                         }
                     })
                 }
@@ -762,11 +749,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_add(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -791,11 +778,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_sub(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -820,11 +807,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_mul(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -850,11 +837,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_bitand(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -879,11 +866,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_bitor(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -909,11 +896,11 @@ macro_rules! define_scalar_ops {
 
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.scalar_bitxor(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -938,11 +925,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.signed_scalar_div(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -968,11 +955,11 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            let inner_result = with_thread_local_cuda_streams(|streams| {
+                            let inner_result = {let streams = &cuda_key.streams;
                                 cuda_key.key.key.signed_scalar_rem(
                                     &*lhs.ciphertext.on_gpu(streams), rhs, streams
                                 )
-                            });
+                            };
                             SignedRadixCiphertext::Cuda(inner_result)
                         }
                     })
@@ -1014,12 +1001,11 @@ macro_rules! define_scalar_ops {
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
                             use crate::integer::gpu::ciphertext::CudaSignedRadixCiphertext;
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 let mut result: CudaSignedRadixCiphertext = cuda_key.pbs_key().create_trivial_radix(
                                     lhs, rhs.ciphertext.on_gpu(streams).ciphertext.info.blocks.len(), streams);
                                 cuda_key.pbs_key().sub_assign(&mut result, &*rhs.ciphertext.on_gpu(streams), streams);
                                 SignedRadixCiphertext::Cuda(result)
-                            })
                         }
                     })
                 }
@@ -1110,10 +1096,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_add_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1141,10 +1126,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_sub_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1168,10 +1152,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_mul_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1196,10 +1179,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_bitand_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1223,10 +1205,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_bitor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1249,10 +1230,9 @@ macro_rules! define_scalar_ops {
                         },
                         #[cfg(feature = "gpu")]
                         InternalServerKey::Cuda(cuda_key) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key
                                     .scalar_bitxor_assign(lhs.ciphertext.as_gpu_mut(streams), rhs, streams);
-                            })
                         }
                     })
                 }
@@ -1274,11 +1254,11 @@ macro_rules! define_scalar_ops {
                                 .signed_scalar_div_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(cuda_key) => global_state::with_thread_local_cuda_streams(|streams| {
+                        InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
                             let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
                             let cuda_result = cuda_key.pbs_key().signed_scalar_div(&cuda_lhs, rhs, streams);
                             *cuda_lhs = cuda_result;
-                        })
+                        }
                     })
                 }
             },
@@ -1299,11 +1279,11 @@ macro_rules! define_scalar_ops {
                                 .signed_scalar_rem_assign_parallelized(lhs.ciphertext.as_cpu_mut(), rhs);
                         },
                         #[cfg(feature = "gpu")]
-                        InternalServerKey::Cuda(cuda_key) => global_state::with_thread_local_cuda_streams(|streams| {
+                        InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
                             let cuda_lhs = lhs.ciphertext.as_gpu_mut(streams);
                             let cuda_result = cuda_key.pbs_key().signed_scalar_rem(&cuda_lhs, rhs, streams);
                             *cuda_lhs = cuda_result;
-                        })
+                        }
                     })
                 }
             },

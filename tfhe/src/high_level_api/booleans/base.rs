@@ -3,8 +3,6 @@ use crate::backward_compatibility::booleans::FheBoolVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheInt, FheIntId, FheUint, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheEq, IfThenElse, ScalarIfThenElse, Tagged};
@@ -385,7 +383,8 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 (InnerBoolean::Cpu(new_ct), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
@@ -394,7 +393,7 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 );
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
-            }),
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -422,7 +421,8 @@ where
                 FheUint::new(inner, cpu_sks.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
@@ -431,7 +431,7 @@ where
                 );
 
                 FheUint::new(inner, cuda_key.tag.clone())
-            }),
+            }
         })
     }
 }
@@ -455,7 +455,8 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                 FheInt::new(new_ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
@@ -464,7 +465,7 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                 );
 
                 FheInt::new(inner, cuda_key.tag.clone())
-            }),
+            }
         })
     }
 }
@@ -482,7 +483,8 @@ impl IfThenElse<Self> for FheBool {
                 (InnerBoolean::Cpu(new_ct), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.if_then_else(
                     &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
                     &*ct_then.ciphertext.on_gpu(streams),
@@ -491,7 +493,7 @@ impl IfThenElse<Self> for FheBool {
                 );
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
-            }),
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -541,7 +543,8 @@ where
                 Self::new(ciphertext, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.eq(
                     &*self.ciphertext.on_gpu(streams),
                     &other.borrow().ciphertext.on_gpu(streams),
@@ -549,7 +552,7 @@ where
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
-            }),
+            }
         })
     }
 
@@ -583,7 +586,8 @@ where
                 Self::new(ciphertext, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.ne(
                     &*self.ciphertext.on_gpu(streams),
                     &other.borrow().ciphertext.on_gpu(streams),
@@ -591,7 +595,7 @@ where
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
-            }),
+            }
         })
     }
 }
@@ -628,14 +632,15 @@ impl FheEq<bool> for FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.scalar_eq(
                     &*self.ciphertext.on_gpu(streams),
                     u8::from(other),
                     streams,
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
-            }),
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -671,14 +676,15 @@ impl FheEq<bool> for FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner = cuda_key.key.key.scalar_ne(
                     &*self.ciphertext.on_gpu(streams),
                     u8::from(other),
                     streams,
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
-            }),
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -745,7 +751,8 @@ where
                 (InnerBoolean::Cpu(inner_ct), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.bitand(
                     &*self.ciphertext.on_gpu(streams),
                     &rhs.borrow().ciphertext.on_gpu(streams),
@@ -758,7 +765,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -830,7 +837,8 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.bitor(
                     &*self.ciphertext.on_gpu(streams),
                     &rhs.borrow().ciphertext.on_gpu(streams),
@@ -842,7 +850,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -914,7 +922,8 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.bitxor(
                     &*self.ciphertext.on_gpu(streams),
                     &rhs.borrow().ciphertext.on_gpu(streams),
@@ -926,7 +935,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -990,7 +999,8 @@ impl BitAnd<bool> for &FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.scalar_bitand(
                     &*self.ciphertext.on_gpu(streams),
                     u8::from(rhs),
@@ -1002,7 +1012,7 @@ impl BitAnd<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1066,7 +1076,8 @@ impl BitOr<bool> for &FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.scalar_bitor(
                     &*self.ciphertext.on_gpu(streams),
                     u8::from(rhs),
@@ -1078,7 +1089,7 @@ impl BitOr<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1142,7 +1153,8 @@ impl BitXor<bool> for &FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_ct = cuda_key.key.key.scalar_bitxor(
                     &*self.ciphertext.on_gpu(streams),
                     u8::from(rhs),
@@ -1154,7 +1166,7 @@ impl BitXor<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1346,13 +1358,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.bitand_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1389,13 +1402,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.bitor_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     &rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1432,13 +1446,14 @@ where
                 );
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.bitxor_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     &rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1469,13 +1484,14 @@ impl BitAndAssign<bool> for FheBool {
                     .scalar_bitand_assign(&mut self.ciphertext.as_cpu_mut().0, u8::from(rhs));
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.scalar_bitand_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     u8::from(rhs),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1506,13 +1522,14 @@ impl BitOrAssign<bool> for FheBool {
                     .scalar_bitor_assign(&mut self.ciphertext.as_cpu_mut().0, u8::from(rhs));
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.scalar_bitor_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     u8::from(rhs),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1543,13 +1560,14 @@ impl BitXorAssign<bool> for FheBool {
                     .scalar_bitxor_assign(&mut self.ciphertext.as_cpu_mut().0, u8::from(rhs));
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 cuda_key.key.key.scalar_bitxor_assign(
                     self.ciphertext.as_gpu_mut(streams),
                     u8::from(rhs),
                     streams,
                 );
-            }),
+            }
         });
     }
 }
@@ -1606,7 +1624,8 @@ impl std::ops::Not for &FheBool {
                 (InnerBoolean::Cpu(inner), key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner =
                     cuda_key
                         .key
@@ -1618,7 +1637,7 @@ impl std::ops::Not for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }),
+            }
         });
         FheBool::new(ciphertext, tag)
     }
