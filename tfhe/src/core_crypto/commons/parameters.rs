@@ -289,12 +289,18 @@ pub enum EncryptionKeyChoice {
     Small,
 }
 
+impl EncryptionKeyChoice {
+    pub const fn into_pbs_order(self) -> PBSOrder {
+        match self {
+            Self::Big => PBSOrder::KeyswitchBootstrap,
+            Self::Small => PBSOrder::BootstrapKeyswitch,
+        }
+    }
+}
+
 impl From<EncryptionKeyChoice> for PBSOrder {
     fn from(value: EncryptionKeyChoice) -> Self {
-        match value {
-            EncryptionKeyChoice::Big => Self::KeyswitchBootstrap,
-            EncryptionKeyChoice::Small => Self::BootstrapKeyswitch,
-        }
+        value.into_pbs_order()
     }
 }
 

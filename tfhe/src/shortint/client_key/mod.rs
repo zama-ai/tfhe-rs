@@ -251,8 +251,6 @@ impl ClientKey {
 
     #[cfg(test)]
     pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
-        use crate::shortint::parameters::AtomicPatternKind;
-
         let params = self.parameters;
 
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
@@ -262,7 +260,7 @@ impl ClientKey {
             lwe_size,
             params.message_modulus(),
             params.carry_modulus(),
-            AtomicPatternKind::Standard(PBSOrder::from(params.encryption_key_choice())),
+            params.atomic_pattern(),
             params.ciphertext_modulus(),
         )
     }
