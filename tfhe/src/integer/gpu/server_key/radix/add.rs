@@ -261,6 +261,8 @@ impl CudaServerKey {
 
         let mut terms = CudaRadixCiphertext::from_radix_ciphertext_vec(ciphertexts, streams);
 
+        println!("terms.blocks.lem: {:?}", terms.info.blocks.len());
+        println!("terms: {:?}", terms.info.blocks.get(0).unwrap().degree);
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async(

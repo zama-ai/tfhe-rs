@@ -73,39 +73,45 @@ impl ServerKey {
         };
 
         while at_least_one_column_has_enough_elements(&columns) {
-            columns
-                .par_drain(..)
-                .zip(column_output_buffer.par_iter_mut())
-                .enumerate()
-                .map(|(column_index, (mut column, out_buf))| {
-                    if column.len() < num_elements_to_fill_carry {
-                        return column;
+            for (column_index, (mut column, out_buf)) in columns.drain(..).zip(column_output_buffer.iter_mut()).enumerate() {
+                if column.len() < num_elements_to_fill_carry {
+                    columns_buffer.push(column);
+                    continue;
+                }
+
+                let mut output_pairs = Vec::new();
+
+                for chunk in column.chunks_exact(num_elements_to_fill_carry) {
+                    let mut result = chunk[0].clone();
+                    for c in &chunk[1..] {
+                        self.key.unchecked_add_assign(&mut result, c);
                     }
-                    column
-                        .par_chunks_exact(num_elements_to_fill_carry)
-                        .map(|chunk| {
-                            let mut result = chunk[0].clone();
-                            for c in &chunk[1..] {
-                                self.key.unchecked_add_assign(&mut result, c);
-                            }
 
-                            if (column_index < num_columns - 1) || output_carries.is_some() {
-                                rayon::join(
-                                    || self.key.message_extract(&result),
-                                    || Some(self.key.carry_extract(&result)),
-                                )
-                            } else {
-                                (self.key.message_extract(&result), None)
-                            }
-                        })
-                        .collect_into_vec(out_buf);
+                    println!("chunk_result: {:?} {:?}", column_index, result.ct.get_body());
 
-                    let num_elem_in_rest = column.len() % num_elements_to_fill_carry;
-                    column.rotate_right(num_elem_in_rest);
-                    column.truncate(num_elem_in_rest);
-                    column
-                })
-                .collect_into_vec(&mut columns_buffer);
+                    if (column_index < num_columns - 1) || output_carries.is_some() {
+                        println!("Before message_extract: {:?}", result.ct.get_body().data);
+                        let msg = self.key.message_extract(&result);
+                        println!("After message_extract: {:?}", msg.ct.get_body().data);
+
+                        println!("Before carry_extract: {:?}", result.ct.get_body().data);
+                        let carry = self.key.carry_extract(&result);
+                        println!("After carry_extract: {:?}", carry.ct.get_body().data);
+
+                        output_pairs.push((msg, Some(carry)));
+                    } else {
+                        let msg = self.key.message_extract(&result);
+                        output_pairs.push((msg, None));
+                    }
+                }
+
+                *out_buf = output_pairs;
+
+                let num_elem_in_rest = column.len() % num_elements_to_fill_carry;
+                column.rotate_right(num_elem_in_rest);
+                column.truncate(num_elem_in_rest);
+                columns_buffer.push(column);
+            }
 
             std::mem::swap(&mut columns, &mut columns_buffer);
 
@@ -122,6 +128,16 @@ impl ServerKey {
                         }
                     }
                 }
+            }
+
+            let mut index = 0;
+            for column in &columns {
+                print!("column_{:?} ", index);
+                for ct in column {
+                    print!("{:?} ", ct.ct.get_body().data);
+                }
+                println!("");
+                index += 1;
             }
         }
 
