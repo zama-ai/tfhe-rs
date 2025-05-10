@@ -1245,6 +1245,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
           streams[0], gpu_indexes[0]);
       columns_counter = (uint32_t *)cuda_malloc_async(
           num_blocks_in_radix * sizeof(uint32_t), streams[0], gpu_indexes[0]);
+      cuda_memset_async(columns_counter, 0, num_blocks_in_radix * sizeof(uint32_t), streams[0],
+                        gpu_indexes[0]);
 
       uint32_t **h_columns = new uint32_t *[num_blocks_in_radix];
       for (int i = 0; i < num_blocks_in_radix; ++i) {
@@ -1263,7 +1265,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     setup_columns(d_new_columns, d_new_columns_data, d_new_columns_counter);
 
     luts_message_carry = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, params, 2, max_pbs_count, true);
+        streams, gpu_indexes, gpu_count, params, 2, max_total_blocks_in_vec, true);
 
     auto message_acc = luts_message_carry->get_lut(0, 0);
     auto carry_acc = luts_message_carry->get_lut(0, 1);

@@ -637,7 +637,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         streams, gpu_indexes, 1, (Torus *)current_blocks->ptr,
         d_pbs_indexes_out, luts_message_carry->lut_vec,
         luts_message_carry->lut_indexes_vec, (Torus *)small_lwe_vector->ptr,
-        d_pbs_indexes_out, bsks, ms_noise_reduction_key,
+        d_pbs_indexes_in, bsks, ms_noise_reduction_key,
         luts_message_carry->buffer, glwe_dimension, small_lwe_dimension,
         polynomial_size, mem_ptr->params.pbs_base_log,
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
@@ -652,6 +652,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                            num_radix_in_vec);
     cudaDeviceSynchronize();
   }
+
+  cudaDeviceSynchronize();
+  debug_kernel<<<1, 1>>>(d_columns, d_columns_counter,
+                         (uint64_t*)current_blocks->ptr, num_radix_blocks,
+                         num_radix_in_vec);
+  cudaDeviceSynchronize();
 
   calculate_final_chunk_into_radix<Torus>
       <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
