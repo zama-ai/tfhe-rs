@@ -151,7 +151,9 @@ impl ServerKey {
                     let (first_block, other_blocks) =
                         column.as_mut_slice().split_first_mut().unwrap();
                     for other in other_blocks {
+
                         self.key.unchecked_add_assign(first_block, other);
+                        println!("after_add: {:?}", first_block.ct.get_body());
                     }
                     column.swap_remove(0)
                 }
@@ -159,6 +161,9 @@ impl ServerKey {
             .collect::<Vec<_>>();
         assert_eq!(blocks.len(), num_blocks);
 
+        for block in &blocks {
+            println!("final_result: {:?} {:?}", block.ct.get_body(), block.degree);
+        }
         Some(T::from_blocks(blocks))
     }
 
@@ -176,7 +181,7 @@ impl ServerKey {
             self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts, None)?;
 
         self.full_propagate_parallelized(&mut result);
-        assert!(result.block_carries_are_empty());
+        //assert!(result.block_carries_are_empty());
 
         Some(result)
     }

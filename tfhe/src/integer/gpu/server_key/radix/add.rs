@@ -340,7 +340,8 @@ impl CudaServerKey {
             .unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
             .unwrap();
 
-        self.propagate_single_carry_assign_async(&mut result, streams, None, OutputFlag::None);
+        //self.propagate_single_carry_assign_async(&mut result, streams, None, OutputFlag::None);
+        self.full_propagate_assign_async(&mut result, streams);
         assert!(result.block_carries_are_empty());
         result
     }
