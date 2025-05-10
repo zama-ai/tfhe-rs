@@ -93,7 +93,7 @@ jobs:
 
       - name: Parse key sizes results
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/boolean_key_sizes.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/boolean_key_sizes.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 

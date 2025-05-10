@@ -167,7 +167,7 @@ jobs:
       - name: Parse key and ciphertext sizes results
         if:  matrix.browser == 'chrome'
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/hlapi_cpk_and_cctl_sizes.csv "${RESULTS_FILENAME}" \
           --key-gen \
           --append-results
 

@@ -97,13 +97,13 @@ jobs:
 
       - name: Parse swap request PBS counts
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/dex_swap_request_pbs_count.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_request_pbs_count.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
       - name: Parse swap claim PBS counts
         run: |
-          python3 ./ci/benchmark_parser.py tfhe/dex_swap_claim_pbs_count.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_claim_pbs_count.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
