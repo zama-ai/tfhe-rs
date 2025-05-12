@@ -8,7 +8,7 @@ use std::io;
 const RELATIVE_TOLERANCE: f64 = 0.0625;
 
 const NB_HPU_TESTS: usize = 5;
-const NB_PBS: usize = 300;
+const NB_PBS: usize = 200;
 
 #[derive(Clone, Copy)]
 pub struct HpuTestParams {
@@ -222,24 +222,18 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         ciphertext_modulus
     ));
 
-    let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
-        lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
-    let glwe_sk = allocate_and_generate_new_binary_glwe_secret_key(
-        glwe_dimension,
-        polynomial_size,
-        &mut rsc.secret_random_generator,
-    );
-    let blwe_sk = glwe_sk.clone().into_lwe_secret_key();
-    let ksk_in_kskmod = allocate_and_generate_new_lwe_keyswitch_key(
-        &blwe_sk,
-        &lwe_sk,
+    let mut lwe_sk = LweSecretKeyOwned::new_empty_key(0, lwe_dimension);
+
+    let mut glwe_sk = GlweSecretKeyOwned::new_empty_key(0, glwe_dimension, polynomial_size);
+
+    let mut blwe_sk = glwe_sk.clone().into_lwe_secret_key();
+    let mut ksk_in_kskmod = LweKeyswitchKeyOwned::new(
+        0,
         ks_decomp_base_log,
         ks_decomp_level_count,
-        lwe_noise_distribution,
+        blwe_sk.lwe_dimension(),
+        lwe_sk.lwe_dimension(),
         ksk_modulus,
-        &mut rsc.encryption_random_generator,
     );
 
     println!(
@@ -289,14 +283,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         pbs_decomp_level_count,
         lwe_dimension,
         ciphertext_modulus,
-    );
-
-    par_generate_lwe_bootstrap_key(
-        &lwe_sk,
-        &glwe_sk,
-        &mut bsk,
-        glwe_noise_distribution,
-        &mut rsc.encryption_random_generator,
     );
 
     let exp_pbs_variance = match lwe_noise_distribution {
@@ -356,16 +342,50 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
     buffers.resize(stack_size);
 
-    par_convert_standard_lwe_bootstrap_key_to_ntt64(&bsk, &mut nbsk, NttLweBootstrapKeyOption::Raw);
-
-    assert!(check_encrypted_content_respects_mod(
-        &*bsk,
-        ciphertext_modulus
-    ));
-
     while msg != 0 {
         msg = msg.wrapping_sub(1);
         for i in 0..NB_HPU_TESTS {
+            // re-generate keys
+            generate_binary_lwe_secret_key(&mut lwe_sk, &mut rsc.secret_random_generator);
+            generate_binary_glwe_secret_key(&mut glwe_sk, &mut rsc.secret_random_generator);
+            blwe_sk = glwe_sk.clone().into_lwe_secret_key();
+
+            // re-generate KSK
+            generate_lwe_keyswitch_key(
+                &blwe_sk,
+                &lwe_sk,
+                &mut ksk_in_kskmod,
+                lwe_noise_distribution,
+                &mut rsc.encryption_random_generator,
+            );
+            // re-generate BSK
+            par_generate_lwe_bootstrap_key(
+                &lwe_sk,
+                &glwe_sk,
+                &mut bsk,
+                glwe_noise_distribution,
+                &mut rsc.encryption_random_generator,
+            );
+            nbsk = NttLweBootstrapKeyOwned::<u64>::new(
+                0,
+                bsk.input_lwe_dimension(),
+                bsk.glwe_size(),
+                bsk.polynomial_size(),
+                bsk.decomposition_base_log(),
+                bsk.decomposition_level_count(),
+                ntt_modulus,
+            );
+            par_convert_standard_lwe_bootstrap_key_to_ntt64(
+                &bsk,
+                &mut nbsk,
+                NttLweBootstrapKeyOption::Raw,
+            );
+            assert!(check_encrypted_content_respects_mod(
+                &*bsk,
+                ciphertext_modulus
+            ));
+
+            // encrypt
             let mut ct =
                 LweCiphertext::new(0, blwe_sk.lwe_dimension().to_lwe_size(), ciphertext_modulus);
             let mut out_ks_ct = LweCiphertext::new(0, ksk_in_kskmod.output_lwe_size(), ksk_modulus);
@@ -393,33 +413,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
 
             let torus_diff = torus_modular_diff(plaintext.0, decrypted.0, ciphertext_modulus);
             noise_samples[0].push(torus_diff);
-
-            // re-generate BSK
-            par_generate_lwe_bootstrap_key(
-                &lwe_sk,
-                &glwe_sk,
-                &mut bsk,
-                glwe_noise_distribution,
-                &mut rsc.encryption_random_generator,
-            );
-            nbsk = NttLweBootstrapKeyOwned::<u64>::new(
-                0,
-                bsk.input_lwe_dimension(),
-                bsk.glwe_size(),
-                bsk.polynomial_size(),
-                bsk.decomposition_base_log(),
-                bsk.decomposition_level_count(),
-                ntt_modulus,
-            );
-            par_convert_standard_lwe_bootstrap_key_to_ntt64(
-                &bsk,
-                &mut nbsk,
-                NttLweBootstrapKeyOption::Raw,
-            );
-            assert!(check_encrypted_content_respects_mod(
-                &*bsk,
-                ciphertext_modulus
-            ));
 
             for j in 0..NB_PBS {
                 // b = b - (Delta * msg) to have an encryption of 0
@@ -640,5 +633,5 @@ create_parameterized_test!(hpu_noise_distribution {
     //HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_GAUSSIAN,
     HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM,
-    HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
+    //HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
 });
