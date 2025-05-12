@@ -1,8 +1,4 @@
 #[cfg(feature = "gpu")]
-use benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-#[cfg(not(feature = "gpu"))]
-use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-#[cfg(feature = "gpu")]
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
@@ -141,7 +137,7 @@ fn transfer_hpu<FheType>(
 where
     FheType: FheHpu,
 {
-    use tfhe_hpu_backend::prelude::hpu_asm;
+    use tfhe::tfhe_hpu_backend::prelude::hpu_asm;
     let src = HpuHandle {
         native: vec![from_amount, to_amount, amount],
         boolean: vec![],
@@ -473,7 +469,7 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn main() {
     use crate::pbs_stats::print_transfer_pbs_counts;
-    let params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let params = benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
@@ -592,7 +588,7 @@ fn main() {
 
 #[cfg(feature = "gpu")]
 fn main() {
-    let params = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let params = benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
     let cks = ClientKey::generate(config);
@@ -705,8 +701,8 @@ fn main() {
 fn main() {
     let cks = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
+        use tfhe::tfhe_hpu_backend::prelude::*;
         use tfhe::Config;
-        use tfhe_hpu_backend::prelude::*;
 
         // Use environment variable to construct path to configuration file
         let config_path = ShellString::new(
