@@ -23,8 +23,8 @@ on:
   workflow_dispatch:
   pull_request:
 
-
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   setup-instance:

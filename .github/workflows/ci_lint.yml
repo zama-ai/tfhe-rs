@@ -9,7 +9,8 @@ env:
   ACTIONLINT_CHECKSUM: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   lint-check:

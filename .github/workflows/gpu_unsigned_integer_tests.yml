@@ -29,8 +29,8 @@ on:
     # Nightly tests @ 1AM after each work day
     - cron: "0 1 * * MON-FRI"
 
-
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   should-run:
