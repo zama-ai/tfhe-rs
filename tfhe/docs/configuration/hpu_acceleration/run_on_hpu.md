@@ -99,7 +99,7 @@ On the client-side, the method to encrypt the data is exactly the same than the 
 
 ### Computation
 
-The server first need to set up its keys with `set_server_key((hpu_device, compressed_server_key))`.
+The server first needs to set up its keys with `set_server_key((hpu_device, compressed_server_key))`.
 
 Then, homomorphic computations are performed using the same approach as the [CPU operations](../../fhe-computation/operations/README.md).
 
