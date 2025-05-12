@@ -797,7 +797,7 @@ impl HpuBackend {
         self.init_fw_width.contains(&((cmd.op.fw_blk_width()+1)*self.params.pbs_params.message_width)
         ),
         "Requested integer width {:?} isn't configured in [Hpu: {:?}] and could lead to Undefined Behavior. Please check Hpu configuration file.",
-        cmd.op.fw_blk_width() * self.params.pbs_params.message_width,
+        (cmd.op.fw_blk_width()+1) * self.params.pbs_params.message_width,
         self.init_fw_width
     );
 
