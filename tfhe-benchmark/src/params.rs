@@ -407,17 +407,17 @@ mod integer_params {
             let env_config = EnvConfig::new();
 
             if env_config.is_multi_bit {
-                #[cfg(feature = "gpu")]
-                let params = vec![
-                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                        .into(),
-                ];
-
                 #[cfg(feature = "hpu")]
                 panic!("Hpu doesn't implement MultiBit");
 
-                #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+                #[cfg(not(feature = "hpu"))]
                 {
+                    #[cfg(feature = "gpu")]
+                    let params = vec![
+                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                            .into(),
+                    ];
+                    #[cfg(not(feature = "gpu"))]
                     let params = vec![
                         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
                             .into(),
