@@ -6,7 +6,7 @@ use crate::shortint::prelude::{
 use crate::shortint::{CarryModulus, CiphertextModulus, MaxNoiseLevel, MessageModulus};
 
 // Gaussian parameters set
-pub const V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PBSParameters =
+pub const V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PBSParameters =
     KeySwitch32PBSParameters {
         lwe_dimension: LweDimension(804),
         glwe_dimension: GlweDimension(1),
@@ -31,7 +31,7 @@ pub const V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PB
     };
 
 // TUniform parameters set
-pub const V1_1_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64: KeySwitch32PBSParameters =
+pub const V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64: KeySwitch32PBSParameters =
     KeySwitch32PBSParameters {
         lwe_dimension: LweDimension(839),
         glwe_dimension: GlweDimension(1),

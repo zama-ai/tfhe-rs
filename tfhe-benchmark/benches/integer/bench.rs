@@ -2937,7 +2937,7 @@ mod hpu {
     use criterion::{black_box, criterion_group};
     use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
     use tfhe::prelude::CastFrom;
-    use tfhe_hpu_backend::prelude::*;
+    use tfhe::tfhe_hpu_backend::prelude::*;
 
     /// Base function to bench an hpu operations.
     /// Inputs/Output types and length are inferred based on associated iop prototype

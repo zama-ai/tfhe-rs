@@ -1,6 +1,8 @@
 #[cfg(any(feature = "shortint", feature = "integer"))]
 pub mod shortint_params_aliases {
     use tfhe::shortint::parameters::current_params::*;
+    #[cfg(feature = "hpu")]
+    use tfhe::shortint::parameters::KeySwitch32PBSParameters;
     use tfhe::shortint::parameters::{
         ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
         MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
@@ -136,6 +138,15 @@ pub mod shortint_params_aliases {
     pub const BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
         NoiseSquashingParameters =
         V1_2_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    #[cfg(feature = "hpu")]
+    // KS PBS Gaussian for Hpu
+    pub const BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PBSParameters =
+        V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64;
+    #[cfg(feature = "hpu")]
+    // KS PBS TUniform
+    pub const BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64: KeySwitch32PBSParameters =
+        V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64;
 }
 
 #[cfg(any(feature = "shortint", feature = "integer"))]
