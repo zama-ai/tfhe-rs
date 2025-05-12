@@ -1,0 +1,73 @@
+# Test tfhe-fft
+name: Cargo Test HLAPI HPU
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+  IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+
+permissions: { }
+
+jobs:
+  should-run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      hpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.hpu_any_changed }}
+    steps:
+      - name: Checkout tfhe-rs
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Check for file changes
+        id: changed-files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
+        with:
+          files_yaml: |
+            hpu:
+              - tfhe/Cargo.toml
+              - Makefile
+              - backends/tfhe-hpu-backend/**
+              - mockups/tfhe-hpu-mockup/**
+
+  cargo-tests-hpu:
+    needs: should-run
+    if: needs.should-run.outputs.hpu_test == 'true'
+    runs-on: large_ubuntu_16
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ env.CHECKOUT_TOKEN }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install Just
+        run: |
+          cargo install just
+
+      - name: Test HLAPI HPU
+        run: |
+          source setup_hpu.sh
+          just -f mockups/tfhe-hpu-mockup/Justfile  BUILD_PROFILE=release mockup &
+          make HPU_CONFIG=sim test_high_level_api_hpu
+     
