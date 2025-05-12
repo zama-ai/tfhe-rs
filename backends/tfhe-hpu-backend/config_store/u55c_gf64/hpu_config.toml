@@ -53,7 +53,7 @@
 
 [firmware]
   implementation = "Llt"
-  integer_w=[8, 16, 32, 64]
+  integer_w=[4,6,8,10,12,14,16,32,64,128]
   min_batch_size = 6
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
   custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
