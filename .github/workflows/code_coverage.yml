@@ -17,8 +17,8 @@ on:
   workflow_dispatch:
   # Code coverage workflow is only run via workflow_dispatch event since execution duration is not stabilized yet.
 
-
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   setup-instance:

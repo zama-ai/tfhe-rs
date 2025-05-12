@@ -19,8 +19,8 @@ on:
     # Nightly tests will be triggered each evening 8p.m.
     - cron: "0 20 * * *"
 
-
-permissions: {}
+permissions:
+  contents: read
 
 jobs:
   setup-instance:

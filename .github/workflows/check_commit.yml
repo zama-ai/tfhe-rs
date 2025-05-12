@@ -3,8 +3,9 @@ name: Check commit and PR compliance
 on:
   pull_request:
 
-
-permissions: {}
+permissions:
+  contents: read
+  pull-requests: read # Permission needed to scan commits in a pull-request
 
 jobs:
   check-commit-pr:
