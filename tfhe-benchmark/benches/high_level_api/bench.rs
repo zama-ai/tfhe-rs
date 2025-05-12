@@ -1,4 +1,3 @@
-use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use criterion::{black_box, Criterion};
 use rand::prelude::*;
 use std::fmt::Write;
@@ -191,8 +190,8 @@ fn main() {
     #[cfg(feature = "hpu")]
     let cks = {
         // Hpu is enable, start benchmark on Hpu hw accelerator
-        use tfhe::Config;
-        use tfhe_hpu_backend::prelude::*;
+        use tfhe::tfhe_hpu_backend::prelude::*;
+        use tfhe::{set_server_key, Config};
 
         // Use environment variable to construct path to configuration file
         let config_path = ShellString::new(
@@ -209,6 +208,7 @@ fn main() {
     };
     #[cfg(not(feature = "hpu"))]
     let cks = {
+        use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         use tfhe::{set_server_key, ConfigBuilder};
         let config = ConfigBuilder::with_custom_parameters(
             BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
