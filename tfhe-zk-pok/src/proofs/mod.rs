@@ -124,7 +124,14 @@ impl<G: Curve> GroupElements<G> {
     }
 
     /// Check if the elements are valid for their respective groups
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(&self, n: usize) -> bool {
+        if self.g_list.0.len() != n * 2
+            || self.g_hat_list.0.len() != n
+            || G::G1::projective(self.g_list[n + 1]) != G::G1::ZERO
+        {
+            return false;
+        }
+
         let (g_list_valid, g_hat_list_valid) = rayon::join(
             || self.g_list.0.par_iter().all(G::G1::validate_affine),
             || self.g_hat_list.0.par_iter().all(G::G2::validate_affine),

@@ -256,6 +256,7 @@ pub(crate) type SerializableFp12 = SerializableQuadExtField<SerializableFp6>;
 pub enum InvalidSerializedGroupElementsError {
     InvalidAffine(InvalidSerializedAffineError),
     InvalidGlistDimension(InvalidArraySizeError),
+    MissingPuncteredElement,
 }
 
 impl Display for InvalidSerializedGroupElementsError {
@@ -266,6 +267,9 @@ impl Display for InvalidSerializedGroupElementsError {
             }
             InvalidSerializedGroupElementsError::InvalidGlistDimension(arr_error) => {
                 write!(f, "invalid number of elements in g_list: {arr_error}")
+            }
+            InvalidSerializedGroupElementsError::MissingPuncteredElement => {
+                write!(f, "Element at index n in g_list should be 0")
             }
         }
     }
@@ -278,6 +282,7 @@ impl Error for InvalidSerializedGroupElementsError {
             InvalidSerializedGroupElementsError::InvalidGlistDimension(arr_error) => {
                 Some(arr_error)
             }
+            InvalidSerializedGroupElementsError::MissingPuncteredElement => None,
         }
     }
 }
