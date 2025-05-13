@@ -1,7 +1,7 @@
 use super::super::test::TestResources;
 use crate::core_crypto::commons::test_tools::{check_both_ratio_under, mean, variance};
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{CudaStreams, CudaVec};
 use crate::core_crypto::prelude::*;
 
 use crate::core_crypto::gpu::GpuIndex;
@@ -147,6 +147,10 @@ fn check_noise_improve_modulus_switch_noise(
 
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+    let num_blocks = 1;
+    let lwe_indexes: Vec<u64> = (0..num_blocks).map(|x| x as u64).collect();
+    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_blocks, &streams, 0) };
+    unsafe { d_input_indexes.copy_from_cpu_async(&lwe_indexes, &streams, 0) };
 
     let d_encryptions_of_zero = CudaLweCiphertextList::from_lwe_ciphertext_list(
         &encryptions_of_zero,
@@ -186,6 +190,7 @@ fn check_noise_improve_modulus_switch_noise(
                             streams.gpu_indexes[0].get(),
                             d_ct.0.d_vec.as_mut_c_ptr(0),
                             d_ct_in.0.d_vec.as_c_ptr(0),
+                            d_input_indexes.as_c_ptr(0),
                             d_encryptions_of_zero.0.d_vec.as_c_ptr(0),
                             lwe_dimension.to_lwe_size().0 as u32,
                             d_ct.lwe_ciphertext_count().0 as u32,
