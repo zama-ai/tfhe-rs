@@ -189,7 +189,7 @@ impl<G: Curve> PublicParams<G> {
     /// - valid points of the curve
     /// - in the correct subgroup
     pub fn is_usable(&self) -> bool {
-        self.g_lists.is_valid()
+        self.g_lists.is_valid(self.n)
     }
 }
 

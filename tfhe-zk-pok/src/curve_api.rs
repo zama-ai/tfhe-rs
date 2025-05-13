@@ -97,6 +97,7 @@ pub trait CurveGroupOps<Zp>:
     + core::ops::Sub<Self, Output = Self>
     + core::ops::Neg<Output = Self>
     + core::iter::Sum
+    + PartialEq
 {
     const ZERO: Self;
     const GENERATOR: Self;

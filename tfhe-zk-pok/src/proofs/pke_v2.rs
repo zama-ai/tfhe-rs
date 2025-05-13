@@ -139,8 +139,16 @@ where
             hash_z,
             hash_chi,
         } = compressed;
+
+        let uncompressed_g_lists = GroupElements::uncompress(g_lists)?;
+        if G::G1::projective(uncompressed_g_lists.g_list[n + 1]) != G::G1::ZERO {
+            return Err(InvalidSerializedPublicParamsError::InvalidGroupElements(
+                InvalidSerializedGroupElementsError::MissingPuncteredElement,
+            ));
+        }
+
         Ok(Self {
-            g_lists: GroupElements::uncompress(g_lists)?,
+            g_lists: uncompressed_g_lists,
             D,
             n,
             d,
@@ -166,6 +174,8 @@ where
 }
 
 impl<G: Curve> PublicParams<G> {
+    /// Builds a crs from raw elements. When the elements are received from an untrusted party, the
+    /// resulting crs should be validated with [`Self::is_usable`]
     #[allow(clippy::too_many_arguments)]
     pub fn from_vec(
         g_list: Vec<Affine<G::Zp, G::G1>>,
@@ -227,8 +237,9 @@ impl<G: Curve> PublicParams<G> {
     /// This means checking that the points are:
     /// - valid points of the curve
     /// - in the correct subgroup
+    /// - the size of the list is correct and the element at index n is 0
     pub fn is_usable(&self) -> bool {
-        self.g_lists.is_valid()
+        self.g_lists.is_valid(self.n)
     }
 }
 
@@ -775,6 +786,7 @@ fn prove_impl<G: Curve>(
             B_squared >= e_sqr_norm,
             "squared norm of error ({e_sqr_norm}) exceeds threshold ({B_squared})",
         );
+        assert_eq!(G::G1::projective(g_list[n]), G::G1::ZERO);
     }
 
     // FIXME: div_round
@@ -3288,6 +3300,37 @@ mod tests {
 
             verify(&proof, (&public_param, &public_commit), &testcase.metadata).unwrap()
         }
+    }
+
+    /// Test the `is_usable` method, that checks the correctness of the the crs
+    #[test]
+    fn test_crs_usable() {
+        let PkeTestParameters {
+            d,
+            k,
+            B,
+            q,
+            t,
+            msbs_zero_padding_bit_count,
+        } = PKEV2_TEST_PARAMS;
+
+        let rng = &mut StdRng::seed_from_u64(0);
+
+        let crs_k = k + 1 + (rng.gen::<usize>() % (d - k));
+
+        let public_param = crs_gen::<Curve>(d, crs_k, B, q, t, msbs_zero_padding_bit_count, rng);
+
+        assert!(public_param.is_usable());
+
+        let public_param_that_was_compressed =
+            serialize_then_deserialize(&public_param, Compress::Yes).unwrap();
+
+        assert!(public_param_that_was_compressed.is_usable());
+
+        let mut bad_crs = public_param.clone();
+        bad_crs.g_lists.g_list[public_param.n + 1] = bad_crs.g_lists.g_list[public_param.n];
+
+        assert!(!bad_crs.is_usable());
     }
 
     /// Test the `is_usable` method, that checks the correctness of the EC points in the proof
