@@ -85,7 +85,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
   # Release mode
   message("Compiling in Release mode")
-  set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O0 -G -g")
+  set(OPTIMIZATION_FLAGS "${OPTIMIZATION_FLAGS} -O3")
 endif()
 
 # Check if the USE_NVTOOLS environment variable is set
