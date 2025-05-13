@@ -178,11 +178,10 @@ __device__ __forceinline__ double measure_modulus_switch_noise(
 
 // Each thread processes two elements of the lwe array
 template <typename Torus>
-__global__ void
-improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
-                             const Torus *zeros, int lwe_size, int num_zeros,
-                             double input_variance, double r_sigma,
-                             double bound, uint32_t log_modulus) {
+__global__ void improve_noise_modulus_switch(
+    Torus *array_out, const Torus *array_in, const uint64_t *indexes,
+    const Torus *zeros, int lwe_size, int num_zeros, double input_variance,
+    double r_sigma, double bound, uint32_t log_modulus) {
 
   // First we will assume size is less than the number of threads per block
   // I should switch this to dynamic shared memory
@@ -198,13 +197,13 @@ improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
   // This probably are not needed cause we are setting the values
   sum_mask_errors[threadIdx.x] = 0.f;
   sum_squared_mask_errors[threadIdx.x] = 0.f;
+  auto this_block_lwe_in = array_in + indexes[blockIdx.x] * lwe_size;
+  auto this_block_lwe_out = array_out + indexes[blockIdx.x] * lwe_size;
+  Torus input_element1 = this_block_lwe_in[threadIdx.x];
 
-  Torus input_element1 = array_in[threadIdx.x + blockIdx.x * lwe_size];
-
-  Torus input_element2 =
-      threadIdx.x + blockDim.x < lwe_size
-          ? array_in[threadIdx.x + blockDim.x + blockIdx.x * lwe_size]
-          : 0;
+  Torus input_element2 = threadIdx.x + blockDim.x < lwe_size
+                             ? this_block_lwe_in[threadIdx.x + blockDim.x]
+                             : 0;
 
   // Base noise is only handled by thread 0
   double base_noise = measure_modulus_switch_noise<Torus>(
@@ -218,11 +217,10 @@ improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
   __syncthreads();
 
   if (found)
-    array_out[threadIdx.x + blockIdx.x * lwe_size] = input_element1;
+    this_block_lwe_out[threadIdx.x] = input_element1;
 
   if (found && (threadIdx.x + blockDim.x) < lwe_size)
-    array_out[threadIdx.x + blockDim.x + blockIdx.x * lwe_size] =
-        input_element2;
+    this_block_lwe_out[threadIdx.x + blockDim.x] = input_element2;
 
   __syncthreads();
   // If we found a zero element we stop iterating (in avg 20 times are
@@ -253,11 +251,10 @@ improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
     // Assumption we always have at least 512 elements
     // If we find a useful zero encryption we replace the lwe by lwe + zero
     if (found)
-      array_out[threadIdx.x + blockIdx.x * lwe_size] = zero_element1;
+      this_block_lwe_out[threadIdx.x] = zero_element1;
 
     if (found && (threadIdx.x + blockDim.x) < lwe_size)
-      array_out[threadIdx.x + blockDim.x + blockIdx.x * lwe_size] =
-          zero_element2;
+      this_block_lwe_out[threadIdx.x + blockDim.x] = zero_element2;
 
     __syncthreads();
     // If we found a zero element we stop iterating (in avg 20 times are
@@ -270,9 +267,10 @@ improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
 template <typename Torus>
 __host__ void host_improve_noise_modulus_switch(
     cudaStream_t stream, uint32_t gpu_index, Torus *array_out,
-    Torus const *array_in, const Torus *zeros, uint32_t lwe_size,
-    uint32_t num_lwes, const uint32_t num_zeros, const double input_variance,
-    const double r_sigma, const double bound, uint32_t log_modulus) {
+    Torus const *array_in, uint64_t const *indexes, const Torus *zeros,
+    uint32_t lwe_size, uint32_t num_lwes, const uint32_t num_zeros,
+    const double input_variance, const double r_sigma, const double bound,
+    uint32_t log_modulus) {
 
   if (lwe_size < 512) {
     PANIC("The lwe_size is less than 512, this is not supported\n");
@@ -289,8 +287,8 @@ __host__ void host_improve_noise_modulus_switch(
   int num_threads = 512, num_blocks = num_lwes;
 
   improve_noise_modulus_switch<Torus><<<num_blocks, num_threads, 0, stream>>>(
-      array_out, array_in, zeros, lwe_size, num_zeros, input_variance, r_sigma,
-      bound, log_modulus);
+      array_out, array_in, indexes, zeros, lwe_size, num_zeros, input_variance,
+      r_sigma, bound, log_modulus);
   check_cuda_error(cudaGetLastError());
 }
 
