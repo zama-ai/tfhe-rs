@@ -21,7 +21,7 @@ libc = "0.2.133"
 [dev-dependencies]
 rand = { workspace = true }
 criterion = "0.5.1"
-clap = "=4.4.4"
+clap = "=4.5.30"
 
 [features]
 parallel = ["rayon"]
