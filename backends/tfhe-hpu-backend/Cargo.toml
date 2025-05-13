@@ -22,7 +22,7 @@ cxx-build = "1.0"
 
 [dependencies]
 cxx = "1.0"
-hw_regmap = { git = "https://github.com/zama-ai/hw_regmap.git", rev = "2573477b" }
+hw_regmap = "0.1.0"
 
 strum = { version = "0.26.2", features = ["derive"] }
 strum_macros = "0.26.2"
