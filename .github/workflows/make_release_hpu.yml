@@ -79,7 +79,10 @@ jobs:
           CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          cargo publish -p tfhe-hpu-backend --token "${CRATES_TOKEN}" "${DRY_RUN}"
+          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish 
+          # would fail. This is safe since DRY_RUN is handled in the env section above.
+          # shellcheck disable=SC2086
+          cargo publish -p tfhe-hpu-backend --token "${CRATES_TOKEN}" ${DRY_RUN}
 
       - name: Generate hash
         id: published_hash
