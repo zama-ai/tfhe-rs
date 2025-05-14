@@ -1116,18 +1116,131 @@ template <typename Torus> struct int_overflowing_sub_memory {
 };
 
 template <typename Torus> struct int_sum_ciphertexts_vec_memory {
-  CudaRadixCiphertextFFI *new_blocks;
-  CudaRadixCiphertextFFI *new_blocks_copy;
-  CudaRadixCiphertextFFI *old_blocks;
-  CudaRadixCiphertextFFI *small_lwe_vector;
+
   int_radix_params params;
-
-  int32_t *d_smart_copy_in;
-  int32_t *d_smart_copy_out;
-
-  bool mem_reuse = false;
+  uint32_t active_gpu_count;
+  uint32_t gpu_count;
+  size_t chunk_size;
+  size_t max_pbs_count;
+  size_t max_total_blocks_in_vec;
+  uint32_t num_blocks_in_radix;
+  uint32_t max_num_radix_in_vec;
+  uint64_t *size_tracker;
   bool gpu_memory_allocated;
 
+  // temporary buffers
+  CudaRadixCiphertextFFI *current_blocks;
+  CudaRadixCiphertextFFI *small_lwe_vector;
+
+  uint32_t *d_columns_data;
+  uint32_t *d_columns_counter;
+  uint32_t **d_columns;
+
+  uint32_t *d_new_columns_data;
+  uint32_t *d_new_columns_counter;
+  uint32_t **d_new_columns;
+
+  uint64_t *d_degrees;
+  uint32_t *d_pbs_counters;
+
+  // additional streams
+  cudaStream_t *helper_streams;
+
+  // lookup table for extracting message and carry
+  int_radix_lut<Torus> *luts_message_carry;
+
+  bool mem_reuse = false;
+
+  void setup_helper_streams(uint32_t const *gpu_indexes) {
+    helper_streams =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < active_gpu_count; j++) {
+      helper_streams[j] = cuda_create_stream(gpu_indexes[j]);
+    }
+  }
+
+  void setup_index_buffers(cudaStream_t const *streams,
+                           uint32_t const *gpu_indexes) {
+
+    d_degrees = (uint64_t *)cuda_malloc_with_size_tracking_async(
+        max_total_blocks_in_vec * sizeof(uint64_t), streams[0], gpu_indexes[0],
+        size_tracker, gpu_memory_allocated);
+
+    d_pbs_counters = (uint32_t *)cuda_malloc_with_size_tracking_async(
+        3 * sizeof(uint32_t), streams[0], gpu_indexes[0], size_tracker,
+        gpu_memory_allocated);
+
+    auto num_blocks_in_radix = this->num_blocks_in_radix;
+    auto max_num_radix_in_vec = this->max_num_radix_in_vec;
+    auto setup_columns =
+        [num_blocks_in_radix, max_num_radix_in_vec, streams,
+         gpu_indexes](uint32_t **&columns, uint32_t *&columns_data,
+                      uint32_t *&columns_counter, uint64_t *size_tracker,
+                      bool gpu_memory_allocated) {
+          columns_data = (uint32_t *)cuda_malloc_with_size_tracking_async(
+              num_blocks_in_radix * max_num_radix_in_vec * sizeof(uint32_t),
+              streams[0], gpu_indexes[0], size_tracker, gpu_memory_allocated);
+          columns_counter = (uint32_t *)cuda_malloc_with_size_tracking_async(
+              num_blocks_in_radix * sizeof(uint32_t), streams[0],
+              gpu_indexes[0], size_tracker, gpu_memory_allocated);
+          cuda_memset_async(columns_counter, 0,
+                            num_blocks_in_radix * sizeof(uint32_t), streams[0],
+                            gpu_indexes[0]);
+
+          uint32_t **h_columns = new uint32_t *[num_blocks_in_radix];
+          for (int i = 0; i < num_blocks_in_radix; ++i) {
+            h_columns[i] = columns_data + i * max_num_radix_in_vec;
+          }
+          columns = (uint32_t **)cuda_malloc_with_size_tracking_async(
+              num_blocks_in_radix * sizeof(uint32_t *), streams[0],
+              gpu_indexes[0], size_tracker, gpu_memory_allocated);
+          cuda_memcpy_async_to_gpu(columns, h_columns,
+                                   num_blocks_in_radix * sizeof(uint32_t *),
+                                   streams[0], gpu_indexes[0]);
+          cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+          delete[] h_columns;
+        };
+
+    setup_columns(d_columns, d_columns_data, d_columns_counter, size_tracker,
+                  gpu_memory_allocated);
+    setup_columns(d_new_columns, d_new_columns_data, d_new_columns_counter,
+                  size_tracker, gpu_memory_allocated);
+  }
+
+  void setup_lookup_tables(cudaStream_t const *streams,
+                           uint32_t const *gpu_indexes) {
+    uint32_t message_modulus = params.message_modulus;
+
+    luts_message_carry = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, 2, max_total_blocks_in_vec,
+        gpu_memory_allocated, size_tracker);
+
+    auto message_acc = luts_message_carry->get_lut(0, 0);
+    auto carry_acc = luts_message_carry->get_lut(0, 1);
+
+    // define functions for each accumulator
+    auto lut_f_message = [message_modulus](Torus x) -> Torus {
+      return x % message_modulus;
+    };
+    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+      return x / message_modulus;
+    };
+
+    // generate accumulators
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], message_acc,
+        luts_message_carry->get_degree(0),
+        luts_message_carry->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        lut_f_message, gpu_memory_allocated);
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], carry_acc,
+        luts_message_carry->get_degree(1),
+        luts_message_carry->get_max_degree(1), params.glwe_dimension,
+        params.polynomial_size, message_modulus, params.carry_modulus,
+        lut_f_carry, gpu_memory_allocated);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+  }
   int_sum_ciphertexts_vec_memory(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, int_radix_params params,
@@ -1136,101 +1249,103 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                  bool allocate_gpu_memory,
                                  uint64_t *size_tracker) {
     this->params = params;
-    gpu_memory_allocated = allocate_gpu_memory;
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
+    this->max_pbs_count =
+        num_blocks_in_radix * max_num_radix_in_vec * 2 / chunk_size;
+    this->active_gpu_count = get_active_gpu_count(2 * max_pbs_count, gpu_count);
+    this->gpu_count = gpu_count;
+    this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
+    this->num_blocks_in_radix = num_blocks_in_radix;
+    this->max_num_radix_in_vec = max_num_radix_in_vec;
+    this->gpu_memory_allocated = allocate_gpu_memory;
+    this->size_tracker = size_tracker;
 
-    int max_pbs_count = num_blocks_in_radix * max_num_radix_in_vec;
+    setup_index_buffers(streams, gpu_indexes);
+    setup_helper_streams(gpu_indexes);
+    setup_lookup_tables(streams, gpu_indexes);
 
-    // allocate gpu memory for intermediate buffers
-    new_blocks = new CudaRadixCiphertextFFI;
+    // create and allocate intermediate buffers
+    current_blocks = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], new_blocks, max_pbs_count,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    new_blocks_copy = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], new_blocks_copy, max_pbs_count,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
-    old_blocks = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], old_blocks, max_pbs_count,
+        streams[0], gpu_indexes[0], current_blocks, max_total_blocks_in_vec,
         params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
     small_lwe_vector = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], small_lwe_vector, max_pbs_count,
+        streams[0], gpu_indexes[0], small_lwe_vector, max_total_blocks_in_vec,
         params.small_lwe_dimension, size_tracker, allocate_gpu_memory);
-
-    d_smart_copy_in = (int32_t *)cuda_malloc_with_size_tracking_async(
-        max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
-    d_smart_copy_out = (int32_t *)cuda_malloc_with_size_tracking_async(
-        max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
-    cuda_memset_with_size_tracking_async(
-        d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t), streams[0],
-        gpu_indexes[0], allocate_gpu_memory);
-    cuda_memset_with_size_tracking_async(
-        d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t), streams[0],
-        gpu_indexes[0], allocate_gpu_memory);
   }
 
   int_sum_ciphertexts_vec_memory(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, int_radix_params params, uint32_t num_blocks_in_radix,
-      uint32_t max_num_radix_in_vec, CudaRadixCiphertextFFI *new_blocks,
-      CudaRadixCiphertextFFI *old_blocks,
+      uint32_t max_num_radix_in_vec, CudaRadixCiphertextFFI *current_blocks,
       CudaRadixCiphertextFFI *small_lwe_vector, bool allocate_gpu_memory,
       uint64_t *size_tracker) {
-    mem_reuse = true;
-    gpu_memory_allocated = allocate_gpu_memory;
+    this->mem_reuse = true;
     this->params = params;
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
+    this->max_pbs_count =
+        num_blocks_in_radix * max_num_radix_in_vec * 2 / chunk_size;
+    this->active_gpu_count = get_active_gpu_count(2 * max_pbs_count, gpu_count);
+    this->gpu_count = gpu_count;
+    this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
+    this->num_blocks_in_radix = num_blocks_in_radix;
+    this->max_num_radix_in_vec = max_num_radix_in_vec;
+    this->gpu_memory_allocated = allocate_gpu_memory;
+    this->size_tracker = size_tracker;
 
-    int max_pbs_count = num_blocks_in_radix * max_num_radix_in_vec;
-
-    // assign  gpu memory for intermediate buffers
-    this->new_blocks = new_blocks;
-    this->old_blocks = old_blocks;
+    this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
-    new_blocks_copy = new CudaRadixCiphertextFFI;
-    create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], new_blocks_copy, max_pbs_count,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-    d_smart_copy_in = (int32_t *)cuda_malloc_with_size_tracking_async(
-        max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
-    d_smart_copy_out = (int32_t *)cuda_malloc_with_size_tracking_async(
-        max_pbs_count * sizeof(int32_t), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
-    cuda_memset_with_size_tracking_async(
-        d_smart_copy_in, 0, max_pbs_count * sizeof(int32_t), streams[0],
-        gpu_indexes[0], allocate_gpu_memory);
-    cuda_memset_with_size_tracking_async(
-        d_smart_copy_out, 0, max_pbs_count * sizeof(int32_t), streams[0],
-        gpu_indexes[0], allocate_gpu_memory);
+    setup_index_buffers(streams, gpu_indexes);
+    setup_helper_streams(gpu_indexes);
+    setup_lookup_tables(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-    cuda_drop_with_size_tracking_async(d_smart_copy_in, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
-    cuda_drop_with_size_tracking_async(d_smart_copy_out, streams[0],
+    cuda_drop_with_size_tracking_async(d_degrees, streams[0], gpu_indexes[0],
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_pbs_counters, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
 
+    cuda_drop_with_size_tracking_async(d_columns_data, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_columns_counter, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_columns, streams[0], gpu_indexes[0],
+                                       gpu_memory_allocated);
+
+    cuda_drop_with_size_tracking_async(d_new_columns_data, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_new_columns_counter, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(d_new_columns, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_destroy_stream(helper_streams[i], gpu_indexes[i]);
+    }
+
+    free(helper_streams);
+
     if (!mem_reuse) {
-      release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_blocks,
-                                     gpu_memory_allocated);
-      release_radix_ciphertext_async(streams[0], gpu_indexes[0], old_blocks,
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], current_blocks,
                                      gpu_memory_allocated);
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      small_lwe_vector, gpu_memory_allocated);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-      delete new_blocks;
-      delete old_blocks;
+
+      delete current_blocks;
       delete small_lwe_vector;
     }
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0], new_blocks_copy,
-                                   gpu_memory_allocated);
+
+    luts_message_carry->release(streams, gpu_indexes, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-    delete new_blocks_copy;
+    delete luts_message_carry;
+
   }
 };
 // For sequential algorithm in group propagation
@@ -2604,7 +2719,7 @@ template <typename Torus> struct int_mul_memory {
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        2 * num_radix_blocks, block_mul_res, vector_result_sb, small_lwe_vector,
+        2 * num_radix_blocks, vector_result_sb, small_lwe_vector,
         allocate_gpu_memory, size_tracker);
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
