@@ -5,7 +5,6 @@ use crate::float_wopbs::parameters::*;
 use rand::Rng;
 use std::time::Instant;
 
-
 #[test]
 pub fn float_wopbs_encode() {
     let mut rng = rand::thread_rng();
@@ -107,8 +106,8 @@ pub fn float_wopbs_bivariate() {
 
     // take two random messages
     let mut rng = rand::thread_rng();
-    let msg_1 =  rng.gen::<f32>() as f64;
-    let msg_2 =  -rng.gen::<f32>() as f64;
+    let msg_1 = rng.gen::<f32>() as f64;
+    let msg_2 = -rng.gen::<f32>() as f64;
 
     // convert 64 bits floating point in 8 bits floating point
     let msg_1_round = uint_to_float(
@@ -124,7 +123,7 @@ pub fn float_wopbs_bivariate() {
         bit_mantissa,
         bit_exponent,
     );
-    println!("\nmessage 1 (8 bits floating point): {:?}" ,msg_1_round);
+    println!("\nmessage 1 (8 bits floating point): {:?}", msg_1_round);
     println!("message 2 (8 bits floating point): {:?} \n", msg_2_round);
 
     let mut ct_1 = cks.encrypt(msg_1, e_min, bit_mantissa, bit_exponent);
@@ -133,7 +132,7 @@ pub fn float_wopbs_bivariate() {
     let mut ct_2 = cks.encrypt(msg_2, e_min, bit_mantissa, bit_exponent);
     let res = cks.decrypt(&ct_2);
     println!("encrypt/decrypt ct_2 (8 bits): {res:?}");
-    let lut = sks.create_bivariate_lut(&mut ct_1, |x, y|x + y);
+    let lut = sks.create_bivariate_lut(&mut ct_1, |x, y| x + y);
 
     let ct = sks.wop_pbs_bivariate(&sks, &mut ct_1, &mut ct_2, &lut);
     let res = cks.decrypt(&ct);
@@ -148,12 +147,11 @@ pub fn float_wopbs_bivariate() {
         bit_exponent,
     );
     println!("\n//////////////////////////////////////////");
-    println!("Clear result       :{exact:?}");
-    println!("Wop result         :{res:?}");
+    println!("Clear result                           :{exact:?}");
+    println!("Decrypted result (WoPBS-based)         :{res:?}");
     println!("///////////////////////////////////////////////\n");
     assert_eq!(res, exact);
 }
-
 
 #[test]
 pub fn float_wopbs_trivariate() {
@@ -178,19 +176,19 @@ pub fn float_wopbs_trivariate() {
     };
 
     let mut rng = rand::thread_rng();
-    let msg_1 =  rng.gen::<f32>() as f64;
-    let msg_2 =  -rng.gen::<f32>() as f64;
-    let msg_3 =  rng.gen::<f32>() as f64;
-    println!("message 1 (64 bits): {:?}" ,msg_1);
+    let msg_1 = rng.gen::<f32>() as f64;
+    let msg_2 = -rng.gen::<f32>() as f64;
+    let msg_3 = rng.gen::<f32>() as f64;
+    println!("message 1 (64 bits): {:?}", msg_1);
     println!("message 2 (64 bits): {:?}", msg_2);
     println!("message 3 (64 bits): {:?}", msg_3);
 
     let mut ct_1 = cks.encrypt(msg_1, e_min, bit_mantissa, bit_exponent);
     let mut ct_2 = cks.encrypt(msg_2, e_min, bit_mantissa, bit_exponent);
     let mut ct_3 = cks.encrypt(msg_3, e_min, bit_mantissa, bit_exponent);
-    println!("encrypt/decrypt ct_1 (8 bits): {:?}",cks.decrypt(&ct_1));
-    println!("encrypt/decrypt ct_2 (8 bits): {:?}",cks.decrypt(&ct_2));
-    println!("encrypt/decrypt ct_3 (8 bits): {:?}",cks.decrypt(&ct_3));
+    println!("encrypt/decrypt ct_1 (8 bits): {:?}", cks.decrypt(&ct_1));
+    println!("encrypt/decrypt ct_2 (8 bits): {:?}", cks.decrypt(&ct_2));
+    println!("encrypt/decrypt ct_3 (8 bits): {:?}", cks.decrypt(&ct_3));
 
     let lut = sks.create_trivariate_lut(&mut ct_1, |x, y, z| x + y - z);
     let ct = sks.wop_pbs_trivariate(&sks, &mut ct_1, &mut ct_2, &mut ct_3, &lut);
@@ -216,15 +214,20 @@ pub fn float_wopbs_trivariate() {
     );
 
     let exact_round = uint_to_float(
-            float_to_uint(msg_1_round + msg_2_round - msg_3_round, e_min, bit_mantissa, bit_exponent),
+        float_to_uint(
+            msg_1_round + msg_2_round - msg_3_round,
             e_min,
             bit_mantissa,
             bit_exponent,
+        ),
+        e_min,
+        bit_mantissa,
+        bit_exponent,
     );
     println!("\n///////////////////////////////////////////////");
-    println!("Clear result (64 bits)  :{exact:?}");
-    println!("Clear result (8 bits)   :{exact_round:?}");
-    println!("Wop result              :{res:?}");
+    println!("Clear result (64 bits)                      :{exact:?}");
+    println!("Clear result (8 bits)                       :{exact_round:?}");
+    println!("Decrypted result (WoPBS-based)              :{res:?}");
     println!("///////////////////////////////////////////////\n");
     assert_eq!(res, exact_round);
 }

@@ -46,6 +46,7 @@
 // End allowed pedantic lints
 
 // Nursery lints
+#![allow(unknown_lints)]
 #![warn(clippy::nursery)]
 // The following lints have been temporarily allowed
 // They are expected to be fixed progressively
@@ -62,6 +63,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 #![warn(rustdoc::broken_intra_doc_links)]
 #![allow(elided_named_lifetimes)]
+#![allow(unstable_name_collisions)]
 
 #[cfg(feature = "__c_api")]
 pub mod c_api;

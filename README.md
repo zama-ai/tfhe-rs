@@ -1,175 +1,160 @@
-<p align="center">
-<!-- product name logo -->
-  <img width=600 src="https://user-images.githubusercontent.com/5758427/231206749-8f146b97-3c5a-4201-8388-3ffa88580415.png">
-</p>
-<hr/>
-<p align="center">
-  <a href="https://docs.zama.ai/tfhe-rs"> 📒 Read documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a>
-</p>
-<p align="center">
-<!-- Version badge using shields.io -->
-  <a href="https://github.com/zama-ai/tfhe-rs/releases">
-    <img src="https://img.shields.io/github/v/release/zama-ai/tfhe-rs?style=flat-square">
-  </a>
-<!-- Zama Bounty Program -->
-  <a href="https://github.com/zama-ai/bounty-program">
-    <img src="https://img.shields.io/badge/Contribute-Zama%20Bounty%20Program-yellow?style=flat-square">
-  </a>
-</p>
-<hr/>
+# Artifact:TFHE Gets Real: an Efficient and Flexible Homomorphic Floating-Point Arithmetic
 
 
-**TFHE-rs** is a pure Rust implementation of TFHE for boolean and integer
-arithmetics over encrypted data. It includes:
- - a **Rust** API
- - a **C** API
- - and a **client-side WASM** API
+## Description
 
-**TFHE-rs** is meant for developers and researchers who want full control over
-what they can do with TFHE, while not having to worry about the low level
-implementation. The goal is to have a stable, simple, high-performance, and
-production-ready library for all the advanced features of TFHE.
 
-## Getting Started
-The steps to run a first example are described below. 
+In what follows, we provide instructions on how to run the benchmarks from the paper entitled **TFHE Gets Real: An Efficient and Flexible Homomorphic Floating-Point Arithmetic**.
+In particular, the benchmarks presented in **Table 5**, **Table 6**, **Table 7**, and the experiments shown in **Table 8** can be easily reproduced using this code. The implementation of the techniques described in the aforementioned paper has been integrated into the **TFHE-rs** library, version 0.5.0. The modified or added source files are organized into two different paths.
 
-### Cargo.toml configuration
-To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
+The Minifloats (Section 3.1) are located in *tfhe/src/float-wopbs*
+- Test files are located in *tfhe/src/float_wopbs/server_key/tests.rs*
+- Benchmarks are located in *tfhe/benches/float_wopbs/bench.rs*
 
-+ For x86_64-based machines running Unix-like OSes:
 
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64-unix"] }
+The homomorphic floating points (Section 3.2) are located in *tfhe/concrete-float/*
+- Test files are located *tfhe/concrete-float/src/server_key/tests.rs*
+- Benchmarks are located in *tfhe/concrete-float/benches/bench.rs*
+
+
+## Dependencies
+
+Tested on Linux and Mac OS with Rust version >= 1.80 (see [here](https://www.rust-lang.org/tools/install) a guide to install Rust).
+Complete list of dependencies and a guide on how to install TFHE-rs can be found in the online documentation [here](https://docs.zama.ai/tfhe-rs/0.5-3/getting-started/installation) or in the local file [here](./README_TFHE-rs.md).
+
+## How to run benchmarks
+At the root of the project (i.e., in the TFHE-rs folder), enter the following commands to run the benchmarks:
+
+- ```make bench_minifloat```: returns the timings associated to the Minifloats (**Table 6**).
+- ```make bench_float```: returns the timings associated to the HFP (**Table 5**, **Table 7**).
+These benchmarks first launch the parallelized and then the sequential experiments. 
+This outputs the timings depending on the input precision. 
+**This takes more than 6 hours to run**.
+
+To run benchmarks for a specific precision over homomorphic floating points, here are the dedicated commands:
+- ```make bench_float_8bit```: Runs benchmarks for only 8-bit floating point *(around 15 min)*.
+- ```make bench_float_16bit```: Runs benchmarks for only 16-bit floating point *(around 30 min)*.
+- ```make bench_float_32bit```: Runs benchmarks for only 32-bit floating point *(around 1h40)*.
+- ```make bench_float_64bit```: Runs benchmarks for only 64-bit floating point *(around 6h30)*.
+
+
+We recall that the benchmarks were performed on AWS using an **m6i.metal** instance with an Intel Xeon 8375C (Ice Lake) processor running at 3.5 GHz, 128 vCPUs, and 512 GiB of memory.
+
+### Understanding Benchmark Output (Criterion.rs)
+
+This project uses [Criterion.rs](https://docs.rs/criterion/latest/criterion/) for benchmarking. Criterion is a powerful and statistically robust benchmarking framework for Rust, and it may produce outputs that are unfamiliar at first glance. This section explains how to interpret them.
+
+#### Sample Output Structure
+
+A typical benchmark result looks like this:
+
+```
+test_float             time:   [53.2 µs 54.0 µs 54.8 µs]
+                        change: [+0.2% +1.0% +1.8%] (p = 0.002)
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
 ```
 
-+ For Apple Silicon or aarch64-based machines running Unix-like OSes:
+**Here's what this means:**
 
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "aarch64-unix"] }
+- `time: [low est.  median  high est.]`: The estimated execution time of the function.
+- `change`: The performance change compared to a previous run (if available).
+- `outliers`: Some runs deviated from the typical time. Criterion detects and accounts for these using statistical methods.
+
+---
+
+####  Common Warnings and What They Mean
+
+##### `Found X outliers among Y measurements`
+
+Criterion runs each benchmark many times (default: 100) to get statistically significant results.
+An *outlier* is a run that was significantly faster or slower than the others.
+
+- **Why does this happen?** Often, it's due to **other processes on the machine** (e.g., background services, OS interrupts, or CPU scheduling) affecting performance temporarily.
+- **Why it doesn't invalidate results:** Criterion uses statistical techniques to minimize the impact of these outliers when estimating performance.
+- **Best practice to reduce outliers:** Run the benchmarks on a **freshly rebooted machine**, with as few background processes as possible. Ideally, let the system idle for a minute after boot to stabilize before running benchmarks.
+
+##### `Unable to complete 100 samples in 5.0s.`
+
+The benchmark took longer than the expected 5 seconds.
+This is merely a warning indicating that the full set of 100 samples could not be collected within the default 5-second measurement window.
+
+- **No action is required**: Criterion will still proceed to run all 100 samples, and the results remain statistically valid.
+- **Why the warning appears**: It's there to inform you that benchmarking is taking longer than expected and to help you tune settings if needed.
+- **Optional**: If you're constrained by time (e.g., running in CI), you can:
+  - Reduce the sample size (e.g., to 10 or 20 samples).
+  - Or increase the measurement time using:
+    ```bash
+    cargo bench -- --measurement-time 30
+    ```
+
+## How to run the tests
+### MiniFloats
+
+To run the tests related to the **minifloats**, run the following command:
+- ```make test_minifloat```: Runs a bivariate operation between two minifloats.
+
+
+The **minifloat** test is available in the file *tfhe/src/float_wopbs/server_key/tests.rs*.
+
+
+
+### Homomorphic Floating Points 
+At the root of the project (i.e., in the TFHE-rs folder), enter the following commands to run the tests per operation on the **homomorphic floating points**:
+- ```make test_float_add```: Runs a 32-bit floating-point addition with two random inputs.
+- ```make test_float_sub```: Runs a 32-bit floating-point subtraction with two random inputs.
+- ```make test_float_mul```: Runs a 32-bit floating-point multiplication with two random inputs.
+- ```make test_float_div```: Runs a 32-bit floating-point division with two random inputs.
+- ```make test_float_cos```: Runs the experiment from **Table 8** with a random input value.
+- ```make test_float_sin```: Runs the experiment from **Table 8** with a random input value.
+- ```make test_float_relu```: Runs a 32-bit floating-point relu with a random input.
+- ```make test_float_sigmoid```: Runs a 32-bit floating-point sigmoid with a random input.
+- ```make test_float```: Runs all previous tests for operations on 32-bit floating-points.
+- ```make test_float_depth_test```: This command runs the following experiment:
+  - **Step 1**: Create 3 blocks, each composed of a clear 32-bit floating point, a clear 64-bit floating point, and a 32-bit homomorphic floating point.
+  - **Step 2**: Choose two blocks randomly among the 3 blocks and randomly select a parallelized operation (addition, subtraction, or multiplication).
+  - **Step 3**: Compute the selected operation between the two selected blocks and store the result randomly in one of the two selected blocks.  
+  (The operation is performed respectively between the two 64-bit floating points, the two 32-bit floating points, and homomorphically between the two 32-bit homomorphic floating points.) 
+  - Repeat Steps 2 and 3 for 50 iterations.
+  - To avoid reaching + or - infinity, or **NaN**, when the clear 64-bit floating point reaches a fixed bound, compute a multiplication to rescale the value close to 1.  
+  This operation is also performed homomorphically for the encrypted data. This test takes several minutes.
+
+The tests are located in the file *tfhe/concrete-float/src/server_key/tests.rs*.
+
+Due to the representation being close to, but not exactly the same as, a given representation, the obtained result is not identical to the one obtained in clear.
+To consider a test as "passed", we accept a difference of less than 0.1% compared to the 64-bit floating-point clear results.
+Note that using 8 or 16-bit homomorphic floating points might return errors due to a lack of precision and due to the comparisons with clear 64-bit floating points.
+
+In each test, the different results are presented in the following format:
+``` 
+--------------------
+"Name":
+
+Result       : 
+Clear 32-bits: 
+Clear 64-bits: 
+
+--------------------
 ```
-Note: users with ARM devices must compile `TFHE-rs` using a stable toolchain with version >= 1.72.
+where ```name``` stands for the name of the ciphertext or the name of the operation, result always corresponds to the decryption of a homomorphic floating point, and Clear ``` 32-bits```  and Clear ``` 64-bits``` correspond to the clear floating-point witness.
+
+All tests in *tfhe/concrete-float/src/server_key/tests.rs* are conducted for 32-bit floating-point precision, as it provides the best ratio between execution time and precision.  
+To change the parameter set used, the parameters in the following ``` const ``` must be uncommented (lines 79 to 87 in the file *tfhe/concrete-float/src/server_key/tests.rs*).
 
 
-+ For x86_64-based machines with the [`rdseed instruction`](https://en.wikipedia.org/wiki/RDRAND) 
-running Windows:
-
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer", "x86_64"] }
-```
-
-Note: aarch64-based machines are not yet supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs
-
-
-## A simple example
-
-Here is a full example:
-
-``` rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint8};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Basic configuration to use homomorphic integers
-    let config = ConfigBuilder::default().build();
-
-    // Key generation
-    let (client_key, server_keys) = generate_keys(config);
-
-    let clear_a = 1344u32;
-    let clear_b = 5u32;
-    let clear_c = 7u8;
-
-    // Encrypting the input data using the (private) client_key
-    // FheUint32: Encrypted equivalent to u32
-    let mut encrypted_a = FheUint32::try_encrypt(clear_a, &client_key)?;
-    let encrypted_b = FheUint32::try_encrypt(clear_b, &client_key)?;
-
-    // FheUint8: Encrypted equivalent to u8
-    let encrypted_c = FheUint8::try_encrypt(clear_c, &client_key)?;
-
-    // On the server side:
-    set_server_key(server_keys);
-
-    // Clear equivalent computations: 1344 * 5 = 6720
-    let encrypted_res_mul = &encrypted_a * &encrypted_b;
-
-    // Clear equivalent computations: 1344 >> 5 = 42
-    encrypted_a = &encrypted_res_mul >> &encrypted_b;
-
-    // Clear equivalent computations: let casted_a = a as u8;
-    let casted_a: FheUint8 = encrypted_a.cast_into();
-
-    // Clear equivalent computations: min(42, 7) = 7
-    let encrypted_res_min = &casted_a.min(&encrypted_c);
-
-    // Operation between clear and encrypted data:
-    // Clear equivalent computations: 7 & 1 = 1
-    let encrypted_res = encrypted_res_min & 1_u8;
-
-    // Decrypting on the client side:
-    let clear_res: u8 = encrypted_res.decrypt(&client_key);
-    assert_eq!(clear_res, 1_u8);
-
-    Ok(())
-}
-```
-
-To run this code, use the following command: 
-<p align="center"> <code> cargo run --release </code> </p>
-
-Note that when running code that uses `tfhe-rs`, it is highly recommended
-to run in release mode with cargo's `--release` flag to have the best performances possible,
-
-
-## Contributing
-
-There are two ways to contribute to TFHE-rs:
-
-- you can open issues to report bugs or typos, or to suggest new ideas
-- you can ask to become an official contributor by emailing [hello@zama.ai](mailto:hello@zama.ai).
-(becoming an approved contributor involves signing our Contributor License Agreement (CLA))
-
-Only approved contributors can send pull requests, so please make sure to get in touch before you do!
-
-## Credits
-
-This library uses several dependencies and we would like to thank the contributors of those
-libraries.
-
-## Need support?
-<a target="_blank" href="https://community.zama.ai">
-  <img src="https://user-images.githubusercontent.com/5758427/231115030-21195b55-2629-4c01-9809-be5059243999.png">
-</a>
-
-## Citing TFHE-rs
-
-To cite TFHE-rs in academic papers, please use the following entry:
-
-```text
-@Misc{TFHE-rs,
-  title={{TFHE-rs: A Pure Rust Implementation of the TFHE Scheme for Boolean and Integer Arithmetics Over Encrypted Data}},
-  author={Zama},
-  year={2022},
-  note={\url{https://github.com/zama-ai/tfhe-rs}},
-}
+```rust 
+const PARAMS: [(&str, Parameters); 1] =
+[
+//named_param!(PARAM_FP_64_BITS),
+named_param!(PARAM_FP_32_BITS),
+//named_param!(PARAM_FP_16_BITS),
+//named_param!(PARAM_FP_8_BITS),
+];
 ```
 
-## License
+Note that the number in ``` [(\&str, Parameters); 1] ``` should correspond to the number of tested parameters, e.g., if another parameter sets is uncommented, this line becomes:  ``` [(\&str, Parameters); 2] ```.
+The parameter ```PARAM_X``` corresponds to the parameters used in **Table 5**, and ```PARAM_TCHES_X``` corresponds to the parameters used in **Table 7**.
 
-This software is distributed under the BSD-3-Clause-Clear license. If you have any questions,
-please contact us at `hello@zama.ai`.
 
-## Disclaimers
 
-### Security Estimation
 
-Security estimations are done using the
-[Lattice Estimator](https://github.com/malb/lattice-estimator)
-with `red_cost_model = reduction.RC.BDGL16`.
-
-When a new update is published in the Lattice Estimator, we update parameters accordingly.
-
-### Side-Channel Attacks
-
-Mitigation for side channel attacks have not yet been implemented in TFHE-rs,
-and will be released in upcoming versions.
