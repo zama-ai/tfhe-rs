@@ -1,14 +1,16 @@
 name: Cargo Build TFHE-rs
 
-on:
-  pull_request:
-
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-C target-cpu=native"
   RUST_BACKTRACE: "full"
   RUST_MIN_STACK: "8388608"
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  IS_DRAFT_PR: ${{ github.event.pull_request.draft == true }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
@@ -20,14 +22,12 @@ permissions:
 jobs:
   cargo-builds:
     runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         # GitHub macos-latest are now M1 macs, so use ours, we limit what runs so it will be fast
         # even with a few PRs
         os: [large_ubuntu_16, macos-latest, windows-latest]
       fail-fast: false
-
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -49,48 +49,54 @@ jobs:
           mv linelint-linux-amd64 /usr/local/bin/linelint
           make check_newline
 
+      - name: Run fast pcc checks
+        if: ${{ contains(matrix.os, 'ubuntu') && env.IS_DRAFT_PR }}
+        run: |
+          make fpcc
+
       - name: Run pcc checks
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make pcc
 
       - name: Build tfhe-csprng
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_tfhe_csprng
 
       - name: Build Release core
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_core AVX512_SUPPORT=ON
           make build_core_experimental AVX512_SUPPORT=ON
 
       - name: Build Release boolean
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_boolean
 
       - name: Build Release shortint
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_shortint
 
       - name: Build Release integer
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_integer
 
       - name: Build Release tfhe full
+        if: ${{ ! env.IS_DRAFT_PR }}
         run: |
           make build_tfhe_full
 
       - name: Build Release c_api
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_c_api
 
       - name: Build coverage tests
-        if: ${{ contains(matrix.os, 'ubuntu') }}
+        if: ${{ contains(matrix.os, 'ubuntu') && ! env.IS_DRAFT_PR }}
         run: |
           make build_tfhe_coverage
 

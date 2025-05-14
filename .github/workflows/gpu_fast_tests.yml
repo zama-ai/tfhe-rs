@@ -23,6 +23,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -68,7 +69,7 @@ jobs:
     name: Setup instance (cuda-tests)
     needs: should-run
     if: github.event_name == 'workflow_dispatch' ||
-      needs.should-run.outputs.gpu_test == 'true'
+      (needs.should-run.outputs.gpu_test == 'true' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}

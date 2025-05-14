@@ -3,6 +3,7 @@ name: Cargo Test tfhe-ntt
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - main
@@ -10,6 +11,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  IS_DRAFT_PR: ${{ github.event.pull_request.draft == true }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
@@ -47,7 +49,8 @@ jobs:
 
   cargo-tests-ntt:
     needs: should-run
-    if: needs.should-run.outputs.ntt_test == 'true'
+    if: needs.should-run.outputs.ntt_test == 'true' &&
+      (github.event_name == 'push' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -73,7 +76,8 @@ jobs:
 
   cargo-tests-ntt-nightly:
     needs: should-run
-    if: needs.should-run.outputs.ntt_test == 'true'
+    if: needs.should-run.outputs.ntt_test == 'true' &&
+      (github.event_name == 'push' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -102,21 +106,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Tests do not need to run
-        if: needs.should-run.outputs.ntt_test == 'false'
+        if: env.IS_DRAFT_PR || needs.should-run.outputs.ntt_test == 'false'
         run: |
           echo "tfhe-ntt files haven't changed tests don't need to run"
 
       - name: Check all tests success
         if: needs.should-run.outputs.ntt_test == 'true' &&
           needs.cargo-tests-ntt.result == 'success' &&
-          needs.cargo-tests-ntt-nightly.result == 'success'
+          needs.cargo-tests-ntt-nightly.result == 'success' &&
+          ! env.IS_DRAFT_PR
         run: |
           echo "All tfhe-ntt tests passed"
 
       - name: Check tests failure
         if: needs.should-run.outputs.ntt_test == 'true' &&
           (needs.cargo-tests-ntt.result != 'success' ||
-          needs.cargo-tests-ntt-nightly.result != 'success')
+          needs.cargo-tests-ntt-nightly.result != 'success') &&
+          ! env.IS_DRAFT_PR
         run: |
           echo "Some tfhe-ntt tests failed"
           exit 1
