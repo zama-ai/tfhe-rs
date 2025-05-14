@@ -6,14 +6,19 @@ use benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M1
 use benchmark::utilities::configure_gpu;
 use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
-use criterion::{BenchmarkGroup, Criterion};
+use criterion::{BenchmarkGroup, Criterion, Throughput};
 use rand::prelude::*;
 use rand::thread_rng;
+use rayon::prelude::*;
 use std::ops::{Add, Div, Mul, Sub};
+#[cfg(feature = "gpu")]
+use tfhe::core_crypto::gpu::get_number_of_gpus;
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 #[cfg(not(feature = "gpu"))]
 use tfhe::{set_server_key, CompressedServerKey};
+#[cfg(feature = "gpu")]
+use tfhe::{set_server_key, CompressedServerKey, GpuIndex};
 use tfhe::{ClientKey, ConfigBuilder, FheBool, FheUint128, FheUint64};
 
 fn transfer_no_cmux<FheType>(
@@ -60,92 +65,54 @@ where
 
 #[allow(clippy::too_many_arguments)]
 fn swap_request_update_dex_balance_whitepaper<FheType>(
-    from_balance_0: &FheType,
-    from_balance_1: &FheType,
-    current_dex_balance_0: &FheType,
-    current_dex_balance_1: &FheType,
-    amount0: &FheType,
-    amount1: &FheType,
-) -> (FheType, FheType)
+    from_balance: &FheType,
+    current_dex_balance: &FheType,
+    amount: &FheType,
+) -> FheType
 where
     FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Clone + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
-    let (sent0, sent1) = rayon::join(
-        || {
-            let (_, new_current_balance_0) =
-                transfer_whitepaper(from_balance_0, current_dex_balance_0, amount0);
-            &new_current_balance_0 - current_dex_balance_0
-        },
-        || {
-            let (_, new_current_balance_1) =
-                transfer_whitepaper(from_balance_1, current_dex_balance_1, amount1);
-            &new_current_balance_1 - current_dex_balance_1
-        },
-    );
-
-    (sent0, sent1)
+    let (_, new_current_balance) = transfer_whitepaper(from_balance, current_dex_balance, amount);
+    &new_current_balance - current_dex_balance
 }
 
 #[allow(clippy::too_many_arguments)]
 fn swap_request_update_dex_balance_no_cmux<FheType>(
-    from_balance_0: &FheType,
-    from_balance_1: &FheType,
-    current_dex_balance_0: &FheType,
-    current_dex_balance_1: &FheType,
-    amount0: &FheType,
-    amount1: &FheType,
+    from_balance: &FheType,
+    current_dex_balance: &FheType,
+    amount: &FheType,
+) -> FheType
+where
+    FheType: Add<Output = FheType>
+        + for<'a> FheOrd<&'a FheType>
+        + CastFrom<FheBool>
+        + Clone
+        + Send
+        + Sync,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType:
+        Add<Output = FheType> + Sub<Output = FheType> + Mul<FheType, Output = FheType>,
+{
+    let (_, new_current_balance) = transfer_no_cmux(from_balance, current_dex_balance, amount);
+    &new_current_balance - current_dex_balance
+}
+
+#[allow(clippy::too_many_arguments)]
+fn swap_request_finalize<FheType>(
+    to_balance: &FheType,
+    total_dex_token_in: &FheType,
+    sent: &FheType,
 ) -> (FheType, FheType)
 where
     FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Clone + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
-    let (sent0, sent1) = rayon::join(
-        || {
-            let (_, new_current_balance_0) =
-                transfer_no_cmux(from_balance_0, current_dex_balance_0, amount0);
-            &new_current_balance_0 - current_dex_balance_0
-        },
-        || {
-            let (_, new_current_balance_1) =
-                transfer_no_cmux(from_balance_1, current_dex_balance_1, amount1);
-            &new_current_balance_1 - current_dex_balance_1
-        },
-    );
-
-    (sent0, sent1)
-}
-
-#[allow(clippy::too_many_arguments)]
-fn swap_request_finalize<FheType>(
-    to_balance_0: &FheType,
-    to_balance_1: &FheType,
-    total_dex_token_0_in: &FheType,
-    total_dex_token_1_in: &FheType,
-    sent0: &FheType,
-    sent1: &FheType,
-) -> (FheType, FheType, FheType, FheType)
-where
-    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Clone + Send + Sync,
-    FheBool: IfThenElse<FheType>,
-    for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
-{
-    let (res0, res1) = rayon::join(
-        || {
-            let pending_0_in = to_balance_0 + &sent0;
-            let pending_total_token_0_in = total_dex_token_0_in + &sent0;
-            (pending_0_in, pending_total_token_0_in)
-        },
-        || {
-            let pending_1_in = to_balance_1 + &sent1;
-            let pending_total_token_1_in = total_dex_token_1_in + &sent1;
-            (pending_1_in, pending_total_token_1_in)
-        },
-    );
-
-    (res0.0, res0.1, res1.0, res1.1)
+    let pending_0_in = to_balance + sent;
+    let pending_total_token_0_in = total_dex_token_in + sent;
+    (pending_0_in, pending_total_token_0_in)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -197,15 +164,11 @@ where
 
 #[allow(clippy::too_many_arguments)]
 fn swap_claim_update_dex_balance_whitepaper<FheType>(
-    amount_0_out: &FheType,
-    amount_1_out: &FheType,
-    total_dex_token_0_in: u64,
-    total_dex_token_1_in: u64,
-    old_balance_0: &FheType,
-    old_balance_1: &FheType,
-    current_dex_balance_0: &FheType,
-    current_dex_balance_1: &FheType,
-) -> (FheType, FheType)
+    amount_out: &FheType,
+    total_dex_other_token_in: u64,
+    old_balance: &FheType,
+    current_dex_balance: &FheType,
+) -> FheType
 where
     FheType: CastFrom<FheBool>
         + for<'a> FheOrd<&'a FheType>
@@ -216,41 +179,22 @@ where
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
 {
-    let (new_balance_0, new_balance_1) = rayon::join(
-        || {
-            let mut new_balance_0 = old_balance_0.clone();
-            if total_dex_token_1_in != 0 {
-                let (_, new_balance_0_tmp) =
-                    transfer_whitepaper(current_dex_balance_0, old_balance_0, amount_0_out);
-                new_balance_0 = new_balance_0_tmp;
-            }
-            new_balance_0
-        },
-        || {
-            let mut new_balance_1 = old_balance_1.clone();
-            if total_dex_token_0_in != 0 {
-                let (_, new_balance_1_tmp) =
-                    transfer_whitepaper(current_dex_balance_1, old_balance_1, amount_1_out);
-                new_balance_1 = new_balance_1_tmp;
-            }
-            new_balance_1
-        },
-    );
-
-    (new_balance_0, new_balance_1)
+    let mut new_balance = old_balance.clone();
+    if total_dex_other_token_in != 0 {
+        let (_, new_balance_tmp) =
+            transfer_whitepaper(current_dex_balance, old_balance, amount_out);
+        new_balance = new_balance_tmp;
+    }
+    new_balance
 }
 
 #[allow(clippy::too_many_arguments)]
 fn swap_claim_update_dex_balance_no_cmux<FheType>(
-    amount_0_out: &FheType,
-    amount_1_out: &FheType,
-    total_dex_token_0_in: u64,
-    total_dex_token_1_in: u64,
-    old_balance_0: &FheType,
-    old_balance_1: &FheType,
-    current_dex_balance_0: &FheType,
-    current_dex_balance_1: &FheType,
-) -> (FheType, FheType)
+    amount_out: &FheType,
+    total_dex_other_token_in: u64,
+    old_balance: &FheType,
+    current_dex_balance: &FheType,
+) -> FheType
 where
     FheType: CastFrom<FheBool>
         + for<'a> FheOrd<&'a FheType>
@@ -259,30 +203,16 @@ where
         + Send
         + Sync,
     FheBool: IfThenElse<FheType>,
-    for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
+    for<'a> &'a FheType:
+        Add<Output = FheType> + Sub<Output = FheType> + Mul<FheType, Output = FheType>,
 {
-    let (new_balance_0, new_balance_1) = rayon::join(
-        || {
-            let mut new_balance_0 = old_balance_0.clone();
-            if total_dex_token_1_in != 0 {
-                let (_, new_balance_0_tmp) =
-                    transfer_no_cmux(current_dex_balance_0, old_balance_0, amount_0_out);
-                new_balance_0 = new_balance_0_tmp;
-            }
-            new_balance_0
-        },
-        || {
-            let mut new_balance_1 = old_balance_1.clone();
-            if total_dex_token_0_in != 0 {
-                let (_, new_balance_1_tmp) =
-                    transfer_no_cmux(current_dex_balance_1, old_balance_1, amount_1_out);
-                new_balance_1 = new_balance_1_tmp;
-            }
-            new_balance_1
-        },
-    );
-
-    (new_balance_0, new_balance_1)
+    let mut new_balance = old_balance.clone();
+    if total_dex_other_token_in != 0 {
+        let (_, new_balance_tmp) =
+            transfer_whitepaper(current_dex_balance, old_balance, amount_out);
+        new_balance = new_balance_tmp;
+    }
+    new_balance
 }
 
 #[cfg(feature = "pbs-stats")]
@@ -304,37 +234,20 @@ mod pbs_stats {
         swap_request_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
-        F: for<'a> Fn(
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-        ) -> (FheType, FheType),
+        F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType,
     {
         let mut rng = thread_rng();
 
-        let from_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let from_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let current_dex_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let amount = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
 
         tfhe::reset_pbs_count();
-        let (_, _) = swap_request_update_dex_balance_func(
-            &from_balance_0,
-            &from_balance_1,
-            &current_dex_balance_0,
-            &current_dex_balance_1,
-            &amount_0,
-            &amount_1,
-        );
-        let count = tfhe::get_pbs_count();
+        let _ = swap_request_update_dex_balance_func(&from_balance, &current_dex_balance, &amount);
+        let count = tfhe::get_pbs_count() * 2;
 
         println!("ERC20 swap request update dex balance/::{type_name}: {count} PBS");
 
@@ -373,37 +286,20 @@ mod pbs_stats {
         swap_request_finalize_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
-        F: for<'a> Fn(
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-        ) -> (FheType, FheType, FheType, FheType),
+        F: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType),
     {
         let mut rng = thread_rng();
 
         let to_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
         let total_dex_token_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_1_in = FheType::encrypt(rng.gen::<u64>(), client_key);
         let sent_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let sent_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
 
         tfhe::reset_pbs_count();
-        let (_, _, _, _) = swap_request_finalize_func(
-            &to_balance_0,
-            &to_balance_1,
-            &total_dex_token_0_in,
-            &total_dex_token_1_in,
-            &sent_0,
-            &sent_1,
-        );
-        let count = tfhe::get_pbs_count();
+        let (_, _) = swap_request_finalize_func(&to_balance_0, &total_dex_token_0_in, &sent_0);
+        let count = tfhe::get_pbs_count() * 2;
 
         println!("ERC20 swap request finalize/::{type_name}: {count} PBS");
 
@@ -452,10 +348,6 @@ mod pbs_stats {
         let total_dex_token_1_in = rng.gen::<u64>();
         let total_dex_token_0_out = rng.gen::<u64>();
         let total_dex_token_1_out = rng.gen::<u64>();
-        let old_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let old_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -508,43 +400,26 @@ mod pbs_stats {
         swap_claim_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
-        F: for<'a> Fn(
-            &'a FheType,
-            &'a FheType,
-            u64,
-            u64,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-            &'a FheType,
-        ) -> (FheType, FheType),
+        F: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType,
     {
         let mut rng = thread_rng();
 
-        let amount_0_out = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_1_out = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_0_in = rng.gen::<u64>();
-        let total_dex_token_1_in = rng.gen::<u64>();
-        let old_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let old_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let amount_out = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let total_dex_token_in = rng.gen::<u64>();
+        let old_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let current_dex_balance = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
 
         tfhe::reset_pbs_count();
-        let (_, _) = swap_claim_update_dex_balance_func(
-            &amount_0_out,
-            &amount_1_out,
-            total_dex_token_0_in,
-            total_dex_token_1_in,
-            &old_balance_0,
-            &old_balance_1,
-            &current_dex_balance_0,
-            &current_dex_balance_1,
+        let _ = swap_claim_update_dex_balance_func(
+            &amount_out,
+            total_dex_token_in,
+            &old_balance,
+            &current_dex_balance,
         );
-        let count = tfhe::get_pbs_count();
+        let count = tfhe::get_pbs_count() * 2;
 
         println!("ERC20 swap claim update dex balance/::{type_name}: {count} PBS");
 
@@ -588,23 +463,9 @@ fn bench_swap_request_latency<FheType, F1, F2>(
     swap_request_update_dex_balance_func: F1,
     swap_request_finalize_func: F2,
 ) where
-    FheType: FheEncrypt<u64, ClientKey>,
-    F1: for<'a> Fn(
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-    ) -> (FheType, FheType),
-    F2: for<'a> Fn(
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-    ) -> (FheType, FheType, FheType, FheType),
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F1: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType + Sync,
+    F2: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
 {
     #[cfg(feature = "gpu")]
     configure_gpu(client_key);
@@ -625,21 +486,25 @@ fn bench_swap_request_latency<FheType, F1, F2>(
         let amount_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
 
         b.iter(|| {
-            let (sent0, sent1) = swap_request_update_dex_balance_func(
-                &from_balance_0,
-                &from_balance_1,
-                &current_balance_0,
-                &current_balance_1,
-                &amount_0,
-                &amount_1,
+            let (sent0, sent1) = rayon::join(
+                || {
+                    swap_request_update_dex_balance_func(
+                        &from_balance_0,
+                        &current_balance_0,
+                        &amount_0,
+                    )
+                },
+                || {
+                    swap_request_update_dex_balance_func(
+                        &from_balance_1,
+                        &current_balance_1,
+                        &amount_1,
+                    )
+                },
             );
-            let (_, _, _, _) = swap_request_finalize_func(
-                &to_balance_0,
-                &to_balance_1,
-                &total_token_0,
-                &total_token_1,
-                &sent0,
-                &sent1,
+            let ((_, _), (_, _)) = rayon::join(
+                || swap_request_finalize_func(&to_balance_0, &total_token_0, &sent0),
+                || swap_request_finalize_func(&to_balance_1, &total_token_1, &sent1),
             );
         })
     });
@@ -657,6 +522,331 @@ fn bench_swap_request_latency<FheType, F1, F2>(
     );
 }
 
+#[cfg(not(feature = "gpu"))]
+fn bench_swap_request_throughput<FheType, F1, F2>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    swap_request_update_dex_balance_func: F1,
+    swap_request_finalize_func: F2,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F1: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType + Sync,
+    F2: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
+{
+    let mut rng = thread_rng();
+
+    for num_elems in [10, 50, 100] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let from_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amount_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amount_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            b.iter(|| {
+                let (sents_0, sents_1): (Vec<_>, Vec<_>) = rayon::join(
+                    || {
+                        from_balances_0
+                            .iter()
+                            .zip(current_balances_0.iter())
+                            .zip(amount_0.iter())
+                            .map(|((from_0, curr_0), amt_0)| {
+                                swap_request_update_dex_balance_func(from_0, curr_0, amt_0)
+                            })
+                            .collect()
+                    },
+                    || {
+                        from_balances_1
+                            .iter()
+                            .zip(current_balances_1.iter())
+                            .zip(amount_1.iter())
+                            .map(|((from_1, curr_1), amt_1)| {
+                                swap_request_update_dex_balance_func(from_1, curr_1, amt_1)
+                            })
+                            .collect()
+                    },
+                );
+
+                rayon::join(
+                    || {
+                        to_balances_0
+                            .par_iter()
+                            .zip(total_tokens_0.par_iter())
+                            .zip(sents_0.par_iter())
+                            .for_each(|((to_balance_0, total_token_0), sent_0)| {
+                                let (_, _) =
+                                    swap_request_finalize_func(to_balance_0, total_token_0, sent_0);
+                            })
+                    },
+                    || {
+                        to_balances_1
+                            .par_iter()
+                            .zip(total_tokens_1.par_iter())
+                            .zip(sents_1.par_iter())
+                            .for_each(|((to_balance_1, total_token_1), sent_1)| {
+                                let (_, _) =
+                                    swap_request_finalize_func(to_balance_1, total_token_1, sent_1);
+                            })
+                    },
+                );
+            })
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "dex-swap-request",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
+#[cfg(feature = "gpu")]
+fn cuda_bench_swap_request_throughput<FheType, F1, F2>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    swap_request_update_dex_balance_func: F1,
+    swap_request_finalize_func: F2,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F1: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> FheType + Sync,
+    F2: for<'a> Fn(&'a FheType, &'a FheType, &'a FheType) -> (FheType, FheType) + Sync,
+{
+    let mut rng = thread_rng();
+    let num_gpus = get_number_of_gpus() as u64;
+    let compressed_server_key = CompressedServerKey::new(client_key);
+
+    let sks_vec = (0..num_gpus)
+        .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+        .collect::<Vec<_>>();
+    let dex_balance_update_sks = compressed_server_key.decompress_to_gpu();
+
+    for num_elems in [5 * num_gpus, 10 * num_gpus, 20 * num_gpus] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let from_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let from_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let to_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amount_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amount_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            let num_streams_per_gpu = 4;
+            let chunk_size = (num_elems / num_gpus) as usize;
+            b.iter(|| {
+                let (sents_0, sents_1): (Vec<_>, Vec<_>) = rayon::join(
+                    || {
+                        set_server_key(dex_balance_update_sks.clone());
+                        from_balances_0
+                            .iter()
+                            .zip(current_balances_0.iter())
+                            .zip(amount_0.iter())
+                            .map(|((from_0, curr_0), amt_0)| {
+                                swap_request_update_dex_balance_func(from_0, curr_0, amt_0)
+                            })
+                            .collect()
+                    },
+                    || {
+                        set_server_key(dex_balance_update_sks.clone());
+                        from_balances_1
+                            .iter()
+                            .zip(current_balances_1.iter())
+                            .zip(amount_1.iter())
+                            .map(|((from_1, curr_1), amt_1)| {
+                                swap_request_update_dex_balance_func(from_1, curr_1, amt_1)
+                            })
+                            .collect()
+                    },
+                );
+
+                rayon::join(||{
+                    to_balances_0
+                        .par_chunks(chunk_size)
+                        .zip(total_tokens_1.par_chunks(chunk_size))
+                        .zip(sents_0.par_chunks(chunk_size))
+                        .enumerate()
+                        .for_each(
+                            |(
+                                 i,
+                                 (
+                                                 (to_balances_0_gpu_i,
+                                                 total_tokens_1_gpu_i,
+                                             ),
+                                         sents_0_gpu_i,
+                                 ),
+                             )| {
+                                let stream_chunk_size = to_balances_0_gpu_i.len() / num_streams_per_gpu;
+                                to_balances_0_gpu_i
+                                    .par_chunks(stream_chunk_size)
+                                    .zip(total_tokens_1_gpu_i.par_chunks(stream_chunk_size))
+                                    .zip(sents_0_gpu_i.par_chunks(stream_chunk_size))
+                                    .for_each(
+                                        |(
+                                                         (to_balances_0_chunk,
+                                                     total_tokens_1_chunk,
+                                                 ),
+                                                 sents_0_chunk,
+                                         )| {
+                                            // Set the server key for the current GPU
+                                            set_server_key(sks_vec[i].clone());
+                                            to_balances_0_chunk
+                                                .iter()
+                                                .zip(total_tokens_1_chunk.iter())
+                                                .zip(sents_0_chunk.iter())
+                                                .for_each(
+                                                    |(
+                                                                     (to_balance_0,
+                                                                 total_token_1,
+                                                             ),
+                                                             sent_0,
+                                                     )| {
+                                                        let (_, _) = swap_request_finalize_func(
+                                                            to_balance_0,
+                                                            total_token_1,
+                                                            sent_0,
+                                                        );
+                                                    },
+                                                );
+                                        },
+                                    );
+                            },
+                        );
+                },
+                            || {
+
+                                to_balances_1
+                                    .par_chunks(chunk_size)
+                                    .zip(total_tokens_0.par_chunks(chunk_size))
+                                    .zip(sents_1.par_chunks(chunk_size))
+                                    .enumerate()
+                                    .for_each(
+                                        |(
+                                             i,
+                                             (
+                                                 (to_balances_1_gpu_i,
+                                                     total_tokens_0_gpu_i,
+                                                 ),
+                                                 sents_1_gpu_i,
+                                             ),
+                                         )| {
+                                            let stream_chunk_size = to_balances_1_gpu_i.len() / num_streams_per_gpu;
+                                            to_balances_1_gpu_i
+                                                .par_chunks(stream_chunk_size)
+                                                .zip(total_tokens_0_gpu_i.par_chunks(stream_chunk_size))
+                                                .zip(sents_1_gpu_i.par_chunks(stream_chunk_size))
+                                                .for_each(
+                                                    |(
+                                                         (to_balances_1_chunk,
+                                                             total_tokens_0_chunk,
+                                                         ),
+                                                         sents_1_chunk,
+                                                     )| {
+                                                        // Set the server key for the current GPU
+                                                        set_server_key(sks_vec[i].clone());
+                                                        to_balances_1_chunk
+                                                            .iter()
+                                                            .zip(total_tokens_0_chunk.iter())
+                                                            .zip(sents_1_chunk.iter())
+                                                            .for_each(
+                                                                |(
+                                                                     (to_balance_1,
+                                                                         total_token_0,
+                                                                     ),
+                                                                     sent_1,
+                                                                 )| {
+                                                                    let (_, _) = swap_request_finalize_func(
+                                                                        to_balance_1,
+                                                                        total_token_0,
+                                                                        sent_1,
+                                                                    );
+                                                                },
+                                                            );
+                                                    },
+                                                );
+                                        },
+                                    );
+                            });
+                                })
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "dex-swap-request",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
+
 fn bench_swap_claim_latency<FheType, F1, F2>(
     c: &mut BenchmarkGroup<'_, WallTime>,
     client_key: &ClientKey,
@@ -666,18 +856,9 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
     swap_claim_prepare_func: F1,
     swap_claim_update_dex_balance_func: F2,
 ) where
-    FheType: FheEncrypt<u64, ClientKey>,
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
     F1: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType),
-    F2: for<'a> Fn(
-        &'a FheType,
-        &'a FheType,
-        u64,
-        u64,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-        &'a FheType,
-    ) -> (FheType, FheType),
+    F2: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType + Sync,
 {
     #[cfg(feature = "gpu")]
     configure_gpu(client_key);
@@ -706,17 +887,25 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
                 total_token_0_out,
                 total_token_1_out,
             );
-            let (_, _) = swap_claim_update_dex_balance_func(
-                &amount_0_out,
-                &amount_1_out,
-                total_token_0_in,
-                total_token_1_in,
-                &old_balance_0,
-                &old_balance_1,
-                &current_balance_0,
-                &current_balance_1,
+            let (_, _) = rayon::join(
+                || {
+                    swap_claim_update_dex_balance_func(
+                        &amount_0_out,
+                        total_token_1_in,
+                        &old_balance_0,
+                        &current_balance_0,
+                    )
+                },
+                || {
+                    swap_claim_update_dex_balance_func(
+                        &amount_1_out,
+                        total_token_0_in,
+                        &old_balance_1,
+                        &current_balance_1,
+                    )
+                },
             );
-        })
+        });
     });
 
     let params = client_key.computation_parameters();
@@ -730,6 +919,344 @@ fn bench_swap_claim_latency<FheType, F1, F2>(
         64,
         vec![],
     );
+}
+
+#[cfg(not(feature = "gpu"))]
+fn bench_swap_claim_throughput<FheType, F1, F2>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    swap_claim_prepare_func: F1,
+    swap_claim_update_dex_balance_func: F2,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F1: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType) + Sync,
+    F2: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType + Sync,
+{
+    let mut rng = thread_rng();
+
+    for num_elems in [2, 6, 10] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let pendings_0_in = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let pendings_1_in = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let old_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let old_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            b.iter(|| {
+                let (amounts_0_out, amounts_1_out): (Vec<_>, Vec<_>) = pendings_0_in
+                    .par_iter()
+                    .zip(pendings_1_in.par_iter())
+                    .zip(total_tokens_0_in.par_iter())
+                    .zip(total_tokens_1_in.par_iter())
+                    .zip(total_tokens_0_out.par_iter())
+                    .zip(total_tokens_1_out.par_iter())
+                    .map(
+                        |(
+                            (
+                                (
+                                    ((pending_0_in, pending_1_in), total_token_0_in),
+                                    total_token_1_in,
+                                ),
+                                total_token_0_out,
+                            ),
+                            total_token_1_out,
+                        )| {
+                            swap_claim_prepare_func(
+                                pending_0_in,
+                                pending_1_in,
+                                *total_token_0_in,
+                                *total_token_1_in,
+                                *total_token_0_out,
+                                *total_token_1_out,
+                            )
+                        },
+                    )
+                    .collect();
+                rayon::join(
+                    || {
+                        amounts_0_out
+                            .iter()
+                            .zip(total_tokens_1_in.iter())
+                            .zip(old_balances_0.iter())
+                            .zip(current_balances_0.iter())
+                            .for_each(
+                                |(
+                                    ((amount_0_out, total_token_1_in), old_balance_0),
+                                    current_balance_0,
+                                )| {
+                                    let _ = swap_claim_update_dex_balance_func(
+                                        amount_0_out,
+                                        *total_token_1_in,
+                                        old_balance_0,
+                                        current_balance_0,
+                                    );
+                                },
+                            )
+                    },
+                    || {
+                        amounts_1_out
+                            .iter()
+                            .zip(total_tokens_0_in.iter())
+                            .zip(old_balances_1.iter())
+                            .zip(current_balances_1.iter())
+                            .for_each(
+                                |(
+                                    ((amount_1_out, total_token_0_in), old_balance_1),
+                                    current_balance_1,
+                                )| {
+                                    let _ = swap_claim_update_dex_balance_func(
+                                        amount_1_out,
+                                        *total_token_0_in,
+                                        old_balance_1,
+                                        current_balance_1,
+                                    );
+                                },
+                            )
+                    },
+                );
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "dex-swap-claim",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
+}
+#[cfg(feature = "gpu")]
+fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
+    group: &mut BenchmarkGroup<'_, WallTime>,
+    client_key: &ClientKey,
+    bench_name: &str,
+    type_name: &str,
+    fn_name: &str,
+    swap_claim_prepare_func: F1,
+    swap_claim_update_dex_balance_func: F2,
+) where
+    FheType: FheEncrypt<u64, ClientKey> + Send + Sync,
+    F1: for<'a> Fn(&'a FheType, &'a FheType, u64, u64, u64, u64) -> (FheType, FheType) + Sync,
+    F2: for<'a> Fn(&'a FheType, u64, &'a FheType, &'a FheType) -> FheType + Sync,
+{
+    let mut rng = thread_rng();
+    let num_gpus = get_number_of_gpus() as u64;
+    let compressed_server_key = CompressedServerKey::new(client_key);
+
+    let sks_vec = (0..num_gpus)
+        .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
+        .collect::<Vec<_>>();
+    let dex_balance_update_sks = compressed_server_key.decompress_to_gpu();
+
+    for num_elems in [num_gpus, 2 * num_gpus] {
+        group.throughput(Throughput::Elements(num_elems));
+        let bench_id =
+            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+            let pendings_0_in = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let pendings_1_in = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let total_tokens_0_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_in = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_0_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let total_tokens_1_out = (0..num_elems).map(|_| rng.gen::<u64>()).collect::<Vec<_>>();
+            let old_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let old_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_0 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let current_balances_1 = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amounts_0_out = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+            let amounts_1_out = (0..num_elems)
+                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+                .collect::<Vec<_>>();
+
+            let num_streams_per_gpu = 2.min(num_elems / num_gpus);
+            let chunk_size = (num_elems / num_gpus) as usize;
+            b.iter(|| {
+                pendings_0_in
+                    .par_chunks(chunk_size)
+                    .zip(pendings_1_in.par_chunks(chunk_size))
+                    .zip(total_tokens_0_in.par_chunks(chunk_size))
+                    .zip(total_tokens_1_in.par_chunks(chunk_size))
+                    .zip(total_tokens_0_out.par_chunks(chunk_size))
+                    .zip(total_tokens_1_out.par_chunks(chunk_size))
+                    .enumerate()
+                    .for_each(
+                        |(
+                            i,
+                            (
+                                (
+                                    (
+                                        (
+                                            (pendings_0_in_gpu_i, pendings_1_in_gpu_i),
+                                            total_tokens_0_in_gpu_i,
+                                        ),
+                                        total_tokens_1_in_gpu_i,
+                                    ),
+                                    total_tokens_0_out_gpu_i,
+                                ),
+                                total_tokens_1_out_gpu_i,
+                            ),
+                        )| {
+                            let stream_chunk_size =
+                                pendings_0_in_gpu_i.len() / num_streams_per_gpu as usize;
+                            pendings_0_in_gpu_i
+                                .par_chunks(stream_chunk_size)
+                                .zip(pendings_1_in_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(total_tokens_0_in_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(total_tokens_1_in_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(total_tokens_0_out_gpu_i.par_chunks(stream_chunk_size))
+                                .zip(total_tokens_1_out_gpu_i.par_chunks(stream_chunk_size))
+                                .for_each(
+                                    |(
+                                        (
+                                            (
+                                                (
+                                                    (pending_0_in_chunk, pending_1_in_chunk),
+                                                    total_token_0_in_chunk,
+                                                ),
+                                                total_token_1_in_chunk,
+                                            ),
+                                            total_token_0_out_chunk,
+                                        ),
+                                        total_token_1_out_chunk,
+                                    )| {
+                                        // Set the server key for the current GPU
+                                        set_server_key(sks_vec[i].clone());
+                                        pending_0_in_chunk
+                                            .iter()
+                                            .zip(pending_1_in_chunk.iter())
+                                            .zip(total_token_0_in_chunk.iter())
+                                            .zip(total_token_1_in_chunk.iter())
+                                            .zip(total_token_0_out_chunk.iter())
+                                            .zip(total_token_1_out_chunk.iter())
+                                            .for_each(
+                                                |(
+                                                    (
+                                                        (
+                                                            (
+                                                                (pending_0_in, pending_1_in),
+                                                                total_token_0_in,
+                                                            ),
+                                                            total_token_1_in,
+                                                        ),
+                                                        total_token_0_out,
+                                                    ),
+                                                    total_token_1_out,
+                                                )| {
+                                                    swap_claim_prepare_func(
+                                                        pending_0_in,
+                                                        pending_1_in,
+                                                        *total_token_0_in,
+                                                        *total_token_1_in,
+                                                        *total_token_0_out,
+                                                        *total_token_1_out,
+                                                    );
+                                                },
+                                            )
+                                    },
+                                )
+                        },
+                    );
+                rayon::join(
+                    || {
+                        set_server_key(dex_balance_update_sks.clone());
+                        amounts_0_out
+                            .iter()
+                            .zip(total_tokens_1_in.iter())
+                            .zip(old_balances_0.iter())
+                            .zip(current_balances_0.iter())
+                            .for_each(
+                                |(
+                                    ((amount_0_out, total_token_1_in), old_balance_0),
+                                    current_balance_0,
+                                )| {
+                                    let _ = swap_claim_update_dex_balance_func(
+                                        amount_0_out,
+                                        *total_token_1_in,
+                                        old_balance_0,
+                                        current_balance_0,
+                                    );
+                                },
+                            );
+                    },
+                    || {
+                        set_server_key(dex_balance_update_sks.clone());
+                        amounts_1_out
+                            .iter()
+                            .zip(total_tokens_0_in.iter())
+                            .zip(old_balances_1.iter())
+                            .zip(current_balances_1.iter())
+                            .for_each(
+                                |(
+                                    ((amount_1_out, total_token_0_in), old_balance_1),
+                                    current_balance_1,
+                                )| {
+                                    let _ = swap_claim_update_dex_balance_func(
+                                        amount_1_out,
+                                        *total_token_0_in,
+                                        old_balance_1,
+                                        current_balance_1,
+                                    );
+                                },
+                            );
+                    },
+                );
+            });
+        });
+
+        let params = client_key.computation_parameters();
+
+        write_to_json::<u64, _>(
+            &bench_id,
+            params,
+            params.name(),
+            "dex-swap-claim",
+            &OperatorType::Atomic,
+            64,
+            vec![],
+        );
+    }
 }
 
 #[cfg(feature = "pbs-stats")]
@@ -773,7 +1300,7 @@ fn main() {
             "FheUint64",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
-        print_swap_request_update_dex_balance_pbs_counts(
+        print_swap_request_finalize_pbs_counts(
             &cks,
             "FheUint64",
             swap_request_finalize::<FheUint64>,
@@ -837,6 +1364,47 @@ fn main() {
 
         group.finish();
     }
+    // FheUint64 Throughput
+    {
+        let mut group = c.benchmark_group(bench_name);
+        bench_swap_request_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_request::whitepaper",
+            swap_request_update_dex_balance_whitepaper::<FheUint64>,
+            swap_request_finalize::<FheUint64>,
+        );
+        bench_swap_request_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_request::no_cmux",
+            swap_request_update_dex_balance_no_cmux::<FheUint64>,
+            swap_request_finalize::<FheUint64>,
+        );
+        bench_swap_claim_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_claim::whitepaper",
+            swap_claim_prepare::<FheUint64, FheUint128>,
+            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+        );
+        bench_swap_claim_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_claim::no_cmux",
+            swap_claim_prepare::<FheUint64, FheUint128>,
+            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+        );
+        group.finish();
+    }
 
     c.final_summary();
 }
@@ -867,7 +1435,7 @@ fn main() {
             "FheUint64",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
-        print_swap_request_update_dex_balance_pbs_counts(
+        print_swap_request_finalize_pbs_counts(
             &cks,
             "FheUint64",
             swap_request_finalize::<FheUint64>,
@@ -897,7 +1465,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_request_whitepaper",
+            "swap_request::whitepaper",
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
             swap_request_finalize::<FheUint64>,
         );
@@ -906,7 +1474,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_request_no_cmux",
+            "swap_request::no_cmux",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
             swap_request_finalize::<FheUint64>,
         );
@@ -915,7 +1483,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_claim_whitepaper",
+            "swap_claim::whitepaper",
             swap_claim_prepare::<FheUint64, FheUint128>,
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
@@ -924,11 +1492,53 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_claim_no_cmux",
+            "swap_claim::no_cmux",
             swap_claim_prepare::<FheUint64, FheUint128>,
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
 
+        group.finish();
+    }
+
+    // FheUint64 Throughput
+    {
+        let mut group = c.benchmark_group(bench_name);
+        cuda_bench_swap_request_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_request::whitepaper",
+            swap_request_update_dex_balance_whitepaper::<FheUint64>,
+            swap_request_finalize::<FheUint64>,
+        );
+        cuda_bench_swap_request_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_request::no_cmux",
+            swap_request_update_dex_balance_no_cmux::<FheUint64>,
+            swap_request_finalize::<FheUint64>,
+        );
+        cuda_bench_swap_claim_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_claim::whitepaper",
+            swap_claim_prepare::<FheUint64, FheUint128>,
+            swap_claim_update_dex_balance_whitepaper::<FheUint64>,
+        );
+        cuda_bench_swap_claim_throughput(
+            &mut group,
+            &cks,
+            bench_name,
+            "FheUint64",
+            "swap_claim::no_cmux",
+            swap_claim_prepare::<FheUint64, FheUint128>,
+            swap_claim_update_dex_balance_no_cmux::<FheUint64>,
+        );
         group.finish();
     }
 
