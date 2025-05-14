@@ -198,7 +198,7 @@ __global__ void improve_noise_modulus_switch(
   sum_mask_errors[threadIdx.x] = 0.f;
   sum_squared_mask_errors[threadIdx.x] = 0.f;
   auto this_block_lwe_in = array_in + indexes[blockIdx.x] * lwe_size;
-  auto this_block_lwe_out = array_out + blockIdx.x * lwe_size;
+  auto this_block_lwe_out = array_out + indexes[blockIdx.x] * lwe_size;
   Torus input_element1 = this_block_lwe_in[threadIdx.x];
 
   Torus input_element2 = threadIdx.x + blockDim.x < lwe_size
@@ -289,6 +289,7 @@ __host__ void host_improve_noise_modulus_switch(
   improve_noise_modulus_switch<Torus><<<num_blocks, num_threads, 0, stream>>>(
       array_out, array_in, indexes, zeros, lwe_size, num_zeros, input_variance,
       r_sigma, bound, log_modulus);
+
   check_cuda_error(cudaGetLastError());
 }
 

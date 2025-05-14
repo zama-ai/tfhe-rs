@@ -1149,11 +1149,20 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   uint64_t *d_degrees;
   uint32_t *d_pbs_counters;
-
+  // additional streams
+  cudaStream_t *helper_streams;
   // lookup table for extracting message and carry
   int_radix_lut<Torus> *luts_message_carry;
 
   bool mem_reuse = false;
+
+  void setup_helper_streams(uint32_t const *gpu_indexes) {
+    helper_streams =
+        (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
+    for (uint j = 0; j < active_gpu_count; j++) {
+      helper_streams[j] = cuda_create_stream(gpu_indexes[j]);
+    }
+  }
 
   void setup_index_buffers(cudaStream_t const *streams,
                            uint32_t const *gpu_indexes) {
@@ -1258,6 +1267,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->size_tracker = size_tracker;
 
     setup_index_buffers(streams, gpu_indexes);
+    setup_helper_streams(gpu_indexes);
     setup_lookup_tables(streams, gpu_indexes);
 
     // create and allocate intermediate buffers
@@ -1295,6 +1305,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->small_lwe_vector = small_lwe_vector;
 
     setup_index_buffers(streams, gpu_indexes);
+    setup_helper_streams(gpu_indexes);
     setup_lookup_tables(streams, gpu_indexes);
   }
 
@@ -1318,6 +1329,12 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                        gpu_indexes[0], gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(d_new_columns, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
+
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_destroy_stream(helper_streams[i], gpu_indexes[i]);
+    }
+
+    free(helper_streams);
 
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0], current_blocks,

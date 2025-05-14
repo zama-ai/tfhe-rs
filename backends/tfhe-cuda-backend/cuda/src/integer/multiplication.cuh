@@ -77,22 +77,23 @@ all_shifted_lhs_rhs(Torus const *radix_lwe_left, Torus *lsb_ciphertext,
   }
 }
 
-__global__ inline void radix_vec_to_columns(uint32_t *const *const columns,
-                                            uint32_t *const columns_counter,
-                                            const uint64_t *const degrees,
-                                            const uint32_t num_radix_blocks,
-                                            const uint32_t num_radix_in_vec) {
+__global__ inline void radix_vec_to_columns(
+    uint32_t *const *const columns, uint32_t *const columns_counter,
+    const uint64_t *const degrees, const uint32_t num_radix_blocks,
+    const uint32_t total_blocks_in_vec) {
 
-  const uint32_t idx = threadIdx.x;
-  size_t cnt = 0;
-  for (int i = 0; i < num_radix_in_vec; i++) {
-    size_t ct_id = i * num_radix_blocks + idx;
-    if (degrees[ct_id] != 0) {
-      columns[idx][cnt] = ct_id;
-      ++cnt;
-    }
-  }
-  columns_counter[idx] = cnt;
+  const uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (idx >= total_blocks_in_vec)
+    return;
+
+  const uint64_t degree = degrees[idx];
+  if (degree == 0)
+    return;
+
+  const uint32_t column_id = idx % num_radix_blocks;
+  const uint32_t out_idx = atomicAdd(&columns_counter[column_id], 1);
+  columns[column_id][out_idx] = idx;
 }
 
 template <typename Torus>
@@ -394,11 +395,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto d_pbs_counters = mem_ptr->d_pbs_counters;
 
   auto luts_message_carry = mem_ptr->luts_message_carry;
-
+  
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
   auto small_lwe_size = small_lwe_dimension + 1;
+  auto helper_streams = mem_ptr->helper_streams;
   auto chunk_size = mem_ptr->chunk_size;
 
   size_t total_blocks_in_vec = num_radix_blocks * num_radix_in_vec;
@@ -438,9 +440,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   int number_of_blocks =
       (total_blocks_in_vec + number_of_threads - 1) / number_of_threads;
 
-  radix_vec_to_columns<<<1, num_radix_blocks, 0, streams[0]>>>(
+  radix_vec_to_columns<<<number_of_blocks, number_of_threads, 0, streams[0]>>>(
       d_columns, d_columns_counter, d_degrees, num_radix_blocks,
-      num_radix_in_vec);
+      total_blocks_in_vec);
 
   bool needs_processing = at_least_one_column_needs_processing(
       current_blocks->degrees, num_radix_blocks, num_radix_in_vec, chunk_size);
@@ -454,21 +456,24 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   // h_pbs_counters[2] - at_leaast_one_column_needs_processing
   uint32_t *h_pbs_counters = (uint32_t *)malloc(3 * sizeof(uint32_t));
 
+  cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   while (needs_processing) {
     calculate_chunks<Torus>
         <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
             chunk_size, big_lwe_size);
 
-    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0, streams[0]>>>(
+    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0,
+                                          helper_streams[0]>>>(
         d_new_columns, d_new_columns_counter, d_pbs_indexes_in,
         d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0),
         d_pbs_counters, d_columns, d_columns_counter, chunk_size);
 
     cuda_memcpy_async_to_cpu(h_pbs_counters, d_pbs_counters,
-                             3 * sizeof(uint32_t), streams[0], gpu_indexes[0]);
+                             3 * sizeof(uint32_t), helper_streams[0],
+                             gpu_indexes[0]);
 
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    cuda_synchronize_stream(helper_streams[0], gpu_indexes[0]);
 
     const uint32_t total_ciphertexts = h_pbs_counters[0];
     const uint32_t total_messages = h_pbs_counters[1];
@@ -490,6 +495,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
         total_ciphertexts, mem_ptr->params.pbs_type, num_many_lut, lut_stride);
 
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
   }
@@ -499,13 +505,16 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           (Torus *)(radix_lwe_out->ptr), (Torus *)(current_blocks->ptr),
           d_columns, d_columns_counter, chunk_size, big_lwe_size);
 
-  prepare_final_pbs_indexes<Torus><<<1, 2 * num_radix_blocks, 0, streams[0]>>>(
-      d_pbs_indexes_in, d_pbs_indexes_out,
-      luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
+  prepare_final_pbs_indexes<Torus>
+      <<<1, 2 * num_radix_blocks, 0, helper_streams[0]>>>(
+          d_pbs_indexes_in, d_pbs_indexes_out,
+          luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
 
   cuda_memset_async(
       (Torus *)(current_blocks->ptr) + big_lwe_size * num_radix_blocks, 0,
       big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+
+  cuda_synchronize_stream(helper_streams[0], gpu_indexes[0]);
 
   execute_keyswitch_async<Torus>(
       streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr, d_pbs_indexes_in,
@@ -521,10 +530,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
       mem_ptr->params.pbs_level, mem_ptr->params.grouping_factor,
       2 * num_radix_blocks, mem_ptr->params.pbs_type, num_many_lut, lut_stride);
-
-  calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
-                          num_radix_blocks, num_radix_in_vec, chunk_size,
-                          mem_ptr->params.message_modulus);
 
   CudaRadixCiphertextFFI current_blocks_slice;
   as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
