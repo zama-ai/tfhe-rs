@@ -231,15 +231,15 @@ impl RadixCiphertext {
         &mut self,
         streams: &CudaStreams,
     ) -> &mut crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext {
-        let cpu_radix = match self {
-            Self::Cuda(cuda_ct) => {
-                if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
-                    *cuda_ct = cuda_ct.duplicate(streams);
-                }
-                return cuda_ct;
+        let cpu_radix = if let Self::Cuda(cuda_ct) = self {
+            if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                *cuda_ct = cuda_ct.duplicate(streams);
             }
-            _ => self.on_cpu(),
+            return cuda_ct;
+        } else {
+            self.on_cpu()
         };
+
         let cuda_ct =
             crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                 &cpu_radix, streams,
