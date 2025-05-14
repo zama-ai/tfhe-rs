@@ -8,7 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_unsigned::{
 use crate::integer::tests::create_parameterized_test;
 use crate::integer::{BooleanBlock, IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::TestParameters;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use std::sync::Arc;
 
 #[cfg(tarpaulin)]
@@ -56,7 +56,7 @@ where
     let sks = Arc::new(sks);
 
     let cks = RadixClientKey::from((cks, NB_CTXT));
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     dot_prod_executor.setup(&cks, sks);
 
@@ -64,13 +64,13 @@ where
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
         for _ in 0..nb_tests {
-            let vector_size = rng.gen_range(1..MAX_VEC_LEN);
+            let vector_size = rng.random_range(1..MAX_VEC_LEN);
 
             let clear_booleans = (0..vector_size)
-                .map(|_| rng.gen_bool(0.5))
+                .map(|_| rng.random_bool(0.5))
                 .collect::<Vec<_>>();
             let clear_values = (0..vector_size)
-                .map(|_| rng.gen_range(0..modulus))
+                .map(|_| rng.random_range(0..modulus))
                 .collect::<Vec<_>>();
 
             let e_booleans = clear_booleans
@@ -110,7 +110,7 @@ where
     let sks = Arc::new(sks);
 
     let cks = RadixClientKey::from((cks, NB_CTXT));
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     dot_prod_executor.setup(&cks, sks.clone());
 
@@ -118,13 +118,13 @@ where
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
         for _ in 0..nb_tests {
-            let vector_size = rng.gen_range(1..MAX_VEC_LEN);
+            let vector_size = rng.random_range(1..MAX_VEC_LEN);
 
             let mut clear_booleans = (0..vector_size)
-                .map(|_| rng.gen_bool(0.5))
+                .map(|_| rng.random_bool(0.5))
                 .collect::<Vec<_>>();
             let clear_values = (0..vector_size)
-                .map(|_| rng.gen_range(0..modulus))
+                .map(|_| rng.random_range(0..modulus))
                 .collect::<Vec<_>>();
 
             let mut e_booleans = clear_booleans
@@ -133,14 +133,14 @@ where
                 .collect::<Vec<_>>();
 
             {
-                let index = rng.gen_range(0..e_booleans.len());
-                if rng.gen_bool(0.5) {
+                let index = rng.random_range(0..e_booleans.len());
+                if rng.random_bool(0.5) {
                     e_booleans[index].0.set_noise_level(
                         NoiseLevel::NOMINAL + NoiseLevel(1),
                         params.max_noise_level(),
                     );
                 } else {
-                    let random_non_bool = rng.gen_range(0..sks.message_modulus().0);
+                    let random_non_bool = rng.random_range(0..sks.message_modulus().0);
                     e_booleans[index] = BooleanBlock(cks.encrypt_one_block(random_non_bool));
                     clear_booleans[index] = random_non_bool != 0;
                 }
@@ -179,7 +179,7 @@ where
     let sks = Arc::new(sks);
 
     let cks = RadixClientKey::from((cks, NB_CTXT));
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     dot_prod_executor.setup(&cks, sks.clone());
 
@@ -187,13 +187,13 @@ where
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
         for _ in 0..nb_tests {
-            let vector_size = rng.gen_range(1..MAX_VEC_LEN);
+            let vector_size = rng.random_range(1..MAX_VEC_LEN);
 
             let mut clear_booleans = (0..vector_size)
-                .map(|_| rng.gen_bool(0.5))
+                .map(|_| rng.random_bool(0.5))
                 .collect::<Vec<_>>();
             let clear_values = (0..vector_size)
-                .map(|_| rng.gen_range(0..modulus))
+                .map(|_| rng.random_range(0..modulus))
                 .collect::<Vec<_>>();
 
             let mut e_booleans = clear_booleans
@@ -202,14 +202,14 @@ where
                 .collect::<Vec<_>>();
 
             {
-                let index = rng.gen_range(0..e_booleans.len());
-                if rng.gen_bool(0.5) {
+                let index = rng.random_range(0..e_booleans.len());
+                if rng.random_bool(0.5) {
                     e_booleans[index].0.set_noise_level(
                         NoiseLevel::NOMINAL + NoiseLevel(1),
                         params.max_noise_level(),
                     );
                 } else {
-                    let random_non_bool = rng.gen_range(0..sks.message_modulus().0);
+                    let random_non_bool = rng.random_range(0..sks.message_modulus().0);
                     e_booleans[index] = BooleanBlock(cks.encrypt_one_block(random_non_bool));
                     clear_booleans[index] = random_non_bool != 0;
                 }

@@ -25,11 +25,11 @@ fn bench_server_key_unary_function<F>(
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
 
-        let clear_text = rng.gen::<u64>() % modulus;
+        let clear_text = rng.random::<u64>() % modulus;
 
         let mut ct = cks.encrypt(clear_text);
 
@@ -68,12 +68,12 @@ fn bench_server_key_binary_function<F>(
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
 
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
@@ -113,12 +113,12 @@ fn bench_server_key_binary_scalar_function<F>(
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
 
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ct_0 = cks.encrypt(clear_0);
 
@@ -157,15 +157,15 @@ fn bench_server_key_binary_scalar_division_function<F>(
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
         assert_ne!(modulus, 1);
 
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let mut clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let mut clear_1 = rng.random::<u64>() % modulus;
         while clear_1 == 0 {
-            clear_1 = rng.gen::<u64>() % modulus;
+            clear_1 = rng.random::<u64>() % modulus;
         }
 
         let mut ct_0 = cks.encrypt(clear_0);
@@ -198,11 +198,11 @@ fn carry_extract_bench(c: &mut Criterion) {
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
 
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
         let ct_0 = cks.encrypt(clear_0);
 
@@ -234,13 +234,13 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
         let keys = KEY_CACHE.get_from_param(*param);
         let (cks, sks) = (keys.client_key(), keys.server_key());
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let modulus = cks.parameters.message_modulus().0;
 
         let acc = sks.generate_lookup_table(|x| x);
 
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear_0);
 

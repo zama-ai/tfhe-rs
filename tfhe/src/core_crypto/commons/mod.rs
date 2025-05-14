@@ -80,14 +80,14 @@ pub mod test_tools {
     }
 
     pub fn random_seed() -> Seed {
-        Seed(rand::thread_rng().gen())
+        Seed(rand::rng().random())
     }
 
     pub struct UnsafeRandSeeder;
 
     impl Seeder for UnsafeRandSeeder {
         fn seed(&mut self) -> Seed {
-            Seed(rand::thread_rng().gen())
+            Seed(rand::rng().random())
         }
 
         fn is_available() -> bool {
@@ -240,16 +240,16 @@ pub mod test_tools {
     }
 
     pub fn random_i32_between(range: std::ops::Range<i32>) -> i32 {
-        use rand::distributions::{Distribution, Uniform};
-        let between = Uniform::from(range);
-        let mut rng = rand::thread_rng();
+        use rand::distr::{Distribution, Uniform};
+        let between = Uniform::try_from(range).expect("distribution range invalid");
+        let mut rng = rand::rng();
         between.sample(&mut rng)
     }
 
     pub fn random_usize_between(range: std::ops::Range<usize>) -> usize {
-        use rand::distributions::{Distribution, Uniform};
-        let between = Uniform::from(range);
-        let mut rng = rand::thread_rng();
+        use rand::distr::{Distribution, Uniform};
+        let between = Uniform::try_from(range).expect("distribution range invalid");
+        let mut rng = rand::rng();
         between.sample(&mut rng)
     }
 
@@ -275,7 +275,7 @@ pub mod test_tools {
         use rand_distr::{Distribution, Normal};
         const RUNS: usize = 10000;
         const SAMPLES_PER_RUN: usize = 1000;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let normal = Normal::new(0.0, 1.0).unwrap();
         let failures: f64 = (0..RUNS)
             .map(|_| {
@@ -301,11 +301,11 @@ pub mod test_tools {
     pub fn test_normality_tool_fail_uniform() {
         const RUNS: usize = 10000;
         const SAMPLES_PER_RUN: usize = 1000;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let failures: f64 = (0..RUNS)
             .map(|_| {
                 let mut samples = vec![0.0f64; SAMPLES_PER_RUN];
-                samples.iter_mut().for_each(|x| *x = rng.gen());
+                samples.iter_mut().for_each(|x| *x = rng.random());
                 if normality_test_f64(&samples, 0.05).null_hypothesis_is_valid {
                     // If we are normal return 0, it's not a failure
                     0.0

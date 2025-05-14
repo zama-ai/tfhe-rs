@@ -139,12 +139,12 @@ create_parameterized_test!(integer_unchecked_min {
 fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -157,10 +157,10 @@ fn integer_encrypt_decrypt(param: ClassicPBSParameters) {
 fn integer_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
     for _ in 0..10 {
-        let clear = rng.gen::<u128>();
+        let clear = rng.random::<u128>();
 
         let ct = cks.encrypt_radix(clear, num_block);
 
@@ -245,12 +245,12 @@ fn integer_encrypt_decrypt_256_bits_specific_values(param: ClassicPBSParameters)
 fn integer_encrypt_decrypt_256_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 256u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..10 {
-        let clear0 = rng.gen::<u128>();
-        let clear1 = rng.gen::<u128>();
+        let clear0 = rng.random::<u128>();
+        let clear1 = rng.random::<u128>();
 
         let clear = crate::integer::U256::from((clear0, clear1));
 
@@ -268,12 +268,12 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     // radix properly applies upcasting/downcasting
 
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_blocks = 32u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     // Positive signed value
-    let value = rng.gen_range(0..=i32::MAX);
+    let value = rng.random_range(0..=i32::MAX);
     let ct = cks.encrypt_signed_radix(value, num_blocks * 2);
     let d: i64 = cks.decrypt_signed_radix(&ct);
     assert_eq!(i64::from(value), d);
@@ -290,7 +290,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
 
     // Negative signed value
     for block_count in [odd_block_count, num_blocks * 2, num_blocks.div_ceil(2)] {
-        let value = rng.gen_range(i8::MIN..0);
+        let value = rng.random_range(i8::MIN..0);
         let ct = cks.encrypt_signed_radix(value, block_count);
         let d: i64 = cks.decrypt_signed_radix(&ct);
         assert_eq!(i64::from(value), d);
@@ -301,7 +301,7 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
     }
 
     // Unsigned value
-    let value = rng.gen::<u32>();
+    let value = rng.random::<u32>();
     let ct = cks.encrypt_radix(value, num_blocks * 2);
     let d: u64 = cks.decrypt_radix(&ct);
     assert_eq!(u64::from(value), d);
@@ -314,13 +314,13 @@ fn integer_encrypt_auto_cast(param: ClassicPBSParameters) {
 fn integer_smart_add_128_bits(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = 128u32.div_ceil(param.message_modulus.0.ilog2()) as usize;
 
     for _ in 0..100 {
-        let clear_0 = rng.gen::<u128>();
+        let clear_0 = rng.random::<u128>();
 
-        let clear_1 = rng.gen::<u128>();
+        let clear_1 = rng.random::<u128>();
 
         println!("{clear_0} {clear_1}");
 
@@ -407,7 +407,7 @@ where
 fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -415,9 +415,9 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
     let scalar_modulus = param.message_modulus.0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let scalar = rng.gen::<u64>() % scalar_modulus;
+        let scalar = rng.random::<u64>() % scalar_modulus;
 
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -433,7 +433,7 @@ fn integer_unchecked_small_scalar_mul(param: ClassicPBSParameters) {
 fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -442,9 +442,9 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
 
     let mut clear_res;
     for _ in 0..NB_TESTS_SMALLER {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let scalar = rng.gen::<u64>() % scalar_modulus;
+        let scalar = rng.random::<u64>() % scalar_modulus;
 
         let mut ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -466,15 +466,15 @@ fn integer_smart_small_scalar_mul(param: ClassicPBSParameters) {
 fn integer_blockshift(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let power = rng.gen::<u64>() % NB_CTXT as u64;
+        let power = rng.random::<u64>() % NB_CTXT as u64;
 
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -493,15 +493,15 @@ fn integer_blockshift(param: ClassicPBSParameters) {
 fn integer_blockshift_right(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let power = rng.gen::<u64>() % NB_CTXT as u64;
+        let power = rng.random::<u64>() % NB_CTXT as u64;
 
         let ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -520,15 +520,15 @@ fn integer_blockshift_right(param: ClassicPBSParameters) {
 fn integer_smart_scalar_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let scalar = rng.gen::<u64>() % modulus;
+        let scalar = rng.random::<u64>() % modulus;
 
         let mut ct = cks.encrypt_radix(clear, NB_CTXT);
 
@@ -594,7 +594,7 @@ where
 fn integer_smart_block_mul(param: ClassicPBSParameters) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus.0.pow(NB_CTXT as u32);
@@ -603,8 +603,8 @@ fn integer_smart_block_mul(param: ClassicPBSParameters) {
 
     for _ in 0..5 {
         // Define the cleartexts
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % block_modulus;
+        let clear1 = rng.random::<u64>() % modulus;
+        let clear2 = rng.random::<u64>() % block_modulus;
 
         // Encrypt the integers
         let ctxt_1 = cks.encrypt_radix(clear1, NB_CTXT);
@@ -681,7 +681,7 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
     // The purpose here is to check the behaviour when the scalar value has less bits
     // than the ciphertext.
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let num_block = (128_f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
@@ -689,8 +689,8 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 
     // Check addition
     // --------------
-    let scalar = rng.gen::<u64>();
-    let clear_0 = rng.gen::<u128>();
+    let scalar = rng.random::<u64>();
+    let clear_0 = rng.random::<u128>();
     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
     let ct_res = sks.unchecked_scalar_add(&ct_0, scalar);
@@ -700,8 +700,8 @@ fn integer_unchecked_scalar_decomposition_overflow(param: ClassicPBSParameters) 
 
     // Check subtraction
     // -----------------
-    let scalar = rng.gen::<u64>();
-    let clear_0 = rng.gen::<u128>();
+    let scalar = rng.random::<u64>();
+    let clear_0 = rng.random::<u128>();
     let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
     let ct_res = sks.unchecked_scalar_sub(&ct_0, scalar);
@@ -718,7 +718,7 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
     // Since smart_scalar_mul is a slow operation, we test against only one parameters set.
     // If overflow occurs the test case will panic.
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
@@ -726,8 +726,8 @@ fn integer_smart_scalar_mul_decomposition_overflow() {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let scalar = rng.gen::<u64>();
-    let clear_0 = rng.gen::<u128>();
+    let scalar = rng.random::<u64>();
+    let clear_0 = rng.random::<u128>();
     let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
 
     let ct_res = sks.smart_scalar_mul(&mut ct_0, scalar);

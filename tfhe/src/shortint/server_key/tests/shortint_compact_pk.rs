@@ -100,14 +100,14 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = pk.encrypt_slice(&[clear_0]);
         let ctxt_1 = pk.encrypt_slice(&[clear_1]);
@@ -154,7 +154,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompactPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
@@ -164,12 +164,12 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
     let mut second_clear_vec = Vec::with_capacity(max_ct);
 
     for _ in 0..(NB_TESTS / 2).min(5) {
-        let num_ct_for_this_iter = rng.gen_range(1..=max_ct);
+        let num_ct_for_this_iter = rng.random_range(1..=max_ct);
         first_clear_vec.truncate(0);
         second_clear_vec.truncate(0);
         for _ in 0..num_ct_for_this_iter {
-            let clear_0 = rng.gen::<u64>() % modulus;
-            let clear_1 = rng.gen::<u64>() % modulus;
+            let clear_0 = rng.random::<u64>() % modulus;
+            let clear_1 = rng.random::<u64>() % modulus;
 
             first_clear_vec.push(clear_0);
             second_clear_vec.push(clear_1);

@@ -8,10 +8,10 @@ mod gpu;
 
 #[allow(clippy::eq_op)]
 fn test_case_int32_compare(cks: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
-    let clear_a = rng.gen::<i32>();
-    let clear_b = rng.gen::<i32>();
+    let clear_a = rng.random::<i32>();
+    let clear_b = rng.random::<i32>();
 
     let a = FheInt32::encrypt(clear_a, cks);
     let b = FheInt32::encrypt(clear_b, cks);
@@ -104,9 +104,9 @@ fn test_case_int32_compare(cks: &ClientKey) {
 }
 
 fn test_case_int32_bitwise(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<i32>();
-    let clear_b = rng.gen::<i32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<i32>();
+    let clear_b = rng.random::<i32>();
 
     let a = FheInt32::try_encrypt(clear_a, cks).unwrap();
     let b = FheInt32::try_encrypt(clear_b, cks).unwrap();
@@ -173,9 +173,9 @@ fn test_case_int32_bitwise(cks: &ClientKey) {
 }
 
 fn test_case_int64_rotate(cks: &ClientKey) {
-    let mut rng = thread_rng();
-    let clear_a = rng.gen::<i64>();
-    let clear_b = rng.gen_range(0u32..64u32);
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<i64>();
+    let clear_b = rng.random_range(0u32..64u32);
 
     let a = FheInt64::try_encrypt(clear_a, cks).unwrap();
     let b = FheUint64::try_encrypt(clear_b, cks).unwrap();
@@ -224,10 +224,10 @@ fn test_case_int64_rotate(cks: &ClientKey) {
 }
 
 fn test_case_int32_div_rem(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<i32>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<i32>();
     let clear_b = loop {
-        let value = rng.gen::<i32>();
+        let value = rng.random::<i32>();
         if value != 0 {
             break value;
         }
@@ -292,10 +292,13 @@ fn test_case_int32_div_rem(cks: &ClientKey) {
 }
 
 fn test_case_integer_casting(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Ensure casting works for both negative and positive values
-    for clear in [rng.gen_range(i16::MIN..0), rng.gen_range(0..=i16::MAX)] {
+    for clear in [
+        rng.random_range(i16::MIN..0),
+        rng.random_range(0..=i16::MAX),
+    ] {
         // Downcasting then Upcasting
         {
             let a = FheInt16::encrypt(clear, cks);
@@ -367,10 +370,10 @@ fn test_case_integer_casting(cks: &ClientKey) {
 }
 
 fn test_case_if_then_else(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let clear_a = rng.gen::<i8>();
-    let clear_b = rng.gen::<i8>();
+    let clear_a = rng.random::<i8>();
+    let clear_b = rng.random::<i8>();
 
     let a = FheInt8::encrypt(clear_a, cks);
     let b = FheInt8::encrypt(clear_b, cks);
@@ -391,9 +394,12 @@ fn test_case_if_then_else(cks: &ClientKey) {
 }
 
 fn test_case_abs(cks: &ClientKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    for clear in [rng.gen_range(i64::MIN..0), rng.gen_range(0..=i64::MAX)] {
+    for clear in [
+        rng.random_range(i64::MIN..0),
+        rng.random_range(0..=i64::MAX),
+    ] {
         let a = FheInt64::encrypt(clear, cks);
         let abs_a = a.abs();
         let decrypted_result: i64 = abs_a.decrypt(cks);
@@ -410,9 +416,9 @@ fn test_case_integer_compress_decompress(cks: &ClientKey) {
 }
 
 fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
-        let clear_a = rng.gen::<i32>();
+        let clear_a = rng.random::<i32>();
         let a = FheInt32::try_encrypt(clear_a, cks).unwrap();
 
         let leading_zeros: u32 = a.leading_zeros().decrypt(cks);
@@ -430,9 +436,9 @@ fn test_case_leading_trailing_zeros_ones(cks: &ClientKey) {
 }
 
 fn test_case_ilog2(cks: &ClientKey) {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
     for _ in 0..5 {
-        let clear_a = rng.gen_range(1..=i32::MAX);
+        let clear_a = rng.random_range(1..=i32::MAX);
         let a = FheInt32::try_encrypt(clear_a, cks).unwrap();
 
         let ilog2: u32 = a.ilog2().decrypt(cks);
@@ -446,7 +452,7 @@ fn test_case_ilog2(cks: &ClientKey) {
     }
 
     for _ in 0..5 {
-        let a = FheInt32::try_encrypt(rng.gen_range(i32::MIN..=0), cks).unwrap();
+        let a = FheInt32::try_encrypt(rng.random_range(i32::MIN..=0), cks).unwrap();
 
         let (_ilog2, is_ok) = a.checked_ilog2();
         let is_ok = is_ok.decrypt(cks);

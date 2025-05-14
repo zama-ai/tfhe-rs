@@ -16,7 +16,7 @@ use crate::{
     CompressedFheInt32, ConfigBuilder, DeserializationConfig, FheInt256, FheInt32,
     FheInt32ConformanceParams, FheInt8, SerializationConfig,
 };
-use rand::{random, thread_rng, Rng};
+use rand::{random, rng, Rng};
 
 #[test]
 fn test_signed_integer_compressed() {
@@ -32,14 +32,14 @@ fn test_signed_integer_compressed() {
 
 #[test]
 fn test_integer_compressed_small() {
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     let config =
         ConfigBuilder::with_custom_parameters(TEST_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128)
             .build();
     let (client_key, _) = generate_keys(config);
 
-    let clear = rng.gen::<i16>();
+    let clear = rng.random::<i16>();
     let compressed = CompressedFheInt16::try_encrypt(clear, &client_key).unwrap();
     let decompressed = compressed.decompress();
     let clear_decompressed: i16 = decompressed.decrypt(&client_key);

@@ -8,7 +8,6 @@ use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, Criterion};
 use rand::prelude::*;
-use rand::thread_rng;
 use std::ops::{Add, Div, Mul, Sub};
 use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
@@ -166,18 +165,18 @@ mod pbs_stats {
             &'a FheType,
         ) -> (FheType, FheType, FheType, FheType),
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let from_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let from_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -247,18 +246,18 @@ mod pbs_stats {
             &'a FheType,
         ) -> (FheType, FheType),
     {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let pending_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let pending_1_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_dex_token_0_in = rng.gen::<u64>();
-        let total_dex_token_1_in = rng.gen::<u64>();
-        let total_dex_token_0_out = rng.gen::<u64>();
-        let total_dex_token_1_out = rng.gen::<u64>();
-        let old_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let old_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_dex_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let pending_0_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let pending_1_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_dex_token_0_in = rng.random::<u64>();
+        let total_dex_token_1_in = rng.random::<u64>();
+        let total_dex_token_0_out = rng.random::<u64>();
+        let total_dex_token_1_out = rng.random::<u64>();
+        let old_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let old_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_dex_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         #[cfg(feature = "gpu")]
         configure_gpu(client_key);
@@ -338,18 +337,18 @@ fn bench_swap_request_latency<FheType, F>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let from_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let from_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let to_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let amount_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let from_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let from_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let to_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let amount_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         b.iter(|| {
             let (_, _, _, _) = swap_request_func(
@@ -407,18 +406,18 @@ fn bench_swap_claim_latency<FheType, F>(
 
     let bench_id = format!("{bench_name}::{fn_name}::{type_name}");
     c.bench_function(&bench_id, |b| {
-        let mut rng = thread_rng();
+        let mut rng = rand::rng();
 
-        let pending_0_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let pending_1_in = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let total_token_0_in = rng.gen::<u64>();
-        let total_token_1_in = rng.gen::<u64>();
-        let total_token_0_out = rng.gen::<u64>();
-        let total_token_1_out = rng.gen::<u64>();
-        let old_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let old_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_0 = FheType::encrypt(rng.gen::<u64>(), client_key);
-        let current_balance_1 = FheType::encrypt(rng.gen::<u64>(), client_key);
+        let pending_0_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let pending_1_in = FheType::encrypt(rng.random::<u64>(), client_key);
+        let total_token_0_in = rng.random::<u64>();
+        let total_token_1_in = rng.random::<u64>();
+        let total_token_0_out = rng.random::<u64>();
+        let total_token_1_out = rng.random::<u64>();
+        let old_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let old_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_0 = FheType::encrypt(rng.random::<u64>(), client_key);
+        let current_balance_1 = FheType::encrypt(rng.random::<u64>(), client_key);
 
         b.iter(|| {
             let (_, _) = swap_claim_func(

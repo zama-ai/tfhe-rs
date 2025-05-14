@@ -64,10 +64,10 @@ fn big_radix_encrypt_decrypt_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = PublicKey::new(&cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let clear = rng.gen::<u128>();
+    let clear = rng.random::<u128>();
 
     let ct = public_key.encrypt_radix(clear, num_block);
 
@@ -80,10 +80,10 @@ fn radix_encrypt_decrypt_compressed_128_bits(param: ClassicPBSParameters) {
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let public_key = CompressedPublicKey::new(&cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = (128f64 / (param.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
-    let clear = rng.gen::<u128>();
+    let clear = rng.random::<u128>();
 
     let ct = public_key.encrypt_radix(clear, num_block);
 
@@ -104,17 +104,17 @@ fn radix_encrypt_decrypt_compact_128_bits_list(params: ClassicPBSParameters) {
     let (cks, sks) = gen_keys(params, IntegerKeyKind::Radix);
     let pk = crate::integer::public_key::CompactPublicKey::new(&cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block = (128f64 / (params.message_modulus.0 as f64).log(2.0)).ceil() as usize;
 
     const MAX_CT: usize = 20;
 
     let mut clear_vec = Vec::with_capacity(MAX_CT);
     for _ in 0..25 {
-        let num_ct_for_this_iter = rng.gen_range(1..=MAX_CT);
+        let num_ct_for_this_iter = rng.random_range(1..=MAX_CT);
         clear_vec.truncate(0);
         for _ in 0..num_ct_for_this_iter {
-            let clear = rng.gen::<u128>();
+            let clear = rng.random::<u128>();
             clear_vec.push(clear);
         }
 

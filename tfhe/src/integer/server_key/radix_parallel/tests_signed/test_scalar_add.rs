@@ -56,7 +56,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -79,8 +79,8 @@ where
     }
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
+        let clear_1 = rng.random::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
@@ -109,15 +109,15 @@ where
 
     let mut clear;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for num_blocks in 1..MAX_NB_CTXT {
         // message_modulus^vec_length
         let modulus = (cks.parameters().message_modulus().0.pow(num_blocks as u32) / 2) as i64;
 
         for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
+            let clear_0 = rng.random::<i64>() % modulus;
+            let clear_1 = rng.random::<i64>() % modulus;
 
             let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
 
@@ -157,7 +157,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -205,8 +205,8 @@ where
         }
 
         for _ in 0..nb_tests_smaller {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
+            let clear_0 = rng.random::<i64>() % modulus;
+            let clear_1 = rng.random::<i64>() % modulus;
 
             let ctxt_0 = cks.encrypt_signed_radix(clear_0, num_blocks);
 
@@ -271,8 +271,8 @@ where
 
         // Test with trivial inputs
         for _ in 0..4 {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen::<i64>() % modulus;
+            let clear_0 = rng.random::<i64>() % modulus;
+            let clear_1 = rng.random::<i64>() % modulus;
 
             let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, num_blocks);
 
@@ -304,8 +304,8 @@ where
 
         // Test with scalar that is bigger than ciphertext modulus
         for _ in 0..2 {
-            let clear_0 = rng.gen::<i64>() % modulus;
-            let clear_1 = rng.gen_range(modulus..=i64::MAX);
+            let clear_0 = rng.random::<i64>() % modulus;
+            let clear_1 = rng.random_range(modulus..=i64::MAX);
 
             let a = cks.encrypt_signed_radix(clear_0, num_blocks);
 

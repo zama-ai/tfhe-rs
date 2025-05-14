@@ -46,7 +46,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -58,12 +58,12 @@ where
         let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
         assert!(modulus.is_power_of_two());
         for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
+            let clear = rng.random::<u64>() % modulus;
             let ct = cks.encrypt_radix(clear, num_blocks);
 
             // case when 0 <= rotate < nb_bits
             {
-                let clear_shift = rng.gen_range(0..num_blocks as u32);
+                let clear_shift = rng.random_range(0..num_blocks as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert_eq!(encrypted_result.blocks.len(), num_blocks);
@@ -96,7 +96,7 @@ where
 
             // case when shift >= nb_bits
             {
-                let clear_shift = rng.gen_range(num_blocks as u32..modulus as u32);
+                let clear_shift = rng.random_range(num_blocks as u32..modulus as u32);
                 let shift = sks.create_trivial_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert!(
@@ -142,7 +142,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -154,12 +154,12 @@ where
         let modulus = cks.parameters().message_modulus().0.pow(num_blocks as u32);
         assert!(modulus.is_power_of_two());
         for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
+            let clear = rng.random::<u64>() % modulus;
             let ct = cks.encrypt_radix(clear, num_blocks);
 
             // case when 0 <= rotate < nb_bits
             {
-                let clear_shift = rng.gen_range(0..num_blocks as u32);
+                let clear_shift = rng.random_range(0..num_blocks as u32);
                 let shift = cks.encrypt_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert_eq!(encrypted_result.blocks.len(), num_blocks);
@@ -192,7 +192,7 @@ where
 
             // case when shift >= nb_bits
             {
-                let clear_shift = rng.gen_range(num_blocks as u32..modulus as u32);
+                let clear_shift = rng.random_range(num_blocks as u32..modulus as u32);
                 let shift = sks.create_trivial_radix(clear_shift as u64, num_blocks);
                 let encrypted_result = executor.execute((&ct, &shift));
                 assert!(

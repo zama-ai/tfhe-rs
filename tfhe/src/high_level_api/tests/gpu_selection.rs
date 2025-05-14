@@ -13,12 +13,12 @@ fn test_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
-    let clear_a: u32 = rng.gen();
-    let clear_b: u32 = rng.gen();
+    let clear_a: u32 = rng.random();
+    let clear_b: u32 = rng.random();
 
     let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
     let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();
@@ -72,13 +72,13 @@ fn test_gpu_selection_2() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let first_gpu = GpuIndex::new(0);
     let last_gpu = GpuIndex::new(get_number_of_gpus() - 1);
 
-    let clear_a: u32 = rng.gen();
-    let clear_b: u32 = rng.gen();
+    let clear_a: u32 = rng.random();
+    let clear_b: u32 = rng.random();
 
     let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
     let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();
@@ -125,10 +125,10 @@ fn test_specific_gpu_selection() {
     let keys = ClientKey::generate(config);
     let compressed_server_keys = CompressedServerKey::new(&keys);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let total_gpus = get_number_of_gpus() as usize;
-    let num_gpus_to_use = rng.gen_range(1..=get_number_of_gpus()) as usize;
+    let num_gpus_to_use = rng.random_range(1..=get_number_of_gpus()) as usize;
 
     // Randomly sample num_gpus_to_use indices
     let selected_indices = rand::seq::index::sample(&mut rng, total_gpus, num_gpus_to_use);
@@ -141,8 +141,8 @@ fn test_specific_gpu_selection() {
             .collect(),
     );
 
-    let clear_a: u32 = rng.gen();
-    let clear_b: u32 = rng.gen();
+    let clear_a: u32 = rng.random();
+    let clear_b: u32 = rng.random();
 
     let mut a = FheUint32::try_encrypt(clear_a, &keys).unwrap();
     let mut b = FheUint32::try_encrypt(clear_b, &keys).unwrap();

@@ -58,7 +58,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -66,10 +66,10 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<usize>() % NB_CTXT;
-        let range_b = rng.gen::<usize>() % NB_CTXT;
+        let range_a = rng.random::<u32>() as usize % NB_CTXT;
+        let range_b = rng.random::<u32>() as usize % NB_CTXT;
 
         let (block_start, block_end) = if range_a < range_b {
             (range_a, range_b)
@@ -102,7 +102,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -110,10 +110,10 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % (NB_CTXT as u32);
-        let range_b = rng.gen::<u32>() % (NB_CTXT as u32);
+        let range_a = rng.random::<u32>() % (NB_CTXT as u32);
+        let range_b = rng.random::<u32>() % (NB_CTXT as u32);
 
         let (block_start, block_end) = if range_a < range_b {
             (range_a, range_b)
@@ -149,7 +149,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -157,10 +157,10 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -193,7 +193,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -201,10 +201,10 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -237,7 +237,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -245,10 +245,10 @@ where
     executor.setup(&cks, sks.clone());
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -287,7 +287,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -295,10 +295,10 @@ where
     executor.setup(&cks, sks.clone());
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -337,7 +337,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -345,10 +345,10 @@ where
     executor.setup(&cks, sks.clone());
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)
@@ -387,7 +387,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = param.message_modulus().0.pow(NB_CTXT as u32);
@@ -395,10 +395,10 @@ where
     executor.setup(&cks, sks.clone());
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
-        let range_a = rng.gen::<u32>() % modulus.ilog2();
-        let range_b = rng.gen::<u32>() % modulus.ilog2();
+        let range_a = rng.random::<u32>() % modulus.ilog2();
+        let range_b = rng.random::<u32>() % modulus.ilog2();
 
         let (range_start, range_end) = if range_a < range_b {
             (range_a, range_b)

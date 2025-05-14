@@ -105,12 +105,12 @@ where
 
     let (cks, sks) = gen_keys_gpu(p, &stream);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..4 {
-        let clear_a = rng.gen_range((u128::from(u64::MAX) + 1)..=u128::MAX);
-        let smaller_clear = rng.gen::<u64>();
-        let bigger_clear = rng.gen::<U256>();
+        let clear_a = rng.random_range((u128::from(u64::MAX) + 1)..=u128::MAX);
+        let smaller_clear = rng.random::<u64>();
+        let bigger_clear = rng.random::<U256>();
 
         let a = cks.encrypt_radix(clear_a, num_block);
         // Copy to the GPU
@@ -236,11 +236,11 @@ where
     let (cks, sks) = gen_keys_gpu(p, &stream);
     let message_modulus = cks.parameters().message_modulus().0;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..4 {
-        let clear_a = rng.gen_range(0..message_modulus);
-        let clear_b = rng.gen_range(0..message_modulus);
+        let clear_a = rng.random_range(0..message_modulus);
+        let clear_b = rng.random_range(0..message_modulus);
 
         let a = cks.encrypt_radix(clear_a, num_block);
         // Copy to the GPU
