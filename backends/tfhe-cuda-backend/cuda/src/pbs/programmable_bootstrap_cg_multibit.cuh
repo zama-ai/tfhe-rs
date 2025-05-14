@@ -118,7 +118,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 
     add_to_torus<Torus, params>(accumulator_fft, accumulator_rotated, true);
   }
-
+  __syncthreads();
   auto accumulator = accumulator_rotated;
 
   if (blockIdx.z == 0) {
