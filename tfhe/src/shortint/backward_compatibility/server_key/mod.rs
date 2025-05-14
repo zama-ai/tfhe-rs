@@ -9,9 +9,7 @@ use crate::shortint::atomic_pattern::{AtomicPatternServerKey, StandardAtomicPatt
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::server_key::*;
 use crate::shortint::{CarryModulus, CiphertextModulus, MaxNoiseLevel, MessageModulus};
-use crate::Error;
 
-use std::any::{Any, TypeId};
 use std::convert::Infallible;
 
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
@@ -82,48 +80,46 @@ pub struct ServerKeyV1 {
     pbs_order: PBSOrder,
 }
 
-impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
-    type Error = Error;
+impl Upgrade<ServerKey> for ServerKeyV1 {
+    type Error = Infallible;
 
-    fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
+    fn upgrade(self) -> Result<ServerKey, Self::Error> {
         let std_ap = StandardAtomicPatternServerKey::from_raw_parts(
             self.key_switching_key,
             self.bootstrapping_key,
             self.pbs_order,
         );
 
-        if TypeId::of::<AP>() == TypeId::of::<AtomicPatternServerKey>() {
-            let ap = AtomicPatternServerKey::Standard(std_ap);
-            let sk = ServerKey::from_raw_parts(
-                ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
-            );
-            Ok((&sk as &dyn Any)
-                .downcast_ref::<GenericServerKey<AP>>()
-                .unwrap() // We know from the TypeId that AP is of the right type so we can unwrap
-                .clone())
-        } else if TypeId::of::<AP>() == TypeId::of::<StandardAtomicPatternServerKey>() {
-            let sk = StandardServerKey::from_raw_parts(
-                std_ap,
-                self.message_modulus,
-                self.carry_modulus,
-                self.max_degree,
-                self.max_noise_level,
-            );
-            Ok((&sk as &dyn Any)
-                .downcast_ref::<GenericServerKey<AP>>()
-                .unwrap() // We know from the TypeId that AP is of the right type so we can unwrap
-                .clone())
-        } else {
-            Err(Error::new(
-                "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the classical \
-Atomic Pattern"
-                    .to_string(),
-            ))
-        }
+        let ap = AtomicPatternServerKey::Standard(std_ap);
+        let sk = ServerKey::from_raw_parts(
+            ap,
+            self.message_modulus,
+            self.carry_modulus,
+            self.max_degree,
+            self.max_noise_level,
+        );
+        Ok(sk)
+    }
+}
+
+impl Upgrade<StandardServerKey> for ServerKeyV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<StandardServerKey, Self::Error> {
+        let std_ap = StandardAtomicPatternServerKey::from_raw_parts(
+            self.key_switching_key,
+            self.bootstrapping_key,
+            self.pbs_order,
+        );
+
+        let sk = StandardServerKey::from_raw_parts(
+            std_ap,
+            self.message_modulus,
+            self.carry_modulus,
+            self.max_degree,
+            self.max_noise_level,
+        );
+        Ok(sk)
     }
 }
 

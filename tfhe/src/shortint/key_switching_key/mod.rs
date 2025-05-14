@@ -9,6 +9,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
+use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
@@ -130,15 +131,22 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
     {
         let input_secret_key: SecretEncryptionKeyView<'_> = input_key_pair.0.into();
 
+        let std_cks = output_key_pair.0.as_view().try_into().unwrap_or_else(|_| {
+            panic!(
+                "KeySwitching is not supported by the chosen atomic pattern: {:?}",
+                output_key_pair.0.atomic_pattern.kind()
+            )
+        });
+
         // Creation of the key switching key
         let key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_key_switching_key(&input_secret_key, output_key_pair.0, params)
+            engine.new_key_switching_key(&input_secret_key, std_cks, params)
         });
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
-        let full_message_modulus_output = output_key_pair.0.parameters.carry_modulus().0
-            * output_key_pair.0.parameters.message_modulus().0;
+        let full_message_modulus_output = output_key_pair.0.parameters().carry_modulus().0
+            * output_key_pair.0.parameters().message_modulus().0;
         assert!(
             full_message_modulus_input.is_power_of_two()
                 && full_message_modulus_output.is_power_of_two(),
@@ -887,15 +895,22 @@ impl<'keys> CompressedKeySwitchingKeyBuildHelper<'keys> {
     {
         let input_secret_key: SecretEncryptionKeyView<'_> = input_key_pair.0.into();
 
+        let std_cks = output_key_pair.0.as_view().try_into().unwrap_or_else(|_| {
+            panic!(
+                "KeySwitching is not supported by the chosen atomic pattern: {:?}",
+                output_key_pair.0.atomic_pattern.kind()
+            )
+        });
+
         // Creation of the key switching key
         let key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_seeded_key_switching_key(&input_secret_key, output_key_pair.0, params)
+            engine.new_seeded_key_switching_key(&input_secret_key, std_cks, params)
         });
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
-        let full_message_modulus_output = output_key_pair.0.parameters.carry_modulus().0
-            * output_key_pair.0.parameters.message_modulus().0;
+        let full_message_modulus_output = output_key_pair.0.parameters().carry_modulus().0
+            * output_key_pair.0.parameters().message_modulus().0;
         assert!(
             full_message_modulus_input.is_power_of_two()
                 && full_message_modulus_output.is_power_of_two(),
