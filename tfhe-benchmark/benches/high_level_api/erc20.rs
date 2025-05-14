@@ -27,6 +27,28 @@ pub fn transfer_whitepaper<FheType>(
     amount: &FheType,
 ) -> (FheType, FheType)
 where
+    FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType>,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
+{
+    let has_enough_funds = (from_amount).ge(amount);
+
+    let mut new_to_amount = to_amount + amount;
+    new_to_amount = has_enough_funds.if_then_else(&new_to_amount, to_amount);
+
+    let mut new_from_amount = from_amount - amount;
+    new_from_amount = has_enough_funds.if_then_else(&new_from_amount, from_amount);
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_whitepaper`].
+pub fn par_transfer_whitepaper<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
     FheType: Add<Output = FheType> + for<'a> FheOrd<&'a FheType> + Send + Sync,
     FheBool: IfThenElse<FheType>,
     for<'a> &'a FheType: Add<Output = FheType> + Sub<Output = FheType>,
@@ -493,7 +515,7 @@ fn main() {
             &cks,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
         print_transfer_pbs_counts(
@@ -514,7 +536,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -553,7 +575,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_throughput(
             &mut group,
@@ -607,7 +629,7 @@ fn main() {
             &cks,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
         print_transfer_pbs_counts(
@@ -628,7 +650,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -667,7 +689,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            transfer_whitepaper::<FheUint64>,
+            par_transfer_whitepaper::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
             &mut group,
