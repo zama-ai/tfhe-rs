@@ -47,11 +47,11 @@ fn integer_unchecked_crt_add_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
@@ -75,11 +75,11 @@ fn integer_unchecked_crt_mul_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
@@ -103,10 +103,10 @@ fn integer_unchecked_crt_neg_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
@@ -126,11 +126,11 @@ fn integer_unchecked_crt_sub_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
         let ct_one = cks.encrypt_crt(clear_1 as u64, basis.to_vec());
@@ -154,11 +154,11 @@ fn integer_unchecked_crt_scalar_add_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
@@ -181,11 +181,11 @@ fn integer_unchecked_crt_scalar_mul_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
@@ -208,11 +208,11 @@ fn integer_unchecked_crt_scalar_sub_32_bits() {
     // Use u128 to avoid overflows as the modulus is slightly larger than 32 bits
     let modulus = basis.iter().copied().map(u128::from).product::<u128>();
     let (cks, sks) = KEY_CACHE.get_from_params(PARAM, IntegerKeyKind::CRT);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u128>() % modulus;
-        let clear_1 = rng.gen::<u128>() % modulus;
+        let clear_0 = rng.random::<u128>() % modulus;
+        let clear_1 = rng.random::<u128>() % modulus;
 
         let ct_zero = cks.encrypt_crt(clear_0 as u64, basis.to_vec());
 
@@ -231,15 +231,15 @@ fn integer_unchecked_crt_mul(param: ClassicPBSParameters) {
     // generate the server-client key set
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Define CRT basis, and global modulus
     let basis = make_basis(param.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
         let ct_one = cks.encrypt_crt(clear_1, basis.clone());
@@ -260,10 +260,10 @@ fn integer_smart_crt_add(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let mut clear_0 = rng.gen::<u64>() % modulus;
-    let clear_1 = rng.gen::<u64>() % modulus;
+    let mut clear_0 = rng.random::<u64>() % modulus;
+    let clear_1 = rng.random::<u64>() % modulus;
 
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);
@@ -289,10 +289,10 @@ fn integer_smart_crt_mul(param: ClassicPBSParameters) {
 
     println!("BASIS = {basis:?}");
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let mut clear_0 = rng.gen::<u64>() % modulus;
-    let clear_1 = rng.gen::<u64>() % modulus;
+    let mut clear_0 = rng.random::<u64>() % modulus;
+    let clear_1 = rng.random::<u64>() % modulus;
 
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);
@@ -315,9 +315,9 @@ fn integer_smart_crt_neg(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let mut clear_0 = rng.gen::<u64>() % modulus;
+    let mut clear_0 = rng.random::<u64>() % modulus;
 
     let mut ct_zero = cks.encrypt_crt(clear_0, basis);
 
@@ -341,11 +341,11 @@ fn integer_smart_crt_scalar_add(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
 
@@ -365,11 +365,11 @@ fn integer_smart_crt_scalar_mul(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
 
@@ -389,10 +389,10 @@ fn integer_smart_crt_scalar_sub(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let mut clear_0 = rng.gen::<u64>() % modulus;
-    let clear_1 = rng.gen::<u64>() % modulus;
+    let mut clear_0 = rng.random::<u64>() % modulus;
+    let clear_1 = rng.random::<u64>() % modulus;
 
     let mut ct_zero = cks.encrypt_crt(clear_0, basis);
 
@@ -416,10 +416,10 @@ fn integer_smart_crt_sub(param: ClassicPBSParameters) {
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::CRT);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let mut clear_0 = rng.gen::<u64>() % modulus;
-    let clear_1 = rng.gen::<u64>() % modulus;
+    let mut clear_0 = rng.random::<u64>() % modulus;
+    let clear_1 = rng.random::<u64>() % modulus;
 
     let mut ct_zero = cks.encrypt_crt(clear_0, basis.clone());
     let mut ct_one = cks.encrypt_crt(clear_1, basis);

@@ -94,10 +94,10 @@ mod tests {
 
         let nb_tests = 10;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..nb_tests {
-            let clear = rng.gen::<u64>() % modulus;
+            let clear = rng.random::<u64>() % modulus;
 
             let ct = cks.encrypt(clear);
 

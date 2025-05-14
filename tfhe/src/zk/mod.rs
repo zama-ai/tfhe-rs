@@ -726,7 +726,7 @@ mod test {
         bad_params.carry_modulus = CarryModulus(8);
         bad_params.message_modulus = MessageModulus(8);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let crs = CompactPkeCrs::new(
             params.encryption_lwe_dimension,
@@ -759,7 +759,7 @@ mod test {
     fn test_crs_serialization() {
         let params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let crs = CompactPkeCrs::new(
             params.encryption_lwe_dimension,

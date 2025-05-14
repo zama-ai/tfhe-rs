@@ -61,7 +61,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -76,7 +76,7 @@ where
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
 
@@ -121,7 +121,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -134,7 +134,7 @@ where
     let expected_noise_levels = ExpectedNoiseLevels::new(NoiseLevel::NOMINAL, NB_CTXT);
 
     for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let mut ctxt = cks.encrypt(clear);
 
@@ -178,14 +178,14 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests_smaller {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
         panic_if_any_block_is_not_clean(&ctxt, &cks);

@@ -54,7 +54,7 @@ pub(crate) fn signed_default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks);
@@ -76,7 +76,7 @@ pub(crate) fn signed_default_count_zeros_ones_test<P, E1, E2>(
         let half_modulus = modulus / 2;
 
         for _ in 0..nb_tests {
-            let clear_a = rng.gen_range(-(half_modulus as i128)..half_modulus as i128);
+            let clear_a = rng.random_range(-(half_modulus as i128)..half_modulus as i128);
 
             // Set all bits above the modulus to 0, so the count_ones does not count them
             // mask looks like `000000000000001111111`
@@ -128,7 +128,7 @@ pub(crate) fn extensive_trivial_signed_default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks.clone());
@@ -145,7 +145,7 @@ pub(crate) fn extensive_trivial_signed_default_count_zeros_ones_test<P, E1, E2>(
         }
         let half_modulus = modulus / 2;
         for _ in 0..50 {
-            let clear_a = rng.gen_range(-(half_modulus as i128)..half_modulus as i128);
+            let clear_a = rng.random_range(-(half_modulus as i128)..half_modulus as i128);
 
             // Set all bits above the modulus to 0, so the count_ones does not count them
             // mask looks like `000000000000001111111`

@@ -557,7 +557,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for x in binary_ops.iter_mut() {
         x.0.setup(&cks, sks.clone());
@@ -633,10 +633,10 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     let scalar_rotate_shift_ops_range =
         rotate_shift_ops_range.end..rotate_shift_ops_range.end + scalar_rotate_shift_ops.len();
     let mut clear_left_vec: Vec<i64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random i64 values
+        .map(|_| rng.random()) // Generate random i64 values
         .collect();
     let mut clear_right_vec: Vec<i64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random i64 values
+        .map(|_| rng.random()) // Generate random i64 values
         .collect();
     let mut left_vec: Vec<SignedRadixCiphertext> = clear_left_vec
         .iter()
@@ -647,8 +647,8 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         .map(|&m| cks.encrypt_signed(m)) // Generate random i64 values
         .collect();
     for fn_index in 0..NB_TESTS_LONG_RUN {
-        let i = rng.gen_range(0..total_num_ops);
-        let j = rng.gen_range(0..total_num_ops);
+        let i = rng.random_range(0..total_num_ops);
+        let j = rng.random_range(0..total_num_ops);
 
         if binary_ops_range.contains(&i) {
             let index = i - binary_ops_range.start;
@@ -976,7 +976,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
-            let clear_bool: bool = rng.gen_bool(0.5);
+            let clear_bool: bool = rng.random_bool(0.5);
             let bool_input = cks.encrypt_bool(clear_bool);
 
             let res = select_op_executor.execute((&bool_input, &left_vec[i], &right_vec[i]));

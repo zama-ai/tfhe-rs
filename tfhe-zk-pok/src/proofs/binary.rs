@@ -52,9 +52,9 @@ pub fn crs_gen<G: Curve>(message_len: usize, rng: &mut dyn RngCore) -> PublicPar
     let alpha = G::Zp::rand(rng);
     PublicParams {
         g_lists: GroupElements::new(message_len, alpha),
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
     }
 }
 

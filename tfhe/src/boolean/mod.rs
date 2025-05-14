@@ -81,10 +81,10 @@ pub(crate) const PLAINTEXT_FALSE: u32 = 7 << (32 - PLAINTEXT_LOG_SCALING_FACTOR)
 #[cfg(test)]
 pub(crate) fn random_boolean() -> bool {
     // create a random generator
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // generate a random bit
-    let n: u32 = (rng.gen::<u32>()) % 2;
+    let n: u32 = (rng.random::<u32>()) % 2;
 
     // convert it to boolean and return
     n != 0
@@ -94,10 +94,10 @@ pub(crate) fn random_boolean() -> bool {
 #[cfg(test)]
 pub(crate) fn random_integer() -> u32 {
     // create a random generator
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // generate a random u32
-    rng.gen::<u32>()
+    rng.random::<u32>()
 }
 
 /// Generate a couple of client and server keys with the default cryptographic parameters:

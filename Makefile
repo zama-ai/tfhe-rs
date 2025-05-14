@@ -8,7 +8,7 @@ CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
 CARGO_PROFILE?=release
 MIN_RUST_VERSION:=$(shell grep '^rust-version[[:space:]]*=' tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)
 AVX512_SUPPORT?=OFF
-WASM_RUSTFLAGS:=
+WASM_RUSTFLAGS?=--cfg getrandom_backend=\"wasm_js\"
 BIG_TESTS_INSTANCE?=FALSE
 GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSE
 GEN_KEY_CACHE_COVERAGE_ONLY?=FALSE
@@ -1146,7 +1146,7 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
-	
+
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -1516,7 +1516,7 @@ test_fft_no_std_nightly: install_rs_check_toolchain
 
 .PHONY: test_fft_node_js
 test_fft_node_js: install_rs_build_toolchain install_build_wasm32_target install_wasm_bindgen_cli
-	RUSTFLAGS="" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
+	RUSTFLAGS="$(WASM_RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --release \
 		--features=serde --target wasm32-unknown-unknown -p tfhe-fft
 
 .PHONY: test_fft_node_js_ci

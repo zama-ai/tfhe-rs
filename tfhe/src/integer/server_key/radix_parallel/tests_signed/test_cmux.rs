@@ -72,7 +72,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as i64 / 2;
@@ -80,9 +80,9 @@ where
     executor.setup(&cks, sks.clone());
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = rng.gen::<i64>() % modulus;
-        let clear_condition = rng.gen_bool(0.5);
+        let clear_0 = rng.random::<i64>() % modulus;
+        let clear_1 = rng.random::<i64>() % modulus;
+        let clear_condition = rng.random_bool(0.5);
 
         let mut ctxt_0 = cks.encrypt_signed(clear_0);
         let mut ctxt_1 = cks.encrypt_signed(clear_1);
@@ -97,8 +97,8 @@ where
         let ct_res2 = executor.execute((&ctxt_condition, &ctxt_0, &ctxt_1));
         assert_eq!(ct_res, ct_res2, "Operation is not deterministic");
 
-        let clear_2 = rng.gen::<i64>() % modulus;
-        let clear_3 = rng.gen::<i64>() % modulus;
+        let clear_2 = rng.random::<i64>() % modulus;
+        let clear_3 = rng.random::<i64>() % modulus;
 
         let ctxt_2 = cks.encrypt_signed(clear_2);
         let ctxt_3 = cks.encrypt_signed(clear_3);
@@ -181,7 +181,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as i64 / 2;
@@ -189,9 +189,9 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = rng.gen::<i64>() % modulus;
-        let clear_condition = rng.gen_bool(0.5);
+        let clear_0 = rng.random::<i64>() % modulus;
+        let clear_1 = rng.random::<i64>() % modulus;
+        let clear_condition = rng.random_bool(0.5);
 
         let ctxt_condition = cks.encrypt_bool(clear_condition);
 
@@ -224,7 +224,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as i64 / 2;
@@ -232,9 +232,9 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
-        let clear_1 = rng.gen::<i64>() % modulus;
-        let clear_condition = rng.gen_bool(0.5);
+        let clear_0 = rng.random::<i64>() % modulus;
+        let clear_1 = rng.random::<i64>() % modulus;
+        let clear_condition = rng.random_bool(0.5);
 
         let ctxt_0 = cks.encrypt_signed(clear_0);
         let ctxt_1 = cks.encrypt_signed(clear_1);

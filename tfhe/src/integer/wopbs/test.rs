@@ -56,7 +56,7 @@ create_parameterized_test!(wopbs_radix);
 
 // test wopbs fake crt with different degree for each Ct
 pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
 
@@ -72,12 +72,12 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % msg_space;
+        let clear1 = rng.random::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
-                * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
+                * ((rng.random::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
         let res = cks.decrypt_crt(&ct1);
@@ -102,7 +102,7 @@ pub fn wopbs_crt(params: (ClassicPBSParameters, WopbsParameters)) {
 // This checks we do not generate a LUT constant equal to 0, as used to be the case with this
 // threshold-like LUT
 pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
 
@@ -122,12 +122,12 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % msg_space;
+        let clear1 = rng.random::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
         //artificially modify the degree
         for ct in ct1.blocks.iter_mut() {
             let degree = params.0.message_modulus.0
-                * ((rng.gen::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
+                * ((rng.random::<u64>() % (params.0.carry_modulus.0 - 1)) + 1);
             ct.degree = Degree::new(degree);
         }
         let sanity_dec = cks.decrypt_crt(&ct1);
@@ -151,7 +151,7 @@ pub fn wopbs_crt_non_reg(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs radix with different degree for each Ct
 pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let nb_block = 2;
 
@@ -165,7 +165,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
     let mut tmp = 0;
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % msg_space;
+        let clear1 = rng.random::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
 
         // //artificially modify the degree
@@ -187,7 +187,7 @@ pub fn wopbs_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs radix with different degree for each Ct
 pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let nb_block = 2;
 
@@ -200,16 +200,16 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
     }
 
     for _ in 0..NB_TESTS {
-        let mut clear1 = rng.gen::<u64>() % msg_space;
-        let mut clear2 = rng.gen::<u64>() % msg_space;
+        let mut clear1 = rng.random::<u64>() % msg_space;
+        let mut clear2 = rng.random::<u64>() % msg_space;
 
         let mut ct1 = cks.encrypt_radix(clear1, nb_block);
-        let scalar = rng.gen::<u64>() % msg_space;
+        let scalar = rng.random::<u64>() % msg_space;
         sks.smart_scalar_add_assign(&mut ct1, scalar);
         let dec1: u64 = cks.decrypt_radix(&ct1);
 
         let mut ct2 = cks.encrypt_radix(clear2, nb_block);
-        let scalar = rng.gen::<u64>() % msg_space;
+        let scalar = rng.random::<u64>() % msg_space;
         sks.smart_scalar_add_assign(&mut ct2, scalar);
         let dec2: u64 = cks.decrypt_radix(&ct2);
 
@@ -227,7 +227,7 @@ pub fn wopbs_bivariate_radix(params: (ClassicPBSParameters, WopbsParameters)) {
 
 // test wopbs bivariate fake crt with different degree for each Ct
 pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let basis = make_basis(params.1.message_modulus.0);
     let modulus = basis.iter().product::<u64>();
@@ -241,8 +241,8 @@ pub fn wopbs_bivariate_crt(params: (ClassicPBSParameters, WopbsParameters)) {
     }
 
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % msg_space;
-        let clear2 = rng.gen::<u64>() % msg_space;
+        let clear1 = rng.random::<u64>() % msg_space;
+        let clear2 = rng.random::<u64>() % msg_space;
         let mut ct1 = cks.encrypt_crt(clear1, basis.clone());
         let mut ct2 = cks.encrypt_crt(clear2, basis.clone());
         //artificially modify the degree

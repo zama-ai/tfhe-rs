@@ -27,10 +27,10 @@ where
 {
     let mut bench_group = c.benchmark_group(type_name);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
-    let lhs = FheType::encrypt(rng.gen(), client_key);
-    let rhs = FheType::encrypt(rng.gen(), client_key);
+    let lhs = FheType::encrypt(rng.random(), client_key);
+    let rhs = FheType::encrypt(rng.random(), client_key);
 
     let mut name = String::with_capacity(255);
 

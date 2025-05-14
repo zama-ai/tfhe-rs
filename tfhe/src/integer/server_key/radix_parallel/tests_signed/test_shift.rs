@@ -39,7 +39,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -50,7 +50,7 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
+        let mut clear = rng.random::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
 
@@ -62,7 +62,7 @@ where
         {
             // Here we create a encrypted shift value in range O..nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
-            let clear_shift = rng.gen::<u32>() % nb_bits;
+            let clear_shift = rng.random::<u32>() % nb_bits;
             let tmp = cks.encrypt(clear_shift);
             let mut shift = cks.encrypt(0u32);
             sks.unchecked_add_assign(&mut shift, &tmp);
@@ -85,7 +85,7 @@ where
         {
             // Here we create a encrypted shift value >= nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
-            let mut clear_shift = rng.gen::<u32>() % nb_bits;
+            let mut clear_shift = rng.random::<u32>() % nb_bits;
             let tmp = cks.encrypt(clear_shift);
             let mut shift = cks.encrypt(nb_bits);
             sks.unchecked_add_assign(&mut shift, &tmp);
@@ -130,7 +130,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -141,7 +141,7 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
+        let mut clear = rng.random::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
 
@@ -153,7 +153,7 @@ where
         {
             // Here we create a encrypted shift value in range O..nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
-            let clear_shift = rng.gen::<u32>() % nb_bits;
+            let clear_shift = rng.random::<u32>() % nb_bits;
             let tmp = cks.encrypt(clear_shift);
             let mut shift = cks.encrypt(0u32);
             sks.unchecked_add_assign(&mut shift, &tmp);
@@ -176,7 +176,7 @@ where
         {
             // Here we create a encrypted shift value >= nb_bits
             // in a way that the shift ciphertext is seen as having non empty carries
-            let mut clear_shift = rng.gen::<u32>() % nb_bits;
+            let mut clear_shift = rng.random::<u32>() % nb_bits;
             let tmp = cks.encrypt(clear_shift);
             let mut shift = cks.encrypt(nb_bits);
             sks.unchecked_add_assign(&mut shift, &tmp);
@@ -220,7 +220,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -231,8 +231,8 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<i64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt_signed(clear);
 
@@ -282,7 +282,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -293,8 +293,8 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<i64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt_signed(clear);
 

@@ -1220,7 +1220,7 @@ mod test {
     use crate::shortint::parameters::{AtomicPatternKind, PARAM_MESSAGE_2_CARRY_2_KS_PBS};
     use crate::shortint::{CiphertextModulus, PBSOrder};
     use crate::{generate_keys, set_server_key, ConfigBuilder, FheUint8};
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     type IndexedParameterAccessor<Ct, T> = dyn Fn(usize, &mut Ct) -> &mut T;
 
@@ -1327,7 +1327,7 @@ mod test {
             PARAM_MESSAGE_2_CARRY_2_KS_PBS,
         )));
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         let num_blocks = ct.ciphertext.on_cpu().blocks.len();
 
@@ -1338,7 +1338,7 @@ mod test {
                 ct_clone.ciphertext.as_cpu_mut().blocks[i]
                     .ct
                     .as_mut()
-                    .fill_with(|| rng.gen::<u64>());
+                    .fill_with(|| rng.random::<u64>());
             }
 
             assert!(ct.is_conformant(&FheUintConformanceParams::from(

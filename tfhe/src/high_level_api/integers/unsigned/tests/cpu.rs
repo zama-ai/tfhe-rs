@@ -140,9 +140,9 @@ fn test_small_uint128() {
 
     let (cks, sks) = generate_keys(config);
 
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen::<u128>();
-    let clear_b = rng.gen::<u128>();
+    let mut rng = rand::rng();
+    let clear_a = rng.random::<u128>();
+    let clear_b = rng.random::<u128>();
 
     let a = FheUint128::try_encrypt(clear_a, &cks).unwrap();
     let b = FheUint128::try_encrypt(clear_b, &cks).unwrap();
@@ -248,8 +248,8 @@ fn test_integer_casting() {
 
     set_server_key(server_key);
 
-    let mut rng = rand::thread_rng();
-    let clear = rng.gen::<u16>();
+    let mut rng = rand::rng();
+    let clear = rng.random::<u16>();
 
     // Downcasting then Upcasting
     {
@@ -291,7 +291,7 @@ fn test_integer_casting() {
 
     // Downcasting to smaller signed integer then Upcasting back to unsigned
     {
-        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let clear = rng.random_range((i16::MAX) as u16 + 1..u16::MAX);
         let a = FheUint16::encrypt(clear, &client_key);
 
         // Downcasting
@@ -306,7 +306,7 @@ fn test_integer_casting() {
     }
 
     {
-        let clear = rng.gen_range(i16::MIN..0);
+        let clear = rng.random_range(i16::MIN..0);
         let a = FheInt16::encrypt(clear, &client_key);
 
         // Upcasting
@@ -317,7 +317,7 @@ fn test_integer_casting() {
 
     // Upcasting to bigger signed integer then downcasting back to unsigned
     {
-        let clear = rng.gen_range((i16::MAX) as u16 + 1..u16::MAX);
+        let clear = rng.random_range((i16::MAX) as u16 + 1..u16::MAX);
         let a = FheUint16::encrypt(clear, &client_key);
 
         // Upcasting
@@ -403,7 +403,7 @@ fn test_safe_deserialize_conformant_fhe_uint32() {
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
 
-    let clear_a = random::<u32>();
+    let clear_a = rand::random::<u32>();
     let a = FheUint32::encrypt(clear_a, &client_key);
     let mut serialized = vec![];
     SerializationConfig::new(1 << 20)
@@ -427,7 +427,7 @@ fn test_safe_deserialize_conformant_compressed_fhe_uint32() {
         generate_keys(ConfigBuilder::with_custom_parameters(block_params));
     set_server_key(server_key.clone());
 
-    let clear_a = random::<u32>();
+    let clear_a = rand::random::<u32>();
     let a = CompressedFheUint32::encrypt(clear_a, &client_key);
     let mut serialized = vec![];
     SerializationConfig::new(1 << 20)
@@ -453,7 +453,11 @@ fn test_safe_deserialize_conformant_compact_fhe_uint32() {
     set_server_key(server_key);
     let pk = CompactPublicKey::new(&client_key);
 
-    let clears = [random::<u32>(), random::<u32>(), random::<u32>()];
+    let clears = [
+        rand::random::<u32>(),
+        rand::random::<u32>(),
+        rand::random::<u32>(),
+    ];
     let a = CompactCiphertextList::builder(&pk)
         .extend(clears.iter().copied())
         .build();
@@ -500,9 +504,9 @@ fn test_cpk_encrypt_cast_compute_hl() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let input_msg: u64 = rng.gen_range(0..modulus);
+    let input_msg: u64 = rng.random_range(0..modulus);
 
     let pk = CompactPublicKey::new(&client_key);
 
@@ -519,7 +523,7 @@ fn test_cpk_encrypt_cast_compute_hl() {
     let sanity_cast: u64 = ct1_extracted_and_cast.decrypt(&client_key);
     assert_eq!(sanity_cast, input_msg);
 
-    let multiplier = rng.gen_range(0..modulus);
+    let multiplier = rng.random_range(0..modulus);
 
     // Classical AP: DP, KS, PBS
     let mul = &ct1_extracted_and_cast * multiplier as u8;
@@ -552,9 +556,9 @@ fn test_compressed_cpk_encrypt_cast_compute_hl() {
     set_server_key(server_key);
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let input_msg: u64 = rng.gen_range(0..modulus);
+    let input_msg: u64 = rng.random_range(0..modulus);
 
     let compressed_pk = CompressedCompactPublicKey::new(&client_key);
     let pk = compressed_pk.decompress();
@@ -572,7 +576,7 @@ fn test_compressed_cpk_encrypt_cast_compute_hl() {
     let sanity_cast: u64 = ct1_extracted_and_cast.decrypt(&client_key);
     assert_eq!(sanity_cast, input_msg);
 
-    let multiplier = rng.gen_range(0..modulus);
+    let multiplier = rng.random_range(0..modulus);
 
     // Classical AP: DP, KS, PBS
     let mul = &ct1_extracted_and_cast * multiplier as u8;

@@ -22,22 +22,22 @@ fn test_compressed_list_with_strings() {
 
     let cks = StringClientKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let printable_ascii_range = 32..=126u8; // Range of printable chars
 
     for _ in 0..NB_TESTS {
-        let len = rng.gen_range(0..MAX_STRING_SIZE);
+        let len = rng.random_range(0..MAX_STRING_SIZE);
         let ascci_bytes = (0..len)
-            .map(|_| rng.gen_range(printable_ascii_range.clone()))
+            .map(|_| rng.random_range(printable_ascii_range.clone()))
             .collect::<Vec<_>>();
         let clear_string1 = String::from_utf8(ascci_bytes).unwrap();
         let string1 = cks.encrypt_ascii(&clear_string1, None);
 
-        let len = rng.gen_range(0..MAX_STRING_SIZE);
-        let padding = rng.gen_range(0..MAX_PADDING_SIZE);
+        let len = rng.random_range(0..MAX_STRING_SIZE);
+        let padding = rng.random_range(0..MAX_PADDING_SIZE);
         let ascci_bytes = (0..len)
-            .map(|_| rng.gen_range(printable_ascii_range.clone()))
+            .map(|_| rng.random_range(printable_ascii_range.clone()))
             .collect::<Vec<_>>();
         let clear_string2 = String::from_utf8(ascci_bytes).unwrap();
         let string2 = cks.encrypt_ascii(&clear_string2, Some(padding));

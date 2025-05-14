@@ -52,7 +52,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks);
@@ -66,7 +66,7 @@ pub(crate) fn default_count_zeros_ones_test<P, E1, E2>(
             break;
         };
         for _ in 0..nb_tests {
-            let clear_a = rng.gen::<u128>() % modulus;
+            let clear_a = rng.random::<u128>() % modulus;
 
             let a: RadixCiphertext = cks.encrypt_radix(clear_a, num_blocks);
 
@@ -110,7 +110,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     count_zeros_executor.setup(&cks, sks.clone());
     count_ones_executor.setup(&cks, sks.clone());
@@ -123,7 +123,7 @@ pub(crate) fn extensive_trivial_default_count_zeros_ones_test<P, E1, E2>(
             break;
         };
         for _ in 0..50 {
-            let clear_a = rng.gen::<u128>() % modulus;
+            let clear_a = rng.random::<u128>() % modulus;
 
             let a: RadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks as usize);
 

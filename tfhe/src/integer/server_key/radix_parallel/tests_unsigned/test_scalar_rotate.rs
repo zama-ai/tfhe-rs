@@ -60,7 +60,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -70,8 +70,8 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..(nb_tests / 3).max(1) {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -89,7 +89,7 @@ where
         {
             let rest = scalar % bits_per_block;
             let scalar = if rest == 0 {
-                scalar + (rng.gen::<u32>() % bits_per_block)
+                scalar + (rng.random::<u32>() % bits_per_block)
             } else {
                 scalar
             };
@@ -104,8 +104,8 @@ where
         // The value is non zero
         // we rotate so that at least one non zero bit, cycle/wraps around
         {
-            let value = rng.gen_range(1..=u32::MAX);
-            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let value = rng.random_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.random_range(1..nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
             assert!(encrypted_result.block_carries_are_empty());
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
@@ -126,7 +126,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -136,8 +136,8 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..(nb_tests / 3).max(1) {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -155,7 +155,7 @@ where
         {
             let rest = scalar % bits_per_block;
             let scalar = if rest == 0 {
-                scalar + (rng.gen::<u32>() % bits_per_block)
+                scalar + (rng.random::<u32>() % bits_per_block)
             } else {
                 scalar
             };
@@ -170,8 +170,8 @@ where
         // The value is non zero
         // we rotate so that at least one non zero bit, cycle/wraps around
         {
-            let value = rng.gen_range(1..=u32::MAX);
-            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let value = rng.random_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.random_range(1..nb_bits);
             let encrypted_result = executor.execute((&ct, scalar as u64));
             assert!(encrypted_result.block_carries_are_empty());
             let decrypted_result: u64 = cks.decrypt(&encrypted_result);
@@ -194,7 +194,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -204,8 +204,8 @@ where
     let bits_per_block = cks.parameters().message_modulus().0.ilog2();
 
     for _ in 0..(nb_tests / 2).max(1) {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -225,7 +225,7 @@ where
         {
             let rest = scalar % bits_per_block;
             let scalar = if rest == 0 {
-                scalar + (rng.gen::<u32>() % bits_per_block)
+                scalar + (rng.random::<u32>() % bits_per_block)
             } else {
                 scalar
             };
@@ -242,8 +242,8 @@ where
         // The value is non zero
         // we rotate so that at least one non zero bit, cycle/wraps around
         {
-            let value = rng.gen_range(1..=u32::MAX);
-            let scalar = value.trailing_zeros() + rng.gen_range(1..nb_bits);
+            let value = rng.random_range(1..=u32::MAX);
+            let scalar = value.trailing_zeros() + rng.random_range(1..nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
             let tmp = executor.execute((&ct, scalar as u64));
             assert!(ct_res.block_carries_are_empty());
@@ -268,7 +268,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32);
@@ -278,8 +278,8 @@ where
     executor.setup(&cks, sks);
 
     for _ in 0..(nb_tests / 3).max(1) {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u32>();
+        let clear = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u32>();
 
         let ct = cks.encrypt(clear);
 
@@ -299,7 +299,7 @@ where
         {
             let rest = scalar % bits_per_block;
             let scalar = if rest == 0 {
-                scalar + (rng.gen::<u32>() % bits_per_block)
+                scalar + (rng.random::<u32>() % bits_per_block)
             } else {
                 scalar
             };
@@ -316,8 +316,8 @@ where
         // The value is non zero
         // we rotate so that at least one non zero bit, cycle/wraps around
         {
-            let value = rng.gen_range(1..=u32::MAX);
-            let scalar = value.leading_zeros() + rng.gen_range(1..nb_bits);
+            let value = rng.random_range(1..=u32::MAX);
+            let scalar = value.leading_zeros() + rng.random_range(1..nb_bits);
             let ct_res = executor.execute((&ct, scalar as u64));
             let tmp = executor.execute((&ct, scalar as u64));
             assert!(ct_res.block_carries_are_empty());

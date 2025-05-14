@@ -33,7 +33,7 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
 impl<F> GpuMultiDeviceFunctionExecutor<F> {
     pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
         let num_gpus = get_number_of_gpus();
-        let gpu_index = GpuIndex::new(rand::thread_rng().gen_range(0..num_gpus));
+        let gpu_index = GpuIndex::new(rand::rng().random_range(0..num_gpus));
         let streams = CudaStreams::new_single_gpu(gpu_index);
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);

@@ -325,7 +325,7 @@ mod test {
         );
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(glwe.as_mut());
+        rand::rng().fill(glwe.as_mut());
 
         let compressed = CompressedModulusSwitchedGlweCiphertext::compress(
             &glwe,
@@ -372,7 +372,7 @@ mod test {
         );
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(glwe.as_mut());
+        rand::rng().fill(glwe.as_mut());
 
         let compressed = CompressedModulusSwitchedGlweCiphertext::compress(
             &glwe,

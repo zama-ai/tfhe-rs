@@ -14,7 +14,7 @@ fn bench_pke_v2_prove(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for ((params, param_name), load, bound) in itertools::iproduct!(
         [
@@ -54,7 +54,7 @@ fn bench_pke_v2_verify(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for ((params, param_name), load, bound) in itertools::iproduct!(
         [

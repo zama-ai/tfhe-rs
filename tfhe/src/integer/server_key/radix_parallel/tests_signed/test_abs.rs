@@ -58,7 +58,7 @@ where
 
     executor.setup(&cks, sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -83,7 +83,7 @@ where
     }
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
@@ -109,7 +109,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
     {
@@ -121,8 +121,8 @@ where
     }
 
     for _ in 0..nb_tests {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let clear_to_add = rng.gen::<i64>() % modulus;
+        let mut clear_0 = rng.random::<i64>() % modulus;
+        let clear_to_add = rng.random::<i64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt_signed(clear_0);
         sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);
@@ -150,7 +150,7 @@ where
 
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -163,8 +163,8 @@ where
     }
 
     for _ in 0..nb_tests {
-        let mut clear_0 = rng.gen::<i64>() % modulus;
-        let clear_to_add = rng.gen::<i64>() % modulus;
+        let mut clear_0 = rng.random::<i64>() % modulus;
+        let clear_to_add = rng.random::<i64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt_signed(clear_0);
         sks.unchecked_scalar_add_assign(&mut ctxt_0, clear_to_add);

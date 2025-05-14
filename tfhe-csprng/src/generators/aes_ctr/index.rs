@@ -166,21 +166,21 @@ impl Ord for TableIndex {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     const REPEATS: usize = 1_000_000;
 
     fn any_table_index() -> impl Iterator<Item = TableIndex> {
         std::iter::repeat_with(|| {
             TableIndex::new(
-                AesIndex(thread_rng().gen()),
-                ByteIndex(thread_rng().gen::<usize>() % BYTES_PER_AES_CALL),
+                AesIndex(rng().random()),
+                ByteIndex(rng().random::<u32>() as usize % BYTES_PER_AES_CALL),
             )
         })
     }
 
-    fn any_usize() -> impl Iterator<Item = usize> {
-        std::iter::repeat_with(|| thread_rng().gen())
+    fn any_usize_that_fits_in_u32() -> impl Iterator<Item = usize> {
+        std::iter::repeat_with(|| rng().random::<u32>() as usize)
     }
 
     #[test]
@@ -260,7 +260,7 @@ mod test {
     fn prop_table_index_distance_increase() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .find(|(t, inc)| {
                     (*inc as u128) < TableIndex::distance(&TableIndex::LAST, t).unwrap().0
                 })
@@ -293,7 +293,7 @@ mod test {
     fn prop_table_index_greater() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .find(|(t, inc)| {
                     (*inc as u128) < TableIndex::distance(&TableIndex::LAST, t).unwrap().0
                 })
@@ -313,7 +313,7 @@ mod test {
     fn prop_table_index_less() {
         for _ in 0..REPEATS {
             let (t, inc) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .find(|(t, inc)| {
                     (*inc as u128) < TableIndex::distance(t, &TableIndex::FIRST).unwrap().0
                 })
@@ -353,7 +353,10 @@ mod test {
     ///         increase(decrease(t, i), i) = t.
     fn prop_table_index_increase_decrease() {
         for _ in 0..REPEATS {
-            let (t, i) = any_table_index().zip(any_usize()).next().unwrap();
+            let (t, i) = any_table_index()
+                .zip(any_usize_that_fits_in_u32())
+                .next()
+                .unwrap();
             assert_eq!(t.increased(i).decreased(i), t);
         }
     }
@@ -364,7 +367,10 @@ mod test {
     ///         decrease(increase(t, i), i) = t.
     fn prop_table_index_decrease_increase() {
         for _ in 0..REPEATS {
-            let (t, i) = any_table_index().zip(any_usize()).next().unwrap();
+            let (t, i) = any_table_index()
+                .zip(any_usize_that_fits_in_u32())
+                .next()
+                .unwrap();
             assert_eq!(t.decreased(i).increased(i), t);
         }
     }

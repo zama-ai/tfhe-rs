@@ -20,10 +20,10 @@ fn test_noise_squashing() {
 
     set_server_key(sks);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // Non native type for clear
-    let clear: U256 = rng.gen();
+    let clear: U256 = rng.random();
     let enc = FheUint256::encrypt(clear, &cks);
     let bitand = &enc & &enc;
 
@@ -33,7 +33,7 @@ fn test_noise_squashing() {
     assert_eq!(clear, recovered);
 
     // Native unsigned
-    let clear: u32 = rng.gen();
+    let clear: u32 = rng.random();
     let enc = FheUint32::encrypt(clear, &cks);
     let bitand = &enc & &enc;
 
@@ -43,7 +43,7 @@ fn test_noise_squashing() {
     assert_eq!(clear, recovered);
 
     // Non native signed with proper input range
-    let clear: i16 = rng.gen_range(-1 << 9..1 << 9);
+    let clear: i16 = rng.random_range(-1 << 9..1 << 9);
     let enc = FheInt10::encrypt(clear, &cks);
     let bitand = &enc & &enc;
 
@@ -53,7 +53,7 @@ fn test_noise_squashing() {
     assert_eq!(clear, recovered);
 
     // Native signed
-    let clear: i8 = rng.gen();
+    let clear: i8 = rng.random();
     let enc = FheInt8::encrypt(clear, &cks);
     let bitand = &enc & &enc;
 

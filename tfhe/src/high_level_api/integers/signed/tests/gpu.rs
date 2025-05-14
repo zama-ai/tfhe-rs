@@ -75,9 +75,9 @@ fn test_leading_trailing_zeros_ones() {
 #[test]
 fn test_gpu_get_add_assign_size_on_gpu() {
     let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
-    let mut rng = rand::thread_rng();
-    let clear_a = rng.gen_range(1..=i32::MAX);
-    let clear_b = rng.gen_range(1..=i32::MAX);
+    let mut rng = rand::rng();
+    let clear_a = rng.random_range(1..=i32::MAX);
+    let clear_b = rng.random_range(1..=i32::MAX);
     let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
     let mut b = FheInt32::try_encrypt(clear_b, &cks).unwrap();
     a.move_to_current_device();

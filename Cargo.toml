@@ -23,11 +23,12 @@ exclude = [
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
 bytemuck = "1.14.3"
+getrandom = "0.3.3"
 dyn-stack = { version = "0.11", default-features = false }
 itertools = "0.14"
 num-complex = "0.4"
 pulp = { version = "0.21", default-features = false }
-rand = "0.8"
+rand = "0.9.1"
 rayon = "1"
 serde = { version = "1.0", default-features = false }
 wasm-bindgen = "0.2.100"

@@ -110,12 +110,12 @@ pub fn crs_gen<G: Curve>(
         big_m,
         b_i,
         q,
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
-        hash_lmap: core::array::from_fn(|_| rng.gen()),
-        hash_z: core::array::from_fn(|_| rng.gen()),
-        hash_w: core::array::from_fn(|_| rng.gen()),
+        hash: core::array::from_fn(|_| rng.random()),
+        hash_t: core::array::from_fn(|_| rng.random()),
+        hash_agg: core::array::from_fn(|_| rng.random()),
+        hash_lmap: core::array::from_fn(|_| rng.random()),
+        hash_z: core::array::from_fn(|_| rng.random()),
+        hash_w: core::array::from_fn(|_| rng.random()),
     }
 }
 
@@ -957,14 +957,14 @@ mod tests {
 
         for i in 0..big_m {
             for k in 0..d {
-                s[i + 1][k] = (rng.gen::<u64>() % (2 * b_i)) as i64 - b_i as i64;
+                s[i + 1][k] = (rng.random::<u64>() % (2 * b_i)) as i64 - b_i as i64;
             }
         }
 
         for i in 0..big_m {
             for j in 0..big_n {
                 for k in 0..d {
-                    let mut x = (rng.gen::<u64>() % q) as i64;
+                    let mut x = (rng.random::<u64>() % q) as i64;
                     if x >= q as i64 / 2 {
                         x -= q as i64;
                     }

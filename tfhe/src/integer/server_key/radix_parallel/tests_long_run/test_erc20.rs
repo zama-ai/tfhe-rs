@@ -121,7 +121,7 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_add_executor.setup(&cks, sks.clone());
     overflowing_sub_executor.setup(&cks, sks.clone());
@@ -129,9 +129,9 @@ pub(crate) fn safe_erc20_test<P, T1, T2, T3, T4>(
     bitor_executor.setup(&cks, sks);
 
     for _ in 0..NB_TESTS_LONG_RUN {
-        let clear_from_amount = rng.gen::<u64>();
-        let clear_to_amount = rng.gen::<u64>();
-        let clear_amount = rng.gen::<u64>();
+        let clear_from_amount = rng.random::<u64>();
+        let clear_to_amount = rng.random::<u64>();
+        let clear_amount = rng.random::<u64>();
 
         let from_amount = cks.encrypt(clear_from_amount);
         let to_amount = cks.encrypt(clear_to_amount);
@@ -258,7 +258,7 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     ge_executor.setup(&cks, sks.clone());
     add_executor.setup(&cks, sks.clone());
@@ -266,9 +266,9 @@ pub(crate) fn whitepaper_erc20_test<P, T1, T2, T3, T4>(
     sub_executor.setup(&cks, sks);
 
     for _ in 0..NB_TESTS_LONG_RUN {
-        let clear_from_amount = rng.gen::<u64>();
-        let clear_to_amount = rng.gen::<u64>();
-        let clear_amount = rng.gen::<u64>();
+        let clear_from_amount = rng.random::<u64>();
+        let clear_to_amount = rng.random::<u64>();
+        let clear_amount = rng.random::<u64>();
 
         let from_amount = cks.encrypt(clear_from_amount);
         let to_amount = cks.encrypt(clear_to_amount);
@@ -349,7 +349,7 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     ge_executor.setup(&cks, sks.clone());
     mul_executor.setup(&cks, sks.clone());
@@ -357,9 +357,9 @@ pub(crate) fn no_cmux_erc20_test<P, T1, T2, T3, T4>(
     sub_executor.setup(&cks, sks);
 
     for _ in 0..NB_TESTS_LONG_RUN {
-        let clear_from_amount = rng.gen::<u64>();
-        let clear_to_amount = rng.gen::<u64>();
-        let clear_amount = rng.gen::<u64>();
+        let clear_from_amount = rng.random::<u64>();
+        let clear_to_amount = rng.random::<u64>();
+        let clear_amount = rng.random::<u64>();
 
         let from_amount = cks.encrypt(clear_from_amount);
         let to_amount = cks.encrypt(clear_to_amount);
@@ -440,7 +440,7 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     overflowing_sub_executor.setup(&cks, sks.clone());
     if_then_else_executor.setup(&cks, sks.clone());
@@ -449,9 +449,9 @@ pub(crate) fn overflow_erc20_test<P, T1, T2, T3, T4, T5>(
     add_executor.setup(&cks, sks);
 
     for _ in 0..NB_TESTS_LONG_RUN {
-        let clear_from_amount = rng.gen::<u64>();
-        let clear_to_amount = rng.gen::<u64>();
-        let clear_amount = rng.gen::<u64>();
+        let clear_from_amount = rng.random::<u64>();
+        let clear_to_amount = rng.random::<u64>();
+        let clear_amount = rng.random::<u64>();
 
         let from_amount = cks.encrypt(clear_from_amount);
         let to_amount = cks.encrypt(clear_to_amount);

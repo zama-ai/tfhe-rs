@@ -38,7 +38,7 @@ where
     let param = param.into();
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
@@ -48,10 +48,10 @@ where
 
     // check when scalar is out of ciphertext MIN..=MAX
     for d in [
-        rng.gen_range(i64::MIN..-modulus),
-        rng.gen_range(modulus..=i64::MAX),
+        rng.random_range(i64::MIN..-modulus),
+        rng.random_range(modulus..=i64::MAX),
     ] {
-        for numerator in [rng.gen_range(-modulus..=0), rng.gen_range(0..modulus)] {
+        for numerator in [rng.random_range(-modulus..=0), rng.random_range(0..modulus)] {
             let ctxt_0 = cks.encrypt_signed(numerator);
 
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
@@ -64,7 +64,7 @@ where
 
     // The algorithm has a special case for when divisor is 1 or -1
     for d in [1i64, -1i64] {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed(clear_0);
 
@@ -78,7 +78,7 @@ where
     // 3 / -3 takes the second branch in the if else if series
     for d in [3, -3] {
         {
-            let neg_clear_0 = rng.gen_range(-modulus..=0);
+            let neg_clear_0 = rng.random_range(-modulus..=0);
             let ctxt_0 = cks.encrypt_signed(neg_clear_0);
             println!("{neg_clear_0} / {d}");
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
@@ -89,7 +89,7 @@ where
         }
 
         {
-            let pos_clear_0 = rng.gen_range(0..modulus);
+            let pos_clear_0 = rng.random_range(0..modulus);
             let ctxt_0 = cks.encrypt_signed(pos_clear_0);
             println!("{pos_clear_0} / {d}");
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
@@ -105,7 +105,7 @@ where
         // For param_2_2 this will take the third branch in the if else if series
         for d in [-89, 89] {
             {
-                let neg_clear_0 = rng.gen_range(-modulus..=0);
+                let neg_clear_0 = rng.random_range(-modulus..=0);
                 let ctxt_0 = cks.encrypt_signed(neg_clear_0);
                 let (q_res, r_res) = executor.execute((&ctxt_0, d));
                 let q: i64 = cks.decrypt_signed(&q_res);
@@ -115,7 +115,7 @@ where
             }
 
             {
-                let pos_clear_0 = rng.gen_range(0..modulus);
+                let pos_clear_0 = rng.random_range(0..modulus);
                 let ctxt_0 = cks.encrypt_signed(pos_clear_0);
                 println!("{pos_clear_0} / {d}");
                 let (q_res, r_res) = executor.execute((&ctxt_0, d));
@@ -140,7 +140,7 @@ where
 
     for d in [-modulus, modulus - 1] {
         {
-            let neg_clear_0 = rng.gen_range(-modulus..=0);
+            let neg_clear_0 = rng.random_range(-modulus..=0);
             let ctxt_0 = cks.encrypt_signed(neg_clear_0);
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
             let q: i64 = cks.decrypt_signed(&q_res);
@@ -150,7 +150,7 @@ where
         }
 
         {
-            let pos_clear_0 = rng.gen_range(0..modulus);
+            let pos_clear_0 = rng.random_range(0..modulus);
             let ctxt_0 = cks.encrypt_signed(pos_clear_0);
             let (q_res, r_res) = executor.execute((&ctxt_0, d));
             let q: i64 = cks.decrypt_signed(&q_res);

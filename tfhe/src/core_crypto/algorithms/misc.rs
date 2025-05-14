@@ -212,15 +212,15 @@ mod test {
     fn test_divide_funcs() {
         use rand::Rng;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const SCALING: f64 = u64::MAX as f64;
         for _ in 0..NB_TESTS {
-            let num: f64 = rng.gen();
+            let num: f64 = rng.random();
             let mut denom = 0.0f64;
             #[allow(clippy::while_float)]
             while denom == 0.0f64 {
-                denom = rng.gen();
+                denom = rng.random();
             }
 
             let num = (num * SCALING).round();
@@ -288,10 +288,10 @@ mod test {
         }
         {
             use rand::Rng;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             for _ in 0..1_000_000_000 {
-                let value: u64 = rng.gen();
+                let value: u64 = rng.random();
                 // This is an easy case where we expect the values to match exactly, to cover other
                 // cases we would be re coding the algorithms here.
                 let exact_match = value <= (1 << 53);

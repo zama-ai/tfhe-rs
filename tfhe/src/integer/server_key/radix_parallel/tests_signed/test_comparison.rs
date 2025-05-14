@@ -10,7 +10,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey};
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::prelude::*;
 use rand_distr::num_traits::WrappingAdd;
 use std::ops::Neg;
@@ -38,9 +38,9 @@ pub(crate) fn test_signed_unchecked_function<P, T, ClearF, Scalar>(
         BooleanBlock,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -71,8 +71,8 @@ pub(crate) fn test_signed_unchecked_function<P, T, ClearF, Scalar>(
     }
 
     for _ in 0..num_test {
-        let clear_a = rng.gen::<Scalar>();
-        let clear_b = rng.gen::<Scalar>();
+        let clear_a = rng.random::<Scalar>();
+        let clear_b = rng.random::<Scalar>();
 
         let a = cks.encrypt_signed(clear_a);
         let b = cks.encrypt_signed(clear_b);
@@ -116,7 +116,7 @@ pub(crate) fn test_signed_smart_function<P, T, ClearF, Scalar>(
         BooleanBlock,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -128,26 +128,26 @@ pub(crate) fn test_signed_smart_function<P, T, ClearF, Scalar>(
     let cks = RadixClientKey::from((cks, num_block));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt_signed(clear_0);
         let mut ct_1 = cks.encrypt_signed(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 = clear_0.wrapping_add(&clear_2);
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 = clear_1.wrapping_add(&clear_2);
@@ -206,7 +206,7 @@ pub(crate) fn test_signed_default_function<P, T, ClearF, Scalar>(
         BooleanBlock,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -218,26 +218,26 @@ pub(crate) fn test_signed_default_function<P, T, ClearF, Scalar>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt_signed(clear_0);
         let mut ct_1 = cks.encrypt_signed(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 = clear_0.wrapping_add(&clear_2);
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 = clear_1.wrapping_add(&clear_2);
@@ -447,9 +447,9 @@ pub(crate) fn test_signed_unchecked_minmax<P, T, ClearF, Scalar>(
         SignedRadixCiphertext,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -480,8 +480,8 @@ pub(crate) fn test_signed_unchecked_minmax<P, T, ClearF, Scalar>(
     }
 
     for _ in 0..num_test {
-        let clear_a = rng.gen::<Scalar>();
-        let clear_b = rng.gen::<Scalar>();
+        let clear_a = rng.random::<Scalar>();
+        let clear_b = rng.random::<Scalar>();
 
         let a = cks.encrypt_signed(clear_a);
         let b = cks.encrypt_signed(clear_b);
@@ -525,7 +525,7 @@ pub(crate) fn test_signed_smart_minmax<P, T, ClearF, Scalar>(
         SignedRadixCiphertext,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -537,26 +537,26 @@ pub(crate) fn test_signed_smart_minmax<P, T, ClearF, Scalar>(
     let cks = RadixClientKey::from((cks, num_block));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt_signed(clear_0);
         let mut ct_1 = cks.encrypt_signed(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 = clear_0.wrapping_add(&clear_2);
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 = clear_1.wrapping_add(&clear_2);
@@ -615,7 +615,7 @@ pub(crate) fn test_signed_default_minmax<P, T, ClearF, Scalar>(
         SignedRadixCiphertext,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_block = Scalar::BITS.div_ceil(cks.parameters().message_modulus().0.ilog2() as usize);
@@ -627,26 +627,26 @@ pub(crate) fn test_signed_default_minmax<P, T, ClearF, Scalar>(
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, num_block));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt_signed(clear_0);
         let mut ct_1 = cks.encrypt_signed(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 = clear_0.wrapping_add(&clear_2);
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt_signed(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 = clear_1.wrapping_add(&clear_2);
@@ -889,7 +889,7 @@ pub(crate) fn extensive_trivial_signed_default_comparisons_test<P, E1, E2, E3, E
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     lt_executor.setup(&cks, sks.clone());
     le_executor.setup(&cks, sks.clone());
@@ -908,8 +908,8 @@ pub(crate) fn extensive_trivial_signed_default_comparisons_test<P, E1, E2, E3, E
         }
         let modulus = modulus / 2;
         for _ in 0..25 {
-            let clear_a = rng.gen_range(0..modulus);
-            let clear_b = rng.gen_range(0..modulus);
+            let clear_a = rng.random_range(0..modulus);
+            let clear_b = rng.random_range(0..modulus);
 
             let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks);
             let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_b, num_blocks);
