@@ -103,7 +103,7 @@ impl<'key> TryFrom<&'key ClientKey> for CompactPrivateKey<&'key [u64]> {
     type Error = crate::Error;
 
     fn try_from(client_key: &'key ClientKey) -> Result<Self, Self::Error> {
-        let parameters = client_key.parameters;
+        let parameters = client_key.parameters();
         let compact_encryption_parameters: CompactPublicKeyEncryptionParameters =
             parameters.try_into()?;
 

@@ -143,7 +143,7 @@ impl ClientKey {
     }
 
     pub fn parameters(&self) -> crate::shortint::AtomicPatternParameters {
-        self.key.parameters.ap_parameters().unwrap()
+        self.key.parameters().ap_parameters().unwrap()
     }
 
     #[cfg(test)]
@@ -333,7 +333,7 @@ impl ClientKey {
             return T::ZERO;
         }
 
-        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
+        let bits_in_block = self.key.parameters().message_modulus().0.ilog2();
         let decrypted_block_iter = blocks.iter().map(|block| decrypt_block(&self.key, block));
         BlockRecomposer::recompose_unsigned(decrypted_block_iter, bits_in_block)
     }
@@ -417,7 +417,7 @@ impl ClientKey {
             return T::ZERO;
         }
 
-        let bits_in_block = self.key.parameters.message_modulus().0.ilog2();
+        let bits_in_block = self.key.parameters().message_modulus().0.ilog2();
         let decrypted_block_iter = ctxt
             .blocks
             .iter()

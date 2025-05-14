@@ -28,14 +28,14 @@ impl<'keys> CudaKeySwitchingKey<'keys> {
 
         // Creation of the key switching key
         let key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_key_switching_key(&input_secret_key.key, output_key_pair.0.as_ref(), params)
+            engine.new_key_switching_key(&input_secret_key.key, &output_key_pair.0.key, params)
         });
         let d_key_switching_key =
             CudaLweKeyswitchKey::from_lwe_keyswitch_key(&key_switching_key, streams);
         let full_message_modulus_input =
             input_secret_key.key.carry_modulus.0 * input_secret_key.key.message_modulus.0;
-        let full_message_modulus_output = output_key_pair.0.key.parameters.carry_modulus().0
-            * output_key_pair.0.key.parameters.message_modulus().0;
+        let full_message_modulus_output = output_key_pair.0.key.parameters().carry_modulus().0
+            * output_key_pair.0.key.parameters().message_modulus().0;
         assert!(
             full_message_modulus_input.is_power_of_two()
                 && full_message_modulus_output.is_power_of_two(),

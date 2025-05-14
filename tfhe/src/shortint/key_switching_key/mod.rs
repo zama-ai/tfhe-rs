@@ -137,8 +137,8 @@ impl<'keys> KeySwitchingKeyBuildHelper<'keys> {
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
-        let full_message_modulus_output = output_key_pair.0.parameters.carry_modulus().0
-            * output_key_pair.0.parameters.message_modulus().0;
+        let full_message_modulus_output = output_key_pair.0.parameters().carry_modulus().0
+            * output_key_pair.0.parameters().message_modulus().0;
         assert!(
             full_message_modulus_input.is_power_of_two()
                 && full_message_modulus_output.is_power_of_two(),
@@ -894,8 +894,8 @@ impl<'keys> CompressedKeySwitchingKeyBuildHelper<'keys> {
 
         let full_message_modulus_input =
             input_secret_key.carry_modulus.0 * input_secret_key.message_modulus.0;
-        let full_message_modulus_output = output_key_pair.0.parameters.carry_modulus().0
-            * output_key_pair.0.parameters.message_modulus().0;
+        let full_message_modulus_output = output_key_pair.0.parameters().carry_modulus().0
+            * output_key_pair.0.parameters().message_modulus().0;
         assert!(
             full_message_modulus_input.is_power_of_two()
                 && full_message_modulus_output.is_power_of_two(),

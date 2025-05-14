@@ -119,7 +119,7 @@ impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
                 .clone())
         } else {
             Err(Error::new(
-                "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the classical \
+                "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the standard \
 Atomic Pattern"
                     .to_string(),
             ))

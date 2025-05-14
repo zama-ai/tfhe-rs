@@ -3,7 +3,7 @@ use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_g
 use crate::core_crypto::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyOwned;
 use crate::shortint::atomic_pattern::standard::StandardAtomicPatternServerKey;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedStandardAtomicPatternServerKeyVersions;
-use crate::shortint::client_key::ClientKey;
+use crate::shortint::client_key::atomic_pattern::StandardAtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CiphertextModulus, LweDimension, PBSOrder, PBSParameters};
 use crate::shortint::server_key::ShortintCompressedBootstrappingKey;
@@ -22,17 +22,15 @@ pub struct CompressedStandardAtomicPatternServerKey {
 }
 
 impl CompressedStandardAtomicPatternServerKey {
-    pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
+    pub fn new(cks: &StandardAtomicPatternClientKey, engine: &mut ShortintEngine) -> Self {
         let params = &cks.parameters;
-
-        let pbs_params_base = params.pbs_parameters().unwrap();
 
         let in_key = &cks.small_lwe_secret_key();
 
         let out_key = &cks.glwe_secret_key;
 
         let bootstrapping_key_base =
-            engine.new_compressed_bootstrapping_key(pbs_params_base, in_key, out_key);
+            engine.new_compressed_bootstrapping_key(*params, in_key, out_key);
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
@@ -48,7 +46,7 @@ impl CompressedStandardAtomicPatternServerKey {
         Self::from_raw_parts(
             key_switching_key,
             bootstrapping_key_base,
-            pbs_params_base.encryption_key_choice().into(),
+            params.encryption_key_choice().into(),
         )
     }
 
