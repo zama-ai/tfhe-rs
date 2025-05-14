@@ -207,7 +207,8 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, LweSecretKey};
+    use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, LweSecretKeyView};
+    use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
     use crate::shortint::{ClientKey, ServerKey, ShortintParameterSet};
 
     use super::*;
@@ -227,31 +228,24 @@ pub(crate) mod test {
         use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
-        let (ck, sk) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+        for params in [
+            ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
+            ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
+        ] {
+            let (ck, sk) = gen_keys(params);
 
-        for seed in 0..1000 {
-            oprf_compare_plain_from_seed::<u64>(Seed(seed), &ck, &sk);
-        }
-
-        let (ck, sk) = gen_keys(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128);
-
-        for seed in 0..1000 {
-            oprf_compare_plain_from_seed::<u32>(Seed(seed), &ck, &sk);
+            for seed in 0..1000 {
+                oprf_compare_plain_from_seed(Seed(seed), &ck, &sk);
+            }
         }
     }
 
-    fn oprf_compare_plain_from_seed<Scalar: UnsignedInteger + CastFrom<u64> + CastInto<u64>>(
-        seed: Seed,
-        ck: &ClientKey,
-        sk: &ServerKey,
-    ) {
-        let params = ck.parameters;
+    fn oprf_compare_plain_from_seed(seed: Seed, ck: &ClientKey, sk: &ServerKey) {
+        let params = ck.parameters();
 
         let random_bits_count = 2;
 
         let input_p = 2 * params.polynomial_size().0 as u64;
-
-        let log_input_p = input_p.ilog2() as usize;
 
         let p_prime = 1 << random_bits_count;
 
@@ -261,32 +255,14 @@ pub(crate) mod test {
 
         let img = sk.generate_oblivious_pseudo_random(seed, random_bits_count);
 
-        let lwe_size = params.lwe_dimension().to_lwe_size();
-
-        let ct = create_random_from_seed_modulus_switched(
-            seed,
-            lwe_size,
-            params
-                .polynomial_size()
-                .to_blind_rotation_input_modulus_log(),
-            CiphertextModulus::new_native(),
-        );
-
-        let sk = LweSecretKey::from_container(
-            ck.small_lwe_secret_key()
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| Scalar::cast_from(x))
-                .collect::<Vec<_>>(),
-        );
-
-        let plain_prf_input = CastInto::<u64>::cast_into(
-            decrypt_lwe_ciphertext(&sk, &ct)
-                .0
-                .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
-                >> (Scalar::BITS - log_input_p),
-        );
+        let plain_prf_input = match &ck.atomic_pattern {
+            AtomicPatternClientKey::Standard(ap_ck) => {
+                gen_prf_input(ap_ck.small_lwe_secret_key(), seed, params)
+            }
+            AtomicPatternClientKey::KeySwitch32(ap_ck) => {
+                gen_prf_input(ap_ck.small_lwe_secret_key(), seed, params)
+            }
+        };
 
         let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
 
@@ -310,6 +286,35 @@ pub(crate) mod test {
 
         assert!(output < p_prime);
         assert_eq!(output, expected_output);
+    }
+
+    fn gen_prf_input<Scalar>(
+        sk: LweSecretKeyView<Scalar>,
+        seed: Seed,
+        params: ShortintParameterSet,
+    ) -> u64
+    where
+        Scalar: UnsignedInteger + CastFrom<u32> + CastInto<u64>,
+    {
+        let lwe_size = params.lwe_dimension().to_lwe_size();
+        let input_p = 2 * params.polynomial_size().0 as u64;
+        let log_input_p = input_p.ilog2() as usize;
+
+        let ct = create_random_from_seed_modulus_switched(
+            seed,
+            lwe_size,
+            params
+                .polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
+            CiphertextModulus::new_native(),
+        );
+
+        CastInto::<u64>::cast_into(
+            decrypt_lwe_ciphertext(&sk, &ct)
+                .0
+                .wrapping_add(Scalar::ONE << (Scalar::BITS - log_input_p - 1))
+                >> (Scalar::BITS - log_input_p),
+        )
     }
 
     #[test]

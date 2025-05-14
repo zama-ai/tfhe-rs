@@ -293,6 +293,15 @@ impl PBSParameters {
         }
     }
 
+    pub const fn encryption_lwe_dimension(&self) -> LweDimension {
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self
+                .glwe_dimension()
+                .to_equivalent_lwe_dimension(self.polynomial_size()),
+            EncryptionKeyChoice::Small => self.lwe_dimension(),
+        }
+    }
+
     pub const fn grouping_factor(&self) -> LweBskGroupingFactor {
         match self {
             Self::PBS(_) => {
