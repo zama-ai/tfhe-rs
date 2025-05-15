@@ -275,11 +275,11 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${PARAMS_TYPE}" bench_"${COMMAND}"_gpu
+          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" BENCH_PARAM_TYPE="${BENCH_PARAMS_TYPE}" bench_"${BENCH_COMMAND}"_gpu
         env:
           OP_FLAVOR: ${{ matrix.op_flavor }}
           BENCH_TYPE: ${{ matrix.bench_type }}
-          BENCH_PARAM_TYPE: ${{ matrix.params_type }}
+          BENCH_PARAMS_TYPE: ${{ matrix.params_type }}
           BENCH_COMMAND: ${{ matrix.command }}
 
       - name: Parse results
