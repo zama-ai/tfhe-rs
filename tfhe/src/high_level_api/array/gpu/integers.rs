@@ -108,11 +108,12 @@ where
     F: Send + Sync + Fn(&crate::integer::gpu::CudaServerKey, &T, &T, &CudaStreams) -> T,
 {
     GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-        let streams = &cuda_key.streams;
-        lhs.par_iter()
-            .zip(rhs.par_iter())
-            .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, rhs, streams))
-            .collect::<Vec<_>>()
+        with_thread_local_cuda_streams(|streams| {
+            lhs.par_iter()
+                .zip(rhs.par_iter())
+                .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, rhs, streams))
+                .collect::<Vec<_>>()
+        })
     }))
 }
 
@@ -169,11 +170,12 @@ where
     F: Send + Sync + Fn(&crate::integer::gpu::CudaServerKey, &T, Clear, &CudaStreams) -> T,
 {
     GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-        let streams = &cuda_key.streams;
-        lhs.par_iter()
-            .zip(rhs.par_iter())
-            .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, *rhs, streams))
-            .collect::<Vec<_>>()
+        with_thread_local_cuda_streams(|streams| {
+            lhs.par_iter()
+                .zip(rhs.par_iter())
+                .map(|(lhs, rhs)| op(cuda_key.pbs_key(), lhs, *rhs, streams))
+                .collect::<Vec<_>>()
+        })
     }))
 }
 
@@ -334,10 +336,11 @@ where
 
     fn bitnot(lhs: TensorSlice<'_, Self::Slice<'_>>) -> Self::Owned {
         GpuOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            let streams = &cuda_key.streams;
-            lhs.par_iter()
-                .map(|lhs| cuda_key.pbs_key().bitnot(lhs, streams))
-                .collect::<Vec<_>>()
+            with_thread_local_cuda_streams(|streams| {
+                lhs.par_iter()
+                    .map(|lhs| cuda_key.pbs_key().bitnot(lhs, streams))
+                    .collect::<Vec<_>>()
+            })
         }))
     }
 }

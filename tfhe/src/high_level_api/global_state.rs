@@ -201,15 +201,12 @@ pub(in crate::high_level_api) use gpu::{
 
 #[cfg(feature = "gpu")]
 pub use gpu::CudaGpuChoice;
-#[cfg(feature = "gpu")]
-pub struct CustomMultiGpuIndexes(Vec<GpuIndex>);
 
 #[cfg(feature = "gpu")]
 mod gpu {
     use crate::core_crypto::gpu::get_number_of_gpus;
 
     use super::*;
-    use itertools::Itertools;
     use std::cell::LazyCell;
 
     thread_local! {
@@ -226,14 +223,14 @@ mod gpu {
     }
 
     struct CudaStreamPool {
-        custom: Option<CudaStreams>,
+        multi: LazyCell<CudaStreams>,
         single: Vec<LazyCell<CudaStreams, Box<dyn Fn() -> CudaStreams>>>,
     }
 
     impl CudaStreamPool {
         fn new() -> Self {
             Self {
-                custom: None,
+                multi: LazyCell::new(CudaStreams::new_multi_gpu),
                 single: (0..get_number_of_gpus())
                     .map(|index| {
                         let ctor =
@@ -241,6 +238,29 @@ mod gpu {
                         LazyCell::new(ctor as Box<dyn Fn() -> CudaStreams>)
                     })
                     .collect(),
+            }
+        }
+    }
+
+    impl<'a> std::ops::Index<&'a [GpuIndex]> for CudaStreamPool {
+        type Output = CudaStreams;
+
+        fn index(&self, indexes: &'a [GpuIndex]) -> &Self::Output {
+            match indexes.len() {
+                0 => panic!("Internal error: Gpu indexes must not be empty"),
+                1 => &self.single[indexes[0].get() as usize],
+                _ => &self.multi,
+            }
+        }
+    }
+
+    impl std::ops::Index<CudaGpuChoice> for CudaStreamPool {
+        type Output = CudaStreams;
+
+        fn index(&self, choice: CudaGpuChoice) -> &Self::Output {
+            match choice {
+                CudaGpuChoice::Multi => &self.multi,
+                CudaGpuChoice::Single(index) => &self.single[index.get() as usize],
             }
         }
     }
@@ -255,44 +275,15 @@ mod gpu {
         thread_local! {
             static POOL: RefCell<CudaStreamPool> = RefCell::new(CudaStreamPool::new());
         }
-
-        if gpu_indexes.len() == 1 {
-            POOL.with_borrow(|pool| func(&pool.single[gpu_indexes[0].get() as usize]))
-        } else {
-            POOL.with_borrow_mut(|pool| match &pool.custom {
-                Some(streams) if streams.gpu_indexes != gpu_indexes => {
-                    pool.custom = Some(CudaStreams::new_multi_gpu_with_indexes(gpu_indexes));
-                }
-                None => {
-                    pool.custom = Some(CudaStreams::new_multi_gpu_with_indexes(gpu_indexes));
-                }
-                _ => {}
-            });
-
-            POOL.with_borrow(|pool| func(pool.custom.as_ref().unwrap()))
-        }
+        POOL.with_borrow(|stream_pool| {
+            let stream = &stream_pool[gpu_indexes];
+            func(stream)
+        })
     }
-
-    impl Clone for CustomMultiGpuIndexes {
-        fn clone(&self) -> Self {
-            self.0.iter().copied().collect_vec().into()
-        }
-    }
-
-    impl CustomMultiGpuIndexes {
-        pub fn new(indexes: Vec<GpuIndex>) -> Self {
-            Self(indexes)
-        }
-        pub fn gpu_indexes(&self) -> &[GpuIndex] {
-            self.0.as_slice()
-        }
-    }
-
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     pub enum CudaGpuChoice {
         Single(GpuIndex),
         Multi,
-        Custom(CustomMultiGpuIndexes),
     }
 
     impl From<GpuIndex> for CudaGpuChoice {
@@ -301,24 +292,11 @@ mod gpu {
         }
     }
 
-    impl From<Vec<GpuIndex>> for CustomMultiGpuIndexes {
-        fn from(value: Vec<GpuIndex>) -> Self {
-            Self(value)
-        }
-    }
-
-    impl From<CustomMultiGpuIndexes> for CudaGpuChoice {
-        fn from(values: CustomMultiGpuIndexes) -> Self {
-            Self::Custom(values)
-        }
-    }
-
     impl CudaGpuChoice {
         pub(in crate::high_level_api) fn build_streams(self) -> CudaStreams {
             match self {
                 Self::Single(idx) => CudaStreams::new_single_gpu(idx),
                 Self::Multi => CudaStreams::new_multi_gpu(),
-                Self::Custom(idxs) => CudaStreams::new_multi_gpu_with_indexes(idxs.gpu_indexes()),
             }
         }
     }
