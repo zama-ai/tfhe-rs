@@ -1,4 +1,4 @@
-# Tfhe-hpu-mockup
+# TFHE-hpu-mockup
 
 ## Brief 
 Simulation _drop-in-replacement_ implementation of HPU Hardware.
@@ -22,9 +22,9 @@ Without hardware support `tfhe-hpu-backend` falls back to a simulation FFI inter
 
 On its side, the mockup answers to backend IPC requests and simulates the hardware behavior.
 The internal structure of the mockup is organized around modules to emulate the hardware behavior. It contains the following modules:
-* `memory`: Emulate memory such as Ddr and Hbm (only from a behavioral point of view). It enables to allocate/release chunk of memory. Those chunks could be read/write through the IPC with the same Sync mechanisms as the real hardware.
-* `regmap`: Emulate the RTL register map. It converts concrete TFHE/RTL parameters into register value.
-* `ucore`: Emulate the ucore behavior. It is in charge of reading the DOp stream from the HBM and patching the template operations in a same manner as it is done in the real hardware, to get the same patched DOp ucode.
+* `memory`: Emulates memory such as Ddr and Hbm (only from a behavioral point of view). It enables to allocate/release chunk of memory. Those chunks could be read/write through the IPC with the same Sync mechanisms as the real hardware.
+* `regmap`: Emulates the RTL register map. It converts concrete TFHE/RTL parameters into register value.
+* `ucore`: Emulates the ucore behavior. It is in charge of reading the DOp stream from the HBM and patching the template operations in a same manner as it is done in the real hardware, to get the same patched DOp ucode.
 
 > NB: Modeling of the `instruction_scheduler` is required for efficient firmware generation and thus directly done inside `tfhe-hpu-backend` crate in `isc_sim` modules. The mockup reuse this implementation directly.
 

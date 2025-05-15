@@ -1,13 +1,13 @@
-# Tfhe-hpu-backend
+# TFHE-hpu-backend
 
 ## Brief
-The `tfhe-hpu-backend` holds the code for the HPU acceleration of Zama's variant of TFHE.
+The `tfhe-hpu-backend` holds the code to interface with the HPU accelerator of TFHE.
 It contains a `HpuDevice` abstraction that enables easy configuration and dispatching of TFHE operations on the HPU accelerator.
 
 The user API exposes the following functions for hardware setup:
-- `HpuDevice::new`, `HpuDevice::from_config`: Instantiate abstraction device from configuration file.
-- `HpuDevice::init`: Configure and upload the required public material.
-- `new_var_from`: Create a HPU ciphertext from `tfhe-rs` ciphertext.
+- `HpuDevice::new`, `HpuDevice::from_config`: Instantiates abstraction device from configuration file.
+- `HpuDevice::init`: Configures and uploads the required public material.
+- `new_var_from`: Creates a HPU ciphertext from `tfhe-rs` ciphertext.
 
 HPU device could also be used from `integer` with the help of the following function:
 - `tfhe::integer::hpu::init_device`: Init given HPU device with server key.
@@ -24,18 +24,18 @@ These objects implement the `std::ops` trait and could be used to dispatch opera
 
 ### Backend structure
 `tfhe-hpu-backend` is split in various modules:
-- `entities`: Define structure handled by HPU accelerator. Conversion traits from/into those objects are implemented in `tfhe-rs`.
-- `asm`: Describe assembly-like language for the HPU. It enables abstract HPU behavior and easily updates it through micro-code.
-- `fw`: Abstraction to help the micro-code designer. Use a simple rust program for describing new HPU operations. Help with register/heap management.
+- `entities`: Defines structure handled by HPU accelerator. Conversion traits from/into those objects are implemented in `tfhe-rs`.
+- `asm`: Describes assembly-like language for the HPU. It enables abstract HPU behavior and easily updates it through micro-code.
+- `fw`: Abstraction to help the micro-code designer. Uses a simple rust program for describing new HPU operations. Helps with register/heap management.
 - `interface`:
   + `device`: High-level structure that exposes the User API.
   + `backend`: Inner private structure that contains HPU modules
-  + `variable`: Wrap HPU ciphertexts. It enables to hook an hardware object lifetime within the `rust` borrow-checker.
-  + `memory`: Handle on-board memory allocation and synchronization
-  + `config`: Help to configure HPU accelerator through a TOML configuration file
-  + `cmd`: Translate operation over `variable` in concrete HPU commands
-  + `regmap`: Communicate with the HPU internal register with ease.
-  + `rtl`: Define concrete `rust` structure populated from HPU's status/configuration registers
+  + `variable`: Wraps HPU ciphertexts. It enables to hook an hardware object lifetime within the `rust` borrow-checker.
+  + `memory`: Handles on-board memory allocation and synchronization
+  + `config`: Helps to configure HPU accelerator through a TOML configuration file
+  + `cmd`: Translates operation over `variable` in concrete HPU commands
+  + `regmap`: Communicates with the HPU internal register with ease.
+  + `rtl`: Defines concrete `rust` structure populated from HPU's status/configuration registers
 
 
 Below is an overview of the internal structure of the Backend.
