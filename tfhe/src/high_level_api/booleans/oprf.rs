@@ -1,5 +1,7 @@
 use super::{FheBool, InnerBoolean};
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -39,8 +41,7 @@ impl FheBool {
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => {
-                let streams = &cuda_key.streams;
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -51,7 +52,7 @@ impl FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            }
+            }),
         });
         Self::new(ciphertext, tag)
     }
