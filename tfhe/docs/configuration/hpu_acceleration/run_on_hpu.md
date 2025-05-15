@@ -6,8 +6,8 @@ This guide explains how to update your existing program to leverage HPU accelera
 
 ## Prerequisites
 
-* an [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
-* a HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/README.md)
+* An [AMD/Xilinx V80 board](https://www.amd.com/en/products/accelerators/alveo/v80.html) installed on a server running Linux with kernel 5.15.0-\*
+* A HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/README.md)
 * AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
 * QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
 * Rust version - check this [page](../rust_configuration.md)
