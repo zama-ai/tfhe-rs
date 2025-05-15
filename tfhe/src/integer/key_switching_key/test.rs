@@ -205,9 +205,9 @@ fn test_case_cpk_encrypt_cast_compute(
     );
 
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let input_msg: u64 = rng.gen_range(0..modulus);
+    let input_msg: u64 = rng.random_range(0..modulus);
 
     // Encrypt a value and cast
     let ct1 = pk.encrypt_radix_compact(input_msg, num_block);
@@ -224,7 +224,7 @@ fn test_case_cpk_encrypt_cast_compute(
     let sanity_pbs: u64 = cks_fhe.decrypt_radix(&ct1_extracted_and_cast);
     assert_eq!(sanity_pbs, input_msg);
 
-    let multiplier = rng.gen_range(0..modulus);
+    let multiplier = rng.random_range(0..modulus);
 
     // Classical AP: DP, KS, PBS
     sks_fhe.scalar_mul_assign_parallelized(&mut ct1_extracted_and_cast, multiplier);

@@ -1105,7 +1105,7 @@ mod tests {
             for base_n in [32, n, n / 2, n / 4, n / 8] {
                 for _ in 0..10 {
                     let mut z = vec![c64::default(); n];
-                    let degree = random::<usize>() % n;
+                    let degree = random::<u32>() as usize % n;
                     z[degree] = c64 { re: 1.0, im: 0.0 };
 
                     let plan = Plan::new(
@@ -1178,8 +1178,8 @@ mod tests {
         let mut z = vec![c64::default(); n];
 
         for z in &mut z {
-            z.re = rng.gen_range(0.0..1.0);
-            z.im = rng.gen_range(0.0..1.0);
+            z.re = rng.random_range(0.0..1.0);
+            z.im = rng.random_range(0.0..1.0);
         }
 
         let plan = Plan::new(

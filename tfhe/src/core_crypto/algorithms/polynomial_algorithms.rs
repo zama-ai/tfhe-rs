@@ -1309,7 +1309,7 @@ mod test {
 
     fn test_multiply_divide_unit_monomial<T: UnsignedTorus>() {
         //! tests if multiply_by_monomial and divide_by_monomial cancel each other
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut generator = new_random_generator();
 
         // settings
@@ -1325,7 +1325,7 @@ mod test {
         let ground_truth = poly.clone();
 
         // generate a random r
-        let mut r: usize = rng.gen();
+        let mut r = rng.random::<u32>() as usize;
         r %= polynomial_size;
 
         // multiply by X^r and then divides by X^r
@@ -1336,7 +1336,7 @@ mod test {
         assert_eq!(&poly, &ground_truth);
 
         // generate a random r_big
-        let mut r_big: usize = rng.gen();
+        let mut r_big = rng.random::<u32>() as usize;
         r_big = r_big % polynomial_size + 2048;
 
         // multiply by X^r_big and then divides by X^r_big
@@ -1360,10 +1360,10 @@ mod test {
         // 50 times the test
         for _ in 0..50 {
             // random source
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             // random settings settings
-            let polynomial_log = (rng.gen::<usize>() % 7) + 6;
+            let polynomial_log = (rng.random::<u32>() as usize % 7) + 6;
             let polynomial_size = PolynomialSize(1 << polynomial_log);
             let mut generator = new_random_generator();
 

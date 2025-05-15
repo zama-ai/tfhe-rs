@@ -3273,7 +3273,7 @@ mod test {
         let mut secret_random_generator = test_tools::new_secret_random_generator();
         let mut encryption_random_generator = test_tools::new_encryption_random_generator();
 
-        let mut thread_rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..10_000 {
             let lwe_sk =
@@ -3289,7 +3289,7 @@ mod test {
                 &mut encryption_random_generator,
             );
 
-            let msg: u64 = thread_rng.gen();
+            let msg: u64 = rng.random();
             let msg = msg % 16;
 
             let plaintext = Plaintext(msg << 60);
@@ -3332,11 +3332,11 @@ mod test {
         );
         let ciphertext_modulus = CiphertextModulus::new_native();
 
-        let mut thread_rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..100 {
             // We'll encrypt between 1 and 4 * lwe_dimension ciphertexts
-            let ct_count: usize = thread_rng.gen();
+            let ct_count = rng.random::<u32>() as usize;
             let ct_count = ct_count % (lwe_dimension.0 * 4) + 1;
             let lwe_ciphertext_count = LweCiphertextCount(ct_count);
 
@@ -3346,7 +3346,7 @@ mod test {
             let mut input_plaintext_list =
                 PlaintextList::new(0u64, PlaintextCount(lwe_ciphertext_count.0));
             input_plaintext_list.iter_mut().for_each(|x| {
-                let msg: u64 = thread_rng.gen();
+                let msg: u64 = rng.random();
                 *x.0 = (msg % 16) << 60;
             });
 

@@ -201,8 +201,8 @@ pub fn four_squares(v: u128) -> [u64; 4] {
         let b = v.isqrt() as u64;
 
         'main_loop: loop {
-            let x = 2 + rng.gen::<u64>() % (b - 2);
-            let y = 2 + rng.gen::<u64>() % (b - 2);
+            let x = 2 + rng.random::<u64>() % (b - 2);
+            let y = 2 + rng.random::<u64>() % (b - 2);
 
             let (sum, o) = u128::overflowing_add(sqr(x), sqr(y));
             if o || sum > v {
@@ -229,7 +229,7 @@ pub fn four_squares(v: u128) -> [u64; 4] {
             let s = s;
 
             let mont = Montgomery::new(p);
-            let a = 2 + (rng.gen::<u128>() % (p - 3));
+            let a = 2 + (rng.random::<u128>() % (p - 3));
 
             let mut sqrt = 0;
             {

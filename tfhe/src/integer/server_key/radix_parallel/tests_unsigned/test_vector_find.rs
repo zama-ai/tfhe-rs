@@ -246,7 +246,7 @@ fn make_one_ciphertext_have_carries(
     }
 
     loop {
-        let i = rng.gen_range(0..cts.len());
+        let i = rng.random_range(0..cts.len());
         // Don't change the cell that has the value to be found
         if clears[i] != value_to_avoid {
             let clear_0 = random_non_zero_value(rng, modulus);
@@ -271,7 +271,7 @@ fn draw_unique_randoms_into_with_an_exclusion(
     modulus: u64,
 ) {
     while unique_numbers.len() < num_values {
-        let random_number = rng.gen_range(0..modulus);
+        let random_number = rng.random_range(0..modulus);
         if random_number == excluded_value {
             continue;
         }
@@ -288,14 +288,14 @@ fn draw_unique_randoms_into_with_an_inclusion(
     modulus: u64,
 ) {
     while unique_numbers.len() < num_values.saturating_sub(1) {
-        let random_number = rng.gen_range(0..modulus);
+        let random_number = rng.random_range(0..modulus);
 
         unique_numbers.insert(random_number);
     }
 
     if unique_numbers.contains(&included_value) {
         loop {
-            let new_value = rng.gen_range(0..modulus);
+            let new_value = rng.random_range(0..modulus);
             if new_value != included_value && unique_numbers.insert(new_value) {
                 break;
             }
@@ -347,7 +347,7 @@ fn draw_unique_randoms(
 
     let mut numbers = unique_numbers.into_iter().collect::<Vec<u64>>();
     for _ in 0..occurrence_count.saturating_sub(1) {
-        numbers.insert(rng.gen_range(0..numbers.len()), special_value);
+        numbers.insert(rng.random_range(0..numbers.len()), special_value);
     }
 
     assert_eq!(numbers.len(), num_values);
@@ -368,7 +368,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -382,8 +382,8 @@ where
 
         let empty_lut = MatchValues::new(vec![]).unwrap();
         let inputs = [
-            cks.encrypt(rng.gen_range(0..modulus)),
-            sks.create_trivial_radix(rng.gen_range(0..modulus), NB_CTXT),
+            cks.encrypt(rng.random_range(0..modulus)),
+            sks.create_trivial_radix(rng.random_range(0..modulus), NB_CTXT),
         ];
         for ct in inputs {
             let (result, is_ok) = executor.execute((&ct, &empty_lut));
@@ -413,7 +413,7 @@ where
             .collect::<Vec<_>>();
         let lut = MatchValues::new(vec).unwrap();
 
-        let inputs = [cks.encrypt(rng.gen_range(0..block_msg_modulus))];
+        let inputs = [cks.encrypt(rng.random_range(0..block_msg_modulus))];
         for ct in inputs {
             let (result, is_ok) = executor.execute((&ct, &lut));
 
@@ -434,13 +434,13 @@ where
     for i in 0..nb_tests {
         lut.clear();
 
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
-            let output = rng.gen_range(0..modulus);
+            let output = rng.random_range(0..modulus);
             lut.push((input, output));
         }
 
@@ -485,7 +485,7 @@ where
     let sks = Arc::new(sks);
 
     let cks = RadixClientKey::from((cks, NB_CTXT));
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -500,7 +500,7 @@ where
     for i in 0..nb_tests {
         lut.clear();
 
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -508,12 +508,12 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN);
+        let num_values = rng.random_range(1..MAX_VEC_LEN);
         let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
-            let output = rng.gen_range(0..modulus);
+            let output = rng.random_range(0..modulus);
             lut.push((input, output));
         }
 
@@ -555,7 +555,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -566,10 +566,10 @@ where
     {
         let empty_lut = MatchValues::new(vec![]).unwrap();
         let inputs = [
-            cks.encrypt(rng.gen_range(0..modulus)),
-            sks.create_trivial_radix(rng.gen_range(0..modulus), NB_CTXT),
+            cks.encrypt(rng.random_range(0..modulus)),
+            sks.create_trivial_radix(rng.random_range(0..modulus), NB_CTXT),
         ];
-        let default_value = rng.gen_range(0..modulus);
+        let default_value = rng.random_range(0..modulus);
         let expected_len = sks.num_blocks_to_represent_unsigned_value(default_value);
 
         for ct in inputs {
@@ -598,7 +598,7 @@ where
             .collect::<Vec<_>>();
         let lut = MatchValues::new(vec).unwrap();
 
-        let inputs = [cks.encrypt(rng.gen_range(0..block_msg_modulus))];
+        let inputs = [cks.encrypt(rng.random_range(0..block_msg_modulus))];
         for ct in inputs {
             let result = executor.execute((&ct, &lut, u64::MAX));
 
@@ -621,14 +621,14 @@ where
     for i in 0..nb_tests {
         lut.clear();
 
-        let clear = rng.gen_range(0..modulus);
-        let clear_default = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let clear_default = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
-            let output = rng.gen_range(0..modulus);
+            let output = rng.random_range(0..modulus);
             lut.push((input, output));
         }
 
@@ -663,7 +663,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -678,7 +678,7 @@ where
     for i in 0..nb_tests {
         lut.clear();
 
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -686,13 +686,13 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let clear_default = rng.gen_range(0..modulus);
+        let clear_default = rng.random_range(0..modulus);
         let occurrence_count = if i < halved_nb_test { 0 } else { 1 };
-        let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let mut unique_numbers =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         for input in unique_numbers.drain(..) {
-            let output = rng.gen_range(0..modulus);
+            let output = rng.random_range(0..modulus);
             lut.push((input, output));
         }
 
@@ -725,7 +725,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -735,8 +735,8 @@ where
     // empty collection
     {
         let inputs = [
-            cks.encrypt(rng.gen_range(0..modulus)),
-            sks.create_trivial_radix(rng.gen_range(0..modulus), NB_CTXT),
+            cks.encrypt(rng.random_range(0..modulus)),
+            sks.create_trivial_radix(rng.random_range(0..modulus), NB_CTXT),
         ];
         for ct in inputs {
             let result = executor.execute((&[], &ct));
@@ -753,8 +753,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -797,7 +797,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -809,7 +809,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -817,7 +817,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let mut clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -863,7 +863,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -872,7 +872,7 @@ where
 
     // empty collection
     {
-        let input = rng.gen_range(0..modulus);
+        let input = rng.random_range(0..modulus);
         let result = executor.execute((&[], input));
 
         assert!(result.is_trivial());
@@ -886,8 +886,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -928,7 +928,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -940,7 +940,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -948,7 +948,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -990,7 +990,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -999,7 +999,7 @@ where
 
     // empty collection
     {
-        let input = cks.encrypt(rng.gen_range(0..modulus));
+        let input = cks.encrypt(rng.random_range(0..modulus));
         let result = executor.execute((&input, &[]));
 
         assert!(result.is_trivial());
@@ -1013,8 +1013,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1049,7 +1049,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1061,7 +1061,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -1069,7 +1069,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1105,7 +1105,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1114,7 +1114,7 @@ where
 
     // empty collection
     {
-        let input = cks.encrypt(rng.gen_range(0..modulus));
+        let input = cks.encrypt(rng.random_range(0..modulus));
         let (index, is_in) = executor.execute((&input, &[]));
 
         assert!(index.is_trivial());
@@ -1131,8 +1131,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1172,7 +1172,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1184,7 +1184,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -1192,7 +1192,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
 
         let clears = draw_unique_randoms(
             &mut rng,
@@ -1235,7 +1235,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1244,7 +1244,7 @@ where
 
     // empty collection
     {
-        let input = cks.encrypt(rng.gen_range(0..modulus));
+        let input = cks.encrypt(rng.random_range(0..modulus));
         let (index, is_in) = executor.execute((&input, &[]));
 
         assert!(index.is_trivial());
@@ -1261,14 +1261,14 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
 
         let occurrence_count = if i < halved_nb_test {
             0
         } else {
-            rng.gen_range(1..4)
+            rng.random_range(1..4)
         };
-        let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         let ct = cks.encrypt(clear);
         let expected_index = clears
@@ -1302,7 +1302,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1314,7 +1314,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct = cks.encrypt(clear);
@@ -1325,10 +1325,10 @@ where
         let occurrence_count = if i < halved_nb_test {
             0usize
         } else {
-            rng.gen_range(1..4)
+            rng.random_range(1..4)
         };
         let num_values =
-            rng.gen_range((occurrence_count as u64).max(1)..MAX_VEC_LEN as u64) as usize;
+            rng.random_range((occurrence_count as u64).max(1)..MAX_VEC_LEN as u64) as usize;
         let clears = draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
         let ct = cks.encrypt(clear);
         let expected_index = clears
@@ -1367,7 +1367,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1376,7 +1376,7 @@ where
 
     // empty collection
     {
-        let input = cks.encrypt(rng.gen_range(0..modulus));
+        let input = cks.encrypt(rng.random_range(0..modulus));
         let (index, is_in) = executor.execute((&[], &input));
 
         assert!(index.is_trivial());
@@ -1393,8 +1393,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1443,7 +1443,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1455,7 +1455,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct_to_find = cks.encrypt(clear);
@@ -1463,7 +1463,7 @@ where
 
         let clear = clear.wrapping_add(clear_0) % modulus;
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let mut clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1513,7 +1513,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1522,7 +1522,7 @@ where
 
     // empty collection
     {
-        let (index, is_in) = executor.execute((&[], rng.gen_range(0..modulus)));
+        let (index, is_in) = executor.execute((&[], rng.random_range(0..modulus)));
 
         assert!(index.is_trivial());
         assert_eq!(cks.decrypt::<u16>(&index), 0);
@@ -1538,8 +1538,8 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let clear = rng.random_range(0..modulus);
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1584,7 +1584,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1596,9 +1596,9 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
 
-        let num_values = rng.gen_range(1..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(1..MAX_VEC_LEN) as usize;
         let mut clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1651,7 +1651,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1660,7 +1660,7 @@ where
 
     // empty collection
     {
-        let input = cks.encrypt(rng.gen_range(0..modulus));
+        let input = cks.encrypt(rng.random_range(0..modulus));
         let (index, is_in) = executor.execute((&[], &input));
 
         assert!(index.is_trivial());
@@ -1677,13 +1677,13 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let occurrence_count = if i < halved_nb_test {
             0
         } else {
-            rng.gen_range(1..4)
+            rng.random_range(1..4)
         };
-        let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1732,7 +1732,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1744,7 +1744,7 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let clear_0 = random_non_zero_value(&mut rng, modulus);
 
         let mut ct_to_find = cks.encrypt(clear);
@@ -1755,10 +1755,10 @@ where
         let occurrence_count = if i < halved_nb_test {
             0usize
         } else {
-            rng.gen_range(1..4)
+            rng.random_range(1..4)
         };
         let num_values =
-            rng.gen_range((occurrence_count as u64).max(1)..MAX_VEC_LEN as u64) as usize;
+            rng.random_range((occurrence_count as u64).max(1)..MAX_VEC_LEN as u64) as usize;
         let mut clears =
             draw_unique_randoms(&mut rng, num_values, clear, occurrence_count, modulus);
 
@@ -1811,7 +1811,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1820,7 +1820,7 @@ where
 
     // empty collection
     {
-        let (index, is_in) = executor.execute((&[], rng.gen_range(0..modulus)));
+        let (index, is_in) = executor.execute((&[], rng.random_range(0..modulus)));
 
         assert!(index.is_trivial());
         assert_eq!(cks.decrypt::<u16>(&index), 0);
@@ -1836,13 +1836,13 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let occurrence_count = if i < halved_nb_test {
             0
         } else {
-            rng.gen_range(1..2)
+            rng.random_range(1..2)
         };
-        let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,
@@ -1887,7 +1887,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
@@ -1899,13 +1899,13 @@ where
     let halved_nb_test: usize = nb_tests / 2;
 
     for i in 0..nb_tests {
-        let clear = rng.gen_range(0..modulus);
+        let clear = rng.random_range(0..modulus);
         let occurrence_count = if i < halved_nb_test {
             0
         } else {
-            rng.gen_range(1..4)
+            rng.random_range(1..4)
         };
-        let num_values = rng.gen_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
+        let num_values = rng.random_range(occurrence_count.max(1)..MAX_VEC_LEN) as usize;
         let clears = draw_unique_randoms(
             &mut rng,
             num_values,

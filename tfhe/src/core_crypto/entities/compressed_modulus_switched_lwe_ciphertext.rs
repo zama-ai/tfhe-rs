@@ -296,7 +296,7 @@ mod test {
         let mut lwe = LweCiphertext::new(InputScalar::ZERO, LweSize(len), ciphertext_modulus);
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(lwe.as_mut());
+        rand::rng().fill(lwe.as_mut());
 
         let compressed: CompressedModulusSwitchedLweCiphertext<PackingScalar> =
             CompressedModulusSwitchedLweCiphertext::compress(
@@ -334,7 +334,7 @@ mod test {
         let mut lwe = LweCiphertext::new(Scalar::ZERO, LweSize(len), ciphertext_modulus);
 
         // We don't care about the exact content here
-        rand::thread_rng().fill(lwe.as_mut());
+        rand::rng().fill(lwe.as_mut());
 
         let compressed: CompressedModulusSwitchedLweCiphertext<u64> =
             CompressedModulusSwitchedLweCiphertext::compress(

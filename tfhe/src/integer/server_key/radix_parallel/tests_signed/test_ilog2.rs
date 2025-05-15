@@ -101,7 +101,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -138,7 +138,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
 
     let input_values = [-modulus, 0i64, modulus - 1]
         .into_iter()
-        .chain((0..nb_tests_smaller).map(|_| rng.gen::<i64>() % modulus))
+        .chain((0..nb_tests_smaller).map(|_| rng.random::<i64>() % modulus))
         .collect::<Vec<_>>();
 
     for clear in input_values {
@@ -187,7 +187,7 @@ pub(crate) fn signed_default_count_consecutive_bits_test<P, T>(
 
     let input_values = [-modulus, 0i64, modulus - 1]
         .into_iter()
-        .chain((0..nb_tests_smaller).map(|_| rng.gen::<i64>() % modulus));
+        .chain((0..nb_tests_smaller).map(|_| rng.random::<i64>() % modulus));
 
     for clear in input_values {
         let ctxt = sks.create_trivial_radix(clear, NB_CTXT);
@@ -256,7 +256,7 @@ where
     let sks = Arc::new(sks);
     executor.setup(&cks, sks.clone());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
@@ -265,7 +265,7 @@ where
 
     // Test with invalid input
     {
-        for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
+        for clear in [0i64, rng.random_range(-modulus..=-1i64)] {
             let ctxt = cks.encrypt_signed(clear);
 
             let ct_res = executor.execute(&ctxt);
@@ -293,7 +293,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -351,7 +351,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -389,7 +389,7 @@ where
 
     sks.set_deterministic_pbs_execution(true);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let sks = Arc::new(sks);
     executor.setup(&cks, sks.clone());
 
@@ -400,7 +400,7 @@ where
 
     // Test with invalid input
     {
-        for clear in [0i64, rng.gen_range(-modulus..=-1i64)] {
+        for clear in [0i64, rng.random_range(-modulus..=-1i64)] {
             let ctxt = cks.encrypt_signed(clear);
 
             let (ct_res, is_ok) = executor.execute(&ctxt);
@@ -430,7 +430,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 
@@ -494,7 +494,7 @@ where
         .map(|i| 1 << i)
         .chain(
             (0..nb_tests_smaller.saturating_sub(num_bits as usize))
-                .map(|_| rng.gen_range(1..modulus)),
+                .map(|_| rng.random_range(1..modulus)),
         )
         .collect::<Vec<_>>();
 

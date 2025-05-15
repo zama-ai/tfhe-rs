@@ -192,7 +192,7 @@ mod test {
     use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use crate::shortint::{CiphertextModulus, CompressedCiphertext};
     use crate::{generate_keys, set_server_key, CompressedFheUint8, ConfigBuilder};
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     impl<Id> CompressedFheUint<Id>
     where
@@ -316,7 +316,7 @@ mod test {
             PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
         )));
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         let num_blocks = ct.seeded_blocks().len();
 
@@ -324,13 +324,13 @@ mod test {
             let mut ct_clone = ct.clone();
 
             for i in 0..num_blocks {
-                *ct_clone.seeded_blocks_mut()[i].ct.get_mut_data() = rng.gen::<u64>();
+                *ct_clone.seeded_blocks_mut()[i].ct.get_mut_data() = rng.random::<u64>();
 
                 ct_clone.seeded_blocks_mut()[i]
                     .ct
                     .get_mut_compressed_seed()
                     .seed
-                    .0 = rng.gen::<u128>();
+                    .0 = rng.random::<u128>();
             }
             assert!(ct_clone.is_conformant(&FheUintConformanceParams::from(
                 PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128

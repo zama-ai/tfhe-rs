@@ -55,8 +55,8 @@ fn pke_zk_proof(c: &mut Criterion) {
 
         // We have a use case with 320 bits of metadata
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
-        let mut rng = rand::thread_rng();
-        metadata.fill_with(|| rng.gen());
+        let mut rng = rand::rng();
+        metadata.fill_with(|| rng.random());
 
         let zk_vers = param_pke.zk_scheme;
 
@@ -68,7 +68,7 @@ fn pke_zk_proof(c: &mut Criterion) {
             );
 
             use rand::Rng;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             let fhe_uint_count = bits / 64;
 
@@ -92,7 +92,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                             "{bench_name}::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
                         bench_group.bench_function(&bench_id, |b| {
-                            let input_msg = rng.gen::<u64>();
+                            let input_msg = rng.random::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
 
                             b.iter(|| {
@@ -105,7 +105,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                     }
                     BenchmarkType::Throughput => {
                         // Execute the operation once to know its cost.
-                        let input_msg = rng.gen::<u64>();
+                        let input_msg = rng.random::<u64>();
                         let messages = vec![input_msg; fhe_uint_count];
 
                         reset_pbs_count();
@@ -123,7 +123,7 @@ fn pke_zk_proof(c: &mut Criterion) {
                         bench_group.bench_function(&bench_id, |b| {
                             let messages = (0..elements)
                                 .map(|_| {
-                                    let input_msg = rng.gen::<u64>();
+                                    let input_msg = rng.random::<u64>();
                                     vec![input_msg; fhe_uint_count]
                                 })
                                 .collect::<Vec<_>>();
@@ -196,8 +196,8 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
 
         // We have a use case with 320 bits of metadata
         let mut metadata = [0u8; (320 / u8::BITS) as usize];
-        let mut rng = rand::thread_rng();
-        metadata.fill_with(|| rng.gen());
+        let mut rng = rand::rng();
+        metadata.fill_with(|| rng.random());
 
         let zk_vers = param_pke.zk_scheme;
 
@@ -209,7 +209,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
             );
 
             use rand::Rng;
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
 
             let fhe_uint_count = bits / 64;
 
@@ -257,7 +257,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                             "{bench_name}_and_expand::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
-                        let input_msg = rng.gen::<u64>();
+                        let input_msg = rng.random::<u64>();
                         let messages = vec![input_msg; fhe_uint_count];
 
                         println!("Generating proven ciphertext ({zk_load})... ");
@@ -334,7 +334,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         // In throughput mode object sizes are not recorded.
 
                         // Execute the operation once to know its cost.
-                        let input_msg = rng.gen::<u64>();
+                        let input_msg = rng.random::<u64>();
                         let messages = vec![input_msg; fhe_uint_count];
                         let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                             .extend(messages.iter().copied())
@@ -365,7 +365,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                         println!("Generating proven ciphertexts list ({zk_load})... ");
                         let cts = (0..elements)
                             .map(|_| {
-                                let input_msg = rng.gen::<u64>();
+                                let input_msg = rng.random::<u64>();
                                 let messages = vec![input_msg; fhe_uint_count];
                                 tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                     .extend(messages.iter().copied())
@@ -475,8 +475,8 @@ mod cuda {
 
             // We have a use case with 320 bits of metadata
             let mut metadata = [0u8; (320 / u8::BITS) as usize];
-            let mut rng = rand::thread_rng();
-            metadata.fill_with(|| rng.gen());
+            let mut rng = rand::rng();
+            metadata.fill_with(|| rng.random());
 
             let zk_vers = param_pke.zk_scheme;
 
@@ -488,7 +488,7 @@ mod cuda {
                 );
 
                 use rand::Rng;
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rng();
 
                 let fhe_uint_count = bits / 64;
 
@@ -541,7 +541,7 @@ mod cuda {
                             "{bench_name}_only_expand::{param_name}_{bits}_bits_packed_{zk_load}_ZK{zk_vers:?}"
                         );
 
-                            let input_msg = rng.gen::<u64>();
+                            let input_msg = rng.random::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
 
                             println!("Generating proven ciphertext ({zk_load})... ");
@@ -625,7 +625,7 @@ mod cuda {
                             let gpu_count = get_number_of_gpus() as usize;
 
                             // Execute the operation once to know its cost.
-                            let input_msg = rng.gen::<u64>();
+                            let input_msg = rng.random::<u64>();
                             let messages = vec![input_msg; fhe_uint_count];
                             let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                 .extend(messages.iter().copied())
@@ -656,7 +656,7 @@ mod cuda {
                             println!("Generating proven ciphertexts list ({zk_load})... ");
                             let cts = (0..elements)
                                 .map(|_| {
-                                    let input_msg = rng.gen::<u64>();
+                                    let input_msg = rng.random::<u64>();
                                     let messages = vec![input_msg; fhe_uint_count];
                                     tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
                                         .extend(messages.iter().copied())

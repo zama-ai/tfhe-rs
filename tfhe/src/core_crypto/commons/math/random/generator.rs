@@ -837,15 +837,4 @@ impl<G: ByteRandomGenerator> rand_core::RngCore for RandomGenerator<G> {
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         dest.iter_mut().for_each(|b| *b = self.generate_next());
     }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        if let Some(limit) = self.remaining_bytes() {
-            if limit < dest.len() {
-                return Err(rand_core::Error::new(format!("The random generator is bounded and cannot fill the slice {} bytes requested, {limit} possible", dest.len()))
-                );
-            }
-        }
-        self.fill_bytes(dest);
-        Ok(())
-    }
 }

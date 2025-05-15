@@ -284,7 +284,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -297,8 +297,8 @@ where
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
@@ -340,7 +340,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -353,8 +353,8 @@ where
     let mut expected_degrees = ExpectedDegrees::new(Degree::new(0), NB_CTXT);
 
     for _ in 0..nb_tests {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
         let ctxt_1 = cks.encrypt(clear_1);
@@ -399,7 +399,7 @@ where
     let sks = Arc::new(sks);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
 
@@ -411,8 +411,8 @@ where
     let mut clear;
 
     for _ in 0..nb_tests_smaller {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
         let mut ctxt_1 = cks.encrypt(clear_1);
@@ -458,7 +458,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -467,8 +467,8 @@ where
     for num_blocks in 1..MAX_NB_CTXT {
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
         let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
@@ -519,7 +519,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -531,8 +531,8 @@ where
         let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
 
         for _ in 0..50 {
-            let clear_0 = rng.gen::<u128>() % modulus;
-            let clear_1 = rng.gen::<u128>() % modulus;
+            let clear_0 = rng.random::<u128>() % modulus;
+            let clear_1 = rng.random::<u128>() % modulus;
 
             let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
             let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);
@@ -566,15 +566,15 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
     for num_blocks in 1..MAX_NB_CTXT {
         let modulus = unsigned_modulus(cks.parameters().message_modulus(), num_blocks as u32);
 
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.as_ref().encrypt_radix(clear_0, num_blocks);
         let ctxt_1 = cks.as_ref().encrypt_radix(clear_1, num_blocks);
@@ -647,8 +647,8 @@ where
     // Test with trivial inputs
     let modulus = unsigned_modulus(cks.parameters().message_modulus(), NB_CTXT as u32);
     for _ in 0..4 {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let a: RadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
         let b: RadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
@@ -694,7 +694,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -705,8 +705,8 @@ where
         let modulus = unsigned_modulus_u128(cks.parameters().message_modulus(), num_blocks);
 
         for _ in 0..50 {
-            let clear_0 = rng.gen::<u128>() % modulus;
-            let clear_1 = rng.gen::<u128>() % modulus;
+            let clear_0 = rng.random::<u128>() % modulus;
+            let clear_1 = rng.random::<u128>() % modulus;
 
             let ctxt_0 = sks.create_trivial_radix(clear_0, num_blocks as usize);
             let ctxt_1 = sks.create_trivial_radix(clear_1, num_blocks as usize);

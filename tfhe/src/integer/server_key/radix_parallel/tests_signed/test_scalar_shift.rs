@@ -63,7 +63,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -73,8 +73,8 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<i64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt_signed(clear);
 
@@ -109,7 +109,7 @@ where
     let cks = RadixClientKey::from((cks, NB_CTXT));
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks);
 
@@ -119,8 +119,8 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<i64>() % modulus;
-        let clear_shift = rng.gen::<u32>();
+        let clear = rng.random::<i64>() % modulus;
+        let clear_shift = rng.random::<u32>();
 
         let ct = cks.encrypt_signed(clear);
 
@@ -156,7 +156,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -167,7 +167,7 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
+        let mut clear = rng.random::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
 
@@ -177,7 +177,7 @@ where
 
         // case when 0 <= shift < nb_bits
         {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
+            let clear_shift = rng.random::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_left_shift_under_modulus(clear, clear_shift, modulus);
@@ -193,7 +193,7 @@ where
 
         // case when shift >= nb_bits
         {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
+            let clear_shift = rng.random_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // We mimic wrapping_shl manually as we use a bigger type
@@ -223,7 +223,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     executor.setup(&cks, sks.clone());
 
@@ -234,7 +234,7 @@ where
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
     for _ in 0..nb_tests_smaller {
-        let mut clear = rng.gen::<i64>() % modulus;
+        let mut clear = rng.random::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
 
@@ -244,7 +244,7 @@ where
 
         // case when 0 <= shift < nb_bits
         {
-            let clear_shift = rng.gen::<u32>() % nb_bits;
+            let clear_shift = rng.random::<u32>() % nb_bits;
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             let clear_res = signed_right_shift_under_modulus(clear, clear_shift, modulus);
@@ -260,7 +260,7 @@ where
 
         // case when shift >= nb_bits
         {
-            let clear_shift = rng.gen_range(nb_bits..=u32::MAX);
+            let clear_shift = rng.random_range(nb_bits..=u32::MAX);
             let ct_res = executor.execute((&ct, clear_shift as i64));
             let dec_res: i64 = cks.decrypt_signed(&ct_res);
             // We mimic wrapping_shl manually as we use a bigger type

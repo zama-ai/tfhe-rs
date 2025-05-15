@@ -17,12 +17,12 @@ where
     let size = 4;
     let (cks, sks) = gen_keys_radix(param, size);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
         let bound = sks.message_modulus().0.pow(size as u32);
 
-        let clear: u64 = rng.gen_range(0..bound);
+        let clear: u64 = rng.random_range(0..bound);
 
         let ctxt = cks.encrypt(clear);
 

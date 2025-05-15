@@ -1002,7 +1002,7 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
     Scalar::Signed: CastFrom<u64>,
     i64: CastFrom<Scalar>,
     u64: CastFrom<Scalar> + CastInto<Scalar::Signed>,
-    rand_distr::Standard: rand_distr::Distribution<Scalar>,
+    rand_distr::StandardUniform: rand_distr::Distribution<Scalar>,
 {
     use crate::zk::ZkMSBZeroPaddingBitCount;
     let lwe_dimension = LweDimension(params.polynomial_size.0);
@@ -1096,8 +1096,8 @@ fn lwe_compact_public_encrypt_prove_verify_decrypt_custom_mod<Scalar>(
                 assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_valid());
 
                 // verify proof with invalid ciphertext
-                let index = random_generator.gen::<usize>() % ct.as_ref().len();
-                let value_to_add = random_generator.gen::<Scalar>();
+                let index = random_generator.random::<u32>() as usize % ct.as_ref().len();
+                let value_to_add = random_generator.random::<Scalar>();
                 ct.as_mut()[index] = ct.as_mut()[index].wrapping_add(value_to_add);
                 assert!(verify_lwe_ciphertext(&ct, &pk, &proof, crs, &metadata).is_invalid());
             }
@@ -1132,7 +1132,7 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
     let msb_zero_padding_bit_count = ZkMSBZeroPaddingBitCount(1);
     let message_modulus = 1u64 << (64 - (delta_log + msb_zero_padding_bit_count.0));
     let plaintext_modulus = 1u64 << (64 - delta_log);
-    let mut thread_rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let max_num_body = 512;
     let crs = CompactPkeCrs::new(
@@ -1142,19 +1142,19 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
         ciphertext_modulus,
         plaintext_modulus,
         msb_zero_padding_bit_count,
-        &mut thread_rng,
+        &mut rng,
     )
     .unwrap();
 
     for _ in 0..4 {
-        let ct_count = thread_rng.gen_range(1..=max_num_body);
+        let ct_count = rng.random_range(1..=max_num_body);
         let lwe_ciphertext_count = LweCiphertextCount(ct_count);
 
         println!("{lwe_dimension:?} {ct_count:?}");
 
         let seed = test_tools::random_seed();
         let cleartexts = (0..ct_count)
-            .map(|_| thread_rng.gen::<u64>() % message_modulus)
+            .map(|_| rng.random::<u64>() % message_modulus)
             .collect::<Vec<_>>();
 
         let par_lwe_ct_list = {
@@ -1232,8 +1232,9 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
             assert_eq!(cleartexts.as_slice(), output_plaintext_list.as_ref());
 
             // verify proof with invalid ciphertext
-            let index = random_generator.gen::<usize>() % output_compact_ct_list.as_ref().len();
-            let value_to_add = random_generator.gen();
+            let index =
+                random_generator.random::<u32>() as usize % output_compact_ct_list.as_ref().len();
+            let value_to_add = random_generator.random();
             output_compact_ct_list.as_mut()[index] =
                 output_compact_ct_list.as_mut()[index].wrapping_add(value_to_add);
             assert!(verify_lwe_compact_ciphertext_list(
@@ -1323,8 +1324,9 @@ fn test_par_compact_lwe_list_public_key_encryption_and_proof() {
             assert_eq!(cleartexts.as_slice(), output_plaintext_list.as_ref());
 
             // verify proof with invalid ciphertext
-            let index = random_generator.gen::<usize>() % output_compact_ct_list.as_ref().len();
-            let value_to_add = random_generator.gen();
+            let index =
+                random_generator.random::<u32>() as usize % output_compact_ct_list.as_ref().len();
+            let value_to_add = random_generator.random();
             output_compact_ct_list.as_mut()[index] =
                 output_compact_ct_list.as_mut()[index].wrapping_add(value_to_add);
             assert!(verify_lwe_compact_ciphertext_list(

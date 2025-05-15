@@ -106,7 +106,7 @@ pub(crate) const fn nb_tests_smaller_for_params(params: AtomicPatternParameters)
 }
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: u64) -> u64 {
-    rng.gen_range(1..modulus)
+    rng.random_range(1..modulus)
 }
 
 /// helper function to do a rotate left when the type used to store

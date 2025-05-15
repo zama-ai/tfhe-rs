@@ -180,12 +180,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ct = cks.encrypt(clear);
 
@@ -202,15 +202,15 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for _ in 0..NB_TESTS {
-        let mut modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+        let mut modulus = rng.random::<u64>() % cks.parameters.message_modulus().0;
         while modulus == 0 {
-            modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+            modulus = rng.random::<u64>() % cks.parameters.message_modulus().0;
         }
 
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ct = cks.encrypt_with_message_modulus(clear, MessageModulus(modulus));
 
@@ -227,13 +227,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let cks = keys.client_key();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // We assume that the modulus is the largest possible without padding bit
     let modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ct = cks.encrypt_without_padding(clear);
 
@@ -250,13 +250,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mut failures = 0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -280,12 +280,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -306,7 +306,7 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let msg_modulus = cks.parameters.message_modulus().0;
     let carry_modulus = cks.parameters.carry_modulus().0;
@@ -334,7 +334,7 @@ where
         // Generate the many lut once for the current set of functions
         let acc = sks.generate_many_lookup_table(functions);
         for _ in 0..per_fn_tests {
-            let clear_0 = rng.gen::<u64>() % effective_msg_modulus;
+            let clear_0 = rng.random::<u64>() % effective_msg_modulus;
 
             // Test on real ciphertext
             {
@@ -392,14 +392,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let full_modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
 
     let msg_modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % full_modulus;
+        let clear = rng.random::<u64>() % full_modulus;
 
         let ctxt = cks.unchecked_encrypt(clear);
 
@@ -422,14 +422,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let full_modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
 
     let msg_modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % full_modulus;
+        let clear = rng.random::<u64>() % full_modulus;
 
         let ctxt = cks.unchecked_encrypt(clear);
 
@@ -450,12 +450,12 @@ where
     let double = |x| (2 * x) % sks.message_modulus.0;
     let acc = sks.generate_lookup_table(double);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ct = cks.encrypt(clear);
 
@@ -474,13 +474,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -506,14 +506,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -541,14 +541,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -571,14 +571,14 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::CompressedPublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = pk.encrypt(clear_0);
 
@@ -606,14 +606,14 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let pk = crate::shortint::PublicKey::new(cks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = pk.encrypt(clear_0);
 
@@ -639,13 +639,13 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -667,13 +667,13 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -696,13 +696,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -725,15 +725,15 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -755,15 +755,15 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -786,15 +786,15 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -816,15 +816,15 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -847,15 +847,15 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -877,15 +877,15 @@ where
 {
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     let mod_scalar = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let mut clear_0 = rng.gen::<u64>() % modulus;
-        let clear_1 = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen::<u8>() % mod_scalar;
+        let mut clear_0 = rng.random::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
+        let scalar = rng.random::<u8>() % mod_scalar;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -908,14 +908,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0);
 
@@ -947,14 +947,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -977,12 +977,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
 
         let ctxt = cks.encrypt(clear);
 
@@ -1003,12 +1003,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear1 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
 
         let mut ct1 = cks.encrypt(clear1);
 
@@ -1035,12 +1035,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
 
         let ct1 = cks.encrypt(clear1);
 
@@ -1061,14 +1061,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let message_modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u8>() % message_modulus;
+        let clear = rng.random::<u8>() % message_modulus;
 
-        let scalar = rng.gen::<u8>() % message_modulus;
+        let scalar = rng.random::<u8>() % message_modulus;
 
         let ct = cks.encrypt(clear as u64);
 
@@ -1087,14 +1087,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u8>() % modulus;
+        let clear_0 = rng.random::<u8>() % modulus;
 
-        let clear_1 = rng.gen::<u8>() % modulus;
+        let clear_1 = rng.random::<u8>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0 as u64);
 
@@ -1120,14 +1120,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u8>() % modulus;
+        let clear_0 = rng.random::<u8>() % modulus;
 
-        let clear_1 = rng.gen::<u8>() % modulus;
+        let clear_1 = rng.random::<u8>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
@@ -1148,14 +1148,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let message_modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u8>() % message_modulus;
+        let clear = rng.random::<u8>() % message_modulus;
 
-        let scalar = rng.gen::<u8>() % message_modulus;
+        let scalar = rng.random::<u8>() % message_modulus;
 
         let ct = cks.encrypt(clear as u64);
 
@@ -1174,14 +1174,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear_0 = rng.gen::<u8>() % modulus;
+        let clear_0 = rng.random::<u8>() % modulus;
 
-        let clear_1 = rng.gen::<u8>() % modulus;
+        let clear_1 = rng.random::<u8>() % modulus;
 
         let mut ctxt_0 = cks.encrypt(clear_0 as u64);
 
@@ -1207,14 +1207,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u8>() % modulus;
+        let clear_0 = rng.random::<u8>() % modulus;
 
-        let clear_1 = rng.gen::<u8>() % modulus;
+        let clear_1 = rng.random::<u8>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0 as u64);
 
@@ -1235,15 +1235,15 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let message_modulus = cks.parameters.message_modulus().0 as u8;
     let carry_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u8>() % message_modulus;
+        let clear = rng.random::<u8>() % message_modulus;
 
-        let scalar = rng.gen::<u8>() % carry_modulus;
+        let scalar = rng.random::<u8>() % carry_modulus;
 
         let ct = cks.encrypt(clear as u64);
 
@@ -1262,16 +1262,16 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear = rng.gen::<u8>() % modulus;
+        let clear = rng.random::<u8>() % modulus;
 
-        let scalar = rng.gen::<u8>() % scalar_modulus;
+        let scalar = rng.random::<u8>() % scalar_modulus;
 
         let mut ct = cks.encrypt(clear as u64);
 
@@ -1296,16 +1296,16 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0 as u8;
 
     let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
-        let clear = rng.gen::<u8>() % modulus;
+        let clear = rng.random::<u8>() % modulus;
 
-        let scalar = rng.gen::<u8>() % scalar_modulus;
+        let scalar = rng.random::<u8>() % scalar_modulus;
 
         let ct = cks.encrypt(clear as u64);
 
@@ -1326,13 +1326,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let shift = rng.gen::<u64>() % 2;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let shift = rng.random::<u64>() % 2;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -1351,13 +1351,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let shift = rng.gen::<u64>() % 2;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let shift = rng.random::<u64>() % 2;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -1376,13 +1376,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let shift = rng.gen::<u64>() % 2;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let shift = rng.random::<u64>() % 2;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -1401,13 +1401,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear_0 = rng.gen::<u64>() % modulus;
-        let shift = rng.gen::<u64>() % 2;
+        let clear_0 = rng.random::<u64>() % modulus;
+        let shift = rng.random::<u64>() % 2;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
@@ -1426,12 +1426,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
+        let clear2 = rng.random::<u64>() % modulus;
 
         let ctxt_1 = cks.encrypt(clear1);
         let ctxt_2 = cks.encrypt(clear2);
@@ -1452,13 +1452,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
+        let clear2 = rng.random::<u64>() % modulus;
 
         let mut ct1 = cks.encrypt(clear1);
         let mut ct2 = cks.encrypt(clear2);
@@ -1484,13 +1484,13 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
+        let clear2 = rng.random::<u64>() % modulus;
 
         let ct1 = cks.encrypt(clear1);
         let ct2 = cks.encrypt(clear2);
@@ -1512,14 +1512,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = cks.parameters.message_modulus().0;
 
     for _ in 0..50 {
-        let clear_0 = rng.gen::<u64>() % modulus;
+        let clear_0 = rng.random::<u64>() % modulus;
 
-        let clear_1 = rng.gen::<u64>() % modulus;
+        let clear_1 = rng.random::<u64>() % modulus;
 
         let ctxt_zero = cks.encrypt(clear_0);
 
@@ -1540,14 +1540,14 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let full_mod = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let modulus = rng.gen_range(1..full_mod / 2);
+        let modulus = rng.random_range(1..full_mod / 2);
 
-        let clear1 = rng.gen::<u64>() % modulus;
-        let clear2 = rng.gen::<u64>() % modulus;
+        let clear1 = rng.random::<u64>() % modulus;
+        let clear2 = rng.random::<u64>() % modulus;
 
         let ct1 = cks.encrypt_with_message_modulus(clear1, MessageModulus(modulus));
         let ct2 = cks.encrypt_with_message_modulus(clear2, MessageModulus(modulus));
@@ -1573,19 +1573,19 @@ fn shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let param_msg_mod = cks.parameters.message_modulus().0;
     let param_carry_mod = cks.parameters.carry_modulus().0;
 
     for _ in 0..NB_TESTS {
-        let msg_modulus = rng.gen_range(2u64..=param_msg_mod);
-        let carry_modulus = rng.gen_range(2u64..=param_carry_mod);
+        let msg_modulus = rng.random_range(2u64..=param_msg_mod);
+        let carry_modulus = rng.random_range(2u64..=param_carry_mod);
 
         let modulus = msg_modulus * carry_modulus;
 
-        let clear1 = rng.gen::<u64>() % msg_modulus;
-        let clear2 = rng.gen::<u64>() % msg_modulus;
+        let clear1 = rng.random::<u64>() % msg_modulus;
+        let clear2 = rng.random::<u64>() % msg_modulus;
 
         let ct1 = cks.encrypt_with_message_and_carry_modulus(
             clear1,
@@ -1621,12 +1621,12 @@ where
     let keys = KEY_CACHE.get_from_param(param);
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let modulus = cks.parameters.message_modulus().0;
 
-    let msg_true = rng.gen::<u64>() % modulus;
-    let msg_false = rng.gen::<u64>() % modulus;
-    let control_bit = rng.gen::<u64>() % 2;
+    let msg_true = rng.random::<u64>() % modulus;
+    let msg_false = rng.random::<u64>() % modulus;
+    let control_bit = rng.random::<u64>() % 2;
 
     let mut ct_true = cks.encrypt(msg_true);
     let mut ct_false = cks.encrypt(msg_false);
@@ -1677,16 +1677,16 @@ where
     ];
 
     if full_modulus >= 64 {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..(NB_TESTS / functions.len()).max(1) {
             for f in &functions {
                 let lut = sks.generate_lookup_table(f);
 
-                let clear_with_clean_padding_bit = rng.gen_range(0..full_modulus);
+                let clear_with_clean_padding_bit = rng.random_range(0..full_modulus);
                 check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
 
-                let clear_with_dirty_padding_bit = rng.gen_range(full_modulus..2 * full_modulus);
+                let clear_with_dirty_padding_bit = rng.random_range(full_modulus..2 * full_modulus);
                 check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
             }
         }
@@ -1754,17 +1754,17 @@ where
     let max_fn_count = functions.len().min(full_modulus as usize / 2);
 
     if full_modulus >= 64 {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for _ in 0..(NB_TESTS / max_fn_count).max(1) {
             for fn_count in 1..=max_fn_count {
                 let functions = &functions[..fn_count];
                 let lut = sks.generate_many_lookup_table(functions);
 
-                let clear_with_clean_padding_bit = rng.gen_range(0..full_modulus);
+                let clear_with_clean_padding_bit = rng.random_range(0..full_modulus);
                 check_trivial_bootstrap(clear_with_clean_padding_bit, &lut);
 
-                let clear_with_dirty_padding_bit = rng.gen_range(full_modulus..2 * full_modulus);
+                let clear_with_dirty_padding_bit = rng.random_range(full_modulus..2 * full_modulus);
                 check_trivial_bootstrap(clear_with_dirty_padding_bit, &lut);
             }
         }

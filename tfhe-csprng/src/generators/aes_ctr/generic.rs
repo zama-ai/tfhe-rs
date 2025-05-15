@@ -204,33 +204,33 @@ pub mod aes_ctr_generic_test {
     use super::*;
     use crate::generators::aes_ctr::index::{AesIndex, ByteIndex};
     use crate::generators::aes_ctr::BYTES_PER_AES_CALL;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     const REPEATS: usize = 1_000_000;
 
     pub fn any_table_index() -> impl Iterator<Item = TableIndex> {
         std::iter::repeat_with(|| {
             TableIndex::new(
-                AesIndex(thread_rng().gen()),
-                ByteIndex(thread_rng().gen::<usize>() % BYTES_PER_AES_CALL),
+                AesIndex(rng().random()),
+                ByteIndex(rng().random::<u32>() as usize % BYTES_PER_AES_CALL),
             )
         })
     }
 
-    pub fn any_usize() -> impl Iterator<Item = usize> {
-        std::iter::repeat_with(|| thread_rng().gen())
+    pub fn any_usize_that_fits_in_u32() -> impl Iterator<Item = usize> {
+        std::iter::repeat_with(|| rng().random::<u32>() as usize)
     }
 
     pub fn any_children_count() -> impl Iterator<Item = ChildrenCount> {
-        std::iter::repeat_with(|| ChildrenCount(thread_rng().gen::<usize>() % 2048 + 1))
+        std::iter::repeat_with(|| ChildrenCount(rng().random::<u32>() as usize % 2048 + 1))
     }
 
     pub fn any_bytes_per_child() -> impl Iterator<Item = BytesPerChild> {
-        std::iter::repeat_with(|| BytesPerChild(thread_rng().gen::<usize>() % 2048 + 1))
+        std::iter::repeat_with(|| BytesPerChild(rng().random::<u32>() as usize % 2048 + 1))
     }
 
     pub fn any_key() -> impl Iterator<Item = AesKey> {
-        std::iter::repeat_with(|| AesKey(thread_rng().gen()))
+        std::iter::repeat_with(|| AesKey(rng().random()))
     }
 
     /// Output a valid fork:
@@ -248,7 +248,7 @@ pub mod aes_ctr_generic_test {
         any_table_index()
             .zip(any_children_count())
             .zip(any_bytes_per_child())
-            .zip(any_usize())
+            .zip(any_usize_that_fits_in_u32())
             .map(|(((t, nc), nb), i)| (t, nc, nb, i))
             .filter(|(t, nc, nb, i)| {
                 TableIndex::distance(&TableIndex::LAST, t).unwrap().0 > (nc.0 * nb.0 + i) as u128

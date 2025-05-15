@@ -14,8 +14,8 @@ use tfhe::keycache::NamedParam;
 use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn gen_random_i256(rng: &mut ThreadRng) -> I256 {
-    let clearlow = rng.gen::<u128>();
-    let clearhigh = rng.gen::<u128>();
+    let clearlow = rng.random::<u128>();
+    let clearhigh = rng.random::<u128>();
 
     tfhe::integer::I256::from((clearlow, clearhigh))
 }
@@ -35,7 +35,7 @@ fn bench_server_key_signed_binary_function_clean_inputs<F>(
     bench_group
         .sample_size(sample_size)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -133,7 +133,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -147,7 +147,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                     let encrypt_two_values = || {
-                        let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                        let clear_1 = rng.random_range(0u128..bit_size as u128);
 
                         let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                         let ct_1 = cks.encrypt_radix(clear_1, num_block);
@@ -168,7 +168,7 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
-                let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                let clear_1 = rng.random_range(0u128..bit_size as u128);
                 let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                 let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -186,7 +186,10 @@ fn bench_server_key_signed_shift_function_clean_inputs<F>(
                             .collect::<Vec<_>>();
                         let cts_1 = (0..elements)
                             .map(|_| {
-                                cks.encrypt_radix(rng.gen_range(0u128..bit_size as u128), num_block)
+                                cks.encrypt_radix(
+                                    rng.random_range(0u128..bit_size as u128),
+                                    num_block,
+                                )
                             })
                             .collect::<Vec<_>>();
 
@@ -237,7 +240,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -317,7 +320,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
@@ -331,7 +334,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                     let encrypt_tree_values = || {
-                        let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                        let cond = sks.create_trivial_boolean_block(rng.random_bool(0.5));
                         let ct_then =
                             cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                         let ct_else =
@@ -353,7 +356,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
                 // Execute the operation once to know its cost.
-                let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                let cond = sks.create_trivial_boolean_block(rng.random_bool(0.5));
                 let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                 let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
@@ -367,7 +370,7 @@ fn signed_if_then_else_parallelized(c: &mut Criterion) {
                 bench_group.bench_function(&bench_id, |b| {
                     let setup_encrypted_values = || {
                         let cts_cond = (0..elements)
-                            .map(|_| sks.create_trivial_boolean_block(rng.gen_bool(0.5)))
+                            .map(|_| sks.create_trivial_boolean_block(rng.random_bool(0.5)))
                             .collect::<Vec<_>>();
 
                         let cts_then = (0..elements)
@@ -848,7 +851,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(60));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         if bit_size > ScalarType::BITS as usize {
@@ -986,10 +989,10 @@ fn negative_bit_mask_for_bit_size(bit_size: usize) -> ScalarType {
 }
 
 // We have to do this complex stuff because we cannot impl
-// rand::distributions::Distribution<I256> because benches are considered out of the crate
-// so neither I256 nor rand::distributions::Distribution belong to the benches.
+// rand::distr::Distribution<I256> because benches are considered out of the crate
+// so neither I256 nor rand::distr::Distribution belong to the benches.
 //
-// rand::distributions::Distribution can't be implemented in tfhe sources
+// rand::distr::Distribution can't be implemented in tfhe sources
 // in a way that it becomes available to the benches, because rand is a dev dependency
 fn gen_random_i256_in_range(rng: &mut ThreadRng, bit_size: usize) -> I256 {
     let value = gen_random_i256(rng);
@@ -1329,7 +1332,7 @@ fn bench_server_key_signed_cast_function<F>(
     bench_group
         .sample_size(10)
         .measurement_time(std::time::Duration::from_secs(30));
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let env_config = EnvConfig::new();
 
@@ -1428,7 +1431,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1447,13 +1450,13 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_two_values = || {
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                             let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_1 = tfhe::integer::I256::from((clearlow, clearhigh));
                             let ct_1 = cks.encrypt_signed_radix(clear_1, num_block);
 
@@ -1498,8 +1501,8 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                                     let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1511,8 +1514,8 @@ mod cuda {
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                                     let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1599,7 +1602,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1618,8 +1621,8 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_one_value = || {
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                             let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1656,8 +1659,8 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                                     let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1737,7 +1740,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -1761,8 +1764,8 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_one_value = || {
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                             let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1808,8 +1811,8 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                                     let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1905,7 +1908,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
@@ -1924,13 +1927,13 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &streams);
 
                         let encrypt_two_values = || {
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                             let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
-                            let clearlow = rng.gen::<u128>();
-                            let clearhigh = rng.gen::<u128>();
+                            let clearlow = rng.random::<u128>();
+                            let clearhigh = rng.random::<u128>();
                             let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                             let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -1958,7 +1961,7 @@ mod cuda {
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
-                    let clear_1 = rng.gen_range(0u128..bit_size as u128);
+                    let clear_1 = rng.random_range(0u128..bit_size as u128);
                     let ct_0 = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -1975,8 +1978,8 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_0 = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_0 = tfhe::integer::I256::from((clearlow, clearhigh));
                                     let ct_0 = cks.encrypt_signed_radix(clear_0, num_block);
 
@@ -1988,8 +1991,8 @@ mod cuda {
                                 .collect::<Vec<_>>();
                             let cts_1 = (0..elements)
                                 .map(|i| {
-                                    let clearlow = rng.gen::<u128>();
-                                    let clearhigh = rng.gen::<u128>();
+                                    let clearlow = rng.random::<u128>();
+                                    let clearhigh = rng.random::<u128>();
                                     let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
                                     let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
@@ -2066,7 +2069,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             if bit_size > ScalarType::BITS as usize {
@@ -2089,7 +2092,7 @@ mod cuda {
                         let gpu_sks = CudaServerKey::new(&cks, &stream);
 
                         let encrypt_tree_values = || {
-                            let clear_cond = rng.gen::<bool>();
+                            let clear_cond = rng.random::<bool>();
                             let ct_then =
                                 cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                             let ct_else =
@@ -2122,7 +2125,7 @@ mod cuda {
                     let gpu_sks_vec = cuda_local_keys(&cks);
 
                     // Execute the operation once to know its cost.
-                    let cond = cpu_sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    let cond = cpu_sks.create_trivial_boolean_block(rng.random_bool(0.5));
                     let ct_then = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
                     let ct_else = cks.encrypt_signed_radix(gen_random_i256(&mut rng), num_block);
 
@@ -2139,7 +2142,7 @@ mod cuda {
                             let local_streams = cuda_local_streams(num_block, elements as usize);
                             let cts_cond = (0..elements)
                                 .map(|i| {
-                                    let ct_cond = cks.encrypt_bool(rng.gen::<bool>());
+                                    let ct_cond = cks.encrypt_bool(rng.random::<bool>());
                                     CudaBooleanBlock::from_boolean_block(
                                         &ct_cond,
                                         &local_streams[i as usize],
@@ -2211,15 +2214,15 @@ mod cuda {
     }
     // Functions used to apply different way of selecting a scalar based on the context.
     fn default_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
-        let clearlow = rng.gen::<u128>();
-        let clearhigh = rng.gen::<u128>();
+        let clearlow = rng.random::<u128>();
+        let clearhigh = rng.random::<u128>();
         tfhe::integer::I256::from((clearlow, clearhigh))
     }
 
     fn mul_signed_scalar(rng: &mut ThreadRng, _clear_bit_size: usize) -> ScalarType {
         loop {
-            let clearlow = rng.gen::<u128>();
-            let clearhigh = rng.gen::<u128>();
+            let clearlow = rng.random::<u128>();
+            let clearhigh = rng.random::<u128>();
             let scalar = tfhe::integer::I256::from((clearlow, clearhigh));
             // If scalar is power of two, it is just a shit, which is a happy path.
             if !scalar.is_power_of_two() {
@@ -2932,7 +2935,7 @@ mod cuda {
         bench_group
             .sample_size(10)
             .measurement_time(std::time::Duration::from_secs(30));
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let env_config = EnvConfig::new();
         let stream = CudaStreams::new_multi_gpu();

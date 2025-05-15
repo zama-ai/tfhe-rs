@@ -478,27 +478,27 @@ mod test {
 
             let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-            let a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let a = (0..d).map(|_| rng.random::<i64>()).collect::<Vec<_>>();
 
             let s = (0..d)
-                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .map(|_| (rng.random::<u64>() % 2) as i64)
                 .collect::<Vec<_>>();
 
             let e = (0..d)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
             let e1 = (0..d)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
             let e2 = (0..k)
-                .map(|_| (rng.gen::<u64>() % (2 * B)) as i64 - B as i64)
+                .map(|_| (rng.random::<u64>() % (2 * B)) as i64 - B as i64)
                 .collect::<Vec<_>>();
 
             let r = (0..d)
-                .map(|_| (rng.gen::<u64>() % 2) as i64)
+                .map(|_| (rng.random::<u64>() % 2) as i64)
                 .collect::<Vec<_>>();
             let m = (0..k)
-                .map(|_| (rng.gen::<u64>() % effective_cleartext_t) as i64)
+                .map(|_| (rng.random::<u64>() % effective_cleartext_t) as i64)
                 .collect::<Vec<_>>();
             let b = polymul_rev(&a, &s)
                 .into_iter()
@@ -507,7 +507,7 @@ mod test {
                 .collect::<Vec<_>>();
 
             let mut metadata = [0u8; METADATA_LEN];
-            metadata.fill_with(|| rng.gen::<u8>());
+            metadata.fill_with(|| rng.random::<u8>());
 
             Self {
                 a,
@@ -535,9 +535,9 @@ mod test {
                 msbs_zero_padding_bit_count: _msbs_zero_padding_bit_count,
             } = params;
 
-            let e = (rng.gen::<u64>() % (2 * B)) as i64 - B as i64;
+            let e = (rng.random::<u64>() % (2 * B)) as i64 - B as i64;
 
-            let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
+            let mut a = (0..d).map(|_| rng.random::<i64>()).collect::<Vec<_>>();
 
             let b = a.iter().zip(&self.s).map(|(ai, si)| ai * si).sum::<i64>() + e;
 

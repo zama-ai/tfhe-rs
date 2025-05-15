@@ -51,12 +51,12 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<TestParameters>) {
     let nb_tests = nb_tests_for_params(param);
     let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_block =
         (128f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<i128>();
+        let clear = rng.random::<i128>();
 
         let ct = cks.encrypt_signed_radix(clear, num_block);
 
@@ -70,12 +70,12 @@ fn integer_signed_encrypt_decrypt(param: impl Into<TestParameters>) {
     let nb_tests = nb_tests_for_params(param);
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
     for _ in 0..nb_tests {
-        let clear = rng.gen_range(i64::MIN..=0) % modulus;
+        let clear = rng.random_range(i64::MIN..=0) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
         let dec: i64 = cks.decrypt_signed_radix(&ct);
@@ -87,7 +87,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<TestParameters>) {
     }
 
     for _ in 0..nb_tests {
-        let clear = rng.gen_range(0..=i64::MAX) % modulus;
+        let clear = rng.random_range(0..=i64::MAX) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
         let dec: i64 = cks.decrypt_signed_radix(&ct);
@@ -107,7 +107,7 @@ create_parameterized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters>) {
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
@@ -145,7 +145,7 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters
     }
 
     {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
 
         let result = std::panic::catch_unwind(|| {
@@ -156,10 +156,14 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<TestParameters
 
     // check when scalar is out of ciphertext MIN..=MAX
     for d in [
-        rng.gen_range(i64::MIN..-modulus),
-        rng.gen_range(modulus..=i64::MAX),
+        rng.random_range(i64::MIN..-modulus),
+        rng.random_range(modulus..=i64::MAX),
     ] {
-        for numerator in [0, rng.gen_range(-modulus..=0), rng.gen_range(0..modulus)] {
+        for numerator in [
+            0,
+            rng.random_range(-modulus..=0),
+            rng.random_range(0..modulus),
+        ] {
             let ctxt_0 = cks.encrypt_signed_radix(numerator, NB_CTXT);
 
             let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_floor_parallelized(&ctxt_0, d);
@@ -217,12 +221,12 @@ fn integer_signed_default_scalar_div_rem(param: impl Into<TestParameters>) {
     let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
     {
-        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_0 = rng.random::<i64>() % modulus;
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
 
         let result = std::panic::catch_unwind(|| {
@@ -552,11 +556,11 @@ pub(crate) fn random_signed_value_under_modulus<const N: usize>(
     let mut values = [0i64; N];
 
     for value in &mut values[..N / 2] {
-        *value = rng.gen_range(0..modulus);
+        *value = rng.random_range(0..modulus);
     }
 
     for value in &mut values[N / 2..] {
-        *value = rng.gen_range(-modulus..=0);
+        *value = rng.random_range(-modulus..=0);
     }
 
     values
@@ -574,11 +578,11 @@ pub(crate) fn random_non_zero_signed_value_under_modulus<const N: usize>(
     let mut values = [0i64; N];
 
     for value in &mut values[..N / 2] {
-        *value = rng.gen_range(1..modulus);
+        *value = rng.random_range(1..modulus);
     }
 
     for value in &mut values[N / 2..] {
-        *value = rng.gen_range(-modulus..0);
+        *value = rng.random_range(-modulus..0);
     }
 
     values
@@ -599,21 +603,21 @@ pub(crate) fn create_iterator_of_signed_random_pairs(
     let mut lhs_values = vec![0i64; num_random_pairs];
     let mut rhs_values = vec![0i64; num_random_pairs];
 
-    lhs_values[0] = rng.gen_range(0..modulus);
-    rhs_values[0] = rng.gen_range(0..modulus);
+    lhs_values[0] = rng.random_range(0..modulus);
+    rhs_values[0] = rng.random_range(0..modulus);
 
-    lhs_values[1] = rng.gen_range(0..modulus);
-    rhs_values[1] = rng.gen_range(-modulus..=0);
+    lhs_values[1] = rng.random_range(0..modulus);
+    rhs_values[1] = rng.random_range(-modulus..=0);
 
-    lhs_values[2] = rng.gen_range(-modulus..=0);
-    rhs_values[2] = rng.gen_range(-modulus..=0);
+    lhs_values[2] = rng.random_range(-modulus..=0);
+    rhs_values[2] = rng.random_range(-modulus..=0);
 
-    lhs_values[3] = rng.gen_range(-modulus..=0);
-    rhs_values[3] = rng.gen_range(0..modulus);
+    lhs_values[3] = rng.random_range(-modulus..=0);
+    rhs_values[3] = rng.random_range(0..modulus);
 
     for i in 4..num_random_pairs {
-        lhs_values[i] = rng.gen_range(-modulus..modulus);
-        rhs_values[i] = rng.gen_range(-modulus..modulus);
+        lhs_values[i] = rng.random_range(-modulus..modulus);
+        rhs_values[i] = rng.random_range(-modulus..modulus);
     }
 
     izip!(lhs_values, rhs_values)
@@ -621,7 +625,7 @@ pub(crate) fn create_iterator_of_signed_random_pairs(
 
 pub(crate) fn random_non_zero_value(rng: &mut ThreadRng, modulus: i64) -> i64 {
     loop {
-        let value = rng.gen::<i64>() % modulus;
+        let value = rng.random::<i64>() % modulus;
         if value != 0 {
             break value;
         }

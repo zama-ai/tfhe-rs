@@ -10,7 +10,7 @@ use crate::integer::{BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, U2
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::test_params::*;
 use crate::shortint::parameters::*;
-use rand::distributions::Standard;
+use rand::distr::StandardUniform;
 use rand::prelude::*;
 use std::ops::AddAssign;
 use std::sync::Arc;
@@ -34,9 +34,9 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
@@ -52,8 +52,8 @@ pub(crate) fn test_unchecked_function<P, T, ClearF, Scalar>(
     for num_block in [num_block, 1, 2] {
         let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
         for _ in 0..num_test {
-            let clear_a = rng.gen::<Scalar>() & max;
-            let clear_b = rng.gen::<Scalar>() & max;
+            let clear_a = rng.random::<Scalar>() & max;
+            let clear_b = rng.random::<Scalar>() & max;
             let a = cks.encrypt(clear_a);
             let b = cks.encrypt(clear_b);
 
@@ -94,9 +94,9 @@ pub(crate) fn test_smart_function<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a mut RadixCiphertext, &'a mut RadixCiphertext), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -111,21 +111,21 @@ pub(crate) fn test_smart_function<P, T, ClearF, Scalar>(
     );
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
         // Raise the degree to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 += clear_2;
@@ -181,9 +181,9 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), BooleanBlock>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -199,21 +199,21 @@ pub(crate) fn test_default_function<P, T, ClearF, Scalar>(
     );
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 += clear_2;
@@ -414,9 +414,9 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let num_bits_per_block = cks.parameters().message_modulus().0.ilog2() as usize;
@@ -432,8 +432,8 @@ pub(crate) fn test_unchecked_minmax<P, T, ClearF, Scalar>(
     for num_block in [num_block, 1, 2] {
         let max = Scalar::MAX >> (Scalar::BITS - (num_block * num_bits_per_block));
         for _ in 0..num_test {
-            let clear_a = rng.gen::<Scalar>() & max;
-            let clear_b = rng.gen::<Scalar>() & max;
+            let clear_a = rng.random::<Scalar>() & max;
+            let clear_b = rng.random::<Scalar>() & max;
             let a = cks.encrypt(clear_a);
             let b = cks.encrypt(clear_b);
 
@@ -477,9 +477,9 @@ pub(crate) fn test_smart_minmax<P, T, ClearF, Scalar>(
         RadixCiphertext,
     >,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -494,21 +494,21 @@ pub(crate) fn test_smart_minmax<P, T, ClearF, Scalar>(
     );
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
         // Raise the degree to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 += clear_2;
@@ -564,9 +564,9 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
         + From<bool>,
     T: for<'a> FunctionExecutor<(&'a RadixCiphertext, &'a RadixCiphertext), RadixCiphertext>,
     ClearF: Fn(Scalar, Scalar) -> Scalar,
-    Standard: Distribution<Scalar>,
+    StandardUniform: Distribution<Scalar>,
 {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let sks = Arc::new(sks);
@@ -582,21 +582,21 @@ pub(crate) fn test_default_minmax<P, T, ClearF, Scalar>(
     );
 
     for _ in 0..num_test {
-        let mut clear_0 = rng.gen::<Scalar>();
-        let mut clear_1 = rng.gen::<Scalar>();
+        let mut clear_0 = rng.random::<Scalar>();
+        let mut clear_1 = rng.random::<Scalar>();
         let mut ct_0 = cks.encrypt(clear_0);
         let mut ct_1 = cks.encrypt(clear_1);
 
         // Raise the degree, so as to ensure worst case path in operations
         while ct_0.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_0, &ct_2);
             clear_0 += clear_2;
         }
 
         while ct_1.block_carries_are_empty() {
-            let clear_2 = rng.gen::<Scalar>();
+            let clear_2 = rng.random::<Scalar>();
             let ct_2 = cks.encrypt(clear_2);
             sks.unchecked_add_assign(&mut ct_1, &ct_2);
             clear_1 += clear_2;
@@ -809,7 +809,7 @@ pub(crate) fn extensive_trivial_default_comparisons_test<P, E1, E2, E3, E4, E5, 
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     lt_executor.setup(&cks, sks.clone());
     le_executor.setup(&cks, sks.clone());
@@ -824,8 +824,8 @@ pub(crate) fn extensive_trivial_default_comparisons_test<P, E1, E2, E3, E4, E5, 
             break;
         };
         for _ in 0..25 {
-            let clear_a = rng.gen_range(0..modulus);
-            let clear_b = rng.gen_range(0..modulus);
+            let clear_a = rng.random_range(0..modulus);
+            let clear_b = rng.random_range(0..modulus);
 
             let a: RadixCiphertext = sks.create_trivial_radix(clear_a, num_blocks);
             let b: RadixCiphertext = sks.create_trivial_radix(clear_b, num_blocks);

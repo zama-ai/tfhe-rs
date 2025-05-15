@@ -40,7 +40,7 @@ where
     sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(num_block as u32);
@@ -56,7 +56,7 @@ where
     // 16 is a power of two and should trigger the corresponding branch
     let hard_coded_divisors: [u64; 4] = [10, 7, 14, 16];
     for divisor in hard_coded_divisors {
-        let clear = rng.gen::<u64>() % modulus;
+        let clear = rng.random::<u64>() % modulus;
         let ct = cks.encrypt(clear);
 
         let (q, r) = executor.execute((&ct, divisor));
@@ -68,8 +68,8 @@ where
     }
 
     for _ in 0..nb_tests {
-        let clear = rng.gen::<u64>() % modulus;
-        let scalar = rng.gen_range(1u32..=u32::MAX) as u64;
+        let clear = rng.random::<u64>() % modulus;
+        let scalar = rng.random_range(1u32..=u32::MAX) as u64;
 
         let ct = cks.encrypt(clear);
 
@@ -90,7 +90,7 @@ where
 
         {
             // Test when scalar is trivially bigger than the ct
-            let scalar = rng.gen_range(u32::MAX as u64 + 1..=u64::MAX);
+            let scalar = rng.random_range(u32::MAX as u64 + 1..=u64::MAX);
 
             let (q, r) = executor.execute((&ct, scalar));
             let (q2, r2) = executor.execute((&ct, scalar));

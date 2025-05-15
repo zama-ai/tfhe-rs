@@ -67,7 +67,7 @@ use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, FheUin
 use tfhe::prelude::*;
 use rayon::prelude::*;
 use tfhe::core_crypto::gpu::get_number_of_gpus;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 fn main() {
     let config = ConfigBuilder::default().build();
 
@@ -81,12 +81,12 @@ fn main() {
     
     let batch_size = num_gpus * 100;
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let left_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
     let right_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
 }
 ```
@@ -104,7 +104,7 @@ use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, FheUin
 use tfhe::prelude::*;
 use rayon::prelude::*;
 use tfhe::core_crypto::gpu::get_number_of_gpus;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 fn main() {
     let config = ConfigBuilder::default().build();
 
@@ -118,12 +118,12 @@ fn main() {
 
     let batch_size = num_gpus * 100;
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let left_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
     let right_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
 
     let chunk_size = (batch_size / num_gpus) as usize;
@@ -163,7 +163,7 @@ use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, FheUin
 use tfhe::prelude::*;
 use rayon::prelude::*;
 use tfhe::core_crypto::gpu::get_number_of_gpus;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 
 fn main() {
 
@@ -178,15 +178,15 @@ fn main() {
         .collect::<Vec<_>>();
     let batch_size = num_gpus * 100;
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let left_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
     let right_inputs = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
     let amounts = (0..batch_size)
-        .map(|_| FheUint64::encrypt(rng.gen::<u64>(), &client_key))
+        .map(|_| FheUint64::encrypt(rng.random::<u64>(), &client_key))
         .collect::<Vec<_>>();
 
     let chunk_size = (batch_size / num_gpus) as usize;

@@ -23,7 +23,7 @@ use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Indicate which parameters to use for the Compact Public Key encryption
@@ -44,8 +44,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
     let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
-    let clear_a = rng.gen::<u64>();
-    let clear_b = rng.gen::<u64>();
+    let clear_a = rng.random::<u64>();
+    let clear_b = rng.random::<u64>();
 
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)
@@ -104,7 +104,7 @@ use tfhe::set_server_key;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
 
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rng = thread_rng();
+    let mut rng = rand::rng();
 
     let params = tfhe::shortint::parameters::v1_2::V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     // Indicate which parameters to use for the Compact Public Key encryption
@@ -125,8 +125,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This can be left empty, but if provided allows to tie the proof to arbitrary data
     let metadata = [b'T', b'F', b'H', b'E', b'-', b'r', b's'];
 
-    let clear_a = rng.gen::<u64>();
-    let clear_b = rng.gen::<u64>();
+    let clear_a = rng.random::<u64>();
+    let clear_b = rng.random::<u64>();
 
     let proven_compact_list = tfhe::ProvenCompactCiphertextList::builder(&public_key)
         .push(clear_a)

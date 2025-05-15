@@ -81,21 +81,21 @@ mod test {
     use super::*;
     use crate::generators::aes_ctr::index::ByteIndex;
     use crate::generators::aes_ctr::BYTES_PER_AES_CALL;
-    use rand::{thread_rng, Rng};
+    use rand::{rng, Rng};
 
     const REPEATS: usize = 1_000_000;
 
     fn any_table_index() -> impl Iterator<Item = TableIndex> {
         std::iter::repeat_with(|| {
             TableIndex::new(
-                AesIndex(thread_rng().gen()),
-                ByteIndex(thread_rng().gen::<usize>() % BYTES_PER_AES_CALL),
+                AesIndex(rng().random()),
+                ByteIndex(rng().random::<u32>() as usize % BYTES_PER_AES_CALL),
             )
         })
     }
 
-    fn any_usize() -> impl Iterator<Item = usize> {
-        std::iter::repeat_with(|| thread_rng().gen())
+    fn any_usize_that_fits_in_u32() -> impl Iterator<Item = usize> {
+        std::iter::repeat_with(|| rng().random::<u32>() as usize)
     }
 
     #[test]
@@ -122,7 +122,7 @@ mod test {
     fn prop_state_increase_table_index() {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .map(|(t, i)| (t, State::new(t), i))
                 .next()
                 .unwrap();
@@ -139,7 +139,7 @@ mod test {
     fn prop_state_increase_small() {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .map(|(t, i)| (t, State::new(t), i % BYTES_PER_BATCH))
                 .find(|(t, _, i)| t.byte_index.0 + i < BYTES_PER_BATCH - 1)
                 .unwrap();
@@ -161,7 +161,7 @@ mod test {
     fn prop_state_increase_large() {
         for _ in 0..REPEATS {
             let (t, mut s, i) = any_table_index()
-                .zip(any_usize())
+                .zip(any_usize_that_fits_in_u32())
                 .map(|(t, i)| (t, State::new(t), i))
                 .find(|(t, _, i)| t.byte_index.0 + i >= BYTES_PER_BATCH - 1)
                 .unwrap();

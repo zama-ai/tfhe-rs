@@ -93,8 +93,8 @@ impl<const N: usize> StaticUnsignedBigInt<N> {
 }
 
 #[cfg(test)]
-impl<const N: usize> rand::distributions::Distribution<StaticUnsignedBigInt<N>>
-    for rand::distributions::Standard
+impl<const N: usize> rand::distr::Distribution<StaticUnsignedBigInt<N>>
+    for rand::distr::StandardUniform
 {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> StaticUnsignedBigInt<N> {
         let mut s = StaticUnsignedBigInt::<N>::ZERO;

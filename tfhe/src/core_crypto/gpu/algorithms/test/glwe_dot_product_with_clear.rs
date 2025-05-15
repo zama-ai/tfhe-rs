@@ -8,7 +8,7 @@ use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::polynomial_algorithms::polynomial_wrapping_mul;
 use crate::core_crypto::prelude::ContiguousEntityContainerMut;
 
-use rand::distributions::Uniform;
+use rand::distr::Uniform;
 use rand::Rng;
 
 pub fn encryption_delta<Scalar: UnsignedInteger>(
@@ -130,13 +130,13 @@ where
 fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
-    let poly_size = 2 << rng.gen_range(8usize..12);
-    let n_polys_rhs = if rng.gen_range(0..2) == 0 {
+    let poly_size = 2 << rng.random_range(8usize..12);
+    let n_polys_rhs = if rng.random_range(0..2) == 0 {
         poly_size
     } else {
-        rng.gen_range(0..poly_size * 2)
+        rng.random_range(0..poly_size * 2)
     };
 
     let encryption_glwe_dimension = GlweDimension(1);
@@ -171,7 +171,7 @@ fn glwe_dot_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     let mut glwe =
         GlweCiphertext::new(Scalar::ZERO, glwe_size, polynomial_size, ciphertext_modulus);
 
-    let range = Uniform::new(0, 32);
+    let range = Uniform::new(0, 32).unwrap();
     let to_encrypt: Vec<usize> = (0usize..poly_size).map(|_| rng.sample(range)).collect();
 
     let to_encrypt_vec: Vec<Scalar> = to_encrypt.iter().map(|&x| Scalar::cast_from(x)).collect();
@@ -277,16 +277,16 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 fn poly_product_with_clear<Scalar: UnsignedTorus + CastFrom<usize>>(
     _params: ClassicTestParams<Scalar>,
 ) {
-    let mut rng = rand::thread_rng();
-    let poly_size = 2 << rng.gen_range(8usize..12);
-    let n_polys_rhs = if rng.gen_range(0..2) == 0 {
+    let mut rng = rand::rng();
+    let poly_size = 2 << rng.random_range(8usize..12);
+    let n_polys_rhs = if rng.random_range(0..2) == 0 {
         poly_size
     } else {
-        rng.gen_range(0..poly_size * 2)
+        rng.random_range(0..poly_size * 2)
     };
     let polynomial_size = PolynomialSize(poly_size as usize);
 
-    let range = Uniform::new(0, 32);
+    let range = Uniform::new(0, 32).unwrap();
     let clear_range_lhs: Vec<usize> = (0usize..poly_size).map(|_| rng.sample(range)).collect();
 
     let clear_lhs: Vec<Scalar> = clear_range_lhs

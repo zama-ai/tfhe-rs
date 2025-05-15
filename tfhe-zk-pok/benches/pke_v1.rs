@@ -16,7 +16,7 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for (params, param_name) in [
         (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),
@@ -54,7 +54,7 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
         .sample_size(15)
         .measurement_time(std::time::Duration::from_secs(60));
 
-    let rng = &mut rand::thread_rng();
+    let rng = &mut rand::rng();
 
     for (params, param_name) in [
         (PKEV1_TEST_PARAMS, "PKEV1_TEST_PARAMS"),

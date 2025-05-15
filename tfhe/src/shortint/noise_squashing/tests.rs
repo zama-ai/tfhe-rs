@@ -4,7 +4,7 @@ use crate::shortint::noise_squashing::{
 };
 use crate::shortint::parameters::*;
 use rand::prelude::*;
-use rand::thread_rng;
+use rand::rng;
 
 #[test]
 fn test_noise_squashing_ci_run_filter() {
@@ -20,13 +20,13 @@ fn test_noise_squashing_ci_run_filter() {
     };
     let noise_squashing_key = NoiseSquashingKey::new(cks, &noise_squashing_private_key);
 
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     let id_lut = sks.generate_lookup_table(|x| x);
 
     for _ in 0..50 {
-        let msg_1 = rng.gen::<u64>() % cks.parameters.message_modulus().0;
-        let msg_2 = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+        let msg_1 = rng.random::<u64>() % cks.parameters.message_modulus().0;
+        let msg_2 = rng.random::<u64>() % cks.parameters.message_modulus().0;
 
         let mut ct_1 = cks.encrypt(msg_1);
         let mut ct_2 = cks.encrypt(msg_2);
