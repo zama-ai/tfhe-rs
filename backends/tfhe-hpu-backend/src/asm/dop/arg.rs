@@ -417,7 +417,7 @@ impl ToAsm for PeMemInsn {
 impl FromAsm for field::PePbsInsn {
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
         if args.len() != 3 {
-            return Err(ParsingError::ArgNumber(2, args.len()));
+            return Err(ParsingError::ArgNumber(3, args.len()));
         }
 
         let dst_rid = match args[0] {

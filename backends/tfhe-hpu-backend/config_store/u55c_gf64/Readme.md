@@ -1,16 +1,4 @@
 # Fpga version
-This configuration as based on the following Fpga commit:
-```
-commit f308f067c0e3f9aeaa99e885fbc65dbae8a2b1b2 (HEAD -> dev/hpu, tag: u55c_gf64_v1.0, origin/dev/hpu)
-Author: Baptiste Roux <baptiste.roux@zama.ai>
-Date:   Fri Feb 14 18:40:02 2025 +0100
-
-    Update IOP list in run_simu.sh
-
-    TEST_MANYLUT and CUSTOM iop name have changed.
-    Should fix CI #1960 and CI #1953
-```
-Tagged as `u55c_gf64_v1.0`
 
 Built with the following command: (i.e. xrt/run_syn_hpu_msplit_3parts_64b.sh)
 ```

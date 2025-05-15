@@ -104,7 +104,7 @@ fn main() {
         .collect();
 
     println!("\n 4. Triggering operations through hl_api");
-    // Iterate over matrix row and do a cartesian product with the vector
+    // Do a cartesian product over matrix_a rows and matrix_b cols
     let fhe_result = (0..args.m)
         .map(|i| {
             (0..args.p)

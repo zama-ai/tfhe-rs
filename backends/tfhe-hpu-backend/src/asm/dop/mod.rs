@@ -66,7 +66,7 @@ impl DigitParameters {
     pub fn carry_mask(&self) -> usize {
         ((1 << (self.carry_w)) - 1) << self.msg_w
     }
-    /// Carry field only
+    /// Padding bit only
     pub fn padding_mask(&self) -> usize {
         1 << (self.carry_w + self.msg_w)
     }
@@ -86,7 +86,7 @@ impl DigitParameters {
     }
 
     /// Compute available linear operation based on carry_w/msg_w
-    /// TODO: Find a proper way to have nu < carry_w (i.e ManyLutPbs case)
+    // TODO: Find a proper way to have nu < carry_w (i.e ManyLutPbs case)
     pub fn nu(&self) -> usize {
         (self.carry_mask() + self.msg_mask()) / self.msg_mask()
     }
