@@ -175,10 +175,13 @@ where
                 .collect::<Vec<_>>();
 
             let ct_res = executor.execute(&ctxts).unwrap();
-            let ct_res: u64 = cks.decrypt(&ct_res);
+            let res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
-            assert_eq!(ct_res, clear);
+            assert_eq!(res, clear);
+
+            let ct_res_2 = executor.execute(&ctxts).unwrap();
+            assert_eq!(ct_res, ct_res_2, "Failed determinism check");
         }
     }
 }
