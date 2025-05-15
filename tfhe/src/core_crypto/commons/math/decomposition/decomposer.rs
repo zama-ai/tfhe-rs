@@ -226,7 +226,7 @@ where
 
     /// Generate an iterator over the terms of the decomposition of the input.
     /// # Warning
-    /// This used unbalanced decomposition and shouldn't be used with one-level decomposition
+    /// This use unbalanced decomposition and shouldn't be used with one-level decomposition
     /// The returned iterator yields the terms $\tilde{\theta}\_i$ in order of decreasing $i$.
     ///
     /// # Example
