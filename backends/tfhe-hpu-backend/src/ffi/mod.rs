@@ -222,6 +222,13 @@ pub struct MemZone(
     #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))] sim::MemZone,
 );
 
+// With Xrt backend, Opaque Cxx Object prevent compiler to auto impl Send+Sync
+// However, it's safe to implement them
+#[cfg(feature = "hw-xrt")]
+unsafe impl Send for MemZone {}
+#[cfg(feature = "hw-xrt")]
+unsafe impl Sync for MemZone {}
+
 impl MemZone {
     /// Read a bytes slice in the associated MemZone
     #[inline(always)]
