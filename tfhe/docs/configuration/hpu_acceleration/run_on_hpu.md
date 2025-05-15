@@ -50,6 +50,9 @@ use tfhe_hpu_backend::prelude::*;
 fn main() {
 
     // Instantiate HpuDevice --------------------------------------------------
+    // HPU configuration knobs are retrieved from a TOML configuration file. Prebuilt configurations could be find in `backends/tfhe-hpu-backend/config_store`
+    // For ease of use a setup_hpu.sh script is available in repository root folder and it handle the required environment variables setup and driver initialisation
+    // More details are available in `backends/tfhe-hpu-backend/Readme.md`
     let hpu_device = HpuDevice::from_config(ShellString::new("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string()));
 
     // Generate keys ----------------------------------------------------------
