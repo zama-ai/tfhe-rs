@@ -16,14 +16,6 @@ pub struct HpuDevice {
     bg_handles: Option<(std::thread::JoinHandle<()>, std::thread::JoinHandle<()>)>,
 }
 
-// NB: Xrt backend required explicit Send/Sync implementation to store Device in a SyncLock
-// Need a proper analysis to enforce that it's safe even with the Cxx lib wrapped
-// TODO check this
-#[cfg(feature = "hw-xrt")]
-unsafe impl Send for HpuDevice {}
-#[cfg(feature = "hw-xrt")]
-unsafe impl Sync for HpuDevice {}
-
 /// Provide constructor
 /// Use a toml configuration file to properly construct HpuDevice
 /// This configuration file contain xclbin/kernel information and associated register map
