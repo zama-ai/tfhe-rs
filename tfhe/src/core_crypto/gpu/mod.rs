@@ -53,6 +53,7 @@ impl CudaStreams {
             ptr_array.push(unsafe { cuda_create_stream(i.get()) });
             gpu_indexes.push(i);
         }
+        println!("GPU indexes for streams: {:?}", gpu_indexes);
         Self {
             ptr: ptr_array,
             gpu_indexes,
