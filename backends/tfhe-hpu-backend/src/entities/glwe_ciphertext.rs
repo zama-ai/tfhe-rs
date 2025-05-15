@@ -99,10 +99,7 @@ impl<Scalar: std::clone::Clone> HpuGlweCiphertextOwned<Scalar> {
     /// # Note
     ///
     /// This function allocates a vector of the appropriate size and wraps it in the appropriate
-    /// type. If you want to encrypt data you need to use
-    /// [`crate::core_crypto::algorithms::encrypt_glwe_ciphertext`] using this ciphertext as
-    /// output.
-    ///
+    /// type.
     ///
     /// See [`HpuGlweCiphertext::from_container`] for usage.
     pub fn new(fill_with: Scalar, params: HpuParameters) -> Self {

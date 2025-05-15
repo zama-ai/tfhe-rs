@@ -46,7 +46,7 @@ pub struct ConstIOpProto<const D: usize, const S: usize> {
 }
 
 /// Dynamic type to erase const template
-/// TODO moved from runtime check to compile time one
+// TODO moved from runtime check to compile time one
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IOpProto {
     pub dst: Vec<VarMode>,
