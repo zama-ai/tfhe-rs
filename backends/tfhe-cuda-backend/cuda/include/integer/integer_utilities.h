@@ -1345,7 +1345,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     luts_message_carry->release(streams, gpu_indexes, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     delete luts_message_carry;
-
   }
 };
 // For sequential algorithm in group propagation
