@@ -157,6 +157,7 @@ fn test_specific_gpu_selection() {
     let cuda_key = compressed_server_keys.decompress_to_specific_gpu(gpus_to_be_used);
 
     set_server_key(cuda_key);
+    println!("Here 0");
     let c = &a + &b;
     let decrypted: u32 = c.decrypt(&keys);
     assert_eq!(c.current_device(), Device::CudaGpu);
@@ -177,6 +178,7 @@ fn test_specific_gpu_selection() {
     assert_eq!(a.gpu_indexes().first().unwrap(), used_gpus.first().unwrap());
     assert_eq!(b.gpu_indexes().first().unwrap(), used_gpus.first().unwrap());
 
+    println!("Here 1");
     let c = &a + &b;
     let decrypted: u32 = c.decrypt(&keys);
     assert_eq!(c.current_device(), Device::CudaGpu);
