@@ -9,9 +9,9 @@ use std::io::{BufRead, Write};
 
 pub const ASM_COMMENT_PREFIX: [char; 2] = [';', '#'];
 
-// Common type use in both DOp/IOp definition ---------------------------------
+// Common type used in both DOp/IOp definition --------------------------------
 /// Ciphertext Id
-/// On-board memory is view as an array of ciphertext,
+/// On-board memory is viewed as an array of ciphertext,
 /// Thus, instead of using bytes address, ct id is used
 /// => Id of the first ciphertext of the vector
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -24,7 +24,7 @@ pub struct CtId(pub u16);
 mod tests;
 
 /// Type to aggregate Op and header
-/// Aims is to kept correct interleaving while parsing
+/// Aim is to kept correct interleaving while parsing
 #[derive(Debug, Clone)]
 pub enum AsmOp<Op> {
     Comment(String),
@@ -64,18 +64,22 @@ impl<Op> Program<Op> {
     pub fn new(ops: Vec<AsmOp<Op>>) -> Self {
         Self(ops)
     }
-    // Returns the position in which the statement was inserted
+    /// Push a new statement in the program
     pub fn push_stmt(&mut self, op: Op) {
         self.0.push(AsmOp::Stmt(op))
     }
+    /// Push a new statement in the program
+    /// Returns the position in which the statement was inserted
     pub fn push_stmt_pos(&mut self, op: Op) -> usize {
         let ret = self.0.len();
         self.0.push(AsmOp::Stmt(op));
         ret
     }
+    /// Push a new comment in the program
     pub fn push_comment(&mut self, comment: String) {
         self.0.push(AsmOp::Comment(comment))
     }
+
     pub fn get_stmt_mut(&mut self, i: usize) -> &mut AsmOp<Op> {
         &mut self.0[i]
     }
@@ -223,11 +227,10 @@ impl Program<dop::DOp> {
     pub fn tr_table(&self) -> Vec<dop::DOpRepr> {
         let ops_stream = self
             .iter()
-            .map(|op| match op {
+            .filter_map(|op| match op {
                 AsmOp::Comment(_) => None,
                 AsmOp::Stmt(op) => Some(op),
             })
-            .filter(|x| x.is_some())
             .collect::<Vec<_>>();
 
         let mut words_stream = Vec::with_capacity(ops_stream.len() + 1);
@@ -235,7 +238,7 @@ impl Program<dop::DOp> {
         words_stream.push(ops_stream.len() as u32);
 
         ops_stream.iter().for_each(|op| {
-            words_stream.push(op.unwrap().to_hex());
+            words_stream.push(op.to_hex());
         });
         words_stream
     }

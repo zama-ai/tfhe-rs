@@ -15,7 +15,6 @@ members = [
     "utils/param_dedup",
     "tests",
     "mockups/tfhe-hpu-mockup",
-    "tests",
 ]
 
 exclude = [
