@@ -269,7 +269,9 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                use crate::prelude::IfThenElse;
+                let max_cmp = self.ge(rhs);
+                max_cmp.if_then_else(self, rhs)
             }
         })
     }
@@ -320,7 +322,9 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                use crate::prelude::IfThenElse;
+                let min_cmp = self.le(rhs);
+                min_cmp.if_then_else(self, rhs)
             }
         })
     }
