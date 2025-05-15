@@ -77,23 +77,22 @@ all_shifted_lhs_rhs(Torus const *radix_lwe_left, Torus *lsb_ciphertext,
   }
 }
 
-__global__ inline void radix_vec_to_columns(
-    uint32_t *const *const columns, uint32_t *const columns_counter,
-    const uint64_t *const degrees, const uint32_t num_radix_blocks,
-    const uint32_t total_blocks_in_vec) {
+__global__ inline void radix_vec_to_columns(uint32_t *const *const columns,
+                                            uint32_t *const columns_counter,
+                                            const uint64_t *const degrees,
+                                            const uint32_t num_radix_blocks,
+                                            const uint32_t num_radix_in_vec) {
 
-  const uint32_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-
-  if (idx >= total_blocks_in_vec)
-    return;
-
-  const uint64_t degree = degrees[idx];
-  if (degree == 0)
-    return;
-
-  const uint32_t column_id = idx % num_radix_blocks;
-  const uint32_t out_idx = atomicAdd(&columns_counter[column_id], 1);
-  columns[column_id][out_idx] = idx;
+  const uint32_t idx = threadIdx.x;
+  size_t cnt = 0;
+  for (int i = 0; i < num_radix_in_vec; i++) {
+    size_t ct_id = i * num_radix_blocks + idx;
+    if (degrees[ct_id] != 0) {
+      columns[idx][cnt] = ct_id;
+      ++cnt;
+    }
+  }
+  columns_counter[idx] = cnt;
 }
 
 template <typename Torus>
@@ -439,9 +438,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   int number_of_blocks =
       (total_blocks_in_vec + number_of_threads - 1) / number_of_threads;
 
-  radix_vec_to_columns<<<number_of_blocks, number_of_threads, 0, streams[0]>>>(
+  radix_vec_to_columns<<<1, num_radix_blocks, 0, streams[0]>>>(
       d_columns, d_columns_counter, d_degrees, num_radix_blocks,
-      total_blocks_in_vec);
+      num_radix_in_vec);
 
   bool needs_processing = at_least_one_column_needs_processing(
       current_blocks->degrees, num_radix_blocks, num_radix_in_vec, chunk_size);
