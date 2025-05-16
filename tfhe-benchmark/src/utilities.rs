@@ -428,11 +428,10 @@ mod cuda_utils {
     use tfhe::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
     use tfhe::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
     use tfhe::core_crypto::gpu::lwe_packing_keyswitch_key::CudaLwePackingKeyswitchKey;
-    use tfhe::core_crypto::gpu::vec::CudaVec;
+    use tfhe::core_crypto::gpu::vec::{CudaVec, GpuIndex};
     use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use tfhe::core_crypto::prelude::{Numeric, UnsignedInteger};
     use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
-    use tfhe::{set_server_key, ClientKey, CompressedServerKey, GpuIndex};
 
     pub const GPU_MAX_SUPPORTED_POLYNOMIAL_SIZE: usize = 16384;
 
@@ -600,7 +599,7 @@ mod cuda_utils {
         use tfhe::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
         use tfhe::integer::gpu::CudaServerKey;
         use tfhe::integer::ClientKey;
-        use tfhe::GpuIndex;
+        use tfhe::{set_server_key, CompressedServerKey, GpuIndex};
 
         /// Get number of streams usable for CUDA throughput benchmarks
         fn cuda_num_streams(num_block: usize) -> u64 {
@@ -643,15 +642,15 @@ mod cuda_utils {
             }
             gpu_sks_vec
         }
+
+        pub fn configure_gpu(client_key: &tfhe::ClientKey) {
+            let compressed_sks = CompressedServerKey::new(client_key);
+            let sks = compressed_sks.decompress_to_gpu();
+            rayon::broadcast(|_| set_server_key(sks.clone()));
+            set_server_key(sks);
+        }
     }
 
-    #[allow(dead_code)]
-    pub fn configure_gpu(client_key: &ClientKey) {
-        let compressed_sks = CompressedServerKey::new(client_key);
-        let sks = compressed_sks.decompress_to_gpu();
-        rayon::broadcast(|_| set_server_key(sks.clone()));
-        set_server_key(sks);
-    }
     #[allow(unused_imports)]
     #[cfg(feature = "integer")]
     pub use cuda_integer_utils::*;
