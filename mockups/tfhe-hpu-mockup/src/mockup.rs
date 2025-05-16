@@ -60,6 +60,12 @@ pub struct Args {
     #[clap(long, value_parser, default_value_t = 1_000_000)]
     quantum_us: usize,
 
+    /// Show trivial ciphertext in tracing::debug
+    /// Usefull for IOp algorithm debug
+    /// WARN: Only work if user application send trivial ciphertext
+    #[clap(long, value_parser)]
+    trivial: bool,
+
     /// Simulation bypass.
     /// Disable execution, obviously led to incorrect behavior but accurate
     /// performance estimation.
@@ -104,6 +110,7 @@ impl From<&Args> for MockupOptions {
             report_out: args.report_out.clone(),
             report_trace: args.report_trace,
             nops: args.nops,
+            trivial: args.trivial,
         }
     }
 }
