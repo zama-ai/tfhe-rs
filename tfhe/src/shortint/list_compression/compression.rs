@@ -12,7 +12,7 @@ use crate::shortint::server_key::{
     apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_with_output_encoding,
     unchecked_scalar_mul_assign, LookupTableSize, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, MaxNoiseLevel};
+use crate::shortint::{AtomicPatternKind, Ciphertext, MaxNoiseLevel, PBSOrder};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -21,16 +21,30 @@ impl CompressionKey {
         &self,
         ciphertexts: &[Ciphertext],
     ) -> CompressedCiphertextList {
+        let lwe_pksk = &self.packing_key_switching_key;
+        let lwe_per_glwe = self.lwe_per_glwe;
+        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+
+        if ciphertexts.is_empty() {
+            return CompressedCiphertextList {
+                modulus_switched_glwe_ciphertext_list: Vec::new(),
+                // These values don't matter if the list is empty
+                message_modulus: MessageModulus(1),
+                carry_modulus: CarryModulus(1),
+                atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+                lwe_per_glwe,
+                count: CiphertextCount(0),
+                ciphertext_modulus,
+            };
+        }
+
         let count = CiphertextCount(ciphertexts.len());
 
         let lwe_pksk = &self.packing_key_switching_key;
 
         let polynomial_size = lwe_pksk.output_polynomial_size();
-        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
         let glwe_size = lwe_pksk.output_glwe_size();
         let lwe_size = lwe_pksk.input_key_lwe_dimension().to_lwe_size();
-
-        let lwe_per_glwe = self.lwe_per_glwe;
 
         assert!(
             lwe_per_glwe.0 <= polynomial_size.0,
@@ -133,19 +147,19 @@ impl DecompressionKey {
         packed: &CompressedCiphertextList,
         index: usize,
     ) -> Result<Ciphertext, crate::Error> {
-        if packed.message_modulus.0 != packed.carry_modulus.0 {
-            return Err(crate::Error::new(format!(
-                "Tried to unpack values from a list where message modulus \
-                ({:?}) is != carry modulus ({:?}), this is not supported.",
-                packed.message_modulus, packed.carry_modulus,
-            )));
-        }
-
         if index >= packed.count.0 {
             return Err(crate::Error::new(format!(
                 "Tried getting index {index} for CompressedCiphertextList \
                 with {} elements, out of bound access.",
                 packed.count.0
+            )));
+        }
+
+        if packed.message_modulus.0 != packed.carry_modulus.0 {
+            return Err(crate::Error::new(format!(
+                "Tried to unpack values from a list where message modulus \
+                ({:?}) is != carry modulus ({:?}), this is not supported.",
+                packed.message_modulus, packed.carry_modulus,
             )));
         }
 
@@ -269,7 +283,7 @@ mod test {
             let (compression_key, decompression_key) =
                 cks.new_compression_decompression_keys(&private_compression_key);
 
-            for number_to_pack in [1, 128] {
+            for number_to_pack in [0, 1, 128] {
                 let f = |x| (x + 1) % params.message_modulus().0;
 
                 test_packing_(
