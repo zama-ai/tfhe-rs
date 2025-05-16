@@ -24,6 +24,13 @@ fn write_result(file: &mut File, name: &str, value: usize) {
     file.write_all(line.as_bytes()).expect(&error_message);
 }
 
+fn zk_throughput_num_elements() -> u64 {
+    // Number of usable threads for a verification is limited to 32 in the lib.
+    let max_threads = 32;
+    // We add 1 to be sure we saturate the target machine.
+    (rayon::current_num_threads() as u64 / max_threads).max(1) + 1
+}
+
 fn pke_zk_proof(c: &mut Criterion) {
     let bench_name = "zk::pke_zk_proof";
     let mut bench_group = c.benchmark_group(bench_name);
@@ -333,26 +340,7 @@ fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
                     BenchmarkType::Throughput => {
                         // In throughput mode object sizes are not recorded.
 
-                        // Execute the operation once to know its cost.
-                        let input_msg = rng.gen::<u64>();
-                        let messages = vec![input_msg; fhe_uint_count];
-                        let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                            .extend(messages.iter().copied())
-                            .build_with_proof_packed(&crs, &metadata, compute_load)
-                            .unwrap();
-
-                        reset_pbs_count();
-                        let _ = ct1.verify_and_expand(
-                            &crs,
-                            &pk,
-                            &metadata,
-                            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(
-                                casting_key.as_view(),
-                            ),
-                        );
-                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
-                        let elements = throughput_num_threads(num_block, pbs_count);
+                        let elements = zk_throughput_num_elements();
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id_verify = format!(
@@ -624,24 +612,7 @@ mod cuda {
                             let gpu_sks_vec = cuda_local_keys(&cks);
                             let gpu_count = get_number_of_gpus() as usize;
 
-                            // Execute the operation once to know its cost.
-                            let input_msg = rng.gen::<u64>();
-                            let messages = vec![input_msg; fhe_uint_count];
-                            let ct1 = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                                .extend(messages.iter().copied())
-                                .build_with_proof_packed(&crs, &metadata, compute_load)
-                                .unwrap();
-                            let gpu_ct1 =
-                            CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
-                                &ct1, &streams,
-                            );
-
-                            reset_pbs_count();
-                            let _ =
-                                gpu_ct1.verify_and_expand(&crs, &pk, &metadata, &d_ksk, &streams);
-                            let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
-                            let elements = throughput_num_threads(num_block, pbs_count);
+                            let elements = zk_throughput_num_elements();
                             bench_group.throughput(Throughput::Elements(elements));
 
                             bench_id_verify = format!(
