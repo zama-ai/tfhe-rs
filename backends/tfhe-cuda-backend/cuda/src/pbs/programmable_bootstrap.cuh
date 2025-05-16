@@ -194,7 +194,8 @@ void execute_pbs_async(
             lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
 
         void *zeros = nullptr;
-        if (ms_noise_reduction_key != nullptr)
+        if (ms_noise_reduction_key != nullptr &&
+            ms_noise_reduction_key->ptr != nullptr)
           zeros = ms_noise_reduction_key->ptr[i];
         cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], current_lwe_array_out,

@@ -606,40 +606,6 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     );
 }
 
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
-#[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_improve_noise_modulus_switch_ciphertext_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
-    encrypted_zeros: &CudaVec<T>,
-    lwe_dimension: LweDimension,
-    num_samples: u32,
-    num_zeros: u32,
-    input_variance: f64,
-    r_sigma_factor: f64,
-    bound: f64,
-    log_modulus: u32,
-) {
-    cuda_improve_noise_modulus_switch_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        encrypted_zeros.as_c_ptr(0),
-        lwe_dimension.to_lwe_size().0 as u32,
-        num_samples,
-        num_zeros,
-        input_variance,
-        r_sigma_factor,
-        bound,
-        log_modulus,
-    );
-}
-
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety

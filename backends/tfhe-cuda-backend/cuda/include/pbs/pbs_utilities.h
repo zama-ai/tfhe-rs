@@ -248,6 +248,7 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
   __uint128_t *global_accumulator;
   double *global_join_buffer;
   __uint128_t *temp_lwe_array_in;
+  uint64_t *trivial_indexes;
 
   PBS_VARIANT pbs_variant;
   bool uses_noise_reduction;
@@ -263,11 +264,27 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;
     this->uses_noise_reduction = allocate_ms_array;
-    this->temp_lwe_array_in =
-        (__uint128_t *)cuda_malloc_with_size_tracking_async(
-            (lwe_dimension + 1) * input_lwe_ciphertext_count *
-                sizeof(__uint128_t),
-            stream, gpu_index, size_tracker, allocate_ms_array);
+    if (allocate_ms_array) {
+      this->temp_lwe_array_in =
+          (__uint128_t *)cuda_malloc_with_size_tracking_async(
+              (lwe_dimension + 1) * input_lwe_ciphertext_count *
+                  sizeof(__uint128_t),
+              stream, gpu_index, size_tracker, allocate_ms_array);
+      this->trivial_indexes = (uint64_t *)cuda_malloc_with_size_tracking_async(
+          input_lwe_ciphertext_count * sizeof(uint64_t), stream, gpu_index,
+          size_tracker, allocate_ms_array);
+      uint64_t *h_trivial_indexes = new uint64_t[input_lwe_ciphertext_count];
+      for (uint32_t i = 0; i < input_lwe_ciphertext_count; i++)
+        h_trivial_indexes[i] = i;
+
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          trivial_indexes, h_trivial_indexes,
+          input_lwe_ciphertext_count * sizeof(uint64_t), stream, gpu_index,
+          allocate_gpu_memory);
+
+      cuda_synchronize_stream(stream, gpu_index);
+      delete[] h_trivial_indexes;
+    }
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
     size_t global_join_buffer_size = (glwe_dimension + 1) * level_count *
                                      input_lwe_ciphertext_count *
@@ -404,9 +421,12 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
 
-    if (uses_noise_reduction)
+    if (uses_noise_reduction) {
       cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
                                          gpu_memory_allocated);
+      cuda_drop_with_size_tracking_async(trivial_indexes, stream, gpu_index,
+                                         gpu_memory_allocated);
+    }
   }
 };
 

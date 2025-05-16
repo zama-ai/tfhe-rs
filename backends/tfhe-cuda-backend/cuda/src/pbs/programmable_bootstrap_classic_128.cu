@@ -256,6 +256,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
         static_cast<cudaStream_t>(stream), gpu_index,
         static_cast<__uint128_t *>(buffer->temp_lwe_array_in),
         static_cast<__uint128_t const *>(lwe_array_in),
+        static_cast<uint64_t const *>(buffer->trivial_indexes),
         static_cast<const __uint128_t *>(ms_noise_reduction_ptr),
         lwe_dimension + 1, num_samples, ms_noise_reduction_key->num_zeros,
         ms_noise_reduction_key->ms_input_variance,
