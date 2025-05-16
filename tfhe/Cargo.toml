@@ -21,6 +21,7 @@ rust-version = "1.84"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# A change to trigger CI
 [dev-dependencies]
 rand = { workspace = true }
 rand_distr = "0.4.3"

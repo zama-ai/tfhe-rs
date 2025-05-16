@@ -3,6 +3,7 @@ name: Cargo Test tfhe-fft
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - main
@@ -10,6 +11,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   IS_PULL_REQUEST: ${{ github.event_name == 'pull_request' }}
+  IS_DRAFT_PR: ${{ github.event.pull_request.draft == true }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
@@ -47,7 +49,8 @@ jobs:
 
   cargo-tests-fft:
     needs: should-run
-    if: needs.should-run.outputs.fft_test == 'true'
+    if: needs.should-run.outputs.fft_test == 'true' &&
+      (github.event_name == 'push' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
@@ -78,7 +81,8 @@ jobs:
 
   cargo-tests-fft-nightly:
     needs: should-run
-    if: needs.should-run.outputs.fft_test == 'true'
+    if: needs.should-run.outputs.fft_test == 'true' &&
+      (github.event_name == 'push' || github.event.pull_request.draft == false)
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
@@ -105,7 +109,8 @@ jobs:
 
   cargo-tests-fft-node-js:
     needs: should-run
-    if: needs.should-run.outputs.fft_test == 'true'
+    if: needs.should-run.outputs.fft_test == 'true' &&
+      (github.event_name == 'push' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -132,7 +137,8 @@ jobs:
         if: needs.should-run.outputs.fft_test == 'true' &&
           needs.cargo-tests-fft.result == 'success' &&
           needs.cargo-tests-fft-nightly.result == 'success' &&
-          needs.cargo-tests-fft-node-js.result == 'success'
+          needs.cargo-tests-fft-node-js.result == 'success' &&
+          ! env.IS_DRAFT_PR
         run: |
           echo "All tfhe-fft test passed"
 
@@ -140,7 +146,8 @@ jobs:
         if: needs.should-run.outputs.fft_test == 'true' &&
           (needs.cargo-tests-fft.result != 'success' ||
           needs.cargo-tests-fft-nightly.result != 'success' ||
-          needs.cargo-tests-fft-node-js.result != 'success')
+          needs.cargo-tests-fft-node-js.result != 'success') &&
+          ! env.IS_DRAFT_PR
         run: |
           echo "Some tfhe-fft tests failed"
           exit 1

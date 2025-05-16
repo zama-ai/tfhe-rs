@@ -23,6 +23,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -134,7 +135,7 @@ jobs:
   setup-instance:
     name: Setup instance (fast-tests)
     if: github.event_name == 'workflow_dispatch' ||
-      (github.event_name != 'workflow_dispatch' && needs.should-run.outputs.any_file_changed == 'true')
+      (github.event_name != 'workflow_dispatch' && github.event.pull_request.draft == false && needs.should-run.outputs.any_file_changed == 'true')
     needs: should-run
     runs-on: ubuntu-latest
     outputs:

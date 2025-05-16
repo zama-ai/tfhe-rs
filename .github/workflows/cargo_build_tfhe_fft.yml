@@ -3,6 +3,7 @@ name: Cargo Build tfhe-fft
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,8 +18,8 @@ permissions:
 
 jobs:
   cargo-builds-fft:
+    if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.runner_type }}
-
     strategy:
       matrix:
         runner_type: [ubuntu-latest, macos-latest, windows-latest]
