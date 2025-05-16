@@ -1,0 +1,36 @@
+[package]
+name = "tfhe-hpu-mockup"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zama Hardware team"]
+license = "BSD-3-Clause-Clear"
+description = "Simulation model of HPU hardware."
+readme = "README.md"
+
+[features]
+default = []
+isc-order-check = []
+
+[dependencies]
+tfhe = { path = "../../tfhe", features = ["hpu", "hpu-debug"] }
+
+ipc-channel = "0.18.3"
+
+strum = { version = "0.26.2", features = ["derive"] }
+strum_macros = "0.26.2"
+bytemuck = "1.16.0"
+
+clap = { version = "4.4.4", features = ["derive"] }
+clap-num = "*"
+anyhow = "1.0.82"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
+serde_json = "1.0"
+rand = "0.8.5"
+serde = { version = "1", features = ["derive"] }
+bitflags = "2.6.0"
+
+[[bin]]
+name = "hpu_mockup"
+path = "src/mockup.rs"
+required-features = []

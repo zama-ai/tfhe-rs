@@ -9,7 +9,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::Tagged;
+use crate::high_level_api::traits::{FheWait, Tagged};
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
 #[cfg(feature = "gpu")]
@@ -24,6 +24,11 @@ use crate::shortint::PBSParameters;
 use crate::GpuIndex;
 use crate::{FheBool, ServerKey, Tag};
 use std::marker::PhantomData;
+
+#[cfg(feature = "hpu")]
+use crate::high_level_api::traits::{FheHpu, HpuHandle};
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
 
 #[derive(Debug)]
 pub enum GenericIntegerBlockError {
@@ -147,6 +152,56 @@ where
     }
 }
 
+impl<Id> FheWait for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn wait(&self) {
+        self.ciphertext.wait()
+    }
+}
+
+#[cfg(feature = "hpu")]
+impl<Id> FheHpu for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn iop_exec(iop: &hpu_asm::AsmIOpcode, src: HpuHandle<&Self>) -> HpuHandle<Self> {
+        use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+        global_state::with_thread_local_hpu_device(|device| {
+            let mut srcs = Vec::new();
+            for n in src.native.iter() {
+                srcs.push(n.ciphertext.on_hpu(device).clone());
+            }
+            for b in src.boolean.iter() {
+                srcs.push(b.ciphertext.on_hpu(device).clone());
+            }
+
+            let (opcode, proto) = {
+                (
+                    iop.opcode(),
+                    &iop.format().expect("Unspecified IOP format").proto,
+                )
+            };
+            // These clones are cheap are they are just Arc
+            let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
+            HpuHandle {
+                native: hpu_res
+                    .iter()
+                    .filter(|x| !x.0.is_boolean())
+                    .map(|x| Self::new(x.clone(), device.tag.clone()))
+                    .collect::<Vec<_>>(),
+                boolean: hpu_res
+                    .iter()
+                    .filter(|x| x.0.is_boolean())
+                    .map(|x| FheBool::new(x.clone(), device.tag.clone()))
+                    .collect::<Vec<_>>(),
+                imm: Vec::new(),
+            }
+        })
+    }
+}
+
 impl<Id> FheUint<Id>
 where
     Id: FheUintId,
@@ -217,12 +272,12 @@ where
     /// slice is empty
     #[cfg(feature = "gpu")]
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
+        #[allow(clippy::match_wildcard_for_single_variants)]
         match &self.ciphertext {
-            RadixCiphertext::Cpu(_) => &[],
             RadixCiphertext::Cuda(cuda_ct) => cuda_ct.gpu_indexes(),
+            _ => &[],
         }
     }
-
     /// Returns a FheBool that encrypts `true` if the value is even
     ///
     /// # Example
@@ -256,6 +311,10 @@ where
                     .is_even(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -292,6 +351,10 @@ where
                     .is_odd(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -430,6 +493,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -475,6 +542,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -520,6 +591,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -565,6 +640,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -602,6 +681,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support count_ones yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -638,6 +721,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support count_zeros yet");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -686,6 +773,10 @@ where
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -743,6 +834,10 @@ where
                     FheBool::new(is_ok, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -826,6 +921,10 @@ where
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -902,6 +1001,10 @@ where
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 
@@ -937,6 +1040,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support reverse yet");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -984,6 +1091,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support if_then_else yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("Hpu does not support this operation yet.");
+            }
         })
     }
 
@@ -1023,6 +1134,10 @@ where
                     cuda_key.key.key.carry_modulus,
                     cuda_key.key.key.message_modulus,
                 ),
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                    panic!("Hpu does not support this operation yet.")
+                }
             });
 
         // Check number of blocks
@@ -1109,6 +1224,10 @@ where
                 );
                 Self::new(casted, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1153,6 +1272,10 @@ where
                 );
                 Self::new(casted, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1197,6 +1320,10 @@ where
                 );
                 Self::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }

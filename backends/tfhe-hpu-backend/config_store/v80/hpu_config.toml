@@ -1,0 +1,112 @@
+ 
+[fpga]
+  regmap=["${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_3in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
+  polling_us=10
+[fpga.ffi.V80]
+  ami_id=1 # First ami device in the list
+  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-1"
+  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-2"
+
+[rtl]
+  bpip_use = true
+  bpip_use_opportunism = true
+  bpip_timeout = 100_000
+
+[board]
+  ct_mem = 32768
+  ct_pc = [
+    {Hbm= {pc=32}},
+    {Hbm= {pc=33}},
+  ]
+  heap_size = 16384
+
+
+  lut_mem = 256
+  lut_pc = {Hbm={pc=34}}
+
+  fw_size= 16777216 # i.e. 16 MiB
+  fw_pc = {Ddr= {offset= 0x3900_0000}} # NB: Allocation must take place in the Discret DDR
+
+  bsk_pc = [
+    {Hbm={pc=8}},
+    {Hbm={pc=12}},
+    {Hbm={pc=24}},
+    {Hbm={pc=28}},
+    {Hbm={pc=40}},
+    {Hbm={pc=44}},
+    {Hbm={pc=56}},
+    {Hbm={pc=60}}
+  ]
+
+  ksk_pc = [
+    {Hbm={pc=0}},
+    {Hbm={pc=1}},
+    {Hbm={pc=2}},
+    {Hbm={pc=3}},
+    {Hbm={pc=4}},
+    {Hbm={pc=5}},
+    {Hbm={pc=6}},
+    {Hbm={pc=7}},
+    {Hbm={pc=16}},
+    {Hbm={pc=17}},
+    {Hbm={pc=18}},
+    {Hbm={pc=19}},
+    {Hbm={pc=20}},
+    {Hbm={pc=21}},
+    {Hbm={pc=22}},
+    {Hbm={pc=23}}
+  ]
+
+  trace_pc = {Hbm={pc=35}}
+  trace_depth = 32 # In MB
+
+[firmware]
+  #implementation = "Ilp"
+  implementation = "Llt"
+  integer_w=[2,4,6,8,10,12,14,16,32,64,128]
+  min_batch_size = 11
+  kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
+  custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
+  custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
+  custom_iop.'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_2.asm"
+  custom_iop.'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_3.asm"
+  custom_iop.'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_4.asm"
+  custom_iop.'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_8.asm"
+  custom_iop.'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_9.asm"
+  custom_iop.'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_16.asm"
+  custom_iop.'IOP[17]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_17.asm"
+  custom_iop.'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_18.asm"
+  custom_iop.'IOP[19]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_19.asm"
+  custom_iop.'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_20.asm"
+  custom_iop.'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_21.asm"
+
+[firmware.op_cfg.default]
+  fill_batch_fifo = true
+  min_batch_size = false
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.MUL]
+  fill_batch_fifo = false
+  min_batch_size = false
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.MULS]
+  fill_batch_fifo = false
+  min_batch_size = false
+  use_tiers = false
+  flush_behaviour = "Patient"
+  flush = true
+
+[firmware.op_cfg.by_op.ERC_20]
+  fill_batch_fifo = true
+  min_batch_size = false
+  use_tiers = true
+  flush_behaviour = "Patient"
+  flush = true

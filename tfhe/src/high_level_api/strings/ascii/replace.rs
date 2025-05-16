@@ -45,6 +45,10 @@ impl FheStringReplace<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replace");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replace");
+            }
         })
     }
 }
@@ -87,6 +91,10 @@ impl FheStringReplace<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replace");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replace");
+            }
         })
     }
 }
@@ -125,6 +133,10 @@ impl FheStringReplaceN<&Self, u16> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replacen");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replacen");
+            }
         })
     }
 }
@@ -144,6 +156,10 @@ impl FheStringReplaceN<&Self, (FheUint16, u16)> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replacen");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replacen");
             }
         })
     }
@@ -183,6 +199,10 @@ impl FheStringReplaceN<&ClearString, u16> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replacen");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replacen");
+            }
         })
     }
 }
@@ -202,6 +222,11 @@ impl FheStringReplaceN<&ClearString, (FheUint16, u16)> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings replacen");
+            }
+
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support strings replacen");
             }
         })
     }

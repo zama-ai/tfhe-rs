@@ -219,3 +219,27 @@ pub trait SizeOnGpu<Rhs = Self> {
 pub trait AddAssignSizeOnGpu<Rhs = Self> {
     fn get_add_assign_size_on_gpu(&self, amount: Rhs) -> u64;
 }
+
+/// Trait used to have a generic way of waiting Hw accelerator result
+pub trait FheWait {
+    fn wait(&self);
+}
+
+/// Struct used to have a generic way of starting custom Hpu IOp
+#[cfg(feature = "hpu")]
+pub struct HpuHandle<T> {
+    pub native: Vec<T>,
+    pub boolean: Vec<FheBool>,
+    pub imm: Vec<u128>,
+}
+
+#[cfg(feature = "hpu")]
+pub trait FheHpu
+where
+    Self: Sized,
+{
+    fn iop_exec(
+        iop: &tfhe_hpu_backend::prelude::hpu_asm::AsmIOpcode,
+        src: HpuHandle<&Self>,
+    ) -> HpuHandle<Self>;
+}

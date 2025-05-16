@@ -1,0 +1,256 @@
+module_name="hpu_regif_core_cfg_1in3"
+description="HPU top-level register interface. Used by the host to retrieve design information, and to configure it."
+word_size_b = 32
+offset = 0x00
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# =====================================================================================================================
+[section.entry_cfg_1in3]
+description="entry_cfg_1in3 section with known value used for debug."
+offset= 0x0
+
+[section.entry_cfg_1in3.register.dummy_val0]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x01010101}
+
+[section.entry_cfg_1in3.register.dummy_val1]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x11111111}
+
+[section.entry_cfg_1in3.register.dummy_val2]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x21212121}
+
+
+[section.entry_cfg_1in3.register.dummy_val3]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x31313131}
+
+# =====================================================================================================================
+[section.info]
+description="RTL architecture parameters"
+offset= 0x10
+
+[section.info.register.version]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="VERSION"}
+
+[section.info.register.ntt_architecture]
+  description="NTT architecture"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="NTT_CORE_ARCH"}
+
+[section.info.register.ntt_structure]
+  description="NTT structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.radix = { size_b=8, offset_b=0 , default={Param="R"}, description="NTT radix"}
+  field.psi   = { size_b=8, offset_b=8 , default={Param="PSI"}, description="NTT psi"}
+  field.div   = { size_b=8, offset_b=16, default={Param="BWD_PSI_DIV"}, description="NTT backward div"}
+  field.delta = { size_b=8, offset_b=24, default={Param="DELTA"}, description="NTT network delta (for wmm arch)"}
+
+[section.info.register.ntt_rdx_cut]
+  description="NTT radix cuts, in log2 unit (for gf64 arch)"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.radix_cut0 = { size_b=4, offset_b=0 , default={Param="NTT_RDX_CUT_S_0"}, description="NTT radix cut #0"}
+  field.radix_cut1 = { size_b=4, offset_b=4 , default={Param="NTT_RDX_CUT_S_1"}, description="NTT radix cut #1"}
+  field.radix_cut2 = { size_b=4, offset_b=8 , default={Param="NTT_RDX_CUT_S_2"}, description="NTT radix cut #2"}
+  field.radix_cut3 = { size_b=4, offset_b=12, default={Param="NTT_RDX_CUT_S_3"}, description="NTT radix cut #3"}
+  field.radix_cut4 = { size_b=4, offset_b=16, default={Param="NTT_RDX_CUT_S_4"}, description="NTT radix cut #4"}
+  field.radix_cut5 = { size_b=4, offset_b=20, default={Param="NTT_RDX_CUT_S_5"}, description="NTT radix cut #5"}
+  field.radix_cut6 = { size_b=4, offset_b=24, default={Param="NTT_RDX_CUT_S_6"}, description="NTT radix cut #6"}
+  field.radix_cut7 = { size_b=4, offset_b=28, default={Param="NTT_RDX_CUT_S_7"}, description="NTT radix cut #7"}
+
+[section.info.register.ntt_pbs]
+  description="Maximum number of PBS in the NTT pipeline"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.batch_pbs_nb = { size_b=8, offset_b=0 , default={Param="BATCH_PBS_NB"}, description="Maximum number of PBS in the NTT pipe"}
+  field.total_pbs_nb = { size_b=8, offset_b=8 , default={Param="TOTAL_PBS_NB"}, description="Maximum number of PBS stored in PEP buffer"}
+
+[section.info.register.ntt_modulo]
+  description="Code associated to the NTT prime"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="MOD_NTT_NAME"}
+
+[section.info.register.application]
+  description="Code associated with the application"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="APPLICATION_NAME"}
+
+[section.info.register.ks_structure]
+  description="Key-switch structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.x = { size_b=8, offset_b=0 , default={Param="LBX"}, description="Number of coefficients on X dimension"}
+  field.y = { size_b=8, offset_b=8 , default={Param="LBY"}, description="Number of coefficients on Y dimension"}
+  field.z = { size_b=8, offset_b=16, default={Param="LBZ"}, description="Number of coefficients on Z dimension"}
+
+[section.info.register.ks_crypto_param]
+  description="Key-switch crypto parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.mod_ksk_w = { size_b=8, offset_b=0 , default={Param="MOD_KSK_W"}, description="Width of KSK modulo"}
+  field.ks_l      = { size_b=8, offset_b=8 , default={Param="KS_L"}, description="Number of KS decomposition level"}
+  field.ks_b      = { size_b=8, offset_b=16, default={Param="KS_B_W"}, description="Width of KS decomposition base"}
+
+[section.info.register.regf_structure]
+  description="Register file structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.reg_nb  = { size_b=8, offset_b=0 , default={Param="REGF_REG_NB"}, description="Number of registers in regfile"}
+  field.coef_nb = { size_b=8, offset_b=8 , default={Param="REGF_COEF_NB"}, description="Number of coefficients at regfile interface"}
+
+[section.info.register.isc_structure]
+  description="Instruction scheduler structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.depth = { size_b=8, offset_b=0 , default={Param="ISC_DEPTH"}, description="Number of slots in ISC lookahead buffer."}
+  field.min_iop_size  = { size_b=8, offset_b=8 , default={Param="MIN_IOP_SIZE"}, description="Minimum number of DOp per IOp to prevent sync_id overflow."}
+
+[section.info.register.pe_properties]
+  description="Processing elements parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.alu_nb =          { size_b=8, offset_b=24 , default={Param="PEA_ALU_NB"}, description="Number of coefficients processed in parallel in pe_alu"}
+  field.pep_regf_period = { size_b=8, offset_b=16 , default={Param="PEP_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEP and regfile"}
+  field.pem_regf_period = { size_b=8, offset_b=8 ,  default={Param="PEM_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEM and regfile"}
+  field.pea_regf_period = { size_b=8, offset_b=0 ,  default={Param="PEA_REGF_PERIOD"}, description="Number of cycles between 2 consecutive data transfer between PEA and regfile"}
+
+[section.info.register.bsk_structure]
+  description="BSK manager structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.bsk_cut_nb = { size_b=8, offset_b=8 , default={Param="BSK_CUT_NB"}, description="BSK cut nb"}
+
+[section.info.register.ksk_structure]
+  description="KSK manager structure parameters"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.ksk_cut_nb = { size_b=8, offset_b=8 , default={Param="KSK_CUT_NB"}, description="KSK cut nb"}
+
+[section.info.register.hbm_axi4_nb]
+  description="Number of AXI4 connections to HBM"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  field.bsk_pc  = { size_b=8, offset_b=0 , default={Param="BSK_PC"},  description="Number of HBM connections for BSK"}
+  field.ksk_pc  = { size_b=8, offset_b=8,  default={Param="KSK_PC"},  description="Number of HBM connections for KSK"}
+  field.pem_pc  = { size_b=8, offset_b=16, default={Param="PEM_PC"},  description="Number of HBM connections for ciphertexts (PEM)"}
+  field.glwe_pc = { size_b=8, offset_b=24, default={Param="GLWE_PC"}, description="Number of HBM connections for GLWE"}
+
+[section.info.register.hbm_axi4_dataw_pem]
+  description="Ciphertext HBM AXI4 connection data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="AXI4_PEM_DATA_W"}
+
+[section.info.register.hbm_axi4_dataw_glwe]
+  description="GLWE HBM AXI4 connection data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="AXI4_GLWE_DATA_W"}
+
+[section.info.register.hbm_axi4_dataw_bsk]
+  description="BSK HBM AXI4 connection data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="AXI4_BSK_DATA_W"}
+
+[section.info.register.hbm_axi4_dataw_ksk]
+  description="KSK HBM AXI4 connection data width"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Param="AXI4_KSK_DATA_W"}
+
+
+# =====================================================================================================================
+[section.hbm_axi4_addr_1in3]
+offset= 0x1000
+description="HBM AXI4 connection address offset"
+
+[section.hbm_axi4_addr_1in3.register.ct]
+  description="Address offset for each ciphertext HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb","_pc1_lsb", "_pc1_msb"]
+
+[section.hbm_axi4_addr_1in3.register.glwe]
+  description="Address offset for each GLWE HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb"]
+
+
+[section.hbm_axi4_addr_1in3.register.ksk]
+  description="Address offset for each KSK HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb", "_pc2_lsb", "_pc2_msb", "_pc3_lsb", "_pc3_msb", "_pc4_lsb", "_pc4_msb", "_pc5_lsb", "_pc5_msb", "_pc6_lsb", "_pc6_msb", "_pc7_lsb", "_pc7_msb", "_pc8_lsb", "_pc8_msb", "_pc9_lsb", "_pc9_msb", "_pc10_lsb", "_pc10_msb", "_pc11_lsb", "_pc11_msb", "_pc12_lsb", "_pc12_msb", "_pc13_lsb", "_pc13_msb", "_pc14_lsb", "_pc14_msb", "_pc15_lsb", "_pc15_msb"]
+
+ [section.hbm_axi4_addr_1in3.register.trc]
+  description="Address offset for each trace HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb"]
+
+# =====================================================================================================================
+[section.bpip]
+offset= 0x2000
+description="BPIP configuration"
+
+[section.bpip.register.use]
+  description="(1) Use BPIP mode, (0) use IPIP mode (default)"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.use_bpip = { size_b=1, offset_b=0 , default={Cst=1}, description="use"}
+  field.use_opportunism = { size_b=1, offset_b=1 , default={Cst=0}, description="use opportunistic PBS flush"}
+
+[section.bpip.register.timeout]
+  description="Timeout for BPIP mode"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  default={Cst=0xffffffff}

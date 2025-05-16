@@ -108,6 +108,7 @@ impl Ntt64View<'_> {
         let mut standard = standard;
         let ntt = ntt.as_mut();
         let standard = standard.as_mut();
+
         self.plan.inv(ntt);
 
         // autovectorize

@@ -1,0 +1,105 @@
+name: Publish HPU release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run"
+        type: boolean
+        default: true
+
+env:
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+permissions: {}
+
+jobs:
+  verify_tag:
+    uses: ./.github/workflows/verify_tagged_commit.yml
+    secrets:
+      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+
+  package:
+    runs-on: ubuntu-latest
+    needs: verify_tag
+    outputs:
+      hash: ${{ steps.hash.outputs.hash }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      - name: Prepare package
+        run: |
+          cargo package -p tfhe-hpu-backend
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: crate
+          path: target/package/*.crate
+      - name: generate hash
+        id: hash
+        run: cd target/package && echo "hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
+  provenance:
+    if: ${{ !inputs.dry_run  }}
+    needs: [package]
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    permissions:
+      # Needed to detect the GitHub Actions environment
+      actions: read
+      # Needed to create the provenance via GitHub OIDC
+      id-token: write
+      # Needed to upload assets/artifacts
+      contents: write
+    with:
+      # SHA-256 hashes of the Crate package.
+      base64-subjects: ${{ needs.package.outputs.hash }}
+
+  publish_release:
+    name: Publish tfhe-hpu-backend Release
+    runs-on: ubuntu-latest
+    needs: [verify_tag, package] # for comparing hashes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Publish crate.io package
+        env:
+          CRATES_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish 
+          # would fail. This is safe since DRY_RUN is handled in the env section above.
+          # shellcheck disable=SC2086
+          cargo publish -p tfhe-hpu-backend --token "${CRATES_TOKEN}" ${DRY_RUN}
+
+      - name: Generate hash
+        id: published_hash
+        run: cd target/package && echo "pub_hash=$(sha256sum ./*.crate | base64 -w0)" >> "${GITHUB_OUTPUT}"
+
+      - name: Slack notification (hashes comparison)
+        if: ${{ needs.package.outputs.hash != steps.published_hash.outputs.pub_hash }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        env:
+          SLACK_COLOR: failure
+          SLACK_MESSAGE: "SLSA tfhe-hpu-backend crate - hash comparison failure: (${{ env.ACTION_RUN_URL }})"
+
+      - name: Slack Notification
+        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        continue-on-error: true
+        uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+        env:
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_MESSAGE: "tfhe-hpu-backend release failed: (${{ env.ACTION_RUN_URL }})"

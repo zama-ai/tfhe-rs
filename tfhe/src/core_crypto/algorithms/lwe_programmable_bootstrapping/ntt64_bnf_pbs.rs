@@ -92,8 +92,12 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Raw,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///
@@ -161,12 +165,13 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn blind_rotate_ntt64_bnf_assign<InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_ntt64_bnf_assign<InputScalar, InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
 ) where
-    InputCont: Container<Element = u64>,
+    InputScalar: UnsignedInteger + CastInto<usize>,
+    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64>,
 {
@@ -194,21 +199,22 @@ pub fn blind_rotate_ntt64_bnf_assign<InputCont, OutputCont, KeyCont>(
 /// a properly configured [`Ntt64View`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of
 /// [`blind_rotate_ntt64_bnf_assign_mem_optimized_requirement`].
-pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
+pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputScalar, InputCont, OutputCont, KeyCont>(
     input: &LweCiphertext<InputCont>,
     lut: &mut GlweCiphertext<OutputCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
     ntt: Ntt64View<'_>,
     stack: &mut PodStack,
 ) where
-    InputCont: Container<Element = u64>,
+    InputScalar: UnsignedInteger + CastInto<usize>,
+    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64>,
 {
-    fn implementation(
+    fn implementation<InputScalar: UnsignedInteger + CastInto<usize>>(
         bsk: NttLweBootstrapKeyView<'_, u64>,
         lut: GlweCiphertextMutView<'_, u64>,
-        lwe: &[u64],
+        lwe: &[InputScalar],
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
     ) {
@@ -226,7 +232,7 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputCont, OutputCont, KeyCon
         let mut ct0 = lut;
 
         for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
-            if *lwe_mask_element != 0u64 {
+            if *lwe_mask_element != InputScalar::ZERO {
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
@@ -345,8 +351,12 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputCont, OutputCont, KeyCon
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Raw,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///
@@ -648,7 +658,9 @@ pub(crate) fn add_external_product_ntt64_bnf_assign<InputGlweCont>(
                     .into_chunks(poly_size)
                     .map(PolynomialMutView::from_container),
             )
-            .for_each(|(out, ntt_poly)| {
+            .for_each(|(out, mut ntt_poly)| {
+                // NB: Bnf implementation apply normalization on each bwd path
+                ntt.plan.normalize(ntt_poly.as_mut());
                 ntt.add_backward_on_power_of_two_modulus(power_of_two_modulus_width, out, ntt_poly);
             });
         }

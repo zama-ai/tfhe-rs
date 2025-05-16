@@ -33,7 +33,8 @@ pub mod shortint_params {
     use tfhe::core_crypto::prelude::{DynamicDistribution, LweBskGroupingFactor};
     use tfhe::keycache::NamedParam;
     use tfhe::shortint::{
-        CarryModulus, ClassicPBSParameters, MessageModulus, MultiBitPBSParameters, PBSParameters,
+        AtomicPatternParameters, CarryModulus, ClassicPBSParameters, MessageModulus,
+        MultiBitPBSParameters,
     };
 
     pub const SHORTINT_BENCH_PARAMS_TUNIFORM: [ClassicPBSParameters; 4] = [
@@ -78,7 +79,7 @@ pub mod shortint_params {
                 .map(|params| {
                     (
                         params.name(),
-                        <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                     )
@@ -94,7 +95,7 @@ pub mod shortint_params {
                 .map(|(params, name)| {
                     (
                         name.to_string(),
-                        <ClassicPBSParameters as Into<PBSParameters>>::into(*params)
+                        <ClassicPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                     )
@@ -111,7 +112,7 @@ pub mod shortint_params {
                 .map(|params| {
                     (
                         params.name(),
-                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                     )
@@ -132,7 +133,7 @@ pub mod shortint_params {
                 .map(|(params, name)| {
                     (
                         name.to_string(),
-                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                     )
@@ -150,7 +151,7 @@ pub mod shortint_params {
                 .map(|params| {
                     (
                         params.name(),
-                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                         params.grouping_factor,
@@ -172,7 +173,7 @@ pub mod shortint_params {
                 .map(|(params, name)| {
                     (
                         name.to_string(),
-                        <MultiBitPBSParameters as Into<PBSParameters>>::into(*params)
+                        <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                             .to_owned()
                             .into(),
                         params.grouping_factor,
@@ -183,7 +184,7 @@ pub mod shortint_params {
         }
     }
 
-    pub fn raw_benchmark_parameters() -> Vec<PBSParameters> {
+    pub fn raw_benchmark_parameters() -> Vec<AtomicPatternParameters> {
         let is_multi_bit = match env::var("__TFHE_RS_PARAM_TYPE") {
             Ok(val) => val.to_lowercase() == "multi_bit",
             Err(_) => false,
@@ -351,7 +352,7 @@ pub mod shortint_params {
         }
     }
 
-    pub fn filter_parameters<'a, P: Copy + Into<PBSParameters>>(
+    pub fn filter_parameters<'a, P: Copy + Into<AtomicPatternParameters>>(
         params: &[(&'a P, &'a str)],
         desired_noise_distribution: DesiredNoiseDistribution,
         desired_backend: DesiredBackend,
@@ -359,7 +360,7 @@ pub mod shortint_params {
         params
             .iter()
             .filter_map(|(p, name)| {
-                let temp_param: PBSParameters = (**p).into();
+                let temp_param: AtomicPatternParameters = (**p).into();
 
                 match (
                     temp_param.lwe_noise_distribution(),
@@ -391,13 +392,14 @@ mod integer_params {
     use crate::utilities::EnvConfig;
     use itertools::iproduct;
     use std::vec::IntoIter;
-    use tfhe::shortint::PBSParameters;
+    use tfhe::shortint::AtomicPatternParameters;
 
     /// An iterator that yields a succession of combinations
     /// of parameters and a num_block to achieve a certain bit_size ciphertext
     /// in radix decomposition
     pub struct ParamsAndNumBlocksIter {
-        params_and_bit_sizes: itertools::Product<IntoIter<PBSParameters>, IntoIter<usize>>,
+        params_and_bit_sizes:
+            itertools::Product<IntoIter<AtomicPatternParameters>, IntoIter<usize>>,
     }
 
     impl Default for ParamsAndNumBlocksIter {
@@ -405,23 +407,33 @@ mod integer_params {
             let env_config = EnvConfig::new();
 
             if env_config.is_multi_bit {
-                #[cfg(feature = "gpu")]
-                let params = vec![
-                    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-                        .into(),
-                ];
-                #[cfg(not(feature = "gpu"))]
-                let params = vec![
-                    BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128.into(),
-                ];
+                #[cfg(feature = "hpu")]
+                panic!("Hpu doesn't implement MultiBit");
 
-                let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
-                Self {
-                    params_and_bit_sizes,
+                #[cfg(not(feature = "hpu"))]
+                {
+                    #[cfg(feature = "gpu")]
+                    let params = vec![
+                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                            .into(),
+                    ];
+                    #[cfg(not(feature = "gpu"))]
+                    let params = vec![
+                        BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
+                            .into(),
+                    ];
+
+                    let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
+                    Self {
+                        params_and_bit_sizes,
+                    }
                 }
             } else {
                 // FIXME One set of parameter is tested since we want to benchmark only quickest
                 // operations.
+                #[cfg(feature = "hpu")]
+                let params = vec![BENCH_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64.into()];
+                #[cfg(not(feature = "hpu"))]
                 let params = vec![BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into()];
 
                 let params_and_bit_sizes = iproduct!(params, env_config.bit_sizes());
@@ -433,7 +445,7 @@ mod integer_params {
     }
 
     impl Iterator for ParamsAndNumBlocksIter {
-        type Item = (PBSParameters, usize, usize);
+        type Item = (AtomicPatternParameters, usize, usize);
 
         fn next(&mut self) -> Option<Self::Item> {
             let (param, bit_size) = self.params_and_bit_sizes.next()?;

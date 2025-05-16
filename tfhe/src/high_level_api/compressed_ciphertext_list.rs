@@ -26,7 +26,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
-use crate::{FheBool, FheInt, FheUint, Tag};
+use crate::{Device, FheBool, FheInt, FheUint, Tag};
 
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
@@ -41,6 +41,10 @@ impl<Id: FheUintId> HlCompressible for FheUint<Id> {
                 let blocks = gpu_radix.ciphertext;
                 let kind = DataKind::Unsigned(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
+            }
+            #[cfg(feature = "hpu")]
+            crate::high_level_api::integers::unsigned::RadixCiphertext::Hpu(_) => {
+                panic!("HPU does not support compression");
             }
         }
     }
@@ -74,6 +78,8 @@ impl HlCompressible for FheBool {
                 let kind = DataKind::Boolean;
                 messages.push((ToBeCompressed::Cuda(cuda_bool.0.ciphertext), kind));
             }
+            #[cfg(feature = "hpu")]
+            InnerBoolean::Hpu(_) => panic!("HPU does not support compression"),
         }
     }
 }
@@ -209,6 +215,10 @@ impl CompressedCiphertextListBuilder {
                         }
                     })
             }
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => Err(crate::Error::new(
+                "Hpu does not support compression".to_string(),
+            )),
             None => Err(UninitializedServerKey.into()),
         })
     }
@@ -255,38 +265,45 @@ impl InnerCompressedCiphertextList {
         }
     }
 
-    fn move_to_device(&mut self, device: crate::Device) {
-        let new_value = match (&self, device) {
-            (Self::Cpu(_), crate::Device::Cpu) => None,
+    #[allow(clippy::needless_pass_by_ref_mut)]
+    fn move_to_device(&mut self, target_device: Device) {
+        let current_device = self.current_device();
+
+        if current_device == target_device {
             #[cfg(feature = "gpu")]
-            (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => {
+            // We may not be on the correct Cuda device
+            if let Self::Cuda(cuda_ct) = self {
                 with_thread_local_cuda_streams(|streams| {
-                    if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
-                        None
-                    } else {
-                        Some(Self::Cuda(cuda_ct.duplicate(streams)))
+                    if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
+                        *cuda_ct = cuda_ct.duplicate(streams);
                     }
                 })
             }
-            #[cfg(feature = "gpu")]
-            (Self::Cuda(cuda_ct), crate::Device::Cpu) => {
-                let cpu_ct = with_thread_local_cuda_streams_for_gpu_indexes(
-                    cuda_ct.gpu_indexes(),
-                    |streams| cuda_ct.to_compressed_ciphertext_list(streams),
-                );
-                Some(Self::Cpu(cpu_ct))
+            return;
+        }
+
+        // The logic is that the common device is the CPU, all other devices
+        // know how to transfer from and to CPU.
+
+        // So we first transfer to CPU
+        let cpu_ct = self.on_cpu();
+
+        // Then we can transfer the desired device
+        match target_device {
+            Device::Cpu => {
+                let _ = cpu_ct;
             }
             #[cfg(feature = "gpu")]
-            (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
-                let cuda_ct = with_thread_local_cuda_streams(|streams| {
+            Device::CudaGpu => {
+                let new_inner = with_thread_local_cuda_streams(|streams| {
                     cpu_ct.to_cuda_compressed_ciphertext_list(streams)
                 });
-                Some(Self::Cuda(cuda_ct))
+                *self = Self::Cuda(new_inner);
             }
-        };
-
-        if let Some(v) = new_value {
-            *self = v;
+            #[cfg(feature = "hpu")]
+            Device::Hpu => {
+                panic!("HPU does not support compression");
+            }
         }
     }
 
@@ -468,6 +485,10 @@ impl CiphertextList for CompressedCiphertextList {
                     }
                     ct
                 }),
+            #[cfg(feature = "hpu")]
+            Some(InternalServerKey::Hpu(_)) => {
+                panic!("HPU does not support compression");
+            }
             None => Err(UninitializedServerKey.into()),
         })
     }

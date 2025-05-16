@@ -1,0 +1,51 @@
+module_name="hpu_regif_core_cfg_3in3"
+description="HPU top-level register interface. Used by the host to retrieve design information, and to configure it."
+word_size_b = 32
+offset = 0x20000
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# =====================================================================================================================
+[section.entry_cfg_3in3]
+description="entry_cfg_3in3 section with known value used for debug."
+offset= 0x0
+
+[section.entry_cfg_3in3.register.dummy_val0]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x03030303}
+
+[section.entry_cfg_3in3.register.dummy_val1]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x13131313}
+
+[section.entry_cfg_3in3.register.dummy_val2]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x23232323}
+
+[section.entry_cfg_3in3.register.dummy_val3]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x33333333}
+
+# =====================================================================================================================
+[section.hbm_axi4_addr_3in3]
+description="HBM AXI4 connection address offset"
+offset= 0x10
+
+[section.hbm_axi4_addr_3in3.register.bsk]
+  description="Address offset for each BSK HBM AXI4 connection"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  duplicate=["_pc0_lsb", "_pc0_msb", "_pc1_lsb", "_pc1_msb", "_pc2_lsb", "_pc2_msb", "_pc3_lsb", "_pc3_msb", "_pc4_lsb", "_pc4_msb", "_pc5_lsb", "_pc5_msb", "_pc6_lsb", "_pc6_msb", "_pc7_lsb", "_pc7_msb", "_pc8_lsb", "_pc8_msb", "_pc9_lsb", "_pc9_msb", "_pc10_lsb", "_pc10_msb", "_pc11_lsb", "_pc11_msb", "_pc12_lsb", "_pc12_msb", "_pc13_lsb", "_pc13_msb", "_pc14_lsb", "_pc14_msb", "_pc15_lsb", "_pc15_msb"]

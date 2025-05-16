@@ -99,8 +99,13 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// // The obtained coefficient contains INtt normalization
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Normalize,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///
@@ -354,8 +359,13 @@ pub fn blind_rotate_ntt64_assign_mem_optimized<InputCont, OutputCont, KeyCont>(
 /// );
 ///
 /// // Use the conversion function (a memory optimized version also exists but is more complicated
-/// // to use) to convert the standard bootstrapping key to the Fourier domain
-/// convert_standard_lwe_bootstrap_key_to_ntt64(&std_bootstrapping_key, &mut ntt_bsk);
+/// // to use) to convert the standard bootstrapping key to the Fourier domain.
+/// // The obtained coefficient contains INtt normalization
+/// convert_standard_lwe_bootstrap_key_to_ntt64(
+///     &std_bootstrapping_key,
+///     &mut ntt_bsk,
+///     NttLweBootstrapKeyOption::Normalize,
+/// );
 /// // We don't need the standard bootstrapping key anymore
 /// drop(std_bootstrapping_key);
 ///

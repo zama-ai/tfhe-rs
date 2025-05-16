@@ -64,6 +64,10 @@ where
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -160,6 +164,10 @@ where
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -296,6 +304,10 @@ where
                     FheBool::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -384,6 +396,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda devices do not support overflowing_add yet");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -470,6 +486,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 todo!("Cuda devices do not support overflowing_mul");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }

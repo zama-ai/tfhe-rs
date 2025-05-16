@@ -1,6 +1,7 @@
 // Ask clippy not to worry about this
 // this is the pattern we use for the macros
 #![allow(clippy::redundant_closure_call)]
+
 use super::inner::RadixCiphertext;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::details::MaybeCloned;
@@ -17,12 +18,16 @@ use crate::high_level_api::traits::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::{FheBool, FheUint};
 use std::borrow::Borrow;
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
 
 impl<Id> std::iter::Sum<Self> for FheUint<Id>
 where
@@ -93,6 +98,15 @@ where
                     });
                 Self::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let mut iter = iter;
+                let mut result = iter.next().unwrap().ciphertext.into_hpu(device);
+                for o in iter {
+                    result += o.ciphertext.into_hpu(device);
+                }
+                Self::new(result, device.tag.clone())
+            }
         })
     }
 }
@@ -186,6 +200,21 @@ where
                     Self::new(inner, cuda_key.tag.clone())
                 })
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let mut iter = iter;
+                let first = iter.next().unwrap().ciphertext.on_hpu(device);
+
+                let Some(second) = iter.next() else {
+                    return Self::new(first.clone(), device.tag.clone());
+                };
+
+                let mut result = &*first + &*second.ciphertext.on_hpu(device);
+                for o in iter {
+                    result += &*o.ciphertext.on_hpu(device);
+                }
+                Self::new(result, device.tag.clone())
+            }
         })
     }
 }
@@ -232,6 +261,10 @@ where
                 );
                 Self::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -278,6 +311,10 @@ where
                 );
                 Self::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -335,6 +372,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_EQ;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 
@@ -374,6 +433,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_NEQ;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 }
@@ -439,6 +520,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_LT;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 
@@ -478,6 +581,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_LTE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 
@@ -517,6 +642,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_GT;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 
@@ -556,6 +703,28 @@ where
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_CMP_GTE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheBool::new(hpu_result, device.tag.clone())
+            }
         })
     }
 }
@@ -642,6 +811,10 @@ where
                     FheUint::<Id>::new(inner_result.1, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -723,6 +896,12 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs + &*hpu_rhs, device.tag.clone())
+                }
             })
         }
     },
@@ -765,6 +944,12 @@ generic_integer_impl_operation!(
                             .sub(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs - &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -809,6 +994,12 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs * &*hpu_rhs, device.tag.clone())
+                }
             })
         }
     },
@@ -849,6 +1040,12 @@ generic_integer_impl_operation!(
                             .bitand(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs & &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -891,6 +1088,12 @@ generic_integer_impl_operation!(
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
                 }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs | &*hpu_rhs, device.tag.clone())
+                }
             })
         }
     },
@@ -931,6 +1134,12 @@ generic_integer_impl_operation!(
                             .bitxor(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheUint::new(inner_result, cuda_key.tag.clone())
                     })
+                }
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(device) => {
+                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                    let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                    FheUint::new(&*hpu_lhs ^ &*hpu_rhs, device.tag.clone())
                 }
             })
         }
@@ -982,6 +1191,10 @@ generic_integer_impl_operation!(
                             .div(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 }),
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+                }
             })
         }
     },
@@ -1033,6 +1246,10 @@ generic_integer_impl_operation!(
                             .rem(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 }),
+                #[cfg(feature = "hpu")]
+                InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+                }
             })
         }
     },
@@ -1146,6 +1363,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                         })
                     }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+                    }
                 }
             })
         }
@@ -1189,6 +1410,10 @@ generic_integer_impl_shift_rotate!(
                                 .right_shift(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheUint::new(inner_result, cuda_key.tag.clone())
                         })
+                    }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1234,6 +1459,10 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                         })
                     }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+                    }
                 }
             })
         }
@@ -1277,6 +1506,10 @@ generic_integer_impl_shift_rotate!(
                                 .rotate_right(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheUint::new(inner_result, cuda_key.tag.clone())
                         })
+                    }
+                    #[cfg(feature = "hpu")]
+                    InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
                     }
                 }
             })
@@ -1328,6 +1561,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs += &*hpu_rhs;
+            }
         })
     }
 }
@@ -1373,6 +1612,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs -= &*hpu_rhs;
+            }
         })
     }
 }
@@ -1418,6 +1663,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs *= &*hpu_rhs;
+            }
         })
     }
 }
@@ -1461,6 +1712,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs &= &*hpu_rhs;
+            }
         })
     }
 }
@@ -1504,6 +1761,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs |= &*hpu_rhs;
+            }
         })
     }
 }
@@ -1547,6 +1810,12 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+                *hpu_lhs ^= &*hpu_rhs;
+            }
         })
     }
 }
@@ -1595,6 +1864,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1643,6 +1916,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1698,6 +1975,10 @@ where
                     );
                 });
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1751,6 +2032,10 @@ where
                         streams,
                     );
                 });
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1807,6 +2092,10 @@ where
                     );
                 });
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -1861,6 +2150,10 @@ where
                         streams,
                     );
                 });
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
@@ -1941,6 +2234,10 @@ where
                     .neg(&*self.ciphertext.on_gpu(streams), streams);
                 FheUint::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -2010,6 +2307,10 @@ where
                     .bitnot(&*self.ciphertext.on_gpu(streams), streams);
                 FheUint::new(inner_result, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitnot (operator `!`)")
+            }
         })
     }
 }

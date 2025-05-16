@@ -64,6 +64,10 @@ where
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -160,6 +164,10 @@ where
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -294,6 +302,10 @@ where
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -389,6 +401,10 @@ where
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
         })
     }
 }
@@ -476,6 +492,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 todo!("Cuda devices do not support signed integer");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
             }
         })
     }
