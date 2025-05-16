@@ -211,20 +211,6 @@ pub trait SquashNoise {
     fn squash_noise(&self) -> crate::Result<Self::Output>;
 }
 
-#[cfg(feature = "gpu")]
-pub trait SizeOnGpu<Rhs = Self> {
-    fn get_size_on_gpu(&self) -> u64;
-}
-#[cfg(feature = "gpu")]
-pub trait AddSizeOnGpu<Rhs = Self> {
-    fn get_add_size_on_gpu(&self, amount: Rhs) -> u64;
-}
-
-#[cfg(feature = "gpu")]
-pub trait SubSizeOnGpu<Rhs = Self> {
-    fn get_sub_size_on_gpu(&self, amount: Rhs) -> u64;
-}
-
 /// Trait used to have a generic way of waiting Hw accelerator result
 pub trait FheWait {
     fn wait(&self);
@@ -247,4 +233,35 @@ where
         iop: &tfhe_hpu_backend::prelude::hpu_asm::AsmIOpcode,
         src: HpuHandle<&Self>,
     ) -> HpuHandle<Self>;
+}
+
+#[cfg(feature = "gpu")]
+pub trait SizeOnGpu<Rhs = Self> {
+    fn get_size_on_gpu(&self) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait AddSizeOnGpu<Rhs = Self> {
+    fn get_add_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait SubSizeOnGpu<Rhs = Self> {
+    fn get_sub_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait BitAndSizeOnGpu<Rhs = Self> {
+    fn get_bitand_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait BitOrSizeOnGpu<Rhs = Self> {
+    fn get_bitor_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait BitXorSizeOnGpu<Rhs = Self> {
+    fn get_bitxor_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait BitNotSizeOnGpu {
+    fn get_bitnot_size_on_gpu(&self) -> u64;
 }
