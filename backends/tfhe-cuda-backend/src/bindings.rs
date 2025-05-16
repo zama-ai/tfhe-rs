@@ -50,6 +50,7 @@ unsafe extern "C" {
         gpu_index: u32,
         lwe_array_out: *mut ffi::c_void,
         lwe_array_in: *const ffi::c_void,
+        lwe_array_indexes: *const ffi::c_void,
         encrypted_zeros: *const ffi::c_void,
         lwe_size: u32,
         num_lwes: u32,
