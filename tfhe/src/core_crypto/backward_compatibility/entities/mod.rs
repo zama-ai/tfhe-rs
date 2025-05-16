@@ -16,6 +16,7 @@ pub mod lwe_ciphertext_list;
 pub mod lwe_compact_ciphertext_list;
 pub mod lwe_compact_public_key;
 pub mod lwe_keyswitch_key;
+pub mod lwe_keyswitch_key_chunk;
 pub mod lwe_multi_bit_bootstrap_key;
 pub mod lwe_packing_keyswitch_key;
 pub mod lwe_private_functional_packing_keyswitch_key;
