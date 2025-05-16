@@ -4,7 +4,10 @@ use crate::high_level_api::global_state;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::traits::{AddSizeOnGpu, SizeOnGpu, SubSizeOnGpu};
+use crate::high_level_api::traits::{
+    AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, SizeOnGpu,
+    SubSizeOnGpu,
+};
 use crate::high_level_api::traits::{
     DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
     RotateRightAssign,
@@ -2152,5 +2155,102 @@ where
             }),
             InternalServerKey::Cpu(_) => 0,
         })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, I> BitAndSizeOnGpu<I> for FheInt<Id>
+where
+    Id: FheIntId,
+    I: Borrow<Self>,
+{
+    fn get_bitand_size_on_gpu(&self, rhs: I) -> u64 {
+        let rhs = rhs.borrow();
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key.key.key.get_bitand_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+            }),
+        });
+        tmp_buffer_size
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, I> BitOrSizeOnGpu<I> for FheInt<Id>
+where
+    Id: FheIntId,
+    I: Borrow<Self>,
+{
+    fn get_bitor_size_on_gpu(&self, rhs: I) -> u64 {
+        let rhs = rhs.borrow();
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key.key.key.get_bitor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+            }),
+        });
+        tmp_buffer_size
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, I> BitXorSizeOnGpu<I> for FheInt<Id>
+where
+    Id: FheIntId,
+    I: Borrow<Self>,
+{
+    fn get_bitxor_size_on_gpu(&self, rhs: I) -> u64 {
+        let rhs = rhs.borrow();
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key.key.key.get_bitxor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
+            }),
+        });
+        tmp_buffer_size
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> BitNotSizeOnGpu for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    fn get_bitnot_size_on_gpu(&self) -> u64 {
+        let mut tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(_) => {
+                tmp_buffer_size = 0;
+            }
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                tmp_buffer_size = cuda_key
+                    .key
+                    .key
+                    .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams);
+            }),
+        });
+        tmp_buffer_size
     }
 }
