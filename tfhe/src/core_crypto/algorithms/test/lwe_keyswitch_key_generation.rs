@@ -1,18 +1,20 @@
 use super::*;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
+use crate::core_crypto::commons::test_tools::random_usize_between;
 
 #[cfg(not(tarpaulin))]
 const NB_TESTS: usize = 10;
 #[cfg(tarpaulin)]
 const NB_TESTS: usize = 1;
 
-fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
+fn test_seeded_and_chunked_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
     ciphertext_modulus: CiphertextModulus<Scalar>,
 ) {
     // DISCLAIMER: these toy example parameters are not guaranteed to be secure or yield correct
     // computations
     // Define parameters for LweKeyswitchKey creation
     let input_lwe_dimension = LweDimension(742);
+    let chunk_size = ChunkSize(random_usize_between(1..input_lwe_dimension.0));
     let lwe_noise_distribution =
         DynamicDistribution::new_gaussian_from_std_dev(StandardDev(0.000007069849454709433));
     let output_lwe_dimension = LweDimension(2048);
@@ -99,25 +101,52 @@ fn test_seeded_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send + Sync>(
         let par_decompressed_ksk = seeded_ksk.as_view().par_decompress_into_lwe_keyswitch_key();
 
         assert_eq!(ser_decompressed_ksk, par_decompressed_ksk);
+
+        // Chunked Keygen
+        let mut deterministic_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
+        let mut encryption_generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+            mask_seed,
+            &mut deterministic_seeder,
+        );
+
+        let chunk_generator = LweKeyswitchKeyChunkGenerator::new(
+            &mut encryption_generator,
+            chunk_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            &input_lwe_secret_key,
+            &output_lwe_secret_key,
+            lwe_noise_distribution,
+        );
+        let chunks = chunk_generator.collect::<Vec<_>>();
+        let assembled_ksk = allocate_and_assemble_lwe_keyswitch_key_from_chunks(chunks.as_slice());
+
+        assert_eq!(ksk, assembled_ksk);
     }
 }
 
 #[test]
-fn test_seeded_lwe_ksk_gen_equivalence_u32_native_mod() {
-    test_seeded_lwe_ksk_gen_equivalence::<u32>(CiphertextModulus::new_native());
+fn test_seeded_and_chunked_lwe_ksk_gen_equivalence_u32_native_mod() {
+    test_seeded_and_chunked_lwe_ksk_gen_equivalence::<u32>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_seeded_lwe_ksk_gen_equivalence_u64_native_mod() {
-    test_seeded_lwe_ksk_gen_equivalence::<u64>(CiphertextModulus::new_native());
+fn test_seeded_and_chunked_lwe_ksk_gen_equivalence_u64_native_mod() {
+    test_seeded_and_chunked_lwe_ksk_gen_equivalence::<u64>(CiphertextModulus::new_native());
 }
 
 #[test]
-fn test_seeded_lwe_ksk_gen_equivalence_u32_custom_mod() {
-    test_seeded_lwe_ksk_gen_equivalence::<u32>(CiphertextModulus::try_new_power_of_2(31).unwrap());
+fn test_seeded_and_chunked_lwe_ksk_gen_equivalence_u32_custom_mod() {
+    test_seeded_and_chunked_lwe_ksk_gen_equivalence::<u32>(
+        CiphertextModulus::try_new_power_of_2(31).unwrap(),
+    );
 }
 
 #[test]
-fn test_seeded_lwe_ksk_gen_equivalence_u64_custom_mod() {
-    test_seeded_lwe_ksk_gen_equivalence::<u64>(CiphertextModulus::try_new_power_of_2(63).unwrap());
+fn test_seeded_and_chunked_lwe_ksk_gen_equivalence_u64_custom_mod() {
+    test_seeded_and_chunked_lwe_ksk_gen_equivalence::<u64>(
+        CiphertextModulus::try_new_power_of_2(63).unwrap(),
+    );
 }
