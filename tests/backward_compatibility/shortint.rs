@@ -138,11 +138,13 @@ pub fn test_shortint_clientkey(
 
     let key: ClientKey = load_and_unversionize(dir, test, format)?;
 
-    if test_params != key.parameters {
+    if test_params != key.parameters() {
         Err(test.failure(
             format!(
                 "Invalid {} parameters:\n Expected :\n{:?}\nGot:\n{:?}",
-                format, test_params, key.parameters
+                format,
+                test_params,
+                key.parameters()
             ),
             format,
         ))

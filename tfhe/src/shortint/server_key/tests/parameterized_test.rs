@@ -182,7 +182,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -205,9 +205,9 @@ where
     let mut rng = rand::thread_rng();
 
     for _ in 0..NB_TESTS {
-        let mut modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+        let mut modulus = rng.gen::<u64>() % cks.parameters().message_modulus().0;
         while modulus == 0 {
-            modulus = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+            modulus = rng.gen::<u64>() % cks.parameters().message_modulus().0;
         }
 
         let clear = rng.gen::<u64>() % modulus;
@@ -230,7 +230,7 @@ where
     let mut rng = rand::thread_rng();
 
     // We assume that the modulus is the largest possible without padding bit
-    let modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
+    let modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -252,7 +252,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
     let mut failures = 0;
 
     for _ in 0..NB_TESTS {
@@ -282,14 +282,14 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
 
         let ctxt_0 = cks.encrypt(clear_0);
 
-        let acc = sks.generate_msg_lookup_table(|n| n, cks.parameters.message_modulus());
+        let acc = sks.generate_msg_lookup_table(|n| n, cks.parameters().message_modulus());
 
         let ct_res = sks.apply_lookup_table(&ctxt_0, &acc);
 
@@ -308,8 +308,8 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let msg_modulus = cks.parameters.message_modulus().0;
-    let carry_modulus = cks.parameters.carry_modulus().0;
+    let msg_modulus = cks.parameters().message_modulus().0;
+    let carry_modulus = cks.parameters().carry_modulus().0;
     let modulus_sup = msg_modulus * carry_modulus;
 
     let f1 = |x: u64| x * x % msg_modulus;
@@ -394,9 +394,9 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let full_modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
+    let full_modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
 
-    let msg_modulus = cks.parameters.message_modulus().0;
+    let msg_modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % full_modulus;
@@ -424,9 +424,9 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let full_modulus = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
+    let full_modulus = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
 
-    let msg_modulus = cks.parameters.message_modulus().0;
+    let msg_modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % full_modulus;
@@ -452,7 +452,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -476,7 +476,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -492,8 +492,8 @@ where
 
         println!(
             "The parameters set is CARRY_{}_MESSAGE_{}",
-            cks.parameters.carry_modulus().0,
-            cks.parameters.message_modulus().0
+            cks.parameters().carry_modulus().0,
+            cks.parameters().message_modulus().0
         );
         assert_eq!((clear_0 + clear_1) % modulus, dec_res);
     }
@@ -508,7 +508,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -543,7 +543,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -573,7 +573,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -608,7 +608,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -641,7 +641,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -669,7 +669,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -698,7 +698,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -727,8 +727,8 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -757,8 +757,8 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -788,8 +788,8 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -818,8 +818,8 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -849,8 +849,8 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -879,8 +879,8 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
-    let mod_scalar = cks.parameters.carry_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0;
+    let mod_scalar = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<u64>() % modulus;
@@ -910,7 +910,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -949,7 +949,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -979,7 +979,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u64>() % modulus;
@@ -1005,7 +1005,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -1037,7 +1037,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -1063,7 +1063,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = cks.parameters.message_modulus().0 as u8;
+    let message_modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -1089,7 +1089,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -1122,7 +1122,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -1150,7 +1150,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = cks.parameters.message_modulus().0 as u8;
+    let message_modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -1176,7 +1176,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -1209,7 +1209,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u8>() % modulus;
@@ -1237,8 +1237,8 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let message_modulus = cks.parameters.message_modulus().0 as u8;
-    let carry_modulus = cks.parameters.carry_modulus().0 as u8;
+    let message_modulus = cks.parameters().message_modulus().0 as u8;
+    let carry_modulus = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % message_modulus;
@@ -1264,9 +1264,9 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
-    let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
+    let scalar_modulus = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS_SMART {
         let clear = rng.gen::<u8>() % modulus;
@@ -1298,9 +1298,9 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0 as u8;
+    let modulus = cks.parameters().message_modulus().0 as u8;
 
-    let scalar_modulus = cks.parameters.carry_modulus().0 as u8;
+    let scalar_modulus = cks.parameters().carry_modulus().0 as u8;
 
     for _ in 0..NB_TESTS {
         let clear = rng.gen::<u8>() % modulus;
@@ -1328,7 +1328,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1353,7 +1353,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1378,7 +1378,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1403,7 +1403,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1428,7 +1428,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % modulus;
         let clear2 = rng.gen::<u64>() % modulus;
@@ -1454,7 +1454,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS_SMART {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -1486,7 +1486,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear1 = rng.gen::<u64>() % modulus;
@@ -1514,7 +1514,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..50 {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -1541,7 +1541,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
-    let full_mod = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0;
+    let full_mod = cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0;
 
     for _ in 0..NB_TESTS {
         let modulus = rng.gen_range(1..full_mod / 2);
@@ -1575,8 +1575,8 @@ fn shortint_encrypt_with_message_and_carry_modulus_unchecked_mul_lsb_small_carry
 
     let mut rng = rand::thread_rng();
 
-    let param_msg_mod = cks.parameters.message_modulus().0;
-    let param_carry_mod = cks.parameters.carry_modulus().0;
+    let param_msg_mod = cks.parameters().message_modulus().0;
+    let param_carry_mod = cks.parameters().carry_modulus().0;
 
     for _ in 0..NB_TESTS {
         let msg_modulus = rng.gen_range(2u64..=param_msg_mod);
@@ -1622,7 +1622,7 @@ where
     let (cks, sks) = (keys.client_key(), keys.server_key());
 
     let mut rng = rand::thread_rng();
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     let msg_true = rng.gen::<u64>() % modulus;
     let msg_false = rng.gen::<u64>() % modulus;

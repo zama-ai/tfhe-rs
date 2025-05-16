@@ -35,7 +35,7 @@ impl ShortintEngine {
             &secret_encryption_key,
             zero_encryption_count,
             encryption_noise_distribution,
-            client_key.parameters.ciphertext_modulus(),
+            client_key.parameters().ciphertext_modulus(),
             &mut self.encryption_generator,
         );
 
@@ -44,14 +44,14 @@ impl ShortintEngine {
             &secret_encryption_key,
             zero_encryption_count,
             encryption_noise_distribution,
-            client_key.parameters.ciphertext_modulus(),
+            client_key.parameters().ciphertext_modulus(),
             &mut self.encryption_generator,
         );
         PublicKey {
             lwe_public_key,
-            parameters: client_key.parameters,
+            parameters: client_key.parameters(),
             atomic_pattern: AtomicPatternKind::Standard(
-                client_key.parameters.encryption_key_choice().into(),
+                client_key.parameters().encryption_key_choice().into(),
             ),
         }
     }
@@ -60,7 +60,7 @@ impl ShortintEngine {
         &mut self,
         client_key: &ClientKey,
     ) -> CompressedPublicKey {
-        let client_parameters = client_key.parameters;
+        let client_parameters = client_key.parameters();
 
         let (secret_encryption_key, encryption_noise_distribution) =
             client_key.encryption_key_and_noise();
@@ -89,9 +89,9 @@ impl ShortintEngine {
 
         CompressedPublicKey {
             lwe_public_key: compressed_public_key,
-            parameters: client_key.parameters,
+            parameters: client_key.parameters(),
             atomic_pattern: AtomicPatternKind::Standard(
-                client_key.parameters.encryption_key_choice().into(),
+                client_key.parameters().encryption_key_choice().into(),
             ),
         }
     }

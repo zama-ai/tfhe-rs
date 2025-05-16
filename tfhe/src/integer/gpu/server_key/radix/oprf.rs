@@ -635,7 +635,7 @@ pub(crate) mod test {
             sk.ciphertext_modulus,
         );
 
-        let sk = ck.key.small_lwe_secret_key();
+        let sk = ck.key.encryption_key();
         let plain_prf_input = decrypt_lwe_ciphertext(&sk, &ct)
             .0
             .wrapping_add(1 << (64 - log_input_p - 1))

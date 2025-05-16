@@ -563,7 +563,7 @@ impl Shortint {
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(Seed(seed));
         ShortintClientKey(
             crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-                .new_client_key(parameters.0.into()),
+                .new_client_key(parameters.0),
         )
     }
 

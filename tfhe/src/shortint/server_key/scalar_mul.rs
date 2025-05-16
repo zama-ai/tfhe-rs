@@ -37,7 +37,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(msg * scalar as u64 % modulus, clear);
     /// ```
     pub fn scalar_mul(&self, ct: &Ciphertext, scalar: u8) -> Ciphertext {
@@ -77,7 +77,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct);
     /// assert_eq!(
-    ///     msg * scalar as u64 % cks.parameters.message_modulus().0,
+    ///     msg * scalar as u64 % cks.parameters().message_modulus().0,
     ///     clear
     /// );
     /// ```
@@ -321,7 +321,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Our result is what we expect
     /// let clear = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(3, clear % modulus);
     /// ```
     #[allow(clippy::needless_pass_by_ref_mut)]

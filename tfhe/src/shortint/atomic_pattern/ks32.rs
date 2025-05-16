@@ -10,11 +10,12 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{
     allocate_and_generate_new_lwe_keyswitch_key, extract_lwe_sample_from_glwe_ciphertext,
     keyswitch_lwe_ciphertext_with_scalar_change, CiphertextModulus as CoreCiphertextModulus,
-    LweCiphertext, LweCiphertextOwned, LweDimension, LweKeyswitchKeyOwned, LweSecretKey,
-    MonomialDegree, MsDecompressionType,
+    LweCiphertext, LweCiphertextOwned, LweDimension, LweKeyswitchKeyOwned, MonomialDegree,
+    MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::atomic_pattern::KS32AtomicPatternServerKeyVersions;
 use crate::shortint::ciphertext::{CompressedModulusSwitchedCiphertext, Degree, NoiseLevel};
+use crate::shortint::client_key::atomic_pattern::KS32AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::oprf::generate_pseudo_random_from_pbs;
 use crate::shortint::parameters::KeySwitch32PBSParameters;
@@ -22,7 +23,7 @@ use crate::shortint::server_key::{
     decompress_and_apply_lookup_table, switch_modulus_and_compress, LookupTableOwned,
     LookupTableSize, ManyLookupTableOwned, ShortintBootstrappingKey,
 };
-use crate::shortint::{Ciphertext, CiphertextModulus, ClientKey};
+use crate::shortint::{Ciphertext, CiphertextModulus};
 
 /// The definition of the server key elements used in the
 /// [`KeySwitch32`](AtomicPatternKind::KeySwitch32) atomic pattern
@@ -57,24 +58,14 @@ impl ParameterSetConformant for KS32AtomicPatternServerKey {
 }
 
 impl KS32AtomicPatternServerKey {
-    pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
+    pub fn new(cks: &KS32AtomicPatternClientKey, engine: &mut ShortintEngine) -> Self {
         let params = &cks.parameters;
 
-        let pbs_params = params.ks32_parameters().unwrap();
-
-        let in_key = LweSecretKey::from_container(
-            cks.small_lwe_secret_key()
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| x as u32)
-                .collect::<Vec<_>>(),
-        );
+        let in_key = cks.small_lwe_secret_key();
 
         let out_key = &cks.glwe_secret_key;
 
-        let bootstrapping_key_base =
-            engine.new_bootstrapping_key_ks32(pbs_params, &in_key, out_key);
+        let bootstrapping_key_base = engine.new_bootstrapping_key_ks32(*params, &in_key, out_key);
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_lwe_keyswitch_key(
@@ -82,8 +73,8 @@ impl KS32AtomicPatternServerKey {
             &in_key,
             params.ks_base_log(),
             params.ks_level(),
-            pbs_params.lwe_noise_distribution(),
-            pbs_params.post_keyswitch_ciphertext_modulus(),
+            params.lwe_noise_distribution(),
+            params.post_keyswitch_ciphertext_modulus(),
             &mut engine.encryption_generator,
         );
 

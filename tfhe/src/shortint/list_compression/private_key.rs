@@ -23,7 +23,7 @@ impl ClientKey {
         params: CompressionParameters,
     ) -> CompressionPrivateKeys {
         assert_eq!(
-            self.parameters
+            self.parameters()
                 .pbs_parameters()
                 .unwrap()
                 .encryption_key_choice(),
