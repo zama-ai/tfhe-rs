@@ -486,7 +486,7 @@ impl ServerKey {
 
     /// Computes the result of `lhs += rhs + input_carry`
     ///
-    /// This will selects what seems to be best algorithm to propagate carries
+    /// This will select what seems to be the best algorithm to propagate carries
     /// (fully parallel vs sequential) by looking at the number of blocks and
     /// number of threads.
     ///

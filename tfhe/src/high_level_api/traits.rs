@@ -180,6 +180,12 @@ pub trait OverflowingMul<Rhs> {
     fn overflowing_mul(self, rhs: Rhs) -> (Self::Output, FheBool);
 }
 
+pub trait OverflowingNeg {
+    type Output;
+
+    fn overflowing_neg(self) -> (Self::Output, FheBool);
+}
+
 pub trait BitSlice<Bounds> {
     type Output;
 
