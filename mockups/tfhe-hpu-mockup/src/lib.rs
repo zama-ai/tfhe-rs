@@ -322,8 +322,29 @@ impl HpuSim {
 }
 
 impl HpuSim {
+    fn trivial_decode<T: UnsignedInteger>(&self, body: T) -> T {
+        let pbs_p = self.params.rtl_params.pbs_params;
+        let cleartext_and_padding_width = pbs_p.message_width + pbs_p.carry_width + 1;
+        (body >> (T::BITS - cleartext_and_padding_width))
+            & ((T::ONE << cleartext_and_padding_width) - T::ONE)
+    }
+
+    fn as_trivial<T: UnsignedInteger>(&self, hpu_ct: &HpuLweCiphertextView<T>) -> T {
+        let body = hpu_ct[hpu_big_lwe_ciphertext_size(&self.params.rtl_params) - 1];
+        self.trivial_decode(body)
+    }
+
+    fn show_trivial_reg(&self, reg_id: hpu_asm::RegId) {
+        if self.options.trivial {
+            let ct = &self.regfile[reg_id.0 as usize].as_view();
+            tracing::debug!("{reg_id} -> {}", self.as_trivial::<u64>(ct))
+        }
+    }
+}
+
+impl HpuSim {
     fn exec(&mut self, dop: &hpu_asm::DOp) {
-        tracing::debug!("Simulate execution of DOp: {dop:?}[@{}]", self.pc);
+        tracing::debug!("DOp execution @{}:: {dop}", self.pc);
 
         // Read operands
         match dop {
@@ -429,6 +450,7 @@ impl HpuSim {
                                 let hbm_u64 = bytemuck::cast_slice::<u8, u64>(&mem[0..size_b]);
                                 hpu.clone_from_slice(hbm_u64);
                             });
+                            self.show_trivial_reg(op_impl.0.rid);
                         }
 
                         hpu_asm::DOp::ST(op_impl) => {
@@ -472,25 +494,39 @@ impl HpuSim {
                                     );
                                     ct_chunk_u64.copy_from_slice(hpu);
                                 });
+                            self.show_trivial_reg(op_impl.0.rid);
                         }
 
                         hpu_asm::DOp::ADD(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src0_rid);
+                            self.show_trivial_reg(op_impl.0.src1_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
                             let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                             lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::SUB(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src0_rid);
+                            self.show_trivial_reg(op_impl.0.src1_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
                             let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
                             lwe_ciphertext_sub_assign(&mut cpu_s0, &cpu_s1);
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::MAC(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src0_rid);
+                            self.show_trivial_reg(op_impl.0.src1_rid);
+
                             // NB: Srcs are used as destination to prevent useless allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src0_rid);
                             let cpu_s1 = self.reg2cpu(op_impl.0.src1_rid);
@@ -502,8 +538,12 @@ impl HpuSim {
                             lwe_ciphertext_add_assign(&mut cpu_s0, &cpu_s1);
 
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::ADDS(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
@@ -517,8 +557,12 @@ impl HpuSim {
                                 Plaintext(msg_encoded),
                             );
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::SUBS(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
@@ -532,8 +576,12 @@ impl HpuSim {
                                 Plaintext(msg_encoded),
                             );
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::SSUB(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
@@ -548,8 +596,12 @@ impl HpuSim {
                                 Plaintext(msg_encoded),
                             );
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::MULS(op_impl) => {
+                            self.show_trivial_reg(op_impl.0.src_rid);
+
                             // NB: The first src is used as destination to prevent useless
                             // allocation
                             let mut cpu_s0 = self.reg2cpu(op_impl.0.src_rid);
@@ -559,6 +611,8 @@ impl HpuSim {
                             };
                             lwe_ciphertext_cleartext_mul_assign(&mut cpu_s0, Cleartext(msg_cst));
                             self.cpu2reg(op_impl.0.dst_rid, cpu_s0.as_view());
+
+                            self.show_trivial_reg(op_impl.0.dst_rid);
                         }
                         hpu_asm::DOp::PBS(op_impl) => self.apply_pbs2reg(
                             1,
@@ -634,6 +688,8 @@ impl HpuSim {
         src_rid: hpu_asm::RegId,
         gid: hpu_asm::PbsGid,
     ) {
+        self.show_trivial_reg(src_rid);
+
         let mut cpu_reg = self.reg2cpu(src_rid);
         let lut = hpu_asm::Pbs::from_hex(gid).expect("Invalid PBS Gid");
         // TODO use an assert or a simple warning
@@ -676,7 +732,10 @@ impl HpuSim {
         for fn_idx in 0..lut.lut_nb() as usize {
             let monomial_degree = MonomialDegree(fn_idx * fn_stride);
             extract_lwe_sample_from_glwe_ciphertext(&tfhe_lut, &mut cpu_reg, monomial_degree);
-            self.cpu2reg(hpu_asm::RegId(dst_rid.0 + fn_idx as u8), cpu_reg.as_view());
+            let manylut_rid = hpu_asm::RegId(dst_rid.0 + fn_idx as u8);
+            self.cpu2reg(manylut_rid, cpu_reg.as_view());
+
+            self.show_trivial_reg(manylut_rid);
         }
     }
 
