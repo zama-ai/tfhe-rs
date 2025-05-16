@@ -9,10 +9,12 @@ members = [
     "tasks",
     "tfhe-csprng",
     "backends/tfhe-cuda-backend",
+    "backends/tfhe-hpu-backend",
     "utils/tfhe-versionable",
     "utils/tfhe-versionable-derive",
     "utils/param_dedup",
     "tests",
+    "mockups/tfhe-hpu-mockup",
 ]
 
 exclude = [

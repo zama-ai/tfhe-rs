@@ -312,6 +312,7 @@ pub fn write_to_json<
 
 const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
+const HPU_BENCH_BIT_SIZES: [usize; 5] = [8, 16, 32, 64, 128];
 const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
 
 /// User configuration in which benchmarks must be run.
@@ -349,6 +350,8 @@ impl EnvConfig {
             } else {
                 MULTI_BIT_CPU_SIZES.to_vec()
             }
+        } else if cfg!(feature = "hpu") {
+            HPU_BENCH_BIT_SIZES.to_vec()
         } else {
             BENCH_BIT_SIZES.to_vec()
         }
@@ -397,7 +400,15 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         elements.min(1500) // This threshold is useful for operation with both a small number of
                            // block and low PBs count.
     }
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(feature = "hpu")]
+    {
+        // NB: unused with HPU
+        let _ = minimum_loading;
+        let _ = op_pbs_count;
+        // Enforce that a minimum of 64 IOp is sent
+        block_multiplicator.min(64.0) as u64
+    }
+    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
     {
         let num_threads = rayon::current_num_threads() as f64;
         let operation_loading = (num_threads / (op_pbs_count as f64)).max(minimum_loading);

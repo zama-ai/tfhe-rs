@@ -1,0 +1,7628 @@
+[
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 1350109813
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109832
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 1350109839
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109858
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109884
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109910
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109936
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 1350109943
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109962
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 1350109969
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350109988
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110014
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110040
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110066
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 1350110073
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110092
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 1350110099
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110118
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110144
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110170
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110196
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 1350110203
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 1350110216
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 1350110235
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110254
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 1350110261
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110280
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110306
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110332
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110358
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110384
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110410
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110436
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110462
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110488
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110514
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 1350110534
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 1350110638
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 1350110657
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 1350110664
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 1350110915
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 1350110934
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 1350111192
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 1350111211
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 1350111218
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 1350111490
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 1350111509
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 1350111928
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 1350111947
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 1350111954
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 1350112212
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 1350112231
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 1350112524
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 1350112543
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 1350112550
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 1350112794
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 1350112813
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 1350112820
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 1350112924
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 1350114869
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 1350114888
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 1350114895
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 1350114999
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 1350116951
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 1350116970
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 1350116977
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 1350117081
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 1350119033
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 1350119052
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R18              R17              PbsCmpSign       ",
+    "timestamp": 1350119059
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R18              R17              PbsCmpSign       ",
+    "timestamp": 1350119156
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 1350407127
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 1350407134
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 1350407209
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 1350407216
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 1350407298
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 1350407305
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R18              R17              PbsCmpSign       ",
+    "timestamp": 1350407380
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 1350407387
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 1350409262
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 1350409281
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 1350411338
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 1350411357
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 1350411364
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 1350413421
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 1350413440
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 1350415504
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 1350415523
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 1350415530
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 1350417580
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 1350417599
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 1350417606
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 1350417710
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 1350419662
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 1350419681
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R23              R22              PbsCmpReduce     ",
+    "timestamp": 1350419688
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R23              R22              PbsCmpReduce     ",
+    "timestamp": 1350419785
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 1350707770
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R23              R22              PbsCmpReduce     ",
+    "timestamp": 1350707789
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 1350707796
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 1350709923
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 1350709942
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 29,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R25              R24              PbsCmpLtMrg      ",
+    "timestamp": 1350709949
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 29,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R25              R24              PbsCmpLtMrg      ",
+    "timestamp": 1350710046
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 29,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R25              R24              PbsCmpLtMrg      ",
+    "timestamp": 1350997905
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ST": {
+        "rid": 25,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R25              ",
+    "timestamp": 1350997912
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ST": {
+        "rid": 25,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R25              ",
+    "timestamp": 1350998338
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ST": {
+        "rid": 25,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R25              ",
+    "timestamp": 1350998357
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SYNC": {
+        "sid": 65535,
+        "opcode": {
+          "optype": "SYNC",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "SYNC      65535            ",
+    "timestamp": 1350998364
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481733
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x3             ",
+    "timestamp": 503481740
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481759
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x7             ",
+    "timestamp": 503481766
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481785
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481811
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481837
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481863
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481889
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481915
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 7,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R7               @0x2             ",
+    "timestamp": 503481922
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481941
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 8,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R8               @0x6             ",
+    "timestamp": 503481948
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481967
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503481993
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482019
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482045
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482071
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482097
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 14,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R14              @0x1             ",
+    "timestamp": 503482104
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482123
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x5             ",
+    "timestamp": 503482130
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x3             ",
+    "timestamp": 503482143
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x3             ",
+    "timestamp": 503482162
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482181
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482207
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482233
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482259
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482285
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482311
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 21,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R21              @0x0             ",
+    "timestamp": 503482318
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482337
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 22,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R22              @0x4             ",
+    "timestamp": 503482344
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482363
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482389
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482415
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x7             ",
+    "timestamp": 503482428
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x7             ",
+    "timestamp": 503482447
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482466
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 503482473
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482492
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482518
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482544
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 503482564
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 7,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R7               @0x2             ",
+    "timestamp": 503482710
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 7,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R7               @0x2             ",
+    "timestamp": 503482729
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 8,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R8               @0x6             ",
+    "timestamp": 503483141
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 8,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R8               @0x6             ",
+    "timestamp": 503483160
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 9,
+        "src0_rid": 7,
+        "src1_rid": 8,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R9               R7               R8               ",
+    "timestamp": 503483167
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 14,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R14              @0x1             ",
+    "timestamp": 503483439
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 14,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R14              @0x1             ",
+    "timestamp": 503483458
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x5             ",
+    "timestamp": 503483723
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x5             ",
+    "timestamp": 503483742
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 16,
+        "src0_rid": 14,
+        "src1_rid": 15,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R16              R14              R15              ",
+    "timestamp": 503483749
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 21,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R21              @0x0             ",
+    "timestamp": 503484021
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 21,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R21              @0x0             ",
+    "timestamp": 503484040
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 22,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R22              @0x4             ",
+    "timestamp": 503484466
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 22,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R22              @0x4             ",
+    "timestamp": 503484485
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 23,
+        "src0_rid": 21,
+        "src1_rid": 22,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R23              R21              R22              ",
+    "timestamp": 503484492
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 503484603
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 503484622
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 503484629
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 503484733
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 9,
+        "src0_rid": 7,
+        "src1_rid": 8,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R9               R7               R8               ",
+    "timestamp": 503486678
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 9,
+        "src0_rid": 7,
+        "src1_rid": 8,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R9               R7               R8               ",
+    "timestamp": 503486697
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 10,
+        "src_rid": 9,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R10              R9               PbsCmpSign       ",
+    "timestamp": 503486704
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 10,
+        "src_rid": 9,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R10              R9               PbsCmpSign       ",
+    "timestamp": 503486808
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 16,
+        "src0_rid": 14,
+        "src1_rid": 15,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R16              R14              R15              ",
+    "timestamp": 503488760
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 16,
+        "src0_rid": 14,
+        "src1_rid": 15,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R16              R14              R15              ",
+    "timestamp": 503488779
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 17,
+        "src_rid": 16,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R17              R16              PbsCmpSign       ",
+    "timestamp": 503488786
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 17,
+        "src_rid": 16,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R17              R16              PbsCmpSign       ",
+    "timestamp": 503488890
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 23,
+        "src0_rid": 21,
+        "src1_rid": 22,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R23              R21              R22              ",
+    "timestamp": 503490842
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 23,
+        "src0_rid": 21,
+        "src1_rid": 22,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R23              R21              R22              ",
+    "timestamp": 503490861
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 24,
+        "src_rid": 23,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R24              R23              PbsCmpSign       ",
+    "timestamp": 503490868
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 24,
+        "src_rid": 23,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R24              R23              PbsCmpSign       ",
+    "timestamp": 503490965
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 503872701
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 503872708
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 10,
+        "src_rid": 9,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R10              R9               PbsCmpSign       ",
+    "timestamp": 503872776
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 11,
+        "src_rid": 10,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R11              R10              1                ",
+    "timestamp": 503872783
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 17,
+        "src_rid": 16,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R17              R16              PbsCmpSign       ",
+    "timestamp": 503872858
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R18              R17              1                ",
+    "timestamp": 503872865
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 24,
+        "src_rid": 23,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R24              R23              PbsCmpSign       ",
+    "timestamp": 503872940
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R25              R24              1                ",
+    "timestamp": 503872947
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 503874836
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 503874855
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 5,
+        "src_rid": 4,
+        "msg_cst": {
+          "Cst": 4
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R5               R4               4                ",
+    "timestamp": 503874862
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 11,
+        "src_rid": 10,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R11              R10              1                ",
+    "timestamp": 503876912
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 11,
+        "src_rid": 10,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R11              R10              1                ",
+    "timestamp": 503876931
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R18              R17              1                ",
+    "timestamp": 503878995
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R18              R17              1                ",
+    "timestamp": 503879014
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R25              R24              1                ",
+    "timestamp": 503881078
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R25              R24              1                ",
+    "timestamp": 503881097
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 5,
+        "src_rid": 4,
+        "msg_cst": {
+          "Cst": 4
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R5               R4               4                ",
+    "timestamp": 503883154
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 5,
+        "src_rid": 4,
+        "msg_cst": {
+          "Cst": 4
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R5               R4               4                ",
+    "timestamp": 503883173
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 6,
+        "src_rid": 5,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R6               R5               PbsCmpReduce     ",
+    "timestamp": 503883180
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 6,
+        "src_rid": 5,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R6               R5               PbsCmpReduce     ",
+    "timestamp": 503883277
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 6,
+        "src_rid": 5,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R6               R5               PbsCmpReduce     ",
+    "timestamp": 504270837
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 12,
+        "src0_rid": 6,
+        "src1_rid": 11,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R12              R6               R11              4                ",
+    "timestamp": 504270844
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 12,
+        "src0_rid": 6,
+        "src1_rid": 11,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R12              R6               R11              4                ",
+    "timestamp": 504272971
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 12,
+        "src0_rid": 6,
+        "src1_rid": 11,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R12              R6               R11              4                ",
+    "timestamp": 504272990
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpReduce     ",
+    "timestamp": 504272997
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpReduce     ",
+    "timestamp": 504273094
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpReduce     ",
+    "timestamp": 504660668
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 19,
+        "src0_rid": 13,
+        "src1_rid": 18,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R19              R13              R18              4                ",
+    "timestamp": 504660675
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 19,
+        "src0_rid": 13,
+        "src1_rid": 18,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R19              R13              R18              4                ",
+    "timestamp": 504662802
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 19,
+        "src0_rid": 13,
+        "src1_rid": 18,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R19              R13              R18              4                ",
+    "timestamp": 504662821
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 20,
+        "src_rid": 19,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R20              R19              PbsCmpReduce     ",
+    "timestamp": 504662828
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 20,
+        "src_rid": 19,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R20              R19              PbsCmpReduce     ",
+    "timestamp": 504662925
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 20,
+        "src_rid": 19,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R20              R19              PbsCmpReduce     ",
+    "timestamp": 505050499
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 26,
+        "src0_rid": 20,
+        "src1_rid": 25,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R26              R20              R25              4                ",
+    "timestamp": 505050506
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 26,
+        "src0_rid": 20,
+        "src1_rid": 25,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R26              R20              R25              4                ",
+    "timestamp": 505052633
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 26,
+        "src0_rid": 20,
+        "src1_rid": 25,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R26              R20              R25              4                ",
+    "timestamp": 505052652
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 27,
+        "src_rid": 26,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R27              R26              PbsCmpReduce     ",
+    "timestamp": 505052659
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 27,
+        "src_rid": 26,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R27              R26              PbsCmpReduce     ",
+    "timestamp": 505052756
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 27,
+        "src_rid": 26,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R27              R26              PbsCmpReduce     ",
+    "timestamp": 505440337
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 28,
+        "src_rid": 27,
+        "gid": 12,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R28              R27              PbsCmpGt         ",
+    "timestamp": 505440344
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 28,
+        "src_rid": 27,
+        "gid": 12,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R28              R27              PbsCmpGt         ",
+    "timestamp": 505440441
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 28,
+        "src_rid": 27,
+        "gid": 12,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R28              R27              PbsCmpGt         ",
+    "timestamp": 505828029
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ST": {
+        "rid": 28,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R28              ",
+    "timestamp": 505828036
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ST": {
+        "rid": 28,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R28              ",
+    "timestamp": 505828462
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ST": {
+        "rid": 28,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R28              ",
+    "timestamp": 505828481
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 8
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SYNC": {
+        "sid": 65535,
+        "opcode": {
+          "optype": "SYNC",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "SYNC      65535            ",
+    "timestamp": 505828488
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809042997
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 2809043004
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043023
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 2809043030
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043049
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043075
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 6
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043101
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043127
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 2809043134
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043153
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 2809043160
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043179
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043205
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043231
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043257
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 2809043264
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043283
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 2809043290
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043309
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043335
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043361
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043387
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 2809043394
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 2809043407
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 0,
+        "slot": {
+          "Addr": 0
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R0               @0x0             ",
+    "timestamp": 2809043426
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043445
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 2809043452
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043471
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043497
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043523
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043549
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043575
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043601
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043627
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043653
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043679
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 2809043692
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 1,
+        "slot": {
+          "Addr": 4
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R1               @0x4             ",
+    "timestamp": 2809043711
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043730
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 2809043737
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043756
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": false,
+      "vld": false,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 7
+    },
+    "cmd": "REFILL",
+    "insn": null,
+    "insn_asm": null,
+    "timestamp": 2809043776
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 2809044104
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 5,
+        "slot": {
+          "Addr": 1
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R5               @0x1             ",
+    "timestamp": 2809044123
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 2809044381
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 6,
+        "slot": {
+          "Addr": 5
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R6               @0x5             ",
+    "timestamp": 2809044400
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 2809044407
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 2809044672
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 10,
+        "slot": {
+          "Addr": 2
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R10              @0x2             ",
+    "timestamp": 2809044691
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 2809045103
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 11,
+        "slot": {
+          "Addr": 6
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R11              @0x6             ",
+    "timestamp": 2809045122
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 2809045129
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 2809045380
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 15,
+        "slot": {
+          "Addr": 3
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R15              @0x3             ",
+    "timestamp": 2809045399
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 2809045692
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "LD": {
+        "rid": 16,
+        "slot": {
+          "Addr": 7
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "LD        R16              @0x7             ",
+    "timestamp": 2809045711
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 2809045718
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 2809045864
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 2,
+        "src0_rid": 0,
+        "src1_rid": 1,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R2               R0               R1               ",
+    "timestamp": 2809045883
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 2809045890
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 2809045994
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 2809047946
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 7,
+        "src0_rid": 5,
+        "src1_rid": 6,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R7               R5               R6               ",
+    "timestamp": 2809047965
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 2809047972
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 2809048076
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 2809050028
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 12,
+        "src0_rid": 10,
+        "src1_rid": 11,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R12              R10              R11              ",
+    "timestamp": 2809050047
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 2809050054
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 2809050158
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 2809052103
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "SUB": {
+        "dst_rid": 17,
+        "src0_rid": 15,
+        "src1_rid": 16,
+        "mul_factor": 0,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 2
+        }
+      }
+    },
+    "insn_asm": "SUB       R17              R15              R16              ",
+    "timestamp": 2809052122
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R18              R17              PbsCmpSign       ",
+    "timestamp": 2809052129
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R18              R17              PbsCmpSign       ",
+    "timestamp": 2809052226
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 3,
+        "src_rid": 2,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R3               R2               PbsCmpSign       ",
+    "timestamp": 2809434193
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 8,
+        "src_rid": 7,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R8               R7               PbsCmpSign       ",
+    "timestamp": 2809434212
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 13,
+        "src_rid": 12,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R13              R12              PbsCmpSign       ",
+    "timestamp": 2809434231
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 18,
+        "src_rid": 17,
+        "gid": 10,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R18              R17              PbsCmpSign       ",
+    "timestamp": 2809434250
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 2809434257
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 2809434264
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 2809434271
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 2809434278
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 2809436384
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 4,
+        "src_rid": 3,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R4               R3               1                ",
+    "timestamp": 2809436403
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 2809438467
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 9,
+        "src_rid": 8,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R9               R8               1                ",
+    "timestamp": 2809438486
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 2809438493
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 2809440543
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 14,
+        "src_rid": 13,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R14              R13              1                ",
+    "timestamp": 2809440562
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 2809442626
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ADDS": {
+        "dst_rid": 19,
+        "src_rid": 18,
+        "msg_cst": {
+          "Cst": 1
+        },
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 9
+        }
+      }
+    },
+    "insn_asm": "ADDS      R19              R18              1                ",
+    "timestamp": 2809442645
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 2809442652
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 2809444702
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 20,
+        "src0_rid": 9,
+        "src1_rid": 4,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R20              R9               R4               4                ",
+    "timestamp": 2809444721
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 2809444728
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 2809444832
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 2809446784
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 22,
+        "src0_rid": 19,
+        "src1_rid": 14,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R22              R19              R14              4                ",
+    "timestamp": 2809446803
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R23              R22              PbsCmpReduce     ",
+    "timestamp": 2809446810
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R23              R22              PbsCmpReduce     ",
+    "timestamp": 2809446907
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 21,
+        "src_rid": 20,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R21              R20              PbsCmpReduce     ",
+    "timestamp": 2809832535
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 23,
+        "src_rid": 22,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R23              R22              PbsCmpReduce     ",
+    "timestamp": 2809832617
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 2809832624
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 2809834751
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "MAC": {
+        "dst_rid": 24,
+        "src0_rid": 23,
+        "src1_rid": 21,
+        "mul_factor": 4,
+        "opcode": {
+          "optype": "ARITH",
+          "subtype": 5
+        }
+      }
+    },
+    "insn_asm": "MAC       R24              R23              R21              4                ",
+    "timestamp": 2809834770
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R25              R24              PbsCmpReduce     ",
+    "timestamp": 2809834777
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R25              R24              PbsCmpReduce     ",
+    "timestamp": 2809834874
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS": {
+        "dst_rid": 25,
+        "src_rid": 24,
+        "gid": 11,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "PBS       R25              R24              PbsCmpReduce     ",
+    "timestamp": 2810222448
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 26,
+        "src_rid": 25,
+        "gid": 13,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R26              R25              PbsCmpGte        ",
+    "timestamp": 2810222455
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 26,
+        "src_rid": 25,
+        "gid": 13,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R26              R25              PbsCmpGte        ",
+    "timestamp": 2810222552
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "PBS_F": {
+        "dst_rid": 26,
+        "src_rid": 25,
+        "gid": 13,
+        "opcode": {
+          "optype": "PBS",
+          "subtype": 8
+        }
+      }
+    },
+    "insn_asm": "PBS_F     R26              R25              PbsCmpGte        ",
+    "timestamp": 2810511944
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "ST": {
+        "rid": 26,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R26              ",
+    "timestamp": 2810511951
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RDUNLOCK",
+    "insn": {
+      "ST": {
+        "rid": 26,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R26              ",
+    "timestamp": 2810512461
+  },
+  {
+    "state": {
+      "pdg": true,
+      "rd_pdg": false,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "RETIRE",
+    "insn": {
+      "ST": {
+        "rid": 26,
+        "slot": {
+          "Addr": 8
+        },
+        "opcode": {
+          "optype": "MEM",
+          "subtype": 1
+        }
+      }
+    },
+    "insn_asm": "ST        @0x8             R26              ",
+    "timestamp": 2810512480
+  },
+  {
+    "state": {
+      "pdg": false,
+      "rd_pdg": true,
+      "vld": true,
+      "wr_lock": 0,
+      "rd_lock": 0,
+      "sync_id": 9
+    },
+    "cmd": "ISSUE",
+    "insn": {
+      "SYNC": {
+        "sid": 65535,
+        "opcode": {
+          "optype": "SYNC",
+          "subtype": 0
+        }
+      }
+    },
+    "insn_asm": "SYNC      65535            ",
+    "timestamp": 2810512487
+  }
+]

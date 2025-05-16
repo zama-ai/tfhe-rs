@@ -32,6 +32,10 @@ impl FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support trim_start");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support trim_start");
+            }
         })
     }
 
@@ -64,6 +68,10 @@ impl FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support trim_end");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support trim_end");
+            }
         })
     }
 
@@ -95,6 +103,10 @@ impl FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support trim");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support trim");
             }
         })
     }

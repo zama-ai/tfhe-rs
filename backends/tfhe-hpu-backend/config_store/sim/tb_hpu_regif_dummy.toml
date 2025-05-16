@@ -1,0 +1,22 @@
+module_name="tb_hpu_regif_dummy"
+description="Fake registers needed by the mockup"
+word_size_b = 32
+offset = 0x40000
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# ==============================================================================
+[section.WorkAck]
+description="Purpose of this section"
+
+[section.WorkAck.register.workq]
+  description="Insert work in workq and read status"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.WorkAck.register.ackq]
+  description="Pop ack from in ackq"
+  owner="Kernel"
+  read_access="ReadNotify"
+  write_access="None"

@@ -11,11 +11,13 @@ extend-ignore-identifiers-re = [
     # Example with string replacing "hello" with "herlo"
     "herlo",
     # Example in trivium
-    "C9217BA0D762ACA1"
+    "C9217BA0D762ACA1",
+    "0x[0-9a-fA-F]+"
 ]
 
 [files]
 extend-exclude = [
     "backends/tfhe-cuda-backend/cuda/src/fft128/twiddles.cu",
     "backends/tfhe-cuda-backend/cuda/src/fft/twiddles.cu",
+    "backends/tfhe-hpu-backend/config_store/**/*.link_summary",
 ]

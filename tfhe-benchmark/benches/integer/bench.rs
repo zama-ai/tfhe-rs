@@ -2931,6 +2931,323 @@ use cuda::{
     unchecked_cuda_ops, unchecked_scalar_cuda_ops,
 };
 
+#[cfg(feature = "hpu")]
+mod hpu {
+    use super::*;
+    use criterion::{black_box, criterion_group};
+    use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
+    use tfhe::prelude::CastFrom;
+    use tfhe::tfhe_hpu_backend::prelude::*;
+
+    /// Base function to bench an hpu operations.
+    /// Inputs/Output types and length are inferred based on associated iop prototype
+    fn bench_hpu_iop_clean_inputs(
+        c: &mut Criterion,
+        bench_name: &str,
+        display_name: &str,
+        iop: &hpu_asm::AsmIOpcode,
+    ) {
+        let mut bench_group = c.benchmark_group(bench_name);
+        bench_group
+            .sample_size(15)
+            .measurement_time(std::time::Duration::from_secs(60));
+        let mut rng = rand::thread_rng();
+
+        for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
+            if bit_size > ScalarType::BITS as usize {
+                break;
+            }
+            let param_name = param.name();
+
+            let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
+
+            let bench_id;
+
+            let proto = if let Some(format) = iop.format() {
+                format.proto.clone()
+            } else {
+                panic!("HPU only IOp with defined prototype could be benched");
+            };
+
+            match get_bench_type() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
+                        let hpu_device = hpu_device_mutex.lock().unwrap();
+
+                        let gen_inputs = || {
+                            let srcs = proto
+                                .src
+                                .iter()
+                                .map(|mode| {
+                                    let (bw, block) = match mode {
+                                        hpu_asm::iop::VarMode::Native => (bit_size, num_block),
+                                        hpu_asm::iop::VarMode::Half => {
+                                            (bit_size / 2, num_block / 2)
+                                        }
+                                        hpu_asm::iop::VarMode::Bool => (1, 1),
+                                    };
+
+                                    let clear = rng
+                                        .gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                        & if bw < u128::BITS as usize {
+                                            (1_u128 << bw) - 1
+                                        } else {
+                                            !0_u128
+                                        };
+                                    let fhe = cks.encrypt_radix(clear, block);
+                                    HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
+                                })
+                                .collect::<Vec<_>>();
+
+                            let imms = (0..proto.imm)
+                                .map(|_| rng.gen_range(0..u128::cast_from(max_value_for_bit_size)))
+                                .collect::<Vec<_>>();
+                            (srcs, imms)
+                        };
+
+                        b.iter_batched(
+                            gen_inputs,
+                            |(srcs, imms)| {
+                                let res =
+                                    HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs, &imms);
+                                res.into_iter().for_each(|ct| {
+                                    ct.wait();
+                                    black_box(ct);
+                                });
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
+                    let elements = throughput_num_threads(num_block, 1);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
+                        let hpu_device = hpu_device_mutex.lock().unwrap();
+
+                        let inputs = (0..elements)
+                            .map(|_| {
+                                let srcs = proto
+                                    .src
+                                    .iter()
+                                    .map(|mode| {
+                                        let (bw, block) = match mode {
+                                            hpu_asm::iop::VarMode::Native => (bit_size, num_block),
+                                            hpu_asm::iop::VarMode::Half => {
+                                                (bit_size / 2, num_block / 2)
+                                            }
+                                            hpu_asm::iop::VarMode::Bool => (1, 1),
+                                        };
+
+                                        let clear = rng
+                                            .gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                            & if bw < u128::BITS as usize {
+                                                (1_u128 << bw) - 1
+                                            } else {
+                                                !0_u128
+                                            };
+                                        let fhe = cks.encrypt_radix(clear, block);
+                                        HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                let imms = (0..proto.imm)
+                                    .map(|_| {
+                                        rng.gen_range(0..u128::cast_from(max_value_for_bit_size))
+                                    })
+                                    .collect::<Vec<_>>();
+                                (srcs, imms)
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            let last_res = inputs
+                                .iter()
+                                .map(|input| {
+                                    HpuRadixCiphertext::exec(
+                                        &proto,
+                                        iop.opcode(),
+                                        &input.0,
+                                        &input.1,
+                                    )
+                                })
+                                .next_back()
+                                .unwrap();
+                            last_res.into_iter().for_each(|ct| {
+                                ct.wait();
+                                black_box(ct);
+                            });
+                        })
+                    });
+                }
+            }
+
+            write_to_json::<u64, _>(
+                &bench_id,
+                param,
+                param.name(),
+                display_name,
+                &OperatorType::Atomic,
+                bit_size as u32,
+                vec![param.message_modulus().0.ilog2(); num_block],
+            );
+        }
+
+        bench_group.finish()
+    }
+
+    macro_rules! define_hpu_bench_default_fn (
+    (iop_name: $iop:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+        fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
+            bench_hpu_iop_clean_inputs(
+                c,
+                concat!("integer::hpu::", stringify!($iop)),
+                stringify!($name),
+                &hpu_asm::iop::[< IOP_ $iop:upper >],
+            )
+        }
+        }
+    }
+    );
+
+    macro_rules! define_hpu_bench_default_fn_scalar (
+    (iop_name: $iop:ident, display_name:$name:ident) => {
+        ::paste::paste!{
+        fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
+            bench_hpu_iop_clean_inputs(
+                c,
+                concat!("integer::hpu::scalar::", stringify!($iop)),
+                stringify!($name),
+                &hpu_asm::iop::[< IOP_ $iop:upper >],
+            )
+        }
+        }
+    }
+    );
+
+    // Alu ------------------------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: add,
+        display_name: add
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: sub,
+        display_name: sub
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: mul,
+        display_name: mul
+    );
+    criterion_group!(
+        default_hpu_ops,
+        default_hpu_add,
+        default_hpu_sub,
+        default_hpu_mul
+    );
+
+    // Alu Scalar -----------------------------------------------------------------
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: adds,
+        display_name: add
+    );
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: subs,
+        display_name: sub
+    );
+    //define_hpu_bench_default_fn!(
+    //    iop_name: ssub,
+    //    display_name: scalar_sub
+    //);
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: muls,
+        display_name: mul
+    );
+    criterion_group!(
+        default_hpu_ops_scalar,
+        default_hpu_adds,
+        default_hpu_subs,
+        //default_hpu_ssub,
+        default_hpu_muls
+    );
+    // Bitwise --------------------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: bw_and,
+        display_name: bitand
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: bw_or,
+        display_name: bitor
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: bw_xor,
+        display_name: bitxor
+    );
+    criterion_group!(
+        default_hpu_bitwise,
+        default_hpu_bw_and,
+        default_hpu_bw_or,
+        default_hpu_bw_xor,
+    );
+    // Comparison ----------------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_eq,
+        display_name: equal
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_neq,
+        display_name: not_equal
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_gt,
+        display_name: greater_than
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_gte,
+        display_name: greater_or_equal
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_lt,
+        display_name: lower_than
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: cmp_lte,
+        display_name: lower_or_equal
+    );
+    criterion_group!(
+        default_hpu_cmp,
+        default_hpu_cmp_eq,
+        default_hpu_cmp_neq,
+        default_hpu_cmp_gt,
+        default_hpu_cmp_gte,
+        default_hpu_cmp_lt,
+        default_hpu_cmp_lte,
+    );
+    // Ternary --------------------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: if_then_else,
+        display_name: if_then_else
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: if_then_zero,
+        display_name: if_then_zero
+    );
+    criterion_group!(
+        default_hpu_select,
+        default_hpu_if_then_else,
+        default_hpu_if_then_zero,
+    );
+}
+
 criterion_group!(
     smart_ops,
     smart_neg,
@@ -3297,6 +3614,23 @@ fn go_through_gpu_bench_groups(val: &str) {
     };
 }
 
+#[cfg(feature = "hpu")]
+fn go_through_hpu_bench_groups(val: &str) {
+    match val.to_lowercase().as_str() {
+        "default" => {
+            hpu::default_hpu_ops();
+            hpu::default_hpu_ops_scalar();
+            hpu::default_hpu_bitwise();
+            hpu::default_hpu_cmp();
+            hpu::default_hpu_select();
+        }
+        "fast_default" => {
+            hpu::default_hpu_ops();
+        }
+        _ => panic!("unknown benchmark operations flavor"),
+    };
+}
+
 fn go_through_cpu_bench_groups(val: &str) {
     match val.to_lowercase().as_str() {
         "default" => {
@@ -3336,7 +3670,9 @@ fn main() {
         Ok(val) => {
             #[cfg(feature = "gpu")]
             go_through_gpu_bench_groups(&val);
-            #[cfg(not(feature = "gpu"))]
+            #[cfg(feature = "hpu")]
+            go_through_hpu_bench_groups(&val);
+            #[cfg(not(any(feature = "gpu", feature = "hpu")))]
             go_through_cpu_bench_groups(&val);
         }
         Err(_) => {

@@ -94,8 +94,11 @@ where
     assert_eq!(accumulator.polynomial_size(), polynomial_size);
     assert_eq!(accumulator.glwe_size(), glwe_size);
 
+    // NB: Following path will not go `power_of_two_scaling_to_native_torus`
+    // Thus keep value MSB aligned without considering real delta
+    // i.e force modulus to be native
     let output_encoding = ShortintEncoding {
-        ciphertext_modulus: accumulator.ciphertext_modulus(),
+        ciphertext_modulus: CiphertextModulus::new_native(),
         message_modulus: output_message_modulus,
         carry_modulus: output_carry_modulus,
         padding_bit: PaddingBit::Yes,

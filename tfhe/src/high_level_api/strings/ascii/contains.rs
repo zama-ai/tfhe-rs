@@ -40,6 +40,10 @@ impl FheStringMatching<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings contains");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support contains");
+            }
         })
     }
 
@@ -76,6 +80,10 @@ impl FheStringMatching<&Self> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings starts_with");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support starts_with");
             }
         })
     }
@@ -114,6 +122,10 @@ impl FheStringMatching<&Self> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ends_with");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support ends_with");
+            }
         })
     }
 }
@@ -131,6 +143,10 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings contains");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support contains");
+            }
         })
     }
 
@@ -146,6 +162,10 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings starts_with");
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support starts_with");
+            }
         })
     }
 
@@ -160,6 +180,10 @@ impl FheStringMatching<&ClearString> for FheAsciiString {
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("gpu does not support strings ends_with");
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("hpu does not support ends_with");
             }
         })
     }

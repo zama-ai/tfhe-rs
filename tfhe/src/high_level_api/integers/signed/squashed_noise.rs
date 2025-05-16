@@ -114,8 +114,8 @@ impl InnerSquashedNoiseSignedRadixCiphertext {
             (Self::Cpu(_), Device::Cpu) => {
                 // Nothing to do, we already are on the correct device
             }
-            #[cfg(feature = "gpu")]
-            _ => panic!("Cuda devices do not support noise squashing yet"),
+            #[cfg(any(feature = "gpu", feature = "hpu"))]
+            _ => panic!("Cuda/Hpu devices do not support noise squashing yet"),
         }
     }
 
@@ -199,6 +199,10 @@ impl<Id: FheIntId> SquashNoise for FheInt<Id> {
             InternalServerKey::Cuda(_) => Err(crate::error!(
                 "Cuda devices do not support noise squashing yet"
             )),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                Err(crate::error!("Hpu devices do not support noise squashing"))
+            }
         })
     }
 }

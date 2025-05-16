@@ -25,6 +25,11 @@ use std::borrow::Borrow;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign};
 use tfhe_versionable::Versionize;
 
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 /// The FHE boolean data type.
 ///
 /// # Example
@@ -122,6 +127,8 @@ impl FheBool {
             InnerBoolean::Cpu(ct) => ct.into_raw_parts(),
             #[cfg(feature = "gpu")]
             InnerBoolean::Cuda(_) => unreachable!(),
+            #[cfg(feature = "hpu")]
+            InnerBoolean::Hpu(_) => unreachable!(),
         }
     }
 
@@ -225,6 +232,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_) => {
+                panic!("Hpu does not support if_then_else with clear input")
+            }
         })
     }
 }
@@ -271,6 +282,10 @@ where
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support if_then_else with clear input")
             }
         })
     }
@@ -319,6 +334,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support if_then_else with clear input")
+            }
         })
     }
 }
@@ -366,6 +385,10 @@ where
             InternalServerKey::Cuda(_) => {
                 panic!("Cuda does not support if_then_else with clear input")
             }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support if_then_else with clear input")
+            }
         })
     }
 }
@@ -395,6 +418,10 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support if_then_else with clear input")
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -432,6 +459,30 @@ where
 
                 FheUint::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(device) => {
+                let hpu_then = ct_then.ciphertext.on_hpu(device);
+                let hpu_else = ct_else.ciphertext.on_hpu(device);
+                let hpu_cond = self.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_IF_THEN_ELSE;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_then.clone(), hpu_else.clone(), hpu_cond.clone()],
+                    &[],
+                )
+                .pop()
+                .unwrap();
+                FheUint::new(hpu_result, device.tag.clone())
+            }
         })
     }
 }
@@ -465,6 +516,10 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
 
                 FheInt::new(inner, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support signed integers")
+            }
         })
     }
 }
@@ -492,6 +547,10 @@ impl IfThenElse<Self> for FheBool {
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bool if then else")
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -550,6 +609,10 @@ where
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::eq")
+            }
         })
     }
 
@@ -592,6 +655,10 @@ where
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::ne")
+            }
         })
     }
 }
@@ -636,6 +703,10 @@ impl FheEq<bool> for FheBool {
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::eq with a bool")
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -679,6 +750,10 @@ impl FheEq<bool> for FheBool {
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support FheBool::ne with a bool")
+            }
         });
         Self::new(ciphertext, tag)
     }
@@ -759,6 +834,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitand (&)")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -843,6 +922,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitor (|)")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -927,6 +1010,10 @@ where
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitxor (^)")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1003,6 +1090,10 @@ impl BitAnd<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("hpu does not bitand (&) with a bool")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1079,6 +1170,10 @@ impl BitOr<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("hpu does not bitor (|) with a bool")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1155,6 +1250,10 @@ impl BitXor<bool> for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("hpu does not bitxor (^) with a bool")
+            }
         });
         FheBool::new(ciphertext, tag)
     }
@@ -1353,6 +1452,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitand assign (&=)")
+            }
         });
     }
 }
@@ -1396,6 +1499,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitor assign (|=)")
+            }
         });
     }
 }
@@ -1439,6 +1546,10 @@ where
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitxor assign (^=)")
+            }
         });
     }
 }
@@ -1476,6 +1587,10 @@ impl BitAndAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitand assign (&=) with a bool")
+            }
         });
     }
 }
@@ -1513,6 +1628,10 @@ impl BitOrAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitor assign (|=) with a bool")
+            }
         });
     }
 }
@@ -1550,6 +1669,10 @@ impl BitXorAssign<bool> for FheBool {
                     streams,
                 );
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitor assign (^=) with a bool")
+            }
         });
     }
 }
@@ -1619,6 +1742,10 @@ impl std::ops::Not for &FheBool {
                     cuda_key.tag.clone(),
                 )
             }),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support bitnot (!)")
+            }
         });
         FheBool::new(ciphertext, tag)
     }

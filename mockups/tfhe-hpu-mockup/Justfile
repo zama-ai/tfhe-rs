@@ -1,0 +1,50 @@
+set fallback := true
+
+_targets:
+  @just --list --unsorted --list-heading $'Available targets:\n' --list-prefix "  "
+
+# Default values ---------------------------------------------------------------
+DEFAULT_RUST_LOG := "info"
+DEFAULT_MOCKUP_PARAMS := "gaussian_64b_fast.toml"
+DEFAULT_TEST_ITER := "5"
+CARGO_HOME := "$(pwd)/../.."
+BUILD_PROFILE := "release"
+
+### Build target ---------------------------------------------------------------
+# NB: Build mockup and user software all at once to reduce build time
+build_all:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    cargo build --profile {{BUILD_PROFILE}} --features="hpu" \
+     --bin hpu_mockup \
+     --example hpu_bench\
+     --example hpu_hlapi
+
+### Mockup related target ------------------------------------------------------
+mockup MOCKUP_PARAMS=DEFAULT_MOCKUP_PARAMS RUST_LOG=DEFAULT_RUST_LOG: build_all
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    RUST_LOG={{RUST_LOG}} {{CARGO_HOME}}/target/{{BUILD_PROFILE}}/hpu_mockup \
+      --params $HPU_MOCKUP_DIR/params/{{MOCKUP_PARAMS}} \
+      --report-out mockup_rpt --report-trace
+
+# UserApp related target -------------------------------------------------------
+# Run Hpu benchmark
+hpu_bench ARGS="" RUST_LOG=DEFAULT_RUST_LOG: build_all
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    RUST_LOG={{RUST_LOG}} {{CARGO_HOME}}/target/{{BUILD_PROFILE}}/examples/hpu_bench {{ARGS}}
+
+# Run Hpu HlApi showcase
+hpu_hlapi ARGS="" RUST_LOG=DEFAULT_RUST_LOG: build_all
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    RUST_LOG={{RUST_LOG}} {{CARGO_HOME}}/target/{{BUILD_PROFILE}}/examples/hpu_hlapi {{ARGS}}
+
+# Run Hpu testsuite
+hpu_test ARGS="u8" TEST_ITER=DEFAULT_TEST_ITER RUST_LOG=DEFAULT_RUST_LOG: build_all
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    cd {{CARGO_HOME}}
+    RUST_LOG={{RUST_LOG}} HPU_TEST_ITER={{TEST_ITER}} cargo test --profile {{BUILD_PROFILE}} --test hpu -- {{ARGS}}

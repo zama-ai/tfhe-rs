@@ -1,0 +1,88 @@
+[package]
+name = "tfhe-hpu-backend"
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause-Clear"
+description = "HPU implementation on FPGA of TFHE-rs primitives."
+homepage = "https://www.zama.ai/"
+documentation = "https://docs.zama.ai/tfhe-rs"
+repository = "https://github.com/zama-ai/tfhe-rs"
+readme = "README.md"
+keywords = ["fully", "homomorphic", "encryption", "fhe", "cryptography", "hardware", "fpga"]
+
+[features]
+hw-xrt = []
+hw-v80 = []
+io-dump = ["num-traits"]
+rtl_graph = ["dot2"]
+utils = ["clap", "clap-num", "bitvec", "serde_json"]
+
+[build-dependencies]
+cxx-build = "1.0"
+
+[dependencies]
+cxx = "1.0"
+hw_regmap = "0.1.0"
+
+strum = { version = "0.26.2", features = ["derive"] }
+strum_macros = "0.26.2"
+enum_dispatch = "0.3.13"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+toml = { version = "0.8.*", features = [] }
+paste = "1.0.15"
+thiserror = "1.0.61"
+bytemuck = "1.16.0"
+anyhow = "1.0.82"
+lazy_static = "1.4.0"
+rand = "0.8.5"
+regex = "1.10.4"
+bitflags = { version = "2.5.0", features = ["serde"] }
+itertools = "0.11.0"
+lru = "0.12.3"
+bitfield-struct = "0.10.0"
+crossbeam = { version = "0.8.4", features = ["crossbeam-queue"] }
+rayon = { workspace = true }
+
+# Dependencies used for Sim feature
+ipc-channel = "0.18.3"
+
+# Dependencies used for debug feature
+num-traits = { version = "*", optional = true }
+clap = { version = "4.4.4", features = ["derive"], optional = true }
+clap-num = { version = "1.1.1", optional = true }
+nix = { version = "0.29.0", features = ["ioctl", "uio"] }
+
+# Dependencies used for rtl_graph features
+dot2 = { version = "*", optional = true }
+
+bitvec = { version = "*", optional = true }
+serde_json = { version = "*", optional = true }
+
+# Binary for manual debugging
+# Enable to access Hpu register and drive some custom sequence by hand
+[[bin]]
+name = "hputil"
+path = "src/utils/hputil.rs"
+required-features = ["utils"]
+
+# Binary for asm manipulation
+# Enable to convert back and forth between asm/hex format
+[[bin]]
+name = "dop_fmt"
+path = "src/utils/dop_fmt.rs"
+required-features = ["utils"]
+
+# Enable to convert back and forth between asm/hex format
+[[bin]]
+name = "iop_fmt"
+path = "src/utils/iop_fmt.rs"
+required-features = ["utils"]
+
+# Firmware generation
+# Enable to expand IOp in list of Dop for inspection
+[[bin]]
+name = "fw"
+path = "src/utils/fw.rs"
+required-features = ["utils"]

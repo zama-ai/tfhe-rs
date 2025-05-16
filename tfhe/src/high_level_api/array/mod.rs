@@ -382,6 +382,10 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
             let result = gpu_key.key.key.all_eq_slices(&tmp_lhs, &tmp_rhs, streams);
             FheBool::new(result, gpu_key.tag.clone())
         }),
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_device) => {
+            panic!("Hpu does not support Array yet.")
+        }
     })
 }
 
@@ -422,6 +426,10 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
                 .contains_sub_slice(&tmp_lhs, &tmp_pattern, streams);
             FheBool::new(result, gpu_key.tag.clone())
         }),
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_device) => {
+            panic!("Hpu does not support Array yet.")
+        }
     })
 }
 
@@ -460,6 +468,10 @@ where
         #[cfg(feature = "gpu")]
         InternalServerKey::Cuda(_) => {
             panic!("Cuda does not support FheBool dot product")
+        }
+        #[cfg(feature = "hpu")]
+        InternalServerKey::Hpu(_) => {
+            panic!("Hpu does not support FheBool dot product")
         }
     })
 }

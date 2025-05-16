@@ -2,6 +2,7 @@ SHELL:=$(shell /usr/bin/env which bash)
 OS:=$(shell uname)
 RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')
 CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)
+CARGO_BUILD_JOBS=default
 CPU_COUNT=$(shell ./scripts/cpu_count.sh)
 RS_BUILD_TOOLCHAIN:=stable
 CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)
@@ -54,6 +55,9 @@ REGEX_PATTERN?=''
 # tfhe-cuda-backend
 TFHECUDA_SRC=backends/tfhe-cuda-backend/cuda
 TFHECUDA_BUILD=$(TFHECUDA_SRC)/build
+
+# tfhe-hpu-backend
+HPU_CONFIG=v80
 
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
@@ -301,6 +305,13 @@ check_gpu: install_rs_check_toolchain
 		--all-targets \
 		-p $(TFHE_SPEC)
 
+.PHONY: clippy_hpu # Run clippy lints on tfhe with "hpu" enabled
+clippy_hpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--features=boolean,shortint,integer,internal-keycache,hpu,pbs-stats,extended-types \
+		--all-targets \
+		-p $(TFHE_SPEC) -- --no-deps -D warnings
+
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
 	linelint -a .
@@ -472,6 +483,11 @@ clippy_core clippy_tfhe_csprng
 clippy_cuda_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-cuda-backend -- --no-deps -D warnings
+
+.PHONY: clippy_hpu_backend # Run clippy lints on the tfhe-hpu-backend
+clippy_hpu_backend: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-hpu-backend -- --no-deps -D warnings
 
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
 check_rust_bindings_did_not_change:
@@ -702,6 +718,28 @@ test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_n
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
 		--signed-only --tfhe-package "$(TFHE_SPEC)"
 
+.PHONY: test_integer_hpu_ci # Run the tests for integer ci on hpu backend
+test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
+	cargo test --release -p $(TFHE_SPEC) --features hpu-v80 --test hpu
+
+.PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
+test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
+	source ./setup_hpu.sh --config sim ; \
+	cargo build --release --bin hpu_mockup; \
+    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
+	kill %1
+
+.PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
+test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextest
+	source ./setup_hpu.sh --config sim ; \
+	cargo build --profile devo --bin hpu_mockup; \
+    coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
+	kill %1
+
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
@@ -856,6 +894,22 @@ test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
 		--features=integer,internal-keycache,gpu -p $(TFHE_SPEC) \
 		-E "test(/high_level_api::.*gpu.*/)"
+
+test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
+ifeq ($(HPU_CONFIG), v80)
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+		--build-jobs=$(CARGO_BUILD_JOBS) \
+		--test-threads=1 \
+		--features=integer,internal-keycache,hpu,hpu-v80 -p $(TFHE_SPEC) \
+		-E "test(/high_level_api::.*hpu.*/)"
+else
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
+		--build-jobs=$(CARGO_BUILD_JOBS) \
+		--test-threads=1 \
+		--features=integer,internal-keycache,hpu -p $(TFHE_SPEC) \
+		-E "test(/high_level_api::.*hpu.*/)"
+endif
+
 
 .PHONY: test_strings # Run the tests for strings ci
 test_strings: install_rs_build_toolchain
@@ -1100,6 +1154,12 @@ clippy_bench_gpu: install_rs_check_toolchain
 		--features=gpu,shortint,integer,internal-keycache,nightly-avx512,pbs-stats,zk-pok \
 		-p tfhe-benchmark -- --no-deps -D warnings
 
+.PHONY: clippy_bench_hpu # Run clippy lints on tfhe-benchmark
+clippy_bench_hpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		--features=hpu,shortint,integer,internal-keycache,pbs-stats\
+		-p tfhe-benchmark -- --no-deps -D warnings
+
 .PHONY: print_doc_bench_parameters # Print parameters used in doc benchmarks
 print_doc_bench_parameters:
 	RUSTFLAGS="" cargo run --example print_doc_bench_parameters \
@@ -1132,6 +1192,14 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-signed-bench \
 	--features=integer,gpu,internal-keycache,nightly-avx512,pbs-stats -p tfhe-benchmark --
+
+.PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
+bench_integer_hpu: install_rs_check_toolchain
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench integer-bench \
+	--features=integer,internal-keycache,pbs-stats,hpu,hpu-v80 -p tfhe-benchmark -- --quick
 
 .PHONY: bench_integer_compression # Run benchmarks for unsigned integer compression
 bench_integer_compression: install_rs_check_toolchain
@@ -1324,6 +1392,14 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
+.PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
+bench_hlapi_erc20_hpu: install_rs_check_toolchain
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
+	RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-erc20 \
+	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark -- --quick
+
 .PHONY: bench_tfhe_zk_pok # Run benchmarks for the tfhe_zk_pok crate
 bench_tfhe_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" \
@@ -1422,6 +1498,9 @@ tfhe_lints
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
 clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
+
+.PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
+pcc_hpu: clippy_hpu clippy_hpu_backend test_integer_hpu_mockup_ci_fast 
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \

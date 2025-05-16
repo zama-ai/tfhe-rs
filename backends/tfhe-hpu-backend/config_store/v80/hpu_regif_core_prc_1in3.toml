@@ -1,0 +1,336 @@
+module_name="hpu_regif_core_prc_1in3"
+description="HPU top-level register interface. Used by the host to retrieve design information, and to configure it."
+word_size_b = 32
+offset = 0x10000
+range = 0x10000
+ext_pkg = ["axi_if_common_param_pkg", "axi_if_shell_axil_pkg"]
+
+# =====================================================================================================================
+[section.entry_prc_1in3]
+description="entry_prc_1in3 section with known value used for debug."
+offset= 0x0
+
+[section.entry_prc_1in3.register.dummy_val0]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x02020202}
+
+[section.entry_prc_1in3.register.dummy_val1]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x12121212}
+
+[section.entry_prc_1in3.register.dummy_val2]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x22222222}
+
+[section.entry_prc_1in3.register.dummy_val3]
+  description="RTL version"
+  owner="Parameter"
+  read_access="Read"
+  write_access="None"
+  default={Cst=0x32323232}
+
+# =====================================================================================================================
+[section.status_1in3]
+description="HPU status of part 1in3"
+offset= 0x10
+
+[section.status_1in3.register.error]
+  description="Error register (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.pbs   = { size_b=32, offset_b=0 , default={Cst=0}, description="HPU error part 1in3"}
+
+# =====================================================================================================================
+[section.ksk_avail]
+description="KSK availability configuration"
+offset= 0x1000
+
+[section.ksk_avail.register.avail]
+  description="KSK available bit"
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.avail = { size_b=1, offset_b=0 , default={Cst=0}, description="avail"}
+
+[section.ksk_avail.register.reset]
+  description="KSK reset sequence"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  field.request = { size_b=1, offset_b=0 ,  default={Cst=0}, description="request"}
+  field.done    = { size_b=1, offset_b=31 , default={Cst=0}, description="done"}
+
+# =====================================================================================================================
+[section.runtime_1in3]
+description="Runtime information"
+offset= 0x2000
+
+[section.runtime_1in3.register.pep_cmux_loop]
+  description="PEP: CMUX iteration loop number"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.br_loop   = { size_b=15, offset_b=0 ,  default={Cst=0}, description="PBS current BR-loop"}
+  field.br_loop_c = { size_b=1,  offset_b=15 , default={Cst=0}, description="PBS current BR-loop parity"}
+  field.ks_loop   = { size_b=15, offset_b=16 , default={Cst=0}, description="KS current KS-loop"}
+  field.ks_loop_c = { size_b=1,  offset_b=31 , default={Cst=0}, description="KS current KS-loop parity"}
+
+[section.runtime_1in3.register.pep_pointer_0]
+  description="PEP: pointers (part 1)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.pool_rp = { size_b=8, offset_b=0  , default={Cst=0}, description="PEP pool_rp"}
+  field.pool_wp = { size_b=8, offset_b=8  , default={Cst=0}, description="PEP pool_wp"}
+  field.ldg_pt  = { size_b=8, offset_b=16 , default={Cst=0}, description="PEP ldg_pt"}
+  field.ldb_pt  = { size_b=8, offset_b=24 , default={Cst=0}, description="PEP ldb_pt"}
+
+[section.runtime_1in3.register.pep_pointer_1]
+  description="PEP: pointers (part 2)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.ks_in_rp  = { size_b=8, offset_b=0  , default={Cst=0}, description="PEP ks_in_rp"}
+  field.ks_in_wp  = { size_b=8, offset_b=8  , default={Cst=0}, description="PEP ks_in_wp"}
+  field.ks_out_rp = { size_b=8, offset_b=16 , default={Cst=0}, description="PEP ks_out_rp"}
+  field.ks_out_wp = { size_b=8, offset_b=24 , default={Cst=0}, description="PEP ks_out_wp"}
+
+[section.runtime_1in3.register.pep_pointer_2]
+  description="PEP: pointers (part 3)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.pbs_in_rp  = { size_b=8, offset_b=0  , default={Cst=0}, description="PEP pbs_in_rp"}
+  field.pbs_in_wp  = { size_b=8, offset_b=8  , default={Cst=0}, description="PEP pbs_in_wp"}
+  field.ipip_flush_last_pbs_in_loop = { size_b=16, offset_b=16  , default={Cst=0}, description="PEP IPIP flush last pbs_in_loop"}
+
+[section.runtime_1in3.register.isc_latest_instruction]
+  description="ISC: 4 latest instructions received ([0] is the most recent)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  duplicate=["_0","_1","_2","_3"]
+
+[section.runtime_1in3.register.pep_seq_bpip_batch_cnt]
+  description="PEP: BPIP batch counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_bpip_batch_flush_cnt]
+  description="PEP: BPIP batch triggered by a flush counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_bpip_batch_timeout_cnt]
+  description="PEP: BPIP batch triggered by a timeout counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_bpip_waiting_batch_cnt]
+  description="PEP: BPIP batch that waits the trigger counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_bpip_batch_filling_cnt]
+  description="PEP: Count batch with filled with a given number of CT (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_1","_2","_3","_4","_5","_6","_7","_8","_9","_10","_11","_12","_13","_14","_15","_16"]
+
+[section.runtime_1in3.register.pep_seq_ld_ack_cnt]
+  description="PEP: load BLWE ack counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_cmux_not_full_batch_cnt]
+  description="PEP: not full batch CMUX counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_seq_ipip_flush_cnt]
+  description="PEP: IPIP flush CMUX counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_ldb_rcp_dur]
+  description="PEP: load BLWE reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_ldg_req_dur]
+  description="PEP: load GLWE request max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_ldg_rcp_dur]
+  description="PEP: load GLWE reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_load_ksk_rcp_dur]
+  description="PEP: load KSK slice reception max duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+  duplicate=["_pc0","_pc1","_pc2","_pc3","_pc4","_pc5","_pc6","_pc7","_pc8","_pc9","_pc10","_pc11","_pc12","_pc13","_pc14","_pc15"]
+
+
+[section.runtime_1in3.register.pep_mmacc_sxt_rcp_dur]
+  description="PEP: MMACC SXT reception duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_mmacc_sxt_req_dur]
+  description="PEP: MMACC SXT request duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_mmacc_sxt_cmd_wait_b_dur]
+  description="PEP: MMACC SXT command wait for b duration (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_inst_cnt]
+  description="PEP: input instruction counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pep_ack_cnt]
+  description="PEP: instruction acknowledge counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pem_load_inst_cnt]
+  description="PEM: load input instruction counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pem_load_ack_cnt]
+  description="PEM: load instruction acknowledge counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pem_store_inst_cnt]
+  description="PEM: store input instruction counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pem_store_ack_cnt]
+  description="PEM: store instruction acknowledge counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pea_inst_cnt]
+  description="PEA: input instruction counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pea_ack_cnt]
+  description="PEA: instruction acknowledge counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.isc_inst_cnt]
+  description="ISC: input instruction counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.isc_ack_cnt]
+  description="ISC: instruction acknowledge counter (Could be reset by user)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="WriteNotify"
+
+[section.runtime_1in3.register.pem_load_info_0]
+  description="PEM: load first data)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  duplicate=["_pc0_0","_pc0_1","_pc0_2","_pc0_3","_pc1_0","_pc1_1","_pc1_2","_pc1_3"]
+
+[section.runtime_1in3.register.pem_load_info_1]
+  description="PEM: load first address"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  duplicate=["_pc0_lsb","_pc0_msb","_pc1_lsb","_pc1_msb"]
+
+[section.runtime_1in3.register.pem_store_info_0]
+  description="PEM: store info 0)"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.cmd_vld             = { size_b=1, offset_b=0  , default={Cst=0}, description="PEM_ST cmd vld"}
+  field.cmd_rdy             = { size_b=1, offset_b=1  , default={Cst=0}, description="PEM_ST cmd rdy"}
+  field.pem_regf_rd_req_vld = { size_b=1, offset_b=2  , default={Cst=0}, description="PEM_ST pem_regf_rd_req_vld"}
+  field.pem_regf_rd_req_rdy = { size_b=1, offset_b=3  , default={Cst=0}, description="PEM_ST pem_regf_rd_req_rdy"}
+  field.brsp_fifo_in_vld    = { size_b=4, offset_b=4  , default={Cst=0}, description="PEM_ST brsp_fifo_in_vld"}
+  field.brsp_fifo_in_rdy    = { size_b=4, offset_b=8  , default={Cst=0}, description="PEM_ST brsp_fifo_in_rdy"}
+  field.rcp_fifo_in_vld     = { size_b=4, offset_b=12 , default={Cst=0}, description="PEM_ST rcp_fifo_in_vld"}
+  field.rcp_fifo_in_rdy     = { size_b=4, offset_b=16 , default={Cst=0}, description="PEM_ST rcp_fifo_in_rdy"}
+  field.r2_axi_vld          = { size_b=4, offset_b=20 , default={Cst=0}, description="PEM_ST r2_axi_vld"}
+  field.r2_axi_rdy          = { size_b=4, offset_b=24 , default={Cst=0}, description="PEM_ST r2_axi_rdy"}
+  field.c0_enough_location  = { size_b=4, offset_b=28 , default={Cst=0}, description="PEM_ST c0_enough_location"}
+
+[section.runtime_1in3.register.pem_store_info_1]
+  description="PEM: store info 1"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.s0_cmd_vld          = { size_b=4, offset_b=0  , default={Cst=0}, description="PEM_ST s0_cmd_vld"}
+  field.s0_cmd_rdy          = { size_b=4, offset_b=4  , default={Cst=0}, description="PEM_ST s0_cmd_rdy"}
+  field.m_axi_bvalid        = { size_b=4, offset_b=8  , default={Cst=0}, description="PEM_ST m_axi_bvalid"}
+  field.m_axi_bready        = { size_b=4, offset_b=12 , default={Cst=0}, description="PEM_ST m_axi_bready"}
+  field.m_axi_wvalid        = { size_b=4, offset_b=16 , default={Cst=0}, description="PEM_ST m_axi_wvalid"}
+  field.m_axi_wready        = { size_b=4, offset_b=20 , default={Cst=0}, description="PEM_ST m_axi_wready"}
+  field.m_axi_awvalid       = { size_b=4, offset_b=24 , default={Cst=0}, description="PEM_ST m_axi_awvalid"}
+  field.m_axi_awready       = { size_b=4, offset_b=28 , default={Cst=0}, description="PEM_ST m_axi_awready"}
+
+[section.runtime_1in3.register.pem_store_info_2]
+  description="PEM: store info 2"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.c0_free_loc_cnt      = { size_b=16, offset_b=0  , default={Cst=0}, description="PEM_ST c0_free_loc_cnt"}
+  field.brsp_bresp_cnt       = { size_b=16, offset_b=16 , default={Cst=0}, description="PEM_ST brsp_bresp_cnt"}
+
+[section.runtime_1in3.register.pem_store_info_3]
+  description="PEM: store info 3"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+  field.brsp_ack_seen      = { size_b=16, offset_b=0  , default={Cst=0}, description="PEM_ST brsp_ack_seen"}
+  field.c0_cmd_cnt         = { size_b=8,  offset_b=16 , default={Cst=0}, description="PEM_ST c0_cmd_cnt"}

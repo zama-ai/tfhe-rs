@@ -75,9 +75,45 @@ fn test_uint64_quickstart() {
 }
 
 #[test]
+fn test_uint32_arith() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_arith(&client_key);
+}
+
+#[test]
+fn test_uint32_arith_assign() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_arith_assign(&client_key);
+}
+
+#[test]
+fn test_uint32_scalar_arith() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_scalar_arith(&client_key);
+}
+
+#[test]
+fn test_uint32_scalar_arith_assign() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_scalar_arith_assign(&client_key);
+}
+
+#[test]
+fn test_uint32_clone() {
+    let client_key = setup_default_cpu();
+    super::test_case_clone(&client_key);
+}
+
+#[test]
 fn test_uint8_compare() {
     let client_key = setup_default_cpu();
     super::test_case_uint8_compare(&client_key);
+}
+
+#[test]
+fn test_uint8_compare_scalar() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint8_compare_scalar(&client_key);
 }
 
 #[test]
@@ -102,6 +138,18 @@ fn test_uint32_shift_multibit() {
 fn test_uint32_bitwise() {
     let client_key = setup_default_cpu();
     super::test_case_uint32_bitwise(&client_key);
+}
+
+#[test]
+fn test_uint32_bitwise_assign() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_bitwise_assign(&client_key);
+}
+
+#[test]
+fn test_uint32_scalar_bitwise() {
+    let client_key = setup_default_cpu();
+    super::test_case_uint32_scalar_bitwise(&client_key);
 }
 
 #[test]
