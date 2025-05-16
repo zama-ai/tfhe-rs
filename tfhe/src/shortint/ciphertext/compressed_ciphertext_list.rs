@@ -10,13 +10,14 @@ use crate::shortint::{CarryModulus, MessageModulus};
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(CompressedCiphertextListVersions)]
 pub struct CompressedCiphertextList {
-    pub modulus_switched_glwe_ciphertext_list: Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
-    pub message_modulus: MessageModulus,
-    pub carry_modulus: CarryModulus,
-    pub atomic_pattern: AtomicPatternKind,
-    pub lwe_per_glwe: LweCiphertextCount,
-    pub count: CiphertextCount,
+    pub(crate) modulus_switched_glwe_ciphertext_list:
+        Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
+    pub(crate) ciphertext_modulus: CiphertextModulus<u64>,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
+    pub(crate) atomic_pattern: AtomicPatternKind,
+    pub(crate) lwe_per_glwe: LweCiphertextCount,
+    pub(crate) count: CiphertextCount,
 }
 
 impl CompressedCiphertextList {
