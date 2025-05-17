@@ -1,7 +1,5 @@
 use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
@@ -115,14 +113,15 @@ where
                 Ok(Self::new(ciphertext, key.tag.clone()))
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner: CudaUnsignedRadixCiphertext = cuda_key.key.key.create_trivial_radix(
                     value,
                     Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))
-            }),
+            },
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support trivial encryption")

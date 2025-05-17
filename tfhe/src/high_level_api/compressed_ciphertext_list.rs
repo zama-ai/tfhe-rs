@@ -178,17 +178,16 @@ impl CompressedCiphertextListBuilder {
                 for (element, _) in &self.inner {
                     match element {
                         ToBeCompressed::Cpu(cpu_blocks) => {
-                            with_thread_local_cuda_streams(|streams| {
-                                cuda_radixes.push(CudaRadixCiphertext::from_cpu_blocks(
-                                    cpu_blocks, streams,
-                                ));
-                            })
+                            let streams = &cuda_key.streams;
+                            cuda_radixes
+                                .push(CudaRadixCiphertext::from_cpu_blocks(cpu_blocks, streams));
                         }
                         #[cfg(feature = "gpu")]
                         ToBeCompressed::Cuda(cuda_radix) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            {
+                                let streams = &cuda_key.streams;
                                 cuda_radixes.push(cuda_radix.duplicate(streams));
-                            });
+                            };
                         }
                     }
                 }
@@ -201,10 +200,11 @@ impl CompressedCiphertextListBuilder {
                         crate::Error::new("Compression key not set in server key".to_owned())
                     })
                     .map(|compression_key| {
-                        let packed_list = with_thread_local_cuda_streams(|streams| {
+                        let packed_list = {
+                            let streams = &cuda_key.streams;
                             compression_key
                                 .compress_ciphertexts_into_list(cuda_radixes.as_slice(), streams)
-                        });
+                        };
                         let info = self.inner.iter().map(|(_, kind)| *kind).collect();
 
                         let compressed_list = CudaCompressedCiphertextList { packed_list, info };
@@ -475,11 +475,12 @@ impl CiphertextList for CompressedCiphertextList {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
                 .and_then(|decompression_key| {
-                    let mut ct = with_thread_local_cuda_streams(|streams| {
+                    let mut ct = {
+                        let streams = &cuda_key.streams;
                         self.inner
                             .on_gpu(streams)
                             .get::<T>(index, decompression_key, streams)
-                    });
+                    };
                     if let Ok(Some(ct_ref)) = &mut ct {
                         ct_ref.tag_mut().set_data(cuda_key.tag.data())
                     }
