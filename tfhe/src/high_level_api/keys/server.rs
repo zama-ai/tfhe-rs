@@ -332,6 +332,7 @@ impl CompressedServerKey {
                 decompression_key,
             }),
             tag: self.tag.clone(),
+            streams,
         }
     }
 }
@@ -355,6 +356,7 @@ impl Named for CompressedServerKey {
 pub struct CudaServerKey {
     pub(crate) key: Arc<IntegerCudaServerKey>,
     pub(crate) tag: Tag,
+    pub(crate) streams: CudaStreams,
 }
 
 #[cfg(feature = "gpu")]
