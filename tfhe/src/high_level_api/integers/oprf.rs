@@ -1,7 +1,5 @@
 use super::{FheIntId, FheUint, FheUintId};
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -39,7 +37,8 @@ impl<Id: FheUintId> FheUint<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -50,7 +49,7 @@ impl<Id: FheUintId> FheUint<Id> {
                     );
 
                 Self::new(d_ct, cuda_key.tag.clone())
-            }),
+            },
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -92,7 +91,8 @@ impl<Id: FheUintId> FheUint<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let d_ct: CudaUnsignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -103,7 +103,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         streams,
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
-            }),
+            },
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -145,7 +145,8 @@ impl<Id: FheIntId> FheInt<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let d_ct: CudaSignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -156,7 +157,7 @@ impl<Id: FheIntId> FheInt<Id> {
                     );
 
                 Self::new(d_ct, cuda_key.tag.clone())
-            }),
+            },
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -200,7 +201,8 @@ impl<Id: FheIntId> FheInt<Id> {
                 Self::new(ct, key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let d_ct: CudaSignedRadixCiphertext = cuda_key
                     .key
                     .key
@@ -211,7 +213,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         streams,
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
-            }),
+            },
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
