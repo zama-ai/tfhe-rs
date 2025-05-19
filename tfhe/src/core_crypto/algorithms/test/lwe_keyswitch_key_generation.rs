@@ -124,6 +124,38 @@ fn test_seeded_and_chunked_lwe_ksk_gen_equivalence<Scalar: UnsignedTorus + Send 
         let assembled_ksk = allocate_and_assemble_lwe_keyswitch_key_from_chunks(chunks.as_slice());
 
         assert_eq!(ksk, assembled_ksk);
+
+        // Chunked Seeded Keygen
+        let mut deterministic_seeder =
+            DeterministicSeeder::<DefaultRandomGenerator>::new(deterministic_seeder_seed);
+
+        let chunk_generator = SeededLweKeyswitchKeyChunkGenerator::new(
+            chunk_size,
+            decomp_base_log,
+            decomp_level_count,
+            ciphertext_modulus,
+            &input_lwe_secret_key,
+            &output_lwe_secret_key,
+            lwe_noise_distribution,
+            mask_seed.into(),
+            &mut deterministic_seeder,
+        );
+
+        let chunks = chunk_generator.collect::<Vec<_>>();
+        let seeded_assembled_ksk =
+            allocate_and_assemble_seeded_lwe_keyswitch_key_from_chunks(chunks.as_slice());
+
+        let ser_decompressed_ksk = seeded_assembled_ksk
+            .as_view()
+            .decompress_into_lwe_keyswitch_key();
+
+        assert_eq!(ksk, ser_decompressed_ksk);
+
+        let par_decompressed_ksk = seeded_assembled_ksk
+            .as_view()
+            .par_decompress_into_lwe_keyswitch_key();
+
+        assert_eq!(ser_decompressed_ksk, par_decompressed_ksk);
     }
 }
 
