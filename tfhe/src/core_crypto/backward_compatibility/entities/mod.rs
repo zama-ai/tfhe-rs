@@ -41,6 +41,7 @@ pub mod seeded_lwe_ciphertext;
 pub mod seeded_lwe_ciphertext_list;
 pub mod seeded_lwe_compact_public_key;
 pub mod seeded_lwe_keyswitch_key;
+pub mod seeded_lwe_keyswitch_key_chunk;
 pub mod seeded_lwe_multi_bit_bootstrap_key;
 pub mod seeded_lwe_packing_keyswitch_key;
 pub mod seeded_lwe_public_key;
