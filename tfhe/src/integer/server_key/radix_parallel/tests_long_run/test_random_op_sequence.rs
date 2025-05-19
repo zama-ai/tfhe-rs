@@ -584,6 +584,10 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let input_degrees_right: Vec<u64> =
+                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
 
@@ -598,7 +602,8 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}. \
+                with input degrees {input_degrees_left:?} and {input_degrees_right:?}",
             );
         } else if unary_ops_range.contains(&i) {
             let index = i - unary_ops_range.start;
@@ -634,6 +639,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on unary op {fn_name} with clear input {clear_input}.",
             );
+            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_input);
             if i % 2 == 0 {
@@ -647,7 +653,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on unary op {fn_name} with clear input {clear_input} at iteration {fn_index}.",
+                "Invalid result on unary op {fn_name} with clear input {clear_input} at iteration {fn_index}, with input degree {input_degrees:?}.",
             );
         } else if scalar_binary_ops_range.contains(&i) {
             let index = i - scalar_binary_ops_range.start;
@@ -677,6 +683,8 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
 
             if i % 2 == 0 {
                 left_vec[j] = res.clone();
@@ -689,7 +697,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} and input degree {input_degrees_left:?}",
             );
         } else if overflowing_ops_range.contains(&i) {
             let index = i - overflowing_ops_range.start;
@@ -726,6 +734,10 @@ pub(crate) fn random_op_sequence_test<P>(
                 overflow, overflow_1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} on the overflow.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let input_degrees_right: Vec<u64> =
+                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let decrypted_overflow = cks.decrypt_bool(&overflow);
             let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
@@ -741,7 +753,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}, with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
             );
             assert_eq!(
                 decrypted_overflow, expected_overflow,
@@ -773,12 +785,14 @@ pub(crate) fn random_op_sequence_test<P>(
                 overflow.0.noise_level() <= NoiseLevel::NOMINAL,
                 "Noise level greater than nominal value on overflow for op {fn_name}",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             // Determinism check
             let (res_1, overflow_1) =
                 scalar_overflowing_op_executor.execute((&left_vec[i], clear_right_vec[i]));
             assert_eq!(
                 res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} with input degrees {input_degrees_left:?}.",
             );
             assert_eq!(
                 overflow, overflow_1,
@@ -824,13 +838,17 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let input_degrees_right: Vec<u64> =
+                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res = cks.decrypt_bool(&res);
             let expected_res = clear_fn(clear_left, clear_right);
 
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
             );
 
             let res_ct: RadixCiphertext = res.into_radix(1, &sks);
@@ -861,13 +879,15 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res = cks.decrypt_bool(&res);
             let expected_res = clear_fn(clear_left, clear_right);
 
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}.",
+                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
             );
             let res_ct: RadixCiphertext = res.into_radix(1, &sks);
             if i % 2 == 0 {
@@ -905,13 +925,17 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let input_degrees_right: Vec<u64> =
+                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res = clear_fn(clear_bool, clear_left, clear_right);
 
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = res.clone();
@@ -962,6 +986,10 @@ pub(crate) fn random_op_sequence_test<P>(
                 res_r, res_r1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let input_degrees_right: Vec<u64> =
+                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res_q: u64 = cks.decrypt(&res_q);
             let decrypted_res_r: u64 = cks.decrypt(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -969,11 +997,11 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}",
             );
             assert_eq!(
                 decrypted_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}",
             );
             if i % 2 == 0 {
                 left_vec[j] = res_q.clone();
@@ -1026,6 +1054,8 @@ pub(crate) fn random_op_sequence_test<P>(
                 res_r, res_r1,
                 "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res_q: u64 = cks.decrypt(&res_q);
             let decrypted_res_r: u64 = cks.decrypt(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -1033,11 +1063,11 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
             );
             assert_eq!(
                 decrypted_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = res_r.clone();
@@ -1083,6 +1113,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 res, res_1,
                 "Determinism check failed on op {fn_name} with clear input {clear_input}.",
             );
+            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
             let cast_res = sks.cast_to_unsigned(res, NB_CTXT_LONG_RUN);
             let decrypted_res: u64 = cks.decrypt(&cast_res);
             let expected_res = clear_fn(clear_input);
@@ -1090,7 +1121,7 @@ pub(crate) fn random_op_sequence_test<P>(
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on op {fn_name} with clear input {clear_input} at iteration {fn_index}.",
+                "Invalid result on op {fn_name} with clear input {clear_input} at iteration {fn_index} with input degrees {input_degrees:?}.",
             );
             if i % 2 == 0 {
                 left_vec[j] = cast_res.clone();
