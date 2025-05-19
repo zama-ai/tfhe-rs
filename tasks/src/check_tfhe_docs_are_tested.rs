@@ -23,7 +23,7 @@ const FILES_TO_IGNORE: [&str; 8] = [
     "tfhe-ntt/README.md",
     "utils/tfhe-lints/README.md",
     "CONTRIBUTING.md",
-    "backends/tfhe-hpu-backend/Readme.md",
+    "backends/tfhe-hpu-backend/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
