@@ -224,48 +224,6 @@ where
         )
     }
 
-    /// Generate an iterator over the terms of the decomposition of the input.
-    /// # Warning
-    /// This use unbalanced decomposition and shouldn't be used with one-level decomposition
-    /// The returned iterator yields the terms $\tilde{\theta}\_i$ in order of decreasing $i$.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::core_crypto::commons::math::decomposition::SignedDecomposer;
-    /// use tfhe::core_crypto::commons::numeric::UnsignedInteger;
-    /// use tfhe::core_crypto::commons::parameters::{DecompositionBaseLog, DecompositionLevelCount};
-    /// let decomposer =
-    ///     SignedDecomposer::<u32>::new(DecompositionBaseLog(4), DecompositionLevelCount(3));
-    /// // 2147483647 == 2^31 - 1 and has a decomposition term == to half_basis
-    /// for term in decomposer.decompose(2147483647u32) {
-    ///     assert!(1 <= term.level().0);
-    ///     assert!(term.level().0 <= 3);
-    ///     let signed_term = term.value().into_signed();
-    ///     let half_basis = 2i32.pow(4) / 2i32;
-    ///     assert!(
-    ///         -half_basis <= signed_term,
-    ///         "{} <= {signed_term} failed",
-    ///         -half_basis
-    ///     );
-    ///     assert!(
-    ///         signed_term <= half_basis,
-    ///         "{signed_term} <= {half_basis} failed"
-    ///     );
-    /// }
-    /// assert_eq!(decomposer.decompose(1).count(), 3);
-    /// ```
-    pub fn decompose_raw(&self, input: Scalar) -> SignedDecompositionIter<Scalar> {
-        // Note that there would be no sense of making the decomposition on an input which was
-        // not rounded to the closest representable first. We then perform it before decomposing.
-        SignedDecompositionIter::new(
-            self.closest_representable(input)
-                >> (Scalar::BITS - (self.level_count * self.base_log)),
-            DecompositionBaseLog(self.base_log),
-            DecompositionLevelCount(self.level_count),
-        )
-    }
-
     /// Recomposes a decomposed value by summing all the terms.
     ///
     /// If the input iterator yields $\tilde{\theta}\_i$, this returns
