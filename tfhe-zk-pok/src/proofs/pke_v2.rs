@@ -3302,7 +3302,7 @@ mod tests {
         }
     }
 
-    /// Test the `is_usable` method, that checks the correctness of the the crs
+    /// Test the `is_usable` method, that checks the correctness of the crs
     #[test]
     fn test_crs_usable() {
         let PkeTestParameters {

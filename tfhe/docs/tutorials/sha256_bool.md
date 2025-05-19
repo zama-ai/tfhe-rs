@@ -62,7 +62,7 @@ This table shows that the result equals to `z` when `x = 0`, and the result equa
 
 All these operations can be evaluated homomorphically:
 
-* ROTR and SHR: They can be evaluated by changing the index of each ecrypted bit of the word without using any homomorphic operation.
+* ROTR and SHR: They can be evaluated by changing the index of each encrypted bit of the word without using any homomorphic operation.
 * Bitwise AND, XOR and multiplexer: They can be computed homomorphically
 * Addition modulo 2^32: It can be broken down into boolean homomorphic operations.
 
@@ -73,7 +73,7 @@ The SHA-256 function processes data in 512-bit chunks. Here is what happens duri
 1. The 512-bit chunk is computed into 16 words, each containing 32 bits.
 2. Another 48 words are computed using the previous function.
 3. After computing the 64 words, within the same chunk, a compression loop will compute a hash value (8 32-bit words) using the previous functions and some constants to mix everything up.
-4. This entire process iterate through each 512-bit chunk of your data.
+4. This entire process iterates through each 512-bit chunk of your data.
 5. When we finish the last chunk iteration, the resulting hash values will be the output of the SHA-256 function.
 
 Here is an example of this function using arrays of 32 bools to represent words:
@@ -337,7 +337,7 @@ fn main() {
 }
 ```
 
-We can supply the data to hash using a file instead of the command line by using `stdin` . For example, if the file `input.txt` is in the same directory as the project, we can use the following shell command after building with `cargo build --release`:
+We can supply the data to hash using a file instead of the command line by using `stdin`. For example, if the file `input.txt` is in the same directory as the project, we can use the following shell command after building with `cargo build --release`:
 
 ```sh
 ./target/release/examples/sha256_bool < input.txt

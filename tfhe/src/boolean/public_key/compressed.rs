@@ -100,11 +100,11 @@ impl CompressedPublicKey {
     /// # Note
     ///
     /// It is recommended to use the compressed
-    /// public key to save on storage / tranfert
+    /// public key to save on storage / transfer
     /// and decompress it in the program before doing encryptions.
     ///
     /// This is because encrypting using the compressed public key
-    /// will require to lazyly decompress parts of the key
+    /// will require to lazily decompress parts of the key
     /// for each encryption.
     ///
     /// # Example
