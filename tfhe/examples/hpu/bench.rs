@@ -265,7 +265,7 @@ pub fn main() {
                     std::hint::black_box(&res);
                     res
                 })
-                .next_back()
+                .last()
                 .expect("Iteration must be greater than 0");
 
             // let res_fhe = $fhe_type::from(res_hpu);
