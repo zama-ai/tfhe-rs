@@ -258,4 +258,4 @@ make bench_integer_hpu
 You are still waiting your FPGA board and are frustrated by lead time ?
 Don't worry, you have backed-up. A dedicated simulation infrastructure with accurate performance estimation is available in tfhe-rs.
 You can use it on any linux/MacOs to test HPU integration within tfhe-rs and optimized your application for HPU target.
-Simply through an eye to [Hpu mockup](../../mockups/tfhe-hpu-mockup/Reaadme.md), and follow the instruction.
+Simply through an eye to [Hpu mockup](../../mockups/tfhe-hpu-mockup/README.md), and follow the instruction.
