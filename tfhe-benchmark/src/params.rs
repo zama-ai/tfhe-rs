@@ -121,7 +121,8 @@ pub mod shortint_params {
             )]
         }
 
-        pub fn multi_bit_benchmark_parameters() -> Vec<(String, CryptoParametersRecord<u64>)> {
+        pub fn multi_bit_benchmark_parameters(
+        ) -> Vec<(String, CryptoParametersRecord<u64>, LweBskGroupingFactor)> {
             match get_parameters_set() {
                 ParametersSet::Default => SHORTINT_MULTI_BIT_BENCH_PARAMS
                     .iter()
@@ -131,6 +132,7 @@ pub mod shortint_params {
                             <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                                 .to_owned()
                                 .into(),
+                            params.grouping_factor,
                         )
                     })
                     .collect(),
@@ -152,6 +154,7 @@ pub mod shortint_params {
                             <MultiBitPBSParameters as Into<AtomicPatternParameters>>::into(*params)
                                 .to_owned()
                                 .into(),
+                            params.grouping_factor,
                         )
                     })
                     .collect()
