@@ -411,10 +411,16 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap(
        lwe_offset += lwe_chunk_size) {
 
     // Compute a keybundle
-    execute_compute_keybundle<Torus, params>(
-        stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
-        buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
-        grouping_factor, level_count, lwe_offset);
+    if (polynomial_size == 2048)
+      execute_compute_keybundle<Torus, Degree<2048>>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
+    else
+      execute_compute_keybundle<Torus, params>(
+          stream, gpu_index, lwe_array_in, lwe_input_indexes, bootstrapping_key,
+          buffer, num_samples, lwe_dimension, glwe_dimension, polynomial_size,
+          grouping_factor, level_count, lwe_offset);
 
     // Accumulate
     execute_tbc_external_product_loop<Torus, params>(

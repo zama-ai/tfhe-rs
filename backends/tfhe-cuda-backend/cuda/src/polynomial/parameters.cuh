@@ -20,6 +20,19 @@ template <typename T> constexpr unsigned log2_int(T n) {
   }
 }
 
+constexpr int choose_opt_ultra_amortized(int degree) {
+  if (degree <= 1024)
+    return 8;
+  else if (degree == 2048)
+    return 16;
+  else if (degree == 4096)
+    return 32;
+  else if (degree == 8192)
+    return 64;
+  else
+    return 64;
+}
+
 constexpr int choose_opt_amortized(int degree) {
   if (degree <= 1024)
     return 4;
@@ -47,6 +60,7 @@ constexpr int choose_opt(int degree) {
   else
     return 64;
 }
+
 template <class params> class HalfDegree {
 public:
   constexpr static int degree = params::degree / 2;
@@ -67,6 +81,14 @@ public:
   constexpr static int opt = choose_opt_amortized(N);
   constexpr static int log2_degree = log2_int(N);
 };
+
+template <int N> class UltraAmortizedDegree {
+public:
+  constexpr static int degree = N;
+  constexpr static int opt = choose_opt_ultra_amortized(N);
+  constexpr static int log2_degree = log2_int(N);
+};
+
 enum sharedMemDegree { NOSM = 0, PARTIALSM = 1, FULLSM = 2 };
 
 class ForwardFFT {

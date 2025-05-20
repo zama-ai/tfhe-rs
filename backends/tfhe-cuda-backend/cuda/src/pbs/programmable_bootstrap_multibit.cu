@@ -634,22 +634,32 @@ void cuda_tbc_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     int num_sms = 0;
     check_cuda_error(cudaDeviceGetAttribute(
         &num_sms, cudaDevAttrMultiProcessorCount, gpu_index));
-
-    if (4 * num_sms < num_samples * level_count * (glwe_dimension + 1))
-      host_tbc_multi_bit_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
-          static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
-          lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
-          lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
-          lwe_dimension, polynomial_size, grouping_factor, base_log,
-          level_count, num_samples, num_many_lut, lut_stride);
-    else
+    // if (4 * num_sms < num_samples * level_count * (glwe_dimension + 1))
+    if (num_samples * level_count * (glwe_dimension + 1) < num_sms) {
       host_tbc_multi_bit_programmable_bootstrap<Torus, Degree<2048>>(
           static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
           lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
           lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
           lwe_dimension, polynomial_size, grouping_factor, base_log,
           level_count, num_samples, num_many_lut, lut_stride);
-
+    } else {
+      if (num_samples * level_count * (glwe_dimension + 1) < 4 * num_sms) {
+        host_tbc_multi_bit_programmable_bootstrap<Torus, AmortizedDegree<2048>>(
+            static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+            lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+            lwe_dimension, polynomial_size, grouping_factor, base_log,
+            level_count, num_samples, num_many_lut, lut_stride);
+      } else {
+        host_tbc_multi_bit_programmable_bootstrap<Torus,
+                                                  UltraAmortizedDegree<2048>>(
+            static_cast<cudaStream_t>(stream), gpu_index, lwe_array_out,
+            lwe_output_indexes, lut_vector, lut_vector_indexes, lwe_array_in,
+            lwe_input_indexes, bootstrapping_key, pbs_buffer, glwe_dimension,
+            lwe_dimension, polynomial_size, grouping_factor, base_log,
+            level_count, num_samples, num_many_lut, lut_stride);
+      }
+    }
     break;
   }
   case 4096:
