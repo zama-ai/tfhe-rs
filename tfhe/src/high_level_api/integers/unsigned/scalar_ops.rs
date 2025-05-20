@@ -1152,19 +1152,17 @@ macro_rules! define_scalar_ops {
             rust_trait: AddSizeOnGpu(get_add_size_on_gpu),
             implem: {
                 |lhs: &FheUint<_>, _rhs| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_add_size_on_gpu(
-                                &*lhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_add_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1214,19 +1212,17 @@ macro_rules! define_scalar_ops {
             rust_trait: SubSizeOnGpu(get_sub_size_on_gpu),
             implem: {
                 |lhs: &FheUint<_>, _rhs| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_sub_size_on_gpu(
-                                &*lhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_sub_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1310,19 +1306,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitAndSizeOnGpu(get_bitand_size_on_gpu),
             implem: {
                 |lhs: &FheUint<_>, _rhs| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitand_size_on_gpu(
-                                &*lhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitand_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1369,19 +1363,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitOrSizeOnGpu(get_bitor_size_on_gpu),
             implem: {
                 |lhs: &FheUint<_>, _rhs| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitor_size_on_gpu(
-                                &*lhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitor_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1429,19 +1421,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitXorSizeOnGpu(get_bitxor_size_on_gpu),
             implem: {
                 |lhs: &FheUint<_>, _rhs| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
-                                &*lhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1539,19 +1529,17 @@ macro_rules! define_scalar_ops {
             rust_trait: AddSizeOnGpu(get_add_size_on_gpu),
             implem: {
                 |_lhs, rhs: &FheUint<_>| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_add_size_on_gpu(
-                                &*rhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_add_size_on_gpu(
+                                    &*rhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1597,19 +1585,17 @@ macro_rules! define_scalar_ops {
             rust_trait: SubSizeOnGpu(get_sub_size_on_gpu),
             implem: {
                 |_lhs, rhs: &FheUint<_>| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_sub_size_on_gpu(
-                                &*rhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_sub_size_on_gpu(
+                                    &*rhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1655,19 +1641,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitAndSizeOnGpu(get_bitand_size_on_gpu),
             implem: {
                 |_lhs, rhs: &FheUint<_>| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitand_size_on_gpu(
-                                &*rhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitand_size_on_gpu(
+                                    &*rhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1696,19 +1680,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitOrSizeOnGpu(get_bitor_size_on_gpu),
             implem: {
                 |_lhs, rhs: &FheUint<_>| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitor_size_on_gpu(
-                                &*rhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitor_size_on_gpu(
+                                    &*rhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -1737,19 +1719,17 @@ macro_rules! define_scalar_ops {
             rust_trait: BitXorSizeOnGpu(get_bitxor_size_on_gpu),
             implem: {
                 |_lhs, rhs: &FheUint<_>| {
-                    let mut tmp_buffer_size = 0;
-                    global_state::with_internal_keys(|key| match key {
-                        InternalServerKey::Cpu(_) => {
-                            tmp_buffer_size = 0;
-                        }
-                        InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                            tmp_buffer_size = cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
-                                &*rhs.ciphertext.on_gpu(streams),
-                                streams,
-                            );
-                        }),
-                    });
-                    tmp_buffer_size
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
+                                    &*rhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:

@@ -160,15 +160,13 @@ impl InnerBoolean {
         &self,
         streams: &CudaStreams,
     ) -> MaybeCloned<'_, CudaUnsignedRadixCiphertext> {
-        #[allow(clippy::match_wildcard_for_single_variants)]
-        let cpu_radix = match self {
-            Self::Cuda(gpu_radix) => {
-                if gpu_radix.gpu_indexes() == streams.gpu_indexes() {
-                    return MaybeCloned::Borrowed(&gpu_radix.0);
-                }
-                return MaybeCloned::Cloned(gpu_radix.duplicate(streams).0);
+        let cpu_radix = if let Self::Cuda(gpu_radix) = self {
+            if gpu_radix.gpu_indexes() == streams.gpu_indexes() {
+                return MaybeCloned::Borrowed(&gpu_radix.0);
             }
-            _ => self.on_cpu(),
+            return MaybeCloned::Cloned(gpu_radix.duplicate(streams).0);
+        } else {
+            self.on_cpu()
         };
 
         let gpu_radix = CudaBooleanBlock::from_boolean_block(&cpu_radix, streams);
@@ -177,10 +175,10 @@ impl InnerBoolean {
 
     #[cfg(feature = "hpu")]
     pub(crate) fn on_hpu(&self, device: &HpuTaggedDevice) -> MaybeCloned<'_, HpuRadixCiphertext> {
-        #[allow(clippy::match_wildcard_for_single_variants)]
-        let cpu_radix = match self {
-            Self::Hpu(hpu_radix) => return MaybeCloned::Borrowed(hpu_radix),
-            _ => self.on_cpu(),
+        let cpu_radix = if let Self::Hpu(hpu_radix) = self {
+            return MaybeCloned::Borrowed(hpu_radix);
+        } else {
+            self.on_cpu()
         };
 
         let hpu_ct = HpuRadixCiphertext::from_boolean_ciphertext(&cpu_radix, &device.device);
@@ -237,10 +235,10 @@ impl InnerBoolean {
 
     #[cfg(feature = "gpu")]
     pub(crate) fn into_gpu(self, streams: &CudaStreams) -> CudaBooleanBlock {
-        #[allow(clippy::match_wildcard_for_single_variants)]
-        let cpu_bool = match self {
-            Self::Cuda(gpu_bool) => return gpu_bool.move_to_stream(streams),
-            _ => self.into_cpu(),
+        let cpu_bool = if let Self::Cuda(gpu_bool) = self {
+            return gpu_bool.move_to_stream(streams);
+        } else {
+            self.into_cpu()
         };
         CudaBooleanBlock::from_boolean_block(&cpu_bool, streams)
     }
