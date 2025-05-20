@@ -10,3 +10,9 @@
 /tfhe/src/integer/gpu
 
 /tfhe/src/high_level_api/               @tmontaigu
+
+/Makefile                               @IceTDrinker @soonum
+
+/.github/                               @soonum
+
+/CODEOWNERS                             @IceTDrinker
