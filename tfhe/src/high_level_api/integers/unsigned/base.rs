@@ -272,10 +272,10 @@ where
     /// slice is empty
     #[cfg(feature = "gpu")]
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
-        #[allow(clippy::match_wildcard_for_single_variants)]
-        match &self.ciphertext {
-            RadixCiphertext::Cuda(cuda_ct) => cuda_ct.gpu_indexes(),
-            _ => &[],
+        if let RadixCiphertext::Cuda(cuda_ct) = &self.ciphertext {
+            cuda_ct.gpu_indexes()
+        } else {
+            &[]
         }
     }
     /// Returns a FheBool that encrypts `true` if the value is even
