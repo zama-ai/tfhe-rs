@@ -1214,7 +1214,7 @@ bench_integer_compression_gpu: install_rs_check_toolchain
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench	glwe_packing_compression-integer-bench \
 	--features=integer,internal-keycache,gpu,pbs-stats -p tfhe-benchmark --
-	
+
 .PHONY: bench_integer_zk_gpu
 bench_integer_zk_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -1500,7 +1500,7 @@ pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
 clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
 
 .PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
-pcc_hpu: clippy_hpu clippy_hpu_backend test_integer_hpu_mockup_ci_fast 
+pcc_hpu: clippy_hpu clippy_hpu_backend test_integer_hpu_mockup_ci_fast
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
