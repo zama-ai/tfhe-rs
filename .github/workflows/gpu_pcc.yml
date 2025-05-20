@@ -120,6 +120,10 @@ jobs:
         run: |
           make pcc_gpu
 
+      - name: Check build with hpu enabled
+        run: |
+          make clippy_gpu_hpu
+
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
         run: |
