@@ -289,6 +289,9 @@ impl ServerKey {
             .unchecked_partial_sum_ciphertexts_vec_parallelized(cts, None)
             .expect("internal error, empty ciphertext count");
 
+        for block in &result.blocks {
+            println!("cpu_after_sum: {:?}, {:?}", block.ct.get_body(), block.degree);
+        }
         // This is the part where we extract message and carry blocks
         // while inverting their bits
         let (message_blocks, carry_blocks) = rayon::join(
@@ -298,6 +301,7 @@ impl ServerKey {
                     let x = x % self.key.message_modulus.0;
                     // bitnot the message
                     (!x) % self.key.message_modulus.0
+
                 });
                 result
                     .blocks()
@@ -310,7 +314,8 @@ impl ServerKey {
                     // extract carry
                     let x = x / self.key.message_modulus.0;
                     // bitnot the carry
-                    (!x) % self.key.message_modulus.0
+                     (!x) % self.key.message_modulus.0
+
                 });
                 let mut carry_blocks = Vec::with_capacity(counter_num_blocks);
                 result.blocks()[..counter_num_blocks - 1] // last carry is not interesting
@@ -323,19 +328,33 @@ impl ServerKey {
             },
         );
 
+        for m_blocks in &message_blocks {
+            println!("message_blocks: {:?}", m_blocks.ct.get_body());
+        }
+        for m_blocks in &carry_blocks {
+            println!("carry_blocks: {:?}", m_blocks.ct.get_body());
+        }
         let message = SignedRadixCiphertext::from(message_blocks);
         let carry = SignedRadixCiphertext::from(carry_blocks);
+        for m_blocks in &message.blocks {
+            println!("message: {:?}", m_blocks.ct.get_body());
+        }
+        for m_blocks in &carry.blocks {
+            println!("carry: {:?}", m_blocks.ct.get_body());
+        }
         let result = self
             .sum_ciphertexts_parallelized(
                 [
                     message,
                     carry,
-                    self.create_trivial_radix(2u32, counter_num_blocks),
-                ]
+                    self.create_trivial_radix(2u32, counter_num_blocks),                ]
                 .iter(),
             )
             .unwrap();
 
+        for block in &result.blocks {
+            println!("cpu_after_sum: {:?}", block.ct.get_body());
+        }
         self.cast_to_unsigned(result, counter_num_blocks)
     }
 

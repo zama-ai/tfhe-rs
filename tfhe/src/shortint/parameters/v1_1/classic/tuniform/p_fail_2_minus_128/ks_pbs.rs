@@ -37,7 +37,7 @@ pub const V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128: ClassicPBSParamete
 /// Average number of encryptions of 0s ~ 17, peak noise ~ Variance(0.00000140546154228955)
 pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ClassicPBSParameters =
     ClassicPBSParameters {
-        lwe_dimension: LweDimension(918),
+        lwe_dimension: LweDimension(814),
         glwe_dimension: GlweDimension(1),
         polynomial_size: PolynomialSize(2048),
         lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),

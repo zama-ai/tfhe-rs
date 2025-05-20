@@ -19,6 +19,19 @@ impl ServerKey {
     where
         T: IntegerRadixCiphertext,
     {
+        //let cts_debug = ciphertexts.clone();
+        for radix_ct in &terms {
+            for block in radix_ct.blocks() {
+                println!("degree: {:?}", block.degree);
+            }
+        }
+
+        for ct in &terms {
+            for block in ct.blocks() {
+                println!("cpu_before_first_partial_sum : {:?}", block.ct.get_body());
+            }
+        }
+
         if terms.is_empty() {
             return None;
         }
@@ -197,7 +210,6 @@ impl ServerKey {
                     self.full_propagate_parallelized(&mut *ct);
                 }
             });
-
         self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
     }
 

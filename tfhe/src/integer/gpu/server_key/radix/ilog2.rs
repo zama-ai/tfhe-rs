@@ -94,7 +94,7 @@ impl CudaServerKey {
         );
 
         let mut output_cts: T =
-            self.create_trivial_zero_radix_async(num_ct_blocks * num_ct_blocks, streams);
+            self.create_trivial_zero_radix_async(num_ct_blocks, streams);
 
         self.compute_prefix_sum_hillis_steele_async(
             output_cts.as_mut(),
@@ -488,7 +488,7 @@ impl CudaServerKey {
             self.create_trivial_zero_radix(counter_num_blocks, streams);
 
         let mut trivial_last_block: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
+             self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
         let trivial_last_block_slice = trivial_last_block
             .as_mut()
             .d_blocks
@@ -497,18 +497,16 @@ impl CudaServerKey {
             .as_mut_slice(0..lwe_size, 0)
             .unwrap();
 
-        let mut carry_blocks_last = carry_blocks
+        let mut carry_block_first = carry_blocks
             .as_mut()
             .d_blocks
             .0
             .d_vec
             .as_mut_slice(
-                lwe_size * (counter_num_blocks - 1)..lwe_size * counter_num_blocks,
+                0..lwe_size,
                 0,
             )
             .unwrap();
-
-        carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
         carry_blocks.as_mut().info.blocks.last_mut().unwrap().degree =
             Degree(self.message_modulus.0 - 1);
         carry_blocks
@@ -519,6 +517,7 @@ impl CudaServerKey {
             .unwrap()
             .noise_level = NoiseLevel::ZERO;
 
+        let mut tmp_carry_blocks = carry_blocks.duplicate(streams);
         self.apply_lookup_table_async(
             carry_blocks.as_mut(),
             result.as_ref(),
@@ -526,6 +525,20 @@ impl CudaServerKey {
             0..counter_num_blocks - 1,
             streams,
         );
+
+        for i in 1..counter_num_blocks {
+            let dst_slice = tmp_carry_blocks.as_mut().d_blocks.0.d_vec.as_mut_slice(
+                i * lwe_size..(i + 1) * lwe_size,
+                0,
+            ).unwrap();
+            let src_slice = tmp_carry_blocks.as_mut().d_blocks.0.d_vec.as_mut_slice(
+                (i - 1) * lwe_size..i * lwe_size,
+                0
+            ).unwrap();
+            dst_slice.copy_from_gpu_async(&src_slice, streams, 0);
+        }
+        carry_block_first.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
+
 
         let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
 

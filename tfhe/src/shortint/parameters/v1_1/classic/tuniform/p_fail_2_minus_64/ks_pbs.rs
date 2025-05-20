@@ -28,9 +28,9 @@ pub const V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M64: ClassicPBSParameter
 /// p-fail = 2^-72.178, algorithmic cost ~ 112, 2-norm = 5
 pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParameters =
     ClassicPBSParameters {
-        lwe_dimension: LweDimension(879),
+        lwe_dimension: LweDimension(32),
         glwe_dimension: GlweDimension(1),
-        polynomial_size: PolynomialSize(2048),
+        polynomial_size: PolynomialSize(512),
         lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
         glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
         pbs_base_log: DecompositionBaseLog(23),

@@ -370,6 +370,25 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     uint32_t num_radix_blocks, uint32_t num_radix_in_vec,
     int_radix_lut<Torus> *reused_lut) {
 
+  auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
+  auto big_lwe_size = big_lwe_dimension + 1;
+
+    printf("num_radix_blocks: %d\n", num_radix_blocks);
+    printf("num_radix_in_vec: %d\n", num_radix_in_vec);
+
+    printf("degrees: ");
+    for (int i = 0; i < num_radix_in_vec * num_radix_blocks; i++) {
+      printf("%d ", terms->degrees[i]);
+    }
+    printf("\n");
+
+    Torus *terms_data = (Torus*)terms->ptr;
+    for (int i = 0; i < num_radix_in_vec * num_radix_blocks; i++) {
+      auto cur_block = &terms_data[big_lwe_size * i];
+      print_debug<Torus>("cuda_partial_sum_before", &cur_block[big_lwe_dimension], 1);
+    }
+
+
   if (terms->lwe_dimension != radix_lwe_out->lwe_dimension)
     PANIC("Cuda error: output and input radix ciphertexts should have the same "
           "lwe dimension")
@@ -392,8 +411,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
   auto luts_message_carry = mem_ptr->luts_message_carry;
 
-  auto big_lwe_dimension = mem_ptr->params.big_lwe_dimension;
-  auto big_lwe_size = big_lwe_dimension + 1;
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
@@ -533,8 +550,16 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
                                    num_radix_blocks, 2 * num_radix_blocks);
 
-  host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out,
-                       current_blocks, &current_blocks_slice, num_radix_blocks);
+//  host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out,
+//                       current_blocks, &current_blocks_slice, num_radix_blocks);
+
+  cudaDeviceSynchronize();
+  terms_data = (Torus*)radix_lwe_out->ptr;
+  for (int i = 0; i < num_radix_blocks; i++) {
+    auto cur_block = &terms_data[big_lwe_size * i];
+    print_debug<Torus>("cuda_partial_sum_after", &cur_block[big_lwe_dimension], 1);
+  }
+
 }
 
 template <typename Torus, class params>
