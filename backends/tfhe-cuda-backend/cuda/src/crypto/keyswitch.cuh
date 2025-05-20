@@ -60,7 +60,7 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
 
     if (tid == lwe_dimension_out && threadIdx.y == 0) {
-      local_lwe_out = block_lwe_array_in[lwe_dimension_in];
+      local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
     }
     const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
@@ -74,11 +74,11 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
       Torus state =
           init_decomposer_state(block_lwe_array_in[i], base_log, level_count);
 
+      uint32_t offset = i * level_count * (lwe_dimension_out + 1);
       for (int j = 0; j < level_count; j++) {
-        auto ksk_block =
-            get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
         Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
-        local_lwe_out -= (Torus)ksk_block[tid] * decomposed;
+        local_lwe_out +=
+            (Torus)ksk[tid + j * (lwe_dimension_out + 1) + offset] * decomposed;
       }
     }
 
@@ -93,7 +93,7 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
           lwe_acc_out[shmem_index + offset * blockDim.x];
     }
     if (threadIdx.y == 0)
-      block_lwe_array_out[tid] = lwe_acc_out[shmem_index];
+      block_lwe_array_out[tid] = -lwe_acc_out[shmem_index];
   }
 }
 
