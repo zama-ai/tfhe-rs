@@ -45,7 +45,7 @@ Here is a full example (combining the client and server parts):
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, ClientKey, CompressedServerKey};
 use tfhe::prelude::*;
-use tfhe_hpu_backend::prelude::*;
+use tfhe::tfhe_hpu_backend::prelude::*;
 
 fn main() {
 
@@ -53,7 +53,7 @@ fn main() {
     // HPU configuration knobs are retrieved from a TOML configuration file. Prebuilt configurations could be find in `backends/tfhe-hpu-backend/config_store`
     // For ease of use a setup_hpu.sh script is available in repository root folder and it handle the required environment variables setup and driver initialisation
     // More details are available in `backends/tfhe-hpu-backend/README.md`
-    let hpu_device = HpuDevice::from_config(ShellString::new("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string()));
+    let hpu_device = HpuDevice::from_config(ShellString::new("${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string()).expand().as_str());
 
     // Generate keys ----------------------------------------------------------
     let config = Config::from_hpu_device(&hpu_device);
