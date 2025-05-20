@@ -2098,20 +2098,20 @@ where
 {
     fn get_add_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key.key.key.get_add_size_on_gpu(
+                        &*self.ciphertext.on_gpu(streams),
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    )
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_add_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
-                    streams,
-                );
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
 
@@ -2123,20 +2123,20 @@ where
 {
     fn get_sub_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key.key.key.get_sub_size_on_gpu(
+                        &*self.ciphertext.on_gpu(streams),
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    )
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_sub_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
-                    streams,
-                );
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
 
@@ -2146,14 +2146,17 @@ where
     Id: FheIntId,
 {
     fn get_size_on_gpu(&self) -> u64 {
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                cuda_key
-                    .key
-                    .key
-                    .get_ciphertext_size_on_gpu(&*self.ciphertext.on_gpu(streams))
-            }),
-            InternalServerKey::Cpu(_) => 0,
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_ciphertext_size_on_gpu(&*self.ciphertext.on_gpu(streams))
+                })
+            } else {
+                0
+            }
         })
     }
 }
@@ -2166,20 +2169,19 @@ where
 {
     fn get_bitand_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key.key.key.get_bitand_size_on_gpu(
+                        &*self.ciphertext.on_gpu(streams),
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    )
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_bitand_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
-                    streams,
-                );
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
 
@@ -2191,20 +2193,19 @@ where
 {
     fn get_bitor_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key.key.key.get_bitor_size_on_gpu(
+                        &*self.ciphertext.on_gpu(streams),
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    )
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_bitor_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
-                    streams,
-                );
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
 
@@ -2216,20 +2217,19 @@ where
 {
     fn get_bitxor_size_on_gpu(&self, rhs: I) -> u64 {
         let rhs = rhs.borrow();
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key.key.key.get_bitxor_size_on_gpu(
+                        &*self.ciphertext.on_gpu(streams),
+                        &rhs.ciphertext.on_gpu(streams),
+                        streams,
+                    )
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key.key.key.get_bitxor_size_on_gpu(
-                    &*self.ciphertext.on_gpu(streams),
-                    &rhs.ciphertext.on_gpu(streams),
-                    streams,
-                );
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
 
@@ -2239,18 +2239,17 @@ where
     Id: FheIntId,
 {
     fn get_bitnot_size_on_gpu(&self) -> u64 {
-        let mut tmp_buffer_size = 0;
-        global_state::with_internal_keys(|key| match key {
-            InternalServerKey::Cpu(_) => {
-                tmp_buffer_size = 0;
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
             }
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
-                tmp_buffer_size = cuda_key
-                    .key
-                    .key
-                    .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams);
-            }),
-        });
-        tmp_buffer_size
+        })
     }
 }
