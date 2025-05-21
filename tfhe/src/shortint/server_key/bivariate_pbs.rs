@@ -129,7 +129,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let msg2: u64 = 2;
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
@@ -181,7 +181,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let msg2: u64 = 2;
     /// let ct1 = cks.encrypt(msg);
     /// let ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
     /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);

@@ -79,7 +79,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -351,7 +351,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let two = cks.decrypt(&ct1);
     ///
     /// // 15 + 3 mod 4 -> 3 + 3 mod 4 -> 2 mod 4
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {

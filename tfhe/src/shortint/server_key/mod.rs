@@ -870,7 +870,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// let msg: u64 = 3;
     /// let ct = cks.encrypt(msg);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// // Generate the lookup table for the function f: x -> x*x*x mod 4
     /// let lut = sks.generate_lookup_table(|x| x * x * x % modulus);
