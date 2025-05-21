@@ -6,6 +6,7 @@ use crate::integer::gpu::ciphertext::info::CudaRadixCiphertextInfo;
 use crate::integer::gpu::ciphertext::{CudaIntegerRadixCiphertext, CudaRadixCiphertext};
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
+    get_comparison_integer_radix_kb_size_on_gpu, get_full_propagate_assign_size_on_gpu,
     unchecked_comparison_integer_radix_kb_async, ComparisonType, CudaServerKey, PBSType,
 };
 use crate::shortint::ciphertext::Degree;
@@ -346,6 +347,120 @@ impl CudaServerKey {
         let result = unsafe { self.eq_async(ct_left, ct_right, streams) };
         streams.synchronize();
         result
+    }
+
+    pub(crate) fn get_comparison_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        op: ComparisonType,
+        streams: &CudaStreams,
+    ) -> u64 {
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_dimension(),
+            ct_right.as_ref().d_blocks.lwe_dimension()
+        );
+        assert_eq!(
+            ct_left.as_ref().d_blocks.lwe_ciphertext_count(),
+            ct_right.as_ref().d_blocks.lwe_ciphertext_count()
+        );
+        let full_prop_mem = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_full_propagate_assign_size_on_gpu(
+                streams,
+                d_bsk.input_lwe_dimension(),
+                d_bsk.glwe_dimension(),
+                d_bsk.polynomial_size(),
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count(),
+                d_bsk.decomp_base_log(),
+                self.message_modulus,
+                self.carry_modulus,
+                PBSType::Classical,
+                LweBskGroupingFactor(0),
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    None,
+                )
+            }
+        };
+        let actual_full_prop_mem = match (
+            ct_left.block_carries_are_empty(),
+            ct_right.block_carries_are_empty(),
+        ) {
+            (true, true) => 0,
+            (true, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+            (false, true) => full_prop_mem,
+            (false, false) => self.get_ciphertext_size_on_gpu(ct_right) + full_prop_mem,
+        };
+
+        let lwe_ciphertext_count = ct_left.as_ref().d_blocks.lwe_ciphertext_count();
+
+        let comparison_mem = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_comparison_integer_radix_kb_size_on_gpu(
+                streams,
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                self.key_switching_key
+                    .input_key_lwe_size()
+                    .to_lwe_dimension(),
+                self.key_switching_key
+                    .output_key_lwe_size()
+                    .to_lwe_dimension(),
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                lwe_ciphertext_count.0 as u32,
+                op,
+                T::IS_SIGNED,
+                PBSType::Classical,
+                LweBskGroupingFactor(0),
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                get_comparison_integer_radix_kb_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .input_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    lwe_ciphertext_count.0 as u32,
+                    op,
+                    T::IS_SIGNED,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    None,
+                )
+            }
+        };
+        actual_full_prop_mem.max(comparison_mem)
     }
 
     /// # Safety
@@ -936,6 +1051,60 @@ impl CudaServerKey {
         result
     }
 
+    pub fn get_eq_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::EQ, streams)
+    }
+
+    pub fn get_ne_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::NE, streams)
+    }
+
+    pub fn get_gt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::GT, streams)
+    }
+
+    pub fn get_ge_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::GE, streams)
+    }
+
+    pub fn get_lt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::LT, streams)
+    }
+
+    pub fn get_le_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::LE, streams)
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -1220,5 +1389,22 @@ impl CudaServerKey {
         let result = unsafe { self.min_async(ct_left, ct_right, streams) };
         streams.synchronize();
         result
+    }
+    pub fn get_max_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::MAX, streams)
+    }
+
+    pub fn get_min_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        ct_right: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_right, ComparisonType::MIN, streams)
     }
 }

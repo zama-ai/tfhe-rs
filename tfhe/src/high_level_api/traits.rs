@@ -265,3 +265,20 @@ pub trait BitXorSizeOnGpu<Rhs = Self> {
 pub trait BitNotSizeOnGpu {
     fn get_bitnot_size_on_gpu(&self) -> u64;
 }
+
+#[cfg(feature = "gpu")]
+pub trait FheOrdSizeOnGpu<Rhs = Self> {
+    fn get_gt_size_on_gpu(&self, amount: Rhs) -> u64;
+    fn get_lt_size_on_gpu(&self, amount: Rhs) -> u64;
+    fn get_ge_size_on_gpu(&self, amount: Rhs) -> u64;
+    fn get_le_size_on_gpu(&self, amount: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait FheMinSizeOnGpu<Rhs = Self> {
+    fn get_min_size_on_gpu(&self, other: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait FheMaxSizeOnGpu<Rhs = Self> {
+    fn get_max_size_on_gpu(&self, other: Rhs) -> u64;
+}
