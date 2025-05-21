@@ -93,8 +93,7 @@ impl CudaServerKey {
             },
         );
 
-        let mut output_cts: T =
-            self.create_trivial_zero_radix_async(num_ct_blocks * num_ct_blocks, streams);
+        let mut output_cts: T = self.create_trivial_zero_radix_async(num_ct_blocks, streams);
 
         self.compute_prefix_sum_hillis_steele_async(
             output_cts.as_mut(),
@@ -497,18 +496,6 @@ impl CudaServerKey {
             .as_mut_slice(0..lwe_size, 0)
             .unwrap();
 
-        let mut carry_blocks_last = carry_blocks
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(
-                lwe_size * (counter_num_blocks - 1)..lwe_size * counter_num_blocks,
-                0,
-            )
-            .unwrap();
-
-        carry_blocks_last.copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
         carry_blocks.as_mut().info.blocks.last_mut().unwrap().degree =
             Degree(self.message_modulus.0 - 1);
         carry_blocks
@@ -527,13 +514,43 @@ impl CudaServerKey {
             streams,
         );
 
+        let mut rotated_carry_blocks: CudaSignedRadixCiphertext =
+            self.create_trivial_zero_radix(counter_num_blocks, streams);
+
+        let mut rotated_slice = rotated_carry_blocks
+            .as_mut()
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(0..(counter_num_blocks) * lwe_size, 0)
+            .unwrap();
+
+        let first_block;
+        let last_blocks;
+        (first_block, last_blocks) = rotated_slice.split_at_mut(lwe_size, 0);
+
+        let mut tmp_carry_blocks3 = carry_blocks.duplicate(streams);
+        let carry_slice = tmp_carry_blocks3
+            .as_mut()
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(0..(counter_num_blocks - 1) * lwe_size, 0)
+            .unwrap();
+
+        last_blocks
+            .unwrap()
+            .copy_from_gpu_async(&carry_slice, streams, 0);
+        first_block
+            .unwrap()
+            .copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
         let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
 
         ciphertexts.push(message_blocks);
-        ciphertexts.push(carry_blocks);
+        ciphertexts.push(rotated_carry_blocks);
 
         let trivial_ct: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(2u32, counter_num_blocks, streams);
+            self.create_trivial_radix_async(1u32, counter_num_blocks, streams);
         ciphertexts.push(trivial_ct);
 
         let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();
