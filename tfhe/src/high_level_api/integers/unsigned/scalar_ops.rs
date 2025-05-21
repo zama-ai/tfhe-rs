@@ -14,7 +14,8 @@ use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, FheMaxSizeOnGpu,
-    FheMinSizeOnGpu, FheOrdSizeOnGpu, SubSizeOnGpu,
+    FheMinSizeOnGpu, FheOrdSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu,
+    ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
     BitSlice, DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
@@ -929,6 +930,30 @@ macro_rules! define_scalar_rotate_shifts {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: ShlSizeOnGpu(get_left_shift_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_left_shift_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
         generic_integer_impl_scalar_operation!(
             rust_trait: Shr(shr),
             implem: {
@@ -955,6 +980,30 @@ macro_rules! define_scalar_rotate_shifts {
                             panic!("Hpu does not support this operation yet.")
                         }
                     })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: ShrSizeOnGpu(get_right_shift_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_right_shift_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
@@ -997,6 +1046,30 @@ macro_rules! define_scalar_rotate_shifts {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: RotateLeftSizeOnGpu(get_rotate_left_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_rotate_left_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
         generic_integer_impl_scalar_operation!(
             rust_trait: RotateRight(rotate_right),
             implem: {
@@ -1023,6 +1096,30 @@ macro_rules! define_scalar_rotate_shifts {
                             panic!("Hpu does not support this operation yet.")
                         }
                     })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type,)*),
+                )*
+        );
+
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: RotateRightSizeOnGpu(get_rotate_right_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, _rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            with_thread_local_cuda_streams(|streams| {
+                                cuda_key.key.key.get_scalar_rotate_right_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    streams,
+                                )
+                            })
+                        } else {
+                            0
+                        })
                 }
             },
             fhe_and_scalar_type:
