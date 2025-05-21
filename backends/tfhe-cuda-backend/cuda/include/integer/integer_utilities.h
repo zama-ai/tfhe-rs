@@ -1,6 +1,8 @@
 #ifndef CUDA_INTEGER_UTILITIES_H
 #define CUDA_INTEGER_UTILITIES_H
 
+#include <cinttypes>
+
 #include "integer.h"
 #include "integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
@@ -16,6 +18,10 @@ public:
   static const uint64_t ZERO = 0;
   static const uint64_t UNKNOWN = std::numeric_limits<uint64_t>::max();
 };
+
+constexpr BitValue opposite(const BitValue bit) noexcept {
+  return (bit == BitValue::ZERO) ? BitValue::ONE : BitValue::ZERO;
+}
 
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
@@ -4385,6 +4391,94 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
     free(first_indexes_for_overflow_sub);
     free(second_indexes_for_overflow_sub);
     free(scalars_for_overflow_sub);
+  }
+};
+
+template <typename Torus> struct int_prepare_count_of_consecutive_bits_buffer {
+  int_radix_params params;
+  int_radix_lut<Torus> *uni_lut;
+  int_radix_lut<Torus> *bi_lut;
+  CudaRadixCiphertextFFI *copy_ct;
+  Direction dir;
+  BitValue bit_val;
+  bool gpu_memory_allocated;
+
+  int_prepare_count_of_consecutive_bits_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, Direction dir, BitValue bit_val,
+      int_radix_params params, uint32_t num_radix_blocks,
+      bool allocate_gpu_memory, uint64_t *size_tracker) {
+    this->params = params;
+    this->dir = dir;
+    this->bit_val = bit_val;
+    this->gpu_memory_allocated = allocate_gpu_memory;
+    this->copy_ct = new CudaRadixCiphertextFFI;
+
+    const uint32_t bits = (uint32_t)std::log2(params.message_modulus);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], copy_ct, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->uni_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
+                                             params, 1, num_radix_blocks,
+                                             allocate_gpu_memory, size_tracker);
+
+    auto lut_fn = [params, dir, bit_val, bits](Torus x) -> Torus {
+      x %= params.message_modulus;
+      Torus count = 0;
+
+      const int start = (dir == TRAILING ? 0 : (int)bits - 1);
+      const int end = (dir == TRAILING ? (int)bits : -1);
+      const int step = (dir == TRAILING ? 1 : -1);
+
+      for (uint32_t i = start; i != end; i += step) {
+        if (((x >> i) & (Torus)1) == (Torus)opposite(bit_val))
+          break;
+        ++count;
+      }
+      return count;
+    };
+
+    generate_device_accumulator<Torus>(
+        streams[0], gpu_indexes[0], uni_lut->get_lut(0, 0),
+        uni_lut->get_degree(0), uni_lut->get_max_degree(0),
+        params.glwe_dimension, params.polynomial_size, params.message_modulus,
+        params.carry_modulus, lut_fn, gpu_memory_allocated);
+
+    uni_lut->broadcast_lut(streams, gpu_indexes, 0);
+
+    this->bi_lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
+                                            params, 1, num_radix_blocks,
+                                            allocate_gpu_memory, size_tracker);
+
+    auto sum_lut = [bits](Torus block_num_bit_count,
+                          Torus more_significant_block_bit_count) -> Torus {
+      return (more_significant_block_bit_count == bits) ? block_num_bit_count
+                                                        : 0;
+    };
+
+    generate_device_accumulator_bivariate<Torus>(
+        streams[0], gpu_indexes[0], bi_lut->get_lut(0, 0),
+        bi_lut->get_degree(0), bi_lut->get_max_degree(0), params.glwe_dimension,
+        params.polynomial_size, params.message_modulus, params.carry_modulus,
+        sum_lut, gpu_memory_allocated);
+
+    bi_lut->broadcast_lut(streams, gpu_indexes, 0);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], copy_ct,
+                                   gpu_memory_allocated);
+    delete copy_ct;
+
+    uni_lut->release(streams, gpu_indexes, gpu_count);
+    delete uni_lut;
+
+    bi_lut->release(streams, gpu_indexes, gpu_count);
+    delete bi_lut;
   }
 };
 
