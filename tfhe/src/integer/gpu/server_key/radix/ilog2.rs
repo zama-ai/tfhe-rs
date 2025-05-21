@@ -3,7 +3,6 @@ use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::reverse_blocks_inplace_async;
 use crate::integer::gpu::server_key::CudaServerKey;
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 use crate::shortint::ciphertext::Degree;
@@ -19,7 +18,7 @@ impl CudaServerKey {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronised
-    pub(crate) unsafe fn prepare_count_of_consecutive_bits_async<T: CudaIntegerRadixCiphertext>(
+    pub(crate) fn prepare_count_of_consecutive_bits<T: CudaIntegerRadixCiphertext>(
         &self,
         ct: &T,
         direction: Direction,
@@ -28,82 +27,26 @@ impl CudaServerKey {
     ) -> T {
         assert!(
             self.carry_modulus.0 >= self.message_modulus.0,
-            "A carry modulus as least as big as the message modulus is required"
+            "A carry modulus at least as big as the message modulus is required"
         );
 
         let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
-        // Allocate the necessary amount of memory
-        let mut tmp_radix = ct.duplicate_async(streams);
+        let mut output: T =
+            unsafe { self.create_trivial_zero_radix_async(num_ct_blocks * num_ct_blocks, streams) };
 
-        let lut = match direction {
-            Direction::Trailing => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0;
-
-                let mut count = 0;
-                for i in 0..self.message_modulus.0.ilog2() {
-                    if (x >> i) & 1 == bit_value.opposite() as u64 {
-                        break;
-                    }
-                    count += 1;
-                }
-                count
-            }),
-            Direction::Leading => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0;
-
-                let mut count = 0;
-                for i in (0..self.message_modulus.0.ilog2()).rev() {
-                    if (x >> i) & 1 == bit_value.opposite() as u64 {
-                        break;
-                    }
-                    count += 1;
-                }
-                count
-            }),
-        };
-
-        self.apply_lookup_table_async(
-            tmp_radix.as_mut(),
-            ct.as_ref(),
-            &lut,
-            0..num_ct_blocks,
-            streams,
-        );
-
-        if direction == Direction::Leading {
-            // Our blocks are from lsb to msb
-            // `leading` means starting from the msb, so we reverse block
-            // for the cum sum process done later
-            reverse_blocks_inplace_async(streams, tmp_radix.as_mut());
+        unsafe {
+            self.start_preparing_count_of_consecutive_bits(
+                output.as_mut(),
+                ct.as_ref(),
+                0..num_ct_blocks,
+                streams,
+                direction,
+                bit_value,
+            );
         }
 
-        // Use hillis-steele cumulative-sum algorithm
-        // Here, each block either keeps his value (the number of leading zeros)
-        // or becomes 0 if the preceding block
-        // had a bit set to one in it (leading_zeros != num bits in message)
-        let num_bits_in_message = self.message_modulus.0.ilog2() as u64;
-        let sum_lut = self.generate_lookup_table_bivariate(
-            |block_num_bit_count, more_significant_block_bit_count| {
-                if more_significant_block_bit_count == num_bits_in_message {
-                    block_num_bit_count
-                } else {
-                    0
-                }
-            },
-        );
-
-        let mut output_cts: T =
-            self.create_trivial_zero_radix_async(num_ct_blocks * num_ct_blocks, streams);
-
-        self.compute_prefix_sum_hillis_steele_async(
-            output_cts.as_mut(),
-            tmp_radix.as_mut(),
-            &sum_lut,
-            0..num_ct_blocks,
-            streams,
-        );
-        output_cts
+        output
     }
 
     /// Counts how many consecutive bits there are
@@ -134,7 +77,7 @@ impl CudaServerKey {
             .expect("Number of bits encrypted exceeds u32::MAX");
 
         let mut leading_count_per_blocks =
-            self.prepare_count_of_consecutive_bits_async(ct, direction, bit_value, streams);
+            self.prepare_count_of_consecutive_bits(ct, direction, bit_value, streams);
 
         // `num_bits_in_ciphertext` is the max value we want to represent
         // its ilog2 + 1 gives use how many bits we need to be able to represent it.
@@ -391,12 +334,8 @@ impl CudaServerKey {
         // so given a non propagated `C`, we can compute the fully propagated `PC`
         // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
 
-        let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            ct,
-            Direction::Leading,
-            BitValue::Zero,
-            streams,
-        );
+        let mut leading_zeros_per_blocks =
+            self.prepare_count_of_consecutive_bits(ct, Direction::Leading, BitValue::Zero, streams);
         let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
