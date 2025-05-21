@@ -121,7 +121,7 @@ where
                     streams,
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support trivial encryption")

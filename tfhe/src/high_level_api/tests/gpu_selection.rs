@@ -4,7 +4,8 @@ use crate::core_crypto::gpu::get_number_of_gpus;
 use crate::high_level_api::global_state::CustomMultiGpuIndexes;
 use crate::prelude::*;
 use crate::{
-    set_server_key, unset_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device, FheUint32, GpuIndex,
+    set_server_key, unset_server_key, ClientKey, CompressedServerKey, ConfigBuilder, Device,
+    FheUint32, GpuIndex,
 };
 
 #[test]
@@ -137,7 +138,6 @@ fn test_specific_gpu_selection() {
             }
         }
 
-        println!("selected_indices: {:?}", selected_indices);
         // Convert the selected indices to GpuIndex objects
         let gpus_to_be_used = CustomMultiGpuIndexes::new(
             selected_indices
