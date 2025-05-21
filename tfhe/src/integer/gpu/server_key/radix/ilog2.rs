@@ -31,7 +31,7 @@ impl CudaServerKey {
         );
 
         let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-
+        
         let mut output: T = unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 
         unsafe {
@@ -43,6 +43,7 @@ impl CudaServerKey {
                 bit_value,
             );
         }
+
         output
     }
 
@@ -74,7 +75,7 @@ impl CudaServerKey {
             .expect("Number of bits encrypted exceeds u32::MAX");
 
         let mut leading_count_per_blocks =
-            self.prepare_count_of_consecutive_bits_async(ct, direction, bit_value, streams);
+            self.prepare_count_of_consecutive_bits(ct, direction, bit_value, streams);
 
         // `num_bits_in_ciphertext` is the max value we want to represent
         // its ilog2 + 1 gives use how many bits we need to be able to represent it.
@@ -331,12 +332,8 @@ impl CudaServerKey {
         // so given a non propagated `C`, we can compute the fully propagated `PC`
         // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
 
-        let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            ct,
-            Direction::Leading,
-            BitValue::Zero,
-            streams,
-        );
+        let mut leading_zeros_per_blocks =
+            self.prepare_count_of_consecutive_bits(ct, Direction::Leading, BitValue::Zero, streams);
         let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
 
         let lwe_size = lwe_dimension.to_lwe_size().0;
