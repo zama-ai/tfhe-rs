@@ -62,7 +62,7 @@ where
                     FheInt::new(result, cuda_key.tag.clone()),
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -163,7 +163,7 @@ where
                     FheInt::new(result, cuda_key.tag.clone()),
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -302,7 +302,7 @@ where
                     FheInt::new(result, cuda_key.tag.clone()),
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -402,7 +402,7 @@ where
                     FheInt::new(result, cuda_key.tag.clone()),
                     FheBool::new(overflow, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")

@@ -49,7 +49,7 @@ impl<Id: FheUintId> FheUint<Id> {
                     );
 
                 Self::new(d_ct, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -103,7 +103,7 @@ impl<Id: FheUintId> FheUint<Id> {
                         streams,
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -157,7 +157,7 @@ impl<Id: FheIntId> FheInt<Id> {
                     );
 
                 Self::new(d_ct, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -213,7 +213,7 @@ impl<Id: FheIntId> FheInt<Id> {
                         streams,
                     );
                 Self::new(d_ct, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")

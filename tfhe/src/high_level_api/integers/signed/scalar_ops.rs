@@ -2,6 +2,8 @@
 use crate::core_crypto::commons::numeric::CastFrom;
 use crate::high_level_api::errors::UnwrapResultExt;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::signed::inner::SignedRadixCiphertext;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
@@ -406,7 +408,8 @@ where
     fn get_gt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -420,7 +423,8 @@ where
     fn get_ge_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -434,7 +438,8 @@ where
     fn get_lt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -448,7 +453,8 @@ where
     fn get_le_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -470,7 +476,8 @@ where
     fn get_min_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -491,7 +498,8 @@ where
     fn get_max_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key
                         .key
                         .key
@@ -960,12 +968,11 @@ macro_rules! define_scalar_ops {
                 |lhs: &FheInt<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_add_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1017,12 +1024,11 @@ macro_rules! define_scalar_ops {
                 |lhs: &FheInt<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_sub_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1108,12 +1114,11 @@ macro_rules! define_scalar_ops {
                 |lhs: &FheInt<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitand_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1165,12 +1170,11 @@ macro_rules! define_scalar_ops {
                 |lhs: &FheInt<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitor_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1223,12 +1227,11 @@ macro_rules! define_scalar_ops {
                 |lhs: &FheInt<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1331,12 +1334,11 @@ macro_rules! define_scalar_ops {
                 |_lhs, rhs: &FheInt<_>| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_add_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1387,12 +1389,11 @@ macro_rules! define_scalar_ops {
                 |_lhs, rhs: &FheInt<_>| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_sub_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1443,12 +1444,11 @@ macro_rules! define_scalar_ops {
                 |_lhs, rhs: &FheInt<_>| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitand_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1482,12 +1482,11 @@ macro_rules! define_scalar_ops {
                 |_lhs, rhs: &FheInt<_>| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitor_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1521,12 +1520,11 @@ macro_rules! define_scalar_ops {
                 |_lhs, rhs: &FheInt<_>| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                            let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_bitxor_size_on_gpu(
                                     &*rhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })

@@ -14,7 +14,7 @@ use crate::high_level_api::booleans::InnerBoolean;
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state::device_of_internal_keys;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::ciphertext::{DataKind, Expandable};
 #[cfg(feature = "gpu")]
@@ -27,7 +27,6 @@ use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
 use crate::{Device, FheBool, FheInt, FheUint, Tag};
-
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
         match self.ciphertext {
@@ -142,9 +141,12 @@ impl CompressedCiphertextListBuilder {
                         }
                         #[cfg(feature = "gpu")]
                         ToBeCompressed::Cuda(cuda_radix) => {
-                            with_thread_local_cuda_streams(|streams| {
-                                flat_cpu_blocks.append(&mut cuda_radix.to_cpu_blocks(streams));
-                            });
+                            with_thread_local_cuda_streams_for_gpu_indexes(
+                                cuda_radix.d_blocks.0.d_vec.gpu_indexes.as_slice(),
+                                |streams| {
+                                    flat_cpu_blocks.append(&mut cuda_radix.to_cpu_blocks(streams));
+                                },
+                            );
                         }
                     }
                 }
@@ -273,7 +275,8 @@ impl InnerCompressedCiphertextList {
             #[cfg(feature = "gpu")]
             // We may not be on the correct Cuda device
             if let Self::Cuda(cuda_ct) = self {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
@@ -295,7 +298,8 @@ impl InnerCompressedCiphertextList {
             }
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {
-                let new_inner = with_thread_local_cuda_streams(|streams| {
+                let new_inner = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cpu_ct.to_cuda_compressed_ciphertext_list(streams)
                 });
                 *self = Self::Cuda(new_inner);
@@ -353,7 +357,8 @@ impl Versionize for InnerCompressedCiphertextList {
             Self::Cpu(inner) => inner.clone().versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams(|streams| {
+                let cpu_data = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     inner.to_compressed_ciphertext_list(streams)
                 });
                 cpu_data.versionize_owned()
@@ -371,7 +376,8 @@ impl VersionizeOwned for InnerCompressedCiphertextList {
             Self::Cpu(inner) => inner.versionize_owned(),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                let cpu_data = with_thread_local_cuda_streams(|streams| {
+                let cpu_data = with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     inner.to_compressed_ciphertext_list(streams)
                 });
                 cpu_data.versionize_owned()
@@ -502,7 +508,8 @@ impl CompressedCiphertextList {
             InnerCompressedCiphertextList::Cpu(inner) => (inner, tag),
             #[cfg(feature = "gpu")]
             InnerCompressedCiphertextList::Cuda(inner) => (
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     inner.to_compressed_ciphertext_list(streams)
                 }),
                 tag,

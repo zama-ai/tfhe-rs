@@ -416,7 +416,7 @@ impl ScalarIfThenElse<&Self, &Self> for FheBool {
                 );
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support if_then_else with clear input")
@@ -458,7 +458,7 @@ where
                 );
 
                 FheUint::new(inner, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
                 let hpu_then = ct_then.ciphertext.on_hpu(device);
@@ -516,7 +516,7 @@ impl<Id: FheIntId> IfThenElse<FheInt<Id>> for FheBool {
                 );
 
                 FheInt::new(inner, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support signed integers")
@@ -548,7 +548,7 @@ impl IfThenElse<Self> for FheBool {
                 );
                 let boolean_inner = CudaBooleanBlock(inner);
                 (InnerBoolean::Cuda(boolean_inner), cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bool if then else")
@@ -611,7 +611,7 @@ where
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support FheBool::eq")
@@ -658,7 +658,7 @@ where
                 );
                 let ciphertext = InnerBoolean::Cuda(inner);
                 Self::new(ciphertext, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support FheBool::ne")
@@ -707,7 +707,7 @@ impl FheEq<bool> for FheBool {
                     streams,
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support FheBool::eq with a bool")
@@ -755,7 +755,7 @@ impl FheEq<bool> for FheBool {
                     streams,
                 );
                 (InnerBoolean::Cuda(inner), cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support FheBool::ne with a bool")
@@ -840,7 +840,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitand (&)")
@@ -929,7 +929,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitor (|)")
@@ -1018,7 +1018,7 @@ where
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitxor (^)")
@@ -1099,7 +1099,7 @@ impl BitAnd<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("hpu does not bitand (&) with a bool")
@@ -1180,7 +1180,7 @@ impl BitOr<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("hpu does not bitor (|) with a bool")
@@ -1261,7 +1261,7 @@ impl BitXor<bool> for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("hpu does not bitxor (^) with a bool")
@@ -1464,7 +1464,7 @@ where
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitand assign (&=)")
@@ -1512,7 +1512,7 @@ where
                     &rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitor assign (|=)")
@@ -1560,7 +1560,7 @@ where
                     &rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitxor assign (^=)")
@@ -1602,7 +1602,7 @@ impl BitAndAssign<bool> for FheBool {
                     u8::from(rhs),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitand assign (&=) with a bool")
@@ -1644,7 +1644,7 @@ impl BitOrAssign<bool> for FheBool {
                     u8::from(rhs),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitor assign (|=) with a bool")
@@ -1686,7 +1686,7 @@ impl BitXorAssign<bool> for FheBool {
                     u8::from(rhs),
                     streams,
                 );
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitor assign (^=) with a bool")
@@ -1760,7 +1760,7 @@ impl std::ops::Not for &FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support bitnot (!)")

@@ -13,7 +13,7 @@ use crate::array::traits::{
 };
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::global_state;
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::block_decomposition::{
     DecomposableInto, RecomposableFrom, RecomposableSignedInteger,
@@ -53,7 +53,8 @@ where
     T: CudaIntegerRadixCiphertext,
 {
     fn clone(&self) -> Self {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -436,7 +437,8 @@ where
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             GpuOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -460,7 +462,8 @@ where
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             GpuOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -489,7 +492,8 @@ where
     fn try_encrypt(clears: &'a [Clear], key: &ClientKey) -> Result<Self, Self::Error> {
         let num_blocks = Id::num_blocks(key.message_modulus());
         Ok(Self::new(
-            with_thread_local_cuda_streams(|streams| {
+            with_cuda_internal_keys(|cuda_key| {
+                let streams = &cuda_key.streams;
                 clears
                     .iter()
                     .copied()
@@ -524,7 +528,8 @@ where
             ));
         }
         let num_blocks = Id::num_blocks(key.message_modulus());
-        let elems = with_thread_local_cuda_streams(|streams| {
+        let elems = with_cuda_internal_keys(|cuda_key| {
+            let streams = &cuda_key.streams;
             clears
                 .iter()
                 .copied()
@@ -567,7 +572,8 @@ where
     Clear: RecomposableFrom<u64> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|cuda_key| {
+            let streams = &cuda_key.streams;
             self.as_tensor_slice()
                 .iter()
                 .map(|ct: &CudaUnsignedRadixCiphertext| {
@@ -588,7 +594,8 @@ where
     fn try_encrypt(clears: &'a [Clear], key: &ClientKey) -> Result<Self, Self::Error> {
         let num_blocks = Id::num_blocks(key.message_modulus());
         Ok(Self::new(
-            with_thread_local_cuda_streams(|streams| {
+            with_cuda_internal_keys(|cuda_key| {
+                let streams = &cuda_key.streams;
                 clears
                     .iter()
                     .copied()
@@ -631,7 +638,8 @@ where
     Clear: RecomposableSignedInteger,
 {
     fn decrypt(&self, key: &ClientKey) -> Vec<Clear> {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|cuda_key| {
+            let streams = &cuda_key.streams;
             self.elems
                 .0
                 .iter()

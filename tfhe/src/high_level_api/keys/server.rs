@@ -390,14 +390,6 @@ impl CudaServerKey {
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
         &self.key.key.key_switching_key.d_vec.gpu_indexes
     }
-
-    pub(crate) fn build_streams(&self) -> CudaStreams {
-        if self.gpu_indexes().len() == 1 {
-            CudaStreams::new_single_gpu(self.gpu_indexes()[0])
-        } else {
-            CudaStreams::new_multi_gpu()
-        }
-    }
 }
 
 #[cfg(feature = "gpu")]

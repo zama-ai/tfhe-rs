@@ -99,7 +99,7 @@ impl FheTryTrivialEncrypt<bool> for FheBool {
                     inner.into_inner(),
                 ));
                 (ct, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support trivial encryption")
