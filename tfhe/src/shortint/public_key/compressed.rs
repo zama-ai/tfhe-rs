@@ -127,7 +127,7 @@ impl CompressedPublicKey {
     /// let ct = pk.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {

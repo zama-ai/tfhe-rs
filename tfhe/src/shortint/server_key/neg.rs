@@ -39,7 +39,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg(&self, ct: &Ciphertext) -> Ciphertext {
@@ -80,7 +80,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn neg_assign(&self, ct: &mut Ciphertext) {
@@ -117,7 +117,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let three = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(modulus - msg, three);
     /// ```
     pub fn unchecked_neg(&self, ct: &Ciphertext) -> Ciphertext {
@@ -154,7 +154,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// sks.unchecked_neg_assign(&mut ct);
     ///
     /// // Decrypt
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(modulus - msg, cks.decrypt(&ct));
     /// ```
     pub fn unchecked_neg_assign(&self, ct: &mut Ciphertext) {
@@ -234,7 +234,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let ct_res = sks.checked_neg(&ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg(&self, ct: &Ciphertext) -> Result<Ciphertext, CheckError> {
@@ -269,7 +269,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// sks.checked_neg_assign(&mut ct).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn checked_neg_assign(&self, ct: &mut Ciphertext) -> Result<(), CheckError> {
@@ -302,7 +302,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg(&self, ct: &mut Ciphertext) -> Ciphertext {
@@ -339,7 +339,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let clear_res = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res, modulus - msg);
     /// ```
     pub fn smart_neg_assign(&self, ct: &mut Ciphertext) {

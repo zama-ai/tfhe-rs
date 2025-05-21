@@ -568,6 +568,7 @@ pub(crate) mod test {
     use crate::integer::gpu::server_key::CudaBootstrappingKey;
     use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
     use crate::integer::{ClientKey, RadixCiphertext};
+    use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
     use crate::shortint::oprf::create_random_from_seed_modulus_switched;
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use rayon::prelude::*;
@@ -635,7 +636,11 @@ pub(crate) mod test {
             sk.ciphertext_modulus,
         );
 
-        let sk = ck.key.small_lwe_secret_key();
+        let AtomicPatternClientKey::Standard(std_ck) = &ck.key.atomic_pattern else {
+            panic!("Only std AP is supported on GPU")
+        };
+
+        let sk = std_ck.small_lwe_secret_key();
         let plain_prf_input = decrypt_lwe_ciphertext(&sk, &ct)
             .0
             .wrapping_add(1 << (64 - log_input_p - 1))
