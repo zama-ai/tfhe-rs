@@ -4,9 +4,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::{
-    with_thread_local_cuda_streams, with_thread_local_cuda_streams_for_gpu_indexes,
-};
+use crate::high_level_api::global_state::with_cuda_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 #[cfg(feature = "hpu")]
 use crate::high_level_api::keys::HpuTaggedDevice;
 #[cfg(feature = "gpu")]
@@ -52,9 +52,10 @@ impl Clone for RadixCiphertext {
         match self {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
-            Self::Cuda(inner) => {
-                with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
-            }
+            Self::Cuda(inner) => with_cuda_internal_keys(|key| {
+                let streams = &key.streams;
+                Self::Cuda(inner.duplicate(streams))
+            }),
             #[cfg(feature = "hpu")]
             Self::Hpu(inner) => {
                 // NB: Hpu backends flavor behavs differently regarding memory.
@@ -166,7 +167,8 @@ impl RadixCiphertext {
         match self {
             Self::Cpu(ct) => MaybeCloned::Borrowed(ct),
             #[cfg(feature = "gpu")]
-            Self::Cuda(ct) => with_thread_local_cuda_streams(|streams| {
+            Self::Cuda(ct) => with_cuda_internal_keys(|key| {
+                let streams = &key.streams;
                 let cpu_ct = ct.to_radix_ciphertext(streams);
                 MaybeCloned::Cloned(cpu_ct)
             }),
@@ -297,7 +299,8 @@ impl RadixCiphertext {
             #[cfg(feature = "gpu")]
             // We may not be on the correct Cuda device
             if let Self::Cuda(cuda_ct) = self {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|key| {
+                    let streams = &key.streams;
                     if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
@@ -319,7 +322,8 @@ impl RadixCiphertext {
             }
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {
-                let new_inner = with_thread_local_cuda_streams(|streams| {
+                let new_inner = with_cuda_internal_keys(|key| {
+                    let streams = &key.streams;
                     crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext::from_radix_ciphertext(
                         &cpu_ct, streams,
                     )

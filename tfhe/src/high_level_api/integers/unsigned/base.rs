@@ -309,7 +309,7 @@ where
                     .key
                     .is_even(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -350,7 +350,7 @@ where
                     .key
                     .is_odd(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -493,7 +493,7 @@ where
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -543,7 +543,7 @@ where
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -593,7 +593,7 @@ where
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -643,7 +643,7 @@ where
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -777,7 +777,7 @@ where
                     streams,
                 );
                 super::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -839,7 +839,7 @@ where
                     super::FheUint32::new(result, cuda_key.tag.clone()),
                     FheBool::new(is_ok, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -927,7 +927,7 @@ where
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -1008,7 +1008,7 @@ where
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -1232,7 +1232,7 @@ where
                     streams,
                 );
                 Self::new(casted, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -1281,7 +1281,7 @@ where
                     streams,
                 );
                 Self::new(casted, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -1330,7 +1330,7 @@ where
                     streams,
                 );
                 Self::new(inner, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
