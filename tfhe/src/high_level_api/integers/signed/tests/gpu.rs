@@ -5,10 +5,10 @@ use crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu;
 use crate::prelude::{
     check_valid_cuda_malloc, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu,
     BitXorSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    SubSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
-use crate::{FheInt32, GpuIndex};
+use crate::{FheInt32, FheUint32, GpuIndex};
 use rand::Rng;
 
 #[test]
@@ -233,6 +233,61 @@ fn test_gpu_get_comparisons_size_on_gpu() {
     ));
     assert!(check_valid_cuda_malloc(
         scalar_min_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+}
+
+#[test]
+fn test_gpu_get_shift_rotate_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen_range(1..=i32::MAX);
+    let clear_b = rng.gen_range(1..=u32::MAX);
+    let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+    a.move_to_current_device();
+    b.move_to_current_device();
+    let a = &a;
+    let b = &b;
+
+    let left_shift_tmp_buffer_size = a.get_left_shift_size_on_gpu(b);
+    let scalar_left_shift_tmp_buffer_size = a.get_left_shift_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        left_shift_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_left_shift_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let right_shift_tmp_buffer_size = a.get_right_shift_size_on_gpu(b);
+    let scalar_right_shift_tmp_buffer_size = a.get_right_shift_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        right_shift_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_right_shift_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let rotate_left_tmp_buffer_size = a.get_rotate_left_size_on_gpu(b);
+    let scalar_rotate_left_tmp_buffer_size = a.get_rotate_left_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        rotate_left_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_rotate_left_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let rotate_right_tmp_buffer_size = a.get_rotate_right_size_on_gpu(b);
+    let scalar_rotate_right_tmp_buffer_size = a.get_rotate_right_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        rotate_right_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_rotate_right_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }
