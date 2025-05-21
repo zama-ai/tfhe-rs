@@ -51,7 +51,7 @@ impl FheBool {
                     )),
                     cuda_key.tag.clone(),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support random bool generation")

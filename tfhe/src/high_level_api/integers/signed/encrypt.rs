@@ -119,7 +119,7 @@ where
                     streams,
                 );
                 Ok(Self::new(inner, cuda_key.tag.clone()))
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_) => panic!("Hpu does not currently support signed operation"),
         })

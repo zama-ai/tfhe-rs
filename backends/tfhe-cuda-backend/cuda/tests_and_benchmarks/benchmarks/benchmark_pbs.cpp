@@ -168,7 +168,7 @@ BENCHMARK_DEFINE_F(MultiBitBootstrap_u64, TbcMultiBit)
 (benchmark::State &st) {
   if (!has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
-          pbs_level)) {
+          pbs_level, cuda_get_max_shared_memory(0))) {
     st.SkipWithError("Configuration not supported for tbc operation");
     return;
   }

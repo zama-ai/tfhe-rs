@@ -202,7 +202,7 @@ where
                     .key
                     .abs(&*self.ciphertext.on_gpu(streams), streams);
                 Self::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -243,7 +243,7 @@ where
                     .key
                     .is_even(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -284,7 +284,7 @@ where
                     .key
                     .is_odd(&*self.ciphertext.on_gpu(streams), streams);
                 FheBool::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -334,7 +334,7 @@ where
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -384,7 +384,7 @@ where
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -434,7 +434,7 @@ where
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -484,7 +484,7 @@ where
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -618,7 +618,7 @@ where
                     streams,
                 );
                 crate::FheUint32::new(result, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -680,7 +680,7 @@ where
                     crate::FheUint32::new(result, cuda_key.tag.clone()),
                     FheBool::new(is_ok, cuda_key.tag.clone()),
                 )
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -875,7 +875,7 @@ where
                     streams,
                 );
                 Self::new(new_ciphertext, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -924,7 +924,7 @@ where
                     streams,
                 );
                 Self::new(new_ciphertext, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -976,7 +976,7 @@ where
                     streams,
                 );
                 Self::new(inner, cuda_key.tag.clone())
-            },
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")

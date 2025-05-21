@@ -73,14 +73,6 @@ pub fn unset_server_key() {
 
 fn replace_server_key(new_one: Option<impl Into<InternalServerKey>>) -> Option<InternalServerKey> {
     let keys = new_one.map(Into::into);
-    #[cfg(feature = "gpu")]
-    if let Some(InternalServerKey::Cuda(cuda_key)) = &keys {
-        gpu::CUDA_STREAMS.with_borrow_mut(|current_streams| {
-            if current_streams.gpu_indexes() != cuda_key.gpu_indexes() {
-                *current_streams = cuda_key.build_streams();
-            }
-        });
-    }
     INTERNAL_KEYS.replace(keys)
 }
 
@@ -187,7 +179,7 @@ where
             .unwrap_display();
         let InternalServerKey::Cuda(cuda_key) = key else {
             panic!(
-                "Cpu key requested but only the key for {:?} is available",
+                "CUDA key requested but only the key for {:?} is available",
                 key.device()
             )
         };
@@ -196,9 +188,7 @@ where
 }
 
 #[cfg(feature = "gpu")]
-pub(in crate::high_level_api) use gpu::{
-    with_thread_local_cuda_streams, with_thread_local_cuda_streams_for_gpu_indexes,
-};
+pub(in crate::high_level_api) use gpu::with_thread_local_cuda_streams_for_gpu_indexes;
 
 #[cfg(feature = "gpu")]
 pub use gpu::CudaGpuChoice;
@@ -212,19 +202,6 @@ mod gpu {
     use super::*;
     use itertools::Itertools;
     use std::cell::LazyCell;
-
-    thread_local! {
-        pub(crate) static CUDA_STREAMS: RefCell<CudaStreams> = RefCell::new(CudaStreams::new_multi_gpu());
-    }
-
-    pub(in crate::high_level_api) fn with_thread_local_cuda_streams<
-        R,
-        F: for<'a> FnOnce(&'a CudaStreams) -> R,
-    >(
-        func: F,
-    ) -> R {
-        CUDA_STREAMS.with(|cell| func(&cell.borrow()))
-    }
 
     struct CudaStreamPool {
         custom: Option<CudaStreams>,
