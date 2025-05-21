@@ -1057,6 +1057,54 @@ impl CudaServerKey {
         result
     }
 
+    pub fn get_scalar_eq_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::EQ, streams)
+    }
+
+    pub fn get_scalar_ne_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::NE, streams)
+    }
+
+    pub fn get_scalar_gt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::GT, streams)
+    }
+
+    pub fn get_scalar_ge_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::GE, streams)
+    }
+
+    pub fn get_scalar_lt_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::LT, streams)
+    }
+
+    pub fn get_scalar_le_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::LE, streams)
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
@@ -1191,5 +1239,20 @@ impl CudaServerKey {
         let result = unsafe { self.scalar_min_async(ct, scalar, streams) };
         streams.synchronize();
         result
+    }
+    pub fn get_scalar_max_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::MAX, streams)
+    }
+
+    pub fn get_scalar_min_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ct_left: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_comparison_size_on_gpu(ct_left, ct_left, ComparisonType::MIN, streams)
     }
 }

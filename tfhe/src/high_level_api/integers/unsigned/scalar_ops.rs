@@ -13,7 +13,8 @@ use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
-    AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, SubSizeOnGpu,
+    AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, FheMaxSizeOnGpu,
+    FheMinSizeOnGpu, FheOrdSizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
     BitSlice, DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
@@ -296,6 +297,113 @@ where
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, Clear> FheOrdSizeOnGpu<Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: DecomposableInto<u64>,
+{
+    fn get_gt_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_gt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
+            }
+        })
+    }
+    fn get_ge_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_ge_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
+            }
+        })
+    }
+    fn get_lt_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_lt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
+            }
+        })
+    }
+    fn get_le_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_le_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, Clear> FheMinSizeOnGpu<Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: DecomposableInto<u64>,
+{
+    fn get_min_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_min_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
+            }
+        })
+    }
+}
+#[cfg(feature = "gpu")]
+impl<Id, Clear> FheMaxSizeOnGpu<Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: DecomposableInto<u64>,
+{
+    fn get_max_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                with_thread_local_cuda_streams(|streams| {
+                    cuda_key
+                        .key
+                        .key
+                        .get_scalar_max_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+                })
+            } else {
+                0
             }
         })
     }

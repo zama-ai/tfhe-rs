@@ -1339,6 +1339,64 @@ pub unsafe fn unchecked_comparison_integer_radix_kb_async<T: UnsignedInteger, B:
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn get_comparison_integer_radix_kb_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    big_lwe_dimension: LweDimension,
+    small_lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    op: ComparisonType,
+    is_signed: bool,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) -> u64 {
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_integer_radix_comparison_kb_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            big_lwe_dimension.0 as u32,
+            small_lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            op as u32,
+            is_signed,
+            false,
+            allocate_ms_noise_array,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_comparison(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
