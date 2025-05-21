@@ -4478,6 +4478,7 @@ pub unsafe fn unchecked_signed_abs_radix_kb_assign_async<T: UnsignedInteger, B: 
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+    update_noise_degree(ct, &cuda_ffi_ct);
 }
 
 #[allow(clippy::too_many_arguments)]
