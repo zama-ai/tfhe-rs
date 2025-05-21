@@ -40,3 +40,6 @@ __pycache__
 # First directive is to ignore symlinks
 tests/tfhe-backward-compat-data
 ci/
+
+# In case someone clones the lattice-estimator locally to verify security
+/lattice-estimator
