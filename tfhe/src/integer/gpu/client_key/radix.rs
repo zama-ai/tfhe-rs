@@ -10,6 +10,7 @@ use crate::integer::gpu::list_compression::server_keys::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::RadixClientKey;
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::EncryptionKeyChoice;
 
@@ -21,7 +22,11 @@ impl RadixClientKey {
     ) -> (CudaCompressionKey, CudaDecompressionKey) {
         let private_compression_key = &private_compression_key.key;
 
-        let params = &private_compression_key.params;
+        let compression_params = &private_compression_key.params;
+
+        let AtomicPatternClientKey::Standard(std_cks) = &self.as_ref().key.atomic_pattern else {
+            panic!("Only the standard atomic pattern is supported on GPU")
+        };
 
         assert_eq!(
             self.parameters().encryption_key_choice(),
@@ -32,11 +37,11 @@ impl RadixClientKey {
         // Compression key
         let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &self.as_ref().key.large_lwe_secret_key(),
+                &std_cks.large_lwe_secret_key(),
                 &private_compression_key.post_packing_ks_key,
-                params.packing_ks_base_log,
-                params.packing_ks_level,
-                params.packing_ks_key_noise_distribution,
+                compression_params.packing_ks_base_log,
+                compression_params.packing_ks_level,
+                compression_params.packing_ks_key_noise_distribution,
                 self.parameters().ciphertext_modulus(),
                 &mut engine.encryption_generator,
             )
@@ -45,7 +50,7 @@ impl RadixClientKey {
         let glwe_compression_key = CompressionKey {
             key: crate::shortint::list_compression::CompressionKey {
                 packing_key_switching_key,
-                lwe_per_glwe: params.lwe_per_glwe,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
                 storage_log_modulus: private_compression_key.params.storage_log_modulus,
             },
         };
@@ -60,9 +65,9 @@ impl RadixClientKey {
             self.parameters().polynomial_size(),
             private_compression_key.params.br_base_log,
             private_compression_key.params.br_level,
-            params
+            compression_params
                 .packing_ks_glwe_dimension
-                .to_equivalent_lwe_dimension(params.packing_ks_polynomial_size),
+                .to_equivalent_lwe_dimension(compression_params.packing_ks_polynomial_size),
             self.parameters().ciphertext_modulus(),
         );
 
@@ -71,7 +76,7 @@ impl RadixClientKey {
                 &private_compression_key
                     .post_packing_ks_key
                     .as_lwe_secret_key(),
-                &self.as_ref().key.glwe_secret_key,
+                &std_cks.glwe_secret_key,
                 &mut bsk,
                 self.parameters().glwe_noise_distribution(),
                 &mut engine.encryption_generator,
@@ -84,7 +89,7 @@ impl RadixClientKey {
 
         let cuda_decompression_key = CudaDecompressionKey {
             blind_rotate_key,
-            lwe_per_glwe: params.lwe_per_glwe,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
             glwe_dimension: self.parameters().glwe_dimension(),
             polynomial_size: self.parameters().polynomial_size(),
             message_modulus: self.parameters().message_modulus(),

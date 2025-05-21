@@ -114,7 +114,7 @@ fn main() {
     let msg1 = 1;
     let msg2 = 0;
 
-    let modulus = client_key.parameters.message_modulus().0;
+    let modulus = client_key.parameters().message_modulus().0;
 
     // We use the client key to encrypt two messages:
     let ct_1 = client_key.encrypt(msg1);
