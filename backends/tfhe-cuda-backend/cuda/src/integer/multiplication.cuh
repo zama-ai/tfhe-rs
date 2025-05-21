@@ -460,15 +460,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
             chunk_size, big_lwe_size);
 
-    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0,
-                                          streams[0]>>>(
+    prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0, streams[0]>>>(
         d_new_columns, d_new_columns_counter, d_pbs_indexes_in,
         d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0),
         d_pbs_counters, d_columns, d_columns_counter, chunk_size);
 
     cuda_memcpy_async_to_cpu(h_pbs_counters, d_pbs_counters,
-                             3 * sizeof(uint32_t), streams[0],
-                             gpu_indexes[0]);
+                             3 * sizeof(uint32_t), streams[0], gpu_indexes[0]);
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
@@ -501,10 +499,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           (Torus *)(radix_lwe_out->ptr), (Torus *)(current_blocks->ptr),
           d_columns, d_columns_counter, chunk_size, big_lwe_size);
 
-  prepare_final_pbs_indexes<Torus>
-      <<<1, 2 * num_radix_blocks, 0, streams[0]>>>(
-          d_pbs_indexes_in, d_pbs_indexes_out,
-          luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
+  prepare_final_pbs_indexes<Torus><<<1, 2 * num_radix_blocks, 0, streams[0]>>>(
+      d_pbs_indexes_in, d_pbs_indexes_out,
+      luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
 
   cuda_memset_async(
       (Torus *)(current_blocks->ptr) + big_lwe_size * num_radix_blocks, 0,

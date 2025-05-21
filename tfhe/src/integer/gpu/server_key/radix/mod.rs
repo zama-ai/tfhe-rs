@@ -17,9 +17,10 @@ use crate::integer::gpu::{
     add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
     compute_prefix_sum_hillis_steele_async, extend_radix_with_trivial_zero_blocks_msb_async,
-    full_propagate_assign_async, propagate_single_carry_assign_async, trim_radix_blocks_lsb_async,
-    CudaServerKey, PBSType,
+    full_propagate_assign_async, prepare_count_of_consecutive_bits_buffer,
+    propagate_single_carry_assign_async, trim_radix_blocks_lsb_async, CudaServerKey, PBSType,
 };
+use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
@@ -1418,6 +1419,82 @@ impl CudaServerKey {
         {
             info.degree = Degree(generates_or_propagates_degrees[i]);
             info.noise_level = NoiseLevel(generates_or_propagates_noise_levels[i]);
+        }
+    }
+
+    /// # Safety
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) unsafe fn prepare_count_of_consecutive_bits_buffer(
+        &self,
+        output: &mut CudaRadixCiphertext,
+        input: &CudaRadixCiphertext,
+        streams: &CudaStreams,
+        direction: Direction,
+        bit_value: BitValue,
+    ) {
+        assert_eq!(
+            input.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension(),
+            "Mismatch LWE dimension between input and output"
+        );
+
+        let small_lwe_dim = self
+            .key_switching_key
+            .output_key_lwe_size()
+            .to_lwe_dimension();
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    prepare_count_of_consecutive_bits_buffer(
+                        streams,
+                        output,
+                        input,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        small_lwe_dim,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        direction,
+                        bit_value,
+                    );
+                }
+
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    prepare_count_of_consecutive_bits_buffer(
+                        streams,
+                        output,
+                        input,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        small_lwe_dim,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                        direction,
+                        bit_value,
+                    );
+                }
+            }
         }
     }
 
