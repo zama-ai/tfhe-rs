@@ -282,3 +282,23 @@ pub trait FheMinSizeOnGpu<Rhs = Self> {
 pub trait FheMaxSizeOnGpu<Rhs = Self> {
     fn get_max_size_on_gpu(&self, other: Rhs) -> u64;
 }
+
+#[cfg(feature = "gpu")]
+pub trait ShlSizeOnGpu<Rhs = Self> {
+    fn get_left_shift_size_on_gpu(&self, other: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait ShrSizeOnGpu<Rhs = Self> {
+    fn get_right_shift_size_on_gpu(&self, other: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait RotateLeftSizeOnGpu<Rhs = Self> {
+    fn get_rotate_left_size_on_gpu(&self, other: Rhs) -> u64;
+}
+
+#[cfg(feature = "gpu")]
+pub trait RotateRightSizeOnGpu<Rhs = Self> {
+    fn get_rotate_right_size_on_gpu(&self, other: Rhs) -> u64;
+}
