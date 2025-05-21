@@ -6,6 +6,7 @@ pub use standard::*;
 use super::AtomicPatternServerKey;
 use crate::conformance::ParameterSetConformant;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedAtomicPatternServerKeyVersions;
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{AtomicPatternParameters, CiphertextModulus, LweDimension};
@@ -24,14 +25,12 @@ pub enum CompressedAtomicPatternServerKey {
 
 impl CompressedAtomicPatternServerKey {
     pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
-        let params = &cks.parameters;
-
-        match params.ap_parameters().unwrap() {
-            AtomicPatternParameters::Standard(_) => {
-                Self::Standard(CompressedStandardAtomicPatternServerKey::new(cks, engine))
-            }
-            AtomicPatternParameters::KeySwitch32(_) => {
-                Self::KeySwitch32(CompressedKS32AtomicPatternServerKey::new(cks, engine))
+        match &cks.atomic_pattern {
+            AtomicPatternClientKey::Standard(ap_cks) => Self::Standard(
+                CompressedStandardAtomicPatternServerKey::new(ap_cks, engine),
+            ),
+            AtomicPatternClientKey::KeySwitch32(ap_cks) => {
+                Self::KeySwitch32(CompressedKS32AtomicPatternServerKey::new(ap_cks, engine))
             }
         }
     }

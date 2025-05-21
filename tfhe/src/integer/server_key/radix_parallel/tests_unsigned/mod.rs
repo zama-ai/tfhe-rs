@@ -349,7 +349,7 @@ where
 {
     let cks = cks.as_ref();
 
-    let max_degree_acceptable = cks.key.parameters.message_modulus().0 - 1;
+    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
     let num_blocks = ct.blocks.len();
 
     for (i, block) in ct.blocks.iter().enumerate() {
@@ -385,7 +385,7 @@ where
 {
     let cks = cks.as_ref();
 
-    let max_degree_acceptable = cks.key.parameters.message_modulus().0 - 1;
+    let max_degree_acceptable = cks.key.parameters().message_modulus().0 - 1;
 
     for (i, block) in ct.blocks.iter().enumerate() {
         if block.is_trivial() {

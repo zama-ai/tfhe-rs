@@ -24,6 +24,8 @@ mod experimental {
     use crate::integer::{ClientKey, CrtCiphertext, IntegerCiphertext, RadixCiphertext, ServerKey};
     use crate::shortint::atomic_pattern::AtomicPattern;
     use crate::shortint::ciphertext::{Degree, NoiseLevel};
+    use crate::shortint::client_key::atomic_pattern::EncryptionAtomicPattern;
+    use crate::shortint::client_key::StandardClientKeyView;
     use crate::shortint::server_key::StandardServerKeyView;
     use crate::shortint::WopbsParameters;
 
@@ -238,12 +240,17 @@ mod experimental {
                     sks.key.atomic_pattern.kind()
                 )
             });
+
+            let cks = cks.as_ref();
+            let ck = StandardClientKeyView::try_from(cks.key.as_view()).unwrap_or_else(|_| {
+                panic!(
+                    "Wopbs is not supported by the chosen encryption atomic pattern: {:?}",
+                    cks.key.atomic_pattern.kind()
+                )
+            });
+
             Self {
-                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(
-                    &cks.as_ref().key,
-                    sk,
-                    parameters,
-                ),
+                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key(ck, sk, parameters),
             }
         }
 
@@ -268,11 +275,16 @@ mod experimental {
                 )
             });
 
+            let cks = cks.as_ref();
+            let ck = StandardClientKeyView::try_from(cks.key.as_view()).unwrap_or_else(|_| {
+                panic!(
+                    "Wopbs is not supported by the chosen encryption atomic pattern: {:?}",
+                    cks.key.atomic_pattern.kind()
+                )
+            });
+
             Self {
-                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(
-                    &cks.as_ref().key,
-                    sk,
-                ),
+                wopbs_key: crate::shortint::wopbs::WopbsKey::new_wopbs_key_only_for_wopbs(ck, sk),
             }
         }
 

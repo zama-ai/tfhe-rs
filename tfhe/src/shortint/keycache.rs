@@ -626,7 +626,7 @@ mod wopbs {
             let key = KEY_CACHE.get_from_param(params.0);
             let wk = self.inner.get_with_closure(params, &mut |_| {
                 WopbsKey::new_wopbs_key(
-                    &key.inner.0,
+                    key.inner.0.as_view().try_into().unwrap(),
                     key.inner.1.as_view().try_into().unwrap(),
                     &params.1,
                 )

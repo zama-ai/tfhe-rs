@@ -40,7 +40,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -77,7 +77,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) % modulus, res);
     /// ```
     pub fn unchecked_mul_lsb_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
@@ -129,7 +129,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt
     /// let res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!((clear_1 * clear_2) / modulus, res);
     /// ```
     pub fn unchecked_mul_msb(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
@@ -243,7 +243,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let ct_res = sks.checked_mul_lsb(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb(
@@ -282,7 +282,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// sks.checked_mul_lsb_assign(&mut ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt_message_and_carry(&ct_1);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res % modulus, 2);
     /// ```
     pub fn checked_mul_lsb_assign(
@@ -333,7 +333,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(
     ///     clear_res,
-    ///     (msg_1 * msg_2) / cks.parameters.message_modulus().0
+    ///     (msg_1 * msg_2) / cks.parameters().message_modulus().0
     /// );
     /// ```
     pub fn checked_mul_msb(
@@ -480,7 +480,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// let ct_res = sks.checked_mul_lsb_with_small_carry(&ct_1, &ct_2).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(clear_res % modulus, (msg_1 * msg_2) % modulus);
     /// ```
     pub fn checked_mul_lsb_with_small_carry(
