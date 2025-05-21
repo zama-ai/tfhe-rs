@@ -21,6 +21,7 @@ use crate::core_crypto::prelude::{
 
 use super::backward_compatibility::atomic_pattern::*;
 use super::ciphertext::{CompressedModulusSwitchedCiphertext, Degree};
+use super::client_key::atomic_pattern::AtomicPatternClientKey;
 use super::engine::ShortintEngine;
 use super::parameters::{DynamicDistribution, KeySwitch32PBSParameters};
 use super::prelude::{DecompositionBaseLog, DecompositionLevelCount};
@@ -259,14 +260,12 @@ pub enum AtomicPatternServerKey {
 
 impl AtomicPatternServerKey {
     pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
-        let params = &cks.parameters;
-
-        match params.ap_parameters().unwrap() {
-            AtomicPatternParameters::Standard(_) => {
-                Self::Standard(StandardAtomicPatternServerKey::new(cks, engine))
+        match &cks.atomic_pattern {
+            AtomicPatternClientKey::Standard(ap_cks) => {
+                Self::Standard(StandardAtomicPatternServerKey::new(ap_cks, engine))
             }
-            AtomicPatternParameters::KeySwitch32(_) => {
-                Self::KeySwitch32(KS32AtomicPatternServerKey::new(cks, engine))
+            AtomicPatternClientKey::KeySwitch32(ap_cks) => {
+                Self::KeySwitch32(KS32AtomicPatternServerKey::new(ap_cks, engine))
             }
         }
     }
