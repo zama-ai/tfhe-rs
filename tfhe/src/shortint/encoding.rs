@@ -55,7 +55,7 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
 }
 
 impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
-    fn cleartext_space(&self) -> Scalar {
+    pub(crate) fn cleartext_space(&self) -> Scalar {
         let cleartext_modulus: Scalar = (self.message_modulus.0 * self.carry_modulus.0).cast_into();
 
         cleartext_modulus
