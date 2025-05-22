@@ -398,7 +398,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
-  auto small_lwe_size = small_lwe_dimension + 1;
   auto chunk_size = mem_ptr->chunk_size;
 
   size_t total_blocks_in_vec = num_radix_blocks * num_radix_in_vec;
@@ -434,10 +433,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                            total_blocks_in_vec * sizeof(uint64_t), streams[0],
                            gpu_indexes[0]);
 
-  int number_of_threads = 512;
-  int number_of_blocks =
-      (total_blocks_in_vec + number_of_threads - 1) / number_of_threads;
-
+  cuda_set_device(gpu_indexes[0]);
   radix_vec_to_columns<<<1, num_radix_blocks, 0, streams[0]>>>(
       d_columns, d_columns_counter, d_degrees, num_radix_blocks,
       num_radix_in_vec);
@@ -445,7 +441,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   bool needs_processing = at_least_one_column_needs_processing(
       current_blocks->degrees, num_radix_blocks, num_radix_in_vec, chunk_size);
 
-  number_of_threads = min(256, params::degree);
+  int number_of_threads = min(256, params::degree);
   int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
 
@@ -475,7 +471,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     needs_processing = (h_pbs_counters[2] != 0);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
-    if (active_gpu_count = 1) {
+    if (active_gpu_count == 1) {
       execute_keyswitch_async<Torus>(
           streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr,
           d_pbs_indexes_in, (Torus *)current_blocks->ptr, d_pbs_indexes_in,
@@ -499,6 +495,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           current_blocks, bsks, ksks, ms_noise_reduction_key,
           luts_message_carry, total_ciphertexts);
     }
+    cuda_set_device(gpu_indexes[0]);
 
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
@@ -543,6 +540,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         2 * num_radix_blocks);
   }
 
+  cuda_set_device(gpu_indexes[0]);
   calculate_final_degrees(radix_lwe_out->degrees, terms->degrees,
                           num_radix_blocks, num_radix_in_vec, chunk_size,
                           mem_ptr->params.message_modulus);
