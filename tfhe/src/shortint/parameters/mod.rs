@@ -47,6 +47,7 @@ pub mod v0_11;
 pub mod v1_0;
 pub mod v1_1;
 pub mod v1_2;
+pub mod v1_3;
 
 // TODO, what do we do about this one ?
 pub use aliases::*;
