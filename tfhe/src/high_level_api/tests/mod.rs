@@ -1,5 +1,6 @@
 #[cfg(feature = "gpu")]
 mod gpu_selection;
+mod noise_distribution;
 mod noise_squashing;
 mod tags_on_entities;
 
