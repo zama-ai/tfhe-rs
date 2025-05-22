@@ -14,6 +14,8 @@ import sys
 
 ONE_HOUR_IN_SECONDS = 3600
 ONE_SECOND_IN_NANOSECONDS = 1e9
+# These are directories where crypto parameters records can be stored.
+BENCHMARK_DIRS = ["tfhe-benchmark", "tfhe-zk-pok"]
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -348,8 +350,18 @@ def get_parameters(bench_id, directory):
 
     :return: :class:`tuple` as ``(benchmark parameters, display name, operator type)``
     """
-    params_dir = pathlib.Path("tfhe-benchmark", "benchmarks_parameters", bench_id)
-    params = _parse_file_to_json(params_dir, "parameters.json")
+    for dirname in BENCHMARK_DIRS:
+        params_dir = pathlib.Path(dirname, "benchmarks_parameters", bench_id)
+        try:
+            params = _parse_file_to_json(params_dir, "parameters.json")
+        except FileNotFoundError:
+            continue
+        else:
+            break
+    else:
+        raise FileNotFoundError(
+            f"file not found: '[...]/benchmarks_parameters/{bench_id}/parameters.json'"
+        )
 
     display_name = params.pop("display_name")
     operator = params.pop("operator_type")
