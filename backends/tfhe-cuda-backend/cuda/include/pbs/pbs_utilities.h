@@ -502,7 +502,8 @@ template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,
                                                     uint32_t glwe_dimension,
                                                     uint32_t polynomial_size,
-                                                    uint32_t level_count);
+                                                    uint32_t level_count,
+                                                    uint32_t max_shared_memory);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
