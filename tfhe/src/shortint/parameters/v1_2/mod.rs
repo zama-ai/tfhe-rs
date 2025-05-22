@@ -45,8 +45,15 @@ pub use hpu::*;
 
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingParameters,
+    ShortintKeySwitchingParameters,
 };
+
+/// All [`KeySwitch32PBSParameters`] in this module.
+pub const VEC_ALL_KS32_PBS_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
+    &V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    "V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
+)];
 
 /// All [`ClassicPBSParameters`] in this module.
 pub const VEC_ALL_CLASSIC_PBS_PARAMETERS: [(&ClassicPBSParameters, &str); 140] = [
