@@ -1,5 +1,5 @@
 use super::*;
-use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs_variance_132_bits_security_gaussian;
+use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::pbs_variance_132_bits_security_gaussian_fft_mul;
 use crate::core_crypto::commons::noise_formulas::secure_noise::minimal_lwe_variance_for_132_bits_security_gaussian;
 use crate::core_crypto::commons::test_tools::{torus_modular_diff, variance};
 use rayon::prelude::*;
@@ -32,7 +32,7 @@ where
         ciphertext_modulus.get_custom_modulus() as f64
     };
 
-    let expected_variance = pbs_variance_132_bits_security_gaussian(
+    let expected_variance = pbs_variance_132_bits_security_gaussian_fft_mul(
         input_lwe_dimension,
         glwe_dimension,
         polynomial_size,
