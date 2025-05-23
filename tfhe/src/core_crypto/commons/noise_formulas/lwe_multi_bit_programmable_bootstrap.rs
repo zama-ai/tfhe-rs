@@ -2,8 +2,6 @@
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::parameters::*;
 
-// FFT Multiplication
-
 /// This formula is only valid if the proper noise distributions are used and
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
@@ -42,15 +40,15 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 2.0)
         * input_lwe_dimension
-        * (2.40868445115171
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 1.0
+        * (0.0022
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.04148)
+            * output_glwe_dimension.powf(1.94548)
+            * output_polynomial_size.powf(2.94548)
+            * (output_glwe_dimension + 1.0).powf(1.04148)
+            + 4.0
                 * decomposition_level_count
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
@@ -59,7 +57,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_fft_mul_impl(
                         .exp2())
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
@@ -106,15 +104,15 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 3.0)
         * input_lwe_dimension
-        * (5.2
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 2.0
+        * (0.00492
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.0111)
+            * output_glwe_dimension.powf(1.90722)
+            * output_polynomial_size.powf(2.90722)
+            * (output_glwe_dimension + 1.0).powf(1.0111)
+            + 8.0
                 * decomposition_level_count
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
@@ -123,7 +121,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul_impl(
                         .exp2())
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
@@ -170,15 +168,15 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 4.0)
         * input_lwe_dimension
-        * (11.0544737502456
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 4.0
+        * (0.00855
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.00715)
+            * output_glwe_dimension.powf(1.90759)
+            * output_polynomial_size.powf(2.90759)
+            * (output_glwe_dimension + 1.0).powf(1.00715)
+            + 16.0
                 * decomposition_level_count
                 * output_polynomial_size
                 * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
@@ -187,7 +185,7 @@ pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_fft_mul_impl(
                         .exp2())
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
@@ -234,30 +232,30 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 2.0)
         * input_lwe_dimension
-        * (2.40868445115171
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 1.0
+        * (0.0022
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.04148)
+            * output_glwe_dimension.powf(1.94548)
+            * output_polynomial_size.powf(2.94548)
+            * (output_glwe_dimension + 1.0).powf(1.04148)
+            + 4.0
                 * decomposition_level_count
                 * output_polynomial_size
-                * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
+                * ((4.44 - 2.88539008177793 * modulus.ln()).exp2()
                     + (1_f64 / 3.0)
                         * modulus.powf(-2.0)
                         * ((2.0
                             * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                                + std::f64::consts::LOG2_E * modulus.ln()
+                                + core::f64::consts::LOG2_E * modulus.ln()
                                 + 4.10067100000001)
                                 .ceil())
                         .exp2()
                             + 0.5))
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
@@ -304,30 +302,30 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 3.0)
         * input_lwe_dimension
-        * (5.2
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 2.0
+        * (0.00492
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.0111)
+            * output_glwe_dimension.powf(1.90722)
+            * output_polynomial_size.powf(2.90722)
+            * (output_glwe_dimension + 1.0).powf(1.0111)
+            + 8.0
                 * decomposition_level_count
                 * output_polynomial_size
-                * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
+                * ((4.44 - 2.88539008177793 * modulus.ln()).exp2()
                     + (1_f64 / 3.0)
                         * modulus.powf(-2.0)
                         * ((2.0
                             * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                                + std::f64::consts::LOG2_E * modulus.ln()
+                                + core::f64::consts::LOG2_E * modulus.ln()
                                 + 4.10067100000001)
                                 .ceil())
                         .exp2()
                             + 0.5))
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
@@ -374,386 +372,30 @@ pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_fft_mul_impl(
 ) -> f64 {
     (1_f64 / 4.0)
         * input_lwe_dimension
-        * (11.0544737502456
-            * (2.0 * 0.0_f64.max(std::f64::consts::LOG2_E * modulus.ln() - 53.0)).exp2()
-            * decomposition_base.powf(2.0)
-            * decomposition_level_count
-            * modulus.powf(-2.0)
-            * output_glwe_dimension
-            * output_polynomial_size.powf(2.0)
-            * (output_glwe_dimension + 1.0)
-            + 4.0
+        * (0.00855
+            * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
+                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+            .exp2()
+            * decomposition_level_count.powf(1.00715)
+            * output_glwe_dimension.powf(1.90759)
+            * output_polynomial_size.powf(2.90759)
+            * (output_glwe_dimension + 1.0).powf(1.00715)
+            + 16.0
                 * decomposition_level_count
                 * output_polynomial_size
-                * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
+                * ((4.44 - 2.88539008177793 * modulus.ln()).exp2()
                     + (1_f64 / 3.0)
                         * modulus.powf(-2.0)
                         * ((2.0
                             * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                                + std::f64::consts::LOG2_E * modulus.ln()
+                                + core::f64::consts::LOG2_E * modulus.ln()
                                 + 4.10067100000001)
                                 .ceil())
                         .exp2()
                             + 0.5))
                 * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
                 * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-// Exact (Karatsuba) Multiplication
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_2_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 2.0)
-        * input_lwe_dimension
-        * (1.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                    + 5.31469187675068)
-                    .exp2())
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 3.0)
-        * input_lwe_dimension
-        * (2.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                    + 5.31469187675068)
-                    .exp2())
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_gaussian_gf_4_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 4.0)
-        * input_lwe_dimension
-        * (4.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (-0.0497829131652661 * output_glwe_dimension * output_polynomial_size
-                    + 5.31469187675068)
-                    .exp2())
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_2_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 2.0)
-        * input_lwe_dimension
-        * (1.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (1_f64 / 3.0)
-                    * modulus.powf(-2.0)
-                    * ((2.0
-                        * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                            + std::f64::consts::LOG2_E * modulus.ln()
-                            + 4.10067100000001)
-                            .ceil())
-                    .exp2()
-                        + 0.5))
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 3.0)
-        * input_lwe_dimension
-        * (2.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (1_f64 / 3.0)
-                    * modulus.powf(-2.0)
-                    * ((2.0
-                        * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                            + std::f64::consts::LOG2_E * modulus.ln()
-                            + 4.10067100000001)
-                            .ceil())
-                    .exp2()
-                        + 0.5))
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
-            + output_glwe_dimension
-                * output_polynomial_size
-                * (0.0208333333333333 * modulus.powf(-2.0)
-                    + 0.0416666666666667
-                        * decomposition_base.powf(-2.0 * decomposition_level_count))
-            + (1_f64 / 12.0) * decomposition_base.powf(-2.0 * decomposition_level_count))
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_exact_mul(
-    input_lwe_dimension: LweDimension,
-    output_glwe_dimension: GlweDimension,
-    output_polynomial_size: PolynomialSize,
-    decomposition_base_log: DecompositionBaseLog,
-    decomposition_level_count: DecompositionLevelCount,
-    modulus: f64,
-) -> Variance {
-    Variance(
-        multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_exact_mul_impl(
-            input_lwe_dimension.0 as f64,
-            output_glwe_dimension.0 as f64,
-            output_polynomial_size.0 as f64,
-            2.0f64.powi(decomposition_base_log.0 as i32),
-            decomposition_level_count.0 as f64,
-            modulus,
-        ),
-    )
-}
-
-/// This formula is only valid if the proper noise distributions are used and
-/// if the keys used are encrypted using secure noise given by the
-/// [`minimal_glwe_variance`](`super::secure_noise`)
-/// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn multi_bit_pbs_variance_132_bits_security_tuniform_gf_4_exact_mul_impl(
-    input_lwe_dimension: f64,
-    output_glwe_dimension: f64,
-    output_polynomial_size: f64,
-    decomposition_base: f64,
-    decomposition_level_count: f64,
-    modulus: f64,
-) -> f64 {
-    (1_f64 / 4.0)
-        * input_lwe_dimension
-        * (4.0
-            * decomposition_level_count
-            * output_polynomial_size
-            * ((4.0 - 2.88539008177793 * modulus.ln()).exp2()
-                + (1_f64 / 3.0)
-                    * modulus.powf(-2.0)
-                    * ((2.0
-                        * (-0.025167785 * output_glwe_dimension * output_polynomial_size
-                            + std::f64::consts::LOG2_E * modulus.ln()
-                            + 4.10067100000001)
-                            .ceil())
-                    .exp2()
-                        + 0.5))
-            * ((1_f64 / 12.0) * decomposition_base.powf(2.0) + 0.166666666666667)
-            * (output_glwe_dimension + 1.0)
-            + (1_f64 / 6.0) * modulus.powf(-2.0)
+            - 1_f64 / 12.0 * modulus.powf(-2.0)
             + output_glwe_dimension
                 * output_polynomial_size
                 * (0.0208333333333333 * modulus.powf(-2.0)
