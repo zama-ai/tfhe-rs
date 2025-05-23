@@ -1,4 +1,4 @@
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
 mod test_cpu_doc {
     use doc_comment::doctest;
 

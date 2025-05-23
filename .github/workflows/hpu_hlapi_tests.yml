@@ -70,4 +70,4 @@ jobs:
           source setup_hpu.sh
           just -f mockups/tfhe-hpu-mockup/Justfile  BUILD_PROFILE=release mockup &
           make HPU_CONFIG=sim test_high_level_api_hpu
-     
+          make HPU_CONFIG=sim test_user_doc_hpu
