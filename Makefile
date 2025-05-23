@@ -315,7 +315,7 @@ clippy_hpu: install_rs_check_toolchain
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--features=boolean,shortint,integer,internal-keycache,gpu,hpu,pbs-stats,extended-types \
+		--features=boolean,shortint,integer,internal-keycache,gpu,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
 		-p $(TFHE_SPEC) -- --no-deps -D warnings
 

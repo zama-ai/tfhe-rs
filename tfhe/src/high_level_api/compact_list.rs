@@ -275,7 +275,8 @@ mod zk {
             }
         }
 
-        fn move_to_device(&mut self, device: crate::Device) {
+        #[allow(clippy::unnecessary_wraps)] // Method can return an error if hpu is enabled
+        fn move_to_device(&mut self, device: crate::Device) -> Result<(), crate::Error> {
             let new_value = match (&self, device) {
                 (Self::Cpu(_), crate::Device::Cpu) => None,
                 #[cfg(feature = "gpu")]
@@ -302,11 +303,18 @@ mod zk {
                     });
                     Some(Self::Cuda(cuda_ct))
                 }
+                #[cfg(feature = "hpu")]
+                (_, crate::Device::Hpu) => {
+                    return Err(crate::error!(
+                        "Hpu does not support ProvenCompactCiphertextList"
+                    ))
+                }
             };
 
             if let Some(v) = new_value {
                 *self = v;
             }
+            Ok(())
         }
     }
 
@@ -329,7 +337,8 @@ mod zk {
                     .map(Self::Cpu)?;
 
             if let Some(device) = device_of_internal_keys() {
-                new.move_to_device(device);
+                new.move_to_device(device)
+                    .map_err(serde::de::Error::custom)?;
             }
 
             Ok(new)
