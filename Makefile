@@ -935,8 +935,20 @@ test_user_doc: install_rs_build_toolchain
 .PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
 test_user_doc_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=boolean,shortint,integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
+		--features=internal-keycache,integer,zk-pok,gpu -p $(TFHE_SPEC) \
 		-- test_user_docs::
+
+.PHONY: test_user_doc_hpu # Run tests for HPU from the .md documentation
+test_user_doc_hpu: install_rs_build_toolchain
+ifeq ($(HPU_CONFIG), v80)
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+		--features=internal-keycache,integer,hpu,hpu-v80 -p $(TFHE_SPEC) \
+		-- test_user_docs::
+else
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
+		--features=internal-keycache,integer,hpu -p $(TFHE_SPEC) \
+		-- test_user_docs::
+endif
 
 
 
