@@ -588,6 +588,9 @@ pub(crate) fn random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                 res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, right {input_degrees_right:?}, Output degrees {:?}", output_degrees);
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
 

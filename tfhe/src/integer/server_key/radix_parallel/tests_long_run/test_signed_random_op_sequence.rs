@@ -680,6 +680,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, right {input_degrees_right:?}, Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res: i64 = clear_fn(clear_left, clear_right);
 
@@ -731,6 +734,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 "Determinism check failed on unary op {fn_name} with clear input {clear_input}.",
             );
             let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res: i64 = clear_fn(clear_input);
             if i % 2 == 0 {
@@ -774,6 +780,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res: i64 = clear_fn(clear_left, clear_right);
 
@@ -829,6 +838,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let decrypt_signed_overflow = cks.decrypt_bool(&overflow);
             let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
@@ -889,6 +901,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let decrypt_signed_overflow = cks.decrypt_bool(&overflow);
             let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
@@ -1020,6 +1035,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res = clear_fn(clear_bool, clear_left, clear_right);
 
@@ -1081,6 +1099,12 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_q: Vec<u64> =
+                res_q.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_r: Vec<u64> =
+                res_r.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees_q);
+            println!("Output degrees {:?}", output_degrees_r);
             let decrypt_signed_res_q: i64 = cks.decrypt_signed(&res_q);
             let decrypt_signed_res_r: i64 = cks.decrypt_signed(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -1147,6 +1171,12 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_q_degrees: Vec<u64> =
+                res_r.blocks.iter().map(|b| b.degree.0).collect();
+            let output_r_degrees: Vec<u64> =
+                res_r.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output r degrees {:?}", output_r_degrees);
+            println!("Output q degrees {:?}", output_q_degrees);
             let decrypt_signed_res_q: i64 = cks.decrypt_signed(&res_q);
             let decrypt_signed_res_r: i64 = cks.decrypt_signed(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -1205,6 +1235,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 "Determinism check failed on op {fn_name} with clear input {clear_input}.",
             );
             let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let cast_res = sks.cast_to_signed(res, NB_CTXT_LONG_RUN);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&cast_res);
             let expected_res = clear_fn(clear_input) as i64;
@@ -1252,6 +1285,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 unsigned_right.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res: i64 = clear_fn(clear_left, clear_right as u64);
 
@@ -1297,6 +1333,9 @@ pub(crate) fn signed_random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Output degrees {:?}", output_degrees);
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let expected_res: i64 = clear_fn(clear_left, clear_right as u64);
 
