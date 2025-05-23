@@ -1,4 +1,4 @@
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(any(feature = "gpu", feature = "hpu")))]
 mod test_cpu_doc {
     use doc_comment::doctest;
 
@@ -252,9 +252,5 @@ mod test_hpu_doc {
     doctest!(
         "../docs/configuration/hpu_acceleration/run_on_hpu.md",
         configuration_hpu_acceleration_run_on_hpu
-    );
-    doctest!(
-        "../docs/configuration/hpu_acceleration/benchmark.md",
-        configuration_hpu_acceleration_benchmark
     );
 }

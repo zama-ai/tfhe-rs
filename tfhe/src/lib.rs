@@ -118,14 +118,7 @@ pub use shortint::server_key::pbs_stats::*;
 /// cbindgen:ignore
 mod js_on_wasm_api;
 
-#[cfg(all(
-    doctest,
-    feature = "shortint",
-    feature = "boolean",
-    feature = "integer",
-    feature = "zk-pok",
-    feature = "strings"
-))]
+#[cfg(doctest)]
 mod test_user_docs;
 
 #[cfg(feature = "strings")]
