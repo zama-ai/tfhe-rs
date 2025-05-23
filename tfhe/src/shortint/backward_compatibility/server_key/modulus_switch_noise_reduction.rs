@@ -26,21 +26,20 @@ where
     type Error = Error;
 
     fn upgrade(self) -> Result<ModulusSwitchNoiseReductionKey<InputScalar>, Self::Error> {
-        let modulus_switch_zeros = &self.modulus_switch_zeros as &dyn Any;
+        let modulus_switch_zeros: Box<dyn Any> = Box::new(self.modulus_switch_zeros);
 
         // Keys from previous versions where only stored as u64, we check if the destination
         // key is also u64 or we return an error
         Ok(ModulusSwitchNoiseReductionKey {
-            modulus_switch_zeros: modulus_switch_zeros
-                .downcast_ref::<LweCiphertextListOwned<InputScalar>>()
-                .ok_or_else(|| {
+            modulus_switch_zeros: *modulus_switch_zeros
+                .downcast::<LweCiphertextListOwned<InputScalar>>()
+                .map_err(|_| {
                     Error::new(format!(
                         "Expected u64 as InputScalar while upgrading \
                             ModulusSwitchNoiseReductionKey, got {}",
                         std::any::type_name::<InputScalar>(),
                     ))
-                })?
-                .clone(),
+                })?,
             ms_bound: self.ms_bound,
             ms_r_sigma_factor: self.ms_r_sigma_factor,
             ms_input_variance: self.ms_input_variance,
@@ -73,21 +72,20 @@ where
     type Error = Error;
 
     fn upgrade(self) -> Result<CompressedModulusSwitchNoiseReductionKey<InputScalar>, Self::Error> {
-        let modulus_switch_zeros = &self.modulus_switch_zeros as &dyn Any;
+        let modulus_switch_zeros: Box<dyn Any> = Box::new(self.modulus_switch_zeros);
 
         // Keys from previous versions where only stored as u64, we check if the destination
         // key is also u64 or we return an error
         Ok(CompressedModulusSwitchNoiseReductionKey {
-            modulus_switch_zeros: modulus_switch_zeros
-                .downcast_ref::<SeededLweCiphertextListOwned<InputScalar>>()
-                .ok_or_else(|| {
+            modulus_switch_zeros: *modulus_switch_zeros
+                .downcast::<SeededLweCiphertextListOwned<InputScalar>>()
+                .map_err(|_| {
                     Error::new(format!(
                         "Expected u64 as InputScalar while upgrading \
                         CompressedModulusSwitchNoiseReductionKey, got {}",
                         std::any::type_name::<InputScalar>(),
                     ))
-                })?
-                .clone(),
+                })?,
             ms_bound: self.ms_bound,
             ms_r_sigma_factor: self.ms_r_sigma_factor,
             ms_input_variance: self.ms_input_variance,
