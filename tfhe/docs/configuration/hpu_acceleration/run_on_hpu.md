@@ -43,7 +43,7 @@ Comparing to the [CPU example](../../getting_started/quick_start.md), HPU set up
 Here is a full example (combining the client and server parts):
 
 ```rust
-use tfhe::{ConfigBuilder, set_server_key, FheUint8, ClientKey, CompressedServerKey};
+use tfhe::{Config, set_server_key, FheUint8, ClientKey, CompressedServerKey};
 use tfhe::prelude::*;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
@@ -106,7 +106,7 @@ The server first needs to set up its keys with `set_server_key((hpu_device, comp
 
 Then, homomorphic computations are performed using the same approach as the [CPU operations](../../fhe-computation/operations/README.md).
 
-``` rust
+``` Rust
     // Server-side
     let result = a + b;
 
