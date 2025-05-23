@@ -5,6 +5,7 @@ use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_a
 use crate::core_crypto::commons::math::random::Seeder;
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, SeededLweBootstrapKeyOwned};
 use crate::shortint::backward_compatibility::noise_squashing::CompressedNoiseSquashingKeyVersions;
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, CoreCiphertextModulus, MessageModulus};
@@ -29,10 +30,11 @@ impl ClientKey {
         &self,
         noise_squashing_private_key: &NoiseSquashingPrivateKey,
     ) -> CompressedNoiseSquashingKey {
-        let pbs_parameters = self
-            .parameters
-            .pbs_parameters()
-            .expect("NoiseSquashingKey generation requires PBSParameters");
+        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
+            panic!("Only the standard atomic pattern supports noise squashing")
+        };
+
+        let pbs_parameters = std_cks.parameters;
 
         assert_eq!(
             pbs_parameters.message_modulus(),
@@ -62,7 +64,7 @@ impl ClientKey {
         let (bootstrapping_key, modulus_switch_noise_reduction_key) =
             ShortintEngine::with_thread_local_mut(|engine| {
                 let seeded_bsk = par_allocate_and_generate_new_seeded_lwe_bootstrap_key(
-                    &self.lwe_secret_key,
+                    &std_cks.lwe_secret_key,
                     noise_squashing_private_key.post_noise_squashing_secret_key(),
                     noise_squashing_parameters.decomp_base_log,
                     noise_squashing_parameters.decomp_level_count,
@@ -77,7 +79,7 @@ impl ClientKey {
                         let seed = engine.seeder.seed();
                         CompressedModulusSwitchNoiseReductionKey::new(
                             p,
-                            &self.lwe_secret_key,
+                            &std_cks.lwe_secret_key,
                             engine,
                             pbs_parameters.ciphertext_modulus(),
                             pbs_parameters.lwe_noise_distribution(),

@@ -136,7 +136,10 @@ fn generate_lut(params: (ClassicPBSParameters, WopbsParameters)) {
 #[cfg(not(tarpaulin))]
 fn generate_lut_wop_only(params: WopbsParameters) {
     let (cks, sks) = gen_keys(params);
-    let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, sks.as_view().try_into().unwrap());
+    let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
+        cks.as_view().try_into().unwrap(),
+        sks.as_view().try_into().unwrap(),
+    );
     let mut rng = rand::thread_rng();
 
     let mut tmp = 0;
@@ -186,7 +189,10 @@ fn generate_lut_modulus(params: (ClassicPBSParameters, WopbsParameters)) {
 #[cfg(not(tarpaulin))]
 fn generate_lut_modulus_not_power_of_two(params: WopbsParameters) {
     let (cks, sks) = gen_keys(params);
-    let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(&cks, sks.as_view().try_into().unwrap());
+    let wopbs_key = WopbsKey::new_wopbs_key_only_for_wopbs(
+        cks.as_view().try_into().unwrap(),
+        sks.as_view().try_into().unwrap(),
+    );
 
     let mut rng = rand::thread_rng();
 

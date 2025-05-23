@@ -100,43 +100,7 @@ where
     P: TryInto<ShortintParameterSet>,
     <P as TryInto<ShortintParameterSet>>::Error: std::fmt::Debug,
 {
-    let shortint_parameters_set: ShortintParameterSet = parameters_set.try_into().unwrap();
-
-    let is_wopbs_only_params = shortint_parameters_set.wopbs_only();
-
-    // TODO
-    // Manually manage the wopbs only case as a workaround pending wopbs rework
-    // WOPBS used for PBS have no known failure probability at the moment, putting 1.0 for now
-    let shortint_parameters_set = if is_wopbs_only_params {
-        let wopbs_params = shortint_parameters_set.wopbs_parameters().unwrap();
-        let pbs_params = ClassicPBSParameters {
-            lwe_dimension: wopbs_params.lwe_dimension,
-            glwe_dimension: wopbs_params.glwe_dimension,
-            polynomial_size: wopbs_params.polynomial_size,
-            lwe_noise_distribution: wopbs_params.lwe_noise_distribution,
-            glwe_noise_distribution: wopbs_params.glwe_noise_distribution,
-            pbs_base_log: wopbs_params.pbs_base_log,
-            pbs_level: wopbs_params.pbs_level,
-            ks_base_log: wopbs_params.ks_base_log,
-            ks_level: wopbs_params.ks_level,
-            message_modulus: wopbs_params.message_modulus,
-            carry_modulus: wopbs_params.carry_modulus,
-            max_noise_level: MaxNoiseLevel::from_msg_carry_modulus(
-                wopbs_params.message_modulus,
-                wopbs_params.carry_modulus,
-            ),
-            log2_p_fail: 1.0,
-            ciphertext_modulus: wopbs_params.ciphertext_modulus,
-            encryption_key_choice: wopbs_params.encryption_key_choice,
-            modulus_switch_noise_reduction_params: None,
-        };
-
-        ShortintParameterSet::try_new_pbs_and_wopbs_param_set((pbs_params, wopbs_params)).unwrap()
-    } else {
-        shortint_parameters_set
-    };
-
-    let cks = ClientKey::new(shortint_parameters_set);
+    let cks = ClientKey::new(parameters_set);
     let sks = ServerKey::new(&cks);
 
     (cks, sks)

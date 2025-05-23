@@ -14,6 +14,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConfo
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
@@ -44,10 +45,11 @@ impl ClientKey {
         &self,
         noise_squashing_private_key: &NoiseSquashingPrivateKey,
     ) -> NoiseSquashingKey {
-        let pbs_parameters = self
-            .parameters
-            .pbs_parameters()
-            .expect("NoiseSquashingKey generation requires PBSParameters");
+        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
+            panic!("Only the standard atomic pattern supports noise squashing")
+        };
+
+        let pbs_parameters = std_cks.parameters;
 
         assert_eq!(
             pbs_parameters.message_modulus(),
@@ -77,7 +79,7 @@ impl ClientKey {
         let (bootstrapping_key, modulus_switch_noise_reduction_key) =
             ShortintEngine::with_thread_local_mut(|engine| {
                 let std_bsk = par_allocate_and_generate_new_lwe_bootstrap_key(
-                    &self.lwe_secret_key,
+                    &std_cks.lwe_secret_key,
                     noise_squashing_private_key.post_noise_squashing_secret_key(),
                     noise_squashing_parameters.decomp_base_log,
                     noise_squashing_parameters.decomp_level_count,
@@ -101,7 +103,7 @@ impl ClientKey {
                     .map(|p| {
                         ModulusSwitchNoiseReductionKey::new(
                             p,
-                            &self.lwe_secret_key,
+                            &std_cks.lwe_secret_key,
                             engine,
                             pbs_parameters.ciphertext_modulus(),
                             pbs_parameters.lwe_noise_distribution(),

@@ -210,7 +210,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
@@ -257,7 +257,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     ///
     /// // Decrypt:
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!((msg << shift) % modulus, msg_only);
     /// ```
@@ -298,7 +298,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -337,7 +337,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct);
     /// let msg_only = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -424,7 +424,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);
@@ -480,7 +480,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     /// // Decrypt:
     /// let msg_and_carry = cks.decrypt_message_and_carry(&ct_res);
     /// let msg_only = cks.decrypt(&ct_res);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     ///
     /// assert_eq!(msg << shift, msg_and_carry);
     /// assert_eq!((msg << shift) % modulus, msg_only);

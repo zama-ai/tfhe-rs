@@ -11,9 +11,8 @@ use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKe
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
-use crate::shortint::parameters::{
-    EncryptionKeyChoice, KeySwitch32PBSParameters, ShortintKeySwitchingParameters,
-};
+use crate::shortint::client_key::StandardClientKeyView;
+use crate::shortint::parameters::{KeySwitch32PBSParameters, ShortintKeySwitchingParameters};
 use crate::shortint::server_key::{
     CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
     ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
@@ -27,8 +26,8 @@ impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
         // Plaintext Max Value
         let max_degree = MaxDegree::from_msg_carry_modulus(
-            cks.parameters.message_modulus(),
-            cks.parameters.carry_modulus(),
+            cks.parameters().message_modulus(),
+            cks.parameters().carry_modulus(),
         );
 
         self.new_server_key_with_max_degree(cks, max_degree)
@@ -77,11 +76,11 @@ impl ShortintEngine {
         // Pack the keys in the server key set:
         ServerKey {
             atomic_pattern: ap_key,
-            message_modulus: cks.parameters.message_modulus(),
-            carry_modulus: cks.parameters.carry_modulus(),
+            message_modulus: cks.parameters().message_modulus(),
+            carry_modulus: cks.parameters().carry_modulus(),
             max_degree,
-            max_noise_level: cks.parameters.max_noise_level(),
-            ciphertext_modulus: cks.parameters.ciphertext_modulus(),
+            max_noise_level: cks.parameters().max_noise_level(),
+            ciphertext_modulus: cks.parameters().ciphertext_modulus(),
         }
     }
 
@@ -270,19 +269,11 @@ impl ShortintEngine {
     pub(crate) fn new_key_switching_key(
         &mut self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
-        output_client_key: &ClientKey,
+        output_client_key: StandardClientKeyView<'_>,
         params: ShortintKeySwitchingParameters,
     ) -> LweKeyswitchKeyOwned<u64> {
-        let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big => (
-                output_client_key.large_lwe_secret_key(),
-                output_client_key.parameters.glwe_noise_distribution(),
-            ),
-            EncryptionKeyChoice::Small => (
-                output_client_key.small_lwe_secret_key(),
-                output_client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (output_secret_key, encryption_noise) =
+            output_client_key.keyswitch_encryption_key_and_noise(params);
 
         // Creation of the key switching key
         allocate_and_generate_new_lwe_keyswitch_key(
@@ -291,7 +282,7 @@ impl ShortintEngine {
             params.ks_base_log,
             params.ks_level,
             encryption_noise,
-            output_client_key.parameters.ciphertext_modulus(),
+            output_client_key.parameters().ciphertext_modulus(),
             &mut self.encryption_generator,
         )
     }
@@ -299,19 +290,11 @@ impl ShortintEngine {
     pub(crate) fn new_seeded_key_switching_key(
         &mut self,
         input_secret_key: &SecretEncryptionKeyView<'_>,
-        output_client_key: &ClientKey,
+        output_client_key: StandardClientKeyView<'_>,
         params: ShortintKeySwitchingParameters,
     ) -> SeededLweKeyswitchKeyOwned<u64> {
-        let (output_secret_key, encryption_noise) = match params.destination_key {
-            EncryptionKeyChoice::Big => (
-                output_client_key.large_lwe_secret_key(),
-                output_client_key.parameters.glwe_noise_distribution(),
-            ),
-            EncryptionKeyChoice::Small => (
-                output_client_key.small_lwe_secret_key(),
-                output_client_key.parameters.lwe_noise_distribution(),
-            ),
-        };
+        let (output_secret_key, encryption_noise) =
+            output_client_key.keyswitch_encryption_key_and_noise(params);
 
         // Creation of the key switching key
         allocate_and_generate_new_seeded_lwe_keyswitch_key(
@@ -320,14 +303,15 @@ impl ShortintEngine {
             params.ks_base_log,
             params.ks_level,
             encryption_noise,
-            output_client_key.parameters.ciphertext_modulus(),
+            output_client_key.parameters().ciphertext_modulus(),
             &mut self.seeder,
         )
     }
 
     pub(crate) fn new_compressed_server_key(&mut self, cks: &ClientKey) -> CompressedServerKey {
         // Plaintext Max Value
-        let max_value = cks.parameters.message_modulus().0 * cks.parameters.carry_modulus().0 - 1;
+        let max_value =
+            cks.parameters().message_modulus().0 * cks.parameters().carry_modulus().0 - 1;
 
         // The maximum number of operations before we need to clean the carry buffer
         let max = MaxDegree::new(max_value);
@@ -341,7 +325,7 @@ impl ShortintEngine {
     ) -> CompressedServerKey {
         let compressed_ap_server_key = CompressedAtomicPatternServerKey::new(cks, self);
 
-        let params = cks.parameters;
+        let params = cks.parameters();
         let message_modulus = params.message_modulus();
         let carry_modulus = params.carry_modulus();
         let max_noise_level = params.max_noise_level();

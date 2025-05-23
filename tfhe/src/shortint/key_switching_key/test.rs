@@ -58,9 +58,9 @@ fn gen_multi_keys_test_fresh_2_ci_run_filter() {
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
-        ck2.parameters.ks_base_log(),
-        ck2.parameters.ks_level(),
-        ck2.parameters.encryption_key_choice(),
+        ck2.parameters().ks_base_log(),
+        ck2.parameters().ks_level(),
+        ck2.parameters().encryption_key_choice(),
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((
@@ -147,9 +147,9 @@ fn gen_multi_keys_test_no_shift_ci_run_filter() {
     let ck2 = keys2.client_key();
 
     let ksk_params = ShortintKeySwitchingParameters::new(
-        ck2.parameters.ks_base_log(),
-        ck2.parameters.ks_level(),
-        ck2.parameters.encryption_key_choice(),
+        ck2.parameters().ks_base_log(),
+        ck2.parameters().ks_level(),
+        ck2.parameters().encryption_key_choice(),
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((
@@ -168,9 +168,9 @@ fn gen_multi_keys_test_truncate_ci_run_filter() {
     let (ck2, sk2) = (keys2.client_key(), keys2.server_key());
 
     let ksk_params = ShortintKeySwitchingParameters::new(
-        ck2.parameters.ks_base_log(),
-        ck2.parameters.ks_level(),
-        ck2.parameters.encryption_key_choice(),
+        ck2.parameters().ks_base_log(),
+        ck2.parameters().ks_level(),
+        ck2.parameters().encryption_key_choice(),
     );
 
     let keys = KEY_CACHE_KSK.get_from_param((

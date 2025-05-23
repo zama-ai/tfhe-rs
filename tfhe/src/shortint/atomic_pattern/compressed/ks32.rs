@@ -1,10 +1,9 @@
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::algorithms::lwe_keyswitch_key_generation::allocate_and_generate_new_seeded_lwe_keyswitch_key;
-use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::seeded_lwe_keyswitch_key::SeededLweKeyswitchKeyOwned;
 use crate::shortint::atomic_pattern::ks32::KS32AtomicPatternServerKey;
 use crate::shortint::backward_compatibility::atomic_pattern::CompressedKS32AtomicPatternServerKeyVersions;
-use crate::shortint::client_key::ClientKey;
+use crate::shortint::client_key::atomic_pattern::KS32AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{KeySwitch32PBSParameters, LweDimension};
 use crate::shortint::server_key::ShortintCompressedBootstrappingKey;
@@ -22,24 +21,15 @@ pub struct CompressedKS32AtomicPatternServerKey {
 }
 
 impl CompressedKS32AtomicPatternServerKey {
-    pub fn new(cks: &ClientKey, engine: &mut ShortintEngine) -> Self {
+    pub fn new(cks: &KS32AtomicPatternClientKey, engine: &mut ShortintEngine) -> Self {
         let params = &cks.parameters;
 
-        let pbs_params = params.ks32_parameters().unwrap();
-
-        let in_key = LweSecretKey::from_container(
-            cks.small_lwe_secret_key()
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| x as u32)
-                .collect::<Vec<_>>(),
-        );
+        let in_key = cks.small_lwe_secret_key();
 
         let out_key = &cks.glwe_secret_key;
 
         let bootstrapping_key_base =
-            engine.new_compressed_bootstrapping_key_ks32(pbs_params, &in_key, out_key);
+            engine.new_compressed_bootstrapping_key_ks32(*params, &in_key, out_key);
 
         // Creation of the key switching key
         let key_switching_key = allocate_and_generate_new_seeded_lwe_keyswitch_key(
@@ -47,8 +37,8 @@ impl CompressedKS32AtomicPatternServerKey {
             &in_key,
             params.ks_base_log(),
             params.ks_level(),
-            pbs_params.lwe_noise_distribution(),
-            pbs_params.post_keyswitch_ciphertext_modulus(),
+            params.lwe_noise_distribution(),
+            params.post_keyswitch_ciphertext_modulus(),
             &mut engine.seeder,
         );
 

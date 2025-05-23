@@ -27,7 +27,7 @@ fn bench_server_key_unary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
 
         let clear_text = rng.gen::<u64>() % modulus;
 
@@ -70,7 +70,7 @@ fn bench_server_key_binary_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -115,7 +115,7 @@ fn bench_server_key_binary_scalar_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
         let clear_1 = rng.gen::<u64>() % modulus;
@@ -159,7 +159,7 @@ fn bench_server_key_binary_scalar_division_function<F>(
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
         assert_ne!(modulus, 1);
 
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -200,7 +200,7 @@ fn carry_extract_bench(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
 
         let clear_0 = rng.gen::<u64>() % modulus;
 
@@ -236,7 +236,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
 
         let mut rng = rand::thread_rng();
 
-        let modulus = cks.parameters.message_modulus().0;
+        let modulus = cks.parameters().message_modulus().0;
 
         let acc = sks.generate_lookup_table(|x| x);
 

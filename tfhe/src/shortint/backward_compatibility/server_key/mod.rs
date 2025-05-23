@@ -82,7 +82,7 @@ pub struct ServerKeyV1 {
     pbs_order: PBSOrder,
 }
 
-impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
+impl<AP: 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
     type Error = Error;
 
     fn upgrade(self) -> Result<GenericServerKey<AP>, Self::Error> {
@@ -94,32 +94,30 @@ impl<AP: Clone + 'static> Upgrade<GenericServerKey<AP>> for ServerKeyV1 {
 
         if TypeId::of::<AP>() == TypeId::of::<AtomicPatternServerKey>() {
             let ap = AtomicPatternServerKey::Standard(std_ap);
-            let sk = ServerKey::from_raw_parts(
+            let sk: Box<dyn Any + 'static> = Box::new(ServerKey::from_raw_parts(
                 ap,
                 self.message_modulus,
                 self.carry_modulus,
                 self.max_degree,
                 self.max_noise_level,
-            );
-            Ok((&sk as &dyn Any)
-                .downcast_ref::<GenericServerKey<AP>>()
-                .unwrap() // We know from the TypeId that AP is of the right type so we can unwrap
-                .clone())
+            ));
+            Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
+                                                                // AP is of the right type so we
+                                                                // can unwrap
         } else if TypeId::of::<AP>() == TypeId::of::<StandardAtomicPatternServerKey>() {
-            let sk = StandardServerKey::from_raw_parts(
+            let sk: Box<dyn Any + 'static> = Box::new(StandardServerKey::from_raw_parts(
                 std_ap,
                 self.message_modulus,
                 self.carry_modulus,
                 self.max_degree,
                 self.max_noise_level,
-            );
-            Ok((&sk as &dyn Any)
-                .downcast_ref::<GenericServerKey<AP>>()
-                .unwrap() // We know from the TypeId that AP is of the right type so we can unwrap
-                .clone())
+            ));
+            Ok(*sk.downcast::<GenericServerKey<AP>>().unwrap()) // We know from the TypeId that
+                                                                // AP is of the right type so we
+                                                                // can unwrap
         } else {
             Err(Error::new(
-                "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the classical \
+                "ServerKey from TFHE-rs 1.0 and before can only be deserialized to the standard \
 Atomic Pattern"
                     .to_string(),
             ))

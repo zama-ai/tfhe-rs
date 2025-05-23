@@ -7,7 +7,7 @@ pub(crate) trait KnowsMessageModulus {
 
 impl KnowsMessageModulus for crate::shortint::ClientKey {
     fn message_modulus(&self) -> MessageModulus {
-        self.parameters.message_modulus()
+        self.parameters().message_modulus()
     }
 }
 

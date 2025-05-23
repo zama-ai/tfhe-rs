@@ -117,6 +117,11 @@ impl KeySwitch32PBSParameters {
         EncryptionKeyChoice::Big
     }
 
+    pub const fn encryption_lwe_dimension(&self) -> LweDimension {
+        self.glwe_dimension()
+            .to_equivalent_lwe_dimension(self.polynomial_size())
+    }
+
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
         let expected_dim = self
             .glwe_dimension

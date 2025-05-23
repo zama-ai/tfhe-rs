@@ -25,8 +25,8 @@ fn test_noise_squashing_ci_run_filter() {
     let id_lut = sks.generate_lookup_table(|x| x);
 
     for _ in 0..50 {
-        let msg_1 = rng.gen::<u64>() % cks.parameters.message_modulus().0;
-        let msg_2 = rng.gen::<u64>() % cks.parameters.message_modulus().0;
+        let msg_1 = rng.gen::<u64>() % cks.parameters().message_modulus().0;
+        let msg_2 = rng.gen::<u64>() % cks.parameters().message_modulus().0;
 
         let mut ct_1 = cks.encrypt(msg_1);
         let mut ct_2 = cks.encrypt(msg_2);

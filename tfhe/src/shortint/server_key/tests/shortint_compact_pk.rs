@@ -102,7 +102,7 @@ fn shortint_compact_public_key_base_smart_add(params: ClassicPBSParameters) {
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<u64>() % modulus;
@@ -156,7 +156,7 @@ fn shortint_compact_public_key_base_list_smart_sub(params: ClassicPBSParameters)
 
     let mut rng = rand::thread_rng();
 
-    let modulus = cks.parameters.message_modulus().0;
+    let modulus = cks.parameters().message_modulus().0;
 
     let max_ct: usize = 5;
 

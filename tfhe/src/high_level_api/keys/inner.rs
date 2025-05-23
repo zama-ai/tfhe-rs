@@ -110,7 +110,7 @@ impl IntegerClientKey {
         );
         let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
         let cks = crate::shortint::engine::ShortintEngine::new_from_seeder(&mut seeder)
-            .new_client_key(config.block_parameters.into());
+            .new_client_key(config.block_parameters);
 
         let key = crate::integer::ClientKey::from(cks);
 
@@ -172,7 +172,7 @@ impl IntegerClientKey {
 
         if let Some(dedicated_compact_private_key) = dedicated_compact_private_key.as_ref() {
             assert_eq!(
-                shortint_cks.parameters.message_modulus(),
+                shortint_cks.parameters().message_modulus(),
                 dedicated_compact_private_key
                     .0
                     .key
@@ -180,7 +180,7 @@ impl IntegerClientKey {
                     .message_modulus,
             );
             assert_eq!(
-                shortint_cks.parameters.carry_modulus(),
+                shortint_cks.parameters().carry_modulus(),
                 dedicated_compact_private_key
                     .0
                     .key

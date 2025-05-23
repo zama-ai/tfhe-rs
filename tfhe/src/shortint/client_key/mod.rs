@@ -1,21 +1,21 @@
 //! Module with the definition of the ClientKey.
 
+pub mod atomic_pattern;
 pub(crate) mod secret_encryption_key;
+use atomic_pattern::{
+    AtomicPatternClientKey, EncryptionAtomicPattern, StandardAtomicPatternClientKey,
+};
 use tfhe_versionable::Versionize;
 
-use super::{PBSOrder, PaddingBit, ShortintEncoding};
+use super::parameters::ShortintKeySwitchingParameters;
+use super::server_key::UnsupportedOperation;
+use super::{AtomicPatternParameters, PaddingBit, ShortintEncoding};
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{
-    allocate_and_generate_new_binary_glwe_secret_key,
-    allocate_and_generate_new_binary_lwe_secret_key, decrypt_lwe_ciphertext,
-};
+use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
 use crate::shortint::backward_compatibility::client_key::ClientKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, CompressedCiphertext};
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{
-    AtomicPatternKind, DynamicDistribution, EncryptionKeyChoice, MessageModulus,
-    ShortintParameterSet,
-};
+use crate::shortint::parameters::{DynamicDistribution, MessageModulus, ShortintParameterSet};
 use crate::shortint::CarryModulus;
 use secret_encryption_key::SecretEncryptionKeyView;
 use serde::{Deserialize, Serialize};
@@ -29,21 +29,43 @@ use std::fmt::{Debug, Display};
 /// * `glwe_secret_key` - a GLWE secret key, used to generate the bootstrapping keys and key
 ///   switching keys.
 /// * `parameters` - the cryptographic parameter set.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Versionize)]
 #[versionize(ClientKeyVersions)]
-pub struct ClientKey {
-    pub(crate) glwe_secret_key: GlweSecretKeyOwned<u64>,
-    /// Key used as the output of the keyswitch operation
-    pub(crate) lwe_secret_key: LweSecretKeyOwned<u64>,
-    pub parameters: ShortintParameterSet,
+pub struct GenericClientKey<AP> {
+    pub atomic_pattern: AP,
 }
+
+pub type ClientKey = GenericClientKey<AtomicPatternClientKey>;
+pub type StandardClientKey = GenericClientKey<StandardAtomicPatternClientKey>;
+pub type ClientKeyView<'key> = GenericClientKey<&'key AtomicPatternClientKey>;
+pub type StandardClientKeyView<'key> = GenericClientKey<&'key StandardAtomicPatternClientKey>;
 
 impl<'cks> From<&'cks ClientKey> for SecretEncryptionKeyView<'cks> {
     fn from(value: &'cks ClientKey) -> Self {
         Self {
-            lwe_secret_key: value.encryption_key_and_noise().0,
-            message_modulus: value.parameters.message_modulus(),
-            carry_modulus: value.parameters.carry_modulus(),
+            lwe_secret_key: value.encryption_key(),
+            message_modulus: value.parameters().message_modulus(),
+            carry_modulus: value.parameters().carry_modulus(),
+        }
+    }
+}
+
+impl<'key> TryFrom<ClientKeyView<'key>> for StandardClientKeyView<'key> {
+    type Error = UnsupportedOperation;
+
+    fn try_from(value: ClientKeyView<'key>) -> Result<Self, Self::Error> {
+        let AtomicPatternClientKey::Standard(atomic_pattern) = value.atomic_pattern else {
+            return Err(UnsupportedOperation);
+        };
+
+        Ok(Self { atomic_pattern })
+    }
+}
+
+impl<AP> GenericClientKey<AP> {
+    pub fn as_view(&self) -> GenericClientKey<&AP> {
+        GenericClientKey {
+            atomic_pattern: &self.atomic_pattern,
         }
     }
 }
@@ -65,35 +87,7 @@ impl ClientKey {
         P: TryInto<ShortintParameterSet>,
         <P as TryInto<ShortintParameterSet>>::Error: Debug,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.new_client_key(parameters.try_into().unwrap())
-        })
-    }
-
-    /// Returns a view to the `glwe_secret_key` interpreted as an LWE secret key.
-    pub(crate) fn large_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
-        self.glwe_secret_key.as_lwe_secret_key()
-    }
-
-    /// Returns a view to the `lwe_secret_key`
-    pub(crate) fn small_lwe_secret_key(&self) -> LweSecretKeyView<'_, u64> {
-        self.lwe_secret_key.as_view()
-    }
-
-    /// Returns a view to the encryption key and the corresponding noise distribution.
-    pub fn encryption_key_and_noise(
-        &self,
-    ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
-        match self.parameters.encryption_key_choice() {
-            EncryptionKeyChoice::Big => (
-                self.glwe_secret_key.as_lwe_secret_key(),
-                self.parameters.glwe_noise_distribution(),
-            ),
-            EncryptionKeyChoice::Small => (
-                self.lwe_secret_key.as_view(),
-                self.parameters.lwe_noise_distribution(),
-            ),
-        }
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_client_key(parameters))
     }
 
     pub fn try_from_lwe_encryption_key<P>(
@@ -101,157 +95,46 @@ impl ClientKey {
         parameters: P,
     ) -> crate::Result<Self>
     where
-        P: TryInto<ShortintParameterSet>,
-        <P as TryInto<ShortintParameterSet>>::Error: Display,
+        P: TryInto<AtomicPatternParameters>,
+        <P as TryInto<AtomicPatternParameters>>::Error: Display,
     {
         let parameters = parameters
             .try_into()
             .map_err(|err| crate::Error::new(format!("{err}")))?;
 
-        let expected_lwe_dimension = parameters.encryption_lwe_dimension();
-        if encryption_key.lwe_dimension() != expected_lwe_dimension {
-            return Err(
-                crate::Error::new(
-                    format!(
-                        "The given encryption key does not have the correct LweDimension, expected: {:?}, got: {:?}",
-                        encryption_key.lwe_dimension(),
-                        expected_lwe_dimension)));
-        }
+        let atomic_pattern =
+            AtomicPatternClientKey::try_from_lwe_encryption_key(encryption_key, parameters)?;
 
-        // The key we got is the one used to encrypt,
-        // we have to generate the other key
-        match parameters.encryption_key_choice() {
-            EncryptionKeyChoice::Big => {
-                // We have to generate the small lwe key
-                let small_key = ShortintEngine::with_thread_local_mut(|engine| {
-                    allocate_and_generate_new_binary_lwe_secret_key(
-                        parameters.lwe_dimension(),
-                        &mut engine.secret_generator,
-                    )
-                });
+        Ok(Self { atomic_pattern })
+    }
+}
 
-                Ok(Self {
-                    glwe_secret_key: GlweSecretKeyOwned::from_container(
-                        encryption_key.into_container(),
-                        parameters.polynomial_size(),
-                    ),
-                    lwe_secret_key: small_key,
-                    parameters,
-                })
-            }
-            EncryptionKeyChoice::Small => {
-                // We have to generate the big lwe key
-                let glwe_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
-                    allocate_and_generate_new_binary_glwe_secret_key(
-                        parameters.glwe_dimension(),
-                        parameters.polynomial_size(),
-                        &mut engine.secret_generator,
-                    )
-                });
-
-                Ok(Self {
-                    glwe_secret_key,
-                    lwe_secret_key: encryption_key,
-                    parameters,
-                })
-            }
-        }
+impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
+    pub fn parameters(&self) -> ShortintParameterSet {
+        self.atomic_pattern.parameters()
     }
 
-    /// Deconstruct a [`ClientKey`] into its constituents.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
-    /// ```
-    pub fn into_raw_parts(
-        self,
-    ) -> (
-        GlweSecretKeyOwned<u64>,
-        LweSecretKeyOwned<u64>,
-        ShortintParameterSet,
-    ) {
-        let Self {
-            glwe_secret_key,
-            lwe_secret_key,
-            parameters,
-        } = self;
-
-        (glwe_secret_key, lwe_secret_key, parameters)
+    /// Returns a view of the key used for encryption
+    pub fn encryption_key(&self) -> LweSecretKeyView<'_, u64> {
+        self.atomic_pattern.encryption_key()
     }
 
-    /// Construct a [`ClientKey`] from its constituents.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the keys are not compatible with the parameters provided as raw parts.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::client_key::ClientKey;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key:
-    /// let cks = ClientKey::new(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let (glwe_secret_key, lwe_secret_key, parameters) = cks.into_raw_parts();
-    ///
-    /// let cks = ClientKey::from_raw_parts(glwe_secret_key, lwe_secret_key, parameters);
-    /// ```
-    pub fn from_raw_parts(
-        glwe_secret_key: GlweSecretKeyOwned<u64>,
-        lwe_secret_key: LweSecretKeyOwned<u64>,
-        parameters: ShortintParameterSet,
-    ) -> Self {
-        assert_eq!(
-            lwe_secret_key.lwe_dimension(),
-            parameters.lwe_dimension(),
-            "Mismatch between the LweSecretKey LweDimension ({:?}) \
-            and the parameters LweDimension ({:?})",
-            lwe_secret_key.lwe_dimension(),
-            parameters.lwe_dimension()
-        );
-        assert_eq!(
-            glwe_secret_key.glwe_dimension(),
-            parameters.glwe_dimension(),
-            "Mismatch between the GlweSecretKey GlweDimension ({:?}) \
-            and the parameters GlweDimension ({:?})",
-            glwe_secret_key.glwe_dimension(),
-            parameters.glwe_dimension()
-        );
-        assert_eq!(
-            glwe_secret_key.polynomial_size(),
-            parameters.polynomial_size(),
-            "Mismatch between the GlweSecretKey PolynomialSize ({:?}) \
-            and the parameters PolynomialSize ({:?})",
-            glwe_secret_key.polynomial_size(),
-            parameters.polynomial_size()
-        );
-
-        Self {
-            glwe_secret_key,
-            lwe_secret_key,
-            parameters,
-        }
+    /// Returns a view to the encryption key and the corresponding noise distribution.
+    pub fn encryption_key_and_noise(
+        &self,
+    ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
+        self.atomic_pattern.encryption_key_and_noise()
     }
 
     #[cfg(test)]
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        let modular_value = value % self.parameters.message_modulus().0;
+        let modular_value = value % self.parameters().message_modulus().0;
         self.unchecked_create_trivial(modular_value)
     }
 
     #[cfg(test)]
     pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
-        let params = self.parameters;
+        let params = self.parameters();
 
         let lwe_size = params.encryption_lwe_dimension().to_lwe_size();
 
@@ -289,7 +172,7 @@ impl ClientKey {
     /// let ct = cks.encrypt(msg);
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt(&self, message: u64) -> Ciphertext {
@@ -324,7 +207,7 @@ impl ClientKey {
     /// let ct = ct.decompress();
     ///
     /// let dec = cks.decrypt(&ct);
-    /// let modulus = cks.parameters.message_modulus().0;
+    /// let modulus = cks.parameters().message_modulus().0;
     /// assert_eq!(msg % modulus, dec);
     /// ```
     pub fn encrypt_compressed(&self, message: u64) -> CompressedCiphertext {
@@ -484,7 +367,7 @@ impl ClientKey {
     pub fn decrypt_message_and_carry(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        ShortintEncoding::from_parameters(self.parameters, PaddingBit::Yes)
+        ShortintEncoding::from_parameters(self.parameters(), PaddingBit::Yes)
             .decode(decrypted_u64)
             .0
     }
@@ -514,16 +397,8 @@ impl ClientKey {
     }
 
     pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
-        let lwe_decryption_key = match ct.atomic_pattern {
-            AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap) => {
-                self.large_lwe_secret_key()
-            }
-            AtomicPatternKind::Standard(PBSOrder::BootstrapKeyswitch) => {
-                self.small_lwe_secret_key()
-            }
-            // KS32 AP is always KeyswitchBootstrap
-            AtomicPatternKind::KeySwitch32 => self.large_lwe_secret_key(),
-        };
+        let lwe_decryption_key = self.encryption_key();
+
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }
 
@@ -604,7 +479,7 @@ impl ClientKey {
     pub fn decrypt_message_and_carry_without_padding(&self, ct: &Ciphertext) -> u64 {
         let decrypted_u64 = self.decrypt_no_decode(ct);
 
-        ShortintEncoding::from_parameters(self.parameters, PaddingBit::No)
+        ShortintEncoding::from_parameters(self.parameters(), PaddingBit::No)
             .decode(decrypted_u64)
             .0
     }
@@ -735,5 +610,17 @@ impl ClientKey {
         result = result.wrapping_add((result & (1 << 63)) << 1) / (1 << 64);
 
         result as u64 % basis
+    }
+}
+
+impl StandardClientKeyView<'_> {
+    /// Returns a view to the encryption key used for a keyswitch operation and the corresponding
+    /// noise distribution.
+    pub fn keyswitch_encryption_key_and_noise(
+        &self,
+        params: ShortintKeySwitchingParameters,
+    ) -> (LweSecretKeyView<'_, u64>, DynamicDistribution<u64>) {
+        self.atomic_pattern
+            .keyswitch_encryption_key_and_noise(params)
     }
 }
