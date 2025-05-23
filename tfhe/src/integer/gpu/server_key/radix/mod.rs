@@ -17,8 +17,10 @@ use crate::integer::gpu::{
     add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
     compute_prefix_sum_hillis_steele_async, full_propagate_assign_async,
-    propagate_single_carry_assign_async, CudaServerKey, PBSType,
+    propagate_single_carry_assign_async, start_preparing_count_of_consecutive_bits, CudaServerKey,
+    PBSType,
 };
+use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
@@ -1337,6 +1339,14 @@ impl CudaServerKey {
             .unwrap();
         let mut generates_or_propagates_degrees = vec![0; num_blocks];
         let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
+        for (i, block_index) in (block_range.clone()).enumerate() {
+            generates_or_propagates_degrees[i] =
+                generates_or_propagates.info.blocks[block_index].degree.0;
+            generates_or_propagates_noise_levels[i] = generates_or_propagates.info.blocks
+                [block_index]
+                .noise_level
+                .0;
+        }
         let ct_modulus = output.d_blocks.ciphertext_modulus().raw_modulus_float();
         let mut output_slice = output
             .d_blocks
@@ -1426,6 +1436,123 @@ impl CudaServerKey {
         {
             info.degree = Degree(generates_or_propagates_degrees[i]);
             info.noise_level = NoiseLevel(generates_or_propagates_noise_levels[i]);
+        }
+    }
+
+    /// # Safety
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) unsafe fn start_preparing_count_of_consecutive_bits(
+        &self,
+        output: &mut CudaRadixCiphertext,
+        input: &CudaRadixCiphertext,
+        block_range: std::ops::Range<usize>,
+        streams: &CudaStreams,
+        direction: Direction,
+        bit_value: BitValue,
+    ) {
+        if block_range.is_empty() {
+            return;
+        }
+
+        assert_eq!(
+            input.d_blocks.lwe_dimension(),
+            output.d_blocks.lwe_dimension(),
+            "Mismatch LWE dimension between input and output"
+        );
+
+        let lwe_dim = input.d_blocks.lwe_dimension();
+        let lwe_size = lwe_dim.to_lwe_size().0;
+        let num_blocks = block_range.len() as u32;
+
+        let input_slice = input
+            .d_blocks
+            .0
+            .d_vec
+            .as_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
+            .unwrap();
+
+        let mut output_slice = output
+            .d_blocks
+            .0
+            .d_vec
+            .as_mut_slice(lwe_size * block_range.start..lwe_size * block_range.end, 0)
+            .unwrap();
+
+        let mut output_degrees = vec![0_u64; num_blocks as usize];
+        let mut output_noise_levels = vec![0_u64; num_blocks as usize];
+
+        let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+
+        let small_lwe_dim = self
+            .key_switching_key
+            .output_key_lwe_size()
+            .to_lwe_dimension();
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    start_preparing_count_of_consecutive_bits(
+                        streams,
+                        &mut output_slice,
+                        &input_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &d_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        small_lwe_dim,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        num_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::Classical,
+                        LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        ct_modulus,
+                        direction,
+                        bit_value,
+                    );
+                }
+
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    start_preparing_count_of_consecutive_bits(
+                        streams,
+                        &mut output_slice,
+                        &input_slice,
+                        &mut output_degrees,
+                        &mut output_noise_levels,
+                        &d_multibit_bsk.d_vec,
+                        &self.key_switching_key.d_vec,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        small_lwe_dim,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        num_blocks,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                        ct_modulus,
+                        direction,
+                        bit_value,
+                    );
+                }
+            }
+        }
+
+        for (i, info) in output.info.blocks[block_range].iter_mut().enumerate() {
+            info.degree = Degree(output_degrees[i]);
+            info.noise_level = NoiseLevel(output_noise_levels[i]);
         }
     }
 

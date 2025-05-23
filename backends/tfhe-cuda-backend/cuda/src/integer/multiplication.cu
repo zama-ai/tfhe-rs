@@ -234,11 +234,6 @@ void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
   if (radix_lwe_vec->num_radix_blocks % radix_lwe_out->num_radix_blocks != 0)
     PANIC("Cuda error: input vector length should be a multiple of the "
           "output's number of radix blocks")
-  // FIXME: this should not be necessary, we should make sure sum_ctxt works in
-  // the general case
-  for (int i = 0; i < radix_lwe_vec->num_radix_blocks; i++) {
-    radix_lwe_vec->degrees[i] = mem->params.message_modulus - 1;
-  }
   switch (mem->params.polynomial_size) {
   case 512:
     host_integer_partial_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<512>>(
