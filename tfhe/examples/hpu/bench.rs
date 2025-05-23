@@ -259,13 +259,14 @@ pub fn main() {
             );
             let roi_start = Instant::now();
 
+            #[allow(clippy::double_ended_iterator_last)]
             let res_hpu = (0..args.iter)
                 .map(|_i| {
                     let res = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
                     std::hint::black_box(&res);
                     res
                 })
-                .next_back()
+                .last()
                 .expect("Iteration must be greater than 0");
 
             // let res_fhe = $fhe_type::from(res_hpu);
