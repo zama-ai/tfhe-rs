@@ -149,7 +149,7 @@ jobs:
 
       - name: Run High Level API Tests
         run: |
-          BIG_TESTS_INSTANCE=FALSE make test_high_level_api_gpu
+          make test_high_level_api_gpu
 
   slack-notify:
     name: Slack Notification
