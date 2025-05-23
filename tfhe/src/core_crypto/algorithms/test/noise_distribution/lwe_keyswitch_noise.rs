@@ -27,11 +27,7 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
     let input_lwe_dimension = glwe_dimension.to_equivalent_lwe_dimension(polynomial_size);
     let output_lwe_dimension = lwe_dimension;
 
-    let modulus_as_f64 = if ciphertext_modulus.is_native_modulus() {
-        2.0f64.powi(Scalar::BITS as i32)
-    } else {
-        ciphertext_modulus.get_custom_modulus() as f64
-    };
+    let modulus_as_f64 = ciphertext_modulus.raw_modulus_float();
 
     let encryption_variance = glwe_noise_distribution.gaussian_std_dev().get_variance();
     let expected_variance = Variance(
@@ -41,6 +37,7 @@ fn lwe_encrypt_ks_decrypt_noise_distribution_custom_mod<Scalar: UnsignedTorus + 
                 output_lwe_dimension,
                 ks_decomp_base_log,
                 ks_decomp_level_count,
+                modulus_as_f64,
                 modulus_as_f64,
             )
             .0,
