@@ -5,7 +5,7 @@ use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
-use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingSub};
+use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheUint};
 
 impl<Id> OverflowingAdd<Self> for &FheUint<Id>
@@ -527,5 +527,47 @@ where
     /// ```
     fn overflowing_mul(self, other: &Self) -> (Self::Output, FheBool) {
         <&Self as OverflowingMul<&Self>>::overflowing_mul(&self, other)
+    }
+}
+
+impl<Id> OverflowingNeg for &FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = FheUint<Id>;
+
+    fn overflowing_neg(self) -> (Self::Output, FheBool) {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let (result, overflow) = cpu_key
+                    .pbs_key()
+                    .overflowing_neg_parallelized(&*self.ciphertext.on_cpu());
+                (
+                    FheUint::new(result, cpu_key.tag.clone()),
+                    FheBool::new(overflow, cpu_key.tag.clone()),
+                )
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                let (result, overflow) = cuda_key
+                    .pbs_key()
+                    .overflowing_neg(&*self.ciphertext.on_gpu(streams), streams);
+                (
+                    FheUint::new(result, cuda_key.tag.clone()),
+                    FheBool::new(overflow, cuda_key.tag.clone()),
+                )
+            }),
+        })
+    }
+}
+
+impl<Id> OverflowingNeg for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    fn overflowing_neg(self) -> (Self::Output, FheBool) {
+        <&Self as OverflowingNeg>::overflowing_neg(&self)
     }
 }
