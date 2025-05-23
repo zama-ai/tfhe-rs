@@ -253,8 +253,4 @@ mod test_hpu_doc {
         "../docs/configuration/hpu_acceleration/run_on_hpu.md",
         configuration_hpu_acceleration_run_on_hpu
     );
-    doctest!(
-        "../docs/configuration/hpu_acceleration/benchmark.md",
-        configuration_hpu_acceleration_benchmark
-    );
 }
