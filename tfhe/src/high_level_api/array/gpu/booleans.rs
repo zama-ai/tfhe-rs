@@ -7,7 +7,6 @@ use crate::array::stride::{ParStridedIter, ParStridedIterMut, StridedIter};
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::{ArrayBackend, BackendDataContainer, BackendDataContainerMut};
 use crate::high_level_api::global_state;
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use crate::{ClientKey, FheBoolId};
@@ -25,10 +24,15 @@ pub type GpuFheBoolSliceMut<'a> =
 pub struct GpuBooleanSlice<'a>(pub(crate) &'a [CudaBooleanBlock]);
 pub struct GpuBooleanSliceMut<'a>(pub(crate) &'a mut [CudaBooleanBlock]);
 pub struct GpuBooleanOwned(pub(crate) Vec<CudaBooleanBlock>);
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 
 impl Clone for GpuBooleanOwned {
     fn clone(&self) -> Self {
-        with_thread_local_cuda_streams(|streams| {
+        // When cloning, we assume that the intention is to return a ciphertext that lies in the GPU
+        // 0 defined in the set server key. Hence, we use the server key to get the streams instead
+        // of those inside the ciphertext itself
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -83,7 +87,8 @@ impl BackendDataContainer for GpuBooleanSlice<'_> {
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             GpuBooleanOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -104,7 +109,8 @@ impl BackendDataContainer for GpuBooleanSliceMut<'_> {
     }
 
     fn into_owned(self) -> <Self::Backend as ArrayBackend>::Owned {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             GpuBooleanOwned(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
     }
@@ -156,14 +162,13 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, Self::Slice<'a>>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.pbs_key().bitand(&lhs.0, &rhs.0, streams))
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().bitand(&lhs.0, &rhs.0, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 
@@ -172,14 +177,13 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, Self::Slice<'a>>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.pbs_key().bitor(&lhs.0, &rhs.0, streams))
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().bitor(&lhs.0, &rhs.0, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 
@@ -188,24 +192,22 @@ impl BitwiseArrayBackend for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, Self::Slice<'a>>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(cuda_key.pbs_key().bitxor(&lhs.0, &rhs.0, streams))
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().bitxor(&lhs.0, &rhs.0, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 
     fn bitnot(lhs: TensorSlice<'_, Self::Slice<'_>>) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .map(|lhs| CudaBooleanBlock(cuda_key.pbs_key().bitnot(&lhs.0, streams)))
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .map(|lhs| CudaBooleanBlock(cuda_key.pbs_key().bitnot(&lhs.0, streams)))
+                .collect::<Vec<_>>()
         }))
     }
 }
@@ -216,16 +218,13 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, &'_ [bool]>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter().copied())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(
-                            cuda_key.pbs_key().scalar_bitand(&lhs.0, rhs as u8, streams),
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter().copied())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().scalar_bitand(&lhs.0, rhs as u8, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 
@@ -234,16 +233,13 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, &'_ [bool]>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter().copied())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(
-                            cuda_key.pbs_key().scalar_bitor(&lhs.0, rhs as u8, streams),
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter().copied())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().scalar_bitor(&lhs.0, rhs as u8, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 
@@ -252,16 +248,13 @@ impl ClearBitwiseArrayBackend<bool> for GpuFheBoolArrayBackend {
         rhs: TensorSlice<'_, &'_ [bool]>,
     ) -> Self::Owned {
         GpuBooleanOwned(global_state::with_cuda_internal_keys(|cuda_key| {
-            with_thread_local_cuda_streams(|streams| {
-                lhs.par_iter()
-                    .zip(rhs.par_iter().copied())
-                    .map(|(lhs, rhs)| {
-                        CudaBooleanBlock(
-                            cuda_key.pbs_key().scalar_bitxor(&lhs.0, rhs as u8, streams),
-                        )
-                    })
-                    .collect::<Vec<_>>()
-            })
+            let streams = &cuda_key.streams;
+            lhs.par_iter()
+                .zip(rhs.par_iter().copied())
+                .map(|(lhs, rhs)| {
+                    CudaBooleanBlock(cuda_key.pbs_key().scalar_bitxor(&lhs.0, rhs as u8, streams))
+                })
+                .collect::<Vec<_>>()
         }))
     }
 }
@@ -270,7 +263,8 @@ impl FheTryEncrypt<&[bool], ClientKey> for GpuFheBoolArray {
     type Error = crate::Error;
 
     fn try_encrypt(values: &[bool], cks: &ClientKey) -> Result<Self, Self::Error> {
-        let encrypted = with_thread_local_cuda_streams(|streams| {
+        let encrypted = with_cuda_internal_keys(|key| {
+            let streams = &key.streams;
             values
                 .iter()
                 .copied()
@@ -285,7 +279,8 @@ impl FheTryEncrypt<&[bool], ClientKey> for GpuFheBoolArray {
 
 impl FheDecrypt<Vec<bool>> for GpuFheBoolSlice<'_> {
     fn decrypt(&self, key: &ClientKey) -> Vec<bool> {
-        with_thread_local_cuda_streams(|streams| {
+        with_cuda_internal_keys(|cuda_key| {
+            let streams = &cuda_key.streams;
             self.elems
                 .0
                 .iter()

@@ -65,7 +65,7 @@ public:
     number_of_inputs = (int)GetParam().number_of_inputs;
 
     // Enable Multi-GPU logic
-    gpu_count = cuda_setup_multi_gpu();
+    gpu_count = cuda_setup_multi_gpu(0);
     active_gpu_count = std::min((uint)number_of_inputs, gpu_count);
     for (uint gpu_i = 0; gpu_i < active_gpu_count; gpu_i++) {
       streams.push_back(cuda_create_stream(gpu_i));

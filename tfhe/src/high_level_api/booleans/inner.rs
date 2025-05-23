@@ -4,9 +4,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::{
-    with_thread_local_cuda_streams, with_thread_local_cuda_streams_for_gpu_indexes,
-};
+use crate::high_level_api::global_state::with_cuda_internal_keys;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_thread_local_cuda_streams_for_gpu_indexes;
 use crate::integer::BooleanBlock;
 use crate::Device;
 use serde::{Deserializer, Serializer};
@@ -36,7 +36,9 @@ impl Clone for InnerBoolean {
             Self::Cpu(inner) => Self::Cpu(inner.clone()),
             #[cfg(feature = "gpu")]
             Self::Cuda(inner) => {
-                with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
+                with_thread_local_cuda_streams_for_gpu_indexes(inner.gpu_indexes(), |streams| {
+                    Self::Cuda(inner.duplicate(streams))
+                })
             }
             #[cfg(feature = "hpu")]
             Self::Hpu(inner) => Self::Hpu(inner.clone()),
@@ -251,7 +253,8 @@ impl InnerBoolean {
             #[cfg(feature = "gpu")]
             // We may not be on the correct Cuda device
             if let Self::Cuda(cuda_ct) = self {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|key| {
+                    let streams = &key.streams;
                     if cuda_ct.gpu_indexes() != streams.gpu_indexes() {
                         *cuda_ct = cuda_ct.duplicate(streams);
                     }
@@ -273,7 +276,8 @@ impl InnerBoolean {
             }
             #[cfg(feature = "gpu")]
             Device::CudaGpu => {
-                let new_inner = with_thread_local_cuda_streams(|streams| {
+                let new_inner = with_cuda_internal_keys(|key| {
+                    let streams = &key.streams;
                     crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock::from_boolean_block(
                         &cpu_ct, streams,
                     )

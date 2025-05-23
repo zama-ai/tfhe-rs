@@ -101,6 +101,6 @@ extern "C" {
 
     pub fn cuda_drop_async(ptr: *mut c_void, stream: *mut c_void, gpu_index: u32);
 
-    pub fn cuda_setup_multi_gpu() -> i32;
+    pub fn cuda_setup_multi_gpu(gpu_index: u32) -> i32;
 
 } // extern "C"

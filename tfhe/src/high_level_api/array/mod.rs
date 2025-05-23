@@ -13,8 +13,6 @@ pub(in crate::high_level_api) mod traits;
 use crate::array::traits::TensorSlice;
 use crate::high_level_api::array::traits::HasClear;
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::{FheBool, FheId, FheInt, FheUint, Tag};
@@ -369,7 +367,8 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
             FheBool::new(result, cpu_key.tag.clone())
         }
         #[cfg(feature = "gpu")]
-        InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
+        InternalServerKey::Cuda(gpu_key) => {
+            let streams = &gpu_key.streams;
             let tmp_lhs = lhs
                 .iter()
                 .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
@@ -381,7 +380,7 @@ pub fn fhe_uint_array_eq<Id: FheUintId>(lhs: &[FheUint<Id>], rhs: &[FheUint<Id>]
 
             let result = gpu_key.key.key.all_eq_slices(&tmp_lhs, &tmp_rhs, streams);
             FheBool::new(result, gpu_key.tag.clone())
-        }),
+        }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
             panic!("Hpu does not support Array yet.")
@@ -410,7 +409,8 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
             FheBool::new(result, cpu_key.tag.clone())
         }
         #[cfg(feature = "gpu")]
-        InternalServerKey::Cuda(gpu_key) => with_thread_local_cuda_streams(|streams| {
+        InternalServerKey::Cuda(gpu_key) => {
+            let streams = &gpu_key.streams;
             let tmp_lhs = lhs
                 .iter()
                 .map(|fhe_uint| fhe_uint.clone().ciphertext.into_gpu(streams))
@@ -425,7 +425,7 @@ pub fn fhe_uint_array_contains_sub_slice<Id: FheUintId>(
                 .key
                 .contains_sub_slice(&tmp_lhs, &tmp_pattern, streams);
             FheBool::new(result, gpu_key.tag.clone())
-        }),
+        }
         #[cfg(feature = "hpu")]
         InternalServerKey::Hpu(_device) => {
             panic!("Hpu does not support Array yet.")

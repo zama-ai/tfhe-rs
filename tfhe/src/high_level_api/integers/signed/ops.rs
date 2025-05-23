@@ -1,6 +1,8 @@
 #[cfg(feature = "gpu")]
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
@@ -20,9 +22,6 @@ use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
-
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
 
 impl<'a, Id> std::iter::Sum<&'a Self> for FheInt<Id>
 where
@@ -77,7 +76,8 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
+                {
+                    let streams = &cuda_key.streams;
                     let cts = iter
                         .map(|fhe_uint| {
                             match fhe_uint.ciphertext.on_gpu(streams) {
@@ -107,7 +107,7 @@ where
                             )
                         });
                     Self::new(inner, cuda_key.tag.clone())
-                })
+                }
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -151,14 +151,15 @@ where
                 Self::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.max(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 Self::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -201,14 +202,15 @@ where
                 Self::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.min(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 Self::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -262,14 +264,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.eq(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -305,14 +308,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.ne(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -374,14 +378,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.lt(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -417,14 +422,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.le(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -460,14 +466,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.gt(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -503,14 +510,15 @@ where
                 FheBool::new(inner_result, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key.key.key.ge(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
                     streams,
                 );
                 FheBool::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -589,7 +597,8 @@ where
                 )
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let (q, r) = cuda_key.key.key.div_rem(
                     &*self.ciphertext.on_gpu(streams),
                     &*rhs.ciphertext.on_gpu(streams),
@@ -599,7 +608,7 @@ where
                     FheInt::<Id>::new(q, cuda_key.tag.clone()),
                     FheInt::<Id>::new(r, cuda_key.tag.clone()),
                 )
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -677,11 +686,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
+                    {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .add(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -724,11 +733,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                    with_thread_local_cuda_streams(|streams| {
+                    {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .sub(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -771,11 +780,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                     with_thread_local_cuda_streams(|streams| {
+                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .mul(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -816,11 +825,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                     with_thread_local_cuda_streams(|streams| {
+                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitand(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -861,11 +870,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                     with_thread_local_cuda_streams(|streams| {
+                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitor(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -906,11 +915,11 @@ generic_integer_impl_operation!(
                 },
                 #[cfg(feature = "gpu")]
                 InternalServerKey::Cuda(cuda_key) => {
-                     with_thread_local_cuda_streams(|streams| {
+                     {let streams = &cuda_key.streams;
                         let inner_result = cuda_key.key.key
                             .bitxor(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                         FheInt::new(inner_result, cuda_key.tag.clone())
-                    })
+                    }
                 }
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
@@ -958,14 +967,14 @@ generic_integer_impl_operation!(
                     FheInt::new(inner_result, cpu_key.tag.clone())
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
                     let inner_result =
                         cuda_key
                             .key
                             .key
                             .div(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                     FheInt::new(inner_result, cuda_key.tag.clone())
-                }),
+                },
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
                     panic!("Hpu does not support this operation yet.")
@@ -1013,14 +1022,14 @@ generic_integer_impl_operation!(
                     FheInt::new(inner_result, cpu_key.tag.clone())
                 },
                 #[cfg(feature = "gpu")]
-                InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+                InternalServerKey::Cuda(cuda_key) => {let streams = &cuda_key.streams;
                     let inner_result =
                         cuda_key
                             .key
                             .key
                             .rem(&*lhs.ciphertext.on_gpu(streams), &*rhs.ciphertext.on_gpu(streams), streams);
                     FheInt::new(inner_result, cuda_key.tag.clone())
-                }),
+                },
                 #[cfg(feature = "hpu")]
                 InternalServerKey::Hpu(_device) => {
                     panic!("Hpu does not support this operation yet.")
@@ -1132,11 +1141,11 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
-                         with_thread_local_cuda_streams(|streams| {
+                         {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .left_shift(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheInt::new(inner_result, cuda_key.tag.clone())
-                        })
+                        }
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
@@ -1180,11 +1189,11 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
-                         with_thread_local_cuda_streams(|streams| {
+                         {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .right_shift(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheInt::new(inner_result, cuda_key.tag.clone())
-                        })
+                        }
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
@@ -1228,11 +1237,11 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
-                         with_thread_local_cuda_streams(|streams| {
+                         {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .rotate_left(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheInt::new(inner_result, cuda_key.tag.clone())
-                        })
+                        }
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
@@ -1276,11 +1285,11 @@ generic_integer_impl_shift_rotate!(
                     }
                     #[cfg(feature = "gpu")]
                     InternalServerKey::Cuda(cuda_key) => {
-                         with_thread_local_cuda_streams(|streams| {
+                         {let streams = &cuda_key.streams;
                             let inner_result = cuda_key.key.key
                                 .rotate_right(&*lhs.ciphertext.on_gpu(streams), &rhs.ciphertext.on_gpu(streams), streams);
                             FheInt::new(inner_result, cuda_key.tag.clone())
-                        })
+                        }
                     }
                     #[cfg(feature = "hpu")]
                     InternalServerKey::Hpu(_device) => {
@@ -1330,13 +1339,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.add_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.add_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1381,13 +1389,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.sub_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.sub_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1432,13 +1439,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.mul_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.mul_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1481,13 +1487,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.bitand_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.bitand_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1530,13 +1535,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.bitor_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.bitor_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1579,13 +1583,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                crate::high_level_api::global_state::with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.bitxor_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.bitxor_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1633,7 +1636,8 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
+                {
+                    let streams = &cuda_key.streams;
                     let cuda_lhs = self.ciphertext.as_gpu_mut(streams);
                     let cuda_result = cuda_key.pbs_key().div(
                         &*cuda_lhs,
@@ -1641,7 +1645,7 @@ where
                         streams,
                     );
                     *cuda_lhs = cuda_result;
-                });
+                };
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1689,15 +1693,13 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
-                    let cuda_lhs = self.ciphertext.as_gpu_mut(streams);
-                    let cuda_result = cuda_key.pbs_key().rem(
-                        &*cuda_lhs,
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                    *cuda_lhs = cuda_result;
-                });
+                let streams = &cuda_key.streams;
+                let cuda_lhs = self.ciphertext.as_gpu_mut(streams);
+                let cuda_result =
+                    cuda_key
+                        .pbs_key()
+                        .rem(&*cuda_lhs, &rhs.ciphertext.on_gpu(streams), streams);
+                *cuda_lhs = cuda_result;
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1750,13 +1752,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.left_shift_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                });
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.left_shift_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1808,13 +1809,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.right_shift_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                });
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.right_shift_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1867,13 +1867,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.rotate_left_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                });
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.rotate_left_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1926,13 +1925,12 @@ where
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.rotate_right_assign(
-                        self.ciphertext.as_gpu_mut(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    );
-                });
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.rotate_right_assign(
+                    self.ciphertext.as_gpu_mut(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                );
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -2002,13 +2000,14 @@ where
                 FheInt::new(ciphertext, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key
                     .key
                     .key
                     .neg(&*self.ciphertext.on_gpu(streams), streams);
                 FheInt::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -2075,13 +2074,14 @@ where
                 FheInt::new(ciphertext, cpu_key.tag.clone())
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(cuda_key) => with_thread_local_cuda_streams(|streams| {
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
                 let inner_result = cuda_key
                     .key
                     .key
                     .bitnot(&*self.ciphertext.on_gpu(streams), streams);
                 FheInt::new(inner_result, cuda_key.tag.clone())
-            }),
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
@@ -2101,13 +2101,12 @@ where
 
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.get_add_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_add_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2126,13 +2125,12 @@ where
 
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.get_sub_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_sub_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2148,12 +2146,11 @@ where
     fn get_size_on_gpu(&self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key
-                        .key
-                        .key
-                        .get_ciphertext_size_on_gpu(&*self.ciphertext.on_gpu(streams))
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_ciphertext_size_on_gpu(&*self.ciphertext.on_gpu(streams))
             } else {
                 0
             }
@@ -2171,13 +2168,12 @@ where
         let rhs = rhs.borrow();
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.get_bitand_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitand_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2195,13 +2191,12 @@ where
         let rhs = rhs.borrow();
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.get_bitor_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2219,13 +2214,12 @@ where
         let rhs = rhs.borrow();
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key.key.key.get_bitxor_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitxor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2241,12 +2235,11 @@ where
     fn get_bitnot_size_on_gpu(&self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
-                    cuda_key
-                        .key
-                        .key
-                        .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -2262,7 +2255,8 @@ where
     fn get_gt_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_gt_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2277,7 +2271,8 @@ where
     fn get_ge_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_ge_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2292,7 +2287,8 @@ where
     fn get_lt_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_lt_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2307,7 +2303,8 @@ where
     fn get_le_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_le_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2328,7 +2325,8 @@ where
     fn get_min_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_min_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2350,7 +2348,8 @@ where
     fn get_max_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_max_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),

@@ -20,7 +20,7 @@ use tfhe_versionable::Versionize;
 pub use zk::ProvenCompactCiphertextList;
 
 #[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_thread_local_cuda_streams;
+use crate::high_level_api::global_state::with_cuda_internal_keys;
 
 #[cfg(feature = "zk-pok")]
 use crate::zk::{CompactPkeCrs, ZkComputeLoad};
@@ -252,9 +252,10 @@ mod zk {
             match self {
                 Self::Cpu(inner) => Self::Cpu(inner.clone()),
                 #[cfg(feature = "gpu")]
-                Self::Cuda(inner) => {
-                    with_thread_local_cuda_streams(|streams| Self::Cuda(inner.duplicate(streams)))
-                }
+                Self::Cuda(inner) => with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    Self::Cuda(inner.duplicate(streams))
+                }),
             }
         }
     }
@@ -279,15 +280,14 @@ mod zk {
             let new_value = match (&self, device) {
                 (Self::Cpu(_), crate::Device::Cpu) => None,
                 #[cfg(feature = "gpu")]
-                (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => {
-                    with_thread_local_cuda_streams(|streams| {
-                        if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
-                            None
-                        } else {
-                            Some(Self::Cuda(cuda_ct.duplicate(streams)))
-                        }
-                    })
-                }
+                (Self::Cuda(cuda_ct), crate::Device::CudaGpu) => with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
+                    if cuda_ct.gpu_indexes() == streams.gpu_indexes() {
+                        None
+                    } else {
+                        Some(Self::Cuda(cuda_ct.duplicate(streams)))
+                    }
+                }),
                 #[cfg(feature = "gpu")]
                 (Self::Cuda(cuda_ct), crate::Device::Cpu) => {
                     let cpu_ct = cuda_ct.h_proved_lists.clone();
@@ -295,7 +295,8 @@ mod zk {
                 }
                 #[cfg(feature = "gpu")]
                 (Self::Cpu(cpu_ct), crate::Device::CudaGpu) => {
-                    let cuda_ct = with_thread_local_cuda_streams(|streams| {
+                    let cuda_ct = with_cuda_internal_keys(|keys| {
+                        let streams = &keys.streams;
                         CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                             cpu_ct, streams,
                         )
@@ -456,7 +457,8 @@ mod zk {
                 #[cfg(feature = "gpu")]
                 Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
                     InnerProvenCompactCiphertextList::Cuda(inner) => {
-                        with_thread_local_cuda_streams(|streams| {
+                        with_cuda_internal_keys(|keys| {
+                            let streams = &keys.streams;
                             let ksk = CudaKeySwitchingKey {
                                 key_switching_key_material: gpu_key
                                     .key
@@ -480,31 +482,30 @@ mod zk {
                         })
                     }
                     InnerProvenCompactCiphertextList::Cpu(cpu_inner) => {
-                        with_thread_local_cuda_streams(|streams| {
+                        with_cuda_internal_keys(|keys| {
+                            let streams = &keys.streams;
                             let gpu_proven_ct = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                     cpu_inner, streams,
                                 );
-                            with_thread_local_cuda_streams(|streams| {
-                                let ksk = CudaKeySwitchingKey {
-                                    key_switching_key_material: gpu_key
-                                        .key
-                                        .cpk_key_switching_key_material
-                                        .as_ref()
-                                        .unwrap(),
-                                    dest_server_key: &gpu_key.key.key,
-                                };
-                                let expander = gpu_proven_ct.verify_and_expand(
-                                    crs,
-                                    &pk.key.key,
-                                    metadata,
-                                    &ksk,
-                                    streams,
-                                )?;
+                            let ksk = CudaKeySwitchingKey {
+                                key_switching_key_material: gpu_key
+                                    .key
+                                    .cpk_key_switching_key_material
+                                    .as_ref()
+                                    .unwrap(),
+                                dest_server_key: &gpu_key.key.key,
+                            };
+                            let expander = gpu_proven_ct.verify_and_expand(
+                                crs,
+                                &pk.key.key,
+                                metadata,
+                                &ksk,
+                                streams,
+                            )?;
 
-                                Ok(CompactCiphertextListExpander {
-                                    inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                                    tag: self.tag.clone(),
-                                })
+                            Ok(CompactCiphertextListExpander {
+                                inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                                tag: self.tag.clone(),
                             })
                         })
                     }
@@ -557,7 +558,8 @@ mod zk {
                     #[cfg(feature = "gpu")]
                     Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
                         InnerProvenCompactCiphertextList::Cuda(inner) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            with_cuda_internal_keys(|keys| {
+                                let streams = &keys.streams;
                                 let ksk = CudaKeySwitchingKey {
                                     key_switching_key_material: gpu_key
                                         .key
@@ -575,7 +577,8 @@ mod zk {
                             })
                         }
                         InnerProvenCompactCiphertextList::Cpu(inner) => {
-                            with_thread_local_cuda_streams(|streams| {
+                            with_cuda_internal_keys(|keys| {
+                               let streams = &keys.streams;
                                let gpu_proven_ct = CudaProvenCompactCiphertextList::from_proven_compact_ciphertext_list(
                                     inner, streams,
                                 );
@@ -705,9 +708,10 @@ impl CiphertextList for CompactCiphertextListExpander {
         let mut expanded = match &self.inner {
             InnerCompactCiphertextListExpander::Cpu(inner) => inner.get::<T>(index),
             #[cfg(feature = "gpu")]
-            InnerCompactCiphertextListExpander::Cuda(inner) => {
-                with_thread_local_cuda_streams(|streams| inner.get::<T>(index, streams))
-            }
+            InnerCompactCiphertextListExpander::Cuda(inner) => with_cuda_internal_keys(|keys| {
+                let streams = &keys.streams;
+                inner.get::<T>(index, streams)
+            }),
         };
 
         if let Ok(Some(inner)) = &mut expanded {
