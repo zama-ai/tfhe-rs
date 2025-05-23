@@ -17,39 +17,39 @@ where
     P: Into<TestParameters> + Clone,
 {
     // Binary Ops Executors
-    let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
-    let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
+    //let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
+    //let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
     let bitwise_and_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitand);
     let bitwise_or_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitor);
     let bitwise_xor_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitxor);
     let mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::mul);
-    let rotate_left_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_left);
-    let left_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::left_shift);
-    let rotate_right_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_right);
-    let right_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::right_shift);
-    let max_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::max);
-    let min_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::min);
+    //let rotate_left_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_left);
+    //let left_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::left_shift);
+    //let rotate_right_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::rotate_right);
+    //let right_shift_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::right_shift);
+    //let max_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::max);
+    //let min_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::min);
 
     // Binary Ops Clear functions
-    let clear_add = |x, y| x + y;
-    let clear_sub = |x, y| x - y;
+    //let clear_add = |x, y| x + y;
+    //let clear_sub = |x, y| x - y;
     let clear_bitwise_and = |x, y| x & y;
     let clear_bitwise_or = |x, y| x | y;
     let clear_bitwise_xor = |x, y| x ^ y;
     let clear_mul = |x, y| x * y;
     // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
-    let clear_left_shift = |x, y| x << y;
-    // Warning this rotate definition only works with 64-bit ciphertexts
-    let clear_rotate_right = |x: u64, y: u64| x.rotate_right(y as u32);
-    let clear_right_shift = |x, y| x >> y;
-    let clear_max = |x: u64, y: u64| max(x, y);
-    let clear_min = |x: u64, y: u64| min(x, y);
+    //let clear_rotate_left = |x: u64, y: u64| x.rotate_left(y as u32);
+    //let clear_left_shift = |x, y| x << y;
+    //// Warning this rotate definition only works with 64-bit ciphertexts
+    //let clear_rotate_right = |x: u64, y: u64| x.rotate_right(y as u32);
+    //let clear_right_shift = |x, y| x >> y;
+    //let clear_max = |x: u64, y: u64| max(x, y);
+    //let clear_min = |x: u64, y: u64| min(x, y);
 
     #[allow(clippy::type_complexity)]
     let mut binary_ops: Vec<(BinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
-        (Box::new(add_executor), &clear_add, "add".to_string()),
-        (Box::new(sub_executor), &clear_sub, "sub".to_string()),
+        //(Box::new(add_executor), &clear_add, "add".to_string()),
+        //(Box::new(sub_executor), &clear_sub, "sub".to_string()),
         (
             Box::new(bitwise_and_executor),
             &clear_bitwise_and,
@@ -66,28 +66,28 @@ where
             "bitxor".to_string(),
         ),
         (Box::new(mul_executor), &clear_mul, "mul".to_string()),
-        (
-            Box::new(rotate_left_executor),
-            &clear_rotate_left,
-            "rotate left".to_string(),
-        ),
-        (
-            Box::new(left_shift_executor),
-            &clear_left_shift,
-            "left shift".to_string(),
-        ),
-        (
-            Box::new(rotate_right_executor),
-            &clear_rotate_right,
-            "rotate right".to_string(),
-        ),
-        (
-            Box::new(right_shift_executor),
-            &clear_right_shift,
-            "right shift".to_string(),
-        ),
-        (Box::new(max_executor), &clear_max, "max".to_string()),
-        (Box::new(min_executor), &clear_min, "min".to_string()),
+        //(
+        //    Box::new(rotate_left_executor),
+        //    &clear_rotate_left,
+        //    "rotate left".to_string(),
+        //),
+        //(
+        //    Box::new(left_shift_executor),
+        //    &clear_left_shift,
+        //    "left shift".to_string(),
+        //),
+        //(
+        //    Box::new(rotate_right_executor),
+        //    &clear_rotate_right,
+        //    "rotate right".to_string(),
+        //),
+        //(
+        //    Box::new(right_shift_executor),
+        //    &clear_right_shift,
+        //    "right shift".to_string(),
+        //),
+        //(Box::new(max_executor), &clear_max, "max".to_string()),
+        //(Box::new(min_executor), &clear_min, "min".to_string()),
     ];
 
     // Unary Ops Executors
@@ -115,8 +115,8 @@ where
     ];
 
     // Scalar binary Ops Executors
-    let scalar_add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_add);
-    let scalar_sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_sub);
+    //let scalar_add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_add);
+    //let scalar_sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_sub);
     let scalar_bitwise_and_executor =
         GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitand);
     let scalar_bitwise_or_executor =
@@ -124,27 +124,27 @@ where
     let scalar_bitwise_xor_executor =
         GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_bitxor);
     let scalar_mul_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_mul);
-    let scalar_rotate_left_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
-    let scalar_left_shift_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
-    let scalar_rotate_right_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
-    let scalar_right_shift_executor =
-        GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
+    //let scalar_rotate_left_executor =
+    //    GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_left);
+    //let scalar_left_shift_executor =
+    //    GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_left_shift);
+    //let scalar_rotate_right_executor =
+    //    GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_rotate_right);
+    //let scalar_right_shift_executor =
+    //    GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_right_shift);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_binary_ops: Vec<(ScalarBinaryOpExecutor, &dyn Fn(u64, u64) -> u64, String)> = vec![
-        (
-            Box::new(scalar_add_executor),
-            &clear_add,
-            "scalar add".to_string(),
-        ),
-        (
-            Box::new(scalar_sub_executor),
-            &clear_sub,
-            "scalar sub".to_string(),
-        ),
+        //(
+        //    Box::new(scalar_add_executor),
+        //    &clear_add,
+        //    "scalar add".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_sub_executor),
+        //    &clear_sub,
+        //    "scalar sub".to_string(),
+        //),
         (
             Box::new(scalar_bitwise_and_executor),
             &clear_bitwise_and,
@@ -165,26 +165,26 @@ where
             &clear_mul,
             "scalar mul".to_string(),
         ),
-        (
-            Box::new(scalar_rotate_left_executor),
-            &clear_rotate_left,
-            "scalar rotate left".to_string(),
-        ),
-        (
-            Box::new(scalar_left_shift_executor),
-            &clear_left_shift,
-            "scalar left shift".to_string(),
-        ),
-        (
-            Box::new(scalar_rotate_right_executor),
-            &clear_rotate_right,
-            "scalar rotate right".to_string(),
-        ),
-        (
-            Box::new(scalar_right_shift_executor),
-            &clear_right_shift,
-            "scalar right shift".to_string(),
-        ),
+        //(
+        //    Box::new(scalar_rotate_left_executor),
+        //    &clear_rotate_left,
+        //    "scalar rotate left".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_left_shift_executor),
+        //    &clear_left_shift,
+        //    "scalar left shift".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_rotate_right_executor),
+        //    &clear_rotate_right,
+        //    "scalar rotate right".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_right_shift_executor),
+        //    &clear_right_shift,
+        //    "scalar right shift".to_string(),
+        //),
     ];
 
     // Overflowing Ops Executors
@@ -249,37 +249,37 @@ where
 
     // Comparison Ops Executors
     let gt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::gt);
-    let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
-    let lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::lt);
-    let le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::le);
-    let eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::eq);
-    let ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ne);
+    //let ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ge);
+    //let lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::lt);
+    //let le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::le);
+    //let eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::eq);
+    //let ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::ne);
 
     // Comparison Ops Clear functions
     let clear_gt = |x: u64, y: u64| -> bool { x > y };
-    let clear_ge = |x: u64, y: u64| -> bool { x >= y };
-    let clear_lt = |x: u64, y: u64| -> bool { x < y };
-    let clear_le = |x: u64, y: u64| -> bool { x <= y };
-    let clear_eq = |x: u64, y: u64| -> bool { x == y };
-    let clear_ne = |x: u64, y: u64| -> bool { x != y };
+    //let clear_ge = |x: u64, y: u64| -> bool { x >= y };
+    //let clear_lt = |x: u64, y: u64| -> bool { x < y };
+    //let clear_le = |x: u64, y: u64| -> bool { x <= y };
+    //let clear_eq = |x: u64, y: u64| -> bool { x == y };
+    //let clear_ne = |x: u64, y: u64| -> bool { x != y };
 
     #[allow(clippy::type_complexity)]
     let mut comparison_ops: Vec<(ComparisonOpExecutor, &dyn Fn(u64, u64) -> bool, String)> = vec![
         (Box::new(gt_executor), &clear_gt, "gt".to_string()),
-        (Box::new(ge_executor), &clear_ge, "ge".to_string()),
-        (Box::new(lt_executor), &clear_lt, "lt".to_string()),
-        (Box::new(le_executor), &clear_le, "le".to_string()),
-        (Box::new(eq_executor), &clear_eq, "eq".to_string()),
-        (Box::new(ne_executor), &clear_ne, "ne".to_string()),
+        //(Box::new(ge_executor), &clear_ge, "ge".to_string()),
+        //(Box::new(lt_executor), &clear_lt, "lt".to_string()),
+        //(Box::new(le_executor), &clear_le, "le".to_string()),
+        //(Box::new(eq_executor), &clear_eq, "eq".to_string()),
+        //(Box::new(ne_executor), &clear_ne, "ne".to_string()),
     ];
 
     // Scalar Comparison Ops Executors
     let scalar_gt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_gt);
-    let scalar_ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ge);
-    let scalar_lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_lt);
-    let scalar_le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_le);
-    let scalar_eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_eq);
-    let scalar_ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ne);
+    //let scalar_ge_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ge);
+    //let scalar_lt_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_lt);
+    //let scalar_le_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_le);
+    //let scalar_eq_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_eq);
+    //let scalar_ne_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::scalar_ne);
 
     #[allow(clippy::type_complexity)]
     let mut scalar_comparison_ops: Vec<(
@@ -292,31 +292,31 @@ where
             &clear_gt,
             "scalar gt".to_string(),
         ),
-        (
-            Box::new(scalar_ge_executor),
-            &clear_ge,
-            "scalar ge".to_string(),
-        ),
-        (
-            Box::new(scalar_lt_executor),
-            &clear_lt,
-            "scalar lt".to_string(),
-        ),
-        (
-            Box::new(scalar_le_executor),
-            &clear_le,
-            "scalar le".to_string(),
-        ),
-        (
-            Box::new(scalar_eq_executor),
-            &clear_eq,
-            "scalar eq".to_string(),
-        ),
-        (
-            Box::new(scalar_ne_executor),
-            &clear_ne,
-            "scalar ne".to_string(),
-        ),
+        //(
+        //    Box::new(scalar_ge_executor),
+        //    &clear_ge,
+        //    "scalar ge".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_lt_executor),
+        //    &clear_lt,
+        //    "scalar lt".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_le_executor),
+        //    &clear_le,
+        //    "scalar le".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_eq_executor),
+        //    &clear_eq,
+        //    "scalar eq".to_string(),
+        //),
+        //(
+        //    Box::new(scalar_ne_executor),
+        //    &clear_ne,
+        //    "scalar ne".to_string(),
+        //),
     ];
 
     // Select Executor

@@ -578,16 +578,19 @@ pub(crate) fn random_op_sequence_test<P>(
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
-            // Determinism check
-            let res_1 = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            // Determinism check
+            let res_1 = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
+            assert_eq!(
+                res, res_1,
+                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} with input degrees {input_degrees_left:?} and {input_degrees_right:?}",
+            );
+            println!("Input degrees left: {input_degrees_left:?}, right {input_degrees_right:?}, Output degrees {:?}", output_degrees);
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
 
@@ -633,13 +636,13 @@ pub(crate) fn random_op_sequence_test<P>(
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
+            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
             // Determinism check
             let res_1 = unary_op_executor.execute(input);
             assert_eq!(
                 res, res_1,
-                "Determinism check failed on unary op {fn_name} with clear input {clear_input}.",
+                "Determinism check failed on unary op {fn_name} with clear input {clear_input} with input degrees {input_degrees:?}.",
             );
-            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_input);
             if i % 2 == 0 {
@@ -675,16 +678,16 @@ pub(crate) fn random_op_sequence_test<P>(
                     "Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
+            let input_degrees_left: Vec<u64> =
+                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             // Determinism check
             let res_1 = scalar_binary_op_executor.execute((&left_vec[i], clear_right_vec[i]));
             assert_eq!(
                 res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} with input degrees {input_degrees_left:?}.",
             );
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
 
             if i % 2 == 0 {
                 left_vec[j] = res.clone();
