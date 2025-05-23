@@ -1,7 +1,7 @@
 use super::*;
 use crate::core_crypto::commons::noise_formulas::lwe_multi_bit_programmable_bootstrap::{
-    multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul,
-    multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul,
+    multi_bit_pbs_variance_132_bits_security_gaussian_gf_3,
+    multi_bit_pbs_variance_132_bits_security_tuniform_gf_3,
 };
 use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
@@ -51,26 +51,22 @@ where
     };
 
     let expected_variance = match params.lwe_noise_distribution {
-        DynamicDistribution::TUniform(_) => {
-            multi_bit_pbs_variance_132_bits_security_tuniform_gf_3_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            )
-        }
-        DynamicDistribution::Gaussian(_) => {
-            multi_bit_pbs_variance_132_bits_security_gaussian_gf_3_fft_mul(
-                input_lwe_dimension,
-                glwe_dimension,
-                polynomial_size,
-                pbs_decomposition_base_log,
-                pbs_decomposition_level_count,
-                modulus_as_f64,
-            )
-        }
+        DynamicDistribution::TUniform(_) => multi_bit_pbs_variance_132_bits_security_tuniform_gf_3(
+            input_lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_decomposition_base_log,
+            pbs_decomposition_level_count,
+            modulus_as_f64,
+        ),
+        DynamicDistribution::Gaussian(_) => multi_bit_pbs_variance_132_bits_security_gaussian_gf_3(
+            input_lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            pbs_decomposition_base_log,
+            pbs_decomposition_level_count,
+            modulus_as_f64,
+        ),
     };
 
     let mut rsc = TestResources::new();
