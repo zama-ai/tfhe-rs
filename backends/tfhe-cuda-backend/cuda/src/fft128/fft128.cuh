@@ -492,6 +492,7 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
   batch_convert_u128_to_f128_as_integer<params>
       <<<grid_size, block_size, 0, stream>>>(d_re0, d_re1, d_im0, d_im1,
                                              d_standard);
+  check_cuda_error(cudaGetLastError());
 
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
@@ -503,6 +504,7 @@ __host__ void host_fourier_transform_forward_as_integer_f128(
         <<<grid_size, block_size, shared_memory_size, stream>>>(
             d_re0, d_re1, d_im0, d_im1, d_re0, d_re1, d_im0, d_im1, buffer);
   }
+  check_cuda_error(cudaGetLastError());
 
   cuda_memcpy_async_to_cpu(re0, d_re0, N / 2 * sizeof(double), stream,
                            gpu_index);

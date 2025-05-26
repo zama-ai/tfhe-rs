@@ -279,6 +279,7 @@ void cuda_convert_lwe_programmable_bootstrap_key(cudaStream_t stream,
     PANIC("Cuda error (convert KSK): unsupported polynomial size. Supported "
           "N's are powers of two in the interval [256..16384].")
   }
+  check_cuda_error(cudaGetLastError());
 
   cuda_drop_async(d_bsk, stream, gpu_index);
   cuda_drop_async(buffer, stream, gpu_index);
@@ -315,6 +316,7 @@ void convert_u128_to_f128_and_forward_fft_128(cudaStream_t stream,
   // convert u128 into 4 x double
   batch_convert_u128_to_f128_strided_as_torus<params>
       <<<grid_size, block_size, 0, stream>>>(d_bsk, d_standard);
+  check_cuda_error(cudaGetLastError());
 
   // call negacyclic 128 bit forward fft.
   if (full_sm) {
@@ -326,6 +328,7 @@ void convert_u128_to_f128_and_forward_fft_128(cudaStream_t stream,
         <<<grid_size, block_size, shared_memory_size, stream>>>(d_bsk, d_bsk,
                                                                 buffer);
   }
+  check_cuda_error(cudaGetLastError());
   cuda_drop_async(buffer, stream, gpu_index);
 }
 
