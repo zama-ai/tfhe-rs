@@ -295,7 +295,36 @@ where
     }
 }
 
-pub const HASH_METADATA_LEN_BYTES: usize = 256;
+/// Len of the "domain separator" fields used with the sha3 XoF PRNG
+pub const HASH_DS_LEN_BYTES: usize = 8;
+
+pub const LEGACY_HASH_DS_LEN_BYTES: usize = 256;
+
+/// A unique id that is used to tie the hash functions to a specific CRS
+#[derive(Debug, Clone, Copy)]
+// This is an option for backward compatibility reasons
+pub(crate) struct Sid(pub(crate) Option<u128>);
+
+impl Sid {
+    fn new(rng: &mut dyn RngCore) -> Self {
+        Self(Some(rng.gen()))
+    }
+
+    fn to_le_bytes(self) -> SidBytes {
+        self.0
+            .map(|val| SidBytes(Some(val.to_le_bytes())))
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Default)]
+struct SidBytes(Option<[u8; 16]>);
+
+impl SidBytes {
+    fn as_slice(&self) -> &[u8] {
+        self.0.as_ref().map(|val| val.as_slice()).unwrap_or(&[])
+    }
+}
 
 // The verifier is meant to be executed on a large server with a high number of core. However, some
 // arkworks operations do not scale well in that case, and we actually see decreased performance
