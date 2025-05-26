@@ -1,4 +1,5 @@
 use shortint::parameters::test_params::{
+    TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -98,10 +99,19 @@ fn test_noise_check_secret_key_encryption_noise_tuniform() {
 }
 
 #[test]
-fn test_noise_check_compact_public_key_encryption_noise_tuniform() {
+fn test_noise_check_compact_public_key_to_small_encryption_noise_tuniform() {
     noise_check_compact_public_key_encryption_noise_tuniform(
         TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_compact_public_key_to_big_encryption_noise_tuniform() {
+    noise_check_compact_public_key_encryption_noise_tuniform(
+        TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
