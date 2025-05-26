@@ -6,7 +6,8 @@ use std::marker::PhantomData;
 
 use crate::backward_compatibility::{
     SerializableAffineVersions, SerializableCubicExtFieldVersions, SerializableFpVersions,
-    SerializableGroupElementsVersions, SerializablePKEv1PublicParamsVersions,
+    SerializableGroupElementsVersions, SerializablePKEv1DomainSeparatorsVersions,
+    SerializablePKEv1PublicParamsVersions, SerializablePKEv2DomainSeparatorsVersions,
     SerializablePKEv2PublicParamsVersions, SerializableQuadExtFieldVersions,
 };
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
@@ -16,9 +17,15 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
 use crate::curve_api::{Curve, CurveGroupOps};
-use crate::proofs::pke::PublicParams as PKEv1PublicParams;
-use crate::proofs::pke_v2::{Bound, PublicParams as PKEv2PublicParams};
-use crate::proofs::GroupElements;
+use crate::proofs::pke::{
+    LegacyPKEv1DomainSeparators, PKEv1DomainSeparators, PublicParams as PKEv1PublicParams,
+    ShortPKEv1DomainSeparators,
+};
+use crate::proofs::pke_v2::{
+    Bound, LegacyPKEv2DomainSeparators, PKEv2DomainSeparators, PublicParams as PKEv2PublicParams,
+    ShortPKEv2DomainSeparators,
+};
+use crate::proofs::{GroupElements, Sid, HASH_DS_LEN_BYTES, LEGACY_HASH_DS_LEN_BYTES};
 
 /// Error returned when a conversion from a vec to a fixed size array failed because the vec size is
 /// incorrect
@@ -399,26 +406,17 @@ impl From<InvalidArraySizeError> for InvalidSerializedPublicParamsError {
 pub struct SerializablePKEv2PublicParams {
     pub(crate) g_lists: SerializableGroupElements,
     pub(crate) D: usize,
-    pub n: usize,
-    pub d: usize,
-    pub k: usize,
-    pub B_bound_squared: u128,
-    pub B_inf: u64,
-    pub q: u64,
-    pub t: u64,
-    pub msbs_zero_padding_bit_count: u64,
-    pub bound_type: Bound,
-    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
-    pub(crate) hash: Vec<u8>,
-    pub(crate) hash_R: Vec<u8>,
-    pub(crate) hash_t: Vec<u8>,
-    pub(crate) hash_w: Vec<u8>,
-    pub(crate) hash_agg: Vec<u8>,
-    pub(crate) hash_lmap: Vec<u8>,
-    pub(crate) hash_phi: Vec<u8>,
-    pub(crate) hash_xi: Vec<u8>,
-    pub(crate) hash_z: Vec<u8>,
-    pub(crate) hash_chi: Vec<u8>,
+    pub(crate) n: usize,
+    pub(crate) d: usize,
+    pub(crate) k: usize,
+    pub(crate) B_bound_squared: u128,
+    pub(crate) B_inf: u64,
+    pub(crate) q: u64,
+    pub(crate) t: u64,
+    pub(crate) msbs_zero_padding_bit_count: u64,
+    pub(crate) bound_type: Bound,
+    pub(crate) sid: Option<u128>,
+    pub(crate) domain_separators: SerializablePKEv2DomainSeparators,
 }
 
 impl<G: Curve> From<PKEv2PublicParams<G>> for SerializablePKEv2PublicParams
@@ -438,16 +436,8 @@ where
             t,
             msbs_zero_padding_bit_count,
             bound_type,
-            hash,
-            hash_R,
-            hash_t,
-            hash_w,
-            hash_agg,
-            hash_lmap,
-            hash_phi,
-            hash_xi,
-            hash_z,
-            hash_chi,
+            sid,
+            domain_separators,
         } = value;
         Self {
             g_lists: g_lists.into(),
@@ -461,16 +451,8 @@ where
             t,
             msbs_zero_padding_bit_count,
             bound_type,
-            hash: hash.to_vec(),
-            hash_R: hash_R.to_vec(),
-            hash_t: hash_t.to_vec(),
-            hash_w: hash_w.to_vec(),
-            hash_agg: hash_agg.to_vec(),
-            hash_lmap: hash_lmap.to_vec(),
-            hash_phi: hash_phi.to_vec(),
-            hash_xi: hash_xi.to_vec(),
-            hash_z: hash_z.to_vec(),
-            hash_chi: hash_chi.to_vec(),
+            sid: sid.0,
+            domain_separators: domain_separators.into(),
         }
     }
 }
@@ -495,16 +477,8 @@ where
             t,
             msbs_zero_padding_bit_count,
             bound_type,
-            hash,
-            hash_R,
-            hash_t,
-            hash_w,
-            hash_agg,
-            hash_lmap,
-            hash_phi,
-            hash_xi,
-            hash_z,
-            hash_chi,
+            sid,
+            domain_separators,
         } = value;
         Ok(Self {
             g_lists: g_lists.try_into()?,
@@ -518,6 +492,63 @@ where
             t,
             msbs_zero_padding_bit_count,
             bound_type,
+            sid: Sid(sid),
+            domain_separators: domain_separators.try_into()?,
+        })
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SerializablePKEv2DomainSeparatorsVersions)]
+pub struct SerializablePKEv2DomainSeparators {
+    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
+    pub(crate) hash: Vec<u8>,
+    pub(crate) hash_R: Vec<u8>,
+    pub(crate) hash_t: Vec<u8>,
+    pub(crate) hash_w: Vec<u8>,
+    pub(crate) hash_agg: Vec<u8>,
+    pub(crate) hash_lmap: Vec<u8>,
+    pub(crate) hash_phi: Vec<u8>,
+    pub(crate) hash_xi: Vec<u8>,
+    pub(crate) hash_z: Vec<u8>,
+    pub(crate) hash_chi: Vec<u8>,
+}
+
+impl From<PKEv2DomainSeparators> for SerializablePKEv2DomainSeparators {
+    fn from(value: PKEv2DomainSeparators) -> Self {
+        Self {
+            hash: value.hash().to_vec(),
+            hash_R: value.hash_R().to_vec(),
+            hash_t: value.hash_t().to_vec(),
+            hash_w: value.hash_w().to_vec(),
+            hash_agg: value.hash_agg().to_vec(),
+            hash_lmap: value.hash_lmap().to_vec(),
+            hash_phi: value.hash_phi().to_vec(),
+            hash_xi: value.hash_xi().to_vec(),
+            hash_z: value.hash_z().to_vec(),
+            hash_chi: value.hash_chi().to_vec(),
+        }
+    }
+}
+
+impl TryFrom<SerializablePKEv2DomainSeparators> for LegacyPKEv2DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv2DomainSeparators) -> Result<Self, Self::Error> {
+        let SerializablePKEv2DomainSeparators {
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = value;
+
+        Ok(Self {
             hash: try_vec_to_array(hash)?,
             hash_R: try_vec_to_array(hash_R)?,
             hash_t: try_vec_to_array(hash_t)?,
@@ -532,26 +563,70 @@ where
     }
 }
 
+impl TryFrom<SerializablePKEv2DomainSeparators> for ShortPKEv2DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv2DomainSeparators) -> Result<Self, Self::Error> {
+        let SerializablePKEv2DomainSeparators {
+            hash,
+            hash_R,
+            hash_t,
+            hash_w,
+            hash_agg,
+            hash_lmap,
+            hash_phi,
+            hash_xi,
+            hash_z,
+            hash_chi,
+        } = value;
+
+        Ok(Self {
+            hash: try_vec_to_array(hash)?,
+            hash_R: try_vec_to_array(hash_R)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_w: try_vec_to_array(hash_w)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_phi: try_vec_to_array(hash_phi)?,
+            hash_xi: try_vec_to_array(hash_xi)?,
+            hash_z: try_vec_to_array(hash_z)?,
+            hash_chi: try_vec_to_array(hash_chi)?,
+        })
+    }
+}
+
+impl TryFrom<SerializablePKEv2DomainSeparators> for PKEv2DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv2DomainSeparators) -> Result<Self, Self::Error> {
+        let len = value.hash.len();
+
+        match len {
+            LEGACY_HASH_DS_LEN_BYTES => Ok(Self::Legacy(Box::new(value.try_into()?))),
+            HASH_DS_LEN_BYTES => Ok(Self::Short(value.try_into()?)),
+            _ => Err(InvalidArraySizeError {
+                expected_len: HASH_DS_LEN_BYTES,
+                found_len: len,
+            }),
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Versionize)]
 #[versionize(SerializablePKEv1PublicParamsVersions)]
 pub struct SerializablePKEv1PublicParams {
     pub(crate) g_lists: SerializableGroupElements,
     pub(crate) big_d: usize,
-    pub n: usize,
-    pub d: usize,
-    pub k: usize,
-    pub b: u64,
-    pub b_r: u64,
-    pub q: u64,
-    pub t: u64,
-    pub msbs_zero_padding_bit_count: u64,
-    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
-    pub(crate) hash: Vec<u8>,
-    pub(crate) hash_t: Vec<u8>,
-    pub(crate) hash_agg: Vec<u8>,
-    pub(crate) hash_lmap: Vec<u8>,
-    pub(crate) hash_z: Vec<u8>,
-    pub(crate) hash_w: Vec<u8>,
+    pub(crate) n: usize,
+    pub(crate) d: usize,
+    pub(crate) k: usize,
+    pub(crate) b: u64,
+    pub(crate) b_r: u64,
+    pub(crate) q: u64,
+    pub(crate) t: u64,
+    pub(crate) msbs_zero_padding_bit_count: u64,
+    pub(crate) sid: Option<u128>,
+    pub(crate) domain_separators: SerializablePKEv1DomainSeparators,
 }
 
 impl<G: Curve> From<PKEv1PublicParams<G>> for SerializablePKEv1PublicParams
@@ -570,12 +645,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash,
-            hash_t,
-            hash_agg,
-            hash_lmap,
-            hash_z,
-            hash_w,
+            sid,
+            domain_separators,
         } = value;
         Self {
             g_lists: g_lists.into(),
@@ -588,12 +659,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash: hash.to_vec(),
-            hash_t: hash_t.to_vec(),
-            hash_agg: hash_agg.to_vec(),
-            hash_lmap: hash_lmap.to_vec(),
-            hash_z: hash_z.to_vec(),
-            hash_w: hash_w.to_vec(),
+            sid: sid.0,
+            domain_separators: domain_separators.into(),
         }
     }
 }
@@ -617,12 +684,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash,
-            hash_t,
-            hash_agg,
-            hash_lmap,
-            hash_z,
-            hash_w,
+            sid,
+            domain_separators,
         } = value;
         Ok(Self {
             g_lists: g_lists.try_into()?,
@@ -635,12 +698,98 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
+            sid: Sid(sid),
+            domain_separators: domain_separators.try_into()?,
+        })
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(SerializablePKEv1DomainSeparatorsVersions)]
+pub struct SerializablePKEv1DomainSeparators {
+    // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
+    pub(crate) hash: Vec<u8>,
+    pub(crate) hash_t: Vec<u8>,
+    pub(crate) hash_agg: Vec<u8>,
+    pub(crate) hash_lmap: Vec<u8>,
+    pub(crate) hash_w: Vec<u8>,
+    pub(crate) hash_z: Vec<u8>,
+}
+
+impl From<PKEv1DomainSeparators> for SerializablePKEv1DomainSeparators {
+    fn from(value: PKEv1DomainSeparators) -> Self {
+        Self {
+            hash: value.hash().to_vec(),
+            hash_t: value.hash_t().to_vec(),
+            hash_agg: value.hash_agg().to_vec(),
+            hash_lmap: value.hash_lmap().to_vec(),
+            hash_w: value.hash_w().to_vec(),
+            hash_z: value.hash_z().to_vec(),
+        }
+    }
+}
+
+impl TryFrom<SerializablePKEv1DomainSeparators> for LegacyPKEv1DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv1DomainSeparators) -> Result<Self, Self::Error> {
+        let SerializablePKEv1DomainSeparators {
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_w,
+            hash_z,
+        } = value;
+
+        Ok(Self {
             hash: try_vec_to_array(hash)?,
             hash_t: try_vec_to_array(hash_t)?,
             hash_agg: try_vec_to_array(hash_agg)?,
             hash_lmap: try_vec_to_array(hash_lmap)?,
-            hash_z: try_vec_to_array(hash_z)?,
             hash_w: try_vec_to_array(hash_w)?,
+            hash_z: try_vec_to_array(hash_z)?,
         })
+    }
+}
+
+impl TryFrom<SerializablePKEv1DomainSeparators> for ShortPKEv1DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv1DomainSeparators) -> Result<Self, Self::Error> {
+        let SerializablePKEv1DomainSeparators {
+            hash,
+            hash_t,
+            hash_agg,
+            hash_lmap,
+            hash_w,
+            hash_z,
+        } = value;
+
+        Ok(Self {
+            hash: try_vec_to_array(hash)?,
+            hash_t: try_vec_to_array(hash_t)?,
+            hash_agg: try_vec_to_array(hash_agg)?,
+            hash_lmap: try_vec_to_array(hash_lmap)?,
+            hash_w: try_vec_to_array(hash_w)?,
+            hash_z: try_vec_to_array(hash_z)?,
+        })
+    }
+}
+
+impl TryFrom<SerializablePKEv1DomainSeparators> for PKEv1DomainSeparators {
+    type Error = InvalidArraySizeError;
+
+    fn try_from(value: SerializablePKEv1DomainSeparators) -> Result<Self, Self::Error> {
+        let len = value.hash.len();
+
+        match len {
+            LEGACY_HASH_DS_LEN_BYTES => Ok(Self::Legacy(Box::new(value.try_into()?))),
+            HASH_DS_LEN_BYTES => Ok(Self::Short(value.try_into()?)),
+            _ => Err(InvalidArraySizeError {
+                expected_len: HASH_DS_LEN_BYTES,
+                found_len: len,
+            }),
+        }
     }
 }
