@@ -261,6 +261,8 @@ void cuda_fourier_polynomial_mul(void *stream_v, uint32_t gpu_index,
   default:
     break;
   }
+  check_cuda_error(cudaGetLastError());
+
   cuda_drop_async(buffer, stream, gpu_index);
 }
 
