@@ -428,7 +428,16 @@ where
     // Div executor
     let div_rem_executor = CpuFunctionExecutor::new(&ServerKey::div_rem_parallelized);
     // Div Rem Clear functions
-    let clear_div_rem = |x: i64, y: i64| -> (i64, i64) { (x.wrapping_div(y), x % y) };
+    let clear_div_rem = |x: i64, y: i64| -> (i64, i64) {
+        (
+            x.wrapping_div(y),
+            if x == i64::MIN && y == -1 {
+                0 // Because i64::MIN % -1 mathematically is 0
+            } else {
+                x % y
+            },
+        )
+    };
     #[allow(clippy::type_complexity)]
     let mut div_rem_op: Vec<(
         SignedDivRemOpExecutor,
