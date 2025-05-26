@@ -84,7 +84,7 @@ jobs:
         run: |
           # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
           # shellcheck disable=SC2001
-          PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\\", \\"/g')
+          PARSED_COMMAND=$(echo "${INPUTS_COMMAND}" | sed 's/[[:space:]]*,[[:space:]]*/\", \"/g')
           echo "COMMAND=[\"${PARSED_COMMAND}\"]" >> "${GITHUB_ENV}"
 
       - name: Set single operations flavor
