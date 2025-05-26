@@ -45,7 +45,8 @@ pub use hpu::*;
 
 use crate::shortint::parameters::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
-    MultiBitPBSParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    KeySwitch32PBSParameters, MultiBitPBSParameters, NoiseSquashingParameters,
+    ShortintKeySwitchingParameters,
 };
 
 /// All [`ClassicPBSParameters`] in this module.
@@ -1693,5 +1694,22 @@ pub const VEC_ALL_NOISE_SQUASHING_PARAMETERS: [(&NoiseSquashingParameters, &str)
     "V1_2_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128",
 )];
 
+pub const VEC_ALL_KS32_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
+    &V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+    "V1_2_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
+)];
+
 #[cfg(feature = "hpu")]
 pub mod hpu;
+
+#[cfg(feature = "hpu")]
+pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 2] = [
+    (
+        &V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64,
+        "V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64",
+    ),
+    (
+        &V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64,
+        "V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64",
+    ),
+];

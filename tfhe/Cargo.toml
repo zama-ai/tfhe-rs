@@ -184,7 +184,7 @@ required-features = ["boolean"]
 [[example]]
 name = "write_params_to_file"
 path = "examples/utilities/params_to_file.rs"
-required-features = ["boolean", "shortint", "internal-keycache"]
+required-features = ["boolean", "shortint", "internal-keycache", "hpu"]
 
 [[example]]
 name = "print_doc_bench_parameters"
