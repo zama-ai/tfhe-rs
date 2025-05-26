@@ -5,8 +5,8 @@ use crate::backward_compatibility::pke::{
     ComputeLoadProofFieldVersions, ProofVersions,
 };
 use crate::serialization::{
-    try_vec_to_array, InvalidSerializedAffineError, InvalidSerializedPublicParamsError,
-    SerializableGroupElements, SerializablePKEv1PublicParams,
+    InvalidSerializedAffineError, InvalidSerializedPublicParamsError, SerializableGroupElements,
+    SerializablePKEv1PublicParams,
 };
 
 use super::*;
@@ -40,12 +40,91 @@ pub struct PublicParams<G: Curve> {
     pub q: u64,
     pub t: u64,
     pub msbs_zero_padding_bit_count: u64,
-    pub(crate) hash: [u8; HASH_METADATA_LEN_BYTES],
-    pub(crate) hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    pub(crate) hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-    pub(crate) hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-    pub(crate) hash_z: [u8; HASH_METADATA_LEN_BYTES],
-    pub(crate) hash_w: [u8; HASH_METADATA_LEN_BYTES],
+    pub(crate) sid: Sid,
+    pub(crate) domain_separators: PKEv1DomainSeparators,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum PKEv1DomainSeparators {
+    Legacy(Box<LegacyPKEv1DomainSeparators>),
+    Short(ShortPKEv1DomainSeparators),
+}
+
+impl PKEv1DomainSeparators {
+    pub(crate) fn new(rng: &mut dyn RngCore) -> Self {
+        let ds = ShortPKEv1DomainSeparators {
+            hash: core::array::from_fn(|_| rng.gen()),
+            hash_t: core::array::from_fn(|_| rng.gen()),
+            hash_agg: core::array::from_fn(|_| rng.gen()),
+            hash_lmap: core::array::from_fn(|_| rng.gen()),
+            hash_z: core::array::from_fn(|_| rng.gen()),
+            hash_w: core::array::from_fn(|_| rng.gen()),
+        };
+
+        Self::Short(ds)
+    }
+
+    pub(crate) fn hash(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash,
+        }
+    }
+
+    pub(crate) fn hash_t(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash_t,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash_t,
+        }
+    }
+
+    pub(crate) fn hash_agg(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash_agg,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash_agg,
+        }
+    }
+
+    pub(crate) fn hash_lmap(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash_lmap,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash_lmap,
+        }
+    }
+
+    pub(crate) fn hash_w(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash_w,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash_w,
+        }
+    }
+
+    pub(crate) fn hash_z(&self) -> &[u8] {
+        match self {
+            PKEv1DomainSeparators::Legacy(ds) => &ds.hash_z,
+            PKEv1DomainSeparators::Short(ds) => &ds.hash_z,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LegacyPKEv1DomainSeparators {
+    pub(crate) hash: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_t: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_agg: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_lmap: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_w: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_z: [u8; LEGACY_HASH_DS_LEN_BYTES],
+}
+
+#[derive(Clone, Debug)]
+pub struct ShortPKEv1DomainSeparators {
+    pub(crate) hash: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_t: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_agg: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_lmap: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_z: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_w: [u8; HASH_DS_LEN_BYTES],
 }
 
 impl<G: Curve> Compressible for PublicParams<G>
@@ -71,12 +150,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash,
-            hash_t,
-            hash_agg,
-            hash_lmap,
-            hash_z,
-            hash_w,
+            sid,
+            domain_separators,
         } = self;
         SerializablePKEv1PublicParams {
             g_lists: g_lists.compress(),
@@ -89,12 +164,8 @@ where
             q: *q,
             t: *t,
             msbs_zero_padding_bit_count: *msbs_zero_padding_bit_count,
-            hash: hash.to_vec(),
-            hash_t: hash_t.to_vec(),
-            hash_agg: hash_agg.to_vec(),
-            hash_lmap: hash_lmap.to_vec(),
-            hash_z: hash_z.to_vec(),
-            hash_w: hash_w.to_vec(),
+            sid: sid.0,
+            domain_separators: domain_separators.clone().into(),
         }
     }
 
@@ -110,12 +181,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash,
-            hash_t,
-            hash_agg,
-            hash_lmap,
-            hash_z,
-            hash_w,
+            sid,
+            domain_separators,
         } = compressed;
         Ok(Self {
             g_lists: GroupElements::uncompress(g_lists)?,
@@ -128,12 +195,8 @@ where
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash: try_vec_to_array(hash)?,
-            hash_t: try_vec_to_array(hash_t)?,
-            hash_agg: try_vec_to_array(hash_agg)?,
-            hash_lmap: try_vec_to_array(hash_lmap)?,
-            hash_z: try_vec_to_array(hash_z)?,
-            hash_w: try_vec_to_array(hash_w)?,
+            sid: Sid(sid),
+            domain_separators: domain_separators.try_into()?,
         })
     }
 }
@@ -152,12 +215,13 @@ impl<G: Curve> PublicParams<G> {
         q: u64,
         t: u64,
         msbs_zero_padding_bit_count: u64,
-        hash: [u8; HASH_METADATA_LEN_BYTES],
-        hash_t: [u8; HASH_METADATA_LEN_BYTES],
-        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-        hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-        hash_z: [u8; HASH_METADATA_LEN_BYTES],
-        hash_w: [u8; HASH_METADATA_LEN_BYTES],
+        sid: u128,
+        hash: [u8; HASH_DS_LEN_BYTES],
+        hash_t: [u8; HASH_DS_LEN_BYTES],
+        hash_agg: [u8; HASH_DS_LEN_BYTES],
+        hash_lmap: [u8; HASH_DS_LEN_BYTES],
+        hash_z: [u8; HASH_DS_LEN_BYTES],
+        hash_w: [u8; HASH_DS_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::<G>::from_vec(g_list, g_hat_list),
@@ -170,12 +234,15 @@ impl<G: Curve> PublicParams<G> {
             q,
             t,
             msbs_zero_padding_bit_count,
-            hash,
-            hash_t,
-            hash_agg,
-            hash_lmap,
-            hash_z,
-            hash_w,
+            sid: Sid(Some(sid)),
+            domain_separators: PKEv1DomainSeparators::Short(ShortPKEv1DomainSeparators {
+                hash,
+                hash_t,
+                hash_agg,
+                hash_lmap,
+                hash_z,
+                hash_w,
+            }),
         }
     }
 
@@ -427,12 +494,8 @@ pub fn crs_gen<G: Curve>(
         q,
         t,
         msbs_zero_padding_bit_count,
-        hash: core::array::from_fn(|_| rng.gen()),
-        hash_t: core::array::from_fn(|_| rng.gen()),
-        hash_agg: core::array::from_fn(|_| rng.gen()),
-        hash_lmap: core::array::from_fn(|_| rng.gen()),
-        hash_z: core::array::from_fn(|_| rng.gen()),
-        hash_w: core::array::from_fn(|_| rng.gen()),
+        sid: Sid::new(rng),
+        domain_separators: PKEv1DomainSeparators::new(rng),
     }
 }
 
@@ -504,12 +567,8 @@ fn prove_impl<G: Curve>(
         t,
         msbs_zero_padding_bit_count,
         k: k_max,
-        ref hash,
-        ref hash_t,
-        ref hash_agg,
-        ref hash_lmap,
-        ref hash_z,
-        ref hash_w,
+        sid,
+        domain_separators: ref ds,
     } = public.0;
     let g_list = &g_lists.g_list;
     let g_hat_list = &g_lists.g_hat_list;
@@ -597,7 +656,13 @@ fn prove_impl<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[hash, metadata, x_bytes, c_hat.to_le_bytes().as_ref()],
+        &[
+            ds.hash(),
+            sid.to_le_bytes().as_slice(),
+            metadata,
+            x_bytes,
+            c_hat.to_le_bytes().as_ref(),
+        ],
     );
     let y = OneBased(y);
 
@@ -610,7 +675,8 @@ fn prove_impl<G: Curve>(
     G::Zp::hash(
         &mut theta,
         &[
-            hash_lmap,
+            ds.hash_lmap(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             x_bytes,
             c_hat.to_le_bytes().as_ref(),
@@ -642,7 +708,8 @@ fn prove_impl<G: Curve>(
     G::Zp::hash_128bit(
         &mut t,
         &[
-            hash_t,
+            ds.hash_t(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             &(1..n + 1)
                 .flat_map(|i| y[i].to_le_bytes().as_ref().to_vec())
@@ -658,7 +725,8 @@ fn prove_impl<G: Curve>(
     G::Zp::hash(
         &mut delta,
         &[
-            hash_agg,
+            ds.hash_agg(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             x_bytes,
             c_hat.to_le_bytes().as_ref(),
@@ -737,7 +805,8 @@ fn prove_impl<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut z),
             &[
-                hash_z,
+                ds.hash_z(),
+                sid.to_le_bytes().as_slice(),
                 metadata,
                 x_bytes,
                 c_hat.to_le_bytes().as_ref(),
@@ -778,7 +847,8 @@ fn prove_impl<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut w),
             &[
-                hash_w,
+                ds.hash_w(),
+                sid.to_le_bytes().as_slice(),
                 metadata,
                 x_bytes,
                 c_hat.to_le_bytes().as_ref(),
@@ -984,12 +1054,8 @@ pub fn verify<G: Curve>(
         t,
         msbs_zero_padding_bit_count,
         k: k_max,
-        ref hash,
-        ref hash_t,
-        ref hash_agg,
-        ref hash_lmap,
-        ref hash_z,
-        ref hash_w,
+        sid,
+        domain_separators: ref ds,
     } = public.0;
     let g_list = &g_lists.g_list;
     let g_hat_list = &g_lists.g_hat_list;
@@ -1039,7 +1105,13 @@ pub fn verify<G: Curve>(
     let mut y = vec![G::Zp::ZERO; n];
     G::Zp::hash(
         &mut y,
-        &[hash, metadata, x_bytes, c_hat.to_le_bytes().as_ref()],
+        &[
+            ds.hash(),
+            sid.to_le_bytes().as_slice(),
+            metadata,
+            x_bytes,
+            c_hat.to_le_bytes().as_ref(),
+        ],
     );
     let y = OneBased(y);
 
@@ -1047,7 +1119,8 @@ pub fn verify<G: Curve>(
     G::Zp::hash(
         &mut theta,
         &[
-            hash_lmap,
+            ds.hash_lmap(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             x_bytes,
             c_hat.to_le_bytes().as_ref(),
@@ -1084,7 +1157,8 @@ pub fn verify<G: Curve>(
     G::Zp::hash_128bit(
         &mut t,
         &[
-            hash_t,
+            ds.hash_t(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             &(1..n + 1)
                 .flat_map(|i| y[i].to_le_bytes().as_ref().to_vec())
@@ -1100,7 +1174,8 @@ pub fn verify<G: Curve>(
     G::Zp::hash(
         &mut delta,
         &[
-            hash_agg,
+            ds.hash_agg(),
+            sid.to_le_bytes().as_slice(),
             metadata,
             x_bytes,
             c_hat.to_le_bytes().as_ref(),
@@ -1120,7 +1195,8 @@ pub fn verify<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut z),
             &[
-                hash_z,
+                ds.hash_z(),
+                sid.to_le_bytes().as_slice(),
                 metadata,
                 x_bytes,
                 c_hat.to_le_bytes().as_ref(),
@@ -1173,7 +1249,8 @@ pub fn verify<G: Curve>(
         G::Zp::hash(
             core::array::from_mut(&mut w),
             &[
-                hash_w,
+                ds.hash_w(),
+                sid.to_le_bytes().as_slice(),
                 metadata,
                 x_bytes,
                 c_hat.to_le_bytes().as_ref(),
