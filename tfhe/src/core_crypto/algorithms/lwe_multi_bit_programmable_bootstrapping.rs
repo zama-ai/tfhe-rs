@@ -270,7 +270,7 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 /// );
 /// println!("Performing blind rotation...");
 /// // Use 4 threads for the multi-bit blind rotation for example
-/// multi_bit_blind_rotate_assign(
+/// modulus_switch_multi_bit_blind_rotate_assign(
 ///     &lwe_ciphertext_in,
 ///     &mut accumulator,
 ///     &multi_bit_bsk,
@@ -304,7 +304,13 @@ pub fn prepare_multi_bit_ggsw_mem_optimized<GgswBufferCont, GgswGroupCont, Fouri
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn multi_bit_blind_rotate_assign<InputScalar, InputCont, OutputScalar, OutputCont, KeyCont>(
+pub fn modulus_switch_multi_bit_blind_rotate_assign<
+    InputScalar,
+    InputCont,
+    OutputScalar,
+    OutputCont,
+    KeyCont,
+>(
     input: &LweCiphertext<InputCont>,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
@@ -331,22 +337,51 @@ pub fn multi_bit_blind_rotate_assign<InputScalar, InputCont, OutputScalar, Outpu
 
     let lut_poly_size = accumulator.polynomial_size();
 
-    let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
+    let multi_bit_modulus_switched_input = StandardMultiBitModulusSwitchedCt {
         input: input.as_view(),
         grouping_factor,
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
 
+    multi_bit_blind_rotate_assign(
+        &multi_bit_modulus_switched_input,
+        accumulator,
+        multi_bit_bsk,
+        thread_count,
+        deterministic_execution,
+    );
+}
+
+pub fn multi_bit_blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
+    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedCt,
+    accumulator: &mut GlweCiphertext<OutputCont>,
+    multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
+    thread_count: ThreadCount,
+    deterministic_execution: bool,
+) where
+    OutputScalar: UnsignedTorus + Sync,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    KeyCont: Container<Element = c64> + Sync,
+{
+    assert_eq!(
+        multi_bit_modulus_switched_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+        "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
+        FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
+        multi_bit_modulus_switched_input.lwe_dimension(),
+        multi_bit_bsk.input_lwe_dimension(),
+    );
+
     if deterministic_execution {
         multi_bit_deterministic_blind_rotate_assign(
-            &multi_bitmodulus_switched_ct,
+            multi_bit_modulus_switched_input,
             accumulator,
             multi_bit_bsk,
             thread_count,
         )
     } else {
         multi_bit_non_deterministic_blind_rotate_assign(
-            &multi_bitmodulus_switched_ct,
+            multi_bit_modulus_switched_input,
             accumulator,
             multi_bit_bsk,
             thread_count,
@@ -1057,7 +1092,7 @@ pub fn multi_bit_programmable_bootstrap_lwe_ciphertext<
         .as_mut()
         .copy_from_slice(accumulator.as_ref());
 
-    multi_bit_blind_rotate_assign(
+    modulus_switch_multi_bit_blind_rotate_assign(
         input,
         &mut local_accumulator,
         multi_bit_bsk,
