@@ -493,9 +493,12 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
     }
     fn switched_modulus_input_mask_per_group(
         &self,
+        grouping_factor: LweBskGroupingFactor,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_ {
-        let ggsw_per_multi_bit_element = self.grouping_factor.ggsw_per_multi_bit_element();
+        assert_eq!(grouping_factor, self.grouping_factor);
+
+        let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
         let chunk_size = ggsw_per_multi_bit_element.0 - 1;
 
