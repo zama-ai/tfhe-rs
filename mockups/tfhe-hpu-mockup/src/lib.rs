@@ -328,6 +328,11 @@ impl HpuSim {
         (body >> (T::BITS - cleartext_and_padding_width))
             & ((T::ONE << cleartext_and_padding_width) - T::ONE)
     }
+    fn trivial_encode<T: UnsignedInteger>(&self, clear: T) -> T {
+        let pbs_p = self.params.rtl_params.pbs_params;
+        let cleartext_and_padding_width = pbs_p.message_width + pbs_p.carry_width + 1;
+        clear << (T::BITS - cleartext_and_padding_width)
+    }
 
     fn as_trivial<T: UnsignedInteger>(&self, hpu_ct: &HpuLweCiphertextView<T>) -> T {
         let body = hpu_ct[hpu_big_lwe_ciphertext_size(&self.params.rtl_params) - 1];
@@ -688,8 +693,6 @@ impl HpuSim {
         src_rid: hpu_asm::RegId,
         gid: hpu_asm::PbsGid,
     ) {
-        self.show_trivial_reg(src_rid);
-
         let mut cpu_reg = self.reg2cpu(src_rid);
         let lut = hpu_asm::Pbs::from_hex(gid).expect("Invalid PBS Gid");
         // TODO use an assert or a simple warning
@@ -700,25 +703,18 @@ impl HpuSim {
             "ERROR: Mismatch between PBS ML configuration and selected Lut."
         );
 
-        // Generate Lut
-        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), &lut);
-        let mut tfhe_lut = hpu_lut.as_view().into();
-
-        // Get keys and computation buffer
-        let (ksk, ref mut bfr_after_ks, bsk) = self.get_server_key();
-
-        // TODO add a check on trivialness for fast simulation ?
-        keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
-        blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
-
         assert_eq!(
             dst_rid.0,
             (dst_rid.0 >> lut.lut_lg()) << lut.lut_lg(),
             "Pbs destination register must be aligned with lut size"
         );
 
-        // Compute ManyLut function stride
-        let fn_stride = {
+        // Generate Lut
+        let hpu_lut = create_hpu_lookuptable(self.params.rtl_params.clone(), &lut);
+        let tfhe_lut = GlweCiphertext::from(hpu_lut.as_view());
+
+        // Compute Lut properties
+        let (modulus_sup, box_size, fn_stride) = {
             let pbs_p = &self.params.rtl_params.pbs_params;
             let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
             let box_size = pbs_p.polynomial_size / modulus_sup;
@@ -726,16 +722,74 @@ impl HpuSim {
             // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1
             // boxes
             let max_degree = modulus_sup / lut.lut_nb() as usize;
-            max_degree * box_size
+            let fn_stride = max_degree * box_size;
+            (modulus_sup, box_size, fn_stride)
         };
 
-        for fn_idx in 0..lut.lut_nb() as usize {
-            let monomial_degree = MonomialDegree(fn_idx * fn_stride);
-            extract_lwe_sample_from_glwe_ciphertext(&tfhe_lut, &mut cpu_reg, monomial_degree);
-            let manylut_rid = hpu_asm::RegId(dst_rid.0 + fn_idx as u8);
-            self.cpu2reg(manylut_rid, cpu_reg.as_view());
+        if self.options.trivial {
+            self.show_trivial_reg(src_rid);
 
-            self.show_trivial_reg(manylut_rid);
+            let ct_value = self.trivial_decode(*cpu_reg.get_body().data) as usize;
+            let padding_bit_set = ct_value >= modulus_sup;
+            let first_index_in_lut = {
+                let ct_value = ct_value % modulus_sup;
+                ct_value * box_size
+            };
+
+            for fn_idx in 0..lut.lut_nb() as usize {
+                let (index_in_lut, wrap_around_negation) = {
+                    let raw_index = first_index_in_lut + fn_idx * fn_stride;
+                    let wrap_around = raw_index / tfhe_lut.polynomial_size().0;
+                    (
+                        raw_index % tfhe_lut.polynomial_size().0,
+                        (wrap_around % 2) == 1,
+                    )
+                };
+                let pbs_out = if padding_bit_set ^ wrap_around_negation {
+                    tfhe_lut.get_body().as_ref()[index_in_lut].wrapping_neg()
+                } else {
+                    tfhe_lut.get_body().as_ref()[index_in_lut]
+                };
+
+                *cpu_reg.get_mut_body().data = pbs_out;
+
+                let manylut_rid = hpu_asm::RegId(dst_rid.0 + fn_idx as u8);
+                self.cpu2reg(manylut_rid, cpu_reg.as_view());
+                self.show_trivial_reg(manylut_rid);
+            }
+        } else {
+            let mut tfhe_lut = tfhe_lut;
+            // Get keys and computation buffer
+            let (ksk, ref mut bfr_after_ks, bsk) = self.get_server_key();
+
+            // TODO add a check on trivialness for fast simulation ?
+            keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
+            blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
+
+            assert_eq!(
+                dst_rid.0,
+                (dst_rid.0 >> lut.lut_lg()) << lut.lut_lg(),
+                "Pbs destination register must be aligned with lut size"
+            );
+
+            // Compute ManyLut function stride
+            let fn_stride = {
+                let pbs_p = &self.params.rtl_params.pbs_params;
+                let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
+                let box_size = pbs_p.polynomial_size / modulus_sup;
+                // Max valid degree for a ciphertext when using the LUT we generate
+                // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1
+                // boxes
+                let max_degree = modulus_sup / lut.lut_nb() as usize;
+                max_degree * box_size
+            };
+
+            for fn_idx in 0..lut.lut_nb() as usize {
+                let monomial_degree = MonomialDegree(fn_idx * fn_stride);
+                extract_lwe_sample_from_glwe_ciphertext(&tfhe_lut, &mut cpu_reg, monomial_degree);
+                let manylut_rid = hpu_asm::RegId(dst_rid.0 + fn_idx as u8);
+                self.cpu2reg(manylut_rid, cpu_reg.as_view());
+            }
         }
     }
 
