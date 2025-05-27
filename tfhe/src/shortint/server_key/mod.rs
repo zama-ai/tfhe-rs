@@ -1481,7 +1481,7 @@ pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
             thread_count,
             deterministic_execution,
         } => {
-            multi_bit_blind_rotate_assign(
+            modulus_switch_multi_bit_blind_rotate_assign(
                 in_buffer,
                 acc,
                 fourier_bsk,
