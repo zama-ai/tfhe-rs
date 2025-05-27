@@ -31,7 +31,7 @@ impl CudaServerKey {
         );
 
         let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-        
+
         let mut output: T = unsafe { self.create_trivial_zero_radix_async(num_ct_blocks, streams) };
 
         unsafe {
@@ -63,69 +63,33 @@ impl CudaServerKey {
         bit_value: BitValue,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self.create_trivial_zero_radix_async(0, streams);
-        }
+        assert!(
+            self.carry_modulus.0 >= self.message_modulus.0,
+            "A carry modulus at least as big as the message modulus is required"
+        );
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
-        let original_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-
         let num_bits_in_ciphertext = num_bits_in_message
-            .checked_mul(original_num_blocks as u32)
+            .checked_mul(ct.as_ref().d_blocks.lwe_ciphertext_count().0 as u32)
             .expect("Number of bits encrypted exceeds u32::MAX");
 
-        let mut leading_count_per_blocks =
-            self.prepare_count_of_consecutive_bits(ct, direction, bit_value, streams);
-
-        // `num_bits_in_ciphertext` is the max value we want to represent
-        // its ilog2 + 1 gives use how many bits we need to be able to represent it.
         let counter_num_blocks =
-            (num_bits_in_ciphertext.ilog2() + 1).div_ceil(self.message_modulus.0.ilog2()) as usize;
+            (num_bits_in_ciphertext.ilog2() + 1).div_ceil(num_bits_in_message) as usize;
 
-        let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
+        let mut output: CudaUnsignedRadixCiphertext =
+            unsafe { self.create_trivial_zero_radix_async(counter_num_blocks, streams) };
 
-        let lwe_size = lwe_dimension.to_lwe_size().0;
-        let mut cts = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(
-            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-        );
-        for i in 0..ct.as_ref().d_blocks.lwe_ciphertext_count().0 {
-            let mut new_item: CudaUnsignedRadixCiphertext =
-                self.create_trivial_zero_radix_async(counter_num_blocks, streams);
-            let mut dest_slice = new_item
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice(0..lwe_size, 0)
-                .unwrap();
-
-            let src_slice = leading_count_per_blocks
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
-                .unwrap();
-            dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-            let b = new_item.ciphertext.info.blocks.first_mut().unwrap();
-            b.degree = leading_count_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .degree;
-            b.noise_level = leading_count_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .noise_level;
-            cts.push(new_item);
+        unsafe {
+            self.unchecked_count_consecutive_bits_async(
+                output.as_mut(),
+                ct.as_ref(),
+                streams,
+                direction,
+                bit_value,
+            );
         }
 
-        self.unchecked_sum_ciphertexts_async(&cts, streams)
+        output
     }
 
     //==============================================================================================
@@ -332,8 +296,12 @@ impl CudaServerKey {
         // so given a non propagated `C`, we can compute the fully propagated `PC`
         // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
 
-        let mut leading_zeros_per_blocks =
-            self.prepare_count_of_consecutive_bits(ct, Direction::Leading, BitValue::Zero, streams);
+        let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
+            ct,
+            Direction::Leading,
+            BitValue::Zero,
+            streams,
+        );
         let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
 
         let lwe_size = lwe_dimension.to_lwe_size().0;

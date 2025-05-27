@@ -395,7 +395,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto d_pbs_counters = mem_ptr->d_pbs_counters;
 
   auto luts_message_carry = mem_ptr->luts_message_carry;
-  
+
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
   auto small_lwe_dimension = mem_ptr->params.small_lwe_dimension;
