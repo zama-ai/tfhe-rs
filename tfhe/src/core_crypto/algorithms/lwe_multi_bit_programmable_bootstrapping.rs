@@ -62,16 +62,16 @@ pub trait MultiBitModulusSwitchedCt: Sync {
     fn switched_modulus_input_lwe_body(&self) -> usize;
     fn switched_modulus_input_mask_per_group(
         &self,
+        grouping_factor: LweBskGroupingFactor,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_;
 }
 
 pub struct StandardMultiBitModulusSwitchedCt<
-    'a,
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
     C: Container<Element = Scalar> + Sync,
 > {
-    pub input: &'a LweCiphertext<C>,
+    pub input: LweCiphertext<C>,
     pub grouping_factor: LweBskGroupingFactor,
     pub log_modulus: CiphertextModulusLog,
 }
@@ -79,7 +79,7 @@ pub struct StandardMultiBitModulusSwitchedCt<
 impl<
         Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
         C: Container<Element = Scalar> + Sync,
-    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'_, Scalar, C>
+    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<Scalar, C>
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()
@@ -91,14 +91,16 @@ impl<
     }
     fn switched_modulus_input_mask_per_group(
         &self,
+        grouping_factor: LweBskGroupingFactor,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_ {
+        assert_eq!(grouping_factor, self.grouping_factor);
+
         let (_body, mask) = self.input.as_ref().split_last().unwrap();
 
-        let lwe_mask_elements =
-            &mask[index * self.grouping_factor.0..(index + 1) * self.grouping_factor.0];
+        let lwe_mask_elements = &mask[index * grouping_factor.0..(index + 1) * grouping_factor.0];
 
-        modulus_switch_multi_bit(self.log_modulus, self.grouping_factor, lwe_mask_elements)
+        modulus_switch_multi_bit(self.log_modulus, grouping_factor, lwe_mask_elements)
     }
 }
 
@@ -333,7 +335,7 @@ pub fn multi_bit_blind_rotate_assign<InputScalar, InputCont, OutputScalar, Outpu
     let lut_poly_size = accumulator.polynomial_size();
 
     let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
-        input: &input.as_view(),
+        input: input.as_view(),
         grouping_factor,
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
@@ -461,8 +463,8 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
                     break;
                 }
 
-                let switched_degrees =
-                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+                let switched_degrees = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(grouping_factor, work_index);
 
                 let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
                     ..(work_index + 1) * ggsw_per_multi_bit_element.0];
@@ -687,8 +689,8 @@ pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
             ) = &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             for work_index in (0..max_work_index).skip(thread_id).step_by(thread_count.0) {
-                let switched_degrees =
-                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+                let switched_degrees = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(grouping_factor, work_index);
 
                 let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
                     ..(work_index + 1) * ggsw_per_multi_bit_element.0];
@@ -1142,7 +1144,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     let lut_poly_size = accumulator.polynomial_size();
 
     let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
-        input: &input.as_view(),
+        input: input.as_view(),
         grouping_factor,
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
@@ -1299,8 +1301,8 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
                     break;
                 }
 
-                let switched_degrees =
-                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+                let switched_degrees = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(grouping_factor, work_index);
 
                 let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
                     ..(work_index + 1) * ggsw_per_multi_bit_element.0];
@@ -1560,8 +1562,8 @@ pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
             ) = &fourier_multi_bit_ggsw_buffers[dest_idx];
 
             for work_index in (0..max_work_index).skip(thread_id).step_by(thread_count.0) {
-                let switched_degrees =
-                    switched_modulus_input.switched_modulus_input_mask_per_group(work_index);
+                let switched_degrees = switched_modulus_input
+                    .switched_modulus_input_mask_per_group(grouping_factor, work_index);
 
                 let ggsw_group = &ggsw_vec[work_index * ggsw_per_multi_bit_element.0
                     ..(work_index + 1) * ggsw_per_multi_bit_element.0];

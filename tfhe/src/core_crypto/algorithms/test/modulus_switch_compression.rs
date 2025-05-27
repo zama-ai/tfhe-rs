@@ -84,7 +84,7 @@ fn assert_ms_multi_bit_compression<
     grouping_factor: LweBskGroupingFactor,
 ) {
     let a = StandardMultiBitModulusSwitchedCt {
-        input: ct,
+        input: ct.as_view(),
         grouping_factor,
         log_modulus,
     };
@@ -104,8 +104,8 @@ fn assert_ms_multi_bit_compression<
 
     for i in 0..ct.lwe_size().to_lwe_dimension().0 / grouping_factor.0 {
         for (j, k) in a
-            .switched_modulus_input_mask_per_group(i)
-            .zip_eq(c.switched_modulus_input_mask_per_group(i))
+            .switched_modulus_input_mask_per_group(grouping_factor, i)
+            .zip_eq(c.switched_modulus_input_mask_per_group(grouping_factor, i))
         {
             assert_eq!(j, k);
         }
