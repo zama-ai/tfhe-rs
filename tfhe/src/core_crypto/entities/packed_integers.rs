@@ -36,7 +36,12 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         }
     }
 
-    pub fn pack(slice: &[Scalar], log_modulus: CiphertextModulusLog) -> Self {
+    pub fn pack<InputScalar: UnsignedInteger + CastInto<Scalar>>(
+        slice: &[InputScalar],
+        log_modulus: CiphertextModulusLog,
+    ) -> Self {
+        assert!(InputScalar::BITS <= Scalar::BITS);
+
         let log_modulus = log_modulus.0;
 
         let in_len = slice.len();
@@ -85,17 +90,20 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
 
                 let start_shift = i * Scalar::BITS - j * log_modulus;
 
-                debug_assert_eq!(slice[j] >> log_modulus, Scalar::ZERO);
+                debug_assert_eq!(slice[j] >> log_modulus, InputScalar::ZERO);
 
-                let mut value = slice[j] >> start_shift;
+                let value: Scalar = slice[j].cast_into();
+                let mut value = value >> start_shift;
                 j += 1;
 
                 while j * log_modulus < ((i + 1) * Scalar::BITS) && j < slice.len() {
                     let shift = j * log_modulus - i * Scalar::BITS;
 
-                    debug_assert_eq!(slice[j] >> log_modulus, Scalar::ZERO);
+                    debug_assert_eq!(slice[j] >> log_modulus, InputScalar::ZERO);
 
-                    value |= slice[j] << shift;
+                    let value2: Scalar = slice[j].cast_into();
+
+                    value |= value2 << shift;
 
                     j += 1;
                 }
@@ -112,11 +120,17 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
         }
     }
 
-    pub fn unpack(&self) -> impl Iterator<Item = Scalar> + '_ {
+    pub fn unpack<OutputScalar>(&self) -> impl Iterator<Item = OutputScalar> + '_
+    where
+        Scalar: CastInto<OutputScalar>,
+        OutputScalar: UnsignedInteger,
+    {
         let log_modulus = self.log_modulus.0;
 
+        assert!(OutputScalar::BITS >= log_modulus);
+
         // log_modulus lowest bits set to 1
-        let mask = (Scalar::ONE << log_modulus) - Scalar::ONE;
+        let mask = (OutputScalar::ONE << log_modulus) - OutputScalar::ONE;
 
         (0..self.initial_len).map(move |i| {
             let start = i * log_modulus;
@@ -148,7 +162,8 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
                 //
                 // container[i] = lowest_bits of single_part
                 //
-                let single_part = self.packed_coeffs[start_block] >> start_remainder;
+                let single_part: OutputScalar =
+                    (self.packed_coeffs[start_block] >> start_remainder).cast_into();
 
                 single_part & mask
             } else {
@@ -180,10 +195,12 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
                 //
                 assert_eq!(end_block_inclusive, start_block + 1);
 
-                let first_part = self.packed_coeffs[start_block] >> start_remainder;
+                let first_part: OutputScalar =
+                    (self.packed_coeffs[start_block] >> start_remainder).cast_into();
 
-                let second_part =
-                    self.packed_coeffs[start_block + 1] << (Scalar::BITS - start_remainder);
+                let second_part: OutputScalar = (self.packed_coeffs[start_block + 1]
+                    << (Scalar::BITS - start_remainder))
+                    .cast_into();
 
                 (first_part | second_part) & mask
             }

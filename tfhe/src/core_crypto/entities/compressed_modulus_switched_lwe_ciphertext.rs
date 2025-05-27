@@ -154,7 +154,7 @@ impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Pack
             .map(|a| modulus_switch(*a, log_modulus).cast_into())
             .collect();
 
-        let packed_integers = PackedIntegers::pack(&modulus_switched, log_modulus);
+        let packed_integers = PackedIntegers::pack::<PackingScalar>(&modulus_switched, log_modulus);
 
         Self {
             packed_integers,
@@ -198,12 +198,9 @@ impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<Pack
 
         let container = self
             .packed_integers
-            .unpack()
+            .unpack::<OutputScalar>()
             // Scaling
-            .map(|a| {
-                let a: OutputScalar = a.cast_into();
-                a << (OutputScalar::BITS - log_modulus)
-            })
+            .map(|a| a << (OutputScalar::BITS - log_modulus))
             .collect();
 
         LweCiphertextOwned::from_container(container, uncompressed_ciphertext_modulus)

@@ -238,7 +238,7 @@ impl<Scalar: UnsignedInteger> CompressedModulusSwitchedGlweCiphertext<Scalar> {
 
         let container = self
             .packed_integers
-            .unpack()
+            .unpack::<Scalar>()
             // Scaling
             .map(|a| a << (Scalar::BITS - log_modulus))
             .chain(std::iter::repeat_n(
