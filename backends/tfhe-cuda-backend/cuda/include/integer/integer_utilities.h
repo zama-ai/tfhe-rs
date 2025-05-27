@@ -1979,6 +1979,7 @@ template <typename Torus> struct int_sc_prop_memory {
 
   int_radix_params params;
   uint32_t requested_flag;
+  uint32_t use_carry;
   bool gpu_memory_allocated;
 
   int_sc_prop_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1987,6 +1988,7 @@ template <typename Torus> struct int_sc_prop_memory {
                      uint32_t uses_carry, bool allocate_gpu_memory,
                      uint64_t *size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
+    this->use_carry = uses_carry;
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -4891,6 +4893,101 @@ template <typename Torus> struct int_div_rem_memory {
       delete negated_quotient;
       delete negated_remainder;
     }
+  }
+};
+
+template <typename Torus> struct int_count_of_consecutive_bits_buffer {
+
+  int_radix_params params;
+
+  int_prepare_count_of_consecutive_bits_buffer<Torus> *prepare_buf;
+  int_sum_ciphertexts_vec_memory<Torus> *sum_mem;
+  int_sc_prop_memory<Torus> *scp_mem;
+
+  CudaRadixCiphertextFFI *prepared;
+  CudaRadixCiphertextFFI *terms;
+  CudaRadixCiphertextFFI *in_carry;
+  CudaRadixCiphertextFFI *out_carry;
+
+  uint32_t counter_num_blocks;
+  bool gpu_memory_allocated;
+
+  int_count_of_consecutive_bits_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, Direction dir, BitValue bit_val,
+      const int_radix_params &params, uint32_t requested_flag_in,
+      uint32_t uses_carry, uint32_t num_radix_blocks,
+      const bool allocate_gpu_memory, uint64_t *size_tracker) {
+
+    this->params = params;
+    this->gpu_memory_allocated = allocate_gpu_memory;
+
+    this->prepare_buf = new int_prepare_count_of_consecutive_bits_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, dir, bit_val, params, num_radix_blocks,
+        allocate_gpu_memory, size_tracker);
+
+    this->terms = new CudaRadixCiphertextFFI;
+
+    const double bits_per_msg = std::log2((double)params.message_modulus);
+    const uint32_t num_bits_ct = (uint32_t)(bits_per_msg * num_radix_blocks);
+    const double bits_needed = std::log2((double)num_bits_ct + 1.0);
+
+    this->counter_num_blocks = (uint32_t)std::ceil(bits_needed / bits_per_msg);
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], terms,
+        counter_num_blocks * num_radix_blocks, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+
+    this->prepared = new CudaRadixCiphertextFFI;
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], prepared, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->in_carry = new CudaRadixCiphertextFFI;
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], in_carry, 1, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+
+    this->out_carry = new CudaRadixCiphertextFFI;
+
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], out_carry, 1, params.big_lwe_dimension,
+        size_tracker, allocate_gpu_memory);
+
+    this->sum_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, counter_num_blocks,
+        num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+    this->scp_mem = new int_sc_prop_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        requested_flag_in, uses_carry, allocate_gpu_memory, size_tracker);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    this->prepare_buf->release(streams, gpu_indexes, gpu_count);
+    this->sum_mem->release(streams, gpu_indexes, gpu_count);
+    this->scp_mem->release(streams, gpu_indexes, gpu_count);
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], prepared,
+                                   gpu_memory_allocated);
+    delete prepared;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], terms,
+                                   gpu_memory_allocated);
+    delete terms;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], in_carry,
+                                   gpu_memory_allocated);
+    delete in_carry;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], out_carry,
+                                   gpu_memory_allocated);
+    delete out_carry;
   }
 };
 

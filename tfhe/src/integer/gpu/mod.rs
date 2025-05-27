@@ -4000,12 +4000,13 @@ pub unsafe fn reverse_blocks_inplace_async(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn unchecked_sum_ciphertexts_integer_radix_kb_async<
+    T: UnsignedInteger,
+    B: Numeric,
+>(
     streams: &CudaStreams,
-    output: &mut CudaSliceMut<T>,
-    input: &CudaSlice<T>,
-    output_degrees: &mut Vec<u64>,
-    output_noise_levels: &mut Vec<u64>,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
     bootstrapping_key: &CudaVec<B>,
     keyswitch_key: &CudaVec<T>,
     glwe_dimension: GlweDimension,
@@ -4015,29 +4016,29 @@ pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedIntege
     ks_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
-    num_blocks: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     pbs_type: PBSType,
     grouping_factor: LweBskGroupingFactor,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-    ct_modulus: f64,
+    requested_flag_in: u32,
+    uses_carry: u32,
     direction: Direction,
     bit_value: BitValue,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        input.gpu_index(0),
+        input.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: first stream is on GPU {}, first generates_or_propagates pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        input.gpu_index(0).get(),
+        input.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        output.gpu_index(0),
+        output.d_blocks.0.d_vec.gpu_index(0),
         "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        output.gpu_index(0).get(),
+        output.d_blocks.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -4054,6 +4055,15 @@ pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedIntege
         keyswitch_key.gpu_index(0).get(),
     );
 
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+
+    let num_blocks = input.d_blocks.lwe_ciphertext_count().0;
+
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+
     let ms_noise_reduction_key_ffi =
         prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
 
@@ -4061,28 +4071,135 @@ pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedIntege
 
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
-    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
-        output,
-        output_degrees,
-        output_noise_levels,
-        num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    scratch_cuda_count_of_consecutive_bits_buffer_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        num_blocks as u32,
+        direction as u32,
+        bit_value as u32,
+        true,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        requested_flag_in,
+        uses_carry,
+        pbs_type as u32,
+        allocate_ms_noise_array,
     );
 
-    let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
-        input,
-        output_degrees,
-        output_noise_levels,
-        num_blocks,
-        (glwe_dimension.0 * polynomial_size.0) as u32,
+    cuda_count_of_consecutive_bits_buffer_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        std::ptr::addr_of_mut!(mem_ptr),
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
     );
+
+    cleanup_cuda_count_of_consecutive_bits_buffer_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub(crate) unsafe fn prepare_count_of_consecutive_bits_buffer<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    direction: Direction,
+    bit_value: BitValue,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first generates_or_propagates pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+
+    let num_blocks = input.d_blocks.lwe_ciphertext_count().0;
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut degrees = vec![0_u64; num_blocks];
+    let mut noise_levels = vec![0_u64; num_blocks];
+
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi(output, &mut degrees, &mut noise_levels);
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut degrees, &mut noise_levels);
 
     scratch_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
-        num_blocks,
+        num_blocks as u32,
         direction as u32,
         bit_value as u32,
         true,
@@ -4100,7 +4217,7 @@ pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedIntege
         allocate_ms_noise_array,
     );
 
-    host_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
+    cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
@@ -4118,6 +4235,8 @@ pub(crate) unsafe fn start_preparing_count_of_consecutive_bits<T: UnsignedIntege
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+
+    update_noise_degree(output, &cuda_ffi_output);
 }
 
 #[allow(clippy::too_many_arguments)]

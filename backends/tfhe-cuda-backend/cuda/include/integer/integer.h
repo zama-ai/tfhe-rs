@@ -553,7 +553,7 @@ uint64_t scratch_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
     const uint32_t message_modulus, const uint32_t carry_modulus,
     const PBS_TYPE pbs_type, const bool allocate_ms_array);
 
-void host_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
+void cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, const uint32_t gpu_count,
     CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
     int8_t **mem_ptr, void *const *bsks, void *const *ksks,
@@ -562,6 +562,28 @@ void host_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
 void cleanup_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_count_of_consecutive_bits_buffer_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, const uint32_t gpu_count,
+    int8_t **mem_ptr, const uint32_t num_radix_blocks, const Direction dir,
+    const BitValue bit_value, const bool allocate_gpu_memory,
+    const uint32_t glwe_dimension, const uint32_t polynomial_size,
+    const uint32_t lwe_dimension, const uint32_t ks_level,
+    const uint32_t ks_base_log, const uint32_t pbs_level,
+    const uint32_t pbs_base_log, const uint32_t grouping_factor,
+    const uint32_t message_modulus, const uint32_t carry_modulus,
+    uint32_t requested_flag_in, uint32_t uses_carry, const PBS_TYPE pbs_type,
+    const bool allocate_ms_array);
+
+void cuda_count_of_consecutive_bits_buffer_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
+    int8_t **mem_ptr, void *const *bsks, void *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key);
+
+void cleanup_cuda_count_of_consecutive_bits_buffer_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr);
 
 } // extern C
 #endif // CUDA_INTEGER_H
