@@ -13,7 +13,7 @@ rust-version = "1.72"
 
 [dependencies]
 aes = "0.8.2"
-rayon = { workspace = true , optional = true }
+rayon = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2.133"

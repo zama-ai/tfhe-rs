@@ -1,4 +1,6 @@
-use crate::generators::aes_ctr::{AesBlockCipher, AesIndex, AesKey, BYTES_PER_BATCH};
+use crate::generators::aes_ctr::{
+    AesBlockCipher, AesIndex, AesKey, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
+};
 use std::arch::x86_64::{
     __m128i, _mm_aesenc_si128, _mm_aesenclast_si128, _mm_aeskeygenassist_si128, _mm_shuffle_epi32,
     _mm_slli_si128, _mm_store_si128, _mm_xor_si128,
@@ -38,18 +40,22 @@ impl AesBlockCipher for AesniBlockCipher {
         ) -> [u8; BYTES_PER_BATCH] {
             si128arr_to_u8arr(aes_encrypt_many(
                 u128_to_si128(aes_ctr),
-                u128_to_si128(aes_ctr + 1),
-                u128_to_si128(aes_ctr + 2),
-                u128_to_si128(aes_ctr + 3),
-                u128_to_si128(aes_ctr + 4),
-                u128_to_si128(aes_ctr + 5),
-                u128_to_si128(aes_ctr + 6),
-                u128_to_si128(aes_ctr + 7),
+                u128_to_si128(aes_ctr.wrapping_add(1)),
+                u128_to_si128(aes_ctr.wrapping_add(2)),
+                u128_to_si128(aes_ctr.wrapping_add(3)),
+                u128_to_si128(aes_ctr.wrapping_add(4)),
+                u128_to_si128(aes_ctr.wrapping_add(5)),
+                u128_to_si128(aes_ctr.wrapping_add(6)),
+                u128_to_si128(aes_ctr.wrapping_add(7)),
                 &this.round_keys,
             ))
         }
         // SAFETY: we checked for aes and sse2 availability in `Self::new`
         unsafe { implementation(self, AesIndex(aes_ctr)) }
+    }
+
+    fn generate_next(&mut self, index: AesIndex) -> [u8; BYTES_PER_AES_CALL] {
+        unsafe { transmute(aes_encrypt_one(u128_to_si128(index.0), &self.round_keys)) }
     }
 }
 
@@ -59,6 +65,20 @@ unsafe fn generate_round_keys(key: AesKey) -> [__m128i; 11] {
     let mut keys: [__m128i; 11] = [u128_to_si128(0); 11];
     aes_128_key_expansion(key, &mut keys);
     keys
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(always)]
+fn aes_encrypt_one(message: __m128i, keys: &[__m128i; 11]) -> __m128i {
+    unsafe {
+        let mut tmp_1 = _mm_xor_si128(message, keys[0]);
+
+        for key in keys.iter().take(10).skip(1) {
+            tmp_1 = _mm_aesenc_si128(tmp_1, *key);
+        }
+
+        _mm_aesenclast_si128(tmp_1, keys[10])
+    }
 }
 
 // Uses aes to encrypt many values at once. This allows a substantial speedup (around 30%)
@@ -227,5 +247,15 @@ mod test {
         for ct in &ciphertexts {
             assert_eq!(CIPHERTEXT, si128_to_u128(*ct));
         }
+    }
+
+    #[test]
+    fn test_encrypt_one_message() {
+        let message = u128_to_si128(PLAINTEXT);
+        let key = u128_to_si128(CIPHER_KEY);
+        let mut keys: [__m128i; 11] = [u128_to_si128(0); 11];
+        aes_128_key_expansion(key, &mut keys);
+        let ciphertext = aes_encrypt_one(message, &keys);
+        assert_eq!(CIPHERTEXT, si128_to_u128(ciphertext));
     }
 }
