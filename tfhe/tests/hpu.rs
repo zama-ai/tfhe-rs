@@ -165,6 +165,19 @@ mod hpu_test {
             pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
                 use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
 
+                // Check if user ask for test over trivial ciphertext
+                let (test_trivial, sks) = match(std::env::var("HPU_TEST_TRIVIAL")){
+                Ok(var) => {
+                    let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+                    });
+                    let sks_compressed =
+                    tfhe::integer::ServerKey::new_radix_server_key(&cks);
+                    (flag_val != 0, Some(sks_compressed))
+                    },
+                _ => (false, None)
+                    };
+
                 let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
                 let proto = if let Some(format) = iop.format() {
                     format.proto.clone()
@@ -189,7 +202,11 @@ mod hpu_test {
                             };
 
                             let clear = rng.gen_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
-                            let fhe = cks.encrypt_radix(clear, block);
+                            let fhe = if test_trivial {
+                                sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                            } else {
+                                cks.encrypt_radix(clear, block)
+                            };
                             let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
                             (clear, hpu_fhe)
                         })
