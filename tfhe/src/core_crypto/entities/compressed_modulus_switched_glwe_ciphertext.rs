@@ -222,6 +222,7 @@ impl<Scalar: UnsignedInteger> CompressedModulusSwitchedGlweCiphertext<Scalar> {
     /// Converts back a compressed ciphertext to its initial modulus
     /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
+    // TODO: refactor so output is hardcoded msed type
     pub fn extract(&self) -> GlweCiphertextOwned<Scalar> {
         let log_modulus = self.packed_integers.log_modulus().0;
 
