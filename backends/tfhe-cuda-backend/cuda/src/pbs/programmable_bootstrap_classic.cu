@@ -848,4 +848,7 @@ template uint64_t scratch_cuda_programmable_bootstrap_tbc<uint64_t>(
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
     bool allocate_ms_array);
+template bool
+supports_distributed_shared_memory_on_classic_programmable_bootstrap<
+    __uint128_t>(uint32_t polynomial_size, uint32_t max_shared_memory);
 #endif
