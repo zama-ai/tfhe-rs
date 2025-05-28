@@ -260,16 +260,19 @@ pub fn main() {
             let roi_start = Instant::now();
 
             let res_hpu = (0..args.iter)
-                .map(|_i| {
+                .filter_map(|i| {
                     let res = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
-                    std::hint::black_box(&res);
-                    res
+                    if i == (args.iter - 1) {
+                        Some(res)
+                    } else {
+                        None
+                    }
                 })
-                .next_back()
-                .expect("Iteration must be greater than 0");
+                .collect::<Vec<_>>();
 
-            // let res_fhe = $fhe_type::from(res_hpu);
             let res_fhe = res_hpu
+                .last()
+                .expect("Iteration must be greater than 0")
                 .iter()
                 .map(|x| x.to_radix_ciphertext())
                 .collect::<Vec<_>>();
