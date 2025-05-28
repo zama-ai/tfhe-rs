@@ -1370,6 +1370,52 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn scratch_cuda_apply_noise_squashing_kb(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        lwe_dimension: u32,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        input_glwe_dimension: u32,
+        input_polynomial_size: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_radix_blocks: u32,
+        num_original_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_apply_noise_squashing_kb(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_radix_lwe: *mut CudaRadixCiphertextFFI,
+        input_radix_lwe: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+        bsks: *const *mut ffi::c_void,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_apply_noise_squashing_kb(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_small_scalar_multiplication_integer_64_inplace(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
@@ -1937,7 +1983,7 @@ unsafe extern "C" {
         lwe_array_in: *const ffi::c_void,
         bootstrapping_key: *const ffi::c_void,
         ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-        ms_noise_reduction_ptr: *mut ffi::c_void,
+        ms_noise_reduction_ptr: *const ffi::c_void,
         buffer: *mut i8,
         lwe_dimension: u32,
         glwe_dimension: u32,

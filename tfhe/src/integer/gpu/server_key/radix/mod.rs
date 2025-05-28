@@ -8,17 +8,19 @@ use crate::core_crypto::prelude::{
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
+use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
     CudaUnsignedRadixCiphertext,
 };
+use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
     compute_prefix_sum_hillis_steele_async, extend_radix_with_trivial_zero_blocks_msb_async,
-    full_propagate_assign_async, propagate_single_carry_assign_async, trim_radix_blocks_lsb_async,
-    CudaServerKey, PBSType,
+    full_propagate_assign_async, noise_squashing_async, propagate_single_carry_assign_async,
+    trim_radix_blocks_lsb_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -1770,5 +1772,87 @@ impl CudaServerKey {
         (ct.as_ref().d_blocks.lwe_ciphertext_count().0
             * size_of::<u64>()
             * ct.as_ref().d_blocks.lwe_dimension().0) as u64
+    }
+
+    pub(crate) fn apply_noise_squashing(
+        &self,
+        output: &mut CudaSquashedNoiseRadixCiphertext,
+        input: &CudaRadixCiphertext,
+        squashing_key: &CudaNoiseSquashingKey,
+        streams: &CudaStreams,
+    ) {
+        unsafe {
+            self.apply_noise_squashing_async(output, input, squashing_key, streams);
+        }
+        streams.synchronize();
+    }
+
+    /// Applies the lookup table on the range of ciphertexts
+    ///
+    /// The output must have exactly block_range.len() blocks
+    ///
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronised
+    pub(crate) unsafe fn apply_noise_squashing_async(
+        &self,
+        output: &mut CudaSquashedNoiseRadixCiphertext,
+        input: &CudaRadixCiphertext,
+        squashing_key: &CudaNoiseSquashingKey,
+        streams: &CudaStreams,
+    ) {
+        let num_output_blocks = output.packed_d_blocks.lwe_ciphertext_count().0;
+
+        let mut output_degrees = vec![0_u64; num_output_blocks];
+        let mut output_noise_levels = vec![0_u64; num_output_blocks];
+        let input_slice = input.d_blocks.0.d_vec.as_slice(.., 0).unwrap();
+        let mut output_slice = output.packed_d_blocks.0.d_vec.as_mut_slice(.., 0).unwrap();
+        let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+        let d_bsk = &squashing_key.bootstrapping_key;
+        let (input_glwe_dimension, input_polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.glwe_dimension(), d_bsk.polynomial_size())
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => (
+                d_multibit_bsk.glwe_dimension(),
+                d_multibit_bsk.polynomial_size(),
+            ),
+        };
+        unsafe {
+            noise_squashing_async::<u128, f64>(
+                streams,
+                &mut output_slice,
+                &mut output_degrees,
+                &mut output_noise_levels,
+                &input_slice,
+                &d_bsk.d_vec,
+                &self.key_switching_key.d_vec,
+                self.key_switching_key
+                    .output_key_lwe_size()
+                    .to_lwe_dimension(),
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                input_glwe_dimension,
+                input_polynomial_size,
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                num_output_blocks as u32,
+                input.d_blocks.lwe_ciphertext_count().0 as u32,
+                self.message_modulus,
+                self.carry_modulus,
+                PBSType::Classical,
+                LweBskGroupingFactor(0),
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                ct_modulus,
+            );
+        }
+
+        for (i, info) in output.info.blocks.iter_mut().enumerate() {
+            info.degree = Degree(output_degrees[i]);
+            info.noise_level = NoiseLevel(output_noise_levels[i]);
+        }
     }
 }
