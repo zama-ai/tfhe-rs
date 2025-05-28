@@ -1076,9 +1076,10 @@ template <typename Torus> struct int_overflowing_sub_memory {
         luts_array->get_degree(1), luts_array->get_max_degree(1),
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_does_block_generate_or_propagate, gpu_memory_allocated);
-    cuda_set_value_async<Torus>(streams[0], gpu_indexes[0],
-                                luts_array->get_lut_indexes(0, 1), 1,
-                                num_radix_blocks - 1);
+    if (allocate_gpu_memory)
+      cuda_set_value_async<Torus>(streams[0], gpu_indexes[0],
+                                  luts_array->get_lut_indexes(0, 1), 1,
+                                  num_radix_blocks - 1);
 
     generate_device_accumulator_bivariate<Torus>(
         streams[0], gpu_indexes[0], luts_borrow_propagation_sum->get_lut(0, 0),
@@ -2595,10 +2596,11 @@ template <typename Torus> struct int_mul_memory {
     // first lsb_vector_block_count value should reference to lsb_acc
     // last msb_vector_block_count values should reference to msb_acc
     // for message and carry default lut_indexes_vec is fine
-    cuda_set_value_async<Torus>(
-        streams[0], gpu_indexes[0],
-        luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
-        msb_vector_block_count);
+    if (allocate_gpu_memory)
+      cuda_set_value_async<Torus>(
+          streams[0], gpu_indexes[0],
+          luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
+          msb_vector_block_count);
 
     luts_array->broadcast_lut(streams, gpu_indexes, 0);
     // create memory object for sum ciphertexts
@@ -2750,9 +2752,10 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
     tmp_rotated = pre_allocated_buffer;
     reuse_memory = true;
 
-    set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
-                                                 tmp_rotated, 0,
-                                                 tmp_rotated->num_radix_blocks);
+    if (allocate_gpu_memory)
+      set_zero_radix_ciphertext_slice_async<Torus>(
+          streams[0], gpu_indexes[0], tmp_rotated, 0,
+          tmp_rotated->num_radix_blocks);
 
     uint32_t num_bits_in_block = (uint32_t)std::log2(params.message_modulus);
 
