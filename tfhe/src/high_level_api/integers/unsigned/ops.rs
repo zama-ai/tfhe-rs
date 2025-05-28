@@ -2257,8 +2257,22 @@ where
                 FheUint::new(inner_result, cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_self = self.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_SSUB;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result =
+                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[0_u128])
+                        .pop()
+                        .expect("SSUB must return a single value");
+                FheUint::new(hpu_result, device.tag.clone())
             }
         })
     }
