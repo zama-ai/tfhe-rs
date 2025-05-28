@@ -1,5 +1,7 @@
+use crate::boolean::prelude::{DecompositionBaseLog, DynamicDistribution, LweDimension};
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
 
+use crate::core_crypto::algorithms::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::test::{FftBootstrapKeys, TestResources};
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
@@ -7,16 +9,33 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::GpuIndex;
 use crate::core_crypto::gpu::{cuda_programmable_bootstrap_128_lwe_ciphertext, CudaStreams};
 
-use crate::core_crypto::keycache::KeyCacheAccess;
-use crate::core_crypto::prelude::test::{
-    NoiseSquashingTestParams, NOISESQUASHING128_U128_GPU_PARAMS,
+use crate::core_crypto::prelude::test::NoiseSquashingTestParams;
+use crate::core_crypto::prelude::{
+    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
+    generate_programmable_bootstrap_glwe_lut, DecompositionLevelCount, GlweCiphertextOwned,
+    GlweSecretKey, LweCiphertextCount, LweCiphertextOwned, LweSecretKey, Plaintext,
+    SignedDecomposer, UnsignedTorus,
 };
-use crate::core_crypto::prelude::*;
+use crate::prelude::{CastFrom, CastInto};
+use crate::shortint::engine::ShortintEngine;
+use crate::shortint::parameters::{
+    NoiseSquashingParameters, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
+use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
+use crate::shortint::ClassicPBSParameters;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 pub fn generate_keys<
-    Scalar: UnsignedTorus + Sync + Send + CastFrom<usize> + CastInto<usize> + Serialize + DeserializeOwned,
+    Scalar: UnsignedTorus
+        + Sync
+        + Send
+        + CastFrom<usize>
+        + CastFrom<u64>
+        + CastInto<usize>
+        + Serialize
+        + DeserializeOwned,
 >(
     params: NoiseSquashingTestParams<Scalar>,
     rsc: &mut TestResources,
@@ -52,62 +71,93 @@ pub fn generate_keys<
     }
 }
 
-pub fn execute_bootstrap_u128<Scalar>(params: NoiseSquashingTestParams<Scalar>)
-where
-    Scalar: Numeric
-        + UnsignedTorus
-        + CastFrom<usize>
-        + CastInto<usize>
-        + Send
-        + Sync
-        + Serialize
-        + DeserializeOwned,
-    NoiseSquashingTestParams<Scalar>: KeyCacheAccess<Keys = FftBootstrapKeys<Scalar>>,
-{
-    let lwe_noise_distribution = params.glwe_noise_distribution;
-    let glwe_dimension = params.glwe_dimension;
-    let polynomial_size = params.polynomial_size;
-    let ciphertext_modulus = params.ciphertext_modulus;
+pub fn execute_bootstrap_u128(
+    squash_params: NoiseSquashingParameters,
+    input_params: ClassicPBSParameters,
+) {
+    let glwe_dimension = squash_params.glwe_dimension;
+    let polynomial_size = squash_params.polynomial_size;
+    let ciphertext_modulus = squash_params.ciphertext_modulus;
 
     let mut rsc = TestResources::new();
 
-    let mut keys_gen = |params| generate_keys(params, &mut rsc);
-    let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
+    let noise_squashing_test_params: NoiseSquashingTestParams<u128> = NoiseSquashingTestParams {
+        lwe_dimension: LweDimension(input_params.lwe_dimension.0),
+        glwe_dimension: squash_params.glwe_dimension,
+        polynomial_size: squash_params.polynomial_size,
+        lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
+        glwe_noise_distribution: squash_params.glwe_noise_distribution,
+        pbs_base_log: squash_params.decomp_base_log,
+        pbs_level: squash_params.decomp_level_count,
+        modulus_switch_noise_reduction_params: squash_params.modulus_switch_noise_reduction_params,
+        ciphertext_modulus: squash_params.ciphertext_modulus,
+    };
+
+    let mut keys_gen = |_params| generate_keys(noise_squashing_test_params, &mut rsc);
+    let keys = gen_keys_or_get_from_cache_if_enabled(noise_squashing_test_params, &mut keys_gen);
     let (std_bootstrapping_key, small_lwe_sk, big_lwe_sk) =
         (keys.bsk, keys.small_lwe_sk, keys.big_lwe_sk);
     let output_lwe_dimension = big_lwe_sk.lwe_dimension();
 
+    let input_lwe_secret_key = LweSecretKey::from_container(
+        small_lwe_sk
+            .into_container()
+            .iter()
+            .copied()
+            .map(|x| x as u64)
+            .collect::<Vec<_>>(),
+    );
+
+    let mut engine = ShortintEngine::new();
+
+    let modulus_switch_noise_reduction_key = squash_params
+        .modulus_switch_noise_reduction_params
+        .map(|modulus_switch_noise_reduction_params| {
+            ModulusSwitchNoiseReductionKey::new(
+                modulus_switch_noise_reduction_params,
+                &input_lwe_secret_key,
+                &mut engine,
+                input_params.ciphertext_modulus,
+                input_params.lwe_noise_distribution,
+            )
+        });
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
-    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, None, &stream);
+    let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+        &std_bootstrapping_key,
+        modulus_switch_noise_reduction_key.as_ref(),
+        &stream,
+    );
 
     // Our 4 bits message space
-    let message_modulus: Scalar = Scalar::ONE << 4;
-
+    let message_modulus: u64 = 1 << 4;
     // Our input message
-    let input_message: Scalar = 3usize.cast_into();
+    let input_message: u64 = 3usize.cast_into();
+
     // Delta used to encode 4 bits of message + a bit of padding on Scalar
-    let delta: Scalar = (Scalar::ONE << (Scalar::BITS - 1)) / message_modulus;
+
+    let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
+    let delta_u128: u128 = (1 << (u128::BITS - 1)) / message_modulus as u128;
 
     // Apply our encoding
     let plaintext = Plaintext(input_message * delta);
 
     // Allocate a new LweCiphertext and encrypt our plaintext
-    let lwe_ciphertext_in: LweCiphertextOwned<Scalar> = allocate_and_encrypt_new_lwe_ciphertext(
-        &small_lwe_sk,
+    let lwe_ciphertext_in: LweCiphertextOwned<u64> = allocate_and_encrypt_new_lwe_ciphertext(
+        &input_lwe_secret_key,
         plaintext,
-        lwe_noise_distribution,
-        ciphertext_modulus,
+        input_params.lwe_noise_distribution,
+        input_params.ciphertext_modulus,
         &mut rsc.encryption_random_generator,
     );
 
-    let f = |x: Scalar| x;
-    let accumulator: GlweCiphertextOwned<Scalar> = generate_programmable_bootstrap_glwe_lut(
+    let f = |x: u128| x;
+    let accumulator: GlweCiphertextOwned<u128> = generate_programmable_bootstrap_glwe_lut(
         polynomial_size,
         glwe_dimension.to_glwe_size(),
         message_modulus.cast_into(),
         ciphertext_modulus,
-        delta,
+        delta_u128,
         f,
     );
 
@@ -136,8 +186,7 @@ where
     let pbs_ct = d_out_pbs_ct.into_lwe_ciphertext(&stream);
 
     // Decrypt the PBS result
-    let pbs_plaintext: Plaintext<Scalar> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);
-
+    let pbs_plaintext: Plaintext<u128> = decrypt_lwe_ciphertext(&big_lwe_sk, &pbs_ct);
     // Create a SignedDecomposer to perform the rounding of the decrypted plaintext
     // We pass a DecompositionBaseLog of 5 and a DecompositionLevelCount of 1 indicating we want
     // to round the 5 MSB, 1 bit of padding plus our 4 bits of message
@@ -145,12 +194,15 @@ where
         SignedDecomposer::new(DecompositionBaseLog(5), DecompositionLevelCount(1));
 
     // Round and remove our encoding
-    let pbs_result: Scalar = signed_decomposer.closest_representable(pbs_plaintext.0) / delta;
+    let pbs_result: u128 = signed_decomposer.closest_representable(pbs_plaintext.0) / delta_u128;
 
-    assert_eq!(f(input_message), pbs_result);
+    assert_eq!(f(input_message as u128), pbs_result);
 }
 
 #[test]
 fn test_bootstrap_u128_with_squashing() {
-    execute_bootstrap_u128::<u128>(NOISESQUASHING128_U128_GPU_PARAMS);
+    execute_bootstrap_u128(
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
 }
