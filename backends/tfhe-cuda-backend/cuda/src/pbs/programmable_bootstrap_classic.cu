@@ -665,7 +665,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     if (ms_noise_reduction_key->num_zeros != 0) {
       uint32_t log_modulus = log2(polynomial_size) + 1;
       host_improve_noise_modulus_switch<uint64_t>(
-          static_cast<cudaStream_t>(stream), gpu_index,
+          static_cast<const cudaStream_t>(stream), gpu_index,
           buffer->temp_lwe_array_in,
           static_cast<uint64_t const *>(lwe_array_in),
           static_cast<uint64_t const *>(lwe_input_indexes),

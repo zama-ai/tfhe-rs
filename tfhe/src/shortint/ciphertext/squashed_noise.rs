@@ -17,6 +17,19 @@ pub struct SquashedNoiseCiphertext {
 }
 
 impl SquashedNoiseCiphertext {
+    pub fn new(
+        ct: LweCiphertextOwned<u128>,
+        degree: Degree,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+    ) -> Self {
+        Self {
+            ct,
+            degree,
+            message_modulus,
+            carry_modulus,
+        }
+    }
     pub(crate) fn new_zero(
         lwe_size: LweSize,
         ciphertext_modulus: CoreCiphertextModulus<u128>,
