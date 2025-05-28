@@ -6,6 +6,8 @@
 #include "integer/radix_ciphertext.h"
 #include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"
+#include "pbs/programmable_bootstrap_128.cuh"
+#include "utils/helper_multi_gpu.cuh"
 #include <cmath>
 #include <functional>
 
@@ -528,10 +530,10 @@ template <typename Torus> struct int_radix_lut {
   }
 
   // Return a pointer to idx-ith degree
-  Torus *get_degree(size_t idx) { return &degrees[num_many_lut * idx]; }
+  uint64_t *get_degree(size_t idx) { return &degrees[num_many_lut * idx]; }
 
   // Return a pointer to idx-ith max degree
-  Torus *get_max_degree(size_t idx) { return &max_degrees[idx]; }
+  uint64_t *get_max_degree(size_t idx) { return &max_degrees[idx]; }
 
   // Return a pointer to idx-ith lut indexes at gpu_index's global memory
   Torus *get_lut_indexes(uint32_t gpu_index, size_t ind) {
@@ -646,6 +648,213 @@ template <typename Torus> struct int_radix_lut {
     free(max_degrees);
   }
 };
+
+template <typename InputTorus> struct int_noise_squashing_lut {
+
+  int_radix_params params;
+  uint32_t input_glwe_dimension;
+  uint32_t input_polynomial_size;
+  uint32_t input_big_lwe_dimension;
+  uint32_t num_blocks;
+  // Tracks the degree of each LUT and the max degree on CPU
+  // The max degree is (message_modulus * carry_modulus - 1) except for many lut
+  // for which it's different
+  uint64_t *degrees;
+  uint64_t *max_degrees;
+
+  int active_gpu_count;
+
+  // There will be one buffer on each GPU in multi-GPU computations
+  // (same for tmp lwe arrays)
+  // std::vector<int8_t *> buffer;
+
+  // There will be one buffer on each GPU in multi-GPU computations
+  // (same for tmp lwe arrays)
+  std::vector<int8_t *> pbs_buffer;
+  // int8_t *pbs_buffer;
+  //   pbs_buffer_128<InputTorus> *pbs_buffer;
+
+  // At the moment this will reside only on GPU 0
+  std::vector<__uint128_t *> lut_vec;
+
+  uint32_t *gpu_indexes;
+  CudaRadixCiphertextFFI *tmp_lwe_before_ks;
+
+  // All tmp lwe arrays and index arrays for lwe contain the total
+  // amount of blocks to be computed on, there is no split between GPUs
+  // for the moment
+  InputTorus *lwe_indexes_in;
+
+  InputTorus *h_lwe_indexes_in;
+  InputTorus *h_lwe_indexes_out;
+  InputTorus *lwe_trivial_indexes;
+
+  /// For multi GPU execution we create vectors of pointers for inputs and
+  /// outputs
+  std::vector<InputTorus *> lwe_array_in_vec;
+  std::vector<InputTorus *> lwe_after_ks_vec;
+  std::vector<__uint128_t *> lwe_after_pbs_vec;
+  std::vector<InputTorus *> lwe_trivial_indexes_vec;
+
+  bool using_trivial_lwe_indexes = true;
+  bool gpu_memory_allocated;
+  // noise squashing constructor
+  int_noise_squashing_lut(cudaStream_t const *streams,
+                          uint32_t const *input_gpu_indexes, uint32_t gpu_count,
+                          int_radix_params params,
+                          uint32_t input_glwe_dimension,
+                          uint32_t input_polynomial_size,
+                          uint32_t num_radix_blocks,
+                          uint32_t original_num_blocks,
+                          bool allocate_gpu_memory, uint64_t *size_tracker) {
+    this->params = params;
+    this->num_blocks = num_radix_blocks;
+    gpu_memory_allocated = allocate_gpu_memory;
+    // This are the glwe dimension and polynomial size before squashing
+    this->input_glwe_dimension = input_glwe_dimension;
+    this->input_polynomial_size = input_polynomial_size;
+    uint32_t input_big_lwe_dimension =
+        input_glwe_dimension * input_polynomial_size;
+    this->input_big_lwe_dimension = input_big_lwe_dimension;
+
+    uint32_t lut_buffer_size = (params.glwe_dimension + 1) *
+                               params.polynomial_size * sizeof(__uint128_t);
+
+    gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
+    std::memcpy(gpu_indexes, input_gpu_indexes, gpu_count * sizeof(uint32_t));
+
+    ///////////////
+    active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_set_device(i);
+      auto num_radix_blocks_on_gpu =
+          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
+      int8_t *gpu_pbs_buffer;
+      uint64_t size = 0;
+      execute_scratch_pbs_128(streams[i], gpu_indexes[i], &gpu_pbs_buffer,
+                              params.small_lwe_dimension, params.glwe_dimension,
+                              params.polynomial_size, params.pbs_level,
+                              num_radix_blocks_on_gpu, allocate_gpu_memory,
+                              params.allocate_ms_array, &size);
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      if (i == 0 && size_tracker != nullptr) {
+        *size_tracker += size;
+      }
+      pbs_buffer.push_back(gpu_pbs_buffer);
+    }
+    lwe_indexes_in = (InputTorus *)cuda_malloc_with_size_tracking_async(
+        num_radix_blocks * sizeof(InputTorus), streams[0], gpu_indexes[0],
+        size_tracker, allocate_gpu_memory);
+    lwe_trivial_indexes = (InputTorus *)cuda_malloc_with_size_tracking_async(
+        num_radix_blocks * sizeof(InputTorus), streams[0], gpu_indexes[0],
+        size_tracker, allocate_gpu_memory);
+    h_lwe_indexes_in =
+        (InputTorus *)malloc(num_radix_blocks * sizeof(InputTorus));
+    for (int i = 0; i < num_radix_blocks; i++)
+      h_lwe_indexes_in[i] = i;
+
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_indexes_in, h_lwe_indexes_in, num_radix_blocks * sizeof(InputTorus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        lwe_trivial_indexes, h_lwe_indexes_in,
+        num_radix_blocks * sizeof(InputTorus), streams[0], gpu_indexes[0],
+        allocate_gpu_memory);
+
+    multi_gpu_alloc_lwe_async(streams, gpu_indexes, active_gpu_count,
+                              lwe_array_in_vec, num_radix_blocks,
+                              params.big_lwe_dimension + 1, size_tracker,
+                              allocate_gpu_memory);
+
+    multi_gpu_alloc_lwe_async<InputTorus>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_ks_vec,
+        num_radix_blocks, params.small_lwe_dimension + 1, size_tracker,
+        allocate_gpu_memory);
+    multi_gpu_alloc_lwe_async<__uint128_t>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
+        num_radix_blocks, params.big_lwe_dimension + 1, size_tracker,
+        allocate_gpu_memory);
+    multi_gpu_alloc_array_async<InputTorus>(
+        streams, gpu_indexes, active_gpu_count, lwe_trivial_indexes_vec,
+        num_radix_blocks, size_tracker, allocate_gpu_memory);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+
+    multi_gpu_copy_array_async(streams, gpu_indexes, active_gpu_count,
+                               lwe_trivial_indexes_vec, lwe_trivial_indexes,
+                               num_radix_blocks, allocate_gpu_memory);
+    if (allocate_gpu_memory) {
+      // Allocate LUT
+      // LUT is used as a trivial encryption and must be initialized outside
+      // this constructor
+      for (uint i = 0; i < active_gpu_count; i++) {
+        auto lut = (__uint128_t *)cuda_malloc_with_size_tracking_async(
+            lut_buffer_size, streams[i], gpu_indexes[i], size_tracker,
+            allocate_gpu_memory);
+        lut_vec.push_back(lut);
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      }
+    }
+    // Keyswitch
+    tmp_lwe_before_ks = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<InputTorus>(
+        streams[0], gpu_indexes[0], tmp_lwe_before_ks, original_num_blocks,
+        input_big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    degrees = (uint64_t *)malloc(sizeof(uint64_t));
+    max_degrees = (uint64_t *)malloc(sizeof(uint64_t));
+
+    // lut for the squashing
+    auto f_squash = [](__uint128_t block) -> __uint128_t { return block; };
+
+    // Generate the identity LUT, for now we only use one GPU
+    for (uint i = 0; i < active_gpu_count; i++) {
+      auto squash_lut = lut_vec[i];
+      generate_device_accumulator<__uint128_t>(
+          streams[i], gpu_indexes[i], squash_lut, degrees, max_degrees,
+          params.glwe_dimension, params.polynomial_size, params.message_modulus,
+          params.carry_modulus, f_squash, allocate_gpu_memory);
+    }
+  }
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    free(this->gpu_indexes);
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_drop_with_size_tracking_async(lut_vec[i], streams[i], gpu_indexes[i],
+                                         gpu_memory_allocated);
+    }
+    cuda_drop_with_size_tracking_async(lwe_indexes_in, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(lwe_trivial_indexes, streams[0],
+                                       gpu_indexes[0], gpu_memory_allocated);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    lut_vec.clear();
+    free(h_lwe_indexes_in);
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   tmp_lwe_before_ks, gpu_memory_allocated);
+    for (int i = 0; i < pbs_buffer.size(); i++) {
+      cleanup_cuda_programmable_bootstrap_128(streams[i], gpu_indexes[i],
+                                              &pbs_buffer[i]);
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
+
+    multi_gpu_release_async(streams, gpu_indexes, lwe_array_in_vec);
+    multi_gpu_release_async(streams, gpu_indexes, lwe_after_ks_vec);
+    multi_gpu_release_async(streams, gpu_indexes, lwe_after_pbs_vec);
+    multi_gpu_release_async(streams, gpu_indexes, lwe_trivial_indexes_vec);
+    for (uint i = 0; i < active_gpu_count; i++)
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    lwe_array_in_vec.clear();
+    lwe_after_ks_vec.clear();
+    lwe_after_pbs_vec.clear();
+    lwe_trivial_indexes_vec.clear();
+
+    delete tmp_lwe_before_ks;
+    pbs_buffer.clear();
+  }
+};
+
 template <typename Torus> struct int_bit_extract_luts_buffer {
   int_radix_params params;
   int_radix_lut<Torus> *lut;

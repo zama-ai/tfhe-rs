@@ -5,8 +5,9 @@ use crate::backward_compatibility::integers::{
 use crate::core_crypto::commons::numeric::UnsignedNumeric;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
-use crate::high_level_api::global_state;
-use crate::high_level_api::global_state::with_internal_keys;
+use crate::high_level_api::global_state::{
+    self, with_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheDecrypt, SquashNoise};
 use crate::integer::block_decomposition::RecomposableFrom;
@@ -191,9 +192,26 @@ impl<Id: FheUintId> SquashNoise for FheUint<Id> {
                 })
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => Err(crate::error!(
-                "Cuda devices do not support noise squashing yet"
-            )),
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(self.gpu_indexes(), |streams| {
+                    let noise_squashing_key = cuda_key
+                        .key
+                        .noise_squashing_key
+                        .as_ref()
+                        .ok_or(UninitializedNoiseSquashing)?;
+
+                    let cuda_squashed_ct = noise_squashing_key.squash_radix_ciphertext_noise(
+                        cuda_key.pbs_key(),
+                        &self.ciphertext.on_gpu(streams).ciphertext,
+                        streams,
+                    )?;
+                    let squashed_ct = cuda_squashed_ct.to_squashed_noise_radix_ciphertext(streams);
+                    Ok(SquashedNoiseFheUint {
+                        inner: InnerSquashedNoiseRadixCiphertext::Cpu(squashed_ct),
+                        tag: cuda_key.tag.clone(),
+                    })
+                })
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 Err(crate::error!("Hpu devices do not support noise squashing"))

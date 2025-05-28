@@ -4,11 +4,14 @@ use crate::backward_compatibility::booleans::{
 };
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
-use crate::high_level_api::global_state;
-use crate::high_level_api::global_state::with_internal_keys;
+use crate::high_level_api::global_state::{
+    self, with_internal_keys, with_thread_local_cuda_streams_for_gpu_indexes,
+};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheDecrypt, SquashNoise};
 use crate::integer::ciphertext::SquashedNoiseBooleanBlock;
+use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
@@ -177,9 +180,40 @@ impl SquashNoise for FheBool {
                 })
             }
             #[cfg(feature = "gpu")]
-            InternalServerKey::Cuda(_) => Err(crate::error!(
-                "Cuda devices do not support noise squashing yet"
-            )),
+            InternalServerKey::Cuda(cuda_key) => {
+                with_thread_local_cuda_streams_for_gpu_indexes(cuda_key.gpu_indexes(), |streams| {
+                    let noise_squashing_key = cuda_key
+                        .key
+                        .noise_squashing_key
+                        .as_ref()
+                        .ok_or(UninitializedNoiseSquashing)?;
+
+                    let cuda_block = CudaBooleanBlock(match self.ciphertext.on_gpu(streams) {
+                        MaybeCloned::Borrowed(gpu_ct) => {
+                            unsafe {
+                                // SAFETY
+                                // The gpu_ct is a ref, meaning it belongs to the thing
+                                // that is being iterated on, so it will stay alive for the
+                                // whole function
+                                gpu_ct.duplicate_async(streams)
+                            }
+                        }
+                        MaybeCloned::Cloned(gpu_ct) => gpu_ct,
+                    });
+                    let cuda_squashed_block = noise_squashing_key.squash_boolean_block_noise(
+                        cuda_key.pbs_key(),
+                        &cuda_block,
+                        streams,
+                    )?;
+                    let cpu_squashed_block =
+                        cuda_squashed_block.to_squashed_noise_boolean_block(streams);
+
+                    Ok(SquashedNoiseFheBool {
+                        inner: InnerSquashedNoiseBoolean::Cpu(cpu_squashed_block),
+                        tag: cuda_key.tag.clone(),
+                    })
+                })
+            }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 Err(crate::error!("Hpu devices do not support noise squashing"))

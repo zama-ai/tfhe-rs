@@ -8,4 +8,5 @@
 #include "cuda/include/linear_algebra.h"
 #include "cuda/include/fft/fft128.h"
 #include "cuda/include/pbs/programmable_bootstrap.h"
+#include "cuda/include/pbs/pbs_128_utilities.h"
 #include "cuda/include/pbs/programmable_bootstrap_multibit.h"

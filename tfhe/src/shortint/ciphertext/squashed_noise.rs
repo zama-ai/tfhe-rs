@@ -10,10 +10,10 @@ use tfhe_versionable::Versionize;
 #[versionize(SquashedNoiseCiphertextVersions)]
 #[must_use]
 pub struct SquashedNoiseCiphertext {
-    ct: LweCiphertextOwned<u128>,
-    degree: Degree,
-    message_modulus: MessageModulus,
-    carry_modulus: CarryModulus,
+    pub(crate) ct: LweCiphertextOwned<u128>,
+    pub(crate) degree: Degree,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
 }
 
 impl SquashedNoiseCiphertext {
