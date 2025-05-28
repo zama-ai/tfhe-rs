@@ -1385,7 +1385,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     }
 }
 
-pub(crate) fn apply_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
+pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     in_buffer: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
@@ -1506,7 +1506,7 @@ pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar,
 {
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
-    apply_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
+    apply_ms_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
 }
