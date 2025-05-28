@@ -2,8 +2,8 @@ use crate::high_level_api::traits::AddSizeOnGpu;
 use crate::prelude::{
     check_valid_cuda_malloc, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
     FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    IfThenElseSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu,
-    SubSizeOnGpu,
+    IfThenElseSizeOnGpu, MulSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu,
+    ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::{
     TestParameters, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS,
@@ -414,6 +414,31 @@ fn test_gpu_get_if_then_else_size_on_gpu() {
     let cmux_tmp_buffer_size = c.get_cmux_size_on_gpu(a, b);
     assert!(check_valid_cuda_malloc(
         cmux_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+}
+#[test]
+fn test_gpu_get_mul_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen_range(1..=u32::MAX);
+    let clear_b = rng.gen_range(1..=u32::MAX);
+    let mut a = FheUint32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheUint32::try_encrypt(clear_b, &cks).unwrap();
+    a.move_to_current_device();
+    b.move_to_current_device();
+
+    let a = &a;
+    let b = &b;
+
+    let mul_tmp_buffer_size = a.get_mul_size_on_gpu(b);
+    let scalar_mul_tmp_buffer_size = b.get_mul_size_on_gpu(clear_a);
+    assert!(check_valid_cuda_malloc(
+        mul_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_mul_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }
