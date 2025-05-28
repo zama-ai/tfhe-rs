@@ -17,9 +17,9 @@ use crate::core_crypto::commons::traits::{
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::ggsw_ciphertext::fourier_ggsw_ciphertext_size;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::ContainerMut;
+use crate::core_crypto::prelude::{switch_lwe_modulus, ContainerMut, ModulusSwitchedCt};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use core::any::TypeId;
 use core::mem::transmute;
@@ -247,55 +247,45 @@ impl<Cont> Fourier128LweBootstrapKey<Cont>
 where
     Cont: Container<Element = f64>,
 {
-    // CastInto required for PBS modulus switch which returns a usize
-    pub fn blind_rotate_assign<InputScalar, OutputScalar, ContLut, ContLwe>(
+    pub fn blind_rotate_assign<OutputScalar, ContLut>(
         &self,
         lut: &mut GlweCiphertext<ContLut>,
-        lwe: &LweCiphertext<ContLwe>,
+        lwe: &impl ModulusSwitchedCt<usize>,
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) where
-        // CastInto required for PBS modulus switch which returns a usize
-        InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
         ContLut: ContainerMut<Element = OutputScalar>,
-        ContLwe: Container<Element = InputScalar>,
     {
-        fn implementation<InputScalar, OutputScalar>(
+        fn implementation<OutputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lut: GlweCiphertext<&mut [OutputScalar]>,
-            lwe: LweCiphertext<&[InputScalar]>,
+            lwe: &impl ModulusSwitchedCt<usize>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
         ) where
-            // CastInto required for PBS modulus switch which returns a usize
-            InputScalar: UnsignedTorus + CastInto<usize>,
             OutputScalar: UnsignedTorus,
         {
-            let lwe = lwe.as_ref();
-            let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
+            let lwe_mask = lwe.mask();
+            let lwe_body = lwe.body();
 
-            let lut_poly_size = lut.polynomial_size();
             let ciphertext_modulus = lut.ciphertext_modulus();
             assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-            let monomial_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
 
             lut.as_mut_polynomial_list()
                 .iter_mut()
                 .for_each(|mut poly| {
                     polynomial_wrapping_monic_monomial_div_assign(
                         &mut poly,
-                        MonomialDegree(monomial_degree),
+                        MonomialDegree(lwe_body.cast_into()),
                     );
                 });
 
             // We initialize the ct_0 used for the successive cmuxes
             let mut ct0 = lut;
 
-            for (lwe_mask_element, bootstrap_key_ggsw) in
-                izip!(lwe_mask.iter(), this.into_ggsw_iter())
-            {
-                if *lwe_mask_element != InputScalar::ZERO {
+            for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask, this.into_ggsw_iter()) {
+                if lwe_mask_element != 0 {
                     let stack = &mut *stack;
                     // We copy ct_0 to ct_1
                     let (ct1, stack) =
@@ -310,7 +300,7 @@ where
                     for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                         polynomial_wrapping_monic_monomial_mul_assign(
                             &mut poly,
-                            MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size)),
+                            MonomialDegree(lwe_mask_element),
                         );
                     }
 
@@ -335,7 +325,7 @@ where
                     .for_each(|x| *x = signed_decomposer.closest_representable(*x));
             }
         }
-        implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack);
+        implementation(self.as_view(), lut.as_mut_view(), lwe, fft, stack);
     }
 
     pub fn bootstrap<InputScalar, OutputScalar, ContLweOut, ContLweIn, ContAcc>(
@@ -353,16 +343,37 @@ where
         ContLweIn: Container<Element = InputScalar>,
         ContAcc: Container<Element = OutputScalar>,
     {
-        fn implementation<InputScalar, OutputScalar>(
+        let log_modulus = accumulator
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        let lwe_in = lwe_in.as_view();
+
+        let lwe_in_msed = switch_lwe_modulus(lwe_in.as_view(), log_modulus);
+
+        self.blind_rotate(lwe_out, &lwe_in_msed, accumulator, fft, stack);
+    }
+
+    pub fn blind_rotate<OutputScalar, ContLweOut, ContAcc>(
+        &self,
+        lwe_out: &mut LweCiphertext<ContLweOut>,
+        lwe_in: &impl ModulusSwitchedCt<usize>,
+        accumulator: &GlweCiphertext<ContAcc>,
+        fft: Fft128View<'_>,
+        stack: &mut PodStack,
+    ) where
+        OutputScalar: UnsignedTorus,
+        ContLweOut: ContainerMut<Element = OutputScalar>,
+        ContAcc: Container<Element = OutputScalar>,
+    {
+        fn implementation<OutputScalar>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lwe_out: LweCiphertext<&mut [OutputScalar]>,
-            lwe_in: LweCiphertext<&[InputScalar]>,
+            lwe_in: &impl ModulusSwitchedCt<usize>,
             accumulator: GlweCiphertext<&[OutputScalar]>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
         ) where
-            // CastInto required for PBS modulus switch which returns a usize
-            InputScalar: UnsignedTorus + CastInto<usize>,
             OutputScalar: UnsignedTorus,
         {
             // We type check dynamically with TypeId
@@ -371,7 +382,7 @@ where
                 let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
                 let accumulator: GlweCiphertext<&[u128]> = unsafe { transmute(accumulator) };
 
-                return this.bootstrap_u128(&mut lwe_out, &lwe_in, &accumulator, fft, stack);
+                return this.blind_rotate_u128(&mut lwe_out, lwe_in, &accumulator, fft, stack);
             }
 
             let (local_accumulator_data, stack) =
@@ -381,7 +392,9 @@ where
                 accumulator.polynomial_size(),
                 accumulator.ciphertext_modulus(),
             );
-            this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), &lwe_in, fft, stack);
+
+            this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), lwe_in, fft, stack);
+
             extract_lwe_sample_from_glwe_ciphertext(
                 &local_accumulator,
                 &mut lwe_out,
@@ -392,7 +405,7 @@ where
         implementation(
             self.as_view(),
             lwe_out.as_mut_view(),
-            lwe_in.as_view(),
+            lwe_in,
             accumulator.as_view(),
             fft,
             stack,

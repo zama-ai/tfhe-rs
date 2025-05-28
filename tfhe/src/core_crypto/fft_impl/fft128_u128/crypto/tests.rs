@@ -197,10 +197,10 @@ fn test_split_pbs() {
 
         // Needed as the basic bootstrap function dispatches to the more efficient split version for
         // u128
-        fn bootstrap_non_split<Scalar: UnsignedTorus + CastInto<usize>>(
+        fn blind_rotate_non_split<Scalar: UnsignedTorus + CastInto<usize>>(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lwe_out: LweCiphertext<&mut [Scalar]>,
-            lwe_in: LweCiphertext<&[Scalar]>,
+            lwe_in: &impl ModulusSwitchedCt<usize>,
             accumulator: GlweCiphertext<&[Scalar]>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
@@ -212,7 +212,9 @@ fn test_split_pbs() {
                 accumulator.polynomial_size(),
                 accumulator.ciphertext_modulus(),
             );
-            this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), &lwe_in, fft, stack);
+
+            this.blind_rotate_assign(&mut local_accumulator.as_mut_view(), lwe_in, fft, stack);
+
             extract_lwe_sample_from_glwe_ciphertext(
                 &local_accumulator,
                 &mut lwe_out,
@@ -220,10 +222,16 @@ fn test_split_pbs() {
             );
         }
 
-        bootstrap_non_split(
+        let log_modulus = accumulator
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        let lwe_in = switch_lwe_modulus(lwe_in.as_view(), log_modulus);
+
+        blind_rotate_non_split(
             fourier_bsk.as_view(),
             lwe_out_non_split.as_mut_view(),
-            lwe_in.as_view(),
+            &lwe_in,
             accumulator.as_view(),
             fft,
             stack,
@@ -236,7 +244,7 @@ fn test_split_pbs() {
                 .to_lwe_size(),
             ciphertext_modulus,
         );
-        fourier_bsk.bootstrap_u128(&mut lwe_out_split, &lwe_in, &accumulator, fft, stack);
+        fourier_bsk.blind_rotate_u128(&mut lwe_out_split, &lwe_in, &accumulator, fft, stack);
 
         assert_eq!(lwe_out_split, lwe_out_non_split);
     }

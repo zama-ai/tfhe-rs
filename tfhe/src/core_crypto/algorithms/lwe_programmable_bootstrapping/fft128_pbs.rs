@@ -8,6 +8,7 @@ use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch as bootstrap_scratch_f128;
 use crate::core_crypto::fft_impl::fft128::math::fft::{Fft128, Fft128View};
+use crate::core_crypto::prelude::ModulusSwitchedCt;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
@@ -186,7 +187,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<
     // CastInto required for PBS modulus switch which returns a usize
     InputScalar: UnsignedTorus + CastInto<usize>,
     OutputScalar: UnsignedTorus,
-    InputCont: Container<Element = InputScalar>,
+    InputCont: Container<Element = InputScalar> + Sync,
     OutputCont: ContainerMut<Element = OutputScalar>,
     AccCont: Container<Element = OutputScalar>,
     KeyCont: Container<Element = f64>,
@@ -202,7 +203,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<
     let fft = fft.as_view();
 
     buffers.resize(
-        programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
+        blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement::<OutputScalar>(
             fourier_bsk.glwe_size(),
             fourier_bsk.polynomial_size(),
             fft,
@@ -226,7 +227,7 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext<
 /// Memory optimized version of [`programmable_bootstrap_f128_lwe_ciphertext`], the caller must
 /// provide a properly configured [`Fft128View`] object and a `PodStack` used as a memory buffer
 /// having a capacity at least as large as the result of
-/// [`programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement`].
+/// [`blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement`].
 pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
     InputScalar,
     OutputScalar,
@@ -253,8 +254,24 @@ pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized<
     fourier_bsk.bootstrap(output, input, accumulator, fft, stack);
 }
 
-/// Return the required memory for [`programmable_bootstrap_f128_lwe_ciphertext_mem_optimized`].
-pub fn programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement<Scalar>(
+pub fn blind_rotate_f128_lwe_ciphertext_mem_optimized<OutputScalar, OutputCont, AccCont, KeyCont>(
+    input: &impl ModulusSwitchedCt<usize>,
+    output: &mut LweCiphertext<OutputCont>,
+    accumulator: &GlweCiphertext<AccCont>,
+    fourier_bsk: &Fourier128LweBootstrapKey<KeyCont>,
+    fft: Fft128View<'_>,
+    stack: &mut PodStack,
+) where
+    OutputScalar: UnsignedTorus,
+    OutputCont: ContainerMut<Element = OutputScalar>,
+    AccCont: Container<Element = OutputScalar>,
+    KeyCont: Container<Element = f64>,
+{
+    fourier_bsk.blind_rotate(output, input, accumulator, fft, stack);
+}
+
+/// Return the required memory for [`blind_rotate_f128_lwe_ciphertext_mem_optimized`].
+pub fn blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement<Scalar>(
     glwe_size: GlweSize,
     polynomial_size: PolynomialSize,
     fft: Fft128View<'_>,
