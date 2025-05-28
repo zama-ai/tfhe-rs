@@ -4,13 +4,14 @@ use crate::core_crypto::algorithms::lwe_bootstrap_key_conversion::par_convert_st
 use crate::core_crypto::algorithms::lwe_bootstrap_key_generation::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::lwe_keyswitch::keyswitch_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
+    blind_rotate_f128_lwe_ciphertext_mem_optimized,
+    blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement,
     generate_programmable_bootstrap_glwe_lut,
-    programmable_bootstrap_f128_lwe_ciphertext_mem_optimized,
-    programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement,
 };
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
+use crate::core_crypto::prelude::lwe_ciphertext_modulus_switch;
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
@@ -234,7 +235,7 @@ impl NoiseSquashingKey {
         ciphertext: &Ciphertext,
         src_server_key: StandardServerKeyView,
     ) -> SquashedNoiseCiphertext {
-        let mut lwe_before_noise_squashing = match src_server_key.atomic_pattern.pbs_order {
+        let lwe_before_noise_squashing = match src_server_key.atomic_pattern.pbs_order {
             // Under the big key, first need to keyswitch
             PBSOrder::KeyswitchBootstrap => {
                 let mut after_ks_ct = LweCiphertext::new(
@@ -260,20 +261,17 @@ impl NoiseSquashingKey {
             PBSOrder::BootstrapKeyswitch => ciphertext.ct.clone(),
         };
 
-        let lwe_ciphertext_to_squash_noise = match &self.modulus_switch_noise_reduction_key {
-            Some(key) => {
-                let br_input_modulus_log = self
-                    .bootstrapping_key
-                    .polynomial_size()
-                    .to_blind_rotation_input_modulus_log();
-                key.improve_modulus_switch_noise(
-                    &mut lwe_before_noise_squashing,
-                    br_input_modulus_log,
-                );
+        let br_input_modulus_log = self
+            .bootstrapping_key
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
 
-                lwe_before_noise_squashing
-            }
-            None => lwe_before_noise_squashing,
+        let lwe_ciphertext_to_squash_noise = match &self.modulus_switch_noise_reduction_key {
+            Some(key) => key.improve_noise_and_modulus_switch(
+                &lwe_before_noise_squashing.as_view(),
+                br_input_modulus_log,
+            ),
+            None => lwe_ciphertext_modulus_switch(lwe_before_noise_squashing, br_input_modulus_log),
         };
 
         let output_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
@@ -294,15 +292,14 @@ impl NoiseSquashingKey {
         let fft = Fft128::new(bsk_polynomial_size);
         let fft = fft.as_view();
 
-        let mem_requirement =
-            programmable_bootstrap_f128_lwe_ciphertext_mem_optimized_requirement::<u128>(
-                bsk_glwe_size,
-                bsk_polynomial_size,
-                fft,
-            )
-            .unwrap()
-            .try_unaligned_bytes_required()
-            .unwrap();
+        let mem_requirement = blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement::<u128>(
+            bsk_glwe_size,
+            bsk_polynomial_size,
+            fft,
+        )
+        .unwrap()
+        .try_unaligned_bytes_required()
+        .unwrap();
 
         // CarryModulus set to 1, as the output ciphertext does not have a carry space, mod == 1,
         // means carry max == 0
@@ -328,7 +325,7 @@ impl NoiseSquashingKey {
             let buffers = engine.get_computation_buffers();
             buffers.resize(mem_requirement);
 
-            programmable_bootstrap_f128_lwe_ciphertext_mem_optimized(
+            blind_rotate_f128_lwe_ciphertext_mem_optimized(
                 &lwe_ciphertext_to_squash_noise,
                 res.lwe_ciphertext_mut(),
                 &id_lut,
