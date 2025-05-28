@@ -1,5 +1,5 @@
 use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext, ComputationBuffers, MonomialDegree,
+    extract_lwe_sample_from_glwe_ciphertext, CiphertextModulus, ComputationBuffers, MonomialDegree,
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
@@ -74,8 +74,11 @@ pub(crate) fn decompress_and_apply_lookup_table<InputScalar, OutputScalar>(
 {
     match &bootstrapping_key {
         ShortintBootstrappingKey::Classic { .. } => {
+            let ciphertext_modulus = CiphertextModulus::new_native();
             let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
-                InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
+                InternalCompressedModulusSwitchedCiphertext::Classic(a) => {
+                    a.extract(ciphertext_modulus)
+                }
                 InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {
                     panic!(
                         "Compression was done targeting a MultiBit bootstrap decompression, \
