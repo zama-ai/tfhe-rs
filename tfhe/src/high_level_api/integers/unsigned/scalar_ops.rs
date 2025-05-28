@@ -318,13 +318,11 @@ where
     fn get_gt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_gt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_gt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -333,13 +331,11 @@ where
     fn get_ge_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_ge_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_ge_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -348,13 +344,11 @@ where
     fn get_lt_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_lt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_lt_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -363,13 +357,11 @@ where
     fn get_le_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_le_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_le_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -386,13 +378,11 @@ where
     fn get_min_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_min_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_min_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -408,13 +398,11 @@ where
     fn get_max_size_on_gpu(&self, _rhs: Clear) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key
-                        .key
-                        .key
-                        .get_scalar_max_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
-                })
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_max_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
@@ -937,13 +925,11 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_cuda_internal_keys(|keys| {
-                                let streams = &keys.streams;
+                                let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_left_shift_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -996,13 +982,11 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_cuda_internal_keys(|keys| {
-                                let streams = &keys.streams;
+                                let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_right_shift_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1055,13 +1039,11 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_cuda_internal_keys(|keys| {
-                                let streams = &keys.streams;
+                                let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_rotate_left_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
@@ -1114,13 +1096,11 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_cuda_internal_keys(|keys| {
-                                let streams = &keys.streams;
+                                let streams = &cuda_key.streams;
                                 cuda_key.key.key.get_scalar_rotate_right_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
                                 )
-                            })
                         } else {
                             0
                         })
