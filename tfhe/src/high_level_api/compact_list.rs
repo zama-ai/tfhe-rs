@@ -466,28 +466,21 @@ mod zk {
                 #[cfg(feature = "gpu")]
                 Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
                     InnerProvenCompactCiphertextList::Cuda(inner) => {
-                        with_cuda_internal_keys(|keys| {
-                            let streams = &keys.streams;
-                            let ksk = CudaKeySwitchingKey {
-                                key_switching_key_material: gpu_key
-                                    .key
-                                    .cpk_key_switching_key_material
-                                    .as_ref()
-                                    .unwrap(),
-                                dest_server_key: &gpu_key.key.key,
-                            };
-                            let expander = inner.verify_and_expand(
-                                crs,
-                                &pk.key.key,
-                                metadata,
-                                &ksk,
-                                streams,
-                            )?;
+                        let streams = &gpu_key.streams;
+                        let ksk = CudaKeySwitchingKey {
+                            key_switching_key_material: gpu_key
+                                .key
+                                .cpk_key_switching_key_material
+                                .as_ref()
+                                .unwrap(),
+                            dest_server_key: &gpu_key.key.key,
+                        };
+                        let expander =
+                            inner.verify_and_expand(crs, &pk.key.key, metadata, &ksk, streams)?;
 
-                            Ok(CompactCiphertextListExpander {
-                                inner: InnerCompactCiphertextListExpander::Cuda(expander),
-                                tag: self.tag.clone(),
-                            })
+                        Ok(CompactCiphertextListExpander {
+                            inner: InnerCompactCiphertextListExpander::Cuda(expander),
+                            tag: self.tag.clone(),
                         })
                     }
                     InnerProvenCompactCiphertextList::Cpu(cpu_inner) => {
@@ -567,8 +560,7 @@ mod zk {
                     #[cfg(feature = "gpu")]
                     Some(InternalServerKey::Cuda(gpu_key)) => match &self.inner {
                         InnerProvenCompactCiphertextList::Cuda(inner) => {
-                            with_cuda_internal_keys(|keys| {
-                                let streams = &keys.streams;
+                                let streams = &gpu_key.streams;
                                 let ksk = CudaKeySwitchingKey {
                                     key_switching_key_material: gpu_key
                                         .key
@@ -583,7 +575,6 @@ mod zk {
                                     inner: InnerCompactCiphertextListExpander::Cuda(expander),
                                     tag: self.tag.clone(),
                                 })
-                            })
                         }
                         InnerProvenCompactCiphertextList::Cpu(inner) => {
                             with_cuda_internal_keys(|keys| {
