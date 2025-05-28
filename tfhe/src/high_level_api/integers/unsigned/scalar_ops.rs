@@ -937,7 +937,8 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                                 cuda_key.key.key.get_scalar_left_shift_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
@@ -995,7 +996,8 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                                 cuda_key.key.key.get_scalar_right_shift_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
@@ -1053,7 +1055,8 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                                 cuda_key.key.key.get_scalar_rotate_left_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
@@ -1111,7 +1114,8 @@ macro_rules! define_scalar_rotate_shifts {
                 |lhs: &FheUint<_>, _rhs| {
                     global_state::with_internal_keys(|key|
                         if let InternalServerKey::Cuda(cuda_key) = key {
-                            with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                                 cuda_key.key.key.get_scalar_rotate_right_size_on_gpu(
                                     &*lhs.ciphertext.on_gpu(streams),
                                     streams,
