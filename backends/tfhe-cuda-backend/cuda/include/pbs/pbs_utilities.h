@@ -240,14 +240,12 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   }
 };
 
-template <PBS_TYPE pbs_type> struct pbs_buffer_128;
-
-template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
+template <typename InputTorus> struct pbs_buffer_128 {
   int8_t *d_mem;
 
   __uint128_t *global_accumulator;
   double *global_join_buffer;
-  __uint128_t *temp_lwe_array_in;
+  InputTorus *temp_lwe_array_in;
   uint64_t *trivial_indexes;
 
   PBS_VARIANT pbs_variant;
@@ -265,11 +263,9 @@ template <> struct pbs_buffer_128<PBS_TYPE::CLASSICAL> {
     this->pbs_variant = pbs_variant;
     this->uses_noise_reduction = allocate_ms_array;
     if (allocate_ms_array) {
-      this->temp_lwe_array_in =
-          (__uint128_t *)cuda_malloc_with_size_tracking_async(
-              (lwe_dimension + 1) * input_lwe_ciphertext_count *
-                  sizeof(__uint128_t),
-              stream, gpu_index, size_tracker, allocate_ms_array);
+      this->temp_lwe_array_in = (InputTorus *)cuda_malloc_async(
+          (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(InputTorus),
+          stream, gpu_index);
       this->trivial_indexes = (uint64_t *)cuda_malloc_with_size_tracking_async(
           input_lwe_ciphertext_count * sizeof(uint64_t), stream, gpu_index,
           size_tracker, allocate_ms_array);
@@ -524,6 +520,10 @@ bool has_support_to_cuda_programmable_bootstrap_tbc(uint32_t num_samples,
                                                     uint32_t polynomial_size,
                                                     uint32_t level_count,
                                                     uint32_t max_shared_memory);
+
+bool has_support_to_cuda_programmable_bootstrap_128_cg(
+    uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
+    uint32_t num_samples, uint32_t max_shared_memory);
 
 #ifdef __CUDACC__
 __device__ inline int get_start_ith_ggsw(int i, uint32_t polynomial_size,
