@@ -524,6 +524,50 @@ pbs!(
         |_params: &DigitParameters, _deg| 1;
     }
 ]],
+["IsSome" => 33 [
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            if val != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["CarryIsSome" => 34 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            if carry_field != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["CarryIsNone" => 35 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            if carry_field == 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MultCarryMsgIsSome" => 36 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_x_msg = (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.data_mask();
+            if carry_x_msg != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MultCarryMsgMsbIsSome" => 37 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let mul_msb = ((((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) >> params.msg_w) & params.msg_mask();
+            if mul_msb != 0 { 1} else {0}
+        };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
 );
 
 pub(crate) fn ceil_ilog2(value: &u8) -> u8 {
