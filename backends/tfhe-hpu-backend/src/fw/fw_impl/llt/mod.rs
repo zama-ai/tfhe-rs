@@ -21,10 +21,23 @@ crate::impl_fw!("Llt" [
     SUB => fw_impl::llt::iop_sub;
     MUL => fw_impl::llt::iop_mul;
 
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    OVF_ADD => fw_impl::ilp::iop_overflow_add;
+    OVF_SUB => fw_impl::ilp::iop_overflow_sub;
+    OVF_MUL => fw_impl::ilp::iop_overflow_mul;
+
     ADDS => fw_impl::llt::iop_adds;
     SUBS => fw_impl::llt::iop_subs;
     SSUB => fw_impl::llt::iop_ssub;
     MULS => fw_impl::llt::iop_muls;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    OVF_ADDS => fw_impl::ilp::iop_overflow_adds;
+    OVF_SUBS => fw_impl::ilp::iop_overflow_subs;
+    OVF_SSUB => fw_impl::ilp::iop_overflow_ssub;
+    OVF_MULS => fw_impl::ilp::iop_overflow_muls;
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});

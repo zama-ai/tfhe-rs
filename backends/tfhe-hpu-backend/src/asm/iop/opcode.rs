@@ -19,16 +19,27 @@ pub const USER_RANGE_LB: u8 = 0x0;
 pub const USER_RANGE_UB: u8 = 0x7f;
 
 // Ct x Imm -------------------------------------------------------------------
+// Arith operations
 pub const ADDS: u8 = 0xA0;
 pub const SUBS: u8 = 0xA1;
 pub const SSUB: u8 = 0xA2;
 pub const MULS: u8 = 0xA3;
+// Overflowing Arith
+pub const OVF_ADDS: u8 = 0xA8;
+pub const OVF_SUBS: u8 = 0xA9;
+pub const OVF_SSUB: u8 = 0xAA;
+pub const OVF_MULS: u8 = 0xAB;
 
 // Ct x Ct -------------------------------------------------------------------
 // Arith operations
 pub const ADD: u8 = 0xE0;
 pub const SUB: u8 = 0xE2;
 pub const MUL: u8 = 0xE4;
+
+// Overflowing Arith
+pub const OVF_ADD: u8 = 0xE8;
+pub const OVF_SUB: u8 = 0xEA;
+pub const OVF_MUL: u8 = 0xEC;
 
 // BW operations
 pub const BW_AND: u8 = 0xD0;
