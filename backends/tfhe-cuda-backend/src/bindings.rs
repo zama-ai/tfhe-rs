@@ -1316,6 +1316,14 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+unsafe extern "C" {
+    pub fn extend_radix_with_trivial_zero_blocks_msb_64(
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+    );
+}
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
 pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
 pub type KS_TYPE = ffi::c_uint;

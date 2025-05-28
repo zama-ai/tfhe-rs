@@ -77,30 +77,6 @@ impl CudaRadixCiphertextInfo {
         new_block_info
     }
 
-    pub(crate) fn after_extend_radix_with_trivial_zero_blocks_msb(
-        &self,
-        num_blocks: usize,
-    ) -> Self {
-        assert!(num_blocks > 0);
-
-        let mut new_block_info = Self {
-            blocks: Vec::with_capacity(self.blocks.len() + num_blocks),
-        };
-        for &b in self.blocks.iter() {
-            new_block_info.blocks.push(b);
-        }
-        for _ in 0..num_blocks {
-            new_block_info.blocks.push(CudaBlockInfo {
-                degree: Degree::new(0),
-                message_modulus: self.blocks.first().unwrap().message_modulus,
-                carry_modulus: self.blocks.first().unwrap().carry_modulus,
-                atomic_pattern: self.blocks.first().unwrap().atomic_pattern,
-                noise_level: NoiseLevel::ZERO,
-            });
-        }
-        new_block_info
-    }
-
     pub(crate) fn after_trim_radix_blocks_lsb(&self, num_blocks: usize) -> Self {
         let mut new_block_info = Self {
             blocks: Vec::with_capacity(self.blocks.len().saturating_sub(num_blocks)),

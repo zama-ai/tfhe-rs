@@ -16,8 +16,8 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
-    compute_prefix_sum_hillis_steele_async, full_propagate_assign_async,
-    propagate_single_carry_assign_async, CudaServerKey, PBSType,
+    compute_prefix_sum_hillis_steele_async, extend_radix_with_trivial_zero_blocks_msb_async,
+    full_propagate_assign_async, propagate_single_carry_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -577,27 +577,17 @@ impl CudaServerKey {
         num_blocks: usize,
         streams: &CudaStreams,
     ) -> T {
-        if num_blocks == 0 {
-            return ct.duplicate_async(streams);
+        let mut output: T = unsafe {
+            self.create_trivial_zero_radix_async(
+                ct.as_ref().d_blocks.lwe_ciphertext_count().0 + num_blocks,
+                streams,
+            )
+        };
+
+        unsafe {
+            extend_radix_with_trivial_zero_blocks_msb_async(output.as_mut(), ct.as_ref(), streams);
         }
-        let new_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0 + num_blocks;
-        let ciphertext_modulus = ct.as_ref().d_blocks.ciphertext_modulus();
-        let lwe_size = ct.as_ref().d_blocks.lwe_dimension().to_lwe_size();
-
-        let mut extended_ct_vec = CudaVec::new_async(new_num_blocks * lwe_size.0, streams, 0);
-        extended_ct_vec.memset_async(0u64, streams, 0);
-        extended_ct_vec.copy_from_gpu_async(&ct.as_ref().d_blocks.0.d_vec, streams, 0);
-        let extended_ct_list = CudaLweCiphertextList::from_cuda_vec(
-            extended_ct_vec,
-            LweCiphertextCount(new_num_blocks),
-            ciphertext_modulus,
-        );
-
-        let extended_ct_info = ct
-            .as_ref()
-            .info
-            .after_extend_radix_with_trivial_zero_blocks_msb(num_blocks);
-        T::from(CudaRadixCiphertext::new(extended_ct_list, extended_ct_info))
+        output
     }
 
     /// Remove LSB blocks from an existing [`CudaUnsignedRadixCiphertext`] or

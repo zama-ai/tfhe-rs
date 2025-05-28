@@ -538,5 +538,8 @@ void cleanup_cuda_integer_is_at_least_one_comparisons_block_true(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr_void);
 
+void extend_radix_with_trivial_zero_blocks_msb_64(
+    CudaRadixCiphertextFFI *output, CudaRadixCiphertextFFI const *input,
+    void *const *streams, uint32_t const *gpu_indexes);
 } // extern C
 #endif // CUDA_INTEGER_H
