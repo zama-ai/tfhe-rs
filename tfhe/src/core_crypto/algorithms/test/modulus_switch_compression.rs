@@ -48,7 +48,7 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
                 params.polynomial_size.to_blind_rotation_input_modulus_log(),
             );
 
-            let lwe_ms_ed = compressed.extract();
+            let lwe_ms_ed = compressed.extract(ciphertext_modulus);
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe_ms_ed);
 
@@ -67,9 +67,11 @@ fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<u64> + CastFrom<u64>>(
     ct: &LweCiphertext<Vec<Scalar>>,
     log_modulus: CiphertextModulusLog,
 ) {
+    let ciphertext_modulus = CiphertextModulus::new_native();
+
     let a = CompressedModulusSwitchedLweCiphertext::<u64>::compress(ct, log_modulus);
 
-    let b = a.extract();
+    let b = a.extract(ciphertext_modulus);
 
     for (i, j) in ct.as_ref().iter().zip_eq(b.as_ref().iter()) {
         assert_eq!(modulus_switch(*i, log_modulus) << (64 - log_modulus.0), *j);
