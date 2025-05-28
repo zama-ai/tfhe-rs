@@ -2611,7 +2611,8 @@ where
     fn get_left_shift_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_left_shift_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2632,7 +2633,8 @@ where
     fn get_right_shift_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_right_shift_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2653,7 +2655,8 @@ where
     fn get_rotate_left_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_rotate_left_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
@@ -2674,7 +2677,8 @@ where
     fn get_rotate_right_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_thread_local_cuda_streams(|streams| {
+                with_cuda_internal_keys(|keys| {
+                    let streams = &keys.streams;
                     cuda_key.key.key.get_rotate_right_size_on_gpu(
                         &*self.ciphertext.on_gpu(streams),
                         &rhs.ciphertext.on_gpu(streams),
