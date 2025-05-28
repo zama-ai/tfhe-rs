@@ -308,3 +308,14 @@ pub trait RotateLeftSizeOnGpu<Rhs = Self> {
 pub trait RotateRightSizeOnGpu<Rhs = Self> {
     fn get_rotate_right_size_on_gpu(&self, other: Rhs) -> u64;
 }
+
+#[cfg(feature = "gpu")]
+pub trait IfThenElseSizeOnGpu<Ciphertext> {
+    fn get_if_then_else_size_on_gpu(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> u64;
+    fn get_select_size_on_gpu(&self, ct_when_true: &Ciphertext, ct_when_false: &Ciphertext) -> u64 {
+        self.get_if_then_else_size_on_gpu(ct_when_true, ct_when_false)
+    }
+    fn get_cmux_size_on_gpu(&self, ct_then: &Ciphertext, ct_else: &Ciphertext) -> u64 {
+        self.get_if_then_else_size_on_gpu(ct_then, ct_else)
+    }
+}

@@ -6,8 +6,6 @@ use super::inner::RadixCiphertext;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::global_state;
-#[cfg(feature = "gpu")]
-use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
@@ -2496,14 +2494,12 @@ where
     fn get_gt_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_gt_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_gt_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2512,14 +2508,12 @@ where
     fn get_ge_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_ge_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_ge_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2528,14 +2522,12 @@ where
     fn get_lt_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_lt_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_lt_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2544,14 +2536,12 @@ where
     fn get_le_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_le_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_le_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2566,14 +2556,12 @@ where
     fn get_min_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_min_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_min_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2589,14 +2577,12 @@ where
     fn get_max_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_max_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_max_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2611,14 +2597,12 @@ where
     fn get_left_shift_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_left_shift_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_left_shift_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2633,14 +2617,12 @@ where
     fn get_right_shift_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_right_shift_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_right_shift_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2655,14 +2637,12 @@ where
     fn get_rotate_left_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_rotate_left_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_rotate_left_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
@@ -2677,14 +2657,12 @@ where
     fn get_rotate_right_size_on_gpu(&self, rhs: &Self) -> u64 {
         global_state::with_internal_keys(|key| {
             if let InternalServerKey::Cuda(cuda_key) = key {
-                with_cuda_internal_keys(|keys| {
-                    let streams = &keys.streams;
-                    cuda_key.key.key.get_rotate_right_size_on_gpu(
-                        &*self.ciphertext.on_gpu(streams),
-                        &rhs.ciphertext.on_gpu(streams),
-                        streams,
-                    )
-                })
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_rotate_right_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
             } else {
                 0
             }
