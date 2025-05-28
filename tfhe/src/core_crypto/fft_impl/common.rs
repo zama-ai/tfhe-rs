@@ -4,15 +4,8 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::Container;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::prelude::{CastInto, CiphertextModulusLog, ContainerMut};
+use crate::core_crypto::prelude::{CiphertextModulusLog, ContainerMut};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
-
-pub fn pbs_modulus_switch<Scalar: UnsignedInteger + CastInto<usize>>(
-    input: Scalar,
-    polynomial_size: PolynomialSize,
-) -> usize {
-    modulus_switch(input, polynomial_size.to_blind_rotation_input_modulus_log()).cast_into()
-}
 
 pub fn modulus_switch<Scalar: UnsignedInteger>(
     input: Scalar,
