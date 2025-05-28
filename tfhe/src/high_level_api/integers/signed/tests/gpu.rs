@@ -4,11 +4,12 @@ use crate::high_level_api::integers::signed::tests::{
 use crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu;
 use crate::prelude::{
     check_valid_cuda_malloc, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu,
-    BitXorSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
+    BitXorSizeOnGpu, FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
+    IfThenElseSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu,
+    SubSizeOnGpu,
 };
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
-use crate::{FheInt32, FheUint32, GpuIndex};
+use crate::{FheBool, FheInt32, FheUint32, GpuIndex};
 use rand::Rng;
 
 #[test]
@@ -288,6 +289,38 @@ fn test_gpu_get_shift_rotate_size_on_gpu() {
     ));
     assert!(check_valid_cuda_malloc(
         scalar_rotate_right_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+}
+
+#[test]
+fn test_gpu_get_if_then_else_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen_range(1..=i32::MAX);
+    let clear_b = rng.gen_range(1..=i32::MAX);
+    let clear_c = rng.gen_range(0..=1);
+    let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheInt32::try_encrypt(clear_b, &cks).unwrap();
+    let c = FheBool::encrypt(clear_c != 0, &cks);
+    a.move_to_current_device();
+    b.move_to_current_device();
+    let a = &a;
+    let b = &b;
+
+    let if_then_else_tmp_buffer_size = c.get_if_then_else_size_on_gpu(a, b);
+    assert!(check_valid_cuda_malloc(
+        if_then_else_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let select_tmp_buffer_size = c.get_select_size_on_gpu(a, b);
+    assert!(check_valid_cuda_malloc(
+        select_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let cmux_tmp_buffer_size = c.get_cmux_size_on_gpu(a, b);
+    assert!(check_valid_cuda_malloc(
+        cmux_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }

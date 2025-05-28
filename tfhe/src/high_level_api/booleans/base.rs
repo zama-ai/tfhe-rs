@@ -25,6 +25,8 @@ use tfhe_versionable::Versionize;
 
 #[cfg(feature = "hpu")]
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::prelude::IfThenElseSizeOnGpu;
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
 
@@ -1767,5 +1769,49 @@ impl std::ops::Not for &FheBool {
             }
         });
         FheBool::new(ciphertext, tag)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> IfThenElseSizeOnGpu<FheUint<Id>> for FheBool
+where
+    Id: FheUintId,
+{
+    fn get_if_then_else_size_on_gpu(&self, ct_then: &FheUint<Id>, ct_else: &FheUint<Id>) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_if_then_else_size_on_gpu(
+                    &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                    &*ct_then.ciphertext.on_gpu(streams),
+                    &*ct_else.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id> IfThenElseSizeOnGpu<FheInt<Id>> for FheBool
+where
+    Id: FheIntId,
+{
+    fn get_if_then_else_size_on_gpu(&self, ct_then: &FheInt<Id>, ct_else: &FheInt<Id>) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_if_then_else_size_on_gpu(
+                    &CudaBooleanBlock(self.ciphertext.on_gpu(streams).duplicate(streams)),
+                    &*ct_then.ciphertext.on_gpu(streams),
+                    &*ct_else.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
     }
 }
