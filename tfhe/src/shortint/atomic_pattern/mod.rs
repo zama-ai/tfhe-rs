@@ -26,7 +26,7 @@ use super::engine::ShortintEngine;
 use super::parameters::{DynamicDistribution, KeySwitch32PBSParameters};
 use super::prelude::{DecompositionBaseLog, DecompositionLevelCount};
 use super::server_key::{
-    apply_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
+    apply_ms_blind_rotate, apply_programmable_bootstrap, LookupTableOwned, LookupTableSize,
     ManyLookupTableOwned,
 };
 use super::{
