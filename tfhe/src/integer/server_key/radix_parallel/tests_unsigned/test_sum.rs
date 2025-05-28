@@ -144,11 +144,12 @@ where
 {
     let param = param.into();
     let nb_tests_smaller = nb_tests_smaller_for_params(param);
-    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((
         cks,
         crate::integer::server_key::radix_parallel::tests_unsigned::NB_CTXT,
     ));
+    sks.set_deterministic_pbs_execution(true);
     let sks = Arc::new(sks);
 
     let mut rng = rand::thread_rng();
@@ -175,10 +176,13 @@ where
                 .collect::<Vec<_>>();
 
             let ct_res = executor.execute(&ctxts).unwrap();
-            let ct_res: u64 = cks.decrypt(&ct_res);
+            let res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
-            assert_eq!(ct_res, clear);
+            assert_eq!(res, clear);
+
+            let ct_res_2 = executor.execute(&ctxts).unwrap();
+            assert_eq!(ct_res, ct_res_2, "Failed determinism check");
         }
     }
 }
