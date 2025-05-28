@@ -386,3 +386,69 @@ void reverseArray(uint64_t arr[], size_t n) {
     end--;
   }
 }
+
+uint64_t scratch_cuda_apply_noise_squashing_mem(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int_radix_params params, int_noise_squashing_lut<uint64_t> **mem_ptr,
+    uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t num_radix_blocks, uint32_t original_num_blocks,
+    bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+  *mem_ptr = new int_noise_squashing_lut<uint64_t>(
+      (cudaStream_t *)streams, gpu_indexes, gpu_count, params, glwe_dimension,
+      polynomial_size, num_radix_blocks, original_num_blocks,
+      allocate_gpu_memory, &size_tracker);
+  return size_tracker;
+}
+
+uint64_t scratch_cuda_apply_noise_squashing_kb(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t lwe_dimension, uint32_t glwe_dimension,
+    uint32_t polynomial_size, uint32_t input_glwe_dimension,
+    uint32_t input_polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_radix_blocks, uint32_t original_num_blocks,
+    uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
+    bool allocate_gpu_memory, bool allocate_ms_array) {
+  PUSH_RANGE("scratch noise squashing")
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          glwe_dimension * polynomial_size, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus,
+                          allocate_ms_array);
+
+  return scratch_cuda_apply_noise_squashing_mem(
+      streams, gpu_indexes, gpu_count, params,
+      (int_noise_squashing_lut<uint64_t> **)mem_ptr, input_glwe_dimension,
+      input_polynomial_size, num_radix_blocks, original_num_blocks,
+      allocate_gpu_memory);
+  POP_RANGE()
+}
+
+void cuda_apply_noise_squashing_kb(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *output_radix_lwe,
+    CudaRadixCiphertextFFI const *input_radix_lwe, int8_t *mem_ptr,
+    void *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    void *const *bsks) {
+
+  PUSH_RANGE("apply noise squashing")
+  integer_radix_apply_noise_squashing_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, output_radix_lwe,
+      input_radix_lwe, (int_noise_squashing_lut<uint64_t> *)mem_ptr, bsks,
+      (uint64_t **)ksks, ms_noise_reduction_key);
+  POP_RANGE()
+}
+
+void cleanup_cuda_apply_noise_squashing_kb(void *const *streams,
+                                           uint32_t const *gpu_indexes,
+                                           uint32_t gpu_count,
+                                           int8_t **mem_ptr_void) {
+  PUSH_RANGE("cleanup noise squashing")
+  int_noise_squashing_lut<uint64_t> *mem_ptr =
+      (int_noise_squashing_lut<uint64_t> *)(*mem_ptr_void);
+  mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  POP_RANGE()
+}
