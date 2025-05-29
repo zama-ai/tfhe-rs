@@ -83,8 +83,6 @@ impl CudaCompactCiphertextListExpander {
         index: usize,
         streams: &CudaStreams,
     ) -> Option<(CudaRadixCiphertext, DataKind)> {
-        println!("len: {}", self.blocks_info.len());
-        println!("index: {}", index);
         let preceding_infos = self.blocks_info.get(..index)?;
         let current_info = self.blocks_info.get(index)?;
         let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
