@@ -3918,7 +3918,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         zero_out_if_overflow_did_not_happen[0]->get_degree(0),
         zero_out_if_overflow_did_not_happen[0]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, cur_lut_f, 2, gpu_memory_allocated);
+        params.carry_modulus, cur_lut_f, params.message_modulus - 2,
+        gpu_memory_allocated);
     zero_out_if_overflow_did_not_happen[0]->broadcast_lut(streams, gpu_indexes,
                                                           0);
     generate_device_accumulator_bivariate_with_factor<Torus>(
@@ -3927,7 +3928,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         zero_out_if_overflow_did_not_happen[1]->get_degree(0),
         zero_out_if_overflow_did_not_happen[1]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, cur_lut_f, 3, gpu_memory_allocated);
+        params.carry_modulus, cur_lut_f, params.message_modulus - 1,
+        gpu_memory_allocated);
     zero_out_if_overflow_did_not_happen[1]->broadcast_lut(streams, gpu_indexes,
                                                           0);
 
@@ -3954,7 +3956,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         zero_out_if_overflow_happened[0]->get_degree(0),
         zero_out_if_overflow_happened[0]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, overflow_happened_f, 2, gpu_memory_allocated);
+        params.carry_modulus, overflow_happened_f, params.message_modulus - 2,
+        gpu_memory_allocated);
     zero_out_if_overflow_happened[0]->broadcast_lut(streams, gpu_indexes, 0);
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
@@ -3962,7 +3965,8 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         zero_out_if_overflow_happened[1]->get_degree(0),
         zero_out_if_overflow_happened[1]->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
-        params.carry_modulus, overflow_happened_f, 3, gpu_memory_allocated);
+        params.carry_modulus, overflow_happened_f, params.message_modulus - 1,
+        gpu_memory_allocated);
     zero_out_if_overflow_happened[1]->broadcast_lut(streams, gpu_indexes, 0);
 
     // merge_overflow_flags_luts
