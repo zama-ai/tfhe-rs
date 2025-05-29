@@ -112,15 +112,15 @@ template <typename Torus> struct zk_expand_mem {
 
     // Hint for future readers: if message_modulus == 4 then
     // packed_messages_per_lwe becomes 2
-    auto packed_messages_per_lwe = log2_int(params.message_modulus);
+    auto num_packed_msgs = log2_int(params.message_modulus);
 
     // Adjust indexes to permute the output and access the correct LUT
     auto h_indexes_in = static_cast<Torus *>(
-        malloc(packed_messages_per_lwe * num_lwes * sizeof(Torus)));
+        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_indexes_out = static_cast<Torus *>(
-        malloc(packed_messages_per_lwe * num_lwes * sizeof(Torus)));
+        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_lut_indexes = static_cast<Torus *>(
-        malloc(packed_messages_per_lwe * num_lwes * sizeof(Torus)));
+        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_body_id_per_compact_list =
         static_cast<uint32_t *>(malloc(num_lwes * sizeof(uint32_t)));
     auto h_lwe_compact_input_indexes =
@@ -138,6 +138,10 @@ template <typename Torus> struct zk_expand_mem {
     auto compact_list_id = 0;
     auto idx = 0;
     auto count = 0;
+    // During flatenning, all num_lwes LWEs from all compact lists are stored
+    // sequentially on a Torus array. h_lwe_compact_input_indexes stores the
+    // index of the first LWE related to the compact list that contains the i-th
+    // LWE
     for (int i = 0; i < num_lwes; i++) {
       h_lwe_compact_input_indexes[i] = idx;
       count++;
@@ -148,6 +152,8 @@ template <typename Torus> struct zk_expand_mem {
       }
     }
 
+    // Stores the index of the i-th LWE (within each compact list) related to
+    // the k-th compact list.
     auto offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
       auto num_lwes_in_kth_compact_list = num_lwes_per_compact_list[k];
@@ -161,24 +167,21 @@ template <typename Torus> struct zk_expand_mem {
 
     offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
-      auto num_lwes_in_kth_compact_list = num_lwes_per_compact_list[k];
-      for (int i = 0;
-           i < packed_messages_per_lwe * num_lwes_in_kth_compact_list; i++) {
-        Torus j = i % num_lwes_in_kth_compact_list;
-        h_indexes_in[i + packed_messages_per_lwe * offset] = j + offset;
-        h_indexes_out[i + packed_messages_per_lwe * offset] =
-            packed_messages_per_lwe * (j + offset) +
-            (i / num_lwes_in_kth_compact_list);
+      auto num_lwes_in_kth = num_lwes_per_compact_list[k];
+      for (int i = 0; i < num_packed_msgs * num_lwes_in_kth; i++) {
+        auto lwe_index = i + num_packed_msgs * offset;
+        auto lwe_index_in_list = i % num_lwes_in_kth;
+        h_indexes_in[lwe_index] = lwe_index_in_list + offset;
+        h_indexes_out[lwe_index] =
+            num_packed_msgs * (lwe_index_in_list + offset) +
+            i / num_lwes_in_kth;
         // If the input relates to a boolean, shift the LUT so the correct one
         // with sanitization is used
-        h_lut_indexes[i + packed_messages_per_lwe * offset] =
-            (is_boolean_array[h_indexes_out[i +
-                                            packed_messages_per_lwe * offset]]
-                 ? packed_messages_per_lwe
-                 : 0) +
-            i / num_lwes_in_kth_compact_list;
+        auto boolean_offset =
+            is_boolean_array[h_indexes_out[lwe_index]] ? num_packed_msgs : 0;
+        h_lut_indexes[lwe_index] = i / num_lwes_in_kth + boolean_offset;
       }
-      offset += num_lwes_in_kth_compact_list;
+      offset += num_lwes_in_kth;
     }
 
     message_and_carry_extract_luts->set_lwe_indexes(
@@ -191,9 +194,8 @@ template <typename Torus> struct zk_expand_mem {
         num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
         allocate_gpu_memory);
     cuda_memcpy_with_size_tracking_async_to_gpu(
-        lut_indexes, h_lut_indexes,
-        packed_messages_per_lwe * num_lwes * sizeof(Torus), streams[0],
-        gpu_indexes[0], allocate_gpu_memory);
+        lut_indexes, h_lut_indexes, num_packed_msgs * num_lwes * sizeof(Torus),
+        streams[0], gpu_indexes[0], allocate_gpu_memory);
     cuda_memcpy_with_size_tracking_async_to_gpu(
         d_body_id_per_compact_list, h_body_id_per_compact_list,
         num_lwes * sizeof(uint32_t), streams[0], gpu_indexes[0],
