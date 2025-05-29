@@ -559,7 +559,7 @@ template <typename Torus> struct int_radix_lut {
     using_trivial_lwe_indexes = false;
   }
 
-  // Broadcast luts from gpu src_gpu_idx to all active gpus
+  // Broadcast luts from gpu gpu_indexes[src_gpu_idx] to all active gpus
   void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t src_gpu_idx) {
     Torus lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
@@ -569,7 +569,7 @@ template <typename Torus> struct int_radix_lut {
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      if (i != src_gpu_idx) {
+      if (i != gpu_indexes[src_gpu_idx]) {
         auto dst_lut = lut_vec[i];
         auto dst_lut_indexes = lut_indexes_vec[i];
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
