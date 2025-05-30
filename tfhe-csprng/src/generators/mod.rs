@@ -1,7 +1,7 @@
 //! A module containing random generators objects.
 //!
 //! See [crate-level](`crate`) explanations.
-use crate::seeders::Seed;
+use crate::seeders::SeedKind;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -62,7 +62,7 @@ pub trait RandomGenerator: Iterator<Item = u8> {
     ///
     /// This operation is usually costly to perform, as the aes round keys need to be generated from
     /// the seed.
-    fn new(seed: Seed) -> Self;
+    fn new(seed: impl Into<SeedKind>) -> Self;
 
     /// Returns the number of bytes that can still be outputted by the generator before reaching its
     /// bound.
@@ -131,6 +131,7 @@ pub use default::DefaultRandomGenerator;
 #[allow(unused)] // to please clippy when tests are not activated
 pub mod generator_generic_test {
     use super::*;
+    use crate::seeders::Seed;
     use rand::Rng;
 
     const REPEATS: usize = 1_000;

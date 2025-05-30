@@ -202,6 +202,7 @@ pub const BYTES_PER_BATCH: usize = BYTES_PER_AES_CALL * AES_CALLS_PER_BATCH;
 
 /// A module containing structures to manage table indices.
 mod index;
+
 pub use index::*;
 
 /// A module containing structures to manage table indices and buffer pointers together properly.
@@ -218,5 +219,28 @@ pub use generic::*;
 /// A module extending `generic` to the `rayon` paradigm.
 #[cfg(feature = "parallel")]
 mod parallel;
+
+use crate::seeders::XofSeed;
 #[cfg(feature = "parallel")]
 pub use parallel::*;
+
+pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
+    let init_key = AesKey(0);
+    let mut aes = crate::generators::default::DefaultBlockCipher::new(init_key);
+
+    let blocks = seed
+        .iter_u128_blocks()
+        .chain(std::iter::once(seed.bit_len()));
+
+    let mut prev_c = 0;
+    let mut c = 0;
+    for mi in blocks {
+        prev_c = c;
+        c = u128::from_le_bytes(aes.generate_next(AesIndex(prev_c ^ mi)));
+    }
+
+    let init = AesIndex(prev_c);
+    let key = AesKey(c);
+
+    (key, init)
+}

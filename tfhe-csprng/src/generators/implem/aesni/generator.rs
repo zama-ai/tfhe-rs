@@ -1,7 +1,7 @@
-use crate::generators::aes_ctr::{AesCtrGenerator, AesKey, ChildrenIterator};
+use crate::generators::aes_ctr::{AesCtrGenerator, ChildrenIterator};
 use crate::generators::implem::aesni::block_cipher::AesniBlockCipher;
 use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
-use crate::seeders::Seed;
+use crate::seeders::SeedKind;
 
 /// A random number generator using the `aesni` instructions.
 pub struct AesniRandomGenerator(pub(super) AesCtrGenerator<AesniBlockCipher>);
@@ -21,8 +21,8 @@ impl Iterator for AesniChildrenIterator {
 
 impl RandomGenerator for AesniRandomGenerator {
     type ChildrenIter = AesniChildrenIterator;
-    fn new(seed: Seed) -> Self {
-        AesniRandomGenerator(AesCtrGenerator::new(AesKey(seed.0), None, None))
+    fn new(seed: impl Into<SeedKind>) -> Self {
+        AesniRandomGenerator(AesCtrGenerator::from_seed(seed))
     }
     fn remaining_bytes(&self) -> ByteCount {
         self.0.remaining_bytes()

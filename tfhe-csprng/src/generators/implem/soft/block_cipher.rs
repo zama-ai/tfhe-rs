@@ -22,16 +22,29 @@ impl AesBlockCipher for SoftwareBlockCipher {
     fn generate_batch(&mut self, AesIndex(aes_ctr): AesIndex) -> [u8; BYTES_PER_BATCH] {
         aes_encrypt_many(
             aes_ctr,
-            aes_ctr + 1,
-            aes_ctr + 2,
-            aes_ctr + 3,
-            aes_ctr + 4,
-            aes_ctr + 5,
-            aes_ctr + 6,
-            aes_ctr + 7,
+            aes_ctr.wrapping_add(1),
+            aes_ctr.wrapping_add(2),
+            aes_ctr.wrapping_add(3),
+            aes_ctr.wrapping_add(4),
+            aes_ctr.wrapping_add(5),
+            aes_ctr.wrapping_add(6),
+            aes_ctr.wrapping_add(7),
             &self.aes,
         )
     }
+
+    fn generate_next(&mut self, index: AesIndex) -> [u8; BYTES_PER_AES_CALL] {
+        aes_encrypt_one(index.0, &self.aes)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
+    let mut b1 = GenericArray::clone_from_slice(&message.to_ne_bytes()[..]);
+
+    cipher.encrypt_block(&mut b1);
+
+    b1.into()
 }
 
 // Uses aes to encrypt many values at once. This allows a substantial speedup (around 30%)
@@ -109,5 +122,13 @@ mod test {
                 CIPHERTEXT
             );
         }
+    }
+
+    #[test]
+    fn test_encrypt_one_message() {
+        let key: [u8; BYTES_PER_AES_CALL] = CIPHER_KEY.to_ne_bytes();
+        let aes = Aes128::new(&GenericArray::from(key));
+        let ciphertext = aes_encrypt_one(PLAINTEXT, &aes);
+        assert_eq!(u128::from_ne_bytes(ciphertext), CIPHERTEXT);
     }
 }
