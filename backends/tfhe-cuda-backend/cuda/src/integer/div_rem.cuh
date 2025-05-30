@@ -386,8 +386,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
                          subtraction_overflowed,
                          at_least_one_upper_block_is_non_zero, 1);
 
-    int factor = (i) ? 3 : 2;
-    int factor_lut_id = factor - 2;
+    auto message_modulus = radix_params.message_modulus;
+    int factor = (i) ? message_modulus - 1 : message_modulus - 2;
+    int factor_lut_id = (i) ? 1 : 0;
     for (size_t k = 0;
          k < cleaned_merged_interesting_remainder->num_radix_blocks; k++) {
       copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],

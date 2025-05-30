@@ -1616,10 +1616,12 @@ __host__ void reduce_signs(
   auto message_modulus = params.message_modulus;
   auto carry_modulus = params.carry_modulus;
 
+  auto num_bits_in_message = log2_int(message_modulus);
   std::function<Torus(Torus)> reduce_two_orderings_function =
-      [diff_buffer, sign_handler_f](Torus x) -> Torus {
-    int msb = (x >> 2) & 3;
-    int lsb = x & 3;
+      [diff_buffer, sign_handler_f, num_bits_in_message,
+       message_modulus](Torus x) -> Torus {
+    Torus msb = (x >> num_bits_in_message) & (message_modulus - 1);
+    Torus lsb = x & (message_modulus - 1);
 
     return diff_buffer->tree_buffer->block_selector_f(msb, lsb);
   };
@@ -1640,7 +1642,7 @@ __host__ void reduce_signs(
 
     while (num_sign_blocks > 2) {
       pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
-                         num_sign_blocks, 4);
+                         num_sign_blocks, message_modulus);
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, signs_a, signs_b, bsks, ksks,
           ms_noise_reduction_key, lut, num_sign_blocks / 2);
@@ -1669,7 +1671,8 @@ __host__ void reduce_signs(
         message_modulus, carry_modulus, final_lut_f, true);
     lut->broadcast_lut(streams, gpu_indexes, 0);
 
-    pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a, 2, 4);
+    pack_blocks<Torus>(streams[0], gpu_indexes[0], signs_b, signs_a,
+                       num_sign_blocks, message_modulus);
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, signs_array_out, signs_b, bsks, ksks,
         ms_noise_reduction_key, lut, 1);
@@ -1677,8 +1680,8 @@ __host__ void reduce_signs(
   } else {
 
     std::function<Torus(Torus)> final_lut_f =
-        [mem_ptr, sign_handler_f](Torus x) -> Torus {
-      return sign_handler_f(x & 3);
+        [mem_ptr, sign_handler_f, message_modulus](Torus x) -> Torus {
+      return sign_handler_f(x & (message_modulus - 1));
     };
 
     auto lut = mem_ptr->diff_buffer->reduce_signs_lut;

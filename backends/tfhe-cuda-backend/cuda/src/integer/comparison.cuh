@@ -456,7 +456,7 @@ __host__ void tree_sign_reduction(
   auto inner_tree_leaf = tree_buffer->tree_inner_leaf_lut;
   while (partial_block_count > 2) {
     pack_blocks<Torus>(streams[0], gpu_indexes[0], y, x, partial_block_count,
-                       4);
+                       message_modulus);
 
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
         streams, gpu_indexes, gpu_count, x, y, bsks, ksks,
@@ -477,16 +477,17 @@ __host__ void tree_sign_reduction(
   auto last_lut = tree_buffer->tree_last_leaf_lut;
   auto block_selector_f = tree_buffer->block_selector_f;
   std::function<Torus(Torus)> f;
-
+  auto num_bits_in_message = log2_int(params.message_modulus);
   if (partial_block_count == 2) {
     pack_blocks<Torus>(streams[0], gpu_indexes[0], y, x, partial_block_count,
-                       4);
+                       message_modulus);
 
-    f = [block_selector_f, sign_handler_f](Torus x) -> Torus {
-      int msb = (x >> 2) & 3;
-      int lsb = x & 3;
+    f = [block_selector_f, sign_handler_f, num_bits_in_message,
+         message_modulus](Torus x) -> Torus {
+      Torus msb = (x >> num_bits_in_message) & (message_modulus - 1);
+      Torus lsb = x & (message_modulus - 1);
 
-      int final_sign = block_selector_f(msb, lsb);
+      Torus final_sign = block_selector_f(msb, lsb);
       return sign_handler_f(final_sign);
     };
   } else {
