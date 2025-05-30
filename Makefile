@@ -1479,7 +1479,7 @@ parse_wasm_benchmarks: install_rs_check_toolchain
 .PHONY: write_params_to_file # Gather all crypto parameters into a file with a Sage readable format.
 write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
-	--example write_params_to_file --features=boolean,shortint,internal-keycache
+	--example write_params_to_file --features=boolean,shortint,hpu,internal-keycache
 
 .PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
 clone_backward_compat_data:

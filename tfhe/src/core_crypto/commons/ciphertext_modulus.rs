@@ -363,6 +363,10 @@ impl<Scalar: UnsignedInteger> CiphertextModulus<Scalar> {
             CiphertextModulusInner::Custom(non_zero) => non_zero.get() as f64,
         }
     }
+
+    pub const fn associated_scalar_bits(&self) -> usize {
+        Scalar::BITS
+    }
 }
 
 impl<Scalar: UnsignedInteger> From<CiphertextModulus<Scalar>> for CiphertextModulusLog {
