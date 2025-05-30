@@ -5387,3 +5387,31 @@ pub unsafe fn unchecked_negate_integer_radix_async(
     );
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
 }
+
+/// # Safety
+///
+/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
+///   be dropped until streams is synchronized
+pub unsafe fn extend_radix_with_trivial_zero_blocks_msb_async(
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    streams: &CudaStreams,
+) {
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    extend_radix_with_trivial_zero_blocks_msb_64(
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+    );
+    update_noise_degree(output, &cuda_ffi_output);
+}
