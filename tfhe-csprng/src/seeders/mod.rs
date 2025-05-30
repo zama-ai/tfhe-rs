@@ -9,11 +9,13 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Seed(pub u128);
 
-/// A Seed as described in the NIST document
+/// A Seed as described in the [NIST document]
 ///
 /// This seed contains 2 information:
-/// * The seed itself,
 /// * The domain separator bytes (ASCII string)
+/// * The seed bytes
+///
+/// [NIST document]: https://eprint.iacr.org/2025/699
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XofSeed {
     // We store the domain separator concatenated with the seed bytes (str||seed)

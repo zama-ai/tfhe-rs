@@ -67,7 +67,6 @@ unsafe fn generate_round_keys(key: AesKey) -> [__m128i; 11] {
     keys
 }
 
-#[allow(clippy::too_many_arguments)]
 #[inline(always)]
 fn aes_encrypt_one(message: __m128i, keys: &[__m128i; 11]) -> __m128i {
     unsafe {

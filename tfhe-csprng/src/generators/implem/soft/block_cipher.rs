@@ -38,7 +38,6 @@ impl AesBlockCipher for SoftwareBlockCipher {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
     let mut b1 = GenericArray::clone_from_slice(&message.to_ne_bytes()[..]);
 
