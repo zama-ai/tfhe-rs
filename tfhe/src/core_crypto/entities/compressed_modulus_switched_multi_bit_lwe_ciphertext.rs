@@ -356,7 +356,7 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
             }
         }
 
-        let packed_mask = PackedIntegers::pack(&modulus_switched, log_modulus);
+        let packed_mask = PackedIntegers::pack::<PackingScalar>(&modulus_switched, log_modulus);
 
         let packed_diffs = if diffs.iter().all(|a| *a == PackingScalar::ZERO) {
             None
@@ -410,7 +410,7 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
     /// The noise added during the compression stays in the output
     /// The output must got through a PBS to reduce the noise
     pub fn extract(&self) -> FromCompressionMultiBitModulusSwitchedCt {
-        let masks: Vec<usize> = self.packed_mask.unpack().map(|a| a.cast_into()).collect();
+        let masks: Vec<usize> = self.packed_mask.unpack::<usize>().collect();
 
         assert_eq!(
             masks.len() % self.grouping_factor.0,
@@ -423,7 +423,7 @@ impl<PackingScalar: UnsignedInteger + CastFrom<usize> + CastInto<usize>>
         let mut diffs_two_complement: Vec<usize> = vec![];
 
         if let Some(packed_diffs) = &self.packed_diffs {
-            diffs_two_complement = packed_diffs.unpack().map(|a| a.cast_into()).collect()
+            diffs_two_complement = packed_diffs.unpack::<usize>().collect()
         }
 
         let diffs = |a: usize| {
@@ -493,9 +493,12 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
     }
     fn switched_modulus_input_mask_per_group(
         &self,
+        grouping_factor: LweBskGroupingFactor,
         index: usize,
     ) -> impl Iterator<Item = usize> + '_ {
-        let ggsw_per_multi_bit_element = self.grouping_factor.ggsw_per_multi_bit_element();
+        assert_eq!(grouping_factor, self.grouping_factor);
+
+        let ggsw_per_multi_bit_element = grouping_factor.ggsw_per_multi_bit_element();
 
         let chunk_size = ggsw_per_multi_bit_element.0 - 1;
 

@@ -3,7 +3,7 @@ use tfhe_csprng::seeders::Seed;
 use tfhe_versionable::Versionize;
 
 use super::{
-    apply_blind_rotate, apply_programmable_bootstrap, AtomicPattern, AtomicPatternKind,
+    apply_ms_blind_rotate, apply_programmable_bootstrap, AtomicPattern, AtomicPatternKind,
     AtomicPatternMut,
 };
 use crate::conformance::ParameterSetConformant;
@@ -285,7 +285,7 @@ impl KS32AtomicPatternServerKey {
                 &mut ciphertext_buffer,
             );
 
-            apply_blind_rotate(
+            apply_ms_blind_rotate(
                 &self.bootstrapping_key,
                 &ciphertext_buffer.as_view(),
                 &mut acc,
