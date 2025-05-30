@@ -416,6 +416,21 @@ pub const MSG2_CARRY2_PFAIL64_132B_TUNIFORM_7E47D8C: HpuPBSParameters = HpuPBSPa
     ciphertext_width: 64,
 };
 
+pub const MSG2_CARRY2_PFAIL128_132B_TUNIFORM_144A47: HpuPBSParameters = HpuPBSParameters {
+    lwe_dimension: 879,
+    glwe_dimension: 1,
+    polynomial_size: 2048,
+    lwe_noise_distribution: HpuNoiseDistributionInput::TUniformBound(3),
+    glwe_noise_distribution: HpuNoiseDistributionInput::TUniformBound(17),
+    pbs_base_log: 23,
+    pbs_level: 1,
+    ks_base_log: 2,
+    ks_level: 8,
+    message_width: 2,
+    carry_width: 2,
+    ciphertext_width: 64,
+};
+
 impl FromRtl for HpuPBSParameters {
     fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
         let pbs_app = regmap
@@ -456,6 +471,7 @@ impl FromRtl for HpuPBSParameters {
             11 => MSG2_CARRY2_TUNIFORM,
             12 => MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA,
             13 => MSG2_CARRY2_PFAIL64_132B_TUNIFORM_7E47D8C,
+            14 => MSG2_CARRY2_PFAIL128_132B_TUNIFORM_144A47,
             _ => panic!("Unknown TfheAppName encoding"),
         }
     }

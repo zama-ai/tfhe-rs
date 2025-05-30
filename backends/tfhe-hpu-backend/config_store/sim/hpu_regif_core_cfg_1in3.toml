@@ -49,7 +49,8 @@ offset= 0x10
   owner="Parameter"
   read_access="Read"
   write_access="None"
-  default={Param="VERSION"}
+  field.major={size_b=4, default={Param="VERSION_MAJOR"}, description="RTL major version"}
+  field.minor={size_b=4, default={Param="VERSION_MINOR"}, description="RTL minor version"}
 
 [section.info.register.ntt_architecture]
   description="NTT architecture"
@@ -254,3 +255,15 @@ description="BPIP configuration"
   read_access="Read"
   write_access="Write"
   default={Cst=0xffffffff}
+
+# =====================================================================================================================
+[section.keyswitch]
+offset= 0x3000
+description="Keyswitch Configuration"
+
+[section.keyswitch.register.config]
+  description="(1) Use use modulus switching mean compensation. (default), (0) Don't use modulus switching mean compensation."
+  owner="User"
+  read_access="Read"
+  write_access="Write"
+  field.mod_switch_mean_comp = { size_b=1, offset_b=0 , default={Cst=1}, description="Controls whether to use modulus switch mean compensation, aka. Mayeul's Trick."}

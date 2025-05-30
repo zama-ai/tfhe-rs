@@ -127,7 +127,7 @@ impl RegisterMap {
                 (ntt_p.batch_pbs_nb + (ntt_p.total_pbs_nb << 8)) as u32
             }
             "info::ntt_modulo" => {
-                MOD_NTT_NAME_OFS + (self.rtl_params.ntt_params.prime_modulus.clone() as u8) as u32
+                MOD_NTT_NAME_OFS + (self.rtl_params.ntt_params.prime_modulus as u8) as u32
             }
 
             "info::application" => {
@@ -147,6 +147,10 @@ impl RegisterMap {
                     APPLICATION_NAME_OFS + 11
                 } else if MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA == self.rtl_params.pbs_params {
                     APPLICATION_NAME_OFS + 12
+                } else if MSG2_CARRY2_PFAIL64_132B_TUNIFORM_7E47D8C == self.rtl_params.pbs_params {
+                    APPLICATION_NAME_OFS + 13
+                } else if MSG2_CARRY2_PFAIL128_132B_TUNIFORM_144A47 == self.rtl_params.pbs_params {
+                    APPLICATION_NAME_OFS + 14
                 } else {
                     // Custom simulation parameters set
                     // -> Return 1 without NAME_OFS
