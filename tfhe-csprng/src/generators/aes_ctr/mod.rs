@@ -236,6 +236,11 @@ pub(crate) fn xof_init(seed: XofSeed) -> (AesKey, AesIndex) {
     let mut c = 0;
     for mi in blocks {
         prev_c = c;
+        println!(
+            "input_val: {}, input_bytes: {:?}",
+            prev_c ^ mi,
+            (prev_c ^ mi).to_ne_bytes()
+        );
         let c_bytes = aes.generate_next(AesIndex(prev_c ^ mi));
         c = u128::from_ne_bytes(c_bytes);
 
