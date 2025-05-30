@@ -34,12 +34,12 @@ impl AesBlockCipher for SoftwareBlockCipher {
     }
 
     fn generate_next(&mut self, index: AesIndex) -> [u8; BYTES_PER_AES_CALL] {
-        aes_encrypt_one(index.0, &self.aes)
+        aes_encrypt_one(index.0.to_le(), &self.aes)
     }
 }
 
 fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
-    let mut b1 = GenericArray::clone_from_slice(&message.to_le_bytes()[..]);
+    let mut b1 = GenericArray::clone_from_slice(&message.to_ne_bytes()[..]);
 
     cipher.encrypt_block(&mut b1);
 
