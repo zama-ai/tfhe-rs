@@ -13,7 +13,7 @@ pub struct SoftwareBlockCipher {
 
 impl AesBlockCipher for SoftwareBlockCipher {
     fn new(key: AesKey) -> SoftwareBlockCipher {
-        let key: [u8; BYTES_PER_AES_CALL] = key.0.to_ne_bytes();
+        let key: [u8; BYTES_PER_AES_CALL] = key.0.to_le_bytes();
         let key = GenericArray::clone_from_slice(&key[..]);
         let aes = Aes128::new(&key);
         SoftwareBlockCipher { aes }
