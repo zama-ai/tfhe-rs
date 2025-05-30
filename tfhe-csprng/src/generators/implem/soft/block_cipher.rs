@@ -60,14 +60,14 @@ fn aes_encrypt_many(
     message_8: u128,
     cipher: &Aes128,
 ) -> [u8; BYTES_PER_BATCH] {
-    let mut b1 = GenericArray::clone_from_slice(&message_1.to_ne_bytes()[..]);
-    let mut b2 = GenericArray::clone_from_slice(&message_2.to_ne_bytes()[..]);
-    let mut b3 = GenericArray::clone_from_slice(&message_3.to_ne_bytes()[..]);
-    let mut b4 = GenericArray::clone_from_slice(&message_4.to_ne_bytes()[..]);
-    let mut b5 = GenericArray::clone_from_slice(&message_5.to_ne_bytes()[..]);
-    let mut b6 = GenericArray::clone_from_slice(&message_6.to_ne_bytes()[..]);
-    let mut b7 = GenericArray::clone_from_slice(&message_7.to_ne_bytes()[..]);
-    let mut b8 = GenericArray::clone_from_slice(&message_8.to_ne_bytes()[..]);
+    let mut b1 = GenericArray::clone_from_slice(&message_1.to_le_bytes()[..]);
+    let mut b2 = GenericArray::clone_from_slice(&message_2.to_le_bytes()[..]);
+    let mut b3 = GenericArray::clone_from_slice(&message_3.to_le_bytes()[..]);
+    let mut b4 = GenericArray::clone_from_slice(&message_4.to_le_bytes()[..]);
+    let mut b5 = GenericArray::clone_from_slice(&message_5.to_le_bytes()[..]);
+    let mut b6 = GenericArray::clone_from_slice(&message_6.to_le_bytes()[..]);
+    let mut b7 = GenericArray::clone_from_slice(&message_7.to_le_bytes()[..]);
+    let mut b8 = GenericArray::clone_from_slice(&message_8.to_le_bytes()[..]);
 
     cipher.encrypt_block(&mut b1);
     cipher.encrypt_block(&mut b2);
