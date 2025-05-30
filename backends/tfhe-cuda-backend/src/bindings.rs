@@ -1317,6 +1317,14 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn trim_radix_blocks_lsb_64(
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+    );
+}
+unsafe extern "C" {
     pub fn extend_radix_with_trivial_zero_blocks_msb_64(
         output: *mut CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
