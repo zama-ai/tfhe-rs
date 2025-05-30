@@ -34,7 +34,7 @@ impl AesBlockCipher for SoftwareBlockCipher {
     }
 
     fn generate_next(&mut self, index: AesIndex) -> [u8; BYTES_PER_AES_CALL] {
-        aes_encrypt_one(index.0.to_le(), &self.aes)
+        aes_encrypt_one(index.0, &self.aes)
     }
 }
 
