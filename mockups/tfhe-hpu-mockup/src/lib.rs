@@ -29,8 +29,6 @@ use modules::{DdrMem, HbmBank, RegisterEvent, RegisterMap, UCore, HBM_BANK_NB};
 use tfhe::tfhe_hpu_backend::interface::io_dump::HexMem;
 use tfhe::tfhe_hpu_backend::prelude::*;
 
-use serde_json;
-
 pub struct HpuSim {
     config: HpuConfig,
     params: MockupParameters,
@@ -178,7 +176,7 @@ impl HpuSim {
                     }
                     RegisterReq::PbsParams => {
                         self.ipc.register_ack(RegisterAck::PbsParams(
-                            self.params.rtl_params.pbs_params.clone(),
+                            self.params.rtl_params.pbs_params,
                         ));
                     }
                 }
@@ -672,7 +670,7 @@ impl HpuSim {
         // Compute Lut properties
         let (modulus_sup, box_size, fn_stride) = {
             let pbs_p = &self.params.rtl_params.pbs_params;
-            let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
+            let modulus_sup = 1_usize << (pbs_p.message_width + pbs_p.carry_width);
             let box_size = pbs_p.polynomial_size / modulus_sup;
             // Max valid degree for a ciphertext when using the LUT we generate
             // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1
@@ -725,7 +723,7 @@ impl HpuSim {
 
             let bfr_after_ms = lwe_ciphertext_modulus_switch(bfr_after_ks.as_view(), log_modulus);
 
-            blind_rotate_ntt64_bnf_assign(&bfr_after_ms, &mut tfhe_lut, &bsk);
+            blind_rotate_ntt64_bnf_assign(&bfr_after_ms, &mut tfhe_lut, bsk);
 
             assert_eq!(
                 dst_rid.0,
@@ -736,7 +734,7 @@ impl HpuSim {
             // Compute ManyLut function stride
             let fn_stride = {
                 let pbs_p = &self.params.rtl_params.pbs_params;
-                let modulus_sup = 1_usize << pbs_p.message_width + pbs_p.carry_width;
+                let modulus_sup = 1_usize << (pbs_p.message_width + pbs_p.carry_width);
                 let box_size = pbs_p.polynomial_size / modulus_sup;
                 // Max valid degree for a ciphertext when using the LUT we generate
                 // If MaxDegree == 1, we can have two input values 0 and 1, so we need MaxDegree + 1

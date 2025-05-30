@@ -932,3 +932,33 @@ impl ErrorHpu {
         self.error_3in3 = ffi_hw.read_reg(*reg.offset() as u64);
     }
 }
+
+#[derive(Debug, Default)]
+pub struct InfoKeyswitch {
+    /// Use modulus switch mean compensation
+    mod_switch_mean_comp: bool,
+}
+
+impl FromRtl for InfoKeyswitch {
+    fn from_rtl(ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) -> Self {
+        // Info structure have method to update
+        // Instead of redefine parsing here, use a default construct and update methods
+        let mut infos = Self::default();
+        infos.update(ffi_hw, regmap);
+        infos
+    }
+}
+
+impl InfoKeyswitch {
+    pub fn update_mod_switch_mean_comp(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        let reg = regmap
+            .register()
+            .get("keyswitch::config")
+            .expect("Unknown register, check regmap definition");
+        self.mod_switch_mean_comp = ffi_hw.read_reg(*reg.offset() as u64) != 0;
+    }
+
+    pub fn update(&mut self, ffi_hw: &mut ffi::HpuHw, regmap: &FlatRegmap) {
+        self.update_mod_switch_mean_comp(ffi_hw, regmap);
+    }
+}
