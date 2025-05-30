@@ -2,6 +2,7 @@ pub mod ciphertext;
 pub mod client_key;
 pub mod key_switching_key;
 pub mod list_compression;
+pub mod noise_squashing;
 pub mod server_key;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
@@ -5386,4 +5387,127 @@ pub unsafe fn unchecked_negate_integer_radix_async(
         radix_lwe_in.d_blocks.lwe_ciphertext_count().0 as u32,
     );
     update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
+pub unsafe fn noise_squashing_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaSliceMut<T>,
+    output_degrees: &mut Vec<u64>,
+    output_noise_levels: &mut Vec<u64>,
+    input: &CudaSlice<u64>,
+    bootstrapping_key: &CudaVec<f64>,
+    keyswitch_key: &CudaVec<u64>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    input_glwe_dimension: GlweDimension,
+    input_polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    original_num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ct_modulus: f64,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        input.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        output.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let mut cuda_ffi_output = prepare_cuda_radix_ffi_from_slice_mut(
+        output,
+        output_degrees,
+        output_noise_levels,
+        num_blocks,
+        (glwe_dimension.0 * polynomial_size.0) as u32,
+    );
+    let cuda_ffi_input = prepare_cuda_radix_ffi_from_slice(
+        input,
+        output_degrees,
+        output_noise_levels,
+        original_num_blocks,
+        (input_glwe_dimension.0 * input_polynomial_size.0) as u32,
+    );
+
+    scratch_cuda_apply_noise_squashing_kb(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        lwe_dimension.0 as u32,
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        input_glwe_dimension.0 as u32,
+        input_polynomial_size.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        original_num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        allocate_ms_noise_array,
+    );
+
+    cuda_apply_noise_squashing_kb(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        mem_ptr,
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        bootstrapping_key.ptr.as_ptr(),
+    );
+
+    cleanup_cuda_apply_noise_squashing_kb(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
 }

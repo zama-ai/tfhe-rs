@@ -24,7 +24,15 @@ using LweArrayVariant = std::variant<std::vector<Torus *>, Torus *>;
       return std::get<Torus *>(variant);                                       \
     }                                                                          \
   }()
-
+// Macro to define the visitor logic using std::holds_alternative for vectors
+#define GET_VARIANT_ELEMENT_64BIT(variant, index)                              \
+  [&] {                                                                        \
+    if (std::holds_alternative<std::vector<uint64_t *>>(variant)) {            \
+      return std::get<std::vector<uint64_t *>>(variant)[index];                \
+    } else {                                                                   \
+      return std::get<uint64_t *>(variant);                                    \
+    }                                                                          \
+  }()
 int get_active_gpu_count(int num_inputs, int gpu_count);
 
 int get_num_inputs_on_gpu(int total_num_inputs, int gpu_index, int gpu_count);

@@ -25,6 +25,17 @@ pub struct CompressedNoiseSquashingKey {
     output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
+impl CompressedNoiseSquashingKey {
+    pub fn bootstrapping_key(&self) -> &SeededLweBootstrapKeyOwned<u128> {
+        &self.bootstrapping_key
+    }
+
+    pub fn modulus_switch_noise_reduction_key(
+        &self,
+    ) -> Option<&CompressedModulusSwitchNoiseReductionKey<u64>> {
+        self.modulus_switch_noise_reduction_key.as_ref()
+    }
+}
 impl ClientKey {
     pub fn new_compressed_noise_squashing_key(
         &self,

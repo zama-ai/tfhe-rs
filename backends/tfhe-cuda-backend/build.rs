@@ -83,6 +83,7 @@ fn main() {
             "cuda/include/linear_algebra.h",
             "cuda/include/fft/fft128.h",
             "cuda/include/pbs/programmable_bootstrap.h",
+            "cuda/include/pbs/pbs_128_utilities.h",
             "cuda/include/pbs/programmable_bootstrap_multibit.h",
         ];
         let out_path = PathBuf::from("src").join("bindings.rs");
