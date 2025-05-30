@@ -71,7 +71,7 @@ class Trace:
                 del id_map[event.sync_id]
 
         if len(id_map):
-            logging.warn("The trace contains incomplete IOPs")
+            logging.warning("The trace contains incomplete IOPs")
 
     def to_analysis(self) -> Iterator['analysis.Event']:
         return analysis.Trace(x.to_analysis() for x in self)
