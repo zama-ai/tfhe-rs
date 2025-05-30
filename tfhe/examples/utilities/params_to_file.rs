@@ -92,8 +92,12 @@ impl ParamDetails<u64> for AtomicPatternParameters {
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
         match self {
             Self::Standard(p) => {
-                assert!(p.ciphertext_modulus().is_native_modulus());
-                ParamModulus::Other(1u128 << self.ciphertext_modulus().associated_scalar_bits())
+                let ct_modulus = p.ciphertext_modulus();
+                if ct_modulus.is_native_modulus() {
+                    ParamModulus::Other(1u128 << ct_modulus.associated_scalar_bits())
+                } else {
+                    ParamModulus::Other(ct_modulus.get_custom_modulus())
+                }
             }
             Self::KeySwitch32(p) => {
                 let ct_modulus = p.post_keyswitch_ciphertext_modulus;
@@ -148,12 +152,9 @@ impl ParamDetails<u64> for CompactPublicKeyEncryptionParameters {
     }
 
     fn glwe_ciphertext_modulus(&self) -> ParamModulus {
-        let ct_modulus = self.ciphertext_modulus;
-        if ct_modulus.is_native_modulus() {
-            ParamModulus::Other(1u128 << ct_modulus.associated_scalar_bits())
-        } else {
-            ParamModulus::Other(ct_modulus.get_custom_modulus())
-        }
+        panic!(
+            "glwe_ciphertext_modulus not applicable for compact public-key encryption parameters"
+        )
     }
 }
 
@@ -178,7 +179,7 @@ impl ParamDetails<u64> for CompressionParameters {
     }
 
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::Other(1u128 << u64::BITS)
+        panic!("lwe_ciphertext_modulus not applicable for compression parameters")
     }
 
     fn glwe_ciphertext_modulus(&self) -> ParamModulus {
@@ -208,11 +209,16 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
     }
 
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::NativeU128
+        panic!("lwe_ciphertext_modulus not applicable for NoiseSquashingParameters")
     }
 
     fn glwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::NativeU128
+        let ct_modulus = self.ciphertext_modulus;
+        if ct_modulus.is_native_modulus() {
+            ParamModulus::NativeU128
+        } else {
+            ParamModulus::Other(ct_modulus.get_custom_modulus())
+        }
     }
 }
 
