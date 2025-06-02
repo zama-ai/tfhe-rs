@@ -444,6 +444,12 @@ impl NamedParam for AtomicPatternParameters {
     }
 }
 
+impl NamedParam for KeySwitch32PBSParameters {
+    fn name(&self) -> String {
+        ShortintParameterSet::from(*self).name()
+    }
+}
+
 named_params_impl!(ShortintKeySwitchingParameters =>
     V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128,
     ; fallback => ks_params_default_name
