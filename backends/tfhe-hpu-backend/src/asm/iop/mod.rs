@@ -165,6 +165,18 @@ pub const IOP_CT_BOOL_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
     src: [VarMode::Native; 1],
     imm: 1,
 };
+pub const IOP_2CT_F_2CT: ConstIOpProto<2, 2> = ConstIOpProto {
+    dst: [VarMode::Native; 2],
+    src: [VarMode::Native; 2],
+    imm: 0,
+};
+pub const IOP_2CT_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
+    dst: [VarMode::Native; 2],
+    src: [VarMode::Native; 1],
+    imm: 1,
+};
+
+
 
 use crate::iop;
 use arg::IOpFormat;
@@ -175,6 +187,7 @@ iop!(
     [IOP_CT_F_CT_SCALAR -> "SUBS", opcode::SUBS],
     [IOP_CT_F_CT_SCALAR -> "SSUB", opcode::SSUB],
     [IOP_CT_F_CT_SCALAR -> "MULS", opcode::MULS],
+    [IOP_2CT_F_CT_SCALAR -> "DIVS", opcode::DIVS],
     [IOP_CT_BOOL_F_CT_SCALAR -> "OVF_ADDS", opcode::OVF_ADDS],
     [IOP_CT_BOOL_F_CT_SCALAR -> "OVF_SUBS", opcode::OVF_SUBS],
     [IOP_CT_BOOL_F_CT_SCALAR -> "OVF_SSUB", opcode::OVF_SSUB],
@@ -182,6 +195,7 @@ iop!(
     [IOP_CT_F_2CT -> "ADD", opcode::ADD],
     [IOP_CT_F_2CT -> "SUB", opcode::SUB],
     [IOP_CT_F_2CT -> "MUL", opcode::MUL],
+    [IOP_2CT_F_2CT -> "DIV", opcode::DIV],
     [IOP_CT_BOOL_F_2CT -> "OVF_ADD", opcode::OVF_ADD],
     [IOP_CT_BOOL_F_2CT -> "OVF_SUB", opcode::OVF_SUB],
     [IOP_CT_BOOL_F_2CT -> "OVF_MUL", opcode::OVF_MUL],

@@ -331,7 +331,9 @@ pub fn propagate_carry(
         .iter()
         .map(|v| {
             let mut res = v.pbs(&pbs_genprop).into_iter();
-            (res.next().unwrap(), PGCarry::fresh(res.next().unwrap()))
+            let prop = PGCarry::fresh(res.next().unwrap());
+            let msg = res.next().unwrap();
+            (msg, prop)
         })
         .unzip();
 

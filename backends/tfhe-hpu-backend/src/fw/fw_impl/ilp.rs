@@ -18,6 +18,7 @@ crate::impl_fw!("Ilp" [
     ADD => fw_impl::ilp::iop_add;
     SUB => fw_impl::ilp::iop_sub;
     MUL => fw_impl::ilp::iop_mul;
+    DIV => fw_impl::ilp_div::iop_div;
 
     OVF_ADD => fw_impl::ilp::iop_overflow_add;
     OVF_SUB => fw_impl::ilp::iop_overflow_sub;
@@ -27,6 +28,7 @@ crate::impl_fw!("Ilp" [
     SUBS => fw_impl::ilp::iop_subs;
     SSUB => fw_impl::ilp::iop_ssub;
     MULS => fw_impl::ilp::iop_muls;
+    DIVS => fw_impl::ilp_div::iop_divs;
 
     OVF_ADDS => fw_impl::ilp::iop_overflow_adds;
     OVF_SUBS => fw_impl::ilp::iop_overflow_subs;
