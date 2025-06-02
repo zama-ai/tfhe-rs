@@ -25,10 +25,10 @@ jobs:
 
       - name: Get actionlint
         run: |
-          wget "https://github.com/rhysd/actionlint/releases/download/v${{ env.ACTIONLINT_VERSION }}/actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz"
-          echo "${{ env.ACTIONLINT_CHECKSUM }} actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz" > checksum
+          wget "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_CHECKSUM} actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" > checksum
           sha256sum -c checksum
-          tar -xf actionlint_${{ env.ACTIONLINT_VERSION }}_linux_amd64.tar.gz actionlint
+          tar -xf actionlint_"${ACTIONLINT_VERSION}"_linux_amd64.tar.gz actionlint
           ln -s "$(pwd)/actionlint" /usr/local/bin/
 
       - name: Lint workflows
