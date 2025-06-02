@@ -4899,6 +4899,7 @@ template <typename Torus> struct int_scalar_mul_high {
   int_radix_params params;
   bool allocate_gpu_memory;
 
+  int_fullprop_buffer<Torus> *fullprop_mem;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
   int_scalar_mul_buffer<Torus> *scalar_mul_mem;
 
@@ -4912,6 +4913,10 @@ template <typename Torus> struct int_scalar_mul_high {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->fullprop_mem =
+        new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
+                                       allocate_gpu_memory, size_tracker);
 
     this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
         streams, gpu_indexes, gpu_count, shift_type, params,
@@ -4929,6 +4934,9 @@ template <typename Torus> struct int_scalar_mul_high {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
+
+    fullprop_mem->release(streams, gpu_indexes, gpu_count);
+    delete fullprop_mem;
 
     logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
     delete logical_scalar_shift_mem;
