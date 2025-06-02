@@ -25,6 +25,7 @@ pub const SUBS: u8 = 0xA1;
 pub const SSUB: u8 = 0xA2;
 pub const MULS: u8 = 0xA3;
 pub const DIVS: u8 = 0xA4;
+pub const MODS: u8 = 0xA5;
 // Overflowing Arith
 pub const OVF_ADDS: u8 = 0xA8;
 pub const OVF_SUBS: u8 = 0xA9;
@@ -37,6 +38,7 @@ pub const ADD: u8 = 0xE0;
 pub const SUB: u8 = 0xE2;
 pub const MUL: u8 = 0xE4;
 pub const DIV: u8 = 0xE5;
+pub const MOD: u8 = 0xE6;
 
 // Overflowing Arith
 pub const OVF_ADD: u8 = 0xE8;

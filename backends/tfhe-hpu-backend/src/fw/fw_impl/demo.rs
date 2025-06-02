@@ -11,12 +11,14 @@ crate::impl_fw!("Demo" [
     SUB => fw_impl::ilp::iop_sub;
     MUL => fw_impl::ilp::iop_mul;
     DIV => fw_impl::ilp_div::iop_div;
+    MOD => fw_impl::ilp_div::iop_mod;
 
     ADDS => fw_impl::ilp::iop_adds;
     SUBS => fw_impl::ilp::iop_subs;
     SSUB => fw_impl::ilp::iop_ssub;
     MULS => fw_impl::ilp::iop_muls;
     DIVS => fw_impl::ilp_div::iop_divs;
+    MODS => fw_impl::ilp_div::iop_mods;
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
