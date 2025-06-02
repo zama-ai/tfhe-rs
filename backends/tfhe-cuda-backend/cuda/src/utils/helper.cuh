@@ -37,18 +37,21 @@ template <typename T> void print_debug(const char *name, const T *src, int N) {
   printf("\n");
 }
 
+
 template <typename T>
-__global__ void print_body_kernel(T *src, int N, int lwe_dimension) {
+__global__ void print_body_kernel(T *src, int N, int lwe_dimension, T delta) {
   for (int i = 0; i < N; i++) {
-    printf("%lu, ", src[i * (lwe_dimension + 1) + lwe_dimension]);
+    T body = src[i * (lwe_dimension + 1) + lwe_dimension];
+    T clear = body / delta;
+    printf("(%lu, %lu), ",  body, clear);
   }
 }
 
 template <typename T>
-void print_body(const char *name, T *src, int n, int lwe_dimension) {
+void print_body(const char *name, T *src, int n, int lwe_dimension, T delta) {
   printf("%s: ", name);
   cudaDeviceSynchronize();
-  print_body_kernel<<<1, 1>>>(src, n, lwe_dimension);
+  print_body_kernel<<<1, 1>>>(src, n, lwe_dimension, delta);
   cudaDeviceSynchronize();
   printf("\n");
 }

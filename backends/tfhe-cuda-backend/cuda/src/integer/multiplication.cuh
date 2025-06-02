@@ -125,6 +125,9 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
     lut_indexes[pbs_index] = 0;
     ++ct_count;
   }
+//  ct1 ct2 ct3
+// pbs_indexes: 0, 1, 2
+// pbs_indexes: 2, 1, 0
 
   __syncthreads();
   uint32_t message_count = counter;
@@ -360,6 +363,79 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
   return size_tracker;
 }
 
+__global__ inline void DEBUG_PRINT_COLUMNS(uint32_t *const *const columns,
+                                            uint32_t *const columns_counter,
+                                            const uint32_t num_radix_blocks) {
+  printf("cuda_columns_counter:\n");
+  for (int i = 0; i < num_radix_blocks; i++) {
+    printf("%d ", columns_counter[i]);
+  }
+  printf("\n");
+  printf("cuda_columns:\n");
+
+  for (int i = 0; i < num_radix_blocks; i++) {
+    printf("column[%d]: ", i);
+    for (int j = 0; j < columns_counter[i]; j++)
+    {
+      printf("%d ", columns[i][j]);
+    }
+    printf("\n");
+  }
+
+  printf("\n");
+
+}
+
+__global__ inline void DEBUG_PRINT_COLUMNS_DATA(uint32_t *const *const columns,
+                                           uint32_t *const columns_counter,
+                                           uint64_t* data,
+                                           const uint32_t num_radix_blocks, size_t lwe_size) {
+
+  uint64_t delta = 576460752303423488ULL;
+  __syncthreads();
+  printf("cuda_new_columns:\n");
+  __syncthreads();
+  for (int i = 0; i < num_radix_blocks; i++) {
+    __syncthreads();
+    printf("column[%d]: ", i);
+    __syncthreads();
+    for (int j = 0; j < columns_counter[i]; j++)
+    {
+      __syncthreads();
+      auto cur_data =data[ columns[i][j] * lwe_size + lwe_size - 1];
+      cur_data /= delta;
+      printf("%llu ", cur_data);
+      __syncthreads();
+    }
+    __syncthreads();
+    printf("\n");
+    __syncthreads();
+  }
+
+  __syncthreads();
+  printf("\n");
+  __syncthreads();
+
+}
+
+template<typename Torus, bool input, bool clear>
+__global__ inline void DEBUG_PRINT_PBS_DATA(Torus * data, Torus* input_indexes, Torus*
+output_indexes, Torus *lut_indexes, size_t lwe_size, int num) {
+  printf("input_output_indexes: \n");
+
+  for (int i = 0; i < num; i++) {
+    auto input_val = data[input_indexes[i] * lwe_size + lwe_size -1];
+    auto output_val = data[output_indexes[i] * lwe_size + lwe_size -1];
+
+    auto val = input ? input_val : output_val;
+    auto val_clear = clear ? val / 576460752303423488ULL : val;
+
+    printf("%d %lu %lu %lu %lu %lu\n", i, input_indexes[i], output_indexes[i], lut_indexes[i],
+           val_clear, val);
+  }
+}
+
+
 template <typename Torus, class params>
 __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -455,7 +531,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     mem_ptr->setup_lookup_tables(streams, gpu_indexes, gpu_count);
   }
 
+
   while (needs_processing) {
+    cudaDeviceSynchronize();
+    DEBUG_PRINT_COLUMNS<<<1, 1, 0, streams[0]>>>(d_columns, d_columns_counter, num_radix_blocks);
+    DEBUG_PRINT_COLUMNS_DATA<<<1, 1, 0, streams[0]>>>(d_columns, d_columns_counter, (uint64_t *)
+    (current_blocks->ptr), num_radix_blocks, big_lwe_size);
     calculate_chunks<Torus>
         <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
             (Torus *)(current_blocks->ptr), d_columns, d_columns_counter,
@@ -476,6 +557,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     needs_processing = (h_pbs_counters[2] != 0);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
+
+    DEBUG_PRINT_PBS_DATA<Torus, true, true><<<1, 1, 0, streams[0]>>>(
+        (Torus *)(current_blocks->ptr), d_pbs_indexes_in, d_pbs_indexes_out,
+        luts_message_carry->get_lut_indexes(0, 0), big_lwe_size, total_ciphertexts
+        );
+
+
     if (active_gpu_count == 1) {
       execute_keyswitch_async<Torus>(
           streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr,
@@ -514,6 +602,10 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
           luts_message_carry, total_ciphertexts);
     }
     cuda_set_device(gpu_indexes[0]);
+    DEBUG_PRINT_PBS_DATA<Torus, false, true><<<1, 1, 0, streams[0]>>>(
+        (Torus *)(current_blocks->ptr), d_pbs_indexes_in, d_pbs_indexes_out,
+        luts_message_carry->get_lut_indexes(0, 0), big_lwe_size, total_ciphertexts
+    );
 
     std::swap(d_columns, d_new_columns);
     std::swap(d_columns_counter, d_new_columns_counter);
@@ -580,6 +672,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   CudaRadixCiphertextFFI current_blocks_slice;
   as_radix_ciphertext_slice<Torus>(&current_blocks_slice, current_blocks,
                                    num_radix_blocks, 2 * num_radix_blocks);
+//  for (size_t i = 0; i < num_radix_blocks; i++) {
+//    auto cur_ptr = (Torus*)radix_lwe_out->ptr;
+//    cur_ptr += i * 2049 + 2048;
+//    print_debug<Torus>("cuda_out", (Torus*)cur_ptr, 1);
+//  }
+
+  print_body<Torus>("cuda_out", (Torus*)radix_lwe_out->ptr, num_radix_blocks, 2048, 576460752303423488ULL);
 
   host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out,
                        current_blocks, &current_blocks_slice, num_radix_blocks);
@@ -716,6 +815,18 @@ __host__ void host_integer_mult_radix_kb(
     size_t b_id = i % num_blocks;
     terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
   }
+
+
+  for (int i = 0; i < num_blocks * 2 * num_blocks; i++)
+  {
+    auto cur_ptr = (Torus*)vector_result_sb->ptr;
+    cur_ptr += i * 2049 + 2048;
+    print_debug<Torus>("", cur_ptr, 1);
+  }
+
+  for (int i = 0; i < num_blocks * 2 * num_blocks; i++) {
+    printf("%d\n", vector_result_sb->degrees[i]);
+  }
   host_integer_partial_sum_ciphertexts_vec_kb<Torus, params>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb, bsks,
       ksks, ms_noise_reduction_key, mem_ptr->sum_ciphertexts_mem, num_blocks,
@@ -724,6 +835,8 @@ __host__ void host_integer_mult_radix_kb(
   auto scp_mem_ptr = mem_ptr->sc_prop_mem;
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;
+
+
   host_propagate_single_carry<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, nullptr, nullptr,
       scp_mem_ptr, bsks, ksks, ms_noise_reduction_key, requested_flag,
