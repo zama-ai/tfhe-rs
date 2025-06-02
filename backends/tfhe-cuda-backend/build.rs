@@ -8,6 +8,12 @@ fn main() {
         }
     }
 
+    if let Ok(v) = std::env::var("RUSTC_WRAPPER"){
+        if v.contains("rust-analyzer") {
+            return;
+        }
+    }
+
     // This is a workaround to the current nightly toolchain (2024-06-27 which started with
     // toolchain 2024-05-05) build issue
     // Essentially if cbindgen is running, a wrong argument ends up forwarded to the cuda backend
