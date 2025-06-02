@@ -89,7 +89,7 @@ void execute_pbs_async(
     uint32_t gpu_count, const LweArrayVariant<Torus> &lwe_array_out,
     const LweArrayVariant<Torus> &lwe_output_indexes,
     const std::vector<Torus *> lut_vec,
-    const std::vector<Torus *> lut_indexes_vec,
+    const LweArrayVariant<Torus> lut_indexes,
     const LweArrayVariant<Torus> &lwe_array_in,
     const LweArrayVariant<Torus> &lwe_input_indexes,
     void *const *bootstrapping_keys,
@@ -111,10 +111,8 @@ void execute_pbs_async(
         int num_inputs_on_gpu =
             get_num_inputs_on_gpu(input_lwe_ciphertext_count, i, gpu_count);
 
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+            GET_VARIANT_ELEMENT(lut_indexes, i);
 
         // Use the macro to get the correct elements for the current iteration
         // Handles the case when the input/output are scattered through
@@ -159,10 +157,8 @@ void execute_pbs_async(
         Torus *current_lwe_input_indexes =
             GET_VARIANT_ELEMENT(lwe_input_indexes, i);
 
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+            GET_VARIANT_ELEMENT(lut_indexes, i);
 
         cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
             streams[i], gpu_indexes[i], current_lwe_array_out,
@@ -188,10 +184,8 @@ void execute_pbs_async(
         Torus *current_lwe_input_indexes =
             GET_VARIANT_ELEMENT(lwe_input_indexes, i);
 
-        int gpu_offset =
-            get_gpu_offset(input_lwe_ciphertext_count, i, gpu_count);
         auto d_lut_vector_indexes =
-            lut_indexes_vec[i] + (ptrdiff_t)(gpu_offset);
+            GET_VARIANT_ELEMENT(lut_indexes, i);
 
         void *zeros = nullptr;
         if (ms_noise_reduction_key != nullptr &&

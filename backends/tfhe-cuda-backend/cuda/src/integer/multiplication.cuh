@@ -345,10 +345,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     if (carry_count > 0)
       cuda_set_value_async<Torus>(
           streams[0], gpu_indexes[0],
-          luts_message_carry->get_lut_indexes(0, message_count), 1,
-          carry_count);
-
-    luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+          luts_message_carry->get_lut_indexes(message_count), 1, carry_count);
 
     /// For multi GPU execution we create vectors of pointers for inputs and
     /// outputs
@@ -359,6 +356,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         luts_message_carry->lwe_after_pbs_vec;
     std::vector<Torus *> lwe_trivial_indexes_vec =
         luts_message_carry->lwe_trivial_indexes_vec;
+    std::vector<Torus *> lut_indexes_vec = luts_message_carry->lut_indexes_vec;
 
     auto active_gpu_count = get_active_gpu_count(total_count, gpu_count);
     if (active_gpu_count == 1) {
@@ -376,7 +374,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       /// dimension to a big LWE dimension
       execute_pbs_async<Torus>(
           streams, gpu_indexes, 1, (Torus *)new_blocks->ptr, lwe_indexes_out,
-          luts_message_carry->lut_vec, luts_message_carry->lut_indexes_vec,
+          luts_message_carry->lut_vec, luts_message_carry->get_lut_indexes(0),
           (Torus *)small_lwe_vector->ptr, lwe_indexes_in, bsks,
           ms_noise_reduction_key, luts_message_carry->buffer, glwe_dimension,
           small_lwe_dimension, polynomial_size, mem_ptr->params.pbs_base_log,
@@ -387,9 +385,17 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
       multi_gpu_scatter_lwe_async<Torus>(
           streams, gpu_indexes, active_gpu_count, new_blocks_vec,
-          (Torus *)new_blocks->ptr, luts_message_carry->h_lwe_indexes_in,
+          static_cast<Torus *>(new_blocks->ptr),
+          luts_message_carry->h_lwe_indexes_in,
           luts_message_carry->using_trivial_lwe_indexes, message_count,
           big_lwe_size);
+      cuda_memcpy_async_to_cpu(luts_message_carry->h_lut_indexes, luts_message_carry->get_lut_indexes(0), num_radix_blocks, streams[0], gpu_indexes[0]);
+      multi_gpu_scatter_lwe_async<Torus>(
+          streams, gpu_indexes, active_gpu_count, lut_indexes_vec,
+          luts_message_carry->get_lut_indexes(0),
+          nullptr,
+          true, message_count,
+          1);
 
       /// Apply KS to go from a big LWE dimension to a small LWE dimension
       /// After this keyswitch execution, we need to synchronize the streams
@@ -404,7 +410,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       /// Copy data back to GPU 0, rebuild the lwe array, and scatter again on a
       /// different configuration
       multi_gpu_gather_lwe_async<Torus>(
-          streams, gpu_indexes, gpu_count, (Torus *)small_lwe_vector->ptr,
+          streams, gpu_indexes, gpu_count, static_cast<Torus *>(small_lwe_vector->ptr),
           small_lwe_vector_vec, luts_message_carry->h_lwe_indexes_in,
           luts_message_carry->using_trivial_lwe_indexes, message_count,
           small_lwe_size);
@@ -415,8 +421,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
       multi_gpu_scatter_lwe_async<Torus>(
           streams, gpu_indexes, gpu_count, small_lwe_vector_vec,
-          (Torus *)small_lwe_vector->ptr, luts_message_carry->h_lwe_indexes_in,
+          (Torus *)small_lwe_vector->ptr,
+          luts_message_carry->h_lwe_indexes_in,
           luts_message_carry->using_trivial_lwe_indexes, total_count,
+          small_lwe_size);
+      multi_gpu_scatter_lwe_async<Torus>(
+          streams, gpu_indexes, gpu_count,  lut_indexes_vec,
+          luts_message_carry->get_lut_indexes(0),
+          nullptr,
+          true, total_count,
           small_lwe_size);
 
       /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE

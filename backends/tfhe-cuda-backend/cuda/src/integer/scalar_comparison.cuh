@@ -804,18 +804,18 @@ __host__ void host_integer_radix_scalar_equality_check_kb(
                          lwe_array_in, num_lsb_radix_blocks, message_modulus);
       scalar_pack_blocks(lsb_streams[0], gpu_indexes[0], &packed_scalar,
                          scalar_blocks, num_scalar_blocks, message_modulus);
-      cuda_memcpy_async_gpu_to_gpu(
-          scalar_comparison_luts->get_lut_indexes(0, 0), packed_scalar.ptr,
-          num_halved_scalar_blocks * sizeof(Torus), lsb_streams[0],
-          gpu_indexes[0]);
+      cuda_memcpy_async_gpu_to_gpu(scalar_comparison_luts->get_lut_indexes(0),
+                                   packed_scalar.ptr,
+                                   num_halved_scalar_blocks * sizeof(Torus),
+                                   lsb_streams[0], gpu_indexes[0]);
     } else if (num_lsb_radix_blocks == 1) {
       copy_radix_ciphertext_slice_async<Torus>(lsb_streams[0], gpu_indexes[0],
                                                packed_blocks, 0, 1,
                                                lwe_array_in, 0, 1);
-      cuda_memcpy_async_gpu_to_gpu(
-          scalar_comparison_luts->get_lut_indexes(0, 0), scalar_blocks,
-          num_halved_scalar_blocks * sizeof(Torus), lsb_streams[0],
-          gpu_indexes[0]);
+      cuda_memcpy_async_gpu_to_gpu(scalar_comparison_luts->get_lut_indexes(0),
+                                   scalar_blocks,
+                                   num_halved_scalar_blocks * sizeof(Torus),
+                                   lsb_streams[0], gpu_indexes[0]);
     }
     scalar_comparison_luts->broadcast_lut(lsb_streams, gpu_indexes, 0);
 

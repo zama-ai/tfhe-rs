@@ -534,6 +534,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
+  std::vector<Torus *> lut_indexes_vec = lut->lut_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
@@ -547,7 +548,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, 1, (Torus *)lwe_array_out->ptr,
-        lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
+        lut->lwe_indexes_out, lut->lut_vec, lut->get_lut_indexes(0),
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
         ms_noise_reduction_key, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
@@ -560,9 +561,13 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (Torus *)lwe_array_in->ptr, lut->h_lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, num_radix_blocks,
+        (Torus *)lwe_array_in->ptr,
+        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1);
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lut_indexes_vec, lut->get_lut_indexes(0),
+        nullptr, true, num_radix_blocks,
+        1);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -575,7 +580,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
-        lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
         lut->buffer, glwe_dimension, small_lwe_dimension, polynomial_size,
         pbs_base_log, pbs_level, grouping_factor, num_radix_blocks, pbs_type,
@@ -639,6 +644,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
   std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
+  std::vector<Torus *> lut_indexes_vec = lut->lut_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
@@ -652,7 +658,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, 1, (Torus *)lwe_array_out->ptr,
-        lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
+        lut->lwe_indexes_out, lut->lut_vec, lut->get_lut_indexes(0),
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
         ms_noise_reduction_key, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
@@ -665,9 +671,13 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
-        (Torus *)lwe_array_in->ptr, lut->h_lwe_indexes_in,
-        lut->using_trivial_lwe_indexes, num_radix_blocks,
+        (Torus *)lwe_array_in->ptr,
+        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1);
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lut_indexes_vec, lut->get_lut_indexes(0),
+        nullptr, true, num_radix_blocks,
+        1);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -680,7 +690,7 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
-        lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
         lut->buffer, glwe_dimension, small_lwe_dimension, polynomial_size,
         pbs_base_log, pbs_level, grouping_factor, num_radix_blocks, pbs_type,
@@ -759,6 +769,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
   std::vector<Torus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
   std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
+  std::vector<Torus *> lut_indexes_vec = lut->lut_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
@@ -772,7 +783,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, 1, (Torus *)(lwe_array_out->ptr),
-        lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec,
+        lut->lwe_indexes_out, lut->lut_vec, lut->get_lut_indexes(0),
         lwe_after_ks_vec[0], lwe_trivial_indexes_vec[0], bsks,
         ms_noise_reduction_key, lut->buffer, glwe_dimension,
         small_lwe_dimension, polynomial_size, pbs_base_log, pbs_level,
@@ -784,6 +795,10 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
         (Torus *)lwe_array_pbs_in->ptr, lut->h_lwe_indexes_in,
         lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1);
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count, lut_indexes_vec,
+        lut->get_lut_indexes(0), nullptr, true, num_radix_blocks,
+        1);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
     execute_keyswitch_async<Torus>(streams, gpu_indexes, active_gpu_count,
@@ -796,7 +811,7 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     /// dimension to a big LWE dimension
     execute_pbs_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
-        lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
+        lwe_trivial_indexes_vec, lut->lut_vec, lut_indexes_vec,
         lwe_after_ks_vec, lwe_trivial_indexes_vec, bsks, ms_noise_reduction_key,
         lut->buffer, glwe_dimension, small_lwe_dimension, polynomial_size,
         pbs_base_log, pbs_level, grouping_factor, num_radix_blocks, pbs_type,

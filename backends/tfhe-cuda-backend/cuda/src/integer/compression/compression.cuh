@@ -323,6 +323,7 @@ __host__ void host_integer_decompress(
     std::vector<Torus *> lwe_array_in_vec = lut->lwe_array_in_vec;
     std::vector<Torus *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
     std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
+    std::vector<Torus *> lut_indexes_vec = lut->lut_indexes_vec;
 
     /// Make sure all data that should be on GPU 0 is indeed there
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
@@ -331,8 +332,13 @@ __host__ void host_integer_decompress(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec, extracted_lwe,
-        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
+        lut->h_lwe_indexes_in,
+        lut->using_trivial_lwe_indexes, num_radix_blocks,
         compression_params.small_lwe_dimension + 1);
+    multi_gpu_scatter_lwe_async<Torus>(
+        streams, gpu_indexes, active_gpu_count,
+        lut_indexes_vec, lut->get_lut_indexes(0), nullptr, true, num_radix_blocks,
+        1);
 
     /// Apply PBS
     execute_pbs_async<Torus>(

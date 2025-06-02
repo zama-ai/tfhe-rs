@@ -167,27 +167,26 @@ template <typename Torus> struct zk_expand_mem {
 
     offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
-      auto num_lwes_in_kth = num_lwes_per_compact_list[k];
-      for (int i = 0; i < num_packed_msgs * num_lwes_in_kth; i++) {
+      auto num_lwes_in_list = num_lwes_per_compact_list[k];
+      for (int i = 0; i < num_packed_msgs * num_lwes_in_list; i++) {
         auto lwe_index = i + num_packed_msgs * offset;
-        auto lwe_index_in_list = i % num_lwes_in_kth;
+        auto lwe_index_in_list = i % num_lwes_in_list;
         h_indexes_in[lwe_index] = lwe_index_in_list + offset;
         h_indexes_out[lwe_index] =
-            num_packed_msgs * (lwe_index_in_list + offset) +
-            i / num_lwes_in_kth;
+            num_packed_msgs * h_indexes_in[lwe_index] +
+            i / num_lwes_in_list;
         // If the input relates to a boolean, shift the LUT so the correct one
         // with sanitization is used
         auto boolean_offset =
             is_boolean_array[h_indexes_out[lwe_index]] ? num_packed_msgs : 0;
-        h_lut_indexes[lwe_index] = i / num_lwes_in_kth + boolean_offset;
+        h_lut_indexes[lwe_index] = i / num_lwes_in_list + boolean_offset;
       }
-      offset += num_lwes_in_kth;
+      offset += num_lwes_in_list;
     }
 
     message_and_carry_extract_luts->set_lwe_indexes(
         streams[0], gpu_indexes[0], h_indexes_in, h_indexes_out);
-    auto lut_indexes = message_and_carry_extract_luts->get_lut_indexes(0, 0);
-    message_and_carry_extract_luts->broadcast_lut(streams, gpu_indexes, 0);
+    auto lut_indexes = message_and_carry_extract_luts->get_lut_indexes(0);
 
     cuda_memcpy_with_size_tracking_async_to_gpu(
         d_lwe_compact_input_indexes, h_lwe_compact_input_indexes,

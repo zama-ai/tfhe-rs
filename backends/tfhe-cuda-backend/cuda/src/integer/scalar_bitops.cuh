@@ -44,7 +44,7 @@ __host__ void host_integer_radix_scalar_bitop_kb(
       update_degrees_after_scalar_bitxor(degrees, h_clear_blocks,
                                          input->degrees, num_clear_blocks);
     }
-    cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0, 0), clear_blocks,
+    cuda_memcpy_async_gpu_to_gpu(lut->get_lut_indexes(0), clear_blocks,
                                  num_clear_blocks * sizeof(Torus), streams[0],
                                  gpu_indexes[0]);
     lut->broadcast_lut(streams, gpu_indexes, 0);
