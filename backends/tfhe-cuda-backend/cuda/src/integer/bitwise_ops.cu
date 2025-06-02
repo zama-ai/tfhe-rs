@@ -63,7 +63,7 @@ void update_degrees_after_bitor(uint64_t *output_degrees,
     auto result = max;
 
     for (uint j = 0; j < min + 1; j++) {
-      if (max | j > result) {
+      if ((max | j) > result) {
         result = max | j;
       }
     }
@@ -82,7 +82,7 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
 
     // Try every possibility to find the worst case
     for (uint j = 0; j < min + 1; j++) {
-      if (max ^ j > result) {
+      if ((max ^ j) > result) {
         result = max ^ j;
       }
     }
