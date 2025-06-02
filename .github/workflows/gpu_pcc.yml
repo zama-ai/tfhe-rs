@@ -81,13 +81,17 @@ jobs:
         if: env.SECRETS_AVAILABLE == 'false'
         shell: bash
         run: |
-          TOOLKIT_VERSION="$(echo ${{ matrix.cuda }} | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
+          # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+          # shellcheck disable=SC2001
+          TOOLKIT_VERSION="$(echo "${CUDA_VERSION}" | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/"${CUDA_KEYRING_PACKAGE}"
           echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
           sha256sum -c checksum
           sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
           sudo apt update
           sudo apt -y install "cuda-toolkit-${TOOLKIT_VERSION}" cmake-format
+        env:
+          CUDA_VERSION: ${{ matrix.cuda }}
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
@@ -100,17 +104,21 @@ jobs:
           echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
           echo "$CUDA_PATH/bin" >> "${GITHUB_PATH}"
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc" >> "${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc" >> "${GITHUB_ENV}"
+        env:
+          CUDA_VERSION: ${{ matrix.cuda }}
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
           {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+            echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
           } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: ${{ matrix.gcc }}
 
       - name: Run fmt checks
         run: |
@@ -127,9 +135,10 @@ jobs:
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
         run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
         env:
           PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Slack Notification
         if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
