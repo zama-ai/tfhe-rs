@@ -1,4 +1,4 @@
-use crate::generators::aes_ctr::{AES_CALLS_PER_BATCH, BYTES_PER_BATCH};
+use crate::generators::aes_ctr::{AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH};
 
 /// Represents a key used in the AES block cipher.
 #[derive(Clone, Copy)]
@@ -16,4 +16,6 @@ pub trait AesBlockCipher: Clone + Send + Sync {
     fn new(key: AesKey) -> Self;
     /// Generates the batch corresponding to the given index.
     fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH];
+    /// Generate next bytes
+    fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL];
 }

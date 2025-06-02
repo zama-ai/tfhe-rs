@@ -10,6 +10,7 @@ pub struct BufferPointer(pub usize);
 pub struct State {
     table_index: TableIndex,
     buffer_pointer: BufferPointer,
+    offset: AesIndex,
 }
 
 /// A structure representing the action to be taken by the generator after shifting its state.
@@ -25,24 +26,42 @@ pub enum ShiftAction {
 impl State {
     /// Creates a new state from the initial table index.
     ///
-    /// Note :
+    /// Note:
     /// ------
     ///
-    /// The `table_index` input, is the __first__ table index that will be outputted on the next
+    /// The `table_index` input is the __first__ table index that will be outputted on the next
     /// call to `increment`. Put differently, the current table index of the newly created state
     /// is the predecessor of this one.
     pub fn new(table_index: TableIndex) -> Self {
+        Self::with_offset(table_index, AesIndex(0))
+    }
+
+    /// Creates a new state from the initial table index and offset
+    ///
+    /// The `offset` AesIndex will be applied to all AES encryption.
+    /// AES(Key, counter + offset).
+    /// This is to be used when one wants to start the AES
+    /// counter at a specific value but still output all the (2^128-1) values
+    ///
+    /// Note:
+    /// ------
+    ///
+    /// The `table_index` input is the __first__ table index that will be outputted on the next
+    /// call to `increment`. Put differently, the current table index of the newly created state
+    /// is the predecessor of this one.
+    pub fn with_offset(table_index: TableIndex, offset: AesIndex) -> Self {
         // We ensure that the table index is not the first one, to prevent wrapping on `decrement`,
         // and outputting `RefreshBatchAndOutputByte(AesIndex::MAX, ...)` on the first increment
-        // (which would lead to loading a non continuous batch).
+        // (which would lead to loading a non-continuous batch).
         assert_ne!(table_index, TableIndex::FIRST);
-        State {
+        Self {
             // To ensure that the first outputted table index is the proper one, we decrement the
             // table index.
             table_index: table_index.decremented(),
             // To ensure that the first `ShiftAction` will be a `RefreshBatchAndOutputByte`, we set
             // the buffer to the last allowed value.
             buffer_pointer: BufferPointer(BYTES_PER_BATCH - 1),
+            offset,
         }
     }
 
@@ -52,7 +71,8 @@ impl State {
         let total_batch_index = self.buffer_pointer.0 + shift;
         if total_batch_index > BYTES_PER_BATCH - 1 {
             self.buffer_pointer.0 = self.table_index.byte_index.0;
-            ShiftAction::RefreshBatchAndOutputByte(self.table_index.aes_index, self.buffer_pointer)
+            let index = AesIndex(self.table_index.aes_index.0.wrapping_add(self.offset.0));
+            ShiftAction::RefreshBatchAndOutputByte(index, self.buffer_pointer)
         } else {
             self.buffer_pointer.0 = total_batch_index;
             ShiftAction::OutputByte(self.buffer_pointer)

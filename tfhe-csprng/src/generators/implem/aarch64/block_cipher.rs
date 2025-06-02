@@ -53,6 +53,10 @@ impl AesBlockCipher for ArmAesBlockCipher {
         // SAFETY: we checked for aes and neon availability in `Self::new`
         unsafe { implementation(self, data) }
     }
+
+    fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
+        unsafe { encrypt(data, &self.round_keys) }.to_ne_bytes()
+    }
 }
 
 /// Does the AES SubWord operation for the Key Expansion step
