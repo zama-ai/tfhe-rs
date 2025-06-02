@@ -170,7 +170,7 @@ install_typos_checker: install_rs_build_toolchain
 .PHONY: install_zizmor # Install zizmor workflow security checker
 install_zizmor: install_rs_build_toolchain
 	@zizmor --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install zizmor || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install zizmor --version ~1.9 || \
 	( echo "Unable to install zizmor, unknown error." && exit 1 )
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
