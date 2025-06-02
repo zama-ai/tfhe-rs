@@ -36,7 +36,7 @@ __host__ void host_integer_radix_bitop_kb(
     update_degrees_after_bitor(degrees, lwe_array_1->degrees,
                                lwe_array_2->degrees,
                                lwe_array_1->num_radix_blocks);
-  } else if (mem_ptr->op == BITXOR) {
+  } else if (mem_ptr->op == BITOP_TYPE::BITXOR) {
     update_degrees_after_bitxor(degrees, lwe_array_1->degrees,
                                 lwe_array_2->degrees,
                                 lwe_array_1->num_radix_blocks);
