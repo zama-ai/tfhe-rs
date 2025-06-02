@@ -87,5 +87,6 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
       }
     }
     output_degrees[i] = result;
+    printf("output degree %d\n", result);
   }
 }
