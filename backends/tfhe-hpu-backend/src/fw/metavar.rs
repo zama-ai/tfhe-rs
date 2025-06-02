@@ -472,7 +472,7 @@ impl MetaVarCell {
     ) -> StmtLink {
         assert!(
             src.is_in(PosKind::REG | PosKind::MEM),
-            "Pbs src must be of kind Reg|Mem MetaVar"
+            "{}", format!("Pbs src must be of kind Reg|Mem MetaVar {:?}",src)
         );
 
         assert!(

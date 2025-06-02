@@ -20,6 +20,7 @@ crate::impl_fw!("Llt" [
     ADD => fw_impl::llt::iop_add;
     SUB => fw_impl::llt::iop_sub;
     MUL => fw_impl::llt::iop_mul;
+    DIV => fw_impl::ilp_div::iop_div;
 
     // NB: fallback to ilp
     // TODO: Add dedicated llt implementation
@@ -31,6 +32,7 @@ crate::impl_fw!("Llt" [
     SUBS => fw_impl::llt::iop_subs;
     SSUB => fw_impl::llt::iop_ssub;
     MULS => fw_impl::llt::iop_muls;
+    DIVS => fw_impl::ilp_div::iop_divs;
 
     // NB: fallback to ilp
     // TODO: Add dedicated llt implementation
