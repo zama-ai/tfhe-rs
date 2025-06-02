@@ -1,10 +1,13 @@
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::Numeric;
+use crate::core_crypto::prelude::{LweBskGroupingFactor, Numeric};
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::CudaServerKey;
+use crate::integer::gpu::server_key::CudaBootstrappingKey;
+use crate::integer::gpu::{
+    unchecked_scalar_mul_high_integer_radix_kb_async, CudaServerKey, PBSType,
+};
 use crate::integer::server_key::radix_parallel::scalar_div_mod::{
     choose_multiplier, SignedReciprocable,
 };
@@ -25,18 +28,12 @@ impl CudaServerKey {
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let mut result = lhs.duplicate_async(streams);
-        result = self.extend_radix_with_trivial_zero_blocks_msb_async(
-            &result,
-            lhs.ciphertext.d_blocks.lwe_ciphertext_count().0,
-            streams,
-        );
-        self.scalar_mul_assign_async(&mut result, rhs, streams);
-        result = self.trim_radix_blocks_lsb_async(
-            &result,
-            lhs.ciphertext.d_blocks.lwe_ciphertext_count().0,
-            streams,
-        );
+        let mut result: CudaUnsignedRadixCiphertext = unsafe { lhs.duplicate_async(streams) };
+
+        unsafe {
+            self.unchecked_scalar_mul_high_async(&mut result, rhs, streams);
+        }
+
         result
     }
     fn get_scalar_mul_high_size_on_gpu<T, Scalar>(
@@ -1283,5 +1280,68 @@ impl CudaServerKey {
     {
         self.get_signed_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
             + 2 * self.get_ciphertext_size_on_gpu(numerator)
+    }
+
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
+    pub unsafe fn unchecked_scalar_mul_high_async<Scalar, T>(
+        &self,
+        ct: &mut T,
+        rhs: Scalar,
+        streams: &CudaStreams,
+    ) where
+        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        T: CudaIntegerRadixCiphertext,
+    {
+        if !ct.block_carries_are_empty() {
+            self.full_propagate_assign_async(ct, streams);
+        }
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_scalar_mul_high_integer_radix_kb_async(
+                        streams,
+                        ct.as_mut(),
+                        rhs,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        self.message_modulus.0.ilog2() as usize,
+                        &d_bsk.d_vec,
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        PBSType::Classical,
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_scalar_mul_high_integer_radix_kb_async(
+                        streams,
+                        ct.as_mut(),
+                        rhs,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        self.message_modulus.0.ilog2() as usize,
+                        &d_multibit_bsk.d_vec,
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                        PBSType::MultiBit,
+                    );
+                }
+            }
+        }
     }
 }
