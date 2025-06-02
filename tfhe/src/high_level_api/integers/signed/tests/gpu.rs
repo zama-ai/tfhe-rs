@@ -4,9 +4,9 @@ use crate::high_level_api::integers::signed::tests::{
 use crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu;
 use crate::prelude::{
     check_valid_cuda_malloc, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu,
-    BitXorSizeOnGpu, FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, FheTryEncrypt,
-    IfThenElseSizeOnGpu, MulSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu,
-    ShrSizeOnGpu, SubSizeOnGpu,
+    BitXorSizeOnGpu, DivRemSizeOnGpu, DivSizeOnGpu, FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu,
+    FheOrdSizeOnGpu, FheTryEncrypt, IfThenElseSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::{FheBool, FheInt32, FheUint32, GpuIndex};
@@ -345,6 +345,35 @@ fn test_gpu_get_mul_size_on_gpu() {
     ));
     assert!(check_valid_cuda_malloc(
         scalar_mul_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+}
+#[test]
+fn test_gpu_get_div_size_on_gpu() {
+    let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    let mut rng = rand::thread_rng();
+    let clear_a = rng.gen_range(1..=i32::MAX);
+    let clear_b = rng.gen_range(1..=i32::MAX);
+    let mut a = FheInt32::try_encrypt(clear_a, &cks).unwrap();
+    let mut b = FheInt32::try_encrypt(clear_b, &cks).unwrap();
+    a.move_to_current_device();
+    b.move_to_current_device();
+    let a = &a;
+    let b = &b;
+
+    let div_tmp_buffer_size = a.get_div_size_on_gpu(b);
+    let rem_tmp_buffer_size = a.get_rem_size_on_gpu(b);
+    let div_rem_tmp_buffer_size = a.get_div_rem_size_on_gpu(b);
+    assert!(check_valid_cuda_malloc(
+        div_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        rem_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        div_rem_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }
