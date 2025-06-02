@@ -174,8 +174,8 @@ install_zizmor: install_rs_build_toolchain
 	( echo "Unable to install zizmor, unknown error." && exit 1 )
 
 .PHONY: install_cargo_cross # Install custom tfhe-rs lints
-install_cargo_cross:
-	cargo install cross
+install_cargo_cross: install_rs_build_toolchain
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cross
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:

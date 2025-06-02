@@ -24,6 +24,18 @@ impl AesBlockCipher for SoftwareBlockCipher {
             data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], &self.aes,
         )
     }
+
+    fn generate_next(&mut self, data: u128) -> [u8; BYTES_PER_AES_CALL] {
+        aes_encrypt_one(data, &self.aes)
+    }
+}
+
+fn aes_encrypt_one(message: u128, cipher: &Aes128) -> [u8; BYTES_PER_AES_CALL] {
+    let mut b1 = GenericArray::clone_from_slice(&message.to_ne_bytes()[..]);
+
+    cipher.encrypt_block(&mut b1);
+
+    b1.into()
 }
 
 // Uses aes to encrypt many values at once. This allows a substantial speedup (around 30%)
@@ -101,5 +113,13 @@ mod test {
                 CIPHERTEXT
             );
         }
+    }
+
+    #[test]
+    fn test_encrypt_one_message() {
+        let key: [u8; BYTES_PER_AES_CALL] = CIPHER_KEY.to_ne_bytes();
+        let aes = Aes128::new(&GenericArray::from(key));
+        let ciphertext = aes_encrypt_one(PLAINTEXT, &aes);
+        assert_eq!(u128::from_ne_bytes(ciphertext), CIPHERTEXT);
     }
 }

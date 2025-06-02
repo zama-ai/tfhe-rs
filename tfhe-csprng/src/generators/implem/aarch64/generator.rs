@@ -1,7 +1,7 @@
-use crate::generators::aes_ctr::{AesCtrGenerator, AesKey, ChildrenIterator};
+use crate::generators::aes_ctr::{AesCtrGenerator, ChildrenIterator};
 use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
 use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
-use crate::seeders::Seed;
+use crate::seeders::SeedKind;
 
 /// A random number generator using the arm `neon` instructions.
 pub struct NeonAesRandomGenerator(pub(super) AesCtrGenerator<ArmAesBlockCipher>);
@@ -21,8 +21,8 @@ impl Iterator for ArmAesChildrenIterator {
 
 impl RandomGenerator for NeonAesRandomGenerator {
     type ChildrenIter = ArmAesChildrenIterator;
-    fn new(seed: Seed) -> Self {
-        NeonAesRandomGenerator(AesCtrGenerator::new(AesKey(seed.0), None, None))
+    fn new(seed: impl Into<SeedKind>) -> Self {
+        NeonAesRandomGenerator(AesCtrGenerator::from_seed(seed))
     }
     fn remaining_bytes(&self) -> ByteCount {
         self.0.remaining_bytes()
@@ -111,5 +111,10 @@ mod test {
     #[test]
     fn test_vector() {
         generator_generic_test::test_vectors::<NeonAesRandomGenerator>();
+    }
+
+    #[test]
+    fn test_vector_xof_seed() {
+        generator_generic_test::test_vectors_xof_seed::<NeonAesRandomGenerator>();
     }
 }

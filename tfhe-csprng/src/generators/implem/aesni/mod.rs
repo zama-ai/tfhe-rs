@@ -5,6 +5,7 @@
 //! [intel aesni white paper 323641-001 revision 3.0](https://www.intel.com/content/dam/doc/white-paper/advanced-encryption-standard-new-instructions-set-paper.pdf).
 
 mod block_cipher;
+pub use block_cipher::AesniBlockCipher;
 
 mod generator;
 pub use generator::*;
