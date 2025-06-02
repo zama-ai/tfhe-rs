@@ -182,6 +182,7 @@ jobs:
         if: needs.should-run.outputs.csprng_test == 'true'
         run: |
           make test_tfhe_csprng
+          make test_tfhe_csprng_big_endian
 
       - name: Run tfhe-zk-pok tests
         if: needs.should-run.outputs.zk_pok_test == 'true'
