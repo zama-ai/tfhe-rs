@@ -231,7 +231,7 @@ mod hpu_test {
                         let $imm = imms.iter().map(|x| *x as $user_type).collect::<Vec<_>>();
                         ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
                     };
-                        println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
+                   l     println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
                     std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x== y).fold(true, |acc, val| acc & val)
                 }).fold(true, |acc, val| acc & val)
             }
@@ -252,6 +252,8 @@ mod hpu_test {
     |ct, imm| [ct[0].wrapping_mul(imm[0])]);
     hpu_testcase!("DIVS" => [u8, u16, u32, u64, u128]
     |ct, imm| if imm[0] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(imm[0]), ct[0] % imm[0]]});
+    hpu_testcase!("MODS" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0] % imm[0]]);
 
     // Version with overflow flag
     hpu_testcase!("OVF_ADDS" => [u8, u16, u32, u64, u128]
@@ -284,6 +286,8 @@ mod hpu_test {
     |ct, imm| [ct[0].wrapping_mul(ct[1])]);
     hpu_testcase!("DIV" => [u8, u16, u32, u64, u128]
     |ct, imm| if ct[1] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(ct[1]), ct[0] % ct[1]]});
+    hpu_testcase!("MOD" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0] % ct[1]]);
 
     hpu_testcase!("OVF_ADD" => [u8, u16, u32, u64, u128]
         |ct, imm| {
@@ -351,7 +355,8 @@ mod hpu_test {
         "subs",
         "ssub",
         "muls",
-        "divs"
+        "divs",
+        "mods"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alus"::8 => [
@@ -366,7 +371,8 @@ mod hpu_test {
         "add",
         "sub",
         "mul",
-        "div"
+        "div",
+        "mod"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alu"::8 => [
@@ -410,7 +416,8 @@ mod hpu_test {
         "subs",
         "ssub",
         "muls",
-        "divs"
+        "divs",
+        "mods"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alus"::16 => [
@@ -425,7 +432,8 @@ mod hpu_test {
         "add",
         "sub",
         "mul",
-        "div"
+        "div",
+        "mod"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alu"::16 => [
@@ -469,7 +477,8 @@ mod hpu_test {
         "subs",
         "ssub",
         "muls",
-        "divs"
+        "divs",
+        "mods"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alus"::32 => [
@@ -484,7 +493,8 @@ mod hpu_test {
         "add",
         "sub",
         "mul",
-        "div"
+        "div",
+        "mod"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alu"::32 => [
@@ -528,7 +538,8 @@ mod hpu_test {
         "subs",
         "ssub",
         "muls",
-        "divs"
+        "divs",
+        "mods"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alus"::64 => [
@@ -543,7 +554,8 @@ mod hpu_test {
         "add",
         "sub",
         "mul",
-        "div"
+        "div",
+        "mod"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alu"::64 => [
@@ -587,7 +599,8 @@ mod hpu_test {
         "subs",
         "ssub",
         "muls",
-        "divs"
+        "divs",
+        "mods"
     ]);
 
     hpu_testbundle!("ovf_alus"::128 => [
@@ -602,7 +615,8 @@ mod hpu_test {
         "add",
         "sub",
         "mul",
-        "div"
+        "div",
+        "mod"
     ]);
     #[cfg(feature = "hpu")]
     hpu_testbundle!("ovf_alu"::128 => [
