@@ -450,8 +450,27 @@ impl ServerKey {
             return;
         }
 
+        // for block in lhs.blocks() {
+        //     println!("lhs_degrees: {:?}", block.degree)
+        // }
+        //
+        // for block in rhs.blocks() {
+        //     println!("rhs_degrees: {:?}", block.degree)
+        // }
+        //
         let terms = self.compute_terms_for_mul_low(lhs, rhs);
+        println!("cpu_terms");
 
+        for radix_ct  in &terms {
+            for block in radix_ct.blocks() {
+                println!("{:?}", block.ct.get_body().data);
+            }
+        }
+        for radix_ct  in &terms {
+            for block in radix_ct.blocks() {
+                println!("{:?}", block.degree.0);
+            }
+        }
         if let Some(result) = self.unchecked_sum_ciphertexts_vec_parallelized(terms) {
             *lhs = result;
         } else {

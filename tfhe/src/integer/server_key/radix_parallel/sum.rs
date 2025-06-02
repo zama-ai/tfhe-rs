@@ -158,6 +158,17 @@ impl ServerKey {
     {
         let mut result =
             self.unchecked_partial_sum_ciphertexts_vec_parallelized(ciphertexts, None)?;
+        println!("cpu_after_sum_ct");
+        for block in result.blocks() {
+            println!("{:?}", block.ct.get_body().data)
+        }
+
+        println!("cpu_after_sum_clear");
+        for block in result.blocks() {
+            let body = block.ct.get_body().data;
+            let delta = 576460752303423488u64;
+            println!("{:?}", body / delta)
+        }
 
         self.full_propagate_parallelized(&mut result);
         assert!(result.block_carries_are_empty());

@@ -2683,8 +2683,7 @@ template <typename Torus> struct int_mul_memory {
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        2 * num_radix_blocks, vector_result_sb, small_lwe_vector, luts_array,
-        allocate_gpu_memory, size_tracker);
+        2 * num_radix_blocks, allocate_gpu_memory, size_tracker);
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
