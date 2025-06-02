@@ -335,7 +335,7 @@ where
     // Div executor
     let div_rem_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::div_rem);
     // Div Rem Clear functions
-    let clear_div_rem = |x: u64, y: u64| -> (u64, u64) { (x / y, x % y) };
+    let clear_div_rem = |x: u64, y: u64| -> (u64, u64) { (x.wrapping_div(y), x.wrapping_rem(y)) };
     #[allow(clippy::type_complexity)]
     let mut div_rem_op: Vec<(DivRemOpExecutor, &dyn Fn(u64, u64) -> (u64, u64), String)> = vec![(
         Box::new(div_rem_executor),
