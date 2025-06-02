@@ -62,7 +62,7 @@ void update_degrees_after_bitor(uint64_t *output_degrees,
     auto min = std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
     auto result = max;
 
-    for (uint j = 0; j < min + 1; j++) {
+    for (uint64_t j = 0; j < min + 1; j++) {
       if (max | j > result) {
         result = max | j;
       }
@@ -79,15 +79,16 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
     auto max = std::max(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
     auto min = std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
     auto result = max;
-    printf("max %d, min %d, result %d\n", max, min, result);
+    printf("max %lu, min %lu, result %d\n", max, min, result);
 
     // Try every possibility to find the worst case
     for (uint64_t j = 0; j < min + 1; j++) {
+        printf("j %lu, max ^ j %lu \n", j, max ^ j);
       if (max ^ j > result) {
         result = max ^ j;
       }
     }
     output_degrees[i] = result;
-    printf("output degree %d\n", result);
+    printf("output degree %lu\n", result);
   }
 }
