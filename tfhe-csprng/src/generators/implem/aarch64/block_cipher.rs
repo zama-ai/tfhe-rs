@@ -1,4 +1,4 @@
-use crate::generators::aes_ctr::{AesBlockCipher, AesIndex, AesKey, BYTES_PER_BATCH};
+use crate::generators::aes_ctr::{AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_BATCH};
 use core::arch::aarch64::{
     uint8x16_t, vaeseq_u8, vaesmcq_u8, vdupq_n_u32, vdupq_n_u8, veorq_u8, vgetq_lane_u32,
     vreinterpretq_u32_u8, vreinterpretq_u8_u32,
@@ -34,24 +34,24 @@ impl AesBlockCipher for ArmAesBlockCipher {
         ArmAesBlockCipher { round_keys }
     }
 
-    fn generate_batch(&mut self, AesIndex(aes_ctr): AesIndex) -> [u8; BYTES_PER_BATCH] {
+    fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
         #[target_feature(enable = "aes,neon")]
         unsafe fn implementation(
             this: &ArmAesBlockCipher,
-            AesIndex(aes_ctr): AesIndex,
+            data: [u128; AES_CALLS_PER_BATCH],
         ) -> [u8; BYTES_PER_BATCH] {
             let mut output = [0u8; BYTES_PER_BATCH];
             // We want 128 bytes of output, the ctr gives 128 bit message (16 bytes)
-            for (i, out) in output.chunks_exact_mut(16).enumerate() {
+            for (input, out) in data.iter().copied().zip(output.chunks_exact_mut(16)) {
                 // Safe because we prevent the user from creating the Generator
                 // on non-supported hardware
-                let encrypted = encrypt(aes_ctr + (i as u128), &this.round_keys);
+                let encrypted = encrypt(input, &this.round_keys);
                 out.copy_from_slice(&encrypted.to_ne_bytes());
             }
             output
         }
         // SAFETY: we checked for aes and neon availability in `Self::new`
-        unsafe { implementation(self, AesIndex(aes_ctr)) }
+        unsafe { implementation(self, data) }
     }
 }
 

@@ -56,7 +56,7 @@ impl TableIndex {
         let new_byte_index = self.byte_index.0 + shift_remainder;
         let full_aes_shifts = full_aes_shifts + new_byte_index / BYTES_PER_AES_CALL;
 
-        // Store the reaminder in the byte index
+        // Store the remainder in the byte index
         self.byte_index.0 = new_byte_index % BYTES_PER_AES_CALL;
 
         self.aes_index.0 = self.aes_index.0.wrapping_add(full_aes_shifts as u128);

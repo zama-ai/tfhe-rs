@@ -1,7 +1,7 @@
 use crate::seeders::{Seed, Seeder};
 
 /// There is no `rseed` equivalent in the ARM specification until `ARMv8.5-A`.
-/// However it seems that these instructions are not exposed in `core::arch::aarch64`.
+/// However, it seems that these instructions are not exposed in `core::arch::aarch64`.
 ///
 /// Our primary interest for supporting aarch64 targets is AppleSilicon support
 /// which for the M1 macs available, they are based on the `ARMv8.4-A` set.

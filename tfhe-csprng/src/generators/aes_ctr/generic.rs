@@ -189,7 +189,9 @@ impl<BlockCipher: AesBlockCipher> Iterator for AesCtrGenerator<BlockCipher> {
             match self.state.increment() {
                 ShiftAction::OutputByte(BufferPointer(ptr)) => Some(self.buffer[ptr]),
                 ShiftAction::RefreshBatchAndOutputByte(aes_index, BufferPointer(ptr)) => {
-                    self.buffer = self.block_cipher.generate_batch(aes_index);
+                    let aes_inputs =
+                        core::array::from_fn(|i| aes_index.0.wrapping_add(i as u128).to_le());
+                    self.buffer = self.block_cipher.generate_batch(aes_inputs);
                     Some(self.buffer[ptr])
                 }
             }

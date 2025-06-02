@@ -1,4 +1,4 @@
-use crate::generators::aes_ctr::{AesBlockCipher, AesIndex, AesKey, BYTES_PER_BATCH};
+use crate::generators::aes_ctr::{AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_BATCH};
 use std::arch::x86_64::{
     __m128i, _mm_aesenc_si128, _mm_aesenclast_si128, _mm_aeskeygenassist_si128, _mm_shuffle_epi32,
     _mm_slli_si128, _mm_store_si128, _mm_xor_si128,
@@ -30,26 +30,26 @@ impl AesBlockCipher for AesniBlockCipher {
         AesniBlockCipher { round_keys }
     }
 
-    fn generate_batch(&mut self, AesIndex(aes_ctr): AesIndex) -> [u8; BYTES_PER_BATCH] {
+    fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
         #[target_feature(enable = "sse2,aes")]
         unsafe fn implementation(
             this: &AesniBlockCipher,
-            AesIndex(aes_ctr): AesIndex,
+            data: [u128; AES_CALLS_PER_BATCH],
         ) -> [u8; BYTES_PER_BATCH] {
             si128arr_to_u8arr(aes_encrypt_many(
-                u128_to_si128(aes_ctr),
-                u128_to_si128(aes_ctr + 1),
-                u128_to_si128(aes_ctr + 2),
-                u128_to_si128(aes_ctr + 3),
-                u128_to_si128(aes_ctr + 4),
-                u128_to_si128(aes_ctr + 5),
-                u128_to_si128(aes_ctr + 6),
-                u128_to_si128(aes_ctr + 7),
+                u128_to_si128(data[0]),
+                u128_to_si128(data[1]),
+                u128_to_si128(data[2]),
+                u128_to_si128(data[3]),
+                u128_to_si128(data[4]),
+                u128_to_si128(data[5]),
+                u128_to_si128(data[6]),
+                u128_to_si128(data[7]),
                 &this.round_keys,
             ))
         }
         // SAFETY: we checked for aes and sse2 availability in `Self::new`
-        unsafe { implementation(self, AesIndex(aes_ctr)) }
+        unsafe { implementation(self, data) }
     }
 }
 
