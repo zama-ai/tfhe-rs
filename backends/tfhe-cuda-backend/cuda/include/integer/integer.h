@@ -546,5 +546,26 @@ void trim_radix_blocks_lsb_64(CudaRadixCiphertextFFI *output,
                               CudaRadixCiphertextFFI const *input,
                               void *const *streams,
                               uint32_t const *gpu_indexes);
+
+uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, bool anticipated_buffer_drop, bool allocate_gpu_memory,
+    bool allocate_ms_array);
+
+void cuda_integer_radix_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *ct, int8_t *mem_ptr, void *const *ksks,
+    uint64_t rhs, uint64_t const *decomposed_scalar,
+    uint64_t const *has_at_least_one_set,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    void *const *bsks, uint32_t num_scalars);
+
+void cleanup_cuda_integer_radix_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void);
 } // extern C
 #endif // CUDA_INTEGER_H
