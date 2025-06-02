@@ -3,8 +3,8 @@ use crate::asm::{AsmIOpcode, DOp, IOpcode};
 
 pub mod demo;
 pub mod ilp;
-pub mod llt;
 pub mod ilp_div;
+pub mod llt;
 
 /// Utility macro to define new FW implementation
 #[macro_export]

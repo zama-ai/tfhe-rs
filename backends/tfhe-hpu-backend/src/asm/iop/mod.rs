@@ -176,8 +176,6 @@ pub const IOP_2CT_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
     imm: 1,
 };
 
-
-
 use crate::iop;
 use arg::IOpFormat;
 use lazy_static::lazy_static;
