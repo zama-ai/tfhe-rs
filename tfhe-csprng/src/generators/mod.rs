@@ -1,7 +1,7 @@
 //! A module containing random generators objects.
 //!
 //! See [crate-level](`crate`) explanations.
-use crate::seeders::Seed;
+use crate::seeders::SeedKind;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -62,7 +62,7 @@ pub trait RandomGenerator: Iterator<Item = u8> {
     ///
     /// This operation is usually costly to perform, as the aes round keys need to be generated from
     /// the seed.
-    fn new(seed: Seed) -> Self;
+    fn new(seed: impl Into<SeedKind>) -> Self;
 
     /// Returns the number of bytes that can still be outputted by the generator before reaching its
     /// bound.
@@ -131,6 +131,7 @@ pub use default::DefaultRandomGenerator;
 #[allow(unused)] // to please clippy when tests are not activated
 pub mod generator_generic_test {
     use super::*;
+    use crate::seeders::{Seed, XofSeed};
     use rand::Rng;
 
     const REPEATS: usize = 1_000;
@@ -263,6 +264,37 @@ pub mod generator_generic_test {
         let seed = Seed(u128::from_ne_bytes(seed_bytes));
 
         let mut rng = G::new(seed);
+        let bytes = rng.take(N_BYTES).collect::<Vec<_>>();
+        assert_eq!(bytes, EXPECTED_BYTE);
+    }
+
+    pub fn test_vectors_xof_seed<G: RandomGenerator>() {
+        // Number of random bytes to generate,
+        // this should be 2 batch worth of aes calls (where a batch is 8 aes)
+        const N_BYTES: usize = 16 * 2 * 8;
+
+        const EXPECTED_BYTE: [u8; N_BYTES] = [
+            134, 231, 117, 200, 60, 174, 158, 95, 80, 64, 236, 147, 204, 196, 251, 198, 110, 155,
+            74, 69, 162, 251, 224, 46, 46, 83, 209, 224, 89, 108, 68, 240, 37, 16, 109, 194, 92, 3,
+            164, 21, 167, 224, 205, 31, 90, 178, 59, 150, 142, 238, 113, 144, 181, 118, 160, 72,
+            187, 38, 29, 61, 189, 229, 66, 22, 4, 38, 210, 63, 232, 182, 115, 49, 96, 6, 120, 226,
+            40, 51, 144, 59, 136, 224, 252, 195, 50, 250, 134, 45, 149, 220, 32, 27, 35, 225, 190,
+            73, 161, 182, 250, 149, 153, 131, 220, 143, 181, 152, 187, 25, 62, 197, 24, 10, 142,
+            57, 172, 15, 17, 244, 242, 232, 51, 50, 244, 85, 58, 69, 28, 113, 151, 143, 138, 166,
+            198, 16, 210, 46, 234, 138, 32, 124, 98, 167, 141, 251, 60, 13, 158, 106, 29, 86, 63,
+            73, 42, 138, 174, 195, 192, 72, 122, 74, 54, 134, 107, 144, 241, 12, 33, 70, 27, 116,
+            154, 123, 1, 252, 141, 73, 79, 30, 162, 43, 57, 8, 99, 62, 222, 117, 232, 147, 81, 189,
+            54, 17, 233, 33, 41, 132, 155, 246, 185, 189, 17, 77, 32, 107, 134, 61, 174, 64, 174,
+            80, 229, 239, 243, 143, 152, 249, 254, 125, 42, 0, 170, 253, 34, 57, 100, 82, 244, 9,
+            101, 126, 138, 218, 215, 55, 58, 177, 154, 5, 28, 113, 89, 123, 129, 254, 212, 191,
+            162, 44, 120, 67, 241, 157, 31, 162, 113, 91,
+        ];
+
+        let seed_bytes: [u8; 16] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let seed = u128::from_ne_bytes(seed_bytes);
+        let xof_seed = XofSeed::new_u128(seed, [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h']);
+
+        let mut rng = G::new(xof_seed);
         let bytes = rng.take(N_BYTES).collect::<Vec<_>>();
         assert_eq!(bytes, EXPECTED_BYTE);
     }
