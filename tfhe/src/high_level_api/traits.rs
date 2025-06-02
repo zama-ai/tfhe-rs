@@ -324,3 +324,16 @@ pub trait IfThenElseSizeOnGpu<Ciphertext> {
 pub trait MulSizeOnGpu<Rhs = Self> {
     fn get_mul_size_on_gpu(&self, other: Rhs) -> u64;
 }
+
+#[cfg(feature = "gpu")]
+pub trait DivSizeOnGpu<Rhs = Self> {
+    fn get_div_size_on_gpu(&self, other: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait RemSizeOnGpu<Rhs = Self> {
+    fn get_rem_size_on_gpu(&self, other: Rhs) -> u64;
+}
+#[cfg(feature = "gpu")]
+pub trait DivRemSizeOnGpu<Rhs = Self> {
+    fn get_div_rem_size_on_gpu(&self, other: Rhs) -> u64;
+}
