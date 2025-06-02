@@ -52,49 +52,57 @@ mod test {
     use crate::generators::aes_ctr::aes_ctr_generic_test;
     use crate::generators::generator_generic_test;
 
-    #[test]
-    fn prop_fork_first_state_table_index() {
-        aes_ctr_generic_test::prop_fork_first_state_table_index::<SoftwareBlockCipher>();
-    }
+    // We use powerpc64 as the target to test behavior on big-endian
+    // However, we run these tests using an emulator. Thus, these get really slow
+    // so we skip them
+    #[cfg(not(target_arch = "powerpc64"))]
+    mod fork_tests {
+        use super::*;
 
-    #[test]
-    fn prop_fork_last_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_last_bound_table_index::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork_first_state_table_index() {
+            aes_ctr_generic_test::prop_fork_first_state_table_index::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn prop_fork_parent_bound_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_bound_table_index::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork_last_bound_table_index() {
+            aes_ctr_generic_test::prop_fork_last_bound_table_index::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn prop_fork_parent_state_table_index() {
-        aes_ctr_generic_test::prop_fork_parent_state_table_index::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork_parent_bound_table_index() {
+            aes_ctr_generic_test::prop_fork_parent_bound_table_index::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn prop_fork() {
-        aes_ctr_generic_test::prop_fork::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork_parent_state_table_index() {
+            aes_ctr_generic_test::prop_fork_parent_state_table_index::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn prop_fork_children_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork() {
+            aes_ctr_generic_test::prop_fork::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn prop_fork_parent_remaining_bytes() {
-        aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<SoftwareBlockCipher>();
-    }
+        #[test]
+        fn prop_fork_children_remaining_bytes() {
+            aes_ctr_generic_test::prop_fork_children_remaining_bytes::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn test_roughly_uniform() {
-        generator_generic_test::test_roughly_uniform::<SoftwareRandomGenerator>();
-    }
+        #[test]
+        fn prop_fork_parent_remaining_bytes() {
+            aes_ctr_generic_test::prop_fork_parent_remaining_bytes::<SoftwareBlockCipher>();
+        }
 
-    #[test]
-    fn test_fork() {
-        generator_generic_test::test_fork_children::<SoftwareRandomGenerator>();
+        #[test]
+        fn test_fork() {
+            generator_generic_test::test_fork_children::<SoftwareRandomGenerator>();
+        }
+
+        #[test]
+        fn test_roughly_uniform() {
+            generator_generic_test::test_roughly_uniform::<SoftwareRandomGenerator>();
+        }
     }
 
     #[test]
@@ -106,5 +114,10 @@ mod test {
     #[should_panic(expected = "expected test panic")]
     fn test_bounded_panic() {
         generator_generic_test::test_bounded_none_should_panic::<SoftwareRandomGenerator>();
+    }
+
+    #[test]
+    fn test_vector() {
+        generator_generic_test::test_vectors::<SoftwareRandomGenerator>();
     }
 }

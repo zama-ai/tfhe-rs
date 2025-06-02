@@ -3,7 +3,7 @@ use crate::generators::implem::aarch64::block_cipher::ArmAesBlockCipher;
 use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError, RandomGenerator};
 use crate::seeders::Seed;
 
-/// A random number generator using the `aesni` instructions.
+/// A random number generator using the arm `neon` instructions.
 pub struct NeonAesRandomGenerator(pub(super) AesCtrGenerator<ArmAesBlockCipher>);
 
 /// The children iterator used by [`NeonAesRandomGenerator`].
@@ -106,5 +106,10 @@ mod test {
     #[should_panic(expected = "expected test panic")]
     fn test_bounded_panic() {
         generator_generic_test::test_bounded_none_should_panic::<NeonAesRandomGenerator>();
+    }
+
+    #[test]
+    fn test_vector() {
+        generator_generic_test::test_vectors::<NeonAesRandomGenerator>();
     }
 }
