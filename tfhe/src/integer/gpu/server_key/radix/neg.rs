@@ -126,6 +126,14 @@ impl CudaServerKey {
         result
     }
 
+    pub fn get_neg_size_on_gpu<T: CudaIntegerRadixCiphertext>(
+        &self,
+        ctxt: &T,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_scalar_add_size_on_gpu(ctxt, streams)
+    }
+
     /// # Safety
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
