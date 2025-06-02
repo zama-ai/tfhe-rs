@@ -53,6 +53,89 @@ pub fn iop_divs(prog: &mut Program) {
     iop_divx(prog, &mut dst_quotient,&mut dst_remain, &src_a, &src_imm);
 }
 
+/// Generic div operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+pub fn iop_divx(
+    prog: &mut Program,
+    dst_quotient: &mut [metavar::MetaVarCell],
+    dst_remain: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
+
+    let result = iop_div_corev(prog, src_a, src_b, Some(DivCoreOutput::All));
+    let quotient_a = result[0].clone();
+    let remain_a = result[1].clone();
+    (0..prog.params().blk_w()).rev().for_each(|blk| {
+        quotient_a[blk].reg_alloc_mv();
+        dst_quotient[blk].mv_assign(&quotient_a[blk]);
+    });
+    (0..prog.params().blk_w()).for_each(|blk| {
+        remain_a[blk].reg_alloc_mv();
+        dst_remain[blk].mv_assign(&remain_a[blk]);
+    });
+
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_mod(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("MOD Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic modx function
+    iop_modx(prog, &mut dst_remain, &src_a, &src_b);
+}
+
+pub fn iop_mods(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst_remain = prog.iop_template_var(OperandKind::Dst, 0);
+    // SrcA -> Operand
+    let src_a = prog.iop_template_var(OperandKind::Src, 0);
+    // SrcB -> Immediat
+    let src_b = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("MODS Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic modx function
+    // TODO: do computation on immediate directly for more efficiency.
+    // Workaround: transform immediate into ct.
+    let mut src_imm : Vec<metavar::MetaVarCell> = Vec::new();
+    let cst_0 = &src_a[src_a.len()-1] - &src_a[src_a.len()-1];
+    for cst in src_b.iter() {
+        let ct = cst + &cst_0;
+        src_imm.push(ct);
+    }
+    iop_modx(prog, &mut dst_remain, &src_a, &src_imm);
+}
+
+/// Generic mod operation
+/// One destination and two sources operation
+/// Source could be Operand or Immediat
+pub fn iop_modx(
+    prog: &mut Program,
+    dst_remain: &mut [metavar::MetaVarCell],
+    src_a: &[metavar::MetaVarCell],
+    src_b: &[metavar::MetaVarCell],
+) {
+
+    let result = iop_div_corev(prog, src_a, src_b, Some(DivCoreOutput::Remain));
+    let remain_a = result[0].clone();
+    (0..prog.params().blk_w()).for_each(|blk| {
+        remain_a[blk].reg_alloc_mv();
+        dst_remain[blk].mv_assign(&remain_a[blk]);
+    });
+
+}
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AddHSPostProcess {
@@ -243,8 +326,6 @@ pub fn iop_add_hillissteel_v(
     // Addition with carry
     let mut res : Vec<metavar::MetaVarCell> = Vec::new();
     res.push(msg0);
-    //sum_a.iter_mut().skip(1).enumerate().for_each(|(idx,ct)| {
-    //    *ct = &*ct + &carry_a[idx];
 
     for (idx, ct) in sum_a.iter().skip(1).enumerate() {
         let mut s = ct + &carry_a[idx];
@@ -490,17 +571,21 @@ pub fn iop_if_then_else_0v(
 
 }
 
-/// Generic div operation
-/// One destination and two sources operation
-/// Source could be Operand or Immediat
+// Division core function.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DivCoreOutput {
+    All, // Output quotient and remain
+    Quotient, // Output quotient
+    Remain, // Output remain
+}
+
 #[instrument(level = "trace", skip(prog))]
-pub fn iop_divx(
+pub fn iop_div_corev(
     prog: &mut Program,
-    dst_quotient: &mut [metavar::MetaVarCell],
-    dst_remain: &mut [metavar::MetaVarCell],
     src_a: &[metavar::MetaVarCell],
     src_b: &[metavar::MetaVarCell],
-) {
+    div_output: Option<DivCoreOutput>, // Default All
+) -> Vec<Vec<metavar::MetaVarCell>>{
     let props = prog.params();
     let tfhe_params: asm::DigitParameters = props.clone().into();
 
@@ -590,33 +675,40 @@ pub fn iop_divx(
             diff_x_v.push(diff_x_a);
         } // for xi
 
-        // Find the 1hot corresponding to the 1rst factor of div which is not greater than r.
-        // {r_lt_div_x3, r_lt_div_x2, r_lt_div_x1, 0} xor {1, r_lt_div_x3, r_lt_div_x2,r_lt_div_x1}
-        let mut q_1h : Vec<metavar::MetaVarCell> = Vec::new();
-        let mut ct1 = r_lt_div_x_v[0].mac(tfhe_params.msg_range() as u8, &r_lt_div_x_v[1]);
-        ct1 = ct1.pbs(&pbs_xor, false);
-        let mut ct2 = r_lt_div_x_v[1].mac(tfhe_params.msg_range() as u8, &r_lt_div_x_v[2]);
-        ct2 = ct2.pbs(&pbs_xor, false);
-        let ct3 = r_lt_div_x_v[2].pbs(&pbs_is_null_pos1, false);
-        q_1h.push(r_lt_div_x_v[0].clone());
-        q_1h.push(ct1);
-        q_1h.push(ct2);
-        q_1h.push(ct3);
 
-        // Select the remain with the 1-hot
-        // Mask then Or
-        // Note that the sign block is not used here.
-        let mut remain_tmp_v : Vec<Vec<metavar::MetaVarCell>> = Vec::new();
-        for (sel, diff) in q_1h.iter().zip(diff_x_v.iter()) {
-            remain_tmp_v.push(iop_if_then_else_0v(prog,&diff[0..block_nb],&sel,Some(IfThenElse0Select::SelPos1Msg)));
-        }
+        if div_output == None
+            || div_output == Some(DivCoreOutput::All)
+            || div_output == Some(DivCoreOutput::Remain)
+            || (div_output == Some(DivCoreOutput::Quotient) && (loop_idx < num_a.len()-1)){
+            // Do not compute the remain for the very last iteration, since not needed anymore.
+                // Find the 1hot corresponding to the 1rst factor of div which is not greater than r.
+                // {r_lt_div_x3, r_lt_div_x2, r_lt_div_x1, 0} xor {1, r_lt_div_x3, r_lt_div_x2,r_lt_div_x1}
+                let mut q_1h : Vec<metavar::MetaVarCell> = Vec::new();
+                let mut ct1 = r_lt_div_x_v[0].mac(tfhe_params.msg_range() as u8, &r_lt_div_x_v[1]);
+                ct1 = ct1.pbs(&pbs_xor, false);
+                let mut ct2 = r_lt_div_x_v[1].mac(tfhe_params.msg_range() as u8, &r_lt_div_x_v[2]);
+                ct2 = ct2.pbs(&pbs_xor, false);
+                let ct3 = r_lt_div_x_v[2].pbs(&pbs_is_null_pos1, false);
+                q_1h.push(r_lt_div_x_v[0].clone());
+                q_1h.push(ct1);
+                q_1h.push(ct2);
+                q_1h.push(ct3);
 
-        remain_a = Vec::new();
-        for i in 0..block_nb {
-            remain_tmp_v[0][i] = &remain_tmp_v[0][i] + &remain_tmp_v[1][i];
-            remain_tmp_v[2][i] = &remain_tmp_v[2][i] + &remain_tmp_v[3][i];
-            remain_tmp_v[0][i] = &remain_tmp_v[0][i] + &remain_tmp_v[2][i];
-            remain_a.push(remain_tmp_v[0][i].pbs(&pbs_none,false));
+                // Select the remain with the 1-hot
+                // Mask then Or
+                // Note that the sign block is not used here.
+                let mut remain_tmp_v : Vec<Vec<metavar::MetaVarCell>> = Vec::new();
+                for (sel, diff) in q_1h.iter().zip(diff_x_v.iter()) {
+                    remain_tmp_v.push(iop_if_then_else_0v(prog,&diff[0..block_nb],&sel,Some(IfThenElse0Select::SelPos1Msg)));
+                }
+
+                remain_a = Vec::new();
+                for i in 0..block_nb {
+                    remain_tmp_v[0][i] = &remain_tmp_v[0][i] + &remain_tmp_v[1][i];
+                    remain_tmp_v[2][i] = &remain_tmp_v[2][i] + &remain_tmp_v[3][i];
+                    remain_tmp_v[0][i] = &remain_tmp_v[0][i] + &remain_tmp_v[2][i];
+                    remain_a.push(remain_tmp_v[0][i].pbs(&pbs_none,false));
+                }
         }
 
         // Quotient
@@ -628,25 +720,27 @@ pub fn iop_divx(
         // 'b1000 => 2 * 2
         // 'b1100 => 1 * 2
         // 'b1110 => 0 * 2
-        let ct01 = r_lt_div_x_v[0].clone(); // + 0
-        let ct23 = &r_lt_div_x_v[1] + &r_lt_div_x_v[2];
-        let ct0123 = &ct01 + &ct23;
-        quotient_a.push(ct0123.pbs(&pbs_solve_quotient_pos1,false));
+        if div_output == None
+        || div_output == Some(DivCoreOutput::All)
+        || div_output == Some(DivCoreOutput::Quotient) {
+            let ct01 = r_lt_div_x_v[0].clone(); // + 0
+            let ct23 = &r_lt_div_x_v[1] + &r_lt_div_x_v[2];
+            let ct0123 = &ct01 + &ct23;
+            quotient_a.push(ct0123.pbs(&pbs_solve_quotient_pos1,false));
+        }
 
     } // for loop_idx
 
+    if div_output == None
+    || div_output == Some(DivCoreOutput::All)
+    || div_output == Some(DivCoreOutput::Quotient) {
+        quotient_a.reverse();
+        quotient_a = iop_if_then_else_0v(prog,&quotient_a,&keep_div,Some(IfThenElse0Select::SelPos0Msg));
+    }
 
-    quotient_a.reverse();
-    quotient_a = iop_if_then_else_0v(prog,&quotient_a,&keep_div,Some(IfThenElse0Select::SelPos0Msg));
-
-    (0..prog.params().blk_w()).rev().for_each(|blk| {
-        quotient_a[blk].reg_alloc_mv();
-        dst_quotient[blk].mv_assign(&quotient_a[blk]);
-    });
-    (0..prog.params().blk_w()).for_each(|blk| {
-        remain_a[blk].reg_alloc_mv();
-        dst_remain[blk].mv_assign(&remain_a[blk]);
-    });
-
+    match div_output {
+        Some(DivCoreOutput::All) | None => vec![quotient_a, remain_a],
+        Some(DivCoreOutput::Quotient)   => vec![quotient_a],
+        Some(DivCoreOutput::Remain)     => vec![remain_a],
+    }
 }
-
