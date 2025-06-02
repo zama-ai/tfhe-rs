@@ -69,17 +69,10 @@ where
     fn upgrade(
         self,
     ) -> Result<CompressedModulusSwitchedMultiBitLweCiphertext<Scalar>, Self::Error> {
-        let mask: Vec<_> = self
-            .packed_mask
-            .unpack()
-            .map(|value| value.cast_into())
-            .collect();
-        let diffs_opt: Option<(Vec<_>, _)> = self.packed_diffs.map(|diffs| {
-            (
-                diffs.unpack().map(|value| value.cast_into()).collect(),
-                diffs.log_modulus(),
-            )
-        });
+        let mask: Vec<_> = self.packed_mask.unpack::<Scalar>().collect();
+        let diffs_opt: Option<(Vec<_>, _)> = self
+            .packed_diffs
+            .map(|diffs| (diffs.unpack::<Scalar>().collect(), diffs.log_modulus()));
         Ok(
             CompressedModulusSwitchedMultiBitLweCiphertext::from_raw_parts(
                 self.body.cast_into(),
