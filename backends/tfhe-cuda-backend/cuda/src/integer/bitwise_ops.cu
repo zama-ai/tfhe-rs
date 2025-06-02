@@ -79,6 +79,7 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
     auto max = std::max(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
     auto min = std::min(lwe_array_1_degrees[i], lwe_array_2_degrees[i]);
     auto result = max;
+    printf("max %d, min %d\n", max, min);
 
     // Try every possibility to find the worst case
     for (uint j = 0; j < min + 1; j++) {

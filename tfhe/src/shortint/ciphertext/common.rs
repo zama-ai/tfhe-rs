@@ -171,6 +171,7 @@ impl Degree {
     pub(crate) fn after_bitxor(self, other: Self) -> Self {
         let max = cmp::max(self.0, other.0);
         let min = cmp::min(self.0, other.0);
+        println!("max {max}, min {min}");
         let mut result = max;
 
         //Try every possibility to find the worst case
@@ -179,6 +180,7 @@ impl Degree {
                 result = max ^ i;
             }
         }
+        println!("result {result}");
 
         Self(result)
     }
