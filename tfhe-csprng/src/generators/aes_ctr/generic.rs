@@ -3,6 +3,7 @@ use crate::generators::aes_ctr::index::TableIndex;
 use crate::generators::aes_ctr::states::{BufferPointer, ShiftAction, State};
 use crate::generators::aes_ctr::BYTES_PER_BATCH;
 use crate::generators::{ByteCount, BytesPerChild, ChildrenCount, ForkError};
+use crate::seeders::SeedKind;
 
 // Usually, to work with iterators and parallel iterators, we would use opaque types such as
 // `impl Iterator<..>`. Unfortunately, it is not yet possible to return existential types in
@@ -79,6 +80,26 @@ impl<BlockCipher: AesBlockCipher> AesCtrGenerator<BlockCipher> {
             state,
             last,
             buffer,
+        }
+    }
+
+    pub(crate) fn from_seed(seed: impl Into<SeedKind>) -> Self {
+        match seed.into() {
+            SeedKind::Legacy(seed) => Self::new(AesKey(seed.0), None, None),
+            SeedKind::Xof(seed) => {
+                let (key, init_index) = super::xof_init(seed);
+                let last_index = TableIndex::LAST.decremented();
+                let state = State::with_offset(TableIndex::SECOND, init_index);
+                let block_cipher = Box::new(BlockCipher::new(key));
+                let buffer = [0u8; BYTES_PER_BATCH];
+
+                Self {
+                    block_cipher,
+                    state,
+                    last: last_index,
+                    buffer,
+                }
+            }
         }
     }
 
