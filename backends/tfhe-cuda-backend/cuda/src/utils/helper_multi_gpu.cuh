@@ -2,6 +2,7 @@
 #define HELPER_MULTI_GPU_CUH
 
 #include "helper_multi_gpu.h"
+#include "utils/helper.cuh"
 
 /// Initialize same-size arrays on all active gpus
 template <typename Torus>
@@ -106,13 +107,16 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
       gpu_offset += get_num_inputs_on_gpu(num_inputs, j, gpu_count);
     }
 
+      printf("%d) lut split ", i);
     if (is_trivial_index) {
       auto d_dest = dest[i];
       auto d_src = src + gpu_offset * lwe_size;
       cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
           d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
           gpu_indexes[i], true);
-
+      for (int j  = 0; j < inputs_on_gpu; j++) {
+        printf("%d, ", j);
+      }
     } else {
       auto src_indexes = h_src_indexes + gpu_offset;
 
@@ -123,8 +127,10 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
             d_dest, d_src, lwe_size * sizeof(Torus), streams[i], gpu_indexes[i],
             true);
+        printf("%d, ", src_indexes[j]);
       }
     }
+      printf("\n");
   }
 }
 

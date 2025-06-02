@@ -119,8 +119,6 @@ template <typename Torus> struct zk_expand_mem {
         malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_indexes_out = static_cast<Torus *>(
         malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
-    auto h_lut_indexes = static_cast<Torus *>(
-        malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
     auto h_body_id_per_compact_list =
         static_cast<uint32_t *>(malloc(num_lwes * sizeof(uint32_t)));
     auto h_lwe_compact_input_indexes =
@@ -165,6 +163,10 @@ template <typename Torus> struct zk_expand_mem {
       offset += num_lwes_in_kth_compact_list;
     }
 
+
+    // auto h_lut_indexes_alt = static_cast<Torus *>(
+    //     malloc(num_packed_msgs * num_lwes * sizeof(Torus)));
+      auto h_lut_indexes = message_and_carry_extract_luts->h_lut_indexes;
     offset = 0;
     for (int k = 0; k < num_compact_lists; k++) {
       auto num_lwes_in_list = num_lwes_per_compact_list[k];
@@ -183,6 +185,27 @@ template <typename Torus> struct zk_expand_mem {
       }
       offset += num_lwes_in_list;
     }
+
+      // for (int i = 0; i < num_packed_msgs * num_lwes; i++) {
+      //     h_lut_indexes[i] = h_lut_indexes_alt[i];
+      // }
+
+      printf("h_indexes_in: ");
+      for (int i = 0; i < num_packed_msgs * num_lwes; i++) {
+        printf("%u, ", h_indexes_in[i]);
+      }
+      printf("\n");
+      printf("h_indexes_out: ");
+      for (int i = 0; i < num_packed_msgs * num_lwes; i++) {
+        printf("%u, ", h_indexes_out[i]);
+      }
+      printf("\n");
+      printf("h_lut_indexes: ");
+      for (int i = 0; i < num_packed_msgs * num_lwes; i++) {
+        printf("%u, ", h_lut_indexes[i]);
+      }
+      printf("\n");
+
 
     message_and_carry_extract_luts->set_lwe_indexes(
         streams[0], gpu_indexes[0], h_indexes_in, h_indexes_out);

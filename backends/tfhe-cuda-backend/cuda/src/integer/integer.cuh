@@ -565,8 +565,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
         lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1);
     multi_gpu_scatter_lwe_async<Torus>(
-        streams, gpu_indexes, active_gpu_count, lut_indexes_vec, lut->get_lut_indexes(0),
-        nullptr, true, num_radix_blocks,
+        streams, gpu_indexes, active_gpu_count, lut_indexes_vec,
+        lut->get_lut_indexes(0), nullptr, true, num_radix_blocks,
         1);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
@@ -675,8 +675,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
         lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
         big_lwe_dimension + 1);
     multi_gpu_scatter_lwe_async<Torus>(
-        streams, gpu_indexes, active_gpu_count, lut_indexes_vec, lut->get_lut_indexes(0),
-        nullptr, true, num_radix_blocks,
+        streams, gpu_indexes, active_gpu_count, lut_indexes_vec,
+        lut->get_lut_indexes(0), nullptr, true, num_radix_blocks,
         1);
 
     /// Apply KS to go from a big LWE dimension to a small LWE dimension
