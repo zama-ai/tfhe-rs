@@ -661,8 +661,7 @@ pbs!(
     @1 =>{
         |params: &DigitParameters, val| {
                 let lsb_size = params.msg_w.div_ceil(2);
-                let msg_msb = (val & params.msg_mask()) >> lsb_size;
-                msg_msb
+                (val & params.msg_mask()) >> lsb_size // msg_msb
         };
         |params: &DigitParameters, _deg| {
                 let lsb_size = params.msg_w.div_ceil(2);
@@ -684,8 +683,7 @@ pbs!(
         |_params: &DigitParameters, val | {
             let position = 0;
             let pos_w = position + 2;
-            let msb = (val >> (pos_w-1)) & 1 as usize;
-            msb
+            (val >> (pos_w-1)) & 1_usize // msb
        };
         |_params: &DigitParameters, _deg| 1;
     }
@@ -703,8 +701,7 @@ pbs!(
         |_params: &DigitParameters, val | {
             let position = 1;
             let pos_w = position + 2;
-            let msb = (val >> (pos_w-1)) & 1 as usize;
-            msb
+            (val >> (pos_w-1)) & 1_usize // msb
        };
         |_params: &DigitParameters, _deg| 1;
     }
@@ -722,8 +719,7 @@ pbs!(
         |_params: &DigitParameters, val | {
             let position = 2;
             let pos_w = position + 2;
-            let msb = (val >> (pos_w-1)) & 1 as usize;
-            msb
+            (val >> (pos_w-1)) & 1_usize // msb
        };
         |_params: &DigitParameters, _deg| 1;
     }
@@ -735,7 +731,7 @@ pbs!(
         |params: &DigitParameters, val | {
             let position = 0;
             let msg   = val & params.msg_mask();
-            let carry = (val >> params.msg_w) & 1 as usize;
+            let carry = (val >> params.msg_w) & 1_usize;
             if carry == 1 {
                 2 << position // Generate
             } else if msg == params.msg_mask() {
@@ -757,7 +753,7 @@ pbs!(
         |params: &DigitParameters, val | {
             let position = 1;
             let msg   = val & params.msg_mask();
-            let carry = (val >> params.msg_w) & 1 as usize;
+            let carry = (val >> params.msg_w) & 1_usize;
             if carry == 1 {
                 2 << position // Generate
             } else if msg == params.msg_mask() {
@@ -779,7 +775,7 @@ pbs!(
         |params: &DigitParameters, val | {
             let position = 2;
             let msg   = val & params.msg_mask();
-            let carry = (val >> params.msg_w) & 1 as usize;
+            let carry = (val >> params.msg_w) & 1_usize;
             if carry == 1 {
                 2 << position // Generate
             } else if msg == params.msg_mask() {
@@ -801,7 +797,7 @@ pbs!(
         |params: &DigitParameters, val | {
             let position = 3;
             let msg   = val & params.msg_mask();
-            let carry = (val >> params.msg_w) & 1 as usize;
+            let carry = (val >> params.msg_w) & 1_usize;
             if carry == 1 {
                 2 << position // Generate
             } else if msg == params.msg_mask() {

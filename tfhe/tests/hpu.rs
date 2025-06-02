@@ -231,7 +231,7 @@ mod hpu_test {
                         let $imm = imms.iter().map(|x| *x as $user_type).collect::<Vec<_>>();
                         ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
                     };
-                   l     println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
+                    println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
                     std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x== y).fold(true, |acc, val| acc & val)
                 }).fold(true, |acc, val| acc & val)
             }
