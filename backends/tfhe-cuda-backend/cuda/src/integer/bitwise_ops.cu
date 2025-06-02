@@ -84,7 +84,7 @@ void update_degrees_after_bitxor(uint64_t *output_degrees,
     // Try every possibility to find the worst case
     for (uint64_t j = 0; j < min + 1; j++) {
         printf("j %lu, max ^ j %lu \n", j, max ^ j);
-      if (max ^ j > result) {
+      if ((max ^ j) > result) {
         result = max ^ j;
       }
     }
