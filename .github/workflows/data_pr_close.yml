@@ -59,7 +59,7 @@ jobs:
           echo 'GH_API_RES<<EOF'
           curl --fail-with-body --no-progress-meter -L -X POST \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
+          -H "Authorization: Bearer ${TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "${COMMENTS_URL}" \
           -d "${BODY}"
@@ -71,6 +71,7 @@ jobs:
         REPO: ${{ github.repository }}
         EVENT_NUMBER: ${{ github.event.number }}
         COMMENTS_URL: ${{ fromJson(env.TARGET_REPO_PR).comments_url }}
+        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
     - name: Merge the Pull Request in the data repo
       if: ${{ github.event.pull_request.merged }}
@@ -81,7 +82,7 @@ jobs:
           echo 'GH_API_RES<<EOF'
           curl --fail-with-body --no-progress-meter -L -X PUT \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
+          -H "Authorization: Bearer ${TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "${TARGET_REPO_PR_URL}"/merge \
           -d '{ "merge_method": "rebase" }'
@@ -91,6 +92,7 @@ jobs:
         exit $RES
       env:
         TARGET_REPO_PR_URL: ${{ fromJson(env.TARGET_REPO_PR).url }}
+        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
     - name: Close the Pull Request in the data repo
       if: ${{ !github.event.pull_request.merged }}
@@ -101,7 +103,7 @@ jobs:
           echo 'GH_API_RES<<EOF'
           curl --fail-with-body --no-progress-meter -L -X PATCH \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
+          -H "Authorization: Bearer ${TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "${TARGET_REPO_PR_URL}" \
           -d '{ "state": "closed" }'
@@ -111,6 +113,7 @@ jobs:
         exit $RES
       env:
         TARGET_REPO_PR_URL: ${{ fromJson(env.TARGET_REPO_PR).url }}
+        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
     - name: Delete the associated branch in the data repo
       run: |
@@ -120,13 +123,15 @@ jobs:
           echo 'GH_API_RES<<EOF'
           curl --fail-with-body --no-progress-meter -L -X DELETE \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ secrets.FHE_ACTIONS_TOKEN }}" \
+          -H "Authorization: Bearer ${TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           "${TARGET_REPO_API_URL}"/git/refs/heads/"${PR_BRANCH}"
           RES="$?"
           echo EOF
         } >> "${GITHUB_ENV}"
         exit $RES
+      env:
+        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
     - name: Slack Notification
       if: ${{ always() && job.status == 'failure' }}

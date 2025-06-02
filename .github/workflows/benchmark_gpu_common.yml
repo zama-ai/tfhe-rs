@@ -120,26 +120,33 @@ jobs:
         env:
           INPUTS_PARAMS_TYPE: ${{ inputs.params_type }}
 
-
       - name: Set command output
         id: set_command
         run: |
-          echo "command=${{ toJSON(env.COMMAND) }}" >> "${GITHUB_OUTPUT}"
+          echo "command=${COMMAND_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        env:
+          COMMAND_OUTPUT: ${{ toJSON(env.COMMAND) }}
 
       - name: Set operation flavor output
         id: set_op_flavor
         run: |
-          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+          echo "op_flavor=${OP_FLAVOR_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        env:
+          OP_FLAVOR_OUTPUT: ${{ toJSON(env.OP_FLAVOR) }}
 
       - name: Set benchmark types output
         id: set_bench_type
         run: |
-          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+          echo "bench_type=${BENCH_TYPE_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        env:
+          BENCH_TYPE_OUTPUT: ${{ toJSON(env.BENCH_TYPE) }}
 
       - name: Set parameters types output
         id: set_params_type
         run: |
-          echo "params_type=${{ toJSON(env.PARAMS_TYPE) }}" >> "${GITHUB_OUTPUT}"
+          echo "params_type=${PARAMS_TYPE_OUTPUT}" >> "${GITHUB_OUTPUT}"
+        env:
+          PARAMS_TYPE_OUTPUT: ${{ toJSON(env.PARAMS_TYPE) }}
 
   setup-instance:
     name: Setup instance (cuda-${{ inputs.profile }}-benchmarks)
@@ -227,6 +234,8 @@ jobs:
         include:
           - cuda: "12.2"
             gcc: 11
+    env:
+      CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -237,18 +246,20 @@ jobs:
 
       - name: Get benchmark details
         run: |
+          COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict "${SHA}");
           {
             echo "BENCH_DATE=$(date --iso-8601=seconds)";
-            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_DATE=${COMMIT_DATE}";
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
+        env:
+          SHA: ${{ github.sha }}
 
       # Re-export environment variables as dependencies setup perform this task in the previous job.
       # Local env variables are cleaned at the end of each job.
       - name: Export CUDA variables
         shell: bash
         run: |
-          CUDA_PATH=/usr/local/cuda-${{ matrix.cuda }}
           echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
           echo "PATH=$PATH:$CUDA_PATH/bin" >> "${GITHUB_PATH}"
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
@@ -258,10 +269,12 @@ jobs:
         shell: bash
         run: |
           {
-          echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-          echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-          echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+          echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+          echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+          echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
           } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: ${{ matrix.gcc }}
 
       - name: Install rust
         uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
@@ -317,8 +330,11 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
-          --slab-url "${{ secrets.SLAB_URL }}"
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
+          --slab-url "${SLAB_URL}"
+        env:
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLAB_URL: ${{ secrets.SLAB_URL }}
 
   slack-notify:
     name: Slack Notification

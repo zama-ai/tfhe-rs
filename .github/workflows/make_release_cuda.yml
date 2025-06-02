@@ -78,17 +78,19 @@ jobs:
           {
             echo "CUDA_PATH=$CUDA_PATH";
             echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
-            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+            echo "CUDACXX=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc";
           } >> "${GITHUB_ENV}"
+        env:
+          CUDA_VERSION: ${{ matrix.cuda }}
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
           {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+            echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
       - name: Prepare package
@@ -140,19 +142,23 @@ jobs:
           {
             echo "CUDA_PATH=$CUDA_PATH";
             echo "LD_LIBRARY_PATH=$CUDA_PATH/lib:$LD_LIBRARY_PATH";
-            echo "CUDACXX=/usr/local/cuda-${{ matrix.cuda }}/bin/nvcc";
+            echo "CUDACXX=/usr/local/cuda-${CUDA_VERSION}/bin/nvcc";
           } >> "${GITHUB_ENV}"
+        env:
+          CUDA_VERSION: ${{ matrix.cuda }}
 
       # Specify the correct host compilers
       - name: Export gcc and g++ variables
         if: ${{ !cancelled() }}
         run: |
           {
-            echo "CC=/usr/bin/gcc-${{ matrix.gcc }}";
-            echo "CXX=/usr/bin/g++-${{ matrix.gcc }}";
-            echo "CUDAHOSTCXX=/usr/bin/g++-${{ matrix.gcc }}";
+            echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+            echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+            echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: ${{ matrix.gcc }}
 
       - name: Publish crate.io package
         env:

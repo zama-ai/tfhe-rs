@@ -33,7 +33,9 @@ runs:
       if: inputs.github-instance == 'true'
       shell: bash
       run: |
-        TOOLKIT_VERSION="$(echo ${CUDA_VERSION} | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
+        # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
+        # shellcheck disable=SC2001
+        TOOLKIT_VERSION="$(echo "${CUDA_VERSION}" | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
         wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${env.CUDA_KEYRING_PACKAGE}
         echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
         sha256sum -c checksum
