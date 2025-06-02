@@ -173,6 +173,10 @@ install_zizmor: install_rs_build_toolchain
 	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install zizmor || \
 	( echo "Unable to install zizmor, unknown error." && exit 1 )
 
+.PHONY: install_cargo_cross # Install custom tfhe-rs lints
+install_cargo_cross:
+	cargo install cross
+
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
 	python3 -m venv venv
@@ -967,6 +971,12 @@ test_kreyvium: install_rs_build_toolchain
 test_tfhe_csprng: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		-p tfhe-csprng
+
+.PHONY: test_tfhe_csprng_big_endian # Run tfhe-csprng tests on an emulated big endian system
+test_tfhe_csprng_big_endian: install_rs_build_toolchain install_cargo_cross
+	cross $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		-p tfhe-csprng --target=powerpc64-unknown-linux-gnu
+
 
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok: install_rs_build_toolchain

@@ -107,4 +107,9 @@ mod test {
     fn test_bounded_panic() {
         generator_generic_test::test_bounded_none_should_panic::<SoftwareRandomGenerator>();
     }
+
+    #[test]
+    fn test_vector() {
+        generator_generic_test::test_vectors::<SoftwareRandomGenerator>();
+    }
 }

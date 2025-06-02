@@ -1,5 +1,5 @@
 use crate::generators::aes_ctr::{
-    AesBlockCipher, AesIndex, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
+    AesBlockCipher, AesKey, AES_CALLS_PER_BATCH, BYTES_PER_AES_CALL, BYTES_PER_BATCH,
 };
 use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{BlockEncrypt, KeyInit};
@@ -19,17 +19,9 @@ impl AesBlockCipher for SoftwareBlockCipher {
         SoftwareBlockCipher { aes }
     }
 
-    fn generate_batch(&mut self, AesIndex(aes_ctr): AesIndex) -> [u8; BYTES_PER_BATCH] {
+    fn generate_batch(&mut self, data: [u128; AES_CALLS_PER_BATCH]) -> [u8; BYTES_PER_BATCH] {
         aes_encrypt_many(
-            aes_ctr,
-            aes_ctr + 1,
-            aes_ctr + 2,
-            aes_ctr + 3,
-            aes_ctr + 4,
-            aes_ctr + 5,
-            aes_ctr + 6,
-            aes_ctr + 7,
-            &self.aes,
+            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], &self.aes,
         )
     }
 }
