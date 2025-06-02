@@ -96,11 +96,14 @@ jobs:
 
       - name: Get benchmark details
         run: |
+          COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict "${SHA}");
           {
             echo "BENCH_DATE=$(date --iso-8601=seconds)";
-            echo "COMMIT_DATE=$(git --no-pager show -s --format=%cd --date=iso8601-strict ${{ github.sha }})";
+            echo "COMMIT_DATE=${COMMIT_DATE}";
             echo "COMMIT_HASH=$(git describe --tags --dirty)";
           } >> "${GITHUB_ENV}"
+        env:
+          SHA: ${{ github.sha }}
 
       - name: Install rust
         uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
@@ -136,12 +139,16 @@ jobs:
 
       - name: Install web resources
         run: |
-          make install_${{ matrix.browser }}_browser
-          make install_${{ matrix.browser }}_web_driver
+          make install_"${BROWSER}"_browser
+          make install_"${BROWSER}"_web_driver
+        env:
+          BROWSER: ${{ matrix.browser }}
 
       - name: Run benchmarks
         run: |
-          make bench_web_js_api_parallel_${{ matrix.browser }}_ci
+          make bench_web_js_api_parallel_"${BROWSER}"_ci
+        env:
+          BROWSER: ${{ matrix.browser }}
 
       - name: Parse results
         run: |
@@ -188,8 +195,11 @@ jobs:
       - name: Send data to Slab
         shell: bash
         run: |
-          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${{ secrets.JOB_SECRET }}" \
-          --slab-url "${{ secrets.SLAB_URL }}"
+          python3 slab/scripts/data_sender.py "${RESULTS_FILENAME}" "${JOB_SECRET}" \
+          --slab-url "${SLAB_URL}"
+        env:
+          JOB_SECRET: ${{ secrets.JOB_SECRET }}
+          SLAB_URL: ${{ secrets.SLAB_URL }}
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}

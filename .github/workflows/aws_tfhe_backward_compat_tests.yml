@@ -126,9 +126,10 @@ jobs:
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}
         run: |
-          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${{ github.event.pull_request.number }}), "  >> "${GITHUB_ENV}"
+          echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
         env:
           PR_BASE_URL: ${{ vars.PR_BASE_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Slack Notification
         if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
