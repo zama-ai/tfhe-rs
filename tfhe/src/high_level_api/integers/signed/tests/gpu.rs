@@ -5,7 +5,7 @@ use crate::high_level_api::integers::unsigned::tests::gpu::setup_gpu;
 use crate::prelude::{
     check_valid_cuda_malloc, AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu,
     BitXorSizeOnGpu, DivRemSizeOnGpu, DivSizeOnGpu, FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu,
-    FheOrdSizeOnGpu, FheTryEncrypt, IfThenElseSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu,
+    FheOrdSizeOnGpu, FheTryEncrypt, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu,
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS;
@@ -112,6 +112,11 @@ fn test_gpu_get_add_sub_size_on_gpu() {
     assert_eq!(add_tmp_buffer_size, sub_tmp_buffer_size);
     assert_eq!(add_tmp_buffer_size, scalar_add_tmp_buffer_size);
     assert_eq!(add_tmp_buffer_size, scalar_sub_tmp_buffer_size);
+    let neg_tmp_buffer_size = a.get_neg_size_on_gpu();
+    assert!(check_valid_cuda_malloc(
+        neg_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
 }
 
 #[test]
@@ -374,6 +379,21 @@ fn test_gpu_get_div_size_on_gpu() {
     ));
     assert!(check_valid_cuda_malloc(
         div_rem_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let scalar_div_tmp_buffer_size = a.get_div_size_on_gpu(b);
+    let scalar_rem_tmp_buffer_size = a.get_rem_size_on_gpu(b);
+    let scalar_div_rem_tmp_buffer_size = a.get_div_rem_size_on_gpu(b);
+    assert!(check_valid_cuda_malloc(
+        scalar_div_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_rem_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_div_rem_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }

@@ -11,9 +11,9 @@ use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
-    AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, FheMaxSizeOnGpu,
-    FheMinSizeOnGpu, FheOrdSizeOnGpu, MulSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu,
-    ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
+    AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, DivRemSizeOnGpu, DivSizeOnGpu,
+    FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu,
+    RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
     BitSlice, DivRem, FheEq, FheMax, FheMin, FheOrd, RotateLeft, RotateLeftAssign, RotateRight,
@@ -1705,6 +1705,30 @@ macro_rules! define_scalar_ops {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: DivSizeOnGpu(get_div_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            let streams = &cuda_key.streams;
+                                cuda_key.key.key.get_scalar_div_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    rhs,
+                                    streams,
+                                )
+                        } else {
+                            0
+                        })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
 
         generic_integer_impl_scalar_operation!(
             rust_trait: Rem(rem),
@@ -1740,6 +1764,53 @@ macro_rules! define_scalar_ops {
                 )*
         );
 
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: DivRemSizeOnGpu(get_div_rem_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            let streams = &cuda_key.streams;
+                                cuda_key.key.key.get_scalar_div_rem_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    rhs,
+                                    streams,
+                                )
+                        } else {
+                            0
+                        })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
+
+        #[cfg(feature = "gpu")]
+        generic_integer_impl_get_scalar_operation_size_on_gpu!(
+            rust_trait: RemSizeOnGpu(get_rem_size_on_gpu),
+            implem: {
+                |lhs: &FheUint<_>, rhs| {
+                    global_state::with_internal_keys(|key|
+                        if let InternalServerKey::Cuda(cuda_key) = key {
+                            let streams = &cuda_key.streams;
+                                cuda_key.key.key.get_scalar_rem_size_on_gpu(
+                                    &*lhs.ciphertext.on_gpu(streams),
+                                    rhs,
+                                    streams,
+                                )
+                        } else {
+                            0
+                        })
+                }
+            },
+            fhe_and_scalar_type:
+                $(
+                    ($concrete_type, $($scalar_type)*),
+                )*
+        );
 
         // Scalar Ops With Scalar As Lhs
         generic_integer_impl_scalar_left_operation!(

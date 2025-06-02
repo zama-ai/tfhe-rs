@@ -337,3 +337,7 @@ pub trait RemSizeOnGpu<Rhs = Self> {
 pub trait DivRemSizeOnGpu<Rhs = Self> {
     fn get_div_rem_size_on_gpu(&self, other: Rhs) -> u64;
 }
+#[cfg(feature = "gpu")]
+pub trait NegSizeOnGpu<Rhs = Self> {
+    fn get_neg_size_on_gpu(&self) -> u64;
+}

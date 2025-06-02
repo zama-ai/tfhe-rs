@@ -39,6 +39,28 @@ impl CudaServerKey {
         );
         result
     }
+    fn get_scalar_mul_high_size_on_gpu<T, Scalar>(
+        &self,
+        lhs: &T,
+        rhs: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        T: CudaIntegerRadixCiphertext,
+    {
+        let mut result = unsafe { lhs.duplicate_async(streams) };
+        unsafe {
+            result = self.extend_radix_with_trivial_zero_blocks_msb_async(
+                &result,
+                lhs.as_ref().d_blocks.lwe_ciphertext_count().0,
+                streams,
+            );
+        }
+        streams.synchronize();
+        let scalar_mul_size = self.get_scalar_mul_size_on_gpu(&result, rhs, streams);
+        scalar_mul_size + self.get_ciphertext_size_on_gpu(&result)
+    }
 
     /// # Safety
     ///
@@ -1015,5 +1037,251 @@ impl CudaServerKey {
         };
 
         self.unchecked_signed_scalar_rem_async(numerator, divisor, streams)
+    }
+
+    pub fn get_scalar_div_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    {
+        let numerator_bits = numerator
+            .as_ref()
+            .info
+            .blocks
+            .first()
+            .unwrap()
+            .message_modulus
+            .0
+            .ilog2()
+            * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
+        // Rust has a check on all division, so we shall also have one
+        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+
+        assert!(
+            Scalar::BITS >= numerator_bits as usize,
+            "The scalar divisor type must have a number of bits that is \
+            >= to the number of bits encrypted in the ciphertext: \n\
+            encrypted bits: {numerator_bits}, scalar bits: {}
+            ",
+            Scalar::BITS
+        );
+
+        if MiniUnsignedInteger::is_power_of_two(divisor) {
+            return self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+        }
+
+        let log2_divisor = MiniUnsignedInteger::ceil_ilog2(divisor);
+        if log2_divisor > numerator_bits {
+            return self.get_ciphertext_size_on_gpu(numerator);
+        }
+
+        let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+        let shift_pre = if chosen_multiplier.multiplier
+            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+            && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        {
+            let divisor = Scalar::DoublePrecision::cast_from(divisor);
+            // Find e such that d = (1 << e) * divisor_odd
+            // where divisor_odd is odd
+            let two_pow_e =
+                divisor & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor);
+            let e = MiniUnsignedInteger::ilog2(two_pow_e);
+            let divisor_odd = divisor / two_pow_e;
+
+            assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+            let divisor_odd: Scalar = divisor_odd.cast_into(); // cast to lower precision
+            chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+            e as u64
+        } else {
+            0
+        };
+
+        if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        {
+            assert!(shift_pre == 0);
+
+            let inverse = chosen_multiplier.multiplier
+                - (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+            let scalar_mul_high_size_on_gpu =
+                self.get_scalar_mul_high_size_on_gpu(numerator, inverse, streams);
+
+            let quotient_size = self.get_ciphertext_size_on_gpu(numerator);
+            // Due to the use of a shifts, we can't use unchecked_add/sub
+            let scalar_right_shift_size =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+            let add_size = self.get_add_size_on_gpu(numerator, numerator, streams);
+
+            let scalar_right_shift_size_2 =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+            scalar_mul_high_size_on_gpu
+                .max(scalar_right_shift_size)
+                .max(add_size)
+                .max(scalar_right_shift_size_2)
+                + quotient_size
+        } else {
+            let scalar_right_shift_size =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+            let quotient_size = self.get_ciphertext_size_on_gpu(numerator);
+            let scalar_mul_high_size_on_gpu = self.get_scalar_mul_high_size_on_gpu(
+                numerator,
+                chosen_multiplier.multiplier,
+                streams,
+            );
+            let scalar_right_shift_size_2 =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+            scalar_mul_high_size_on_gpu
+                .max(scalar_right_shift_size)
+                .max(scalar_right_shift_size_2)
+                + quotient_size
+        }
+    }
+
+    pub fn get_scalar_div_rem_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    {
+        let scalar_div_size = self.get_scalar_div_size_on_gpu(numerator, divisor, streams);
+        let remainder_size = if MiniUnsignedInteger::is_power_of_two(divisor) {
+            self.get_scalar_bitand_size_on_gpu(numerator, streams)
+        } else {
+            let scalar_mul_size = self.get_scalar_mul_size_on_gpu(numerator, divisor, streams);
+            let sub_size = self.get_sub_size_on_gpu(numerator, numerator, streams);
+            scalar_mul_size.max(sub_size)
+        };
+        scalar_div_size.max(remainder_size) + self.get_ciphertext_size_on_gpu(numerator)
+    }
+
+    pub fn get_scalar_rem_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    {
+        if MiniUnsignedInteger::is_power_of_two(divisor) {
+            return self.get_scalar_bitand_size_on_gpu(numerator, streams);
+        }
+
+        self.get_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
+    }
+
+    pub fn get_signed_scalar_div_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaSignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let numerator_bits = self.message_modulus.0.ilog2()
+            * numerator.ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+
+        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+
+        if absolute_divisor == Scalar::Unsigned::ONE {
+            return if divisor < Scalar::ZERO {
+                self.get_neg_size_on_gpu(numerator, streams)
+            } else {
+                0
+            };
+        }
+
+        let chosen_multiplier =
+            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+        if chosen_multiplier.l >= numerator_bits {
+            return 0;
+        }
+
+        if absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize) {
+            let scalar_right_shift_size =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+
+            let add_size = self.get_add_size_on_gpu(numerator, numerator, streams);
+
+            scalar_right_shift_size.max(add_size)
+        } else if chosen_multiplier.multiplier
+            < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1))
+        {
+            let scalar_mul_high_size = self.get_scalar_mul_high_size_on_gpu(
+                numerator,
+                chosen_multiplier.multiplier,
+                streams,
+            );
+
+            let scalar_right_shift_size =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+
+            let sub_size = self.get_sub_size_on_gpu(numerator, numerator, streams);
+
+            scalar_mul_high_size
+                .max(scalar_right_shift_size)
+                .max(sub_size)
+        } else {
+            let cst = chosen_multiplier.multiplier
+                - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+            let cst = Scalar::DoublePrecision::cast_from(cst);
+
+            let scalar_mul_high_size =
+                self.get_scalar_mul_high_size_on_gpu(numerator, cst, streams);
+
+            let add_size = self.get_add_size_on_gpu(numerator, numerator, streams);
+
+            let scalar_right_shift_size =
+                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
+
+            scalar_mul_high_size
+                .max(add_size)
+                .max(scalar_right_shift_size)
+        }
+    }
+
+    pub fn get_signed_scalar_div_rem_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaSignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        let scalar_div_size = self.get_signed_scalar_div_size_on_gpu(numerator, divisor, streams)
+            + self.get_ciphertext_size_on_gpu(numerator);
+
+        let scalar_mul_size = self.get_scalar_mul_size_on_gpu(numerator, divisor, streams)
+            + self.get_ciphertext_size_on_gpu(numerator);
+        let sub_size = self.get_sub_size_on_gpu(numerator, numerator, streams);
+
+        scalar_div_size.max(scalar_mul_size).max(sub_size)
+    }
+
+    pub fn get_signed_scalar_rem_size_on_gpu<Scalar>(
+        &self,
+        numerator: &CudaSignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> u64
+    where
+        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+    {
+        self.get_signed_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
+            + 2 * self.get_ciphertext_size_on_gpu(numerator)
     }
 }

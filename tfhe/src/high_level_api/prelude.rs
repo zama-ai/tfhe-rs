@@ -28,6 +28,6 @@ pub use crate::high_level_api::strings::traits::*;
 pub use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
     DivRemSizeOnGpu, DivSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu,
-    IfThenElseSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu, RotateRightSizeOnGpu,
-    ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
+    IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu, RotateLeftSizeOnGpu,
+    RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SizeOnGpu, SubSizeOnGpu,
 };
