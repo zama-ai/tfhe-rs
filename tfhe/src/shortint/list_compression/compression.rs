@@ -2,17 +2,18 @@ use super::{CompressionKey, DecompressionKey};
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
     extract_lwe_sample_from_glwe_ciphertext,
-    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
-    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
+    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, GlweCiphertext, LweCiphertext,
+    LweCiphertextCount, LweCiphertextList, MonomialDegree,
 };
-use crate::shortint::ciphertext::CompressedCiphertextList;
+use crate::error;
+use crate::shortint::ciphertext::{CompressedCiphertextList, CompressedCiphertextListMeta};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_with_output_encoding,
     unchecked_scalar_mul_assign, LookupTableSize, ShortintBootstrappingKey,
 };
-use crate::shortint::{AtomicPatternKind, Ciphertext, MaxNoiseLevel, PBSOrder};
+use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
 use rayon::slice::ParallelSlice;
 
@@ -28,17 +29,9 @@ impl CompressionKey {
         if ciphertexts.is_empty() {
             return CompressedCiphertextList {
                 modulus_switched_glwe_ciphertext_list: Vec::new(),
-                // These values don't matter if the list is empty
-                message_modulus: MessageModulus(1),
-                carry_modulus: CarryModulus(1),
-                atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
-                lwe_per_glwe,
-                count: CiphertextCount(0),
-                ciphertext_modulus,
+                meta: None,
             };
         }
-
-        let count = CiphertextCount(ciphertexts.len());
 
         let lwe_pksk = &self.packing_key_switching_key;
 
@@ -129,14 +122,17 @@ impl CompressionKey {
             })
             .collect();
 
-        CompressedCiphertextList {
-            modulus_switched_glwe_ciphertext_list: glwe_ct_list,
+        let meta = Some(CompressedCiphertextListMeta {
+            ciphertext_modulus,
             message_modulus,
             carry_modulus,
             atomic_pattern,
             lwe_per_glwe,
-            count,
-            ciphertext_modulus,
+        });
+
+        CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list: glwe_ct_list,
+            meta,
         }
     }
 }
@@ -147,39 +143,44 @@ impl DecompressionKey {
         packed: &CompressedCiphertextList,
         index: usize,
     ) -> Result<Ciphertext, crate::Error> {
-        if index >= packed.count.0 {
-            return Err(crate::Error::new(format!(
+        if index >= packed.len() {
+            return Err(error!(
                 "Tried getting index {index} for CompressedCiphertextList \
                 with {} elements, out of bound access.",
-                packed.count.0
-            )));
+                packed.len()
+            ));
         }
 
-        if packed.message_modulus.0 != packed.carry_modulus.0 {
-            return Err(crate::Error::new(format!(
+        let meta = packed
+            .meta
+            .as_ref()
+            .ok_or_else(|| error!("Missing ciphertext metadata in CompressedCiphertextList"))?;
+
+        if meta.message_modulus.0 != meta.carry_modulus.0 {
+            return Err(error!(
                 "Tried to unpack values from a list where message modulus \
                 ({:?}) is != carry modulus ({:?}), this is not supported.",
-                packed.message_modulus, packed.carry_modulus,
-            )));
+                meta.message_modulus, meta.carry_modulus,
+            ));
         }
 
-        let encryption_cleartext_modulus = packed.message_modulus.0 * packed.carry_modulus.0;
+        let encryption_cleartext_modulus = meta.message_modulus.0 * meta.carry_modulus.0;
         // We multiply by message_modulus during compression so the actual modulus for the
         // compression is smaller
-        let compression_cleartext_modulus = encryption_cleartext_modulus / packed.message_modulus.0;
+        let compression_cleartext_modulus = encryption_cleartext_modulus / meta.message_modulus.0;
         let effective_compression_message_modulus = MessageModulus(compression_cleartext_modulus);
         let effective_compression_carry_modulus = CarryModulus(1);
         let lut_size = LookupTableSize::new(self.out_glwe_size(), self.out_polynomial_size());
 
         let decompression_rescale = generate_lookup_table_with_output_encoding(
             lut_size,
-            packed.ciphertext_modulus,
+            meta.ciphertext_modulus,
             // Input moduli are the effective compression ones
             effective_compression_message_modulus,
             effective_compression_carry_modulus,
             // Output moduli are directly the ones stored in the list
-            packed.message_modulus,
-            packed.carry_modulus,
+            meta.message_modulus,
+            meta.carry_modulus,
             // Here we do not divide by message_modulus
             // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits space, we
             // want to keep the original 2 bits value in the 4 bits space, so we apply the identity
@@ -188,10 +189,10 @@ impl DecompressionKey {
         );
 
         let polynomial_size = packed.modulus_switched_glwe_ciphertext_list[0].polynomial_size();
-        let ciphertext_modulus = packed.ciphertext_modulus;
+        let ciphertext_modulus = meta.ciphertext_modulus;
         let glwe_dimension = packed.modulus_switched_glwe_ciphertext_list[0].glwe_dimension();
 
-        let lwe_per_glwe = packed.lwe_per_glwe.0;
+        let lwe_per_glwe = meta.lwe_per_glwe.0;
 
         let lwe_size = glwe_dimension
             .to_equivalent_lwe_dimension(polynomial_size)
@@ -248,9 +249,9 @@ impl DecompressionKey {
             output_br,
             decompression_rescale.degree,
             NoiseLevel::NOMINAL,
-            packed.message_modulus,
-            packed.carry_modulus,
-            packed.atomic_pattern,
+            meta.message_modulus,
+            meta.carry_modulus,
+            meta.atomic_pattern,
         ))
     }
 }
