@@ -870,7 +870,10 @@ mod tests {
     use super::*;
     use crate::prelude::*;
     use crate::shortint::parameters::*;
-    use crate::{CompressedServerKey, set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+    use crate::{set_server_key, FheBool, FheInt64, FheUint16, FheUint2, FheUint32};
+
+    #[cfg(all(feature = "zk-pok", feature = "gpu"))]
+    use crate::CompressedServerKey;
 
     #[test]
     fn test_compact_list() {
@@ -1108,7 +1111,6 @@ mod tests {
             assert!(unverified_expander.get::<FheBool>(4).unwrap().is_none());
         }
     }
-
 
     #[cfg(all(feature = "zk-pok", feature = "gpu"))]
     #[test]

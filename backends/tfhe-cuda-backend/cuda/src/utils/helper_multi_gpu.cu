@@ -11,28 +11,31 @@ int32_t cuda_setup_multi_gpu(int device_0_id) {
   int num_gpus = cuda_get_number_of_gpus();
   if (num_gpus == 0)
     PANIC("GPU error: the number of GPUs should be > 0.")
+  int num_used_gpus = 1;
   if (num_gpus > 1) {
     m.lock();
     if (!p2p_enabled) {
       p2p_enabled = true;
       omp_set_nested(1);
       int has_peer_access_to_device_0;
-      for (int i = 0; i < num_gpus; i++) {
-        if (i != device_0_id) {
-          check_cuda_error(cudaDeviceCanAccessPeer(&has_peer_access_to_device_0,
-                                                   i, device_0_id));
-          if (has_peer_access_to_device_0) {
-            cuda_set_device(i);
-            check_cuda_error(cudaDeviceEnablePeerAccess(device_0_id, 0));
-            cuda_set_device(device_0_id);
-            check_cuda_error(cudaDeviceEnablePeerAccess(i, 0));
-          }
+      for (int i = 1; i < num_gpus; i++) {
+        check_cuda_error(cudaDeviceCanAccessPeer(&has_peer_access_to_device_0,
+                                                 i, device_0_id));
+        if (has_peer_access_to_device_0) {
+          cuda_set_device(i);
+          check_cuda_error(cudaDeviceEnablePeerAccess(device_0_id, 0));
+          cuda_set_device(device_0_id);
+          check_cuda_error(cudaDeviceEnablePeerAccess(i, 0));
         }
+        num_used_gpus += 1;
       }
+    } else {
+      for (int i = 1; i < num_gpus; i++)
+        num_used_gpus += 1;
     }
     m.unlock();
   }
-  return num_gpus;
+  return (int32_t)(num_used_gpus);
 }
 
 int get_active_gpu_count(int num_inputs, int gpu_count) {
