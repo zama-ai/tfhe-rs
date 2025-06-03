@@ -116,7 +116,7 @@ __host__ void host_integer_scalar_mul_radix(
                                              lwe_array, 0, num_radix_blocks);
   } else {
     host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
-        streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, bsks,
+        streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, true, bsks,
         ksks, ms_noise_reduction_key, mem->sum_ciphertexts_vec_mem,
         num_radix_blocks, j);
 
