@@ -8,7 +8,7 @@ use super::*;
 use crate::asm::{self, OperandKind, Pbs};
 use crate::fw::program::Program;
 use crate::fw::FwParameters;
-use itertools::Itertools;
+use itertools::{Itertools, Position};
 use tracing::{instrument, trace, warn};
 
 use crate::asm::iop::opcode::*;
@@ -25,6 +25,11 @@ crate::impl_fw!("Ilp" [
     OVF_SUB => fw_impl::ilp::iop_overflow_sub;
     OVF_MUL => fw_impl::ilp::iop_overflow_mul;
 
+    ROT_R => fw_impl::ilp::iop_rotate_right;
+    ROT_L => fw_impl::ilp::iop_rotate_left;
+    SHIFT_R => fw_impl::ilp::iop_shift_right;
+    SHIFT_L => fw_impl::ilp::iop_shift_left;
+
     ADDS => fw_impl::ilp::iop_adds;
     SUBS => fw_impl::ilp::iop_subs;
     SSUB => fw_impl::ilp::iop_ssub;
@@ -36,6 +41,11 @@ crate::impl_fw!("Ilp" [
     OVF_SUBS => fw_impl::ilp::iop_overflow_subs;
     OVF_SSUB => fw_impl::ilp::iop_overflow_ssub;
     OVF_MULS => fw_impl::ilp::iop_overflow_muls;
+
+    ROTS_R => fw_impl::ilp::iop_rotate_scalar_right;
+    ROTS_L => fw_impl::ilp::iop_rotate_scalar_left;
+    SHIFTS_R => fw_impl::ilp::iop_shift_scalar_right;
+    SHIFTS_L => fw_impl::ilp::iop_shift_scalar_left;
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
@@ -686,9 +696,7 @@ pub fn iop_mulx(
     if let Some(f) = flag {
         let pp_high_part_idx = (blk_w..2 * blk_w)
             .flat_map(|blk| {
-                itertools::iproduct!(0..blk_w, 0..blk_w)
-                    .filter(move |(i, j)| i + j == blk)
-                    .map(move |(i, j)| (i, j))
+                itertools::iproduct!(0..blk_w, 0..blk_w).filter(move |(i, j)| i + j == blk)
             })
             .collect::<Vec<_>>();
 
@@ -714,8 +722,7 @@ pub fn iop_mulx(
         }
         // Simple nu-based tree reduction
         while ovf_non_zero_vars.len() > 1 {
-            let mut next_stg =
-                Vec::with_capacity((ovf_non_zero_vars.len() + props.nu - 1) / props.nu);
+            let mut next_stg = Vec::with_capacity(ovf_non_zero_vars.len().div_ceil(props.nu));
             for chunk in ovf_non_zero_vars.into_iter().chunks(props.nu).into_iter() {
                 let mut acc = chunk
                     .into_iter()
@@ -727,6 +734,323 @@ pub fn iop_mulx(
             ovf_non_zero_vars = next_stg;
         }
         f.mv_assign(&ovf_non_zero_vars[0]);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ShiftKind {
+    ShiftRight,
+    ShiftLeft,
+    RotRight,
+    RotLeft,
+}
+#[derive(Debug, Clone, Copy)]
+enum CondPos {
+    Pos0,
+    Pos1,
+}
+
+// Comupute inner-shift
+// input:
+// * src: clean ciphertext with only message
+// * amount: ciphertext encoding amount to Shift/Rotate.
+//           Only Lsb of msg will be considered
+// output:
+//  Tuple of msg and msg_next.
+//   msg_next is the contribution of next ct block in the shift direction
+fn inner_shift(
+    prog: &mut Program,
+    dir: ShiftKind,
+    src: &metavar::MetaVarCell,
+    amount: &metavar::MetaVarCell,
+) -> (metavar::MetaVarCell, metavar::MetaVarCell) {
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+
+    let (pbs_msg, pbs_msg_next) = match dir {
+        ShiftKind::ShiftRight | ShiftKind::RotRight => (
+            new_pbs!(prog, "ShiftRightByCarryPos0Msg"),
+            new_pbs!(prog, "ShiftRightByCarryPos0MsgNext"),
+        ),
+        ShiftKind::ShiftLeft | ShiftKind::RotLeft => (
+            new_pbs!(prog, "ShiftLeftByCarryPos0Msg"),
+            new_pbs!(prog, "ShiftLeftByCarryPos0MsgNext"),
+        ),
+    };
+
+    let pack = amount.mac(tfhe_params.msg_range() as u8, src);
+    let msg = pack.pbs(&pbs_msg, false);
+    let msg_next = pack.pbs(&pbs_msg_next, false);
+    (msg, msg_next)
+}
+
+// Conditionnal block swap
+// Based on cond/cond_mask select block A (true) or block B (false);
+fn block_swap(
+    prog: &mut Program,
+    src_orig: &metavar::MetaVarCell,
+    src_swap: Option<&metavar::MetaVarCell>,
+    cond: &metavar::MetaVarCell,
+    cond_mask: CondPos,
+) -> metavar::MetaVarCell {
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+
+    let (pbs_orig, pbs_swap) = match cond_mask {
+        CondPos::Pos0 => (
+            new_pbs!(prog, "IfPos0TrueZeroed"),
+            new_pbs!(prog, "IfPos0FalseZeroed"),
+        ),
+        CondPos::Pos1 => (
+            new_pbs!(prog, "IfPos1TrueZeroed"),
+            new_pbs!(prog, "IfPos1FalseZeroed"),
+        ),
+    };
+    let pack_orig = cond.mac(tfhe_params.msg_range() as u8, src_orig);
+    if let Some(swap) = src_swap {
+        let pack_swap = cond.mac(tfhe_params.msg_range() as u8, swap);
+        &pack_orig.pbs(&pbs_orig, false) + &pack_swap.pbs(&pbs_swap, false)
+    } else {
+        pack_orig.pbs(&pbs_orig, false)
+    }
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Amount -> Operand
+    let amount = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("SHIFT_R Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::ShiftRight, &mut dst, &src, &amount);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // ShiftAmount -> Operand
+    let amount = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("SHIFT_L Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::ShiftLeft, &mut dst, &src, &amount);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // ShiftAmount -> Operand
+    let rot_amount = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("ROT_R Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::RotRight, &mut dst, &src, &rot_amount);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // ShiftAmount -> Operand
+    let rot_amount = prog.iop_template_var(OperandKind::Src, 1);
+
+    // Add Comment header
+    prog.push_comment("ROT_L Operand::Dst Operand::Src Operand::Src".to_string());
+    // Deferred implementation to generic rotx function
+    iop_shiftrotx(prog, ShiftKind::RotLeft, &mut dst, &src, &rot_amount);
+}
+
+/// Generic shift function operation
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shiftrotx(
+    prog: &mut Program,
+    kind: ShiftKind,
+    dst: &mut [metavar::MetaVarCell],
+    src: &[metavar::MetaVarCell],
+    amount: &[metavar::MetaVarCell],
+) {
+    let props = prog.params();
+    let tfhe_params: asm::DigitParameters = props.clone().into();
+    let blk_w = props.blk_w();
+
+    // First apply inner shift
+    let (shiftrot, shiftrot_next): (Vec<_>, Vec<_>) = src
+        .iter()
+        .map(|ct| inner_shift(prog, kind, ct, &amount[0]))
+        .unzip();
+
+    // Fuse msg and next msg based on direction/kind
+    let mut merge_shiftrot = shiftrot
+        .into_iter()
+        .enumerate()
+        .with_position()
+        .map(|(pos, (i, ct))| match kind {
+            ShiftKind::ShiftRight => {
+                if !matches!(pos, Position::Last | Position::Only) {
+                    &ct + &shiftrot_next[i + 1]
+                } else {
+                    ct
+                }
+            }
+            ShiftKind::ShiftLeft => {
+                if !matches!(pos, Position::First | Position::Only) {
+                    &ct + &shiftrot_next[i - 1]
+                } else {
+                    ct
+                }
+            }
+            ShiftKind::RotRight => {
+                let rot_idx = (i + 1) % shiftrot_next.len();
+                &ct + &shiftrot_next[rot_idx]
+            }
+            ShiftKind::RotLeft => {
+                let rot_idx = ((i + shiftrot_next.len()) - 1) % shiftrot_next.len();
+                &ct + &shiftrot_next[rot_idx]
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // Second apply block swap
+    // Block swapping done with successive buterflies with log2 stages
+    // NB: each block encode msg_w bits thus:
+    //     * First shiftrot is already done with inner_shiftrot
+    //     * Two swap is done for each amount blk
+    for stg in 1..(2 * blk_w).ilog2() as usize {
+        merge_shiftrot = (0..blk_w)
+            .map(|i| {
+                let stride = 1 << (stg - 1);
+                let swap = match kind {
+                    ShiftKind::ShiftRight => merge_shiftrot.get(i + stride),
+                    ShiftKind::ShiftLeft => {
+                        if i >= stride {
+                            merge_shiftrot.get(i - stride)
+                        } else {
+                            None
+                        }
+                    }
+                    ShiftKind::RotRight => {
+                        let swap_idx = (i + stride) % merge_shiftrot.len();
+                        merge_shiftrot.get(swap_idx)
+                    }
+                    ShiftKind::RotLeft => {
+                        let swap_idx = (i + merge_shiftrot.len() - stride) % merge_shiftrot.len();
+                        merge_shiftrot.get(swap_idx)
+                    }
+                };
+                // Based on stage index shiftrot condition is in amount msg at pos0 or pos1
+                block_swap(
+                    prog,
+                    &merge_shiftrot[i],
+                    swap,
+                    &amount[stg / tfhe_params.msg_w],
+                    if stg % 2 == 1 {
+                        CondPos::Pos1
+                    } else {
+                        CondPos::Pos0
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+    }
+    for (d, s) in std::iter::zip(dst.iter_mut(), merge_shiftrot.iter()).rev() {
+        s.reg_alloc_mv();
+        d.mv_assign(s);
+    }
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_scalar_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Amont-> Immediat
+    let amount = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SHIFTS_R Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic rotx function
+    iop_scalar_shiftrotx(prog, ShiftKind::ShiftRight, &mut dst, &src, &amount);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_shift_scalar_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Amont-> Immediat
+    let amount = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("SHIFTS_L Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic rotx function
+    iop_scalar_shiftrotx(prog, ShiftKind::ShiftLeft, &mut dst, &src, &amount);
+}
+
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_scalar_right(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Amont-> Immediat
+    let amount = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("ROTS_R Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic rotx function
+    iop_scalar_shiftrotx(prog, ShiftKind::RotRight, &mut dst, &src, &amount);
+}
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_rotate_scalar_left(prog: &mut Program) {
+    // Allocate metavariables:
+    // Dest -> Operand
+    let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
+    // Src -> Operand
+    let src = prog.iop_template_var(OperandKind::Src, 0);
+    // Amont-> Immediat
+    let amount = prog.iop_template_var(OperandKind::Imm, 0);
+
+    // Add Comment header
+    prog.push_comment("ROTS_L Operand::Dst Operand::Src Operand::Immediat".to_string());
+    // Deferred implementation to generic rotx function
+    iop_scalar_shiftrotx(prog, ShiftKind::RotRight, &mut dst, &src, &amount);
+}
+
+/// Generic shift function over scalar
+#[instrument(level = "trace", skip(prog))]
+pub fn iop_scalar_shiftrotx(
+    prog: &mut Program,
+    dir: ShiftKind,
+    dst: &mut [metavar::MetaVarCell],
+    src: &[metavar::MetaVarCell],
+    amount: &[metavar::MetaVarCell],
+) {
+    for i in 0..prog.params().min_iop_size {
+        let _ = prog.new_cst(i);
     }
 }
 

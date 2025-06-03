@@ -32,6 +32,12 @@ pub const OVF_SUBS: u8 = 0xA9;
 pub const OVF_SSUB: u8 = 0xAA;
 pub const OVF_MULS: u8 = 0xAB;
 
+// Rotation and Shift
+pub const SHIFTS_R: u8 = 0xAC;
+pub const SHIFTS_L: u8 = 0xAD;
+pub const ROTS_R: u8 = 0xAE;
+pub const ROTS_L: u8 = 0xAF;
+
 // Ct x Ct -------------------------------------------------------------------
 // Arith operations
 pub const ADD: u8 = 0xE0;
@@ -49,6 +55,12 @@ pub const OVF_MUL: u8 = 0xEC;
 pub const BW_AND: u8 = 0xD0;
 pub const BW_OR: u8 = 0xD1;
 pub const BW_XOR: u8 = 0xD2;
+
+// Rotation and shift
+pub const SHIFT_R: u8 = 0xDC;
+pub const SHIFT_L: u8 = 0xDD;
+pub const ROT_R: u8 = 0xDE;
+pub const ROT_L: u8 = 0xDF;
 
 // Cmp operations
 pub const CMP_GT: u8 = 0xC0;

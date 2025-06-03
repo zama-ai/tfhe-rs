@@ -923,6 +923,83 @@ pbs!(
         |params: &DigitParameters, _deg| params.msg_mask();
     }
 ]],
+
+// Shift related Pbs
+["ShiftLeftByCarryPos0Msg" => 57 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           (value << shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["ShiftLeftByCarryPos0MsgNext" => 58 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+            ((value << shift) & params.carry_mask()) >> params.msg_w
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+
+["ShiftRightByCarryPos0Msg" => 59 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           (value >> shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["ShiftRightByCarryPos0MsgNext" => 60 [ // Ct must contain shift amount only bit 1 considered
+    // NB: MsgNext with right shift is the content of blk at the right position (i.e. LSB side)
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           ((value << params.msg_w) >> shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// If then zero with condition in Carry0 or Carry1
+["IfPos0TrueZeroed" => 61 [ // Ct must contain CondCt in Carry[0] and ValueCt in Msg. If condition it's *TRUE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           if cond != 0 {0} else {value}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["IfPos0FalseZeroed" => 62 [ // Ct must contain CondCt in Carry[0] and ValueCt in Msg. If condition it's *FALSE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           if cond != 0 {value} else {0}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// If then zero with condition in Carry0 or Carry1
+["IfPos1TrueZeroed" => 63 [ // Ct must contain CondCt in Carry[1] and ValueCt in Msg. If condition it's *TRUE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x2;
+           if cond != 0 {0} else {value}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// NB: Lut IfPos1FalseZeroed already defined earlier
 );
 
 pub(crate) fn ceil_ilog2(value: &u8) -> u8 {
