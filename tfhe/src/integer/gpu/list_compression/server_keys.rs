@@ -6,6 +6,7 @@ use crate::core_crypto::prelude::{
     glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
     GlweCiphertextCount, LweCiphertextCount, PolynomialSize,
 };
+use crate::error;
 use crate::integer::ciphertext::DataKind;
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
@@ -37,9 +38,8 @@ pub struct CudaDecompressionKey {
     pub ciphertext_modulus: CiphertextModulus<u64>,
 }
 
-pub struct CudaPackedGlweCiphertextList {
-    // The compressed GLWE list's elements
-    pub data: CudaVec<u64>,
+#[derive(Copy, Clone)]
+pub struct CudaPackedGlweCiphertextListMeta {
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,
     pub message_modulus: MessageModulus,
@@ -47,6 +47,12 @@ pub struct CudaPackedGlweCiphertextList {
     pub ciphertext_modulus: CiphertextModulus<u64>,
     pub storage_log_modulus: CiphertextModulusLog,
     pub lwe_per_glwe: LweCiphertextCount,
+}
+
+pub struct CudaPackedGlweCiphertextList {
+    // The compressed GLWE list's elements
+    pub data: CudaVec<u64>,
+    pub meta: Option<CudaPackedGlweCiphertextListMeta>,
     // Number of lwe bodies that are compressed in this list
     pub bodies_count: usize,
     // Number of elements (u64) the uncompressed GLWE list had
@@ -55,9 +61,18 @@ pub struct CudaPackedGlweCiphertextList {
 }
 
 impl CudaPackedGlweCiphertextList {
+    /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
+    pub fn message_modulus(&self) -> Option<MessageModulus> {
+        self.meta.as_ref().map(|meta| meta.message_modulus)
+    }
+
     pub fn glwe_ciphertext_count(&self) -> GlweCiphertextCount {
+        let Some(meta) = self.meta.as_ref() else {
+            return GlweCiphertextCount(0);
+        };
+
         let uncompressed_glwe_size =
-            glwe_ciphertext_size(self.glwe_dimension.to_glwe_size(), self.polynomial_size);
+            glwe_ciphertext_size(meta.glwe_dimension.to_glwe_size(), meta.polynomial_size);
 
         GlweCiphertextCount(self.initial_len.div_ceil(uncompressed_glwe_size))
     }
@@ -65,14 +80,8 @@ impl CudaPackedGlweCiphertextList {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self {
             data: self.data.duplicate(streams),
-            glwe_dimension: self.glwe_dimension,
-            polynomial_size: self.polynomial_size,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            ciphertext_modulus: self.ciphertext_modulus,
+            meta: self.meta,
             bodies_count: self.bodies_count,
-            storage_log_modulus: self.storage_log_modulus,
-            lwe_per_glwe: self.lwe_per_glwe,
             initial_len: self.initial_len,
         }
     }
@@ -82,14 +91,8 @@ impl Clone for CudaPackedGlweCiphertextList {
     fn clone(&self) -> Self {
         Self {
             data: self.data.clone(),
-            glwe_dimension: self.glwe_dimension,
-            polynomial_size: self.polynomial_size,
-            message_modulus: self.message_modulus,
-            carry_modulus: self.carry_modulus,
-            ciphertext_modulus: self.ciphertext_modulus,
+            meta: self.meta,
             bodies_count: self.bodies_count,
-            storage_log_modulus: self.storage_log_modulus,
-            lwe_per_glwe: self.lwe_per_glwe,
             initial_len: self.initial_len,
         }
     }
@@ -161,13 +164,6 @@ impl CudaCompressionKey {
         let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
         let compressed_glwe_size = lwe_pksk.output_glwe_size();
 
-        let first_ct = ciphertexts.first().unwrap();
-        let first_ct_info = first_ct.info.blocks.first().unwrap();
-        let message_modulus = first_ct_info.message_modulus;
-        let carry_modulus = first_ct_info.carry_modulus;
-
-        let lwe_dimension = first_ct.d_blocks.lwe_dimension();
-
         let num_lwes: usize = ciphertexts
             .iter()
             .map(|x| x.d_blocks.lwe_ciphertext_count().0)
@@ -183,6 +179,23 @@ impl CudaCompressionKey {
         let number_bits_to_pack = uncompressed_len * self.storage_log_modulus.0;
         let compressed_len = number_bits_to_pack.div_ceil(u64::BITS as usize);
         let mut packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
+
+        if ciphertexts.is_empty() {
+            return CudaPackedGlweCiphertextList {
+                data: packed_glwe_list,
+                meta: None,
+                bodies_count: num_lwes,
+                initial_len: uncompressed_len,
+            };
+        }
+
+        // Ok to unwrap because list is not empty
+        let first_ct = ciphertexts.first().unwrap();
+        let first_ct_info = first_ct.info.blocks.first().unwrap();
+        let message_modulus = first_ct_info.message_modulus;
+        let carry_modulus = first_ct_info.carry_modulus;
+
+        let lwe_dimension = first_ct.d_blocks.lwe_dimension();
 
         unsafe {
             let input_lwes = Self::flatten_async(ciphertexts, streams);
@@ -207,16 +220,20 @@ impl CudaCompressionKey {
             streams.synchronize();
         };
 
-        CudaPackedGlweCiphertextList {
-            data: packed_glwe_list,
+        let meta = Some(CudaPackedGlweCiphertextListMeta {
             glwe_dimension: compressed_glwe_size.to_glwe_dimension(),
             polynomial_size: compressed_polynomial_size,
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
-            bodies_count: num_lwes,
             storage_log_modulus: self.storage_log_modulus,
             lwe_per_glwe: LweCiphertextCount(compressed_polynomial_size.0),
+        });
+
+        CudaPackedGlweCiphertextList {
+            data: packed_glwe_list,
+            meta,
+            bodies_count: num_lwes,
             initial_len: uncompressed_len,
         }
     }
@@ -232,20 +249,25 @@ impl CudaDecompressionKey {
         streams: &CudaStreams,
     ) -> Result<CudaRadixCiphertext, crate::Error> {
         if self.message_modulus.0 != self.carry_modulus.0 {
-            return Err(crate::Error::new(format!(
+            return Err(error!(
                 "Tried to unpack values from a list where message modulus \
                 ({:?}) is != carry modulus ({:?}), this is not supported.",
                 self.message_modulus, self.carry_modulus,
-            )));
+            ));
         }
 
         if end_block_index >= packed_list.bodies_count {
-            return Err(crate::Error::new(format!(
+            return Err(error!(
                 "Tried getting index {end_block_index} for CompressedCiphertextList \
                 with {} elements, out of bound access.",
                 packed_list.bodies_count
-            )));
+            ));
         }
+
+        let meta = packed_list
+            .meta
+            .as_ref()
+            .ok_or_else(|| error!("Missing ciphertext metadata in CompressedCiphertextList"))?;
 
         let indexes_array = (start_block_index..=end_block_index)
             .map(|x| x as u32)
@@ -253,14 +275,14 @@ impl CudaDecompressionKey {
 
         let encryption_glwe_dimension = self.glwe_dimension;
         let encryption_polynomial_size = self.polynomial_size;
-        let compression_glwe_dimension = packed_list.glwe_dimension;
-        let compression_polynomial_size = packed_list.polynomial_size;
+        let compression_glwe_dimension = meta.glwe_dimension;
+        let compression_polynomial_size = meta.polynomial_size;
         let indexes_array_len = LweCiphertextCount(indexes_array.len());
 
         let message_modulus = self.message_modulus;
         let carry_modulus = self.carry_modulus;
         let ciphertext_modulus = self.ciphertext_modulus;
-        let storage_log_modulus = packed_list.storage_log_modulus;
+        let storage_log_modulus = meta.storage_log_modulus;
 
         match &self.blind_rotate_key {
             CudaBootstrappingKey::Classic(bsk) => {

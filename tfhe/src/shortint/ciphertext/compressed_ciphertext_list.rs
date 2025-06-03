@@ -5,7 +5,8 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::*;
 use crate::error;
 use crate::shortint::backward_compatibility::ciphertext::{
-    CompressedCiphertextListVersions, CompressedSquashedNoiseCiphertextListMetaVersions,
+    CompressedCiphertextListMetaVersions, CompressedCiphertextListVersions,
+    CompressedSquashedNoiseCiphertextListMetaVersions,
     CompressedSquashedNoiseCiphertextListVersions,
 };
 use crate::shortint::parameters::{
@@ -15,20 +16,42 @@ use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus};
 
 use super::SquashedNoiseCiphertext;
 
+/// Metadata needed to rebuild the ciphertexts in a [`CompressedCiphertextList`]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
-#[versionize(CompressedCiphertextListVersions)]
-pub struct CompressedCiphertextList {
-    pub(crate) modulus_switched_glwe_ciphertext_list:
-        Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
+#[versionize(CompressedCiphertextListMetaVersions)]
+pub(crate) struct CompressedCiphertextListMeta {
     pub(crate) ciphertext_modulus: CiphertextModulus<u64>,
     pub(crate) message_modulus: MessageModulus,
     pub(crate) carry_modulus: CarryModulus,
     pub(crate) atomic_pattern: AtomicPatternKind,
     pub(crate) lwe_per_glwe: LweCiphertextCount,
-    pub(crate) count: CiphertextCount,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Versionize)]
+#[versionize(CompressedCiphertextListVersions)]
+pub struct CompressedCiphertextList {
+    pub(crate) modulus_switched_glwe_ciphertext_list:
+        Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
+    pub(crate) meta: Option<CompressedCiphertextListMeta>,
 }
 
 impl CompressedCiphertextList {
+    pub fn len(&self) -> usize {
+        self.modulus_switched_glwe_ciphertext_list
+            .iter()
+            .map(|comp_glwe| comp_glwe.bodies_count().0)
+            .sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
+    pub fn message_modulus(&self) -> Option<MessageModulus> {
+        self.meta.as_ref().map(|meta| meta.message_modulus)
+    }
+
     /// Returns how many u64 are needed to store the packed elements
     #[cfg(all(test, feature = "gpu"))]
     pub(crate) fn flat_len(&self) -> usize {
@@ -45,12 +68,7 @@ impl ParameterSetConformant for CompressedCiphertextList {
     fn is_conformant(&self, params: &CompressedCiphertextConformanceParams) -> bool {
         let Self {
             modulus_switched_glwe_ciphertext_list,
-            ciphertext_modulus,
-            message_modulus,
-            carry_modulus,
-            atomic_pattern,
-            lwe_per_glwe,
-            count,
+            meta,
         } = self;
 
         let len = modulus_switched_glwe_ciphertext_list.len();
@@ -59,18 +77,28 @@ impl ParameterSetConformant for CompressedCiphertextList {
             return true;
         }
 
+        let Some(meta) = meta else {
+            return false;
+        };
+
+        let CompressedCiphertextListMeta {
+            ciphertext_modulus,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern,
+            lwe_per_glwe,
+        } = meta;
+
         let last_body_count = modulus_switched_glwe_ciphertext_list
             .last()
             .unwrap()
             .bodies_count()
             .0;
 
-        let count_is_ok = count.0.div_ceil(lwe_per_glwe.0) == len
-            && modulus_switched_glwe_ciphertext_list[..len - 1]
-                .iter()
-                .all(|a| a.bodies_count() == params.lwe_per_glwe)
-            && last_body_count <= params.lwe_per_glwe.0
-            && (len - 1) * params.lwe_per_glwe.0 + last_body_count == count.0;
+        let count_is_ok = modulus_switched_glwe_ciphertext_list[..len - 1]
+            .iter()
+            .all(|a| a.bodies_count() == params.lwe_per_glwe)
+            && last_body_count <= params.lwe_per_glwe.0;
 
         count_is_ok
             && modulus_switched_glwe_ciphertext_list
