@@ -375,6 +375,14 @@ impl Tag {
     }
 }
 
+impl From<u64> for Tag {
+    fn from(value: u64) -> Self {
+        let mut s = Self::default();
+        s.set_u64(value);
+        s
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
