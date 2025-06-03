@@ -454,7 +454,7 @@ impl CudaServerKey {
         cts.push(new_trivial);
 
         let result = self
-            .unchecked_partial_sum_ciphertexts_async(&cts, streams)
+            .unchecked_partial_sum_ciphertexts_async(&cts, false, streams)
             .expect("internal error, empty ciphertext count");
 
         // This is the part where we extract message and carry blocks
@@ -496,16 +496,6 @@ impl CudaServerKey {
             .as_mut_slice(0..lwe_size, 0)
             .unwrap();
 
-        carry_blocks.as_mut().info.blocks.last_mut().unwrap().degree =
-            Degree(self.message_modulus.0 - 1);
-        carry_blocks
-            .as_mut()
-            .info
-            .blocks
-            .last_mut()
-            .unwrap()
-            .noise_level = NoiseLevel::ZERO;
-
         self.apply_lookup_table_async(
             carry_blocks.as_mut(),
             result.as_ref(),
@@ -546,11 +536,14 @@ impl CudaServerKey {
             .copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
         let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
 
+        for mut info in &mut rotated_carry_blocks.ciphertext.info.blocks {
+            info.degree = Degree(self.message_modulus.0 - 1);
+        }
         ciphertexts.push(message_blocks);
         ciphertexts.push(rotated_carry_blocks);
 
         let trivial_ct: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(1u32, counter_num_blocks, streams);
+            self.create_trivial_radix_async(2u32, counter_num_blocks, streams);
         ciphertexts.push(trivial_ct);
 
         let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();

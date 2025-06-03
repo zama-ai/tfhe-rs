@@ -289,6 +289,11 @@ impl ServerKey {
             .unchecked_partial_sum_ciphertexts_vec_parallelized(cts, None)
             .expect("internal error, empty ciphertext count");
 
+        for block in &result.blocks {
+            let val_clear = block.ct.get_body().data / 576460752303423488u64;
+            println!("cpu_after_first_partial_sum: {:?} {:?} {:?}", block.ct.get_body().data,
+                     val_clear, block.degree.0);
+        }
         // This is the part where we extract message and carry blocks
         // while inverting their bits
         let (message_blocks, carry_blocks) = rayon::join(
@@ -336,6 +341,11 @@ impl ServerKey {
             )
             .unwrap();
 
+        for block in &result.blocks {
+            let val_clear = block.ct.get_body().data / 576460752303423488u64;
+            println!("cpu_after_last_sum: {:?} {:?} {:?}", block.ct.get_body().data,
+                     val_clear, block.degree.0);
+        }
         self.cast_to_unsigned(result, counter_num_blocks)
     }
 

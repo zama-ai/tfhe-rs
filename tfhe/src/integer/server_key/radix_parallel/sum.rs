@@ -1,5 +1,5 @@
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::{BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey};
+use crate::integer::{BooleanBlock, IntegerCiphertext, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::Ciphertext;
 use rayon::prelude::*;
@@ -209,6 +209,14 @@ impl ServerKey {
                 }
             });
 
+        for radix in &ciphertexts {
+            //let radix_ct : SignedRadixCiphertext = radix;
+            for block in radix.blocks() {
+                let val_clear = block.ct.get_body().data / 576460752303423488u64;
+                println!("cpu_input_sum: {:?} {:?} {:?}", block.ct.get_body().data,
+                         val_clear, block.degree.0);
+            }
+        }
         self.unchecked_sum_ciphertexts_vec_parallelized(ciphertexts)
     }
 
