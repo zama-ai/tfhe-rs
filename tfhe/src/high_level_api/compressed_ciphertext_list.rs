@@ -481,13 +481,13 @@ impl CiphertextList for CompressedCiphertextList {
         match &self.inner {
             InnerCompressedCiphertextList::Cpu(inner) => {
                 inner.get_kind_of(index).and_then(|data_kind| {
-                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
+                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus()?)
                 })
             }
             #[cfg(feature = "gpu")]
             InnerCompressedCiphertextList::Cuda(inner) => {
                 inner.get_kind_of(index).and_then(|data_kind| {
-                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus)
+                    crate::FheTypes::from_data_kind(data_kind, inner.packed_list.message_modulus()?)
                 })
             }
         }
