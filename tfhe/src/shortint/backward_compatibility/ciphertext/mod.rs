@@ -231,11 +231,11 @@ pub struct CompressedCiphertextListV0 {
     count: CiphertextCount,
 }
 
-impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV0 {
+impl Upgrade<CompressedCiphertextListV1> for CompressedCiphertextListV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<CompressedCiphertextList, Self::Error> {
-        Ok(CompressedCiphertextList {
+    fn upgrade(self) -> Result<CompressedCiphertextListV1, Self::Error> {
+        Ok(CompressedCiphertextListV1 {
             modulus_switched_glwe_ciphertext_list: self.modulus_switched_glwe_ciphertext_list,
             ciphertext_modulus: self.ciphertext_modulus,
             message_modulus: self.message_modulus,
@@ -247,10 +247,51 @@ impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV0 {
     }
 }
 
+#[derive(Version)]
+pub struct CompressedCiphertextListV1 {
+    modulus_switched_glwe_ciphertext_list: Vec<CompressedModulusSwitchedGlweCiphertext<u64>>,
+    ciphertext_modulus: CiphertextModulus<u64>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    atomic_pattern: AtomicPatternKind,
+    lwe_per_glwe: LweCiphertextCount,
+    count: CiphertextCount,
+}
+
+impl Upgrade<CompressedCiphertextList> for CompressedCiphertextListV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<CompressedCiphertextList, Self::Error> {
+        let meta = if self.modulus_switched_glwe_ciphertext_list.is_empty() {
+            None
+        } else {
+            Some(CompressedCiphertextListMeta {
+                ciphertext_modulus: self.ciphertext_modulus,
+                message_modulus: self.message_modulus,
+                carry_modulus: self.carry_modulus,
+                atomic_pattern: self.atomic_pattern,
+                lwe_per_glwe: self.lwe_per_glwe,
+            })
+        };
+
+        Ok(CompressedCiphertextList {
+            modulus_switched_glwe_ciphertext_list: self.modulus_switched_glwe_ciphertext_list,
+            meta,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum CompressedCiphertextListVersions {
     V0(CompressedCiphertextListV0),
-    V1(CompressedCiphertextList),
+    V1(CompressedCiphertextListV1),
+    V2(CompressedCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+#[allow(dead_code)]
+pub(crate) enum CompressedCiphertextListMetaVersions {
+    V0(CompressedCiphertextListMeta),
 }
 
 #[derive(VersionsDispatch)]
