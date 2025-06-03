@@ -29,12 +29,26 @@ crate::impl_fw!("Llt" [
     OVF_SUB => fw_impl::ilp::iop_overflow_sub;
     OVF_MUL => fw_impl::ilp::iop_overflow_mul;
 
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    ROT_R => fw_impl::ilp::iop_rotate_right;
+    ROT_L => fw_impl::ilp::iop_rotate_left;
+    SHIFT_R => fw_impl::ilp::iop_shift_right;
+    SHIFT_L => fw_impl::ilp::iop_shift_left;
+
     ADDS => fw_impl::llt::iop_adds;
     SUBS => fw_impl::llt::iop_subs;
     SSUB => fw_impl::llt::iop_ssub;
     MULS => fw_impl::llt::iop_muls;
     DIVS => fw_impl::ilp_div::iop_divs;
     MODS => fw_impl::ilp_div::iop_mods;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    ROTS_R => fw_impl::ilp::iop_rotate_scalar_right;
+    ROTS_L => fw_impl::ilp::iop_rotate_scalar_left;
+    SHIFTS_R => fw_impl::ilp::iop_shift_scalar_right;
+    SHIFTS_L => fw_impl::ilp::iop_shift_scalar_left;
 
     // NB: fallback to ilp
     // TODO: Add dedicated llt implementation

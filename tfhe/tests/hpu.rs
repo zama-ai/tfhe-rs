@@ -1,3 +1,4 @@
+#![allow(clippy::unnecessary_cast)]
 //! Define a test-harness that handle setup and configuration of Hpu Backend
 //! The test harness take a list of testcase and run them
 //! A testcase simply bind a IOp to a closure describing it's behavior
@@ -277,6 +278,16 @@ mod hpu_test {
             [res, flag.into()]
     });
 
+    // Shift/Rotation with Scalar IOp
+    hpu_testcase!("SHIFTS_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shr(imm[0] as u32)] );
+    hpu_testcase!("SHIFTS_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shl(imm[0] as u32)] );
+    hpu_testcase!("ROTS_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_right(imm[0] as u32)] );
+    hpu_testcase!("ROTS_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_left(imm[0] as u32)] );
+
     // Alu IOp with Ct x Ct
     hpu_testcase!("ADD" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].wrapping_add(ct[1])]);
@@ -304,6 +315,16 @@ mod hpu_test {
             let (res, flag) = ct[0].overflowing_mul(ct[1]);
             [res, flag.into()]
     });
+
+    // Shift/Rotation IOp
+    hpu_testcase!("SHIFT_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shr(ct[1] as u32)] );
+    hpu_testcase!("SHIFT_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shl(ct[1] as u32)] );
+    hpu_testcase!("ROT_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_right(ct[1] as u32)] );
+    hpu_testcase!("ROT_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_left(ct[1] as u32)] );
 
     // Bitwise IOp
     hpu_testcase!("BW_AND" => [u8, u16, u32, u64, u128]
@@ -366,6 +387,18 @@ mod hpu_test {
         "ovf_muls"
     ]);
 
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::8 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::8 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
+
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::8 => [
         "add",
@@ -379,6 +412,17 @@ mod hpu_test {
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::8 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::8 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -427,6 +471,18 @@ mod hpu_test {
         "ovf_muls"
     ]);
 
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::16 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::16 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
+
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::16 => [
         "add",
@@ -440,6 +496,17 @@ mod hpu_test {
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::16 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::16 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -488,6 +555,18 @@ mod hpu_test {
         "ovf_muls"
     ]);
 
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::32 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::32 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
+
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::32 => [
         "add",
@@ -501,6 +580,17 @@ mod hpu_test {
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::32 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::32 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -549,6 +639,18 @@ mod hpu_test {
         "ovf_muls"
     ]);
 
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::64 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::64 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
+
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::64 => [
         "add",
@@ -562,6 +664,17 @@ mod hpu_test {
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::64 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::64 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -610,6 +723,18 @@ mod hpu_test {
         "ovf_muls"
     ]);
 
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::128 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::128 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
+
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::128 => [
         "add",
@@ -623,6 +748,17 @@ mod hpu_test {
         "ovf_add",
         "ovf_sub",
         "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::128 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::128 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
