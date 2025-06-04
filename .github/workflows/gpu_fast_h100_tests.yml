@@ -140,7 +140,7 @@ jobs:
           github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
 
       - name: Install latest stable
-        uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1
+        uses: dtolnay/rust-toolchain@888c2e1ea69ab0d4330cbf0af1ecc7b68f368cc1 # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
 
