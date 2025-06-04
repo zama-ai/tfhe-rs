@@ -23,6 +23,8 @@ use crate::integer::bigint::{U1024, U2048, U512};
 use crate::integer::block_decomposition::DecomposableInto;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 use crate::integer::U256;
 use crate::prelude::{CastFrom, CastInto};
 use crate::FheBool;
@@ -30,6 +32,8 @@ use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
     Mul, MulAssign, RangeBounds, Rem, RemAssign, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
 };
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
 
 impl<Id, Clear> FheEq<Clear> for FheUint<Id>
 where
@@ -655,8 +659,29 @@ macro_rules! generic_integer_impl_scalar_div_rem {
                                     )
                                 }
                                 #[cfg(feature = "hpu")]
-                                InternalServerKey::Hpu(_device) => {
-                                    panic!("Hpu does not support this operation yet.")
+                                InternalServerKey::Hpu(device) => {
+                                    let hpu_lhs = self.ciphertext.on_hpu(device);
+
+                                    let (opcode, proto) = {
+                                        let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                        (
+                                            asm_iop.opcode(),
+                                            &asm_iop.format().expect("Unspecified IOP format").proto,
+                                        )
+                                    };
+                                    // These clones are cheap are they are just Arc
+                                    let mut hpu_result = HpuRadixCiphertext::exec(
+                                        proto,
+                                        opcode,
+                                        &[hpu_lhs.clone()],
+                                        &[u128::cast_from(rhs)],
+                                    );
+                                    let remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                                    let quotient = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                                    (
+                                        FheUint::new(quotient, device.tag.clone()),
+                                        FheUint::new(remainder, device.tag.clone()),
+                                    )
                                 }
                             }
                         })
@@ -1693,8 +1718,26 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                                    let hpu_lhs = lhs.ciphertext.on_hpu(device);
+
+                                    let (opcode, proto) = {
+                                        let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                        (
+                                            asm_iop.opcode(),
+                                            &asm_iop.format().expect("Unspecified IOP format").proto,
+                                        )
+                                    };
+                                    // These clones are cheap are they are just Arc
+                                    let mut hpu_result = HpuRadixCiphertext::exec(
+                                        proto,
+                                        opcode,
+                                        &[hpu_lhs.clone()],
+                                        &[u128::cast_from(rhs)],
+                                    );
+                                    let _remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                                    let quotient = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                                    RadixCiphertext::Hpu(quotient)
                         }
                     })
                 }
@@ -1752,8 +1795,25 @@ macro_rules! define_scalar_ops {
                             RadixCiphertext::Cuda(inner_result)
                         }
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let hpu_lhs = lhs.ciphertext.on_hpu(device);
+
+                            let (opcode, proto) = {
+                                let asm_iop = &hpu_asm::iop::IOP_MODS;
+                                (
+                                    asm_iop.opcode(),
+                                    &asm_iop.format().expect("Unspecified IOP format").proto,
+                                )
+                            };
+                            // These clones are cheap are they are just Arc
+                            let mut hpu_result = HpuRadixCiphertext::exec(
+                                proto,
+                                opcode,
+                                &[hpu_lhs.clone()],
+                                &[u128::cast_from(rhs)],
+                            );
+                            let remainder = hpu_result.pop().expect("IOP_MODS must return 1 value");
+                                RadixCiphertext::Hpu(remainder)
                         }
                     })
                 }
@@ -2247,8 +2307,26 @@ macro_rules! define_scalar_ops {
                             *cuda_lhs = cuda_result;
                         },
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
+
+                            let (opcode, proto) = {
+                                let asm_iop = &hpu_asm::iop::IOP_DIVS;
+                                (
+                                    asm_iop.opcode(),
+                                    &asm_iop.format().expect("Unspecified IOP format").proto,
+                                )
+                            };
+                            // These clones are cheap are they are just Arc
+                            let mut hpu_result = HpuRadixCiphertext::exec(
+                                proto,
+                                opcode,
+                                &[hpu_lhs.clone()],
+                                &[u128::cast_from(rhs)],
+                            );
+                            let _remainder = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                            let quotient = hpu_result.pop().expect("IOP_DIVS must return 2 value");
+                            *hpu_lhs = quotient;
                         }
                     })
                 }
@@ -2277,8 +2355,23 @@ macro_rules! define_scalar_ops {
                             *cuda_lhs = cuda_result;
                         },
                         #[cfg(feature = "hpu")]
-                        InternalServerKey::Hpu(_device) => {
-                            panic!("Hpu does not support this operation yet.")
+                        InternalServerKey::Hpu(device) => {
+                            let hpu_lhs = lhs.ciphertext.as_hpu_mut(device);
+
+                            let (opcode, proto) = {
+                                let asm_iop = &hpu_asm::iop::IOP_MODS;
+                                (
+                                    asm_iop.opcode(),
+                                    &asm_iop.format().expect("Unspecified IOP format").proto,
+                                )
+                            };
+                            // These clones are cheap are they are just Arc
+                            HpuRadixCiphertext::exec_assign(
+                                proto,
+                                opcode,
+                                &[hpu_lhs.clone()],
+                                &[u128::cast_from(rhs)],
+                            );
                         }
                     })
                 }
