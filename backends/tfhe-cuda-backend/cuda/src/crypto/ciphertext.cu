@@ -154,3 +154,17 @@ void cuda_modulus_switch_multi_bit_64(void *stream, uint32_t gpu_index,
       static_cast<uint64_t *>(lwe_array_in), size, log_modulus, degree,
       grouping_factor);
 }
+
+void cuda_modulus_switch_multi_bit_128(void *stream, uint32_t gpu_index,
+  void *lwe_array_out, void *lwe_array_in,
+  uint32_t size, uint32_t log_modulus,
+  uint32_t degree,
+  uint32_t grouping_factor) {
+
+host_modulus_switch_multi_bit<__uint128_t>(
+static_cast<cudaStream_t>(stream), gpu_index,
+static_cast<__uint128_t *>(lwe_array_out),
+static_cast<__uint128_t *>(lwe_array_in), size, log_modulus, degree,
+grouping_factor);
+}
+
