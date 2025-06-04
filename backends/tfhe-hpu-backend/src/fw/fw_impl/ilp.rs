@@ -753,8 +753,7 @@ enum CondPos {
 // Comupute inner-shift
 // input:
 // * src: clean ciphertext with only message
-// * amount: ciphertext encoding amount to Shift/Rotate.
-//           Only Lsb of msg will be considered
+// * amount: ciphertext encoding amount to Shift/Rotate. Only Lsb of msg will be considered
 // output:
 //  Tuple of msg and msg_next.
 //   msg_next is the contribution of next ct block in the shift direction
