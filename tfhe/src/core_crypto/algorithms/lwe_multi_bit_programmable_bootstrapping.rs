@@ -67,11 +67,10 @@ pub trait MultiBitModulusSwitchedCt: Sync {
 }
 
 pub struct StandardMultiBitModulusSwitchedCt<
-    'a,
     Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
     C: Container<Element = Scalar> + Sync,
 > {
-    pub input: &'a LweCiphertext<C>,
+    pub input: LweCiphertext<C>,
     pub grouping_factor: LweBskGroupingFactor,
     pub log_modulus: CiphertextModulusLog,
 }
@@ -79,7 +78,7 @@ pub struct StandardMultiBitModulusSwitchedCt<
 impl<
         Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
         C: Container<Element = Scalar> + Sync,
-    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<'_, Scalar, C>
+    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<Scalar, C>
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()
@@ -333,7 +332,7 @@ pub fn multi_bit_blind_rotate_assign<InputScalar, InputCont, OutputScalar, Outpu
     let lut_poly_size = accumulator.polynomial_size();
 
     let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
-        input: &input.as_view(),
+        input: input.as_view(),
         grouping_factor,
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
@@ -1142,7 +1141,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
     let lut_poly_size = accumulator.polynomial_size();
 
     let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
-        input: &input.as_view(),
+        input: input.as_view(),
         grouping_factor,
         log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
     };
