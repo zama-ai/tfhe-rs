@@ -1,4 +1,5 @@
 #include "helper_profile.cuh"
+#include <stdint.h>
 
 uint32_t adler32(const unsigned char *data) {
   const uint32_t MOD_ADLER = 65521;
