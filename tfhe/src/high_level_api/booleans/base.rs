@@ -121,6 +121,15 @@ impl FheBool {
         self.ciphertext.move_to_device(device)
     }
 
+    /// Moves (in-place) the ciphertext to the device of the current
+    /// thread-local server key
+    ///
+    /// Does nothing if the ciphertext is already in the desired device
+    /// or if no server key is set
+    pub fn move_to_current_device(&mut self) {
+        self.ciphertext.move_to_device_of_server_key_if_set();
+    }
+
     pub fn into_raw_parts(mut self) -> crate::shortint::Ciphertext {
         self.ciphertext.move_to_device(Device::Cpu);
         match self.ciphertext {
