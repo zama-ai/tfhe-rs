@@ -2925,22 +2925,22 @@ pub(crate) fn mean_and_variance_check<Scalar: UnsignedInteger>(
 }
 
 #[derive(Clone, Copy, Debug)]
-enum PBS128InputBRParams {
+pub enum PBS128InputBRParams {
     Decompression { params: CompressionParameters },
     Compute,
 }
 
 #[derive(Clone, Copy, Debug)]
-struct PBS128Parameters {
-    input_lwe_dimension: LweDimension,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    glwe_noise_distribution: DynamicDistribution<u128>,
-    decomp_base_log: DecompositionBaseLog,
-    decomp_level_count: DecompositionLevelCount,
+pub struct PBS128Parameters {
+    pub input_lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub glwe_noise_distribution: DynamicDistribution<u128>,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
     // There was a doubt on the mantissa size, several experiments were conducted
-    mantissa_size: f64,
-    ciphertext_modulus: CoreCiphertextModulus<u128>,
+    pub mantissa_size: f64,
+    pub ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 // Mantissa 106
 // hat_N, hat_k, hat_l_bs, hat_b_bs  , big_pbs_glwe_bound
@@ -2956,7 +2956,7 @@ struct PBS128Parameters {
 // hat_N, hat_k, hat_l_bs, hat_b_bs , big_pbs_glwe_bound
 // 2048,      2,        3, 536870912, 30
 // hat_b_bs_log2 = 29
-const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
+pub const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
     input_lwe_dimension: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.lwe_dimension,
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),

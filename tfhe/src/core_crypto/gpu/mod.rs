@@ -690,6 +690,33 @@ pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_async<T: UnsignedInteger>
     );
 }
 
+
+/// # Safety
+///
+/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
+/// required
+#[allow(clippy::too_many_arguments)]
+pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_u128_async<T: UnsignedInteger>(
+    streams: &CudaStreams,
+    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_in: &mut CudaVec<T>,
+    log_modulus: u32,
+    polynomial_size: u32,
+    grouping_factor: u32,
+) {
+    cuda_modulus_switch_multi_bit_128(
+        streams.ptr[0],
+        streams.gpu_indexes[0].get(),
+        lwe_array_out.as_mut_c_ptr(0),
+        lwe_array_in.as_mut_c_ptr(0),
+        lwe_array_in.len() as u32,
+        log_modulus,
+        polynomial_size,
+        grouping_factor,
+    );
+}
+
+
 /// Addition of a vector of LWE ciphertexts
 ///
 /// # Safety

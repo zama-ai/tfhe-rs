@@ -42,6 +42,13 @@ void cuda_modulus_switch_multi_bit_64(void *stream, uint32_t gpu_index,
                                       uint32_t size, uint32_t log_modulus,
                                       uint32_t degree,
                                       uint32_t grouping_factor);
+
+void cuda_modulus_switch_multi_bit_128(void *stream, uint32_t gpu_index,
+void *lwe_array_out, void *lwe_array_in,
+uint32_t size, uint32_t log_modulus,
+uint32_t degree,
+uint32_t grouping_factor);
+
 }
 
 #endif
