@@ -47,6 +47,7 @@ pub mod seeded_lwe_multi_bit_bootstrap_key_decompression;
 pub mod seeded_lwe_packing_keyswitch_key_decompression;
 pub mod seeded_lwe_public_key_decompression;
 pub mod slice_algorithms;
+pub mod switch_modulus;
 
 #[cfg(test)]
 pub(crate) mod test;
@@ -94,3 +95,4 @@ pub use seeded_lwe_keyswitch_key_decompression::*;
 pub use seeded_lwe_multi_bit_bootstrap_key_decompression::*;
 pub use seeded_lwe_packing_keyswitch_key_decompression::*;
 pub use seeded_lwe_public_key_decompression::*;
+pub use switch_modulus::*;
