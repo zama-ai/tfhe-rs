@@ -7,14 +7,96 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::{
     lwe_ciphertext_plaintext_add_assign, CastFrom, CastInto, CiphertextModulus,
     CiphertextModulusLog, LweCiphertext, LweCiphertextOwned, LweSize, Plaintext, UnsignedInteger,
-    UnsignedTorus,
+    UnsignedTorus, *,
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::generate_lookup_table_no_encode;
+use itertools::Itertools;
 use tfhe_csprng::seeders::Seed;
+
+pub(crate) struct PrfSeededModulusSwitched {
+    mask: Vec<usize>,
+    body: usize,
+    log_modulus: CiphertextModulusLog,
+}
+
+impl ModulusSwitchedLweCiphertext<usize> for PrfSeededModulusSwitched {
+    fn log_modulus(&self) -> CiphertextModulusLog {
+        self.log_modulus
+    }
+
+    fn lwe_dimension(&self) -> LweDimension {
+        LweDimension(self.mask.len())
+    }
+
+    fn body(&self) -> usize {
+        self.body
+    }
+
+    fn mask(&self) -> impl Iterator<Item = usize> + '_ {
+        self.mask.iter().copied()
+    }
+}
+
+pub(crate) struct PrfMultiBitSeededModulusSwitched {
+    seeded_modulus_switched: PrfSeededModulusSwitched,
+    grouping_factor: LweBskGroupingFactor,
+}
+
+impl PrfMultiBitSeededModulusSwitched {
+    pub(crate) fn from_raw_parts(
+        seeded_modulus_switched: PrfSeededModulusSwitched,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> Self {
+        Self {
+            seeded_modulus_switched,
+            grouping_factor,
+        }
+    }
+}
+
+impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
+    fn lwe_dimension(&self) -> LweDimension {
+        LweSize(self.seeded_modulus_switched.mask.len()).to_lwe_dimension()
+    }
+
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
+    }
+
+    fn switched_modulus_input_lwe_body(&self) -> usize {
+        self.seeded_modulus_switched.body
+    }
+
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let grouping_factor = self.grouping_factor;
+
+        let lwe_mask_elements = &self.seeded_modulus_switched.mask
+            [index * grouping_factor.0..(index + 1) * grouping_factor.0];
+
+        let modulus = 1.checked_shl(self.seeded_modulus_switched.log_modulus.0);
+
+        (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
+            let mut monomial_degree = 0;
+            for (&mask_element, selection_bit) in lwe_mask_elements
+                .iter()
+                .zip_eq(selection_bit(grouping_factor, power_set_index))
+            {
+                monomial_degree = monomial_degree
+                    .wrapping_add(selection_bit.wrapping_mul(mask_element))
+                    % modulus;
+            }
+
+            monomial_degree
+        })
+    }
+}
 
 pub fn sha3_hash<Scalar>(values: &mut [Scalar], seed: Seed)
 where
