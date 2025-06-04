@@ -62,6 +62,10 @@ impl<Id: FheIntId> HlCompressible for FheInt<Id> {
                 let kind = DataKind::Signed(blocks.info.blocks.len());
                 messages.push((ToBeCompressed::Cuda(blocks), kind));
             }
+            #[cfg(feature = "hpu")]
+            crate::high_level_api::integers::unsigned::RadixCiphertext::Hpu(_) => {
+                panic!("HPU does not support compression");
+            }
         }
     }
 }
