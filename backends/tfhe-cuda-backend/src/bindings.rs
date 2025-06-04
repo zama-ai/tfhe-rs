@@ -86,6 +86,18 @@ unsafe extern "C" {
         grouping_factor: u32,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_modulus_switch_multi_bit_128(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *mut ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+        degree: u32,
+        grouping_factor: u32,
+    );
+}
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
@@ -1499,6 +1511,15 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+unsafe extern "C" {
+    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array: *mut CudaRadixCiphertextFFI,
+        scalar: u64,
+    );
+}
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
 pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
 pub type KS_TYPE = ffi::c_uint;
@@ -1564,15 +1585,6 @@ unsafe extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_small_scalar_multiplication_integer_64_inplace(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        lwe_array: *mut CudaRadixCiphertextFFI,
-        scalar: u64,
     );
 }
 unsafe extern "C" {
