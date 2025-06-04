@@ -2885,12 +2885,14 @@ mod tests {
             };
 
             let B_with_slack_squared = inf_norm_bound_to_euclidean_squared(B, d + k);
-            let B_with_slack = B_with_slack_squared.isqrt() as u64;
+            let B_with_slack = u64::try_from(B_with_slack_squared.isqrt()).unwrap();
 
-            let bound = match slack_mode {
+            let coeff_at_bound = match slack_mode {
                 // The slack is maximal, any term above B+slack should be refused
-                BoundTestSlackMode::Max => B_with_slack as i64,
+                BoundTestSlackMode::Max => i64::try_from(B_with_slack).unwrap(),
                 // The actual accepted bound depends on the content of the test vector
+                // To create a bound testcase, we have to modify the tested coeff such that the
+                // squared norm 2 of the noise vector is equal to B_with_slack_squared
                 BoundTestSlackMode::Avg => {
                     let e_sqr_norm = testcase
                         .e1
@@ -2899,24 +2901,27 @@ mod tests {
                         .map(|x| sqr(x.unsigned_abs()))
                         .sum::<u128>();
 
-                    let orig_value = match coeff_type {
+                    let orig_coeff = match coeff_type {
                         TestedCoeffType::E1 => testcase.e1[tested_idx],
                         TestedCoeffType::E2 => testcase.e2[tested_idx],
                     };
 
-                    let bound_squared =
-                        B_with_slack_squared - (e_sqr_norm - sqr(orig_value as u64));
-                    bound_squared.isqrt() as i64
+                    let sqr_norm_without_tested_coeff =
+                        Strict(e_sqr_norm) - Strict(sqr(orig_coeff.unsigned_abs()));
+                    let sqr_modified_coeff =
+                        Strict(B_with_slack_squared) - sqr_norm_without_tested_coeff;
+                    i64::try_from(sqr_modified_coeff.0.isqrt()).unwrap()
                 }
                 // There is no slack effect, any term above B should be refused
-                BoundTestSlackMode::Min => B as i64,
+                BoundTestSlackMode::Min => i64::try_from(B).unwrap(),
             };
 
-            let tested_term = bound + offset_type.offset();
+            // Depending on what we want to test, add -1, 0 or 1 to the coeff at the bound
+            let tested_coeff = coeff_at_bound + offset_type.offset();
 
             match coeff_type {
-                TestedCoeffType::E1 => testcase.e1[tested_idx] = tested_term,
-                TestedCoeffType::E2 => testcase.e2[tested_idx] = tested_term,
+                TestedCoeffType::E1 => testcase.e1[tested_idx] = tested_coeff,
+                TestedCoeffType::E2 => testcase.e2[tested_idx] = tested_coeff,
             };
 
             Self {
