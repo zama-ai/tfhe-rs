@@ -1,6 +1,6 @@
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
-use crate::shortint::{CarryModulus, MessageModulus};
+use crate::shortint::{CarryModulus, MaxNoiseLevel, MessageModulus};
 
 #[derive(Clone, Copy)]
 pub struct CudaBlockInfo {
