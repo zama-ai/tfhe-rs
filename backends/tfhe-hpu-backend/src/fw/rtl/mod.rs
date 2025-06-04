@@ -1616,10 +1616,22 @@ impl Rtl {
     }
 }
 
+impl Default for Rtl {
+    fn default() -> Self {
+        Rtl(Vec::new())
+    }
+}
+
 impl std::ops::Add<Rtl> for Rtl {
     type Output = Rtl;
     fn add(self, rhs: Rtl) -> Self::Output {
         self.into_iter().chain(rhs).collect::<Vec<_>>().into()
+    }
+}
+
+impl std::iter::Sum<Rtl> for Rtl {
+    fn sum<I: Iterator<Item = Rtl>>(iter: I) -> Self {
+        iter.fold(Rtl::default(), |acc, x| acc + x)
     }
 }
 

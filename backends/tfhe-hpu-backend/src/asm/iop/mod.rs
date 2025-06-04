@@ -176,6 +176,18 @@ pub const IOP_2CT_F_CT_SCALAR: ConstIOpProto<2, 1> = ConstIOpProto {
     imm: 1,
 };
 
+pub const SIMD_N: usize = 12; //TODO: We need to come up with a way to have this dynamic
+pub const IOP_NCT_F_2NCT: ConstIOpProto<{ 1 * SIMD_N }, { 2 * SIMD_N }> = ConstIOpProto {
+    dst: [VarMode::Native; 1 * SIMD_N],
+    src: [VarMode::Native; 2 * SIMD_N],
+    imm: 0,
+};
+pub const IOP_2NCT_F_3NCT: ConstIOpProto<{ 2 * SIMD_N }, { 3 * SIMD_N }> = ConstIOpProto {
+    dst: [VarMode::Native; 2 * SIMD_N],
+    src: [VarMode::Native; 3 * SIMD_N],
+    imm: 0,
+};
+
 use crate::iop;
 use arg::IOpFormat;
 use lazy_static::lazy_static;
@@ -227,4 +239,6 @@ iop!(
     [IOP_CT_F_CT -> "LEAD1", opcode::LEAD1],
     [IOP_CT_F_CT -> "TRAIL0", opcode::TRAIL0],
     [IOP_CT_F_CT -> "TRAIL1", opcode::TRAIL1],
+    [IOP_NCT_F_2NCT -> "ADD_SIMD", opcode::ADD_SIMD],
+    [IOP_2NCT_F_3NCT -> "ERC_20_SIMD", opcode::ERC_20_SIMD],
 );
