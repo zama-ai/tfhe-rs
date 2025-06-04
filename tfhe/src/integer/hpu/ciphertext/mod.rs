@@ -231,6 +231,8 @@ map_ct_ct!(IOP_MUL  -> "Mul");
 // NB: Couldn't be directly mapped since return Div/Rem at once
 // map_ct_ct!(IOP_DIV -> "Div");
 map_ct_ct!(IOP_MOD -> "Rem");
+map_ct_ct!(IOP_SHIFT_L -> "Shl");
+map_ct_ct!(IOP_SHIFT_R -> "Shr");
 map_ct_ct!(IOP_BW_AND -> "BitAnd");
 map_ct_ct!(IOP_BW_OR  -> "BitOr");
 map_ct_ct!(IOP_BW_XOR -> "BitXor");

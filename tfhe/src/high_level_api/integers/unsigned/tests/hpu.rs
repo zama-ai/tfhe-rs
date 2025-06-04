@@ -93,3 +93,14 @@ fn test_case_uint32_div_rem_hpu() {
     let client_key = setup_default_hpu();
     super::test_case_uint32_div_rem(&client_key);
 }
+
+#[test]
+fn test_uint32_shift_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_uint32_shift(&client_key);
+}
+#[test]
+fn test_uint32_rotate_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_uint32_rotate(&client_key);
+}
