@@ -637,6 +637,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 )
             });
             let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> = res.blocks.iter().map(|b| b.degree.0).collect();
             // Determinism check
             let res_1 = unary_op_executor.execute(input);
             assert_eq!(
@@ -653,6 +654,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 clear_right_vec[j] = expected_res;
             }
 
+            println!("Input degrees: {input_degrees:?}, Output degrees {:?}", output_degrees);
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
@@ -680,6 +682,8 @@ pub(crate) fn random_op_sequence_test<P>(
             });
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
             // Determinism check
             let res_1 = scalar_binary_op_executor.execute((&left_vec[i], clear_right_vec[i]));
             assert_eq!(
@@ -696,6 +700,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 right_vec[j] = res.clone();
                 clear_right_vec[j] = expected_res;
             }
+            println!("Input degrees: {input_degrees_left:?}, Output degrees {:?}", output_degrees);
 
             // Correctness check
             assert_eq!(
@@ -741,6 +746,9 @@ pub(crate) fn random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, right {input_degrees_right:?}, Output degrees {:?}", output_degrees);
             let decrypted_res: u64 = cks.decrypt(&res);
             let decrypted_overflow = cks.decrypt_bool(&overflow);
             let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
@@ -790,6 +798,9 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees: {input_degrees_left:?}, Output degrees {:?}", output_degrees);
             // Determinism check
             let (res_1, overflow_1) =
                 scalar_overflowing_op_executor.execute((&left_vec[i], clear_right_vec[i]));
@@ -932,6 +943,9 @@ pub(crate) fn random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, Input degrees right: {input_degrees_right:?}, Output degrees {:?}", output_degrees);
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res = clear_fn(clear_bool, clear_left, clear_right);
 
@@ -993,6 +1007,11 @@ pub(crate) fn random_op_sequence_test<P>(
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let input_degrees_right: Vec<u64> =
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_q: Vec<u64> =
+                res_q.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_r: Vec<u64> =
+                res_r.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, Input degrees right: {input_degrees_right:?}, Output degrees q {:?}, Output degrees r {:?}", output_degrees_q, output_degrees_r);
             let decrypted_res_q: u64 = cks.decrypt(&res_q);
             let decrypted_res_r: u64 = cks.decrypt(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -1059,6 +1078,11 @@ pub(crate) fn random_op_sequence_test<P>(
             );
             let input_degrees_left: Vec<u64> =
                 left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_r: Vec<u64> =
+                res_r.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees_q: Vec<u64> =
+                res_q.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees left: {input_degrees_left:?}, Output degrees q {:?}, Output degrees r {:?}", output_degrees_q, output_degrees_r);
             let decrypted_res_q: u64 = cks.decrypt(&res_q);
             let decrypted_res_r: u64 = cks.decrypt(&res_r);
             let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
@@ -1117,6 +1141,9 @@ pub(crate) fn random_op_sequence_test<P>(
                 "Determinism check failed on op {fn_name} with clear input {clear_input}.",
             );
             let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
+            let output_degrees: Vec<u64> =
+                res.blocks.iter().map(|b| b.degree.0).collect();
+            println!("Input degrees: {input_degrees:?}, Output degrees {:?}", output_degrees);
             let cast_res = sks.cast_to_unsigned(res, NB_CTXT_LONG_RUN);
             let decrypted_res: u64 = cks.decrypt(&cast_res);
             let expected_res = clear_fn(clear_input);
