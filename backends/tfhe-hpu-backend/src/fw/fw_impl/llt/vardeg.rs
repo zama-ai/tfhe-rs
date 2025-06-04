@@ -109,7 +109,7 @@ impl VecVarCellDeg {
         mut self,
         max_deg: &VarDeg,
     ) -> <Vec<Vec<VarCellDeg>> as IntoIterator>::IntoIter {
-        trace!(target: "ilp:deg_chunks", "len: {:?}, {:?}", self.len(), self.0);
+        trace!(target: "llt:deg_chunks", "len: {:?}, {:?}", self.len(), self.0);
 
         let mut res: Vec<Vec<VarCellDeg>> = Vec::new();
         let mut acc: VarDeg = VarDeg::default();
@@ -130,14 +130,16 @@ impl VecVarCellDeg {
                 acc = VarDeg::default();
                 chunk = Vec::new();
             }
-            trace!(target: "ilp:deg_chunks:loop", "len: {:?}, {:?}, chunk: {:?},
-                acc: {:?}", self.len(), self.0, chunk, acc);
+            trace!(target: "llt:deg_chunks:loop", "len: {:?}, {:?}, chunk: {:?}, acc: {:?}",
+                self.len(), self.0, chunk, acc);
         }
 
         // Any remaining chunk is appended
         if !chunk.is_empty() {
             res.push(chunk);
         }
+
+        trace!(target: "llt:deg_chunks:ret", "res: {:?}", res);
 
         res.into_iter()
     }
