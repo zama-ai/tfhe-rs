@@ -84,7 +84,7 @@ fn assert_ms_multi_bit_compression<
     grouping_factor: LweBskGroupingFactor,
 ) {
     let a = StandardMultiBitModulusSwitchedCt {
-        input: ct,
+        input: ct.as_view(),
         grouping_factor,
         log_modulus,
     };
