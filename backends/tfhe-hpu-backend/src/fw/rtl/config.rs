@@ -12,6 +12,8 @@ pub struct OpCfg {
     pub flush: bool,
     /// Whether to use latency tiers when scheduling
     pub use_tiers: bool,
+    /// Whether to use a massively parallel implementation
+    pub parallel: Option<bool>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]

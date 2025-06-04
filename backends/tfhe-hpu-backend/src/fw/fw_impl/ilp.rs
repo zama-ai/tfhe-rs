@@ -72,6 +72,9 @@ crate::impl_fw!("Ilp" [
     LEAD1  => fw_impl::ilp_log::iop_lead1;
     TRAIL0 => fw_impl::ilp_log::iop_trail0;
     TRAIL1 => fw_impl::ilp_log::iop_trail1;
+    // SIMD Implementations
+    ADD_SIMD     => fw_impl::llt::iop_add_simd;
+    ERC_20_SIMD  => fw_impl::llt::iop_erc_20_simd;
 ]);
 
 #[instrument(level = "trace", skip(prog))]
