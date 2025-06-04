@@ -44,6 +44,7 @@ use crate::core_crypto::prelude::test::{round_decode, TestResources};
 use crate::integer::tests::create_parameterized_test;
 use crate::shortint::ciphertext::NoiseLevel;
 
+use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::list_compression::CompressionPrivateKeys;
 
 use crate::shortint::parameters::list_compression::CompressionParameters;
@@ -245,6 +246,15 @@ where
     let num_blocks = 1;
     // Generate the client key and the server key:
     let (single_radix_cks, single_sks) = gen_keys_radix_gpu(params, num_blocks, &my_streams);
+
+
+    let small_lwe_secret_key = match &single_radix_cks.as_ref().key.atomic_pattern {
+    AtomicPatternClientKey::Standard(ap_ck) => {
+        ap_ck.small_lwe_secret_key()
+    },
+    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
+        todo!(),
+    };
 
     // Variance after encryption
     let encryption_variance = match encryption_noise {
@@ -454,7 +464,7 @@ where
                         for val in after_ms.as_mut() {
                             *val <<= shift_to_map_to_native;
                         }
-                        decrypt_lwe_ciphertext(&cks.as_ref().key.small_lwe_secret_key(), &after_ms)
+                        decrypt_lwe_ciphertext(&small_lwe_secret_key, &after_ms)
                             .0
                     }
                     CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -462,7 +472,7 @@ where
                             *val <<= shift_to_map_to_native;
                         }
                         decrypt_multi_bit_lwe_ciphertext(
-                            &cks.as_ref().key.small_lwe_secret_key(),
+                            &small_lwe_secret_key,
                             output_ks_lwe_dimension,
                             d_multibit_bsk.grouping_factor,
                             &after_ms,
@@ -595,6 +605,14 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
         (single_cks, single_sks)
     };
 
+    let small_lwe_secret_key = match &cks.atomic_pattern {
+    AtomicPatternClientKey::Standard(ap_ck) => {
+        ap_ck.small_lwe_secret_key()
+    },
+    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
+        todo!(),
+    };
+
     let identity_lut = sks.generate_lookup_table(|x| x);
 
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
@@ -618,7 +636,7 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
         let ms_plaintext = Plaintext(msg * ms_delta);
 
         let simulated_mod_switch_ct = allocate_and_encrypt_new_lwe_ciphertext(
-            &cks.small_lwe_secret_key(),
+            &small_lwe_secret_key,
             ms_plaintext,
             no_noise_dist,
             ms_modulus,
@@ -814,7 +832,7 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
 
     let decryption_noise_after_ks = DecryptionAndNoiseResult::new(
         &after_ks_lwe,
-        &cks.small_lwe_secret_key(),
+        &small_lwe_secret_key,
         msg,
         delta,
         cleartext_modulus,
@@ -827,7 +845,7 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
             }
             DecryptionAndNoiseResult::new(
                 &after_ms_lwe,
-                &cks.small_lwe_secret_key(),
+                &small_lwe_secret_key,
                 msg,
                 delta,
                 cleartext_modulus,
@@ -840,7 +858,7 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
             let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
             DecryptionAndNoiseResult::new_multi_bit(
                 &after_ms_lwe,
-                &cks.small_lwe_secret_key(),
+                &small_lwe_secret_key,
                 msg,
                 delta,
                 cleartext_modulus,
@@ -943,6 +961,14 @@ where
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(params, num_blocks, &streams);
     let cks = radix_cks.as_ref();
+
+    let small_lwe_secret_key = match &cks.key.atomic_pattern {
+    AtomicPatternClientKey::Standard(ap_ck) => {
+        ap_ck.small_lwe_secret_key()
+    },
+    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
+        todo!(),
+    };
 
     let (
         input_pbs_lwe_dimension,
@@ -1162,7 +1188,7 @@ where
         0.0,
         expected_variance_after_ks,
         params.lwe_noise_distribution(),
-        cks.key.small_lwe_secret_key().lwe_dimension(),
+        small_lwe_secret_key.lwe_dimension(),
         modulus_as_f64,
     );
 
@@ -1172,7 +1198,7 @@ where
         0.0,
         expected_variance_after_ms,
         params.lwe_noise_distribution(),
-        cks.key.small_lwe_secret_key().lwe_dimension(),
+        small_lwe_secret_key.lwe_dimension(),
         modulus_as_f64,
     );
 
@@ -1443,6 +1469,13 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
                 single_decompression_key,
             )
         };
+    let small_lwe_secret_key = match &cks.atomic_pattern {
+    AtomicPatternClientKey::Standard(ap_ck) => {
+        ap_ck.small_lwe_secret_key()
+    },
+    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
+        todo!(),
+    };
     // We can only store values under message_modulus with the current compression scheme.
     let encryption_cleartext_modulus =
         block_params.message_modulus().0 * block_params.carry_modulus().0;
@@ -1508,7 +1541,7 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
             // Encrypt noiseless under 2N
             let encrypted_lwe_under_br_modulus = {
                 let under_br_modulus = allocate_and_encrypt_new_lwe_ciphertext(
-                    &cks.small_lwe_secret_key(),
+                    &small_lwe_secret_key,
                     Plaintext(msg * br_modulus_delta),
                     no_noise_distribution,
                     compute_br_input_modulus,
@@ -1828,7 +1861,7 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
         .map(|(lwe, ms_array)| match &sks.bootstrapping_key {
             CudaBootstrappingKey::Classic(_d_bsk) => DecryptionAndNoiseResult::new(
                 &lwe,
-                &cks.small_lwe_secret_key(),
+                &small_lwe_secret_key,
                 expected_msg,
                 decryption_delta,
                 decryption_cleartext_modulus,
@@ -1837,7 +1870,7 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
                 let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
                 DecryptionAndNoiseResult::new_multi_bit(
                     &lwe,
-                    &cks.small_lwe_secret_key(),
+                    &small_lwe_secret_key,
                     expected_msg,
                     decryption_delta,
                     decryption_cleartext_modulus,
@@ -1980,7 +2013,13 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
     // Generate the client key and the server key:
     let (radix_cks, sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
     let cks = radix_cks.as_ref();
-
+    let small_lwe_secret_key = match &cks.key.atomic_pattern {
+    AtomicPatternClientKey::Standard(ap_ck) => {
+        ap_ck.small_lwe_secret_key()
+    },
+    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
+        todo!(),
+    };
     let compression_private_key = cks.new_compression_private_key(compression_params);
     let (cuda_compression_key, cuda_decompression_key) =
         radix_cks.new_cuda_compression_decompression_keys(&compression_private_key, &streams);
@@ -2274,7 +2313,7 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
             .lwe_dimension(),
         modulus_as_f64,
     );
-    let lwe_dimension = cks.key.small_lwe_secret_key().lwe_dimension();
+    let lwe_dimension = small_lwe_secret_key.lwe_dimension();
     let after_ap_is_ok = mean_and_variance_check(
         &noise_samples_after_ap,
         "after_ap",
@@ -2420,7 +2459,7 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
     let (_measured_fails_after_compression, measured_fails_after_ap): (Vec<_>, Vec<_>) = (0
         ..runs_for_expected_fails)
         .into_iter()
-        .map(|index| {
+        .map(|_index| {
             let msg: u64 = rand::random::<u64>() % compression_cleartext_modulus;
             pbs_compress_and_classic_ap_pfail_helper_gpu(
                 block_params,
