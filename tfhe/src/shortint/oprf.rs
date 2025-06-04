@@ -16,6 +16,86 @@ use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::generate_lookup_table_no_encode;
 use tfhe_csprng::seeders::Seed;
 
+use crate::core_crypto::prelude::*;
+use itertools::Itertools;
+
+pub(crate) struct SeededModulusSwitched {
+    mask: Vec<usize>,
+    body: usize,
+    log_modulus: CiphertextModulusLog,
+}
+
+impl ModulusSwitchedCt<usize> for SeededModulusSwitched {
+    fn log_modulus(&self) -> CiphertextModulusLog {
+        self.log_modulus
+    }
+
+    fn lwe_dimension(&self) -> LweDimension {
+        LweDimension(self.mask.len())
+    }
+
+    fn body(&self) -> usize {
+        self.body
+    }
+
+    fn mask(&self) -> impl Iterator<Item = usize> + '_ {
+        self.mask.iter().copied()
+    }
+}
+
+pub(crate) struct MultiBitSeededModulusSwitched {
+    seeded_modulus_switched: SeededModulusSwitched,
+    grouping_factor: LweBskGroupingFactor,
+}
+
+impl MultiBitSeededModulusSwitched {
+    pub(crate) fn from_raw_parts(
+        seeded_modulus_switched: SeededModulusSwitched,
+        grouping_factor: LweBskGroupingFactor,
+    ) -> Self {
+        Self {
+            seeded_modulus_switched,
+            grouping_factor,
+        }
+    }
+}
+
+impl MultiBitModulusSwitchedCt for MultiBitSeededModulusSwitched {
+    fn lwe_dimension(&self) -> LweDimension {
+        LweSize(self.seeded_modulus_switched.mask.len()).to_lwe_dimension()
+    }
+
+    fn switched_modulus_input_lwe_body(&self) -> usize {
+        self.seeded_modulus_switched.body
+    }
+
+    fn switched_modulus_input_mask_per_group(
+        &self,
+        index: usize,
+    ) -> impl Iterator<Item = usize> + '_ {
+        let grouping_factor = self.grouping_factor;
+
+        let lwe_mask_elements = &self.seeded_modulus_switched.mask
+            [index * grouping_factor.0..(index + 1) * grouping_factor.0];
+
+        let modulus = 1 << self.seeded_modulus_switched.log_modulus.0;
+
+        (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
+            let mut monomial_degree = 0;
+            for (&mask_element, selection_bit) in lwe_mask_elements
+                .iter()
+                .zip_eq(selection_bit(grouping_factor, power_set_index))
+            {
+                monomial_degree = monomial_degree
+                    .wrapping_add(selection_bit.wrapping_mul(mask_element))
+                    % modulus;
+            }
+
+            monomial_degree
+        })
+    }
+}
+
 pub fn sha3_hash<Scalar>(values: &mut [Scalar], seed: Seed)
 where
     Scalar: UnsignedInteger,
