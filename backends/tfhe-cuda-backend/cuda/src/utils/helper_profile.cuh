@@ -1,6 +1,9 @@
 #ifndef HELPER_PROFILE
 #define HELPER_PROFILE
+
+#ifdef USE_NVTOOLS
 #include <nvToolsExt.h>
+#endif
 
 void cuda_nvtx_label_with_color(const char *name);
 void cuda_nvtx_pop();
