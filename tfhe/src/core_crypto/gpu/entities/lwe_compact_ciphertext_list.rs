@@ -4,7 +4,8 @@
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{CudaLweList, CudaStreams};
 use crate::core_crypto::prelude::{
-    lwe_compact_ciphertext_list_size, Container, LweCompactCiphertextList, UnsignedInteger,
+    lwe_compact_ciphertext_list_size, CiphertextModulus, Container, LweCiphertextCount,
+    LweCompactCiphertextList, LweDimension, UnsignedInteger,
 };
 
 pub struct CudaLweCompactCiphertextList<T: UnsignedInteger>(pub CudaLweList<T>);
@@ -12,6 +13,20 @@ pub struct CudaLweCompactCiphertextList<T: UnsignedInteger>(pub CudaLweList<T>);
 impl<T: UnsignedInteger> CudaLweCompactCiphertextList<T> {
     pub fn duplicate(&self, streams: &CudaStreams) -> Self {
         Self(self.0.duplicate(streams))
+    }
+
+    pub fn from_d_vec(
+        d_vec: CudaVec<T>,
+        lwe_ciphertext_count: LweCiphertextCount,
+        lwe_dimension: LweDimension,
+        ciphertext_modulus: CiphertextModulus<T>,
+    ) -> Self {
+        Self(CudaLweList {
+            d_vec,
+            lwe_ciphertext_count,
+            lwe_dimension,
+            ciphertext_modulus,
+        })
     }
 
     pub fn from_lwe_compact_ciphertext_list<C: Container<Element = T>>(

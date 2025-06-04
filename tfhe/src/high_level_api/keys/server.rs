@@ -309,6 +309,7 @@ impl CompressedServerKey {
                     destination_key: ksk_material.material.destination_key,
                 }
             });
+
         let compression_key: Option<
             crate::integer::gpu::list_compression::server_keys::CudaCompressionKey,
         > = self
