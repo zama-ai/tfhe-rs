@@ -421,6 +421,8 @@ pub mod pke_v2;
 mod test {
     #![allow(non_snake_case)]
     use std::fmt::Display;
+    use std::num::Wrapping;
+    use std::ops::Sub;
 
     use ark_ec::{short_weierstrass, CurveConfig};
     use ark_ff::UniformRand;
@@ -475,6 +477,17 @@ mod test {
         }
 
         c
+    }
+
+    /// Wrapper that panics on overflow even in release mode
+    pub(super) struct Strict<Num>(pub Num);
+
+    impl Sub for Strict<u128> {
+        type Output = Strict<u128>;
+
+        fn sub(self, rhs: Self) -> Self::Output {
+            Strict(self.0.checked_sub(rhs.0).unwrap())
+        }
     }
 
     /// Parameters needed for a PKE zk proof test
@@ -581,7 +594,13 @@ mod test {
 
             let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
 
-            let b = a.iter().zip(&self.s).map(|(ai, si)| ai * si).sum::<i64>() + e;
+            let b = a
+                .iter()
+                .zip(&self.s)
+                .map(|(ai, si)| Wrapping(ai * si))
+                .sum::<Wrapping<i64>>()
+                .0
+                + e;
 
             a.push(b);
             a
