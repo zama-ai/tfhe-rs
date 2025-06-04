@@ -340,6 +340,7 @@ pub fn iop_mulx(
     let pbs_carry = pbs_by_name!("CarryInMsg");
     let pbs_mul_lsb = pbs_by_name!("MultCarryMsgLsb");
     let pbs_mul_msb = pbs_by_name!("MultCarryMsgMsb");
+    let max_carry = (props.max_msg() * props.max_msg()) >> props.msg_w;
 
     let mut mul_map: HashMap<usize, Vec<VarCellDeg>> = HashMap::new();
     itertools::iproduct!(0..blk_w, 0..blk_w).for_each(|(i, j)| {
@@ -349,11 +350,11 @@ pub fn iop_mulx(
         mul_map
             .entry(i + j)
             .or_default()
-            .push(VarCellDeg::new(props.max_msg(), lsb));
+            .push(VarCellDeg::new(max_carry, lsb));
         mul_map
             .entry(i + j + 1)
             .or_default()
-            .push(VarCellDeg::new(props.max_msg(), msb));
+            .push(VarCellDeg::new(max_carry, msb));
     });
 
     for (blk, dst) in dst.iter_mut().enumerate() {
@@ -370,6 +371,8 @@ pub fn iop_mulx(
         };
 
         while to_sum.len() > 1 {
+            let prev_len = to_sum.len();
+
             to_sum = to_sum
                 .deg_chunks(&max_deg)
                 // Leveled Sum
@@ -405,7 +408,7 @@ pub fn iop_mulx(
             // This will be very unlikely, but if it ever happened it would have hanged
             // the whole loop. Also, the output needs to be bootstrapped,
             // anyway.
-            to_sum.0.iter().all(|x| x.deg.nu > 1).then(|| {
+            (to_sum.0.iter().all(|x| x.deg.nu > 1) || prev_len == to_sum.len()).then(|| {
                 let max = to_sum.max_mut().unwrap();
                 *max = bootstrap(max);
             });
