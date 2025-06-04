@@ -68,6 +68,36 @@ pub struct CompressedModulusSwitchedLweCiphertext<PackingScalar: UnsignedInteger
     uncompressed_ciphertext_modulus: CiphertextModulus<PackingScalar>,
 }
 
+pub trait ToCompressedModulusSwitchedLweCiphertext<SwitchedScalar> {
+    fn pack<PackingScalar>(&self) -> CompressedModulusSwitchedLweCiphertext<PackingScalar>
+    where
+        SwitchedScalar: CastInto<PackingScalar>,
+        PackingScalar: UnsignedInteger;
+}
+
+impl<T: ModulusSwitchedLweCiphertext<SwitchedScalar>, SwitchedScalar: UnsignedInteger>
+    ToCompressedModulusSwitchedLweCiphertext<SwitchedScalar> for T
+{
+    fn pack<PackingScalar>(&self) -> CompressedModulusSwitchedLweCiphertext<PackingScalar>
+    where
+        SwitchedScalar: CastInto<PackingScalar>,
+        PackingScalar: UnsignedInteger,
+    {
+        let log_modulus = self.log_modulus();
+
+        let container: Vec<SwitchedScalar> =
+            self.mask().chain(std::iter::once(self.body())).collect();
+
+        let packed_integers = PackedIntegers::pack(&container, log_modulus);
+
+        CompressedModulusSwitchedLweCiphertext::from_raw_parts(
+            packed_integers,
+            self.lwe_dimension(),
+            todo!(),
+        )
+    }
+}
+
 impl<PackingScalar: UnsignedInteger> CompressedModulusSwitchedLweCiphertext<PackingScalar> {
     pub(crate) fn from_raw_parts(
         packed_integers: PackedIntegers<PackingScalar>,
