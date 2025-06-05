@@ -8,7 +8,7 @@ use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::DefaultRandomGenerator;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-use crate::shortint::oprf::create_random_from_seed_modulus_switched;
+use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
 use crate::shortint::server_key::LookupTableOwned;
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
@@ -470,10 +470,12 @@ impl CudaServerKey {
             ),
         };
 
-        let seeded = create_random_from_seed_modulus_switched(
-            seed,
-            in_lwe_size,
-            polynomial_size.to_blind_rotation_input_modulus_log(),
+        let seeded = raw_seeded_msed_to_lwe(
+            &create_random_from_seed_modulus_switched::<u64>(
+                seed,
+                in_lwe_size,
+                polynomial_size.to_blind_rotation_input_modulus_log(),
+            ),
             self.ciphertext_modulus,
         );
 
@@ -569,7 +571,7 @@ pub(crate) mod test {
     use crate::integer::gpu::{gen_keys_gpu, CudaServerKey};
     use crate::integer::{ClientKey, RadixCiphertext};
     use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-    use crate::shortint::oprf::create_random_from_seed_modulus_switched;
+    use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
@@ -629,10 +631,12 @@ pub(crate) mod test {
             ),
         };
 
-        let ct = create_random_from_seed_modulus_switched(
-            seed,
-            lwe_size,
-            polynomial_size.to_blind_rotation_input_modulus_log(),
+        let ct = raw_seeded_msed_to_lwe(
+            &create_random_from_seed_modulus_switched::<u64>(
+                seed,
+                lwe_size,
+                polynomial_size.to_blind_rotation_input_modulus_log(),
+            ),
             sk.ciphertext_modulus,
         );
 
