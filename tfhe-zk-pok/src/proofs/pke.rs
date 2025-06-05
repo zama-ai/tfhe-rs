@@ -1336,7 +1336,7 @@ mod tests {
     use super::super::test::*;
     use super::*;
     use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use rand::{thread_rng, Rng, SeedableRng};
 
     type Curve = curve_api::Bls12_446;
 
@@ -1374,7 +1374,9 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
 
@@ -1550,7 +1552,9 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_bad_noise seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
 
@@ -1716,7 +1720,9 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_w_padding_fail_verify seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let mut testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
 
@@ -1778,7 +1784,9 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_bad_ct seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS_SINGLE);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS_SINGLE);
@@ -1901,7 +1909,9 @@ mod tests {
 
         let effective_cleartext_t = t >> msbs_zero_padding_bit_count;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_bad_delta seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let mut testcase_bad_delta = testcase.clone();
@@ -1944,7 +1954,9 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_proof_compression seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
@@ -1995,7 +2007,9 @@ mod tests {
             msbs_zero_padding_bit_count,
         } = PKEV1_TEST_PARAMS;
 
-        let rng = &mut StdRng::seed_from_u64(0);
+        let seed = thread_rng().gen();
+        println!("pke_proof_usable seed: {seed:x}");
+        let rng = &mut StdRng::seed_from_u64(seed);
 
         let testcase = PkeTestcase::gen(rng, PKEV1_TEST_PARAMS);
         let ct = testcase.encrypt(PKEV1_TEST_PARAMS);
