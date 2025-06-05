@@ -26,7 +26,10 @@ use tfhe_versionable::Versionize;
 #[cfg(feature = "hpu")]
 use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
 #[cfg(feature = "gpu")]
-use crate::prelude::IfThenElseSizeOnGpu;
+use crate::prelude::{
+    BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, FheEqSizeOnGpu,
+    IfThenElseSizeOnGpu,
+};
 #[cfg(feature = "hpu")]
 use tfhe_hpu_backend::prelude::*;
 
@@ -776,6 +779,75 @@ impl FheEq<bool> for FheBool {
     }
 }
 
+#[cfg(feature = "gpu")]
+impl<B> FheEqSizeOnGpu<B> for FheBool
+where
+    B: Borrow<Self>,
+{
+    fn get_eq_size_on_gpu(&self, rhs: B) -> u64 {
+        let rhs = rhs.borrow();
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_eq_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+    fn get_ne_size_on_gpu(&self, rhs: B) -> u64 {
+        let rhs = rhs.borrow();
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_ne_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl FheEqSizeOnGpu<bool> for FheBool {
+    fn get_eq_size_on_gpu(&self, _rhs: bool) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_eq_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+    fn get_ne_size_on_gpu(&self, _rhs: bool) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_ne_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+}
+
 impl<B> BitAnd<B> for FheBool
 where
     B: Borrow<Self>,
@@ -858,6 +930,46 @@ where
             }
         });
         FheBool::new(ciphertext, tag)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<B> BitAndSizeOnGpu<B> for FheBool
+where
+    B: Borrow<Self>,
+{
+    fn get_bitand_size_on_gpu(&self, rhs: B) -> u64 {
+        let rhs = rhs.borrow();
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitand_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl BitAndSizeOnGpu<bool> for FheBool {
+    fn get_bitand_size_on_gpu(&self, _rhs: bool) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_bitand_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
     }
 }
 
@@ -950,6 +1062,46 @@ where
     }
 }
 
+#[cfg(feature = "gpu")]
+impl<B> BitOrSizeOnGpu<B> for FheBool
+where
+    B: Borrow<Self>,
+{
+    fn get_bitor_size_on_gpu(&self, rhs: B) -> u64 {
+        let rhs = rhs.borrow();
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl BitOrSizeOnGpu<bool> for FheBool {
+    fn get_bitor_size_on_gpu(&self, _rhs: bool) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_bitor_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+}
+
 impl<B> BitXor<B> for FheBool
 where
     B: Borrow<Self>,
@@ -1036,6 +1188,46 @@ where
             }
         });
         FheBool::new(ciphertext, tag)
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<B> BitXorSizeOnGpu<B> for FheBool
+where
+    B: Borrow<Self>,
+{
+    fn get_bitxor_size_on_gpu(&self, rhs: B) -> u64 {
+        let rhs = rhs.borrow();
+
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key.key.key.get_bitxor_size_on_gpu(
+                    &*self.ciphertext.on_gpu(streams),
+                    &rhs.ciphertext.on_gpu(streams),
+                    streams,
+                )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl BitXorSizeOnGpu<bool> for FheBool {
+    fn get_bitxor_size_on_gpu(&self, _rhs: bool) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_bitxor_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
     }
 }
 
@@ -1818,6 +2010,23 @@ where
                     &*ct_else.ciphertext.on_gpu(streams),
                     streams,
                 )
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl BitNotSizeOnGpu for FheBool {
+    fn get_bitnot_size_on_gpu(&self) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_bitnot_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }
