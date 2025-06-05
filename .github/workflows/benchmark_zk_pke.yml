@@ -92,10 +92,8 @@ jobs:
 
       - name: Set benchmark types output
         id: set_bench_type
-        run: |
-          echo "bench_type=${BENCH_TYPE_OUTPUT}" >> "${GITHUB_OUTPUT}"
-        env:
-          BENCH_TYPE_OUTPUT: ${{ toJSON(env.BENCH_TYPE) }}
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: Setup instance (pke-zk-benchmarks)
