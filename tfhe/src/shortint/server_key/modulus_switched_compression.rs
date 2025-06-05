@@ -1,5 +1,13 @@
+use super::{
+    extract_lwe_sample_from_glwe_ciphertext, multi_bit_deterministic_blind_rotate_assign,
+    GlweCiphertext, ShortintBootstrappingKey,
+};
+use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext, ComputationBuffers, MonomialDegree,
+    blind_rotate_assign, lwe_ciphertext_modulus_switch, CastFrom, CastInto,
+    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, LweCiphertext,
+    LweCiphertextMutView, LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext,
+    UnsignedInteger, UnsignedTorus,
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
@@ -7,14 +15,6 @@ use crate::shortint::ciphertext::{
 };
 use crate::shortint::server_key::{GenericServerKey, LookupTableOwned};
 use crate::shortint::Ciphertext;
-
-use super::{
-    apply_modulus_switch_noise_reduction, apply_programmable_bootstrap_no_ms_noise_reduction,
-    multi_bit_deterministic_blind_rotate_assign, CastFrom, CastInto,
-    CompressedModulusSwitchedLweCiphertext, CompressedModulusSwitchedMultiBitLweCiphertext,
-    GlweCiphertext, LweCiphertextMutView, LweCiphertextView, ShortintBootstrappingKey,
-    UnsignedInteger, UnsignedTorus,
-};
 
 pub(crate) fn switch_modulus_and_compress<Scalar>(
     ciphertext: LweCiphertextView<Scalar>,
@@ -30,34 +30,36 @@ where
         } => {
             let log_modulus = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
 
-            let compressed = modulus_switch_noise_reduction_key.as_ref().map_or_else(
-                || CompressedModulusSwitchedLweCiphertext::compress(&ciphertext, log_modulus),
-                |modulus_switch_noise_reduction_key| {
-                    let input_improved_before_ms = apply_modulus_switch_noise_reduction(
-                        modulus_switch_noise_reduction_key,
-                        log_modulus,
-                        &ciphertext,
-                    );
+            let compressed = modulus_switch_noise_reduction_key
+                .as_ref()
+                .map_or_else(
+                    || {
+                        let ciphertext = LweCiphertext::from_container(
+                            ciphertext.as_ref().to_vec(),
+                            ciphertext.ciphertext_modulus(),
+                        );
 
-                    CompressedModulusSwitchedLweCiphertext::compress(
-                        &input_improved_before_ms,
-                        log_modulus,
-                    )
-                },
-            );
+                        lwe_ciphertext_modulus_switch::<_, u64, _>(ciphertext, log_modulus)
+                    },
+                    |modulus_switch_noise_reduction_key| {
+                        modulus_switch_noise_reduction_key
+                            .improve_noise_and_modulus_switch::<_, u64>(&ciphertext, log_modulus)
+                    },
+                )
+                .pack::<u64>();
 
             InternalCompressedModulusSwitchedCiphertext::Classic(compressed)
         }
         ShortintBootstrappingKey::MultiBit { fourier_bsk, .. } => {
-            InternalCompressedModulusSwitchedCiphertext::MultiBit(
-                CompressedModulusSwitchedMultiBitLweCiphertext::compress(
-                    &ciphertext,
-                    bootstrapping_key
-                        .polynomial_size()
-                        .to_blind_rotation_input_modulus_log(),
-                    fourier_bsk.grouping_factor(),
-                ),
-            )
+            let compressed = CompressedModulusSwitchedMultiBitLweCiphertext::compress(
+                &ciphertext,
+                bootstrapping_key
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log(),
+                fourier_bsk.grouping_factor(),
+            );
+
+            InternalCompressedModulusSwitchedCiphertext::MultiBit(compressed)
         }
     }
 }
@@ -69,11 +71,19 @@ pub(crate) fn decompress_and_apply_lookup_table<InputScalar, OutputScalar>(
     ciphertext_buffer: &mut LweCiphertextMutView<OutputScalar>,
     buffers: &mut ComputationBuffers,
 ) where
-    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + CastFrom<u64> + Sync,
+    InputScalar: UnsignedInteger + CastInto<usize> + CastFrom<usize> + CastFrom<u64> + Sync,
     OutputScalar: UnsignedTorus + CastFrom<usize>,
 {
+    let mut local_accumulator = GlweCiphertext::new(
+        OutputScalar::ZERO,
+        acc.glwe_size(),
+        acc.polynomial_size(),
+        acc.ciphertext_modulus(),
+    );
+    local_accumulator.as_mut().copy_from_slice(acc.as_ref());
+
     match &bootstrapping_key {
-        ShortintBootstrappingKey::Classic { .. } => {
+        ShortintBootstrappingKey::Classic { bsk, .. } => {
             let ct = match &compressed_ct.compressed_modulus_switched_lwe_ciphertext {
                 InternalCompressedModulusSwitchedCiphertext::Classic(a) => a.extract(),
                 InternalCompressedModulusSwitchedCiphertext::MultiBit(_) => {
@@ -83,13 +93,8 @@ cannot decompress with a Classic bootstrapping key"
                     )
                 }
             };
-            apply_programmable_bootstrap_no_ms_noise_reduction(
-                bootstrapping_key,
-                &ct,
-                ciphertext_buffer,
-                acc,
-                buffers,
-            );
+
+            blind_rotate_assign(&ct, &mut local_accumulator, bsk, buffers);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,
@@ -106,28 +111,20 @@ cannot decompress with a MultiBit bootstrapping key"
                 }
             };
 
-            let mut local_accumulator = GlweCiphertext::new(
-                OutputScalar::ZERO,
-                acc.glwe_size(),
-                acc.polynomial_size(),
-                acc.ciphertext_modulus(),
-            );
-            local_accumulator.as_mut().copy_from_slice(acc.as_ref());
-
             multi_bit_deterministic_blind_rotate_assign(
                 &ct,
                 &mut local_accumulator,
                 fourier_bsk,
                 *thread_count,
             );
-
-            extract_lwe_sample_from_glwe_ciphertext(
-                &local_accumulator,
-                ciphertext_buffer,
-                MonomialDegree(0),
-            );
         }
     }
+
+    extract_lwe_sample_from_glwe_ciphertext(
+        &local_accumulator,
+        ciphertext_buffer,
+        MonomialDegree(0),
+    );
 }
 
 impl<AP: AtomicPattern> GenericServerKey<AP> {
