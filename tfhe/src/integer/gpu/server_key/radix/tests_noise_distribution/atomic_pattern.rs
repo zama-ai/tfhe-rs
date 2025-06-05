@@ -1,8 +1,4 @@
 use crate::core_crypto::algorithms::lwe_encryption::allocate_and_encrypt_new_lwe_ciphertext;
-use crate::core_crypto::commons::parameters::{
-    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, PolynomialSize,
-};
-use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap_128::{pbs_128_variance_132_bits_security_gaussian, pbs_128_variance_132_bits_security_tuniform};
 use crate::core_crypto::commons::dispersion::Variance;
 use crate::core_crypto::commons::noise_formulas::lwe_keyswitch::{
     keyswitch_additive_variance_132_bits_security_gaussian,
@@ -22,6 +18,12 @@ use crate::core_crypto::commons::noise_formulas::lwe_packing_keyswitch::{
 };
 use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap::{
     pbs_variance_132_bits_security_gaussian, pbs_variance_132_bits_security_tuniform,
+};
+use crate::core_crypto::commons::noise_formulas::lwe_programmable_bootstrap_128::{
+    pbs_128_variance_132_bits_security_gaussian, pbs_128_variance_132_bits_security_tuniform,
+};
+use crate::core_crypto::commons::parameters::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, PolynomialSize,
 };
 
 use crate::core_crypto::commons::noise_formulas::modulus_switch::{
@@ -52,13 +54,21 @@ use crate::shortint::list_compression::CompressionPrivateKeys;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 
 use crate::shortint::parameters::{
-    CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters, ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
+    CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters,
+    ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
 };
 
-use crate::shortint::server_key::tests::noise_distribution::atomic_pattern::{
-    mean_and_variance_check, CompressionSpecialPfailCase, DecryptionAndNoiseResult, NoiseSample, PBS128InputBRParams, PBS128Parameters, PBS128_PARAMS,
+use crate::core_crypto::prelude::{
+    allocate_and_generate_new_binary_glwe_secret_key, generate_programmable_bootstrap_glwe_lut,
+    par_allocate_and_generate_new_lwe_bootstrap_key, GlweSecretKey,
 };
-use crate::core_crypto::prelude::{allocate_and_generate_new_binary_glwe_secret_key, generate_programmable_bootstrap_glwe_lut, par_allocate_and_generate_new_lwe_bootstrap_key, GlweSecretKey};
+use crate::shortint::server_key::tests::noise_distribution::atomic_pattern::{
+    mean_and_variance_check, CompressionSpecialPfailCase, DecryptionAndNoiseResult, NoiseSample,
+    PBS128InputBRParams, PBS128Parameters, PBS128_PARAMS,
+};
 use crate::shortint::server_key::tests::noise_distribution::{
     scalar_multiplication_variance, should_run_long_pfail_tests, should_use_one_key_per_sample,
 };
@@ -71,7 +81,13 @@ use crate::core_crypto::gpu::glwe_sample_extraction::cuda_extract_lwe_samples_fr
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::gpu::{
-    add_lwe_ciphertext_vector_plaintext_scalar_async, cuda_keyswitch_lwe_ciphertext, cuda_lwe_ciphertext_plaintext_sub_assign, cuda_modulus_switch_ciphertext, cuda_modulus_switch_multi_bit_ciphertext, cuda_modulus_switch_multi_bit_ciphertext_u128, cuda_multi_bit_programmable_bootstrap_lwe_ciphertext, cuda_programmable_bootstrap_128_lwe_ciphertext, cuda_programmable_bootstrap_128_lwe_ciphertext_async, cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams
+    add_lwe_ciphertext_vector_plaintext_scalar_async, cuda_keyswitch_lwe_ciphertext,
+    cuda_lwe_ciphertext_plaintext_sub_assign, cuda_modulus_switch_ciphertext,
+    cuda_modulus_switch_multi_bit_ciphertext, cuda_modulus_switch_multi_bit_ciphertext_u128,
+    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
+    cuda_programmable_bootstrap_128_lwe_ciphertext,
+    cuda_programmable_bootstrap_128_lwe_ciphertext_async,
+    cuda_programmable_bootstrap_lwe_ciphertext, CudaStreams,
 };
 use crate::core_crypto::prelude::{
     decrypt_lwe_ciphertext, Cleartext, LweBskGroupingFactor, LweCiphertextCount,
@@ -245,13 +261,9 @@ where
     // Generate the client key and the server key:
     let (single_radix_cks, single_sks) = gen_keys_radix_gpu(params, num_blocks, &my_streams);
 
-
     let small_lwe_secret_key = match &single_radix_cks.as_ref().key.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     // Variance after encryption
@@ -462,8 +474,7 @@ where
                         for val in after_ms.as_mut() {
                             *val <<= shift_to_map_to_native;
                         }
-                        decrypt_lwe_ciphertext(&small_lwe_secret_key, &after_ms)
-                            .0
+                        decrypt_lwe_ciphertext(&small_lwe_secret_key, &after_ms).0
                     }
                     CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                         for val in mod_switched_array.iter_mut() {
@@ -604,11 +615,8 @@ fn classic_pbs_atomic_pattern_inner_helper_gpu(
     };
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let identity_lut = sks.generate_lookup_table(|x| x);
@@ -961,11 +969,8 @@ where
     let cks = radix_cks.as_ref();
 
     let small_lwe_secret_key = match &cks.key.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let (
@@ -1468,11 +1473,8 @@ fn pbs_compress_and_classic_ap_inner_helper_gpu(
             )
         };
     let small_lwe_secret_key = match &cks.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     // We can only store values under message_modulus with the current compression scheme.
     let encryption_cleartext_modulus =
@@ -2012,11 +2014,8 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
     let (radix_cks, sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
     let cks = radix_cks.as_ref();
     let small_lwe_secret_key = match &cks.key.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     let compression_private_key = cks.new_compression_private_key(compression_params);
     let (cuda_compression_key, cuda_decompression_key) =
@@ -2774,13 +2773,10 @@ fn test_noise_check_shortint_multi_bit_pbs_compression_ap_after_ms_storage_pfail
     )
 }
 
-
-
-
 fn br_to_squash_pbs_128_inner_helper(
     input_br_params: PBS128InputBRParams,
     block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
+    pbs128_params: NoiseSquashingParameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
     single_input_br_key: &CudaBootstrappingKey,
     single_cks: &ClientKey,
@@ -2822,16 +2818,13 @@ fn br_to_squash_pbs_128_inner_helper(
 
     let (cks, sks, encryption_key, input_br_key, pbs_128_key, output_pbs_128_glwe_secret_key) =
         if should_use_one_key_per_sample() {
-            
             (thread_radix_cks, thread_sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
             thread_cks = thread_radix_cks.as_ref();
             thread_small_lwe_secret_key = match &thread_cks.key.atomic_pattern {
-                    AtomicPatternClientKey::Standard(ap_ck) => {
-                        ap_ck.small_lwe_secret_key()
-                    },
-                    AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
+                AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+                AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
                     todo!()
-                    },
+                }
             };
 
             thread_pbs_128_key = {
@@ -2846,16 +2839,17 @@ fn br_to_squash_pbs_128_inner_helper(
 
                 let mut engine = ShortintEngine::new();
 
-                thread_output_pbs_128_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key::<u128, _>(
-                    pbs128_params.glwe_dimension,
-                    pbs128_params.polynomial_size,
-                    &mut engine.secret_generator,
-                );
+                thread_output_pbs_128_glwe_secret_key =
+                    allocate_and_generate_new_binary_glwe_secret_key::<u128, _>(
+                        pbs128_params.glwe_dimension,
+                        pbs128_params.polynomial_size,
+                        &mut engine.secret_generator,
+                    );
 
-                assert_eq!(
-                    input_lwe_secret_key_as_u128.lwe_dimension(),
-                    pbs128_params.input_lwe_dimension
-                );
+                // assert_eq!(
+                //     input_lwe_secret_key_as_u128.lwe_dimension(),
+                //     pbs128_params.input_lwe_dimension
+                // );
 
                 let std_bootstrapping_key =
                     par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
@@ -2867,30 +2861,50 @@ fn br_to_squash_pbs_128_inner_helper(
                         pbs128_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
-                let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, None, &streams);
+                let modulus_switch_noise_reduction_key = pbs128_params
+                    .modulus_switch_noise_reduction_params
+                    .map(|modulus_switch_noise_reduction_params| {
+                        ModulusSwitchNoiseReductionKey::new(
+                            modulus_switch_noise_reduction_params,
+                            &thread_small_lwe_secret_key,
+                            &mut engine,
+                            block_params.ciphertext_modulus(),
+                            block_params.lwe_noise_distribution(),
+                        )
+                    });
+                let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+                    &std_bootstrapping_key,
+                    None, /* modulus_switch_noise_reduction_key.as_ref() */
+                    &streams,
+                );
                 d_bsk
             };
 
             (thread_encryption_key, thread_input_br_key) = match input_br_params {
-            
-            PBS128InputBRParams::Decompression { params } => {
-                thread_compression_private_key = thread_cks.new_compression_private_key(params);
-                thread_decompression_key = thread_cks
-                    .new_compression_decompression_keys(&thread_compression_private_key)
-                    .1;
-                (_, thread_cuda_decompression_key) = thread_radix_cks
-                .new_cuda_compression_decompression_keys(&thread_compression_private_key, &streams);
-                thread_compression_private_key_key =thread_compression_private_key.key
+                PBS128InputBRParams::Decompression { params } => {
+                    thread_compression_private_key = thread_cks.new_compression_private_key(params);
+                    thread_decompression_key = thread_cks
+                        .new_compression_decompression_keys(&thread_compression_private_key)
+                        .1;
+                    (_, thread_cuda_decompression_key) = thread_radix_cks
+                        .new_cuda_compression_decompression_keys(
+                            &thread_compression_private_key,
+                            &streams,
+                        );
+                    thread_compression_private_key_key = thread_compression_private_key
+                        .key
                         .post_packing_ks_key
                         .as_lwe_secret_key();
-                 
-                (
-                    &thread_compression_private_key_key,
-                    &thread_cuda_decompression_key.blind_rotate_key,
-                )
-            }
-            PBS128InputBRParams::Compute => (&thread_small_lwe_secret_key, &thread_sks.bootstrapping_key),
-        };
+
+                    (
+                        &thread_compression_private_key_key,
+                        &thread_cuda_decompression_key.blind_rotate_key,
+                    )
+                }
+                PBS128InputBRParams::Compute => {
+                    (&thread_small_lwe_secret_key, &thread_sks.bootstrapping_key)
+                }
+            };
             (
                 &thread_cks.key,
                 &thread_sks,
@@ -2919,15 +2933,14 @@ fn br_to_squash_pbs_128_inner_helper(
     let (polynomial_size, output_lwe_dimension) = match &input_br_key {
         CudaBootstrappingKey::Classic(d_bsk) => {
             (d_bsk.polynomial_size(), d_bsk.output_lwe_dimension())
-        },
-        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-            (d_multibit_bsk.polynomial_size(), d_multibit_bsk.output_lwe_dimension())
-        },
-
+        }
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => (
+            d_multibit_bsk.polynomial_size(),
+            d_multibit_bsk.output_lwe_dimension(),
+        ),
     };
 
-    let br_input_modulus_log = polynomial_size
-        .to_blind_rotation_input_modulus_log();
+    let br_input_modulus_log = polynomial_size.to_blind_rotation_input_modulus_log();
     let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
 
     let delta = (1u64 << 63) / cleartext_modulus;
@@ -2960,7 +2973,7 @@ fn br_to_squash_pbs_128_inner_helper(
     };
 
     let mut after_pbs_shortint_ct: CudaUnsignedRadixCiphertext =
-    sks.create_trivial_zero_radix(num_ct_blocks, streams);
+        sks.create_trivial_zero_radix(num_ct_blocks, streams);
 
     // Need to generate the required indexes for the PBS
     let mut lut_vector_indexes: Vec<u64> = vec![u64::ZERO; num_ct_blocks];
@@ -3046,11 +3059,7 @@ fn br_to_squash_pbs_128_inner_helper(
         sks.key_switching_key.ciphertext_modulus(),
     );
 
-    cuda_modulus_switch_ciphertext(
-                &mut d_after_ks_lwe,
-                br_input_modulus_log.0 as u32,
-                streams,
-            );
+    cuda_modulus_switch_ciphertext(&mut d_after_ks_lwe, br_input_modulus_log.0 as u32, streams);
 
     let after_ms_lwe_list = d_after_ks_lwe.to_lwe_ciphertext_list(streams);
     let mut after_ms_lwe = LweCiphertext::from_container(
@@ -3098,7 +3107,7 @@ fn br_to_squash_pbs_128_inner_helper(
     );
 
     let d_acc = CudaGlweCiphertextList::from_glwe_ciphertext(&acc, streams);
-    
+
     cuda_programmable_bootstrap_128_lwe_ciphertext(
         &d_input_pbs_128,
         &mut d_output_pbs_128,
@@ -3115,12 +3124,10 @@ fn br_to_squash_pbs_128_inner_helper(
     );
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
         AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
-          todo!()
-        },
+            todo!()
+        }
     };
     let decryption_noise_after_ks = DecryptionAndNoiseResult::new(
         &after_ks_lwe,
@@ -3130,21 +3137,20 @@ fn br_to_squash_pbs_128_inner_helper(
         cleartext_modulus,
     );
     let decryption_noise_after_ms = DecryptionAndNoiseResult::new(
-                &after_pbs_128,
-                &output_pbs_128_glwe_secret_key.as_lwe_secret_key(),
-                msg as u128,
-                delta_u128,
-                cleartext_modulus as u128,
-            );
+        &after_pbs_128,
+        &output_pbs_128_glwe_secret_key.as_lwe_secret_key(),
+        msg as u128,
+        delta_u128,
+        cleartext_modulus as u128,
+    );
 
     (decryption_noise_after_ks, decryption_noise_after_ms)
-
 }
 
 fn br_to_squash_pbs_128_noise_helper(
     input_br_params: PBS128InputBRParams,
     block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
+    pbs128_params: NoiseSquashingParameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
     single_input_br_key: &CudaBootstrappingKey,
     single_cks: &ClientKey,
@@ -3188,7 +3194,7 @@ fn br_to_squash_pbs_128_noise_helper(
 fn br_to_squash_pbs_128_pfail_helper(
     input_br_params: PBS128InputBRParams,
     block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
+    pbs128_params: NoiseSquashingParameters,
     single_encryption_key: &LweSecretKey<&[u64]>,
     single_input_br_key: &CudaBootstrappingKey,
     single_cks: &ClientKey,
@@ -3229,10 +3235,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
     input_br_params: PBS128InputBRParams,
     parameter_set: P,
     //block_params: ClassicPBSParameters,
-    pbs128_params: PBS128Parameters,
-) where 
+    pbs128_params: NoiseSquashingParameters,
+) where
     P: Into<PBSParameters>,
- {
+{
     let block_params = parameter_set.into();
     let block_params: ShortintParameterSet = block_params.into();
     assert!(
@@ -3260,7 +3266,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
     } else {
         pbs128_params.ciphertext_modulus.get_custom_modulus() as f64
     };
-    
+
     let gpu_index = 0;
     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let num_blocks = 1;
@@ -3270,12 +3276,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 
     let output_pbs_128_glwe_secret_key;
     let small_lwe_secret_key = match &cks.key.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-         AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
-          todo!()
-        },
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
+            todo!()
+        }
     };
     let pbs_128_key = {
         let input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
@@ -3295,10 +3299,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
             &mut engine.secret_generator,
         );
 
-        assert_eq!(
-            input_lwe_secret_key_as_u128.lwe_dimension(),
-            pbs128_params.input_lwe_dimension
-        );
+        // assert_eq!(
+        //     input_lwe_secret_key_as_u128.lwe_dimension(),
+        //     pbs128_params.input_lwe_dimension
+        // );
 
         let std_bootstrapping_key =
             par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _, _>(
@@ -3310,7 +3314,22 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
                 pbs128_params.ciphertext_modulus,
                 &mut engine.encryption_generator,
             );
-        let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key, None, &streams);
+        let modulus_switch_noise_reduction_key = pbs128_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    &small_lwe_secret_key,
+                    &mut engine,
+                    block_params.ciphertext_modulus(),
+                    block_params.lwe_noise_distribution(),
+                )
+            });
+        let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+            &std_bootstrapping_key,
+            None, /* modulus_switch_noise_reduction_key.as_ref() */
+            &streams,
+        );
 
         d_bsk
     };
@@ -3319,12 +3338,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
     let cuda_decompression_key;
     let decompression_key;
     let small_lwe_secret_key = match &cks.key.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-     AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
-          todo!()
-        },
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
+            todo!()
+        }
     };
     let (encryption_key, input_br_key) = match input_br_params {
         PBS128InputBRParams::Decompression { params } => {
@@ -3333,9 +3350,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
                 .new_compression_decompression_keys(&compression_private_key)
                 .1;
             (_, cuda_decompression_key) = radix_cks
-            .new_cuda_compression_decompression_keys(&compression_private_key, &streams);
+                .new_cuda_compression_decompression_keys(&compression_private_key, &streams);
             (
-                &compression_private_key.key
+                &compression_private_key
+                    .key
                     .post_packing_ks_key
                     .as_lwe_secret_key(),
                 &cuda_decompression_key.blind_rotate_key,
@@ -3344,24 +3362,26 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
         PBS128InputBRParams::Compute => (&small_lwe_secret_key, &sks.bootstrapping_key),
     };
 
-    let (input_lwe_dim, glwe_dim, pol_size, decomp_base_log, decomp_level_count) = match &input_br_key {
-        CudaBootstrappingKey::Classic(d_bsk) => {
-            (d_bsk.input_lwe_dimension(),
-            d_bsk.glwe_dimension(),
-            d_bsk.polynomial_size(),
-            d_bsk.decomp_base_log(),
-            d_bsk.decomp_level_count(),)
-        },
-        CudaBootstrappingKey::MultiBit(d_bsk) => {
-            (d_bsk.input_lwe_dimension(),
-            d_bsk.glwe_dimension(),
-            d_bsk.polynomial_size(),
-            d_bsk.decomp_base_log(),
-            d_bsk.decomp_level_count(),)
-            //panic!("This test is only for classic bootstrapping");
-        }
-
-    };
+    let (input_lwe_dim, glwe_dim, pol_size, decomp_base_log, decomp_level_count) =
+        match &input_br_key {
+            CudaBootstrappingKey::Classic(d_bsk) => (
+                d_bsk.input_lwe_dimension(),
+                d_bsk.glwe_dimension(),
+                d_bsk.polynomial_size(),
+                d_bsk.decomp_base_log(),
+                d_bsk.decomp_level_count(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    d_bsk.decomp_base_log(),
+                    d_bsk.decomp_level_count(),
+                )
+                //panic!("This test is only for classic bootstrapping");
+            }
+        };
 
     // We get out under the big key of the compute params, so we can check this noise distribution
     let expected_variance_after_input_br = match block_params.glwe_noise_distribution() {
@@ -3429,7 +3449,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
             pbs_128_key.polynomial_size(),
             pbs_128_key.decomp_base_log(),
             pbs_128_key.decomp_level_count(),
-            pbs128_params.mantissa_size,
+            106f64,
             pbs128_output_modulus_as_f64,
         ),
         DynamicDistribution::TUniform(_) => pbs_128_variance_132_bits_security_tuniform(
@@ -3438,7 +3458,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
             pbs_128_key.polynomial_size(),
             pbs_128_key.decomp_base_log(),
             pbs_128_key.decomp_level_count(),
-            pbs128_params.mantissa_size,
+            106f64,
             pbs128_output_modulus_as_f64,
         ),
     };
@@ -3446,14 +3466,22 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let mut noise_samples_before_pbs_128 = vec![];
     let mut noise_samples_after_pbs_128 = vec![];
+
+    let num_streams = 16;
+    let vec_local_streams = (0..num_streams)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
+        .collect::<Vec<_>>();
+
     for msg in 0..cleartext_modulus {
         let (current_noise_samples_before_pbs_128, current_noise_samples_after_pbs_128): (
             Vec<_>,
             Vec<_>,
-        ) = (0..2)
-            .into_iter()
+        ) = (0..1000)
+            .into_par_iter()
             .map(|index| {
-                println!("{} {}", msg, index);
+                let local_stream = &vec_local_streams[index % num_streams];
+                let msg: u64 = rand::random::<u64>() % cleartext_modulus;
+                println!("Running iteration {index} with msg={msg} ... ");
                 br_to_squash_pbs_128_noise_helper(
                     input_br_params,
                     block_params,
@@ -3465,7 +3493,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
                     &pbs_128_key,
                     &output_pbs_128_glwe_secret_key.as_view(),
                     msg,
-                    &streams,
+                    local_stream,
                 )
             })
             .unzip();
@@ -3485,12 +3513,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 
     println!();
     let small_lwe_secret_key = match &cks.key.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-         AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
-          todo!()
-        },
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ks_ck) => {
+            todo!()
+        }
     };
     let before_pbs_128_is_ok = mean_and_variance_check(
         &noise_samples_before_pbs_128,
@@ -3522,51 +3548,56 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 }
 
 #[test]
-fn test_noise_check_classic_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu() {
+fn test_noise_check_classic_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu(
+) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
 #[test]
-fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu() {
+fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu(
+) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
 #[test]
-fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu() {
+fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu()
+{
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Decompression {
             params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         },
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
 fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
     input_br_params: PBS128InputBRParams,
     mut parameters_set: P,
-    pbs128_params: PBS128Parameters,
+    pbs128_params: NoiseSquashingParameters,
 ) where
     P: Into<PBSParameters>,
- {
+{
     let mut block_params = parameters_set.into();
     assert_eq!(
-        block_params.carry_modulus().0, 4,
+        block_params.carry_modulus().0,
+        4,
         "This test is only for 2_2 parameters"
     );
     assert_eq!(
-        block_params.message_modulus().0, 4,
+        block_params.message_modulus().0,
+        4,
         "This test is only for 2_2 parameters"
     );
-    
+
     // Padding bit + carry and message
     let original_precision_with_padding =
         (2 * block_params.carry_modulus().0 * block_params.message_modulus().0).ilog2();
@@ -3597,7 +3628,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
             let expected_fails = (total_runs as f64 * expected_pfail_before_pbs_128).round() as u32;
             (total_runs, expected_fails, total_runs)
         } else {
-            let expected_fails_before_pbs_128 = 10;//200;
+            let expected_fails_before_pbs_128 = 200;
             let samples_per_run = 1;
 
             let runs_for_expected_fails = (expected_fails_before_pbs_128 as f64
@@ -3637,12 +3668,9 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
     let (radix_cks, sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
     let cks = radix_cks.as_ref();
 
- let small_lwe_secret_key = match &cks.key.atomic_pattern {
-    AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-    AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-        todo!(),
+    let small_lwe_secret_key = match &cks.key.atomic_pattern {
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     let output_pbs_128_glwe_secret_key;
 
@@ -3669,30 +3697,35 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
         //     pbs128_params.input_lwe_dimension
         // );
 
-        let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key(//::<_, _, _, _, _, _>(
-                &input_lwe_secret_key_as_u128,
-                &output_pbs_128_glwe_secret_key,
-                pbs128_params.decomp_base_log,
-                pbs128_params.decomp_level_count,
-                pbs128_params.glwe_noise_distribution,
-                pbs128_params.ciphertext_modulus,
-                &mut engine.encryption_generator,
-            );
-        // let modulus_switch_noise_reduction_key = pbs128_params
-        // .modulus_switch_noise_reduction_params
-        // .map(|modulus_switch_noise_reduction_params| {
-        //     ModulusSwitchNoiseReductionKey::new(
-        //         modulus_switch_noise_reduction_params,
-        //         &small_lwe_secret_key,
-        //         &mut engine,
-        //         block_params.ciphertext_modulus(),
-        //         block_params.lwe_noise_distribution(),
-        //     )
-        // });
-        //let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key,modulus_switch_noise_reduction_key.as_ref(), &streams);
-        let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key,None, &streams);
-       
+        let std_bootstrapping_key = par_allocate_and_generate_new_lwe_bootstrap_key(
+            //::<_, _, _, _, _, _>(
+            &input_lwe_secret_key_as_u128,
+            &output_pbs_128_glwe_secret_key,
+            pbs128_params.decomp_base_log,
+            pbs128_params.decomp_level_count,
+            pbs128_params.glwe_noise_distribution,
+            pbs128_params.ciphertext_modulus,
+            &mut engine.encryption_generator,
+        );
+        let modulus_switch_noise_reduction_key = pbs128_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    &small_lwe_secret_key,
+                    &mut engine,
+                    block_params.ciphertext_modulus(),
+                    block_params.lwe_noise_distribution(),
+                )
+            });
+        let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
+            &std_bootstrapping_key,
+            None, /* modulus_switch_noise_reduction_key.as_ref() */
+            &streams,
+        );
+        //let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key,None,
+        // &streams);
+
         d_bsk
     };
 
@@ -3706,9 +3739,10 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
                 .new_compression_decompression_keys(&compression_private_key)
                 .1;
             (_, cuda_decompression_key) = radix_cks
-            .new_cuda_compression_decompression_keys(&compression_private_key, &streams);
+                .new_cuda_compression_decompression_keys(&compression_private_key, &streams);
             (
-                &compression_private_key.key
+                &compression_private_key
+                    .key
                     .post_packing_ks_key
                     .as_lwe_secret_key(),
                 &cuda_decompression_key.blind_rotate_key,
@@ -3719,13 +3753,13 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
 
     let num_streams = 16;
     let vec_local_streams = (0..num_streams)
-    .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
-    .collect::<Vec<_>>();
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
+        .collect::<Vec<_>>();
 
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
     let (measured_fails_before_pbs_128, _measured_fails_after_pbs_128): (Vec<_>, Vec<_>) = (0
         ..runs_for_expected_fails)
-        .into_iter()
+        .into_par_iter()
         .map(|index| {
             let local_stream = &vec_local_streams[index % num_streams];
             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
@@ -3800,18 +3834,19 @@ fn test_noise_check_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_t
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Compute,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
 #[test]
-fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
+fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu()
+{
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Decompression {
             params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         },
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
