@@ -1,19 +1,12 @@
-use super::server_key::{
-    apply_programmable_bootstrap_no_ms_noise_reduction, GenericServerKey, LookupTableSize,
-    ShortintBootstrappingKey,
-};
+use super::server_key::{GenericServerKey, LookupTableSize, ShortintBootstrappingKey};
 use super::Ciphertext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
-use crate::core_crypto::prelude::{
-    lwe_ciphertext_plaintext_add_assign, CastFrom, CastInto, CiphertextModulus,
-    CiphertextModulusLog, LweCiphertext, LweCiphertextOwned, LweSize, Plaintext, UnsignedInteger,
-    UnsignedTorus, *,
-};
+use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
-use crate::shortint::server_key::generate_lookup_table_no_encode;
+use crate::shortint::server_key::{apply_standard_blind_rotate, generate_lookup_table_no_encode};
 use itertools::Itertools;
 use tfhe_csprng::seeders::Seed;
 
@@ -80,7 +73,9 @@ impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
         let lwe_mask_elements = &self.seeded_modulus_switched.mask
             [index * grouping_factor.0..(index + 1) * grouping_factor.0];
 
-        let modulus = 1.checked_shl(self.seeded_modulus_switched.log_modulus.0);
+        let modulus = 1_usize
+            .checked_shl(self.seeded_modulus_switched.log_modulus.0 as u32)
+            .unwrap();
 
         (1..grouping_factor.ggsw_per_multi_bit_element().0).map(move |power_set_index| {
             let mut monomial_degree = 0;
@@ -119,37 +114,42 @@ where
         *value = value.to_le();
     }
 }
-pub fn create_random_from_seed<Scalar>(
-    seed: Seed,
-    lwe_size: LweSize,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
-) -> LweCiphertext<Vec<Scalar>>
+pub fn create_random_from_seed<Scalar>(seed: Seed, lwe_size: LweSize) -> LweCiphertext<Vec<Scalar>>
 where
     Scalar: UnsignedInteger,
 {
-    let mut ct = LweCiphertext::new(Scalar::ZERO, lwe_size, ciphertext_modulus);
+    // We use a native CiphertextModulus because the hash fills all the bits
+    let mut ct = LweCiphertext::new(Scalar::ZERO, lwe_size, CiphertextModulus::new_native());
 
     sha3_hash(ct.get_mut_mask().as_mut(), seed);
 
     ct
 }
 
-pub fn create_random_from_seed_modulus_switched<Scalar>(
+pub(crate) fn create_random_from_seed_modulus_switched<Scalar>(
     seed: Seed,
     lwe_size: LweSize,
     log_modulus: CiphertextModulusLog,
-    ciphertext_modulus: CiphertextModulus<Scalar>,
-) -> LweCiphertext<Vec<Scalar>>
+) -> PrfSeededModulusSwitched
 where
-    Scalar: UnsignedInteger,
+    Scalar: UnsignedInteger + CastInto<usize>,
 {
-    let mut ct = create_random_from_seed(seed, lwe_size, ciphertext_modulus);
+    let ct = create_random_from_seed(seed, lwe_size);
 
-    for i in ct.as_mut() {
-        *i = modulus_switch(*i, log_modulus) << (Scalar::BITS - log_modulus.0);
+    let mask = ct
+        .get_mask()
+        .as_ref()
+        .iter()
+        .map(|a: &Scalar| modulus_switch(*a, log_modulus).cast_into())
+        .collect();
+
+    let body = modulus_switch(*ct.get_body().data, log_modulus).cast_into();
+
+    PrfSeededModulusSwitched {
+        mask,
+        body,
+        log_modulus,
     }
-
-    ct
 }
 
 /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`, using a PBS.
@@ -178,13 +178,11 @@ where
 
     let in_lwe_size = bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
-    let seeded = create_random_from_seed_modulus_switched(
+    let polynomial_size = bootstrapping_key.polynomial_size();
+    let seeded: PrfSeededModulusSwitched = create_random_from_seed_modulus_switched::<InputScalar>(
         seed,
         in_lwe_size,
-        bootstrapping_key
-            .polynomial_size()
-            .to_blind_rotation_input_modulus_log(),
-        CiphertextModulus::new_native(),
+        polynomial_size.to_blind_rotation_input_modulus_log(),
     );
 
     let p = 1 << random_bits_count;
@@ -192,12 +190,9 @@ where
 
     let delta = 1_u64 << (64 - full_bits_count);
 
-    let poly_delta = 2 * bootstrapping_key.polynomial_size().0 as u64 / p;
+    let poly_delta = 2 * polynomial_size.0 as u64 / p;
 
-    let lut_size = LookupTableSize::new(
-        bootstrapping_key.glwe_size(),
-        bootstrapping_key.polynomial_size(),
-    );
+    let lut_size = LookupTableSize::new(bootstrapping_key.glwe_size(), polynomial_size);
     let acc = generate_lookup_table_no_encode(lut_size, ciphertext_modulus, |x| {
         (2 * (x / poly_delta) + 1) * delta / 2
     });
@@ -206,17 +201,37 @@ where
 
     let mut ct = LweCiphertext::new(0, out_lwe_size, ciphertext_modulus);
 
-    ShortintEngine::with_thread_local_mut(|engine| {
-        let buffers = engine.get_computation_buffers();
+    let mut glwe_out = acc;
 
-        apply_programmable_bootstrap_no_ms_noise_reduction(
-            bootstrapping_key,
-            &seeded,
-            &mut ct,
-            &acc,
-            buffers,
-        );
-    });
+    match bootstrapping_key {
+        ShortintBootstrappingKey::Classic { bsk, .. } => {
+            ShortintEngine::with_thread_local_mut(|engine| {
+                let buffers = engine.get_computation_buffers();
+
+                apply_standard_blind_rotate(bsk, &seeded, &mut glwe_out, buffers);
+            });
+        }
+        ShortintBootstrappingKey::MultiBit {
+            fourier_bsk,
+            thread_count,
+            deterministic_execution,
+        } => {
+            let seeded_multi_bit = PrfMultiBitSeededModulusSwitched::from_raw_parts(
+                seeded,
+                fourier_bsk.grouping_factor(),
+            );
+
+            multi_bit_blind_rotate_assign(
+                &seeded_multi_bit,
+                &mut glwe_out,
+                fourier_bsk,
+                *thread_count,
+                *deterministic_execution,
+            );
+        }
+    }
+
+    extract_lwe_sample_from_glwe_ciphertext(&glwe_out, &mut ct, MonomialDegree(0));
 
     lwe_ciphertext_plaintext_add_assign(&mut ct, Plaintext(degree * delta / 2));
     (ct, Degree(degree))
@@ -289,12 +304,13 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use crate::core_crypto::prelude::{decrypt_lwe_ciphertext, LweSecretKeyView};
-    use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-    use crate::shortint::{ClientKey, ServerKey, ShortintParameterSet};
-
     use super::*;
-
+    use crate::core_crypto::prelude::{
+        decrypt_lwe_ciphertext, CastInto, LweSecretKeyView, ModulusSwitchedLweCiphertext,
+    };
+    use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
+    use crate::shortint::oprf::create_random_from_seed_modulus_switched;
+    use crate::shortint::{ClientKey, ServerKey, ShortintParameterSet};
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
@@ -377,20 +393,34 @@ pub(crate) mod test {
         params: ShortintParameterSet,
     ) -> u64
     where
-        Scalar: UnsignedInteger + CastFrom<u32> + CastInto<u64>,
+        Scalar: UnsignedInteger + CastFrom<usize> + CastInto<u64> + CastInto<usize>,
     {
         let lwe_size = params.lwe_dimension().to_lwe_size();
         let input_p = 2 * params.polynomial_size().0 as u64;
         let log_input_p = input_p.ilog2() as usize;
 
-        let ct = create_random_from_seed_modulus_switched(
+        let ciphertext_modulus = CiphertextModulus::new_native();
+
+        let seeded = create_random_from_seed_modulus_switched::<Scalar>(
             seed,
             lwe_size,
             params
                 .polynomial_size()
                 .to_blind_rotation_input_modulus_log(),
-            CiphertextModulus::new_native(),
         );
+
+        let log_modulus = seeded.log_modulus();
+
+        let container: Vec<Scalar> = seeded
+            .mask()
+            .chain(std::iter::once(seeded.body()))
+            .map(|i| {
+                let i: Scalar = i.cast_into();
+                i << (Scalar::BITS - log_modulus.0)
+            })
+            .collect();
+
+        let ct = LweCiphertext::from_container(container, ciphertext_modulus);
 
         CastInto::<u64>::cast_into(
             decrypt_lwe_ciphertext(sk, &ct)

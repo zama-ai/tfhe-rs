@@ -16,6 +16,7 @@ use crate::core_crypto::fft_impl::fft64::crypto::ggsw::{
     cmux_scratch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::{Fft, FftView};
+use crate::core_crypto::prelude::ModulusSwitchedLweCiphertext;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
 
@@ -47,6 +48,8 @@ use tfhe_fft::c64;
 /// let pbs_base_log = DecompositionBaseLog(23);
 /// let pbs_level = DecompositionLevelCount(1);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
+///
+/// let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -148,8 +151,11 @@ use tfhe_fft::c64;
 ///     big_lwe_sk.lwe_dimension().to_lwe_size(),
 ///     ciphertext_modulus,
 /// );
+///
+/// let lwe_ciphertext_in_msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
+///
 /// println!("Performing blind rotation...");
-/// blind_rotate_assign(&lwe_ciphertext_in, &mut accumulator, &fourier_bsk);
+/// blind_rotate_assign(&lwe_ciphertext_in_msed, &mut accumulator, &fourier_bsk);
 /// println!("Performing sample extraction...");
 /// extract_lwe_sample_from_glwe_ciphertext(
 ///     &accumulator,
@@ -177,31 +183,24 @@ use tfhe_fft::c64;
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn blind_rotate_assign<InputScalar, OutputScalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
+    msed_input: &impl ModulusSwitchedLweCiphertext<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
 ) where
-    // CastInto required for PBS modulus switch which returns a usize
-    InputScalar: UnsignedTorus + CastInto<usize>,
     OutputScalar: UnsignedTorus,
-    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert!(
-        input.ciphertext_modulus().is_power_of_two(),
-        "This operation requires the input to have a power of two modulus."
-    );
     assert!(
         lut.ciphertext_modulus().is_power_of_two(),
         "This operation requires the lut to have a power of two modulus."
     );
 
-    let mut buffers = ComputationBuffers::new();
-
     let fft = Fft::new(fourier_bsk.polynomial_size());
     let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
 
     buffers.resize(
         blind_rotate_assign_mem_optimized_requirement::<OutputScalar>(
@@ -215,43 +214,30 @@ pub fn blind_rotate_assign<InputScalar, OutputScalar, InputCont, OutputCont, Key
 
     let stack = buffers.stack();
 
-    blind_rotate_assign_mem_optimized(input, lut, fourier_bsk, fft, stack);
+    blind_rotate_assign_mem_optimized(msed_input, lut, fourier_bsk, fft, stack);
 }
 
 /// Memory optimized version of [`blind_rotate_assign`], the caller must provide
 /// a properly configured [`FftView`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of [`blind_rotate_assign_mem_optimized_requirement`].
-pub fn blind_rotate_assign_mem_optimized<
-    InputScalar,
-    OutputScalar,
-    InputCont,
-    OutputCont,
-    KeyCont,
->(
-    input: &LweCiphertext<InputCont>,
+pub fn blind_rotate_assign_mem_optimized<OutputScalar, OutputCont, KeyCont>(
+    msed_input: &impl ModulusSwitchedLweCiphertext<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
     fft: FftView<'_>,
     stack: &mut PodStack,
 ) where
-    // CastInto required for PBS modulus switch which returns a usize
-    InputScalar: UnsignedTorus + CastInto<usize>,
     OutputScalar: UnsignedTorus,
-    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = OutputScalar>,
     KeyCont: Container<Element = c64>,
 {
-    assert!(
-        input.ciphertext_modulus().is_power_of_two(),
-        "This operation requires the input to have a power of two modulus."
-    );
     assert!(
         lut.ciphertext_modulus().is_power_of_two(),
         "This operation requires the lut to have a power of two modulus."
     );
     assert_eq!(
-        input.lwe_size(),
-        fourier_bsk.input_lwe_dimension().to_lwe_size()
+        msed_input.lwe_dimension(),
+        fourier_bsk.input_lwe_dimension()
     );
     assert_eq!(lut.glwe_size(), fourier_bsk.glwe_size());
     assert_eq!(lut.polynomial_size(), fourier_bsk.polynomial_size());
@@ -260,7 +246,7 @@ pub fn blind_rotate_assign_mem_optimized<
     // modulus is not the native one
     fourier_bsk
         .as_view()
-        .blind_rotate_assign(lut.as_mut_view(), input.as_view(), fft, stack);
+        .blind_rotate_assign(lut.as_mut_view(), msed_input, fft, stack);
 }
 
 /// Return the required memory for [`blind_rotate_assign_mem_optimized`].
