@@ -3148,11 +3148,16 @@ mod hpu {
         iop_name: mul,
         display_name: mul
     );
+    define_hpu_bench_default_fn!(
+        iop_name: div,
+        display_name: div
+    );
     criterion_group!(
         default_hpu_ops,
         default_hpu_add,
         default_hpu_sub,
-        default_hpu_mul
+        default_hpu_mul,
+        default_hpu_div
     );
 
     // Alu Scalar -----------------------------------------------------------------
@@ -3172,12 +3177,68 @@ mod hpu {
         iop_name: muls,
         display_name: mul
     );
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: divs,
+        display_name: div
+    );
     criterion_group!(
         default_hpu_ops_scalar,
         default_hpu_adds,
         default_hpu_subs,
         //default_hpu_ssub,
-        default_hpu_muls
+        default_hpu_muls,
+        default_hpu_divs,
+        default_hpu_divs
+    );
+
+    // Shift/Rot -----------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: shift_r,
+        display_name: shift_right
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: shift_l,
+        display_name: shift_left
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: rot_r,
+        display_name: rotate_right
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: rot_l,
+        display_name: rotate_left
+    );
+    criterion_group!(
+        default_hpu_shiftrot,
+        default_hpu_shift_r,
+        default_hpu_shift_l,
+        default_hpu_rot_r,
+        default_hpu_rot_l
+    );
+
+    // Scalar Shift/Rot -----------------------------------------------------------
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: shifts_r,
+        display_name: shift_right
+    );
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: shifts_l,
+        display_name: shift_left
+    );
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: rots_r,
+        display_name: rotate_right
+    );
+    define_hpu_bench_default_fn_scalar!(
+        iop_name: rots_l,
+        display_name: rotate_left
+    );
+    criterion_group!(
+        default_hpu_shiftrot_scalar,
+        default_hpu_shifts_r,
+        default_hpu_shifts_l,
+        default_hpu_rots_r,
+        default_hpu_rots_l
     );
     // Bitwise --------------------------------------------------------------------
     define_hpu_bench_default_fn!(
@@ -3245,6 +3306,45 @@ mod hpu {
         default_hpu_select,
         default_hpu_if_then_else,
         default_hpu_if_then_zero,
+    );
+    // Bitcnt ---------------------------------------------------------------------
+    define_hpu_bench_default_fn!(
+        iop_name: trail0,
+        display_name: trailing_zeros
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: trail1,
+        display_name: trailing_ones
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: lead0,
+        display_name: leading_zeros
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: lead1,
+        display_name: leading_ones
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: count0,
+        display_name: count_zeros
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: count1,
+        display_name: count_ones
+    );
+    define_hpu_bench_default_fn!(
+        iop_name: ilog2,
+        display_name: ilog2
+    );
+    criterion_group!(
+        default_hpu_bitcnt,
+        default_hpu_trail0,
+        default_hpu_trail1,
+        default_hpu_lead0,
+        default_hpu_lead1,
+        default_hpu_count0,
+        default_hpu_count1,
+        default_hpu_ilog2,
     );
 }
 
