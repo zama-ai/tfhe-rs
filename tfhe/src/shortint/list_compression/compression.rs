@@ -1,7 +1,7 @@
 use super::{CompressionKey, DecompressionKey};
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    extract_lwe_sample_from_glwe_ciphertext,
+    blind_rotate_assign, extract_lwe_sample_from_glwe_ciphertext, lwe_ciphertext_modulus_switch,
     par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
     LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
 };
@@ -9,8 +9,8 @@ use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
-    apply_programmable_bootstrap_no_ms_noise_reduction, generate_lookup_table_with_output_encoding,
-    unchecked_scalar_mul_assign, LookupTableSize, ShortintBootstrappingKey,
+    generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableSize,
+    ShortintBootstrappingKey,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -197,6 +197,12 @@ impl DecompressionKey {
             monomial_degree,
         );
 
+        let intermediate_lwe = lwe_ciphertext_modulus_switch(
+            intermediate_lwe.as_view(),
+            self.out_polynomial_size()
+                .to_blind_rotation_input_modulus_log(),
+        );
+
         let mut output_br = LweCiphertext::new(
             0,
             self.blind_rotate_key.output_lwe_dimension().to_lwe_size(),
@@ -205,30 +211,32 @@ impl DecompressionKey {
 
         match &self.blind_rotate_key {
             ShortintBootstrappingKey::Classic {
-                bsk: _,
+                bsk,
                 modulus_switch_noise_reduction_key,
             } => {
                 assert!(
                     modulus_switch_noise_reduction_key.is_none(),
                     "Decompression key should not do modulus switch noise reduction"
                 );
+
+                ShortintEngine::with_thread_local_mut(|engine| {
+                    let buffers = engine.get_computation_buffers();
+
+                    let mut glwe_out = decompression_rescale.acc.clone();
+
+                    blind_rotate_assign(&intermediate_lwe, &mut glwe_out, bsk, buffers);
+
+                    extract_lwe_sample_from_glwe_ciphertext(
+                        &glwe_out,
+                        &mut output_br,
+                        MonomialDegree(0),
+                    );
+                });
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
                 panic!("Decompression can't use a multi bit PBS")
             }
         }
-
-        ShortintEngine::with_thread_local_mut(|engine| {
-            let buffers = engine.get_computation_buffers();
-
-            apply_programmable_bootstrap_no_ms_noise_reduction(
-                &self.blind_rotate_key,
-                &intermediate_lwe,
-                &mut output_br,
-                &decompression_rescale.acc,
-                buffers,
-            );
-        });
 
         Ok(Ciphertext::new(
             output_br,
