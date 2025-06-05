@@ -62,7 +62,7 @@ pub struct Args {
 
     /// Consider all received ciphertext as trivial ciphertext
     /// Execute Pbs in a trivial manner and display value in tracing::debug
-    /// Usefull for IOp algorithm debug
+    /// Useful for IOp algorithm debug
     /// WARN: Only work if user application send trivial ciphertext
     #[clap(long, value_parser)]
     trivial: bool,
