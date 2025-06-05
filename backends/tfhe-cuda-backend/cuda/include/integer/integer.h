@@ -400,8 +400,9 @@ uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
-    void *const *ksks,
+    CudaRadixCiphertextFFI *radix_lwe_vec,
+    bool reduce_degrees_for_single_carry_propagation, int8_t *mem_ptr,
+    void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key);
 
 void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
@@ -414,7 +415,8 @@ uint64_t scratch_cuda_integer_scalar_mul_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool allocate_ms_array);
+    PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool allocate_gpu_memory,
+    bool allocate_ms_array);
 
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -553,8 +555,8 @@ uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool anticipated_buffer_drop, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool anticipated_buffer_drop,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 
 void cuda_integer_radix_scalar_mul_high_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

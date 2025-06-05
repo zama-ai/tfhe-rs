@@ -1243,6 +1243,14 @@ impl CudaServerKey {
             .unwrap();
         let mut generates_or_propagates_degrees = vec![0; num_blocks];
         let mut generates_or_propagates_noise_levels = vec![0; num_blocks];
+        for (i, block_index) in (block_range.clone()).enumerate() {
+            generates_or_propagates_degrees[i] =
+                generates_or_propagates.info.blocks[block_index].degree.0;
+            generates_or_propagates_noise_levels[i] = generates_or_propagates.info.blocks
+                [block_index]
+                .noise_level
+                .0;
+        }
         let ct_modulus = output.d_blocks.ciphertext_modulus().raw_modulus_float();
         let mut output_slice = output
             .d_blocks
