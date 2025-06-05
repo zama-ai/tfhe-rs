@@ -791,7 +791,7 @@ fn inner_shift(
     (msg, msg_next)
 }
 
-// Conditionnal block swap
+// Conditional block swap
 // Based on cond/cond_mask select block A (true) or block B (false);
 fn block_swap(
     prog: &mut Program,
@@ -991,7 +991,7 @@ pub fn iop_shift_scalar_right(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amont-> Immediat
+    // Amount-> Immediat
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
@@ -1007,7 +1007,7 @@ pub fn iop_shift_scalar_left(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amont-> Immediat
+    // Amount-> Immediat
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
@@ -1023,7 +1023,7 @@ pub fn iop_rotate_scalar_right(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amont-> Immediat
+    // Amount-> Immediat
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header
@@ -1038,7 +1038,7 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
     let mut dst = prog.iop_template_var(OperandKind::Dst, 0);
     // Src -> Operand
     let src = prog.iop_template_var(OperandKind::Src, 0);
-    // Amont-> Immediat
+    // Amount-> Immediat
     let amount = prog.iop_template_var(OperandKind::Imm, 0);
 
     // Add Comment header

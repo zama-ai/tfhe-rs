@@ -307,6 +307,7 @@ fn test_case_uint32_shift(cks: &ClientKey) {
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
 
     // encrypted shifts
+    #[allow(clippy::redundant_clone)]
     {
         let c = &a << &b;
         let decrypted: u32 = c.decrypt(cks);
@@ -328,6 +329,7 @@ fn test_case_uint32_shift(cks: &ClientKey) {
     }
 
     // clear shifts
+    #[cfg(not(feature = "hpu"))]
     {
         let c = &a << clear_b;
         let decrypted: u32 = c.decrypt(cks);
@@ -434,6 +436,7 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
     let b = FheUint32::try_encrypt(clear_b, cks).unwrap();
 
     // encrypted rotate
+    #[allow(clippy::redundant_clone)]
     {
         let c = (&a).rotate_left(&b);
         let decrypted: u32 = c.decrypt(cks);

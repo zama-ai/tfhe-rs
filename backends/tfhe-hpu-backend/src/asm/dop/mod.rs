@@ -312,7 +312,7 @@ pbs!(
         // This corresponds to the accumulated propagation status
         // of 4 consecutive blocks.
         // !! The padding bit is used.
-        // +1 must be done after this PBS to retreive the propagation status value.
+        // +1 must be done after this PBS to retrieve the propagation status value.
         // 0_1111 => 0_0000 + 1 => 1 Propagate
         // 0_xxxx -> 1_1111 + 1 => 0 No carry
         // 1_xxxx -> 0_0001 + 1 => 2 Generate
