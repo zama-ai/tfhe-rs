@@ -368,6 +368,22 @@ mod hpu_test {
                 }
     });
 
+    // Bit count IOp
+    hpu_testcase!("COUNT0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].count_zeros()]);
+    hpu_testcase!("COUNT1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].count_ones()]);
+    hpu_testcase!("ILOG2" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].ilog2()]);
+    hpu_testcase!("LEAD0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].leading_zeros()]);
+    hpu_testcase!("LEAD1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].leading_ones()]);
+    hpu_testcase!("TRAIL0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].trailing_zeros()]);
+    hpu_testcase!("TRAIL1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].trailing_ones()]);
+
     // Define a set of test bundle for various size
     // 8bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
@@ -451,6 +467,17 @@ mod hpu_test {
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::8 => [
         "erc_20"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::8 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
     ]);
 
     // 16bit ciphertext -----------------------------------------
@@ -537,6 +564,17 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::16 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 32bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::32 => [
@@ -619,6 +657,17 @@ mod hpu_test {
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::32 => [
         "erc_20"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::32 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
     ]);
 
     // 64bit ciphertext -----------------------------------------
@@ -705,6 +754,17 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::64 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 128bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::128 => [
@@ -787,6 +847,17 @@ mod hpu_test {
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::128 => [
         "erc_20"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::128 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
     ]);
 
     /// Simple test dedicated to check entities conversion from/to Cpu

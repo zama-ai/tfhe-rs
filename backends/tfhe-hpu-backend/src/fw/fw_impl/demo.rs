@@ -36,6 +36,15 @@ crate::impl_fw!("Demo" [
     CMP_GT  => cmp_gt;
     CMP_GTE => cmp_gte;
     CMP_LT  => cmp_lt;
+
+    COUNT0 => fw_impl::ilp_log::iop_count0;
+    COUNT1 => fw_impl::ilp_log::iop_count1;
+    ILOG2 => fw_impl::ilp_log::iop_ilog2;
+    LEAD0 => fw_impl::ilp_log::iop_lead0;
+    LEAD1 => fw_impl::ilp_log::iop_lead1;
+    TRAIL0 => fw_impl::ilp_log::iop_trail0;
+    TRAIL1 => fw_impl::ilp_log::iop_trail1;
+
 ]);
 
 // Recursive {{{1
