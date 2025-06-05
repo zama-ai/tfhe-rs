@@ -96,12 +96,13 @@ use crate::shortint::parameters::{
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
 };
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
-use crate::shortint::server_key::{apply_programmable_bootstrap, ShortintBootstrappingKey};
+use crate::shortint::server_key::{
+    apply_programmable_bootstrap, AtomicPatternServerKey, ShortintBootstrappingKey,
+};
 use crate::shortint::{
     Ciphertext, ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
 };
 use rayon::prelude::*;
-use crate::shortint::server_key::AtomicPatternServerKey;
 pub fn decrypt_multi_bit_lwe_ciphertext<Scalar, CtCont, KeyCont>(
     lwe_secret_key: &LweSecretKey<KeyCont>,
     lwe_dimension: LweDimension,
@@ -174,23 +175,22 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
-
     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
     // Variance after encryption
     let encryption_variance = match encryption_noise {
         DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
         DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
     };
-    
+
     let input_ks_lwe_dimension = key_switching_key.input_key_lwe_dimension();
     let output_ks_lwe_dimension = key_switching_key.output_key_lwe_dimension();
     let ks_decomp_base_log = key_switching_key.decomposition_base_log();
@@ -260,20 +260,18 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
                     (&cks, &sks)
                 };
                 let small_lwe_secret_key = match &cks.atomic_pattern {
-                    AtomicPatternClientKey::Standard(ap_ck) => {
-                        ap_ck.small_lwe_secret_key()
-                    },
-                    AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+                    AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+                    AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
                 };
                 let (key_switching_key, _bootstrapping_key) = match &sks.atomic_pattern {
-                AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-                    standard_atomic_pattern_server_key
-                        .key_switching_key
-                        .as_view(),
-                    &standard_atomic_pattern_server_key.bootstrapping_key,
-                ),
-                AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-                AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+                    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                        standard_atomic_pattern_server_key
+                            .key_switching_key
+                            .as_view(),
+                        &standard_atomic_pattern_server_key.bootstrapping_key,
+                    ),
+                    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+                    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
                 };
                 let mut ct = cks.unchecked_encrypt(0);
                 sks.unchecked_scalar_mul_assign(
@@ -514,24 +512,23 @@ fn classic_pbs_atomic_pattern_inner_helper(
         (single_cks, single_sks)
     };
 
-    let (key_switching_key, bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-        standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
-        standard_atomic_pattern_server_key.ciphertext_modulus(),
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
-    };
+    let (key_switching_key, bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) =
+        match &sks.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                standard_atomic_pattern_server_key
+                    .key_switching_key
+                    .as_view(),
+                &standard_atomic_pattern_server_key.bootstrapping_key,
+                standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
+                standard_atomic_pattern_server_key.ciphertext_modulus(),
+            ),
+            AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+            AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        };
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-        ap_ck.small_lwe_secret_key()
-    },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     let identity_lut = sks.generate_lookup_table(|x| x);
 
@@ -573,7 +570,7 @@ fn classic_pbs_atomic_pattern_inner_helper(
         bootstrapping_key.output_lwe_dimension().to_lwe_size(),
     );
 
-    let (_, buffers) = engine.get_buffers(intermediate_lwe_dim,sks_ct_modulus);
+    let (_, buffers) = engine.get_buffers(intermediate_lwe_dim, sks_ct_modulus);
 
     // Apply the PBS only
     apply_programmable_bootstrap(
@@ -720,21 +717,19 @@ fn noise_check_shortint_classic_pbs_atomic_pattern_noise(params: ClassicPBSParam
     let sks = ServerKey::new(&cks);
 
     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
-    
+
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let input_pbs_lwe_dimension = bootstrapping_key.input_lwe_dimension();
@@ -1119,20 +1114,18 @@ fn pke_encrypt_ks_to_compute_inner_helper(
         (single_cpk, single_ksk, single_cks, single_sks)
     };
     let (key_switching_key, _bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
@@ -1329,14 +1322,14 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
     let sks = ServerKey::new(&cks);
 
     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
 
     let ksk = KeySwitchingKey::new(
@@ -1876,24 +1869,23 @@ fn pbs_compress_and_classic_ap_inner_helper(
             )
         };
 
-    let (key_switching_key, bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-        standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
-        standard_atomic_pattern_server_key.ciphertext_modulus(),
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
-    };
+    let (key_switching_key, bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) =
+        match &sks.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                standard_atomic_pattern_server_key
+                    .key_switching_key
+                    .as_view(),
+                &standard_atomic_pattern_server_key.bootstrapping_key,
+                standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
+                standard_atomic_pattern_server_key.ciphertext_modulus(),
+            ),
+            AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+            AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        };
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     // We can only store values under message_modulus with the current compression scheme.
@@ -2196,21 +2188,19 @@ fn noise_check_shortint_pbs_compression_ap_noise(
     let sks = ServerKey::new(&cks);
 
     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let compression_private_key = cks.new_compression_private_key(compression_params);
@@ -3034,21 +3024,18 @@ fn br_to_squash_pbs_128_inner_helper(
             thread_sks = engine.new_server_key(&thread_cks);
             let (_key_switching_key, bootstrapping_key) = match &thread_sks.atomic_pattern {
                 AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-                standard_atomic_pattern_server_key
-                .key_switching_key
-                .as_view(),
-                &standard_atomic_pattern_server_key.bootstrapping_key,
-            ),
-            AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-            AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+                    standard_atomic_pattern_server_key
+                        .key_switching_key
+                        .as_view(),
+                    &standard_atomic_pattern_server_key.bootstrapping_key,
+                ),
+                AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+                AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
             };
 
             let small_lwe_secret_key = match &thread_cks.atomic_pattern {
-                AtomicPatternClientKey::Standard(ap_ck) => {
-                    ap_ck.small_lwe_secret_key()
-                },
-                AtomicPatternClientKey::KeySwitch32(_ap_ck) => 
-                    todo!(),
+                AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+                AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
             };
             let small_lwe_secret_key_vec: Vec<u64> = small_lwe_secret_key.as_ref().to_vec();
             (thread_encryption_key, thread_input_br_key) = match input_br_params {
@@ -3057,7 +3044,7 @@ fn br_to_squash_pbs_128_inner_helper(
                     thread_decompression_key = thread_cks
                         .new_compression_decompression_keys(&thread_compression_private_key)
                         .1;
-            
+
                     (
                         thread_compression_private_key
                             .post_packing_ks_key
@@ -3065,10 +3052,7 @@ fn br_to_squash_pbs_128_inner_helper(
                         &thread_decompression_key.blind_rotate_key,
                     )
                 }
-                PBS128InputBRParams::Compute => (
-                    small_lwe_secret_key,
-                    bootstrapping_key,
-                ),
+                PBS128InputBRParams::Compute => (small_lwe_secret_key, bootstrapping_key),
             };
             thread_pbs_128_key = {
                 let thread_input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
@@ -3134,24 +3118,23 @@ fn br_to_squash_pbs_128_inner_helper(
             )
         };
 
-    let (key_switching_key, _bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-        standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
-        standard_atomic_pattern_server_key.ciphertext_modulus(),
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
-    };
+    let (key_switching_key, _bootstrapping_key, intermediate_lwe_dim, sks_ct_modulus) =
+        match &sks.atomic_pattern {
+            AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+                standard_atomic_pattern_server_key
+                    .key_switching_key
+                    .as_view(),
+                &standard_atomic_pattern_server_key.bootstrapping_key,
+                standard_atomic_pattern_server_key.intermediate_lwe_dimension(),
+                standard_atomic_pattern_server_key.ciphertext_modulus(),
+            ),
+            AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+            AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        };
 
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
 
     let identity_lut = sks.generate_lookup_table(|x| x);
@@ -3409,20 +3392,18 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
     let sks = ServerKey::new(&cks);
     let output_pbs_128_glwe_secret_key;
     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     let pbs_128_key = {
         let input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
@@ -3741,22 +3722,19 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
     let sks = ServerKey::new(&cks);
     let output_pbs_128_glwe_secret_key;
 
-
     let (_key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
-    AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-        standard_atomic_pattern_server_key
-            .key_switching_key
-            .as_view(),
-        &standard_atomic_pattern_server_key.bootstrapping_key,
-    ),
-    AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
-    AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
     };
     let small_lwe_secret_key = match &cks.atomic_pattern {
-        AtomicPatternClientKey::Standard(ap_ck) => {
-            ap_ck.small_lwe_secret_key()
-        },
-        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(), 
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
     };
     let pbs_128_key = {
         let input_lwe_secret_key_as_u128 = LweSecretKey::from_container(

@@ -2,7 +2,6 @@
 mod gpu_selection;
 mod noise_distribution;
 mod noise_squashing;
-mod noise_distribution;
 mod tags_on_entities;
 
 use crate::high_level_api::prelude::*;

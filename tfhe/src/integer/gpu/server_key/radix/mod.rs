@@ -193,8 +193,7 @@ impl CudaServerKey {
             bits_per_block = 1;
         }
         let decomposer =
-            BlockDecomposer::with_block_count(scalar, bits_per_block, num_blocks)
-                .iter_as::<u64>();
+            BlockDecomposer::with_block_count(scalar, bits_per_block, num_blocks).iter_as::<u64>();
         let mut cpu_lwe_list = LweCiphertextList::new(
             0,
             lwe_size,
