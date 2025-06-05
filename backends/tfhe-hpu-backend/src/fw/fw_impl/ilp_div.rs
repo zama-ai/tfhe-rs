@@ -1,5 +1,5 @@
 //!
-//! Implementation of Ilp firmware
+//! Implementation of Ilp firmware for division, and modulo
 //!
 //! In this version of the Fw focus is done on Instruction Level Parallelism
 use std::cmp::Ordering;
@@ -7,6 +7,7 @@ use std::collections::VecDeque;
 
 use super::*;
 use crate::asm::{self, OperandKind};
+use crate::fw::fw_impl::ilp_log;
 use crate::fw::program::Program;
 use tracing::{instrument, warn};
 
@@ -44,12 +45,8 @@ pub fn iop_divs(prog: &mut Program) {
     // Deferred implementation to generic divx function
     // TODO: do computation on immediate directly for more efficiency.
     // Workaround: transform immediate into ct.
-    let mut src_imm: Vec<metavar::MetaVarCell> = Vec::new();
-    let cst_0 = &src_a[src_a.len() - 1] - &src_a[src_a.len() - 1];
-    for cst in src_b.iter() {
-        let ct = cst + &cst_0;
-        src_imm.push(ct);
-    }
+    let cst_0 = prog.new_cst(0);
+    let src_imm: Vec<metavar::MetaVarCell> = src_b.iter().map(|imm| imm + &cst_0).collect();
     iop_divx(prog, &mut dst_quotient, &mut dst_remain, &src_a, &src_imm);
 }
 
@@ -106,12 +103,8 @@ pub fn iop_mods(prog: &mut Program) {
     // Deferred implementation to generic modx function
     // TODO: do computation on immediate directly for more efficiency.
     // Workaround: transform immediate into ct.
-    let mut src_imm: Vec<metavar::MetaVarCell> = Vec::new();
-    let cst_0 = &src_a[src_a.len() - 1] - &src_a[src_a.len() - 1];
-    for cst in src_b.iter() {
-        let ct = cst + &cst_0;
-        src_imm.push(ct);
-    }
+    let cst_0 = prog.new_cst(0);
+    let src_imm: Vec<metavar::MetaVarCell> = src_b.iter().map(|imm| imm + &cst_0).collect();
     iop_modx(prog, &mut dst_remain, &src_a, &src_imm);
 }
 
@@ -343,88 +336,6 @@ pub fn iop_add_hillissteel_v(
 }
 
 #[instrument(level = "trace", skip(prog))]
-/// Outputs a list of booleans,
-/// each indicating the null status from the input
-/// block <i> to the msb of the input.
-/// 'true' means is not null.
-/// 'false' means is null.
-pub fn iop_is_not_null_vector_v(
-    prog: &mut Program,
-    src_a: &[metavar::MetaVarCell],
-) -> Vec<metavar::MetaVarCell> {
-    let props = prog.params();
-    //let tfhe_params: asm::DigitParameters = props.clone().into();
-
-    let pbs_not_null = new_pbs!(prog, "NotNull");
-
-    // TODO: TOREVIEW
-    let op_nb = props.nu;
-    // clog2(op_nb)
-    let op_nb_bool = 1 << ((op_nb as f32).log2().ceil() as usize);
-
-    // First step
-    // Work within each group of op_nb blocks.
-    // For <i> get a boolean not null status of current block and the MSB ones.
-    // within this group.
-    let mut g_a: Vec<metavar::MetaVarCell> = Vec::new();
-    for (c_id, c) in src_a.chunks(op_nb).enumerate() {
-        c.iter().rev().fold(None, |acc, elt| {
-            let is_not_null;
-            let tmp;
-            if let Some(x) = acc {
-                tmp = &x + elt;
-                is_not_null = tmp.pbs(&pbs_not_null, false);
-            } else {
-                is_not_null = elt.pbs(&pbs_not_null, false);
-                //tmp = elt.clone();
-                tmp = elt.clone();
-            };
-            g_a.insert(c_id * op_nb, is_not_null); // Reverse insertion per chunk
-            Some(tmp)
-        });
-    }
-
-    // Second step
-    // Proparate the not null status from MSB to LSB, with stride of
-    // (op_nb_bool**k)*op_nb
-    //assert_eq!(g_a.len(),props.blk_w());
-    let grp_nb = g_a.len().div_ceil(op_nb);
-    let mut stride_size: usize = 1; // in group unit
-    while stride_size < grp_nb {
-        for chk in g_a.chunks_mut(op_nb_bool * stride_size * op_nb) {
-            chk.chunks_mut(stride_size * op_nb)
-                .rev()
-                .fold(None, |acc, sub_chk| {
-                    if let Some(x) = acc {
-                        let tmp = &x + &sub_chk[0];
-                        sub_chk[0] = tmp.pbs(&pbs_not_null, false);
-                        Some(tmp)
-                    } else {
-                        Some(sub_chk[0].clone())
-                    }
-                });
-        }
-
-        stride_size *= op_nb_bool;
-    }
-
-    // Third step
-    // Apply
-    g_a.chunks_mut(op_nb).rev().fold(None, |acc, chk| {
-        if let Some(x) = acc {
-            for v in chk.iter_mut().skip(1) {
-                // [0] is already complete.
-                *v = &*v + x;
-                *v = v.pbs(&pbs_not_null, false);
-            }
-        }
-        Some(&chk[0])
-    });
-
-    g_a
-}
-
-#[instrument(level = "trace", skip(prog))]
 /// Outputs a tuple corresponding to (src x2, src x3)
 pub fn iop_x2_x3v(
     prog: &mut Program,
@@ -518,9 +429,27 @@ pub fn iop_div_initv(prog: &mut Program, div_x1_a: &[metavar::MetaVarCell]) -> I
     // Note that div_x2 and div_x3 has an additional ct in msb
     let (div_x2_a, div_x3_a) = iop_x2_x3v(prog, div_x1_a);
 
-    let div_x1_is_not_null_a = iop_is_not_null_vector_v(prog, div_x1_a);
-    let div_x2_is_not_null_a = iop_is_not_null_vector_v(prog, &div_x2_a);
-    let div_x3_is_not_null_a = iop_is_not_null_vector_v(prog, &div_x3_a);
+    let div_x1_is_not_null_a = ilp_log::iop_propagate_msb_to_lsb_blockv(
+        prog,
+        div_x1_a,
+        &Some(ilp_log::BitType::One),
+        &Some(false),
+        &Some(false),
+    );
+    let div_x2_is_not_null_a = ilp_log::iop_propagate_msb_to_lsb_blockv(
+        prog,
+        &div_x2_a,
+        &Some(ilp_log::BitType::One),
+        &Some(false),
+        &Some(false),
+    );
+    let div_x3_is_not_null_a = ilp_log::iop_propagate_msb_to_lsb_blockv(
+        prog,
+        &div_x3_a,
+        &Some(ilp_log::BitType::One),
+        &Some(false),
+        &Some(false),
+    );
 
     // If the divider is null set quotient to 0
     let keep_div = div_x1_is_not_null_a[0].clone();
@@ -637,10 +566,7 @@ pub fn iop_div_corev(
     // Loop
     let mut quotient_a: Vec<metavar::MetaVarCell> = Vec::new();
     let mut remain_a: Vec<metavar::MetaVarCell> = Vec::new();
-    // !! Workaround
-    let cst_sign_tmp = prog.new_imm(tfhe_params.msg_range() - 1);
-    let mut cst_sign = &src_a[num_a.len() - 1] - &src_a[num_a.len() - 1];
-    cst_sign = &cst_sign + &cst_sign_tmp;
+    let cst_sign = prog.new_cst(tfhe_params.msg_range() - 1);
 
     for loop_idx in 0..num_a.len() {
         let block_nb = loop_idx + 1;

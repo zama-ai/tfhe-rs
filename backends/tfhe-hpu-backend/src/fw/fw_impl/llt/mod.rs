@@ -73,6 +73,14 @@ crate::impl_fw!("Llt" [
 
     ERC_20 => fw_impl::llt::iop_erc_20;
     MEMCPY => fw_impl::ilp::iop_memcpy;
+
+    COUNT0 => fw_impl::ilp_log::iop_count0;
+    COUNT1 => fw_impl::ilp_log::iop_count1;
+    ILOG2 => fw_impl::ilp_log::iop_ilog2;
+    LEAD0 => fw_impl::ilp_log::iop_lead0;
+    LEAD1 => fw_impl::ilp_log::iop_lead1;
+    TRAIL0 => fw_impl::ilp_log::iop_trail0;
+    TRAIL1 => fw_impl::ilp_log::iop_trail1;
 ]);
 
 // ----------------------------------------------------------------------------

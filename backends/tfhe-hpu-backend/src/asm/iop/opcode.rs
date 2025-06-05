@@ -8,11 +8,6 @@
 //! | ---------- | ------------------------- |
 //! | 0x00.. 0x7f| User custom operations    |
 //! | 0x80.. 0xff| Fw generated operations   |
-//! | 0b1xyz_0000| x: Ct x Ct Operation      |
-//! |            | !x: Ct x Imm Operation    |
-//! |            | y!z: ARITH operations     |
-//! |            | !yz: BW operations        |
-//! |            | !y!z: CMP operations      |
 //! | ---------- | ------------------------- |
 
 pub const USER_RANGE_LB: u8 = 0x0;
@@ -82,6 +77,15 @@ pub const IF_THEN_ELSE: u8 = 0xCB;
 // ERC20 -> Found xfer algorithm
 // 2Ct <- func(3Ct)
 pub const ERC_20: u8 = 0x80;
+
+// Count bits
+pub const COUNT0: u8 = 0x81;
+pub const COUNT1: u8 = 0x82;
+pub const ILOG2: u8 = 0x83;
+pub const LEAD0: u8 = 0x84;
+pub const LEAD1: u8 = 0x85;
+pub const TRAIL0: u8 = 0x86;
+pub const TRAIL1: u8 = 0x87;
 
 // Utility operations
 // Used to handle real clone of ciphertext already uploaded in the Hpu memory
