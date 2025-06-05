@@ -12,6 +12,8 @@ use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::core_crypto::gpu::CudaStreams;
 use crate::high_level_api::booleans::InnerBoolean;
 use crate::high_level_api::errors::UninitializedServerKey;
+#[cfg(feature = "gpu")]
+use crate::high_level_api::global_state;
 use crate::high_level_api::global_state::device_of_internal_keys;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::global_state::with_cuda_internal_keys;
@@ -23,10 +25,15 @@ use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
 };
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
+#[cfg(feature = "gpu")]
+use crate::integer::parameters::LweDimension;
 use crate::named::Named;
 use crate::prelude::{CiphertextList, Tagged};
 use crate::shortint::Ciphertext;
+#[cfg(feature = "gpu")]
+use crate::shortint::{CarryModulus, MessageModulus};
 use crate::{Device, FheBool, FheInt, FheUint, Tag};
+
 impl<Id: FheUintId> HlCompressible for FheUint<Id> {
     fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
         match self.ciphertext {
@@ -222,6 +229,44 @@ impl CompressedCiphertextListBuilder {
                 "Hpu does not support compression".to_string(),
             )),
             None => Err(UninitializedServerKey.into()),
+        })
+    }
+    #[cfg(feature = "gpu")]
+    pub fn get_size_on_gpu(&self) -> crate::Result<u64> {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                let mut num_lwes = 0;
+                let mut lwe_dimension = LweDimension(0);
+                let mut message_modulus = MessageModulus(0);
+                let mut carry_modulus = CarryModulus(0);
+                for (element, _) in &self.inner {
+                    if let ToBeCompressed::Cuda(cuda_radix) = element {
+                        num_lwes += cuda_radix.d_blocks.0.lwe_ciphertext_count.0;
+                        lwe_dimension = cuda_radix.d_blocks.0.lwe_dimension;
+                        message_modulus = cuda_radix.info.blocks.first().unwrap().message_modulus;
+                        carry_modulus = cuda_radix.info.blocks.first().unwrap().carry_modulus;
+                    }
+                }
+                cuda_key
+                    .key
+                    .compression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::Error::new("Compression key not set in server key".to_owned())
+                    })
+                    .map(|compression_key| {
+                        compression_key.get_compression_size_on_gpu(
+                            num_lwes as u32,
+                            lwe_dimension,
+                            message_modulus,
+                            carry_modulus,
+                            streams,
+                        )
+                    })
+            } else {
+                Ok(0)
+            }
         })
     }
 }
@@ -499,6 +544,31 @@ impl CiphertextList for CompressedCiphertextList {
             None => Err(UninitializedServerKey.into()),
         })
     }
+
+    #[cfg(feature = "gpu")]
+    fn get_decompression_size_on_gpu(&self, index: usize) -> crate::Result<Option<u64>> {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .decompression_key
+                    .as_ref()
+                    .ok_or_else(|| {
+                        crate::Error::new("Compression key not set in server key".to_owned())
+                    })
+                    .map(|decompression_key| {
+                        self.inner.on_gpu(streams).get_decompression_size_on_gpu(
+                            index,
+                            decompression_key,
+                            streams,
+                        )
+                    })
+            } else {
+                Ok(Some(0))
+            }
+        })
+    }
 }
 
 impl CompressedCiphertextList {
@@ -736,6 +806,8 @@ mod tests {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use crate::shortint::PBSParameters;
+    #[cfg(feature = "gpu")]
+    use crate::GpuIndex;
     use crate::{
         set_server_key, unset_server_key, ClientKey, CompressedCiphertextList,
         CompressedCiphertextListBuilder, FheBool, FheInt64, FheUint16, FheUint2, FheUint32,
@@ -956,6 +1028,61 @@ mod tests {
                 let b = b.decrypt(ck);
                 assert_eq!(&b, "Hello");
             }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_compression_decompression_size_on_gpu() {
+        for (params, comp_params) in [
+            (
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+            (
+                PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into(),
+                COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+            ),
+        ] {
+            let config = crate::ConfigBuilder::with_custom_parameters::<PBSParameters>(params)
+                .enable_compression(comp_params)
+                .build();
+
+            let ck = crate::ClientKey::generate(config);
+            let sk = crate::CompressedServerKey::new(&ck);
+
+            set_server_key(sk.decompress_to_gpu());
+
+            let mut ct1 = FheUint32::encrypt(17_u32, &ck);
+            let mut ct2 = FheBool::encrypt(false, &ck);
+
+            ct1.move_to_device(crate::Device::CudaGpu);
+            ct2.move_to_device(crate::Device::CudaGpu);
+
+            let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
+            let compressed_list_init = compressed_list_builder.push(ct1).push(ct2);
+            let compression_size_on_gpu = compressed_list_init.get_size_on_gpu().unwrap();
+            assert!(check_valid_cuda_malloc(
+                compression_size_on_gpu,
+                GpuIndex::new(0)
+            ));
+            let compressed_list = compressed_list_init.build().unwrap();
+            let decompress_ct1_size_on_gpu = compressed_list
+                .get_decompression_size_on_gpu(0)
+                .unwrap()
+                .unwrap();
+            assert!(check_valid_cuda_malloc(
+                decompress_ct1_size_on_gpu,
+                GpuIndex::new(0)
+            ));
+            let decompress_ct2_size_on_gpu = compressed_list
+                .get_decompression_size_on_gpu(1)
+                .unwrap()
+                .unwrap();
+            assert!(check_valid_cuda_malloc(
+                decompress_ct2_size_on_gpu,
+                GpuIndex::new(0)
+            ));
         }
     }
 }

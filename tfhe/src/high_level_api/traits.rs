@@ -207,6 +207,8 @@ pub trait CiphertextList {
     fn get<T>(&self, index: usize) -> crate::Result<Option<T>>
     where
         T: HlExpandable + Tagged;
+    #[cfg(feature = "gpu")]
+    fn get_decompression_size_on_gpu(&self, index: usize) -> crate::Result<Option<u64>>;
 }
 
 pub trait FheId: Copy + Default {}
