@@ -1,8 +1,8 @@
 use crate::high_level_api::traits::AddSizeOnGpu;
 use crate::prelude::{
     check_valid_cuda_malloc, BitAndSizeOnGpu, BitNotSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu,
-    DivRemSizeOnGpu, DivSizeOnGpu, FheEncrypt, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu,
-    FheTryEncrypt, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu,
+    DivRemSizeOnGpu, DivSizeOnGpu, FheEncrypt, FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu,
+    FheOrdSizeOnGpu, FheTryEncrypt, IfThenElseSizeOnGpu, MulSizeOnGpu, NegSizeOnGpu, RemSizeOnGpu,
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::shortint::parameters::{
@@ -332,6 +332,26 @@ fn test_gpu_get_comparisons_size_on_gpu() {
     ));
     assert!(check_valid_cuda_malloc(
         scalar_min_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let eq_tmp_buffer_size = a.get_eq_size_on_gpu(b);
+    let scalar_eq_tmp_buffer_size = a.get_eq_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        eq_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_eq_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    let ne_tmp_buffer_size = a.get_ne_size_on_gpu(b);
+    let scalar_ne_tmp_buffer_size = a.get_ne_size_on_gpu(clear_b);
+    assert!(check_valid_cuda_malloc(
+        ne_tmp_buffer_size,
+        GpuIndex::new(0)
+    ));
+    assert!(check_valid_cuda_malloc(
+        scalar_ne_tmp_buffer_size,
         GpuIndex::new(0)
     ));
 }

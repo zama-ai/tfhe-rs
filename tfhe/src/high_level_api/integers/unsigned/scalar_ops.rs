@@ -12,7 +12,7 @@ use crate::high_level_api::keys::InternalServerKey;
 #[cfg(feature = "gpu")]
 use crate::high_level_api::traits::{
     AddSizeOnGpu, BitAndSizeOnGpu, BitOrSizeOnGpu, BitXorSizeOnGpu, DivRemSizeOnGpu, DivSizeOnGpu,
-    FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu,
+    FheEqSizeOnGpu, FheMaxSizeOnGpu, FheMinSizeOnGpu, FheOrdSizeOnGpu, MulSizeOnGpu, RemSizeOnGpu,
     RotateLeftSizeOnGpu, RotateRightSizeOnGpu, ShlSizeOnGpu, ShrSizeOnGpu, SubSizeOnGpu,
 };
 use crate::high_level_api::traits::{
@@ -364,6 +364,40 @@ where
                     .key
                     .key
                     .get_scalar_le_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+}
+
+#[cfg(feature = "gpu")]
+impl<Id, Clear> FheEqSizeOnGpu<Clear> for FheUint<Id>
+where
+    Id: FheUintId,
+    Clear: DecomposableInto<u64>,
+{
+    fn get_eq_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_eq_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
+            } else {
+                0
+            }
+        })
+    }
+    fn get_ne_size_on_gpu(&self, _rhs: Clear) -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_scalar_ge_size_on_gpu(&*self.ciphertext.on_gpu(streams), streams)
             } else {
                 0
             }

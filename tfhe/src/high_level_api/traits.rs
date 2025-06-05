@@ -343,3 +343,8 @@ pub trait DivRemSizeOnGpu<Rhs = Self> {
 pub trait NegSizeOnGpu<Rhs = Self> {
     fn get_neg_size_on_gpu(&self) -> u64;
 }
+#[cfg(feature = "gpu")]
+pub trait FheEqSizeOnGpu<Rhs = Self> {
+    fn get_eq_size_on_gpu(&self, amount: Rhs) -> u64;
+    fn get_ne_size_on_gpu(&self, amount: Rhs) -> u64;
+}
