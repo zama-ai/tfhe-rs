@@ -270,4 +270,11 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
 
         Self(cuda_lwe_list)
     }
+    #[cfg(feature = "gpu")]
+    pub fn get_decompression_size_on_gpu<R>(&self, _streams: &CudaStreams, _range: R) -> u64
+    where
+        R: std::ops::RangeBounds<usize>,
+    {
+        0
+    }
 }
