@@ -676,6 +676,16 @@ impl TryFrom<SupportedCompactPkeZkScheme> for CompactPkeZkScheme {
     }
 }
 
+#[cfg(feature = "zk-pok")]
+impl From<CompactPkeZkScheme> for SupportedCompactPkeZkScheme {
+    fn from(value: CompactPkeZkScheme) -> Self {
+        match value {
+            CompactPkeZkScheme::V1 => Self::V1,
+            CompactPkeZkScheme::V2 => Self::V2,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(ModulusSwitchNoiseReductionParamsVersions)]
 pub struct ModulusSwitchNoiseReductionParams {
