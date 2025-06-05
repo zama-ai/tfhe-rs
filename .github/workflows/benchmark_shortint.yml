@@ -47,10 +47,8 @@ jobs:
 
       - name: Set operation flavor output
         id: set_op_flavor
-        run: |
-          echo "op_flavor=${OP_FLAVOR_OUTPUT}" >> "${GITHUB_OUTPUT}"
-        env:
-          OP_FLAVOR_OUTPUT: ${{ toJSON(env.OP_FLAVOR) }}
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
     name: Setup instance (shortint-benchmarks)
