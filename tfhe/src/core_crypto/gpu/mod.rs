@@ -758,7 +758,6 @@ pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_async<T: UnsignedInteger>
     );
 }
 
-
 /// # Safety
 ///
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
@@ -783,7 +782,6 @@ pub unsafe fn cuda_modulus_switch_multi_bit_ciphertext_u128_async<T: UnsignedInt
         grouping_factor,
     );
 }
-
 
 /// Addition of a vector of LWE ciphertexts
 ///
