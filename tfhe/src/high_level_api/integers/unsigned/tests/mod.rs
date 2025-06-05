@@ -455,6 +455,7 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
     }
 
     // clear rotate
+    #[cfg(not(feature = "hpu"))]
     {
         let c = (&a).rotate_left(clear_b);
         let decrypted: u32 = c.decrypt(cks);
@@ -590,13 +591,17 @@ fn test_case_ilog2(cks: &ClientKey) {
         let ilog2: u32 = a.ilog2().decrypt(cks);
         assert_eq!(ilog2, clear_a.ilog2());
 
-        let (ilog2, is_ok) = a.checked_ilog2();
-        let ilog2: u32 = ilog2.decrypt(cks);
-        let is_ok = is_ok.decrypt(cks);
-        assert!(is_ok);
-        assert_eq!(ilog2, clear_a.ilog2());
+        #[cfg(not(feature = "hpu"))]
+        {
+            let (ilog2, is_ok) = a.checked_ilog2();
+            let ilog2: u32 = ilog2.decrypt(cks);
+            let is_ok = is_ok.decrypt(cks);
+            assert!(is_ok);
+            assert_eq!(ilog2, clear_a.ilog2());
+        }
     }
 
+    #[cfg(not(feature = "hpu"))]
     {
         let a = FheUint32::try_encrypt(0u32, cks).unwrap();
 
