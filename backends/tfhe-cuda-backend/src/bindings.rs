@@ -210,6 +210,12 @@ pub const COMPARISON_TYPE_LE: COMPARISON_TYPE = 5;
 pub const COMPARISON_TYPE_MAX: COMPARISON_TYPE = 6;
 pub const COMPARISON_TYPE_MIN: COMPARISON_TYPE = 7;
 pub type COMPARISON_TYPE = ffi::c_uint;
+pub const Direction_TRAILING: Direction = 0;
+pub const Direction_LEADING: Direction = 1;
+pub type Direction = ffi::c_uint;
+pub const BitValue_ZERO: BitValue = 0;
+pub const BitValue_ONE: BitValue = 1;
+pub type BitValue = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaRadixCiphertextFFI {
@@ -1330,6 +1336,52 @@ unsafe extern "C" {
         input: *const CudaRadixCiphertextFFI,
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
+    );
+}
+
+unsafe extern "C" {
+    pub fn scratch_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        num_radix_blocks: u32,
+        dir: Direction,
+        bit_value: BitValue,
+        allocate_gpu_memory: bool,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output: *mut CudaRadixCiphertextFFI,
+        input: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_prepare_count_of_consecutive_bits_buffer_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
     );
 }
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
