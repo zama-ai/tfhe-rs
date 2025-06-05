@@ -43,12 +43,10 @@ impl TryFrom<&PBSConformanceParams> for ModulusSwitchNoiseReductionKeyConformanc
     }
 }
 
-/// Before applying a modulus switch to a ciphertext, it's possible to modify it (but not the value
-/// it encrypts) in a way that decreases the noise added by the subsequent modulus switch.
-///
-/// A [ModulusSwitchNoiseReductionKey] is needed to perform this modification.
-/// [improve_modulus_switch_noise](ModulusSwitchNoiseReductionKey::improve_modulus_switch_noise)
-/// method can then be called on the target ciphertext.
+/// Using a [ModulusSwitchNoiseReductionKey], it's possible do apply a modulus switch which adds
+/// less noise by calling the
+/// [switch_modulus](ModulusSwitchNoiseReductionKey::improve_noise_and_modulus_switch) method on the
+/// target ciphertext.
 ///
 /// The lower level primitive is
 /// [improve_lwe_ciphertext_modulus_switch_noise_for_binary_key](crate::core_crypto::algorithms::modulus_switch_noise_reduction::improve_lwe_ciphertext_modulus_switch_noise_for_binary_key)
@@ -117,6 +115,24 @@ where
             self.ms_input_variance,
             log_modulus,
         );
+    }
+
+    pub fn improve_noise_and_modulus_switch<Cont, SwitchedScalar>(
+        &self,
+        input: &LweCiphertext<Cont>,
+        log_modulus: CiphertextModulusLog,
+    ) -> LazyStandardModulusSwitchedLweCiphertext<InputScalar, SwitchedScalar, Vec<InputScalar>>
+    where
+        InputScalar: CastInto<SwitchedScalar>,
+        SwitchedScalar: UnsignedInteger,
+        Cont: Container<Element = InputScalar>,
+    {
+        let mut input: LweCiphertext<Vec<InputScalar>> =
+            LweCiphertext::from_container(input.as_ref().to_owned(), input.ciphertext_modulus());
+
+        self.improve_modulus_switch_noise(&mut input, log_modulus);
+
+        lwe_ciphertext_modulus_switch(input, log_modulus)
     }
 }
 
