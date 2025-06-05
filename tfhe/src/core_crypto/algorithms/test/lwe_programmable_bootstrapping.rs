@@ -395,6 +395,8 @@ where
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
 
+    let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
+
     let total_plaintext_modulus = msg_modulus;
 
     let mut rsc = TestResources::new();
@@ -446,6 +448,22 @@ where
             ciphertext_modulus
         ));
 
+        let fft = Fft::new(polynomial_size);
+
+        let fft = fft.as_view();
+
+        let mut buffers = ComputationBuffers::new();
+
+        buffers.resize(
+            blind_rotate_assign_mem_optimized_requirement::<Scalar>(
+                glwe_dimension.to_glwe_size(),
+                polynomial_size,
+                fft,
+            )
+            .unwrap()
+            .unaligned_bytes_required(),
+        );
+
         while msg != Scalar::ZERO {
             msg = msg.wrapping_sub(Scalar::ONE);
 
@@ -472,7 +490,9 @@ where
 
                 let mut tmp_acc = accumulator.clone();
 
-                blind_rotate_assign(&lwe_ciphertext_in, &mut tmp_acc, &fbsk);
+                let msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
+
+                blind_rotate_assign_mem_optimized(&msed, &mut tmp_acc, &fbsk, fft, buffers.stack());
 
                 assert!(check_encrypted_content_respects_mod(
                     &tmp_acc,
