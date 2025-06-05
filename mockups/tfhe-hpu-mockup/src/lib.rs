@@ -720,7 +720,13 @@ impl HpuSim {
 
             // TODO add a check on trivialness for fast simulation ?
             keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
-            blind_rotate_ntt64_bnf_assign(bfr_after_ks, &mut tfhe_lut, &bsk);
+
+            let log_modulus = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
+
+            let bfr_after_ms =
+                lwe_ciphertext_modulus_switch::<_, usize, _>(bfr_after_ks.as_view(), log_modulus);
+
+            blind_rotate_ntt64_bnf_assign(&bfr_after_ms, &mut tfhe_lut, &bsk);
 
             assert_eq!(
                 dst_rid.0,
