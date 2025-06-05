@@ -220,4 +220,11 @@ iop!(
     [IOP_CT_F_2CT_BOOL -> "IF_THEN_ELSE", opcode::IF_THEN_ELSE],
     [IOP_2CT_F_3CT -> "ERC_20", opcode::ERC_20],
     [IOP_CT_F_CT -> "MEMCPY", opcode::MEMCPY],
+    [IOP_CT_F_CT -> "ILOG2", opcode::ILOG2],
+    [IOP_CT_F_CT -> "COUNT0", opcode::COUNT0],
+    [IOP_CT_F_CT -> "COUNT1", opcode::COUNT1],
+    [IOP_CT_F_CT -> "LEAD0", opcode::LEAD0],
+    [IOP_CT_F_CT -> "LEAD1", opcode::LEAD1],
+    [IOP_CT_F_CT -> "TRAIL0", opcode::TRAIL0],
+    [IOP_CT_F_CT -> "TRAIL1", opcode::TRAIL1],
 );
