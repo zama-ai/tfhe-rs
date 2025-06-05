@@ -338,6 +338,7 @@ impl CudaServerKey {
         &self,
         result: &mut T,
         ciphertexts: &[T],
+        reduce_degrees_for_single_carry_propagation: bool,
         streams: &CudaStreams,
     ) {
         if ciphertexts.is_empty() {
@@ -378,6 +379,7 @@ impl CudaServerKey {
                     streams,
                     result.as_mut(),
                     &mut terms,
+                    reduce_degrees_for_single_carry_propagation,
                     &d_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -403,6 +405,7 @@ impl CudaServerKey {
                     streams,
                     result.as_mut(),
                     &mut terms,
+                    reduce_degrees_for_single_carry_propagation,
                     &d_multibit_bsk.d_vec,
                     &self.key_switching_key.d_vec,
                     self.message_modulus,
@@ -446,7 +449,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> T {
         let mut result = self
-            .unchecked_partial_sum_ciphertexts_async(ciphertexts, streams)
+            .unchecked_partial_sum_ciphertexts_async(ciphertexts, true, streams)
             .unwrap();
 
         self.propagate_single_carry_assign_async(&mut result, streams, None, OutputFlag::None);
@@ -459,7 +462,8 @@ impl CudaServerKey {
         ciphertexts: &[T],
         streams: &CudaStreams,
     ) -> Option<T> {
-        let result = unsafe { self.unchecked_partial_sum_ciphertexts_async(ciphertexts, streams) };
+        let result =
+            unsafe { self.unchecked_partial_sum_ciphertexts_async(ciphertexts, false, streams) };
         streams.synchronize();
         result
     }
@@ -471,6 +475,7 @@ impl CudaServerKey {
     pub unsafe fn unchecked_partial_sum_ciphertexts_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ciphertexts: &[T],
+        reduce_degrees_for_single_carry_propagation: bool,
         streams: &CudaStreams,
     ) -> Option<T> {
         if ciphertexts.is_empty() {
@@ -484,7 +489,12 @@ impl CudaServerKey {
             return Some(result);
         }
 
-        self.unchecked_partial_sum_ciphertexts_assign_async(&mut result, ciphertexts, streams);
+        self.unchecked_partial_sum_ciphertexts_assign_async(
+            &mut result,
+            ciphertexts,
+            reduce_degrees_for_single_carry_propagation,
+            streams,
+        );
 
         Some(result)
     }
