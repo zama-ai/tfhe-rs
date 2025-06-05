@@ -323,9 +323,16 @@ impl CudaServerKey {
             }
         };
 
+        let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(scalar, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        if decomposed_scalar.is_empty() {
+            return 0;
+        }
         let scalar_mul_mem = match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => get_scalar_mul_integer_radix_kb_size_on_gpu(
                 streams,
+                decomposed_scalar.as_slice(),
                 self.message_modulus,
                 self.carry_modulus,
                 d_bsk.glwe_dimension,
@@ -345,6 +352,7 @@ impl CudaServerKey {
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_scalar_mul_integer_radix_kb_size_on_gpu(
                     streams,
+                    decomposed_scalar.as_slice(),
                     self.message_modulus,
                     self.carry_modulus,
                     d_multibit_bsk.glwe_dimension,

@@ -1018,6 +1018,7 @@ unsafe extern "C" {
         gpu_count: u32,
         radix_lwe_out: *mut CudaRadixCiphertextFFI,
         radix_lwe_vec: *mut CudaRadixCiphertextFFI,
+        reduce_degrees_for_single_carry_propagation: bool,
         mem_ptr: *mut i8,
         bsks: *const *mut ffi::c_void,
         ksks: *const *mut ffi::c_void,
@@ -1050,6 +1051,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        num_scalar_bits: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
     ) -> u64;
@@ -1350,6 +1352,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        num_scalar_bits: u32,
         anticipated_buffer_drop: bool,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,

@@ -6,7 +6,8 @@ uint64_t scratch_cuda_integer_scalar_mul_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool allocate_ms_array) {
+    PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool allocate_gpu_memory,
+    bool allocate_ms_array) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -17,7 +18,7 @@ uint64_t scratch_cuda_integer_scalar_mul_kb_64(
   return scratch_cuda_integer_radix_scalar_mul_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_scalar_mul_buffer<uint64_t> **)mem_ptr, num_blocks, params,
-      allocate_gpu_memory);
+      num_scalar_bits, allocate_gpu_memory);
 }
 
 uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb_64(
@@ -26,8 +27,8 @@ uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool anticipated_buffer_drop, bool allocate_gpu_memory,
-    bool allocate_ms_array) {
+    PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool anticipated_buffer_drop,
+    bool allocate_gpu_memory, bool allocate_ms_array) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
@@ -38,7 +39,7 @@ uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb_64(
   return scratch_cuda_integer_radix_scalar_mul_high_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_scalar_mul_high<uint64_t> **)mem_ptr, num_blocks, params,
-      anticipated_buffer_drop, allocate_gpu_memory);
+      num_scalar_bits, anticipated_buffer_drop, allocate_gpu_memory);
 }
 
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(

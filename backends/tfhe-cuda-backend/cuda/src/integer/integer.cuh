@@ -521,8 +521,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
-      num_radix_blocks > lwe_array_in->num_radix_blocks)
+  if (num_radix_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of input & output radix blocks")
 
@@ -1835,9 +1834,6 @@ void host_propagate_single_carry(
   PUSH_RANGE("propagate sc")
   auto num_radix_blocks = lwe_array->num_radix_blocks;
   auto params = mem->params;
-  auto glwe_dimension = params.glwe_dimension;
-  auto polynomial_size = params.polynomial_size;
-  uint32_t big_lwe_size = glwe_dimension * polynomial_size + 1;
   auto lut_stride = mem->lut_stride;
   auto num_many_lut = mem->num_many_lut;
   CudaRadixCiphertextFFI output_flag;
@@ -1853,6 +1849,7 @@ void host_propagate_single_carry(
     host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
                          input_carries, 1);
   }
+
   // Step 1
   host_compute_shifted_blocks_and_states<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, mem->shifted_blocks_state_mem,
