@@ -16,9 +16,12 @@ use crate::core_crypto::commons::traits::{
 };
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::{pbs_modulus_switch, FourierBootstrapKey};
+use crate::core_crypto::fft_impl::common::FourierBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::par_convert_polynomials_list_to_fourier;
-use crate::core_crypto::prelude::{CiphertextCount, CiphertextModulus, ContainerMut};
+use crate::core_crypto::prelude::{
+    lwe_ciphertext_modulus_switch, CiphertextCount, CiphertextModulus, ContainerMut,
+    ModulusSwitchedCt,
+};
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 use tfhe_fft::c64;
@@ -282,23 +285,29 @@ pub fn batch_bootstrap_scratch<Scalar>(
 }
 
 impl FourierLweBootstrapKeyView<'_> {
-    // CastInto required for PBS modulus switch which returns a usize
-    pub fn blind_rotate_assign<InputScalar, OutputScalar>(
+    pub fn blind_rotate_assign<OutputScalar>(
         self,
         mut lut: GlweCiphertextMutView<'_, OutputScalar>,
-        lwe: LweCiphertextView<'_, InputScalar>,
+        msed_lwe: &impl ModulusSwitchedCt<usize>,
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) where
-        InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
     {
-        let (lwe_mask, lwe_body) = lwe.get_mask_and_body();
-
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
-        let monomial_degree = MonomialDegree(pbs_modulus_switch(*lwe_body.data, lut_poly_size));
+
+        assert_eq!(
+            msed_lwe.log_modulus(),
+            lut_poly_size.to_blind_rotation_input_modulus_log()
+        );
+
+        let msed_lwe_mask = msed_lwe.mask();
+
+        let msed_lwe_body = msed_lwe.body();
+
+        let monomial_degree = MonomialDegree(msed_lwe_body.cast_into());
 
         lut.as_mut_polynomial_list()
             .iter_mut()
@@ -316,12 +325,9 @@ impl FourierLweBootstrapKeyView<'_> {
         let mut ct1 =
             GlweCiphertextMutView::from_container(&mut *ct1, lut_poly_size, ciphertext_modulus);
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in
-            izip!(lwe_mask.as_ref().iter(), self.into_ggsw_iter())
-        {
-            if *lwe_mask_element != InputScalar::ZERO {
-                let monomial_degree =
-                    MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size));
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(msed_lwe_mask, self.into_ggsw_iter()) {
+            if lwe_mask_element != 0 {
+                let monomial_degree = MonomialDegree(lwe_mask_element);
 
                 // we effectively inline the body of cmux here, merging the initial subtraction
                 // operation with the monic polynomial multiplication, then performing the external
@@ -367,15 +373,13 @@ impl FourierLweBootstrapKeyView<'_> {
         }
     }
 
-    // CastInto required for PBS modulus switch which returns a usize
-    pub fn batch_blind_rotate_assign<InputScalar, OutputScalar>(
+    pub fn batch_blind_rotate_assign<OutputScalar>(
         self,
         mut lut_list: GlweCiphertextListMutView<'_, OutputScalar>,
-        lwe_list: LweCiphertextListView<'_, InputScalar>,
+        lwe_list: &[impl ModulusSwitchedCt<usize>],
         fft: FftView<'_>,
         stack: &mut PodStack,
     ) where
-        InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
     {
         let lut_poly_size = lut_list.polynomial_size();
@@ -383,10 +387,9 @@ impl FourierLweBootstrapKeyView<'_> {
         assert!(ciphertext_modulus.is_compatible_with_native_modulus());
 
         for (mut lut, lwe) in izip!(lut_list.as_mut_view().iter_mut(), lwe_list.iter()) {
-            let lwe = lwe.as_ref();
-            let lwe_body = *lwe.last().unwrap();
+            let lwe_body = lwe.body();
 
-            let monomial_degree = MonomialDegree(pbs_modulus_switch(lwe_body, lut_poly_size));
+            let monomial_degree = MonomialDegree(lwe_body.cast_into());
 
             lut.as_mut_polynomial_list()
                 .iter_mut()
@@ -416,11 +419,11 @@ impl FourierLweBootstrapKeyView<'_> {
                 ct1_list.as_mut_view().iter_mut(),
                 lwe_list.iter()
             ) {
-                let lwe = lwe.as_ref();
-                let lwe_mask_element = lwe[idx];
-                if lwe_mask_element != InputScalar::ZERO {
-                    let monomial_degree =
-                        MonomialDegree(pbs_modulus_switch(lwe_mask_element, lut_poly_size));
+                let mut lwe_mask = lwe.mask();
+                let lwe_mask_element = lwe_mask.nth(idx).unwrap();
+
+                if lwe_mask_element != 0 {
+                    let monomial_degree = MonomialDegree(lwe_mask_element.cast_into());
 
                     // we effectively inline the body of cmux here, merging the initial subtraction
                     // operation with the monic polynomial multiplication, then performing the
@@ -494,12 +497,14 @@ impl FourierLweBootstrapKeyView<'_> {
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
-        self.blind_rotate_assign(
-            local_accumulator.as_mut_view(),
-            lwe_in.as_view(),
-            fft,
-            stack,
-        );
+
+        let log_modulus = accumulator
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        let msed = lwe_ciphertext_modulus_switch(lwe_in.as_view(), log_modulus);
+
+        self.blind_rotate_assign(local_accumulator.as_mut_view(), &msed, fft, stack);
 
         extract_lwe_sample_from_glwe_ciphertext(
             &local_accumulator,
@@ -511,7 +516,7 @@ impl FourierLweBootstrapKeyView<'_> {
     pub fn batch_bootstrap<InputScalar, OutputScalar>(
         self,
         mut lwe_out: LweCiphertextListMutView<'_, OutputScalar>,
-        lwe_in: LweCiphertextListView<'_, InputScalar>,
+        lwes_in: LweCiphertextListView<'_, InputScalar>,
         accumulator: &GlweCiphertextListView<'_, OutputScalar>,
         fft: FftView<'_>,
         stack: &mut PodStack,
@@ -520,7 +525,6 @@ impl FourierLweBootstrapKeyView<'_> {
         InputScalar: UnsignedTorus + CastInto<usize>,
         OutputScalar: UnsignedTorus,
     {
-        assert!(lwe_in.ciphertext_modulus().is_power_of_two());
         assert!(lwe_out.ciphertext_modulus().is_power_of_two());
         assert_eq!(
             lwe_out.ciphertext_modulus(),
@@ -535,7 +539,17 @@ impl FourierLweBootstrapKeyView<'_> {
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
-        self.batch_blind_rotate_assign(local_accumulator.as_mut_view(), lwe_in, fft, stack);
+
+        let log_modulus = accumulator
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        let lwe_in_msed: Vec<_> = lwes_in
+            .iter()
+            .map(|lwe_in| lwe_ciphertext_modulus_switch(lwe_in, log_modulus))
+            .collect();
+
+        self.batch_blind_rotate_assign(local_accumulator.as_mut_view(), &lwe_in_msed, fft, stack);
 
         for (mut lwe_out, local_accumulator) in izip!(lwe_out.iter_mut(), local_accumulator.iter())
         {

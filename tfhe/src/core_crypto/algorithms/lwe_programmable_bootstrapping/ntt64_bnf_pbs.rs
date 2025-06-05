@@ -9,6 +9,7 @@ use crate::core_crypto::commons::parameters::{GlweSize, MonomialDegree, Polynomi
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
+use crate::core_crypto::prelude::{lwe_ciphertext_modulus_switch, ModulusSwitchedCt};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::{PodStack, SizeOverflow, StackReq};
 
@@ -41,6 +42,8 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 /// let pbs_level = DecompositionLevelCount(1);
 /// let ciphertext_modulus = CiphertextModulus::new_native();
 /// let ntt_modulus = CiphertextModulus::try_new((1 << 64) - (1 << 32) + 1).unwrap();
+///
+/// let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
 ///
 /// // Request the best seeder possible, starting with hardware entropy sources and falling back to
 /// // /dev/random on Unix systems if enabled via cargo features
@@ -143,8 +146,11 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     big_lwe_sk.lwe_dimension().to_lwe_size(),
 ///     ciphertext_modulus,
 /// );
+///
+/// let lwe_ciphertext_in_msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
+///
 /// println!("Performing blind rotation...");
-/// blind_rotate_ntt64_bnf_assign(&lwe_ciphertext_in, &mut accumulator, &ntt_bsk);
+/// blind_rotate_ntt64_bnf_assign(&lwe_ciphertext_in_msed, &mut accumulator, &ntt_bsk);
 /// println!("Performing sample extraction...");
 /// extract_lwe_sample_from_glwe_ciphertext(
 ///     &accumulator,
@@ -165,13 +171,11 @@ use dyn_stack::{PodStack, SizeOverflow, StackReq};
 ///     "Multiplication via PBS result is correct! Expected 6, got {pbs_multiplication_result}"
 /// );
 /// ```
-pub fn blind_rotate_ntt64_bnf_assign<InputScalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn blind_rotate_ntt64_bnf_assign<OutputCont, KeyCont>(
+    msed_input: &impl ModulusSwitchedCt<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
 ) where
-    InputScalar: UnsignedInteger + CastInto<usize>,
-    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64>,
 {
@@ -192,61 +196,57 @@ pub fn blind_rotate_ntt64_bnf_assign<InputScalar, InputCont, OutputCont, KeyCont
 
     let stack = buffers.stack();
 
-    blind_rotate_ntt64_bnf_assign_mem_optimized(input, lut, bsk, ntt, stack);
+    blind_rotate_ntt64_bnf_assign_mem_optimized(msed_input, lut, bsk, ntt, stack);
 }
 
 /// Memory optimized version of [`blind_rotate_ntt64_bnf_assign`], the caller must provide
 /// a properly configured [`Ntt64View`] object and a `PodStack` used as a memory buffer having a
 /// capacity at least as large as the result of
 /// [`blind_rotate_ntt64_bnf_assign_mem_optimized_requirement`].
-pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputScalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<OutputCont, KeyCont>(
+    msed_input: &impl ModulusSwitchedCt<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
     bsk: &NttLweBootstrapKey<KeyCont>,
     ntt: Ntt64View<'_>,
     stack: &mut PodStack,
 ) where
-    InputScalar: UnsignedInteger + CastInto<usize>,
-    InputCont: Container<Element = InputScalar>,
     OutputCont: ContainerMut<Element = u64>,
     KeyCont: Container<Element = u64>,
 {
-    fn implementation<InputScalar: UnsignedInteger + CastInto<usize>>(
+    fn implementation(
         bsk: NttLweBootstrapKeyView<'_, u64>,
         lut: GlweCiphertextMutView<'_, u64>,
-        lwe: &[InputScalar],
+        msed_lwe: &impl ModulusSwitchedCt<usize>,
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
     ) {
-        use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
         use crate::core_crypto::prelude::polynomial_algorithms::{
             polynomial_wrapping_monic_monomial_div_assign,
             polynomial_wrapping_monic_monomial_mul_assign,
         };
 
-        let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
+        let msed_lwe_mask = msed_lwe.mask();
+        let msed_lwe_body = msed_lwe.body();
+
         let lut_poly_size = lut.polynomial_size();
         let ciphertext_modulus = lut.ciphertext_modulus();
 
         // We initialize the ct_0 used for the successive cmuxes
         let mut ct0 = lut;
 
-        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(lwe_mask.iter(), bsk.into_ggsw_iter()) {
-            if *lwe_mask_element != InputScalar::ZERO {
+        for (lwe_mask_element, bootstrap_key_ggsw) in izip!(msed_lwe_mask, bsk.into_ggsw_iter()) {
+            if lwe_mask_element != 0 {
                 // We copy ct_0 to ct_1
                 let (ct1, stack) =
                     stack.collect_aligned(CACHELINE_ALIGN, ct0.as_ref().iter().copied());
                 let mut ct1 =
                     GlweCiphertextMutView::from_container(ct1, lut_poly_size, ciphertext_modulus);
 
-                // Comptute monomial degree
-                let mask_degree = pbs_modulus_switch(*lwe_mask_element, lut_poly_size);
-
                 // We rotate ct_1 by performing ct_1 <- ct_1 * X^{a_hat}
                 for mut poly in ct1.as_mut_polynomial_list().iter_mut() {
                     polynomial_wrapping_monic_monomial_mul_assign(
                         &mut poly,
-                        MonomialDegree(mask_degree),
+                        MonomialDegree(lwe_mask_element),
                     );
                 }
 
@@ -257,19 +257,18 @@ pub fn blind_rotate_ntt64_bnf_assign_mem_optimized<InputScalar, InputCont, Outpu
         }
 
         // Finally apply rotation by -b
-        let body_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
 
         ct0.as_mut_polynomial_list()
             .iter_mut()
             .for_each(|mut poly| {
                 polynomial_wrapping_monic_monomial_div_assign(
                     &mut poly,
-                    MonomialDegree(body_degree),
+                    MonomialDegree(msed_lwe_body),
                 )
             });
     }
 
-    implementation(bsk.as_view(), lut.as_mut_view(), input.as_ref(), ntt, stack);
+    implementation(bsk.as_view(), lut.as_mut_view(), msed_input, ntt, stack);
 }
 
 /// Perform a programmable bootstrap given an input [`LWE ciphertext`](`LweCiphertext`), a
@@ -491,9 +490,8 @@ pub fn programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized<
         ntt: Ntt64View<'_>,
         stack: &mut PodStack,
     ) {
-        debug_assert_eq!(lwe_out.ciphertext_modulus(), lwe_in.ciphertext_modulus());
         debug_assert_eq!(
-            lwe_in.ciphertext_modulus(),
+            lwe_out.ciphertext_modulus(),
             accumulator.ciphertext_modulus()
         );
 
@@ -504,8 +502,15 @@ pub fn programmable_bootstrap_ntt64_bnf_lwe_ciphertext_mem_optimized<
             accumulator.polynomial_size(),
             accumulator.ciphertext_modulus(),
         );
+
+        let log_modulus = accumulator
+            .polynomial_size()
+            .to_blind_rotation_input_modulus_log();
+
+        let lwe_in_msed = lwe_ciphertext_modulus_switch(lwe_in, log_modulus);
+
         blind_rotate_ntt64_bnf_assign_mem_optimized(
-            &lwe_in,
+            &lwe_in_msed,
             &mut local_accumulator,
             &bsk,
             ntt,

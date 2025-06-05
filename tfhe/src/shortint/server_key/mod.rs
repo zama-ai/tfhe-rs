@@ -43,8 +43,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
-use crate::core_crypto::prelude::{CiphertextModulusLog, ComputationBuffers};
+use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -1206,7 +1205,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
     fn trivial_pbs_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         #[cfg(feature = "pbs-stats")]
         // We want to count trivial PBS in simulator mode
-        // In the non trivial case, this increment is done in the `apply_blind_rotate` function
+        // In the non trivial case, this increment is done in the `apply_ms_blind_rotate` function
         let _ = PBS_COUNT.fetch_add(1, Ordering::Relaxed);
 
         assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
@@ -1387,63 +1386,7 @@ impl<AP: AtomicPattern> GenericServerKey<AP> {
 
 pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
-    in_buffer: &LweCiphertext<InputCont>,
-    acc: &mut GlweCiphertext<OutputCont>,
-    buffers: &mut ComputationBuffers,
-) where
-    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = InputScalar>,
-    OutputScalar: UnsignedTorus + CastFrom<usize>,
-    OutputCont: ContainerMut<Element = OutputScalar>,
-{
-    let input_improved_before_ms;
-
-    let input_blind_rotate = match bootstrapping_key {
-        ShortintBootstrappingKey::Classic {
-            bsk,
-            modulus_switch_noise_reduction_key,
-        } if modulus_switch_noise_reduction_key.is_some() => {
-            input_improved_before_ms = apply_modulus_switch_noise_reduction(
-                modulus_switch_noise_reduction_key.as_ref().unwrap(),
-                bsk.polynomial_size().to_blind_rotation_input_modulus_log(),
-                in_buffer,
-            );
-
-            input_improved_before_ms.as_view()
-        }
-        _ => in_buffer.as_view(),
-    };
-
-    apply_blind_rotate_no_ms_noise_reduction(bootstrapping_key, &input_blind_rotate, acc, buffers);
-}
-
-pub(crate) fn apply_modulus_switch_noise_reduction<InputScalar, InputCont>(
-    modulus_switch_noise_reduction_key: &ModulusSwitchNoiseReductionKey<InputScalar>,
-    log_modulus: CiphertextModulusLog,
-    in_buffer: &LweCiphertext<InputCont>,
-) -> LweCiphertext<Vec<InputScalar>>
-where
-    InputScalar: UnsignedInteger,
-    InputCont: Container<Element = InputScalar>,
-{
-    let mut input: LweCiphertext<Vec<_>> = LweCiphertext::from_container(
-        in_buffer.as_ref().to_owned(),
-        in_buffer.ciphertext_modulus(),
-    );
-
-    modulus_switch_noise_reduction_key.improve_modulus_switch_noise(&mut input, log_modulus);
-
-    input
-}
-
-pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
-    InputScalar,
-    InputCont,
-    OutputScalar,
-    OutputCont,
->(
-    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
-    in_buffer: &LweCiphertext<InputCont>,
+    lwe_in: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
     buffers: &mut ComputationBuffers,
 ) where
@@ -1458,23 +1401,30 @@ pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
     match bootstrapping_key {
         ShortintBootstrappingKey::Classic {
             bsk: fourier_bsk,
-            modulus_switch_noise_reduction_key: _,
+            modulus_switch_noise_reduction_key,
         } => {
-            let fft = Fft::new(fourier_bsk.polynomial_size());
-            let fft = fft.as_view();
-            buffers.resize(
-                programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
-                    fourier_bsk.glwe_size(),
-                    fourier_bsk.polynomial_size(),
-                    fft,
-                )
-                .unwrap()
-                .unaligned_bytes_required(),
-            );
-            let stack = buffers.stack();
+            let poly_size = acc.polynomial_size();
 
-            // Compute the blind rotation
-            blind_rotate_assign_mem_optimized(in_buffer, acc, fourier_bsk, fft, stack);
+            let log_modulus = poly_size.to_blind_rotation_input_modulus_log();
+
+            #[allow(clippy::option_if_let_else)]
+            let msed: LazyStandardModulusSwitchedLweCiphertext<
+                InputScalar,
+                usize,
+                Vec<InputScalar>,
+            > = if let Some(modulus_switch_noise_reduction_key) = modulus_switch_noise_reduction_key
+            {
+                modulus_switch_noise_reduction_key.switch_modulus(lwe_in, log_modulus)
+            } else {
+                let lwe_in = LweCiphertext::from_container(
+                    lwe_in.as_ref().to_vec(),
+                    lwe_in.ciphertext_modulus(),
+                );
+
+                lwe_ciphertext_modulus_switch(lwe_in, log_modulus)
+            };
+
+            blind_rotate_assign(&msed, acc, fourier_bsk, buffers);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,
@@ -1482,7 +1432,7 @@ pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
             deterministic_execution,
         } => {
             modulus_switch_multi_bit_blind_rotate_assign(
-                in_buffer,
+                lwe_in,
                 acc,
                 fourier_bsk,
                 *thread_count,
@@ -1494,8 +1444,8 @@ pub(crate) fn apply_blind_rotate_no_ms_noise_reduction<
 
 pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar, OutputCont>(
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
-    in_buffer: &LweCiphertext<InputCont>,
-    out_buffer: &mut LweCiphertext<OutputCont>,
+    lwe_in: &LweCiphertext<InputCont>,
+    lwe_out: &mut LweCiphertext<OutputCont>,
     acc: &GlweCiphertext<Vec<OutputScalar>>,
     buffers: &mut ComputationBuffers,
 ) where
@@ -1506,33 +1456,9 @@ pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar,
 {
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
-    apply_ms_blind_rotate(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
+    apply_ms_blind_rotate(bootstrapping_key, lwe_in, &mut glwe_out, buffers);
 
-    extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
-}
-
-pub(crate) fn apply_programmable_bootstrap_no_ms_noise_reduction<
-    InputScalar,
-    InputCont,
-    OutputScalar,
-    OutputCont,
->(
-    bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
-    in_buffer: &LweCiphertext<InputCont>,
-    out_buffer: &mut LweCiphertext<OutputCont>,
-    acc: &GlweCiphertext<Vec<OutputScalar>>,
-    buffers: &mut ComputationBuffers,
-) where
-    InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
-    InputCont: Container<Element = InputScalar>,
-    OutputScalar: UnsignedTorus + CastFrom<usize>,
-    OutputCont: ContainerMut<Element = OutputScalar>,
-{
-    let mut glwe_out: GlweCiphertext<_> = acc.clone();
-
-    apply_blind_rotate_no_ms_noise_reduction(bootstrapping_key, in_buffer, &mut glwe_out, buffers);
-
-    extract_lwe_sample_from_glwe_ciphertext(&glwe_out, out_buffer, MonomialDegree(0));
+    extract_lwe_sample_from_glwe_ciphertext(&glwe_out, lwe_out, MonomialDegree(0));
 }
 
 /// Generate a lookup table without any encoding specifications
