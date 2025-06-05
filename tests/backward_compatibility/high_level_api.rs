@@ -1,10 +1,18 @@
 use super::shortint::load_params;
 use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
-use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
-use tfhe::shortint::{AtomicPatternParameters, PBSParameters};
+use tfhe::integer::parameters::DynamicDistribution;
+use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant};
+use tfhe::shortint::parameters::{
+    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
+};
+use tfhe::shortint::prelude::LweDimension;
+use tfhe::shortint::{
+    AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, PBSParameters,
+};
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::CompactPkeCrs;
+use tfhe::zk::CompactPkeCrsConformanceParams;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
@@ -152,7 +160,25 @@ pub fn test_zk_params(
     format: DataFormat,
 ) -> Result<TestSuccess, TestFailure> {
     #[cfg(feature = "zk-pok")]
-    let _loaded_crs: CompactPkeCrs = load_and_unversionize(dir, test, format)?;
+    {
+        let loaded_crs: CompactPkeCrs = load_and_unversionize(dir, test, format)?;
+        let modulus = (test.plaintext_modulus / 2).isqrt();
+        let pke_params = CompactPublicKeyEncryptionParameters {
+            encryption_lwe_dimension: LweDimension(test.lwe_dimension),
+            encryption_noise_distribution: DynamicDistribution::new_t_uniform(
+                test.noise_bound as u32,
+            ),
+            message_modulus: MessageModulus(modulus as u64),
+            carry_modulus: CarryModulus(modulus as u64),
+            ciphertext_modulus: CiphertextModulus::try_new(test.ciphertext_modulus).unwrap(),
+            expansion_kind: CompactCiphertextListExpansionKind::RequiresCasting,
+            zk_scheme: loaded_crs.scheme_version().into(),
+        };
+        let conformance_params =
+            CompactPkeCrsConformanceParams::new(pke_params, loaded_crs.max_num_messages()).unwrap();
+
+        loaded_crs.is_conformant(&conformance_params);
+    }
 
     #[cfg(not(feature = "zk-pok"))]
     let _ = dir;
