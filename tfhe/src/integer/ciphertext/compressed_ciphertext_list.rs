@@ -170,6 +170,29 @@ mod tests {
     const NUM_BLOCKS: usize = 32;
 
     #[test]
+    fn test_empty_list_compression() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128.into();
+
+        let (cks, _) = gen_keys::<ShortintParameterSet>(params, IntegerKeyKind::Radix);
+
+        let private_compression_key = cks
+            .new_compression_private_key(TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
+
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
+
+        let builder = CompressedCiphertextListBuilder::new();
+
+        let compressed = builder.build(&compression_key);
+
+        assert_eq!(compressed.len(), 0);
+        assert!(compressed
+            .get::<RadixCiphertext>(0, &decompression_key)
+            .unwrap()
+            .is_none())
+    }
+
+    #[test]
     fn test_ciphertext_compression() {
         for (params, comp_params) in [
             (

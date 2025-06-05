@@ -6,4 +6,5 @@ pub mod tests;
 
 pub use compressed_server_key::CompressedNoiseSquashingKey;
 pub use private_key::NoiseSquashingPrivateKey;
+pub(crate) use private_key::NoiseSquashingPrivateKeyView;
 pub use server_key::{NoiseSquashingKey, NoiseSquashingKeyConformanceParams};
