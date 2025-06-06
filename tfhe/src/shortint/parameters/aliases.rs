@@ -13,7 +13,7 @@ use current_params::classic::gaussian::p_fail_2_minus_64::ks_pbs::V1_2_PARAM_MES
 use current_params::classic::tuniform::p_fail_2_minus_128::ks_pbs::V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::classic::tuniform::p_fail_2_minus_64::ks_pbs::V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use current_params::compact_public_key_only::p_fail_2_minus_128::ks_pbs::V1_2_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-use current_params::key_switching::p_fail_2_minus_128::ks_pbs::V1_2_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+use current_params::key_switching::p_fail_2_minus_128::ks_pbs::V1_2_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::list_compression::p_fail_2_minus_128::{
     V1_2_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     V1_2_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
@@ -106,7 +106,7 @@ pub const PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: CompactPublicKeyEnc
 
 // PKE To Compute Keyswitch
 pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySwitchingParameters =
-    V1_2_PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    V1_2_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
 // Noise squashing
 pub const NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: NoiseSquashingParameters =

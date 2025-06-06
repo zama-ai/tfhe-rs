@@ -451,6 +451,13 @@ impl AtomicPatternParameters {
         }
     }
 
+    pub const fn encryption_noise_distribution(&self) -> DynamicDistribution<u64> {
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self.glwe_noise_distribution(),
+            EncryptionKeyChoice::Small => self.lwe_noise_distribution(),
+        }
+    }
+
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::Standard(parameters) => parameters.ciphertext_modulus(),
