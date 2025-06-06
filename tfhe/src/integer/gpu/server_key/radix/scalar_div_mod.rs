@@ -6,6 +6,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
+    get_full_propagate_assign_size_on_gpu, get_scalar_div_integer_radix_kb_size_on_gpu,
     unchecked_unsigned_scalar_div_integer_radix_kb_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::scalar_div_mod::{
@@ -1020,19 +1021,16 @@ impl CudaServerKey {
             Scalar::BITS
         );
 
-        if MiniUnsignedInteger::is_power_of_two(divisor) {
-            return self.get_scalar_right_shift_size_on_gpu(numerator, streams);
-        }
+        let lwe_ciphertext_count = numerator.as_ref().d_blocks.lwe_ciphertext_count();
 
-        let log2_divisor = MiniUnsignedInteger::ceil_ilog2(divisor);
-        if log2_divisor > numerator_bits {
-            return self.get_ciphertext_size_on_gpu(numerator);
-        }
+        let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+
+        let log2_divisor_exceeds_threshold =
+            MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
 
         let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
-        let shift_pre = if chosen_multiplier.multiplier
-            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
             && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
         {
             let divisor = Scalar::DoublePrecision::cast_from(divisor);
@@ -1046,49 +1044,102 @@ impl CudaServerKey {
             assert!(numerator_bits > e && e <= Scalar::BITS as u32);
             let divisor_odd: Scalar = divisor_odd.cast_into(); // cast to lower precision
             chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
-            e as u64
-        } else {
+        }
+
+        let multiplier_exceeds_threshold = chosen_multiplier.multiplier
+            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+
+        let ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+
+        let full_prop_mem = if numerator.block_carries_are_empty() {
             0
+        } else {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => get_full_propagate_assign_size_on_gpu(
+                    streams,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                ),
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    get_full_propagate_assign_size_on_gpu(
+                        streams,
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        self.message_modulus,
+                        self.carry_modulus,
+                        PBSType::MultiBit,
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                    )
+                }
+            }
         };
 
-        if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
-        {
-            assert!(shift_pre == 0);
-
-            let inverse = chosen_multiplier.multiplier
-                - (Scalar::DoublePrecision::ONE << numerator_bits as usize);
-            let scalar_mul_high_size_on_gpu =
-                self.get_scalar_mul_high_size_on_gpu(numerator, inverse, streams);
-
-            let quotient_size = self.get_ciphertext_size_on_gpu(numerator);
-            // Due to the use of a shifts, we can't use unchecked_add/sub
-            let scalar_right_shift_size =
-                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
-            let add_size = self.get_add_size_on_gpu(numerator, numerator, streams);
-
-            let scalar_right_shift_size_2 =
-                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
-            scalar_mul_high_size_on_gpu
-                .max(scalar_right_shift_size)
-                .max(add_size)
-                .max(scalar_right_shift_size_2)
-                + quotient_size
-        } else {
-            let scalar_right_shift_size =
-                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
-            let quotient_size = self.get_ciphertext_size_on_gpu(numerator);
-            let scalar_mul_high_size_on_gpu = self.get_scalar_mul_high_size_on_gpu(
-                numerator,
-                chosen_multiplier.multiplier,
+        let scalar_div_mem = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_scalar_div_integer_radix_kb_size_on_gpu(
                 streams,
-            );
-            let scalar_right_shift_size_2 =
-                self.get_scalar_right_shift_size_on_gpu(numerator, streams);
-            scalar_mul_high_size_on_gpu
-                .max(scalar_right_shift_size)
-                .max(scalar_right_shift_size_2)
-                + quotient_size
-        }
+                self.message_modulus,
+                self.carry_modulus,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                self.key_switching_key
+                    .output_key_lwe_size()
+                    .to_lwe_dimension(),
+                d_bsk.decomp_base_log,
+                d_bsk.decomp_level_count,
+                self.key_switching_key.decomposition_base_log(),
+                self.key_switching_key.decomposition_level_count(),
+                LweBskGroupingFactor(0),
+                lwe_ciphertext_count.0 as u32,
+                PBSType::Classical,
+                is_divisor_power_of_two,
+                log2_divisor_exceeds_threshold,
+                multiplier_exceeds_threshold,
+                ilog2_divisor,
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                get_scalar_div_integer_radix_kb_size_on_gpu(
+                    streams,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    self.key_switching_key
+                        .output_key_lwe_size()
+                        .to_lwe_dimension(),
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.decomp_level_count,
+                    self.key_switching_key.decomposition_base_log(),
+                    self.key_switching_key.decomposition_level_count(),
+                    d_multibit_bsk.grouping_factor,
+                    lwe_ciphertext_count.0 as u32,
+                    PBSType::MultiBit,
+                    is_divisor_power_of_two,
+                    log2_divisor_exceeds_threshold,
+                    multiplier_exceeds_threshold,
+                    ilog2_divisor,
+                    None,
+                )
+            }
+        };
+
+        full_prop_mem.max(scalar_div_mem)
     }
 
     pub fn get_scalar_div_rem_size_on_gpu<Scalar>(
