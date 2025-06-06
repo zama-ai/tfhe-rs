@@ -2874,7 +2874,7 @@ fn br_to_squash_pbs_128_inner_helper(
                     });
                 let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &std_bootstrapping_key,
-                    None, /* modulus_switch_noise_reduction_key.as_ref() */
+                    modulus_switch_noise_reduction_key.as_ref(),
                     &streams,
                 );
                 d_bsk
@@ -3088,7 +3088,7 @@ fn br_to_squash_pbs_128_inner_helper(
     {
         *dst = (*src as u128) << 64;
     }
-    let mut d_input_pbs_128 = CudaLweCiphertextList::from_lwe_ciphertext(&input_pbs_128, streams);
+    let mut d_input_pbs_128 = CudaLweCiphertextList::from_lwe_ciphertext(&after_ms_lwe, streams);
 
     let mut output_pbs_128 = LweCiphertext::new(
         0u128,
@@ -3327,7 +3327,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
             });
         let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
             &std_bootstrapping_key,
-            None, /* modulus_switch_noise_reduction_key.as_ref() */
+            modulus_switch_noise_reduction_key.as_ref(),
             &streams,
         );
 
@@ -3720,7 +3720,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
             });
         let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
             &std_bootstrapping_key,
-            None, /* modulus_switch_noise_reduction_key.as_ref() */
+            modulus_switch_noise_reduction_key.as_ref(),
             &streams,
         );
         //let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(&std_bootstrapping_key,None,
