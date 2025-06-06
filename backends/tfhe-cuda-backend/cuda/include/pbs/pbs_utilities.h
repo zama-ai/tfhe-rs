@@ -81,6 +81,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   Torus *global_accumulator;
   double2 *global_join_buffer;
   Torus *temp_lwe_array_in;
+  Torus *trivial_indexes;
 
   PBS_VARIANT pbs_variant;
   bool uses_noise_reduction;
@@ -100,6 +101,22 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
     this->temp_lwe_array_in = (Torus *)cuda_malloc_with_size_tracking_async(
         (lwe_dimension + 1) * input_lwe_ciphertext_count * sizeof(Torus),
         stream, gpu_index, size_tracker, allocate_ms_array);
+    if (allocate_ms_array) {
+      this->trivial_indexes = (Torus *)cuda_malloc_with_size_tracking_async(
+          input_lwe_ciphertext_count * sizeof(Torus), stream, gpu_index,
+          size_tracker, allocate_ms_array);
+      Torus *h_trivial_indexes = new Torus[input_lwe_ciphertext_count];
+      for (uint32_t i = 0; i < input_lwe_ciphertext_count; i++)
+        h_trivial_indexes[i] = i;
+
+      cuda_memcpy_with_size_tracking_async_to_gpu(
+          trivial_indexes, h_trivial_indexes,
+          input_lwe_ciphertext_count * sizeof(Torus), stream, gpu_index,
+          allocate_gpu_memory);
+
+      cuda_synchronize_stream(stream, gpu_index);
+      delete[] h_trivial_indexes;
+    }
     switch (pbs_variant) {
     case PBS_VARIANT::DEFAULT: {
       uint64_t full_sm_step_one =
@@ -234,9 +251,13 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
       cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                          gpu_memory_allocated);
 
-    if (uses_noise_reduction)
+    if (uses_noise_reduction) {
       cuda_drop_with_size_tracking_async(temp_lwe_array_in, stream, gpu_index,
                                          gpu_memory_allocated);
+
+      cuda_drop_with_size_tracking_async(trivial_indexes, stream, gpu_index,
+                                         gpu_memory_allocated);
+    }
   }
 };
 
