@@ -441,6 +441,18 @@ where
             }
         }
     }
+
+    pub fn modulus_switch_noise_reduction_key(
+        &self,
+    ) -> Option<&ModulusSwitchNoiseReductionKey<InputScalar>> {
+        match self {
+            ShortintBootstrappingKey::Classic {
+                bsk: _,
+                modulus_switch_noise_reduction_key,
+            } => modulus_switch_noise_reduction_key.as_ref(),
+            ShortintBootstrappingKey::MultiBit { .. } => None,
+        }
+    }
 }
 
 /// A structure containing the server public key.

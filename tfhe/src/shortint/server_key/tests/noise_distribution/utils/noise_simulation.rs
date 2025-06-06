@@ -1,6 +1,7 @@
 use super::traits::*;
 use crate::core_crypto::commons::ciphertext_modulus::CiphertextModulus;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::generalized_modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::lwe_keyswitch::{
     keyswitch_additive_variance_132_bits_security_gaussian,
     keyswitch_additive_variance_132_bits_security_tuniform,
@@ -16,6 +17,7 @@ use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::shortint::client_key::ClientKey;
+use crate::shortint::server_key::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionKey;
 use crate::shortint::AtomicPatternParameters;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,7 +75,7 @@ impl NoiseSimulationLwe {
     pub fn new_zero() -> Self {
         Self {
             lwe_dimension: LweDimension(0),
-            variance: Variance(0.0),
+            variance: Variance(-2.0f64.powi(128)),
             modulus: NoiseSimulationModulus::Other(0),
         }
     }
@@ -247,6 +249,52 @@ impl Keyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLweKsk
 }
 
 #[derive(Clone, Copy)]
+pub struct NoiseSimulationDriftTechniqueKey {
+    lwe_dimension: LweDimension,
+    noise_distribution: DynamicDistribution<u64>,
+    modulus: NoiseSimulationModulus,
+}
+
+impl NoiseSimulationDriftTechniqueKey {
+    pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
+        Self {
+            lwe_dimension: params.lwe_dimension(),
+            noise_distribution: params.lwe_noise_distribution(),
+            modulus: match params {
+                AtomicPatternParameters::Standard(pbsparameters) => {
+                    NoiseSimulationModulus::from_ciphertext_modulus(
+                        pbsparameters.ciphertext_modulus(),
+                    )
+                }
+                AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+                    NoiseSimulationModulus::from_ciphertext_modulus(
+                        key_switch32_pbsparameters.post_keyswitch_ciphertext_modulus(),
+                    )
+                }
+            },
+        }
+    }
+
+    pub fn matches_actual_drift_key<Scalar: UnsignedInteger>(
+        &self,
+        drift_key: &ModulusSwitchNoiseReductionKey<Scalar>,
+    ) -> bool {
+        let Self {
+            lwe_dimension,
+            noise_distribution: _,
+            modulus,
+        } = *self;
+
+        let drift_key_lwe_dimension = drift_key.modulus_switch_zeros.lwe_size().to_lwe_dimension();
+        let drift_key_modulus = NoiseSimulationModulus::from_ciphertext_modulus(
+            drift_key.modulus_switch_zeros.ciphertext_modulus(),
+        );
+
+        lwe_dimension == drift_key_lwe_dimension && modulus == drift_key_modulus
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct NoiseSimulationLweClassicBsk {
     input_lwe_dimension: LweDimension,
     glwe_size: GlweSize,
@@ -310,8 +358,7 @@ impl AllocateClassicPBSModSwitchResult for NoiseSimulationLwe {
     ) -> Self::Output {
         Self {
             lwe_dimension: self.lwe_dimension,
-            // Easier to detect a problem with a 0 value if the simulation noise is not updated
-            variance: Variance(0.0),
+            variance: Variance(-2.0f64.powi(128)),
             modulus: self.modulus(),
         }
     }
@@ -322,15 +369,15 @@ impl ClassicPBSModSwitch<NoiseSimulationLwe> for NoiseSimulationLwe {
 
     fn classic_mod_switch(
         &self,
-        modulus_log: CiphertextModulusLog,
+        output_modulus_log: CiphertextModulusLog,
         output: &mut NoiseSimulationLwe,
         _side_resources: &mut Self::SideResources,
     ) {
-        let simulation_mod_switch_modulus =
-            NoiseSimulationModulus::from_ciphertext_modulus_log(modulus_log);
+        let simulation_after_mod_switch_modulus =
+            NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);
 
         let input_modulus_f64 = self.modulus().as_f64();
-        let output_modulus_f64 = simulation_mod_switch_modulus.as_f64();
+        let output_modulus_f64 = simulation_after_mod_switch_modulus.as_f64();
 
         assert!(output_modulus_f64 < input_modulus_f64);
 
@@ -345,5 +392,75 @@ impl ClassicPBSModSwitch<NoiseSimulationLwe> for NoiseSimulationLwe {
         // strictly the operation adding the noise is the rounding under the original rounding
         output.modulus = self.modulus;
         output.variance = Variance(self.variance.0 + mod_switch_additive_variance.0)
+    }
+}
+
+impl AllocateDriftTechniqueModSwitchResult for NoiseSimulationDriftTechniqueKey {
+    type AfterDriftOutput = NoiseSimulationLwe;
+    type AfterMsOutput = NoiseSimulationLwe;
+    type SideResources = ();
+
+    fn allocate_drift_technique_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
+        (
+            NoiseSimulationLwe {
+                lwe_dimension: self.lwe_dimension,
+                variance: Variance(-2.0f64.powi(128)),
+                modulus: self.modulus,
+            },
+            NoiseSimulationLwe {
+                lwe_dimension: self.lwe_dimension,
+                variance: Variance(-2.0f64.powi(128)),
+                modulus: self.modulus,
+            },
+        )
+    }
+}
+
+impl DrifTechniqueModSwitch<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationLwe>
+    for NoiseSimulationDriftTechniqueKey
+{
+    type SideResources = ();
+
+    fn drift_technique_and_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &NoiseSimulationLwe,
+        after_drift_technique: &mut NoiseSimulationLwe,
+        after_mod_switch: &mut NoiseSimulationLwe,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert_eq!(self.modulus, input.modulus);
+
+        let simulation_after_mod_switch_modulus =
+            NoiseSimulationModulus::from_ciphertext_modulus_log(output_modulus_log);
+
+        let drift_technique_added_var = match self.noise_distribution {
+            DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
+            DynamicDistribution::TUniform(tuniform) => tuniform.variance(self.modulus.as_f64()),
+        };
+
+        after_drift_technique.lwe_dimension = input.lwe_dimension;
+        after_drift_technique.modulus = input.modulus;
+        after_drift_technique.variance = Variance(input.variance.0 + drift_technique_added_var.0);
+
+        let before_ms_modulus_f64 = after_drift_technique.modulus.as_f64();
+        let after_ms_modulus_f64 = simulation_after_mod_switch_modulus.as_f64();
+
+        assert!(after_ms_modulus_f64 < before_ms_modulus_f64);
+
+        after_mod_switch.lwe_dimension = after_drift_technique.lwe_dimension;
+        after_mod_switch.modulus = after_drift_technique.modulus;
+        after_mod_switch.variance = Variance(
+            after_drift_technique.variance.0
+                + generalized_modulus_switch_additive_variance(
+                    after_drift_technique.lwe_dimension,
+                    before_ms_modulus_f64,
+                    after_ms_modulus_f64,
+                )
+                .0,
+        );
     }
 }

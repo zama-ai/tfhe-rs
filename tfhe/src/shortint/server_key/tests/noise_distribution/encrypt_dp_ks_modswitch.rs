@@ -14,13 +14,24 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::AtomicPatternParameters;
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
-use crate::shortint::server_key::ServerKey;
+use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
 use rayon::prelude::*;
 
-fn dp_ks_modswitch<InputCt, ScalarMulResult, KsResult, MsResult, DPScalar, KsKey, Resources>(
+fn dp_ks_modswitch<
+    InputCt,
+    ScalarMulResult,
+    KsResult,
+    DriftTechniqueResult,
+    MsResult,
+    DPScalar,
+    KsKey,
+    DriftKey,
+    Resources,
+>(
     input: &InputCt,
     scalar: DPScalar,
     ksk: &KsKey,
+    mod_switch_noise_reduction_key: &DriftKey,
     br_input_modulus_log: CiphertextModulusLog,
     side_resources: &mut Resources,
 ) -> MsResult
@@ -30,15 +41,27 @@ where
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
     KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
         + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
-    // We need to be able to allocate the result of mod switching the KsResult and mod switch it
-    KsResult: AllocateClassicPBSModSwitchResult<Output = MsResult, SideResources = Resources>
-        + ClassicPBSModSwitch<MsResult, SideResources = Resources>,
+    // We need to be able to allocate the result and apply drift technique + mod switch it
+    DriftKey: AllocateDriftTechniqueModSwitchResult<
+            AfterDriftOutput = DriftTechniqueResult,
+            AfterMsOutput = MsResult,
+            SideResources = Resources,
+        > + DrifTechniqueModSwitch<KsResult, DriftTechniqueResult, MsResult, SideResources = Resources>,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
     let mut ks_result = ksk.allocate_keyswitch_result(side_resources);
     ksk.keyswitch(&after_dp, &mut ks_result, side_resources);
-    let mut ms_result = ks_result.allocate_classic_mod_switch_result(side_resources);
-    ks_result.classic_mod_switch(br_input_modulus_log, &mut ms_result, side_resources);
+    let (mut drift_technique_result, mut ms_result) =
+        mod_switch_noise_reduction_key.allocate_drift_technique_mod_switch_result(side_resources);
+    mod_switch_noise_reduction_key.drift_technique_and_mod_switch(
+        br_input_modulus_log,
+        &ks_result,
+        &mut drift_technique_result,
+        &mut ms_result,
+        side_resources,
+    );
+
+    let _ = drift_technique_result;
 
     ms_result
 }
@@ -62,14 +85,24 @@ fn encrypt_dp_ks_ms_inner_helper(
         (&thread_cks, &thread_sks)
     };
 
-    let (ksk, br_input_modulus_log) = match &sks.atomic_pattern {
-        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
-            &standard_atomic_pattern_server_key.key_switching_key,
-            standard_atomic_pattern_server_key
-                .bootstrapping_key
-                .polynomial_size()
-                .to_blind_rotation_input_modulus_log(),
-        ),
+    let (ksk, drift_key, br_input_modulus_log) = match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+            let drift_key = match &standard_atomic_pattern_server_key.bootstrapping_key {
+                crate::shortint::server_key::ShortintBootstrappingKey::Classic {
+                    modulus_switch_noise_reduction_key,
+                    ..
+                } => modulus_switch_noise_reduction_key.as_ref().unwrap(),
+                crate::shortint::server_key::ShortintBootstrappingKey::MultiBit { .. } => todo!(),
+            };
+            (
+                &standard_atomic_pattern_server_key.key_switching_key,
+                drift_key,
+                standard_atomic_pattern_server_key
+                    .bootstrapping_key
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log(),
+            )
+        }
         AtomicPatternServerKey::KeySwitch32(_) => {
             todo!()
         }
@@ -82,6 +115,7 @@ fn encrypt_dp_ks_ms_inner_helper(
         &ct.ct,
         scalar_for_multiplication,
         ksk,
+        drift_key,
         br_input_modulus_log,
         &mut (),
     );
@@ -111,11 +145,20 @@ where
     let sks = ServerKey::new(&cks);
 
     let noise_simulation_ksk = NoiseSimulationLweKsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_drift_key =
+        NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
 
     let br_input_modulus_log = match &sks.atomic_pattern {
         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
             assert!(noise_simulation_ksk
                 .matches_actual_ksk(&standard_atomic_pattern_server_key.key_switching_key));
+
+            let drift_key = standard_atomic_pattern_server_key
+                .bootstrapping_key
+                .modulus_switch_noise_reduction_key()
+                .unwrap();
+            assert!(noise_simulation_drift_key.matches_actual_drift_key(drift_key));
+
             standard_atomic_pattern_server_key
                 .bootstrapping_key
                 .polynomial_size()
@@ -140,6 +183,7 @@ where
             &noise_simulation,
             max_scalar_mul,
             &noise_simulation_ksk,
+            &noise_simulation_drift_key,
             br_input_modulus_log,
             &mut (),
         )
@@ -149,20 +193,32 @@ where
     // dimension checks
     let expected_lwe_dimension_out = match &sks.atomic_pattern {
         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+            let drift_key = standard_atomic_pattern_server_key
+                .bootstrapping_key
+                .modulus_switch_noise_reduction_key()
+                .unwrap();
+
             let res = dp_ks_modswitch(
                 &cks.encrypt(0).ct,
                 max_scalar_mul,
                 &standard_atomic_pattern_server_key.key_switching_key,
+                drift_key,
                 br_input_modulus_log,
                 &mut (),
             );
             res.lwe_size().to_lwe_dimension()
         }
         AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
+            let drift_key = ks32_atomic_pattern_server_key
+                .bootstrapping_key
+                .modulus_switch_noise_reduction_key()
+                .unwrap();
+
             let res = dp_ks_modswitch(
                 &cks.encrypt(0).ct,
                 max_scalar_mul,
                 &ks32_atomic_pattern_server_key.key_switching_key,
+                drift_key,
                 br_input_modulus_log,
                 &mut (),
             );

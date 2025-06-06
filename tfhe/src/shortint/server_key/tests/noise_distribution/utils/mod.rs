@@ -33,6 +33,7 @@ use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
 use crate::shortint::client_key::ClientKey;
+use crate::shortint::server_key::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionKey;
 use std::any::TypeId;
 use traits::*;
 
@@ -45,6 +46,13 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     decryption_key_lwe_dimension: LweDimension,
     modulus_as_f64: f64,
 ) -> bool {
+    assert!(expected_mean.is_finite(), "Expected mean is infinite");
+    assert!(
+        expected_variance.0.is_finite(),
+        "Expected variance is infinite"
+    );
+    assert!(expected_variance.0 >= 0.0, "Expected positive variance");
+
     let measured_mean = arithmetic_mean(noise_samples);
     let measured_variance = variance(noise_samples);
 
@@ -288,7 +296,7 @@ impl<
 
     fn classic_mod_switch(
         &self,
-        modulus_log: CiphertextModulusLog,
+        output_modulus_log: CiphertextModulusLog,
         output: &mut LweCiphertext<OutputCont>,
         _side_resources: &mut Self::SideResources,
     ) {
@@ -301,9 +309,70 @@ impl<
         assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
 
         for (inp, out) in self.as_ref().iter().zip(output.as_mut().iter_mut()) {
-            let msed = modulus_switch(*inp, modulus_log);
+            let msed = modulus_switch(*inp, output_modulus_log);
             // Shift in MSBs to match the power of 2 encoding in core
-            *out = msed << (Scalar::BITS - modulus_log.0);
+            *out = msed << (Scalar::BITS - output_modulus_log.0);
         }
+    }
+}
+
+impl<Scalar: UnsignedInteger> AllocateDriftTechniqueModSwitchResult
+    for ModulusSwitchNoiseReductionKey<Scalar>
+{
+    type AfterDriftOutput = LweCiphertextOwned<Scalar>;
+    type AfterMsOutput = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_drift_technique_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
+        (
+            Self::AfterDriftOutput::new(
+                Scalar::ZERO,
+                self.modulus_switch_zeros.lwe_size(),
+                self.modulus_switch_zeros.ciphertext_modulus(),
+            ),
+            Self::AfterMsOutput::new(
+                Scalar::ZERO,
+                self.modulus_switch_zeros.lwe_size(),
+                self.modulus_switch_zeros.ciphertext_modulus(),
+            ),
+        )
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        AfterDriftCont: ContainerMut<Element = Scalar>,
+        AfterMsCont: ContainerMut<Element = Scalar>,
+    >
+    DrifTechniqueModSwitch<
+        LweCiphertext<InputCont>,
+        LweCiphertext<AfterDriftCont>,
+        LweCiphertext<AfterMsCont>,
+    > for ModulusSwitchNoiseReductionKey<Scalar>
+{
+    type SideResources = ();
+
+    fn drift_technique_and_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &LweCiphertext<InputCont>,
+        after_drift_technique: &mut LweCiphertext<AfterDriftCont>,
+        after_mod_switch: &mut LweCiphertext<AfterMsCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        after_drift_technique
+            .as_mut()
+            .copy_from_slice(input.as_ref());
+        self.improve_modulus_switch_noise(after_drift_technique, output_modulus_log);
+
+        after_drift_technique.classic_mod_switch(
+            output_modulus_log,
+            after_mod_switch,
+            side_resources,
+        );
     }
 }

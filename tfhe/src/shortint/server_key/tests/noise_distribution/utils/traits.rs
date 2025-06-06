@@ -53,14 +53,32 @@ pub trait ClassicPBSModSwitch<Output> {
 
     fn classic_mod_switch(
         &self,
-        ciphertext_modulus_log: CiphertextModulusLog,
+        output_modulus_log: CiphertextModulusLog,
         output: &mut Output,
         side_resources: &mut Self::SideResources,
     );
 }
 
-pub trait DrifTechniqueModSwitch<OutputAfterDrift, OutputAfterMs> {
+pub trait AllocateDriftTechniqueModSwitchResult {
+    type AfterDriftOutput;
+    type AfterMsOutput;
     type SideResources;
 
-    fn drift_technique_and_mod_switch(&self);
+    fn allocate_drift_technique_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> (Self::AfterDriftOutput, Self::AfterMsOutput);
+}
+
+pub trait DrifTechniqueModSwitch<Input, OutputAfterDriftTechnique, OutputAfterMs> {
+    type SideResources;
+
+    fn drift_technique_and_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &Input,
+        after_drift_technique: &mut OutputAfterDriftTechnique,
+        after_mod_switch: &mut OutputAfterMs,
+        side_resources: &mut Self::SideResources,
+    );
 }
