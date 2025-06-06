@@ -4899,7 +4899,6 @@ template <typename Torus> struct int_scalar_mul_high {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_fullprop_buffer<Torus> *fullprop_mem;
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
   int_scalar_mul_buffer<Torus> *scalar_mul_mem;
 
@@ -4913,10 +4912,6 @@ template <typename Torus> struct int_scalar_mul_high {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-
-    this->fullprop_mem =
-        new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
-                                       allocate_gpu_memory, size_tracker);
 
     this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
         streams, gpu_indexes, gpu_count, shift_type, params,
@@ -4934,9 +4929,6 @@ template <typename Torus> struct int_scalar_mul_high {
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
-
-    fullprop_mem->release(streams, gpu_indexes, gpu_count);
-    delete fullprop_mem;
 
     logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
     delete logical_scalar_shift_mem;
@@ -4986,6 +4978,69 @@ template <typename Torus> struct int_sub_and_propagate {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], neg_rhs_array,
                                    allocate_gpu_memory);
     delete neg_rhs_array;
+  }
+};
+
+template <typename Torus> struct int_unsigned_scalar_div_mem {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
+  int_scalar_mul_high<Torus> *scalar_mul_high_mem;
+  int_sc_prop_memory<Torus> *scp_mem;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+
+  CudaRadixCiphertextFFI *tmp_ffi;
+
+  int_unsigned_scalar_div_mem(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t requested_flag_in,
+      bool anticipated_buffer_drop, uint64_t *size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
+        allocate_gpu_memory, size_tracker);
+
+    scalar_mul_high_mem = new int_scalar_mul_high<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        allocate_gpu_memory, shift_type, anticipated_buffer_drop, size_tracker);
+
+    scp_mem = new int_sc_prop_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        requested_flag_in, (uint32_t)0, allocate_gpu_memory, size_tracker);
+
+    sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        requested_flag_in, allocate_gpu_memory, size_tracker);
+
+    tmp_ffi = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+    delete logical_scalar_shift_mem;
+
+    scalar_mul_high_mem->release(streams, gpu_indexes, gpu_count);
+    delete scalar_mul_high_mem;
+
+    scp_mem->release(streams, gpu_indexes, gpu_count);
+    delete scp_mem;
+
+    sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
+    delete sub_and_propagate_mem;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_ffi,
+                                   allocate_gpu_memory);
+    delete tmp_ffi;
   }
 };
 

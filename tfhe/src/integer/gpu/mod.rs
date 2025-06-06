@@ -2542,6 +2542,195 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+    Scalar,
+>(
+    streams: &CudaStreams,
+    numerator: &mut CudaRadixCiphertext,
+    carry_out: &mut CudaRadixCiphertext,
+    input_carries: &CudaRadixCiphertext,
+    rhs: Scalar,
+    msg_bits: usize,
+    ksks: &CudaVec<T>,
+    bsks: &CudaVec<B>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    num_blocks: u32,
+    multiplier_exceeds_threshold: bool,
+    shift_pre: u64,
+    shift_post: u32,
+    pbs_type: PBSType,
+    requested_flag: u32,
+    uses_carry: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) where
+    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+{
+    assert_eq!(
+        streams.gpu_indexes[0],
+        numerator.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        carry_out.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_carries.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+
+    let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut numerator_noise_levels = numerator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_numerator = prepare_cuda_radix_ffi(
+        numerator,
+        &mut numerator_degrees,
+        &mut numerator_noise_levels,
+    );
+
+    let mut carry_out_degrees = carry_out.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_out_noise_levels = carry_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_carry_out_sub = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+    let mut cuda_ffi_carry_out_add = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+
+    let mut input_carries_degrees = input_carries
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut input_carries_noise_levels = input_carries
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_input_carries_sub = prepare_cuda_radix_ffi(
+        input_carries,
+        &mut input_carries_degrees,
+        &mut input_carries_noise_levels,
+    );
+    let cuda_ffi_input_carries_add = prepare_cuda_radix_ffi(
+        input_carries,
+        &mut input_carries_degrees,
+        &mut input_carries_noise_levels,
+    );
+
+    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+
+    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+
+    let mut has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+
+    let value_rhs: u64 = rhs.cast_into();
+
+    scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        ShiftRotateType::RightShift as u32,
+        true,
+        requested_flag,
+        true,
+        allocate_ms_array,
+    );
+
+    cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_numerator,
+        mem_ptr,
+        ksks.ptr.as_ptr(),
+        decomposed_scalar.as_ptr(),
+        has_at_least_one_set.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        bsks.ptr.as_ptr(),
+        decomposed_scalar.len() as u32,
+        multiplier_exceeds_threshold,
+        shift_pre,
+        shift_post,
+        &raw mut cuda_ffi_carry_out_sub,
+        &raw mut cuda_ffi_carry_out_add,
+        &raw const cuda_ffi_input_carries_sub,
+        &raw const cuda_ffi_input_carries_add,
+        requested_flag,
+        uses_carry,
+        value_rhs,
+    );
+
+    cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(numerator, &cuda_ffi_numerator);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out_sub);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out_add);
+}
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
