@@ -474,6 +474,83 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn get_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
+    streams: &CudaStreams,
+    rhs: Scalar,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    grouping_factor: LweBskGroupingFactor,
+    num_blocks: u32,
+    pbs_type: PBSType,
+    is_divisor_power_of_two: bool,
+    log2_divisor_exceeds_threshold: bool,
+    multiplier_exceeds_threshold: bool,
+    ilog2_divisor: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) -> u64
+where
+    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+{
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let num_ciphertext_bits = msg_bits * num_blocks as usize;
+    let num_scalar_bits = decomposed_scalar
+        .iter()
+        .take(num_ciphertext_bits)
+        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .count() as u32;
+
+    let size_tracker = unsafe {
+        scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            false,
+            is_divisor_power_of_two,
+            log2_divisor_exceeds_threshold,
+            multiplier_exceeds_threshold,
+            num_scalar_bits,
+            ilog2_divisor,
+            allocate_ms_noise_array,
+        )
+    };
+    unsafe {
+        cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        )
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization

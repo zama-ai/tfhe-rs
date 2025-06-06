@@ -496,9 +496,9 @@ fn test_gpu_get_div_size_on_gpu() {
         div_rem_tmp_buffer_size,
         GpuIndex::new(0)
     ));
-    let scalar_div_tmp_buffer_size = a.get_div_size_on_gpu(b);
-    let scalar_rem_tmp_buffer_size = a.get_rem_size_on_gpu(b);
-    let scalar_div_rem_tmp_buffer_size = a.get_div_rem_size_on_gpu(b);
+    let scalar_div_tmp_buffer_size = a.get_div_size_on_gpu(clear_b);
+    let scalar_rem_tmp_buffer_size = a.get_rem_size_on_gpu(clear_b);
+    let scalar_div_rem_tmp_buffer_size = a.get_div_rem_size_on_gpu(clear_b);
     assert!(check_valid_cuda_malloc(
         scalar_div_tmp_buffer_size,
         GpuIndex::new(0)
