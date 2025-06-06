@@ -142,6 +142,16 @@ impl CompressedNoiseSquashingKey {
         }
     }
 
+    pub fn bootstrapping_key(&self) -> &SeededLweBootstrapKeyOwned<u128> {
+        &self.bootstrapping_key
+    }
+
+    pub fn modulus_switch_noise_reduction_key(
+        &self,
+    ) -> Option<&CompressedModulusSwitchNoiseReductionKey<u64>> {
+        self.modulus_switch_noise_reduction_key.as_ref()
+    }
+
     pub fn message_modulus(&self) -> MessageModulus {
         self.message_modulus
     }
@@ -152,6 +162,22 @@ impl CompressedNoiseSquashingKey {
 
     pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
         self.output_ciphertext_modulus
+    }
+
+    pub fn from_raw_parts(
+        bootstrapping_key: SeededLweBootstrapKeyOwned<u128>,
+        modulus_switch_noise_reduction_key: Option<CompressedModulusSwitchNoiseReductionKey<u64>>,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        output_ciphertext_modulus: CoreCiphertextModulus<u128>,
+    ) -> Self {
+        Self {
+            bootstrapping_key,
+            modulus_switch_noise_reduction_key,
+            message_modulus,
+            carry_modulus,
+            output_ciphertext_modulus,
+        }
     }
 }
 

@@ -46,7 +46,7 @@ macro_rules! export_concrete_array_types {
     };
 }
 
-pub use crate::core_crypto::commons::math::random::Seed;
+pub use crate::core_crypto::commons::math::random::{Seed, XofSeed};
 pub use crate::integer::server_key::MatchValues;
 use crate::{error, Error};
 pub use config::{Config, ConfigBuilder};
@@ -128,6 +128,7 @@ pub use compressed_ciphertext_list::{
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
 pub use tag::Tag;
 pub use traits::FheId;
+pub mod xof_key_set;
 
 mod booleans;
 mod compressed_ciphertext_list;
