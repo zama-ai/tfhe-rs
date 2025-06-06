@@ -424,7 +424,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto d_new_columns_counter = mem_ptr->d_new_columns_counter;
   auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
   auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
-  auto d_pbs_counters = mem_ptr->d_pbs_counters;
 
   auto luts_message_carry = mem_ptr->luts_message_carry;
 

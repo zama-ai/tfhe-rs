@@ -580,6 +580,7 @@ template <typename Torus> struct int_radix_lut {
             streams[i], gpu_indexes[i], gpu_memory_allocated);
       }
     }
+    cuda_set_device(gpu_indexes[0]);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
