@@ -99,14 +99,12 @@ template <typename Torus>
 __global__ inline void prepare_new_columns_and_pbs_indexes(
     uint32_t *const *const new_columns, uint32_t *const new_columns_counter,
     Torus *const pbs_indexes_in, Torus *const pbs_indexes_out,
-    Torus *const lut_indexes, uint32_t *const pbs_counters,
-    const uint32_t *const *const columns, const uint32_t *const columns_counter,
-    const uint32_t chunk_size) {
-  __shared__ uint32_t counter, sharedOr;
+    Torus *const lut_indexes, const uint32_t *const *const columns,
+    const uint32_t *const columns_counter, const uint32_t chunk_size) {
+  __shared__ uint32_t counter;
 
   if (threadIdx.x == 0) {
     counter = 0;
-    sharedOr = 0;
   }
   __syncthreads();
 
@@ -125,12 +123,7 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
     lut_indexes[pbs_index] = 0;
     ++ct_count;
   }
-  //  ct1 ct2 ct3
-  // pbs_indexes: 0, 1, 2
-  // pbs_indexes: 2, 1, 0
-
   __syncthreads();
-  uint32_t message_count = counter;
 
   if (base_id > 0) {
     const uint32_t prev_base_id = base_id - 1;
@@ -158,17 +151,6 @@ __global__ inline void prepare_new_columns_and_pbs_indexes(
   }
 
   new_columns_counter[base_id] = ct_count;
-
-  if (ct_count > chunk_size) {
-    atomicOr(&sharedOr, 1);
-  }
-  __syncthreads();
-
-  if (threadIdx.x == 0) {
-    pbs_counters[0] = counter;
-    pbs_counters[1] = message_count;
-    pbs_counters[2] = sharedOr;
-  }
 }
 
 template <typename Torus>
@@ -291,24 +273,72 @@ __global__ void fill_radix_from_lsb_msb(Torus *result_blocks, Torus *lsb_blocks,
   }
 }
 
-inline bool at_least_one_column_needs_processing(
-    const uint64_t *const degrees, const uint32_t num_radix_blocks,
-    const uint32_t num_radix_in_vec, const uint32_t chunk_size) {
-  std::vector<uint32_t> columns_count(num_radix_blocks, 0);
+struct radix_columns {
+  std::vector<size_t> columns_counter;
+  size_t num_blocks;
+  size_t num_radix_in_vec;
+  size_t chunk_size;
+  radix_columns(const uint64_t *const input_degrees, size_t num_blocks,
+                size_t num_radix_in_vec, size_t chunk_size,
+                bool &needs_processing)
+      : num_blocks(num_blocks), num_radix_in_vec(num_radix_in_vec),
+        chunk_size(chunk_size) {
+    needs_processing = false;
+    columns_counter.resize(num_blocks, 0);
+    for (size_t i = 0; i < num_radix_in_vec; ++i) {
+      for (size_t j = 0; j < num_blocks; ++j) {
+        if (input_degrees[i * num_blocks + j])
+          columns_counter[j] += 1;
+      }
+    }
 
-  for (size_t column = 0; column < num_radix_blocks; ++column) {
-    for (size_t block = 0; block < num_radix_in_vec; ++block) {
-      const size_t block_index = block * num_radix_blocks + column;
-      if (degrees[block_index]) {
-        columns_count[column]++;
-        if (columns_count[column] > chunk_size) {
-          return true;
-        }
+    for (size_t i = 0; i < num_blocks; ++i) {
+      if (columns_counter[i] > chunk_size) {
+        needs_processing = true;
+        break;
       }
     }
   }
-  return false;
-}
+
+  void next_accumulation(size_t &total_ciphertexts, size_t &message_ciphertexts,
+                         bool &needs_processing) {
+    message_ciphertexts = 0;
+    total_ciphertexts = 0;
+    needs_processing = false;
+    for (int i = num_blocks - 1; i > 0; --i) {
+      size_t cur_count = columns_counter[i];
+      size_t prev_count = columns_counter[i - 1];
+      size_t new_count = 0;
+
+      // accumulated_blocks from current columns
+      new_count += cur_count / chunk_size;
+      // all accumulated message blocks needs pbs
+      message_ciphertexts += new_count;
+      // carry blocks from previous columns
+      new_count += prev_count / chunk_size;
+      // both carry and message blocks that needs pbs
+      total_ciphertexts += new_count;
+      // now add remaining non accumulated blocks that does not require pbs
+      new_count += cur_count % chunk_size;
+
+      columns_counter[i] = new_count;
+
+      if (new_count > chunk_size)
+        needs_processing = true;
+    }
+
+    // now do it for 0th block
+    size_t new_count = columns_counter[0] / chunk_size;
+    message_ciphertexts += new_count;
+    total_ciphertexts += new_count;
+    new_count += columns_counter[0] % chunk_size;
+    columns_counter[0] = new_count;
+
+    if (new_count > chunk_size) {
+      needs_processing = true;
+    }
+  }
+};
 
 inline void calculate_final_degrees(uint64_t *const out_degrees,
                                     const uint64_t *const input_degrees,
@@ -447,18 +477,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       d_columns, d_columns_counter, d_degrees, num_radix_blocks,
       num_radix_in_vec);
 
-  bool needs_processing = at_least_one_column_needs_processing(
-      current_blocks->degrees, num_radix_blocks, num_radix_in_vec, chunk_size);
-
+  bool needs_processing = false;
+  radix_columns current_columns(current_blocks->degrees, num_radix_blocks,
+                                num_radix_in_vec, chunk_size, needs_processing);
   int number_of_threads = min(256, params::degree);
   int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
-
-  // h_pbs_counters[0] - total ciphertexts
-  // h_pbs_counters[1] - message ciphertexts
-  // h_pbs_counters[2] - at_least_one_column_needs_processing
-  uint32_t *h_pbs_counters;
-  cudaMallocHost((void **)&h_pbs_counters, 3 * sizeof(uint32_t));
 
   while (needs_processing) {
     calculate_chunks<Torus>
@@ -468,20 +492,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
     prepare_new_columns_and_pbs_indexes<<<1, num_radix_blocks, 0, streams[0]>>>(
         d_new_columns, d_new_columns_counter, d_pbs_indexes_in,
-        d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0),
-        d_pbs_counters, d_columns, d_columns_counter, chunk_size);
+        d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0), d_columns,
+        d_columns_counter, chunk_size);
 
-    cuda_memcpy_async_to_cpu(h_pbs_counters, d_pbs_counters,
-                             3 * sizeof(uint32_t), streams[0], gpu_indexes[0]);
-
-    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
-
-    const uint32_t total_ciphertexts = h_pbs_counters[0];
-    const uint32_t total_messages = h_pbs_counters[1];
-    needs_processing = (h_pbs_counters[2] != 0);
+    size_t total_ciphertexts;
+    size_t total_messages;
+    current_columns.next_accumulation(total_ciphertexts, total_messages,
+                                      needs_processing);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
-
     if (active_gpu_count == 1) {
       execute_keyswitch_async<Torus>(
           streams, gpu_indexes, 1, (Torus *)small_lwe_vector->ptr,
@@ -524,7 +543,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     std::swap(d_columns_counter, d_new_columns_counter);
   }
 
-  cudaFreeHost(h_pbs_counters);
   calculate_final_chunk_into_radix<Torus>
       <<<number_of_blocks_2d, number_of_threads, 0, streams[0]>>>(
           (Torus *)(radix_lwe_out->ptr), (Torus *)(current_blocks->ptr),

@@ -1138,7 +1138,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   uint32_t **d_new_columns;
 
   uint64_t *d_degrees;
-  uint32_t *d_pbs_counters;
 
   // lookup table for extracting message and carry
   int_radix_lut<Torus> *luts_message_carry;
@@ -1151,10 +1150,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     d_degrees = (uint64_t *)cuda_malloc_with_size_tracking_async(
         max_total_blocks_in_vec * sizeof(uint64_t), streams[0], gpu_indexes[0],
         size_tracker, gpu_memory_allocated);
-
-    d_pbs_counters = (uint32_t *)cuda_malloc_with_size_tracking_async(
-        3 * sizeof(uint32_t), streams[0], gpu_indexes[0], size_tracker,
-        gpu_memory_allocated);
 
     auto num_blocks_in_radix = this->num_blocks_in_radix;
     auto max_num_radix_in_vec = this->max_num_radix_in_vec;
@@ -1283,9 +1278,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                uint32_t gpu_count) {
     cuda_drop_with_size_tracking_async(d_degrees, streams[0], gpu_indexes[0],
                                        gpu_memory_allocated);
-    cuda_drop_with_size_tracking_async(d_pbs_counters, streams[0],
-                                       gpu_indexes[0], gpu_memory_allocated);
-
     cuda_drop_with_size_tracking_async(d_columns_data, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(d_columns_counter, streams[0],
