@@ -4942,6 +4942,45 @@ template <typename Torus> struct int_scalar_mul_high {
   }
 };
 
+template <typename Torus> struct int_sub_and_propagate {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  CudaRadixCiphertextFFI *neg_rhs_array;
+
+  int_sc_prop_memory<Torus> *sc_prop_mem;
+
+  int_sub_and_propagate(cudaStream_t const *streams,
+                        uint32_t const *gpu_indexes, uint32_t gpu_count,
+                        const int_radix_params params,
+                        uint32_t num_radix_blocks, uint32_t requested_flag_in,
+                        bool allocate_gpu_memory, uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->sc_prop_mem = new int_sc_prop_memory<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        requested_flag_in, (uint32_t)0, allocate_gpu_memory, size_tracker);
+
+    this->neg_rhs_array = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], neg_rhs_array, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    sc_prop_mem->release(streams, gpu_indexes, gpu_count);
+    delete sc_prop_mem;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], neg_rhs_array,
+                                   allocate_gpu_memory);
+    delete neg_rhs_array;
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
