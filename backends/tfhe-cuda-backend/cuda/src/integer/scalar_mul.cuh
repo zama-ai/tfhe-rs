@@ -115,13 +115,10 @@ __host__ void host_integer_scalar_mul_radix(
     set_zero_radix_ciphertext_slice_async<T>(streams[0], gpu_indexes[0],
                                              lwe_array, 0, num_radix_blocks);
   } else {
-    for (int i = 0; i < j * num_radix_blocks; i++) {
-      all_shifted_buffer->degrees[i] = message_modulus - 1;
-    }
     host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
-        streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, bsks,
-        ksks, ms_noise_reduction_key, mem->sum_ciphertexts_vec_mem,
-        num_radix_blocks, j, nullptr);
+        streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, true,
+        bsks, ksks, ms_noise_reduction_key, mem->sum_ciphertexts_vec_mem,
+        num_radix_blocks, j);
 
     auto scp_mem_ptr = mem->sc_prop_mem;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
