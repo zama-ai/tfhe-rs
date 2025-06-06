@@ -142,7 +142,10 @@ macro_rules! pbs {
                 $(
                     let pbs = Pbs::[< $pbs:camel >]([< Pbs $pbs >]::default());
                     pbs_from_arg.asm.insert(stringify!([< $pbs:camel >]).to_string(), pbs.clone());
-                    pbs_from_arg.hex.insert(pbs.gid(), pbs);
+                    let evicted = pbs_from_arg.hex.insert(pbs.gid(), pbs.clone());
+                    assert!(evicted.is_none(), "Error with {}: gid {} is already use by {:?}",
+stringify!([< $pbs:camel >]), pbs.gid(), evicted.unwrap());
+
                 )*
                 pbs_from_arg
             };

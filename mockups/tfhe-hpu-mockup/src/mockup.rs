@@ -60,12 +60,12 @@ pub struct Args {
     #[clap(long, value_parser, default_value_t = 1_000_000)]
     quantum_us: usize,
 
-    /// Simulation bypass.
-    /// Disable execution, obviously led to incorrect behavior but accurate
-    /// performance estimation.
-    /// For correct behavior (but false perf estimation) use a "fast" parameter set
+    /// Consider all received ciphertext as trivial ciphertext
+    /// Execute Pbs in a trivial manner and display value in tracing::debug
+    /// Useful for IOp algorithm debug
+    /// WARN: Only work if user application send trivial ciphertext
     #[clap(long, value_parser)]
-    nops: bool,
+    trivial: bool,
 
     // Dump configuration ----------------------------------------------------
     // Use to activate some dump features for the generation of simulation stimulus
@@ -103,7 +103,7 @@ impl From<&Args> for MockupOptions {
             dump_reg: args.dump_reg,
             report_out: args.report_out.clone(),
             report_trace: args.report_trace,
-            nops: args.nops,
+            trivial: args.trivial,
         }
     }
 }

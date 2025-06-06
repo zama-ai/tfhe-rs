@@ -82,3 +82,37 @@ fn test_uint32_clone_hpu() {
     let client_key = setup_default_hpu();
     super::test_case_clone(&client_key);
 }
+
+#[test]
+fn test_case_if_then_else_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_if_then_else(&client_key);
+}
+#[test]
+fn test_case_uint32_div_rem_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_uint32_div_rem(&client_key);
+}
+
+#[test]
+fn test_uint32_shift_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_uint32_shift(&client_key);
+}
+#[test]
+fn test_uint32_rotate_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_uint32_rotate(&client_key);
+}
+
+#[test]
+fn test_uint32_leading_trailing_zeros_ones_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_leading_trailing_zeros_ones(&client_key);
+}
+
+#[test]
+fn test_uint32_ilog2_hpu() {
+    let client_key = setup_default_hpu();
+    super::test_case_ilog2(&client_key);
+}

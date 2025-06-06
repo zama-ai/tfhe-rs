@@ -6,6 +6,11 @@ use crate::integer::block_decomposition::DecomposableInto;
 use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheUint};
 
+#[cfg(feature = "hpu")]
+use crate::integer::hpu::ciphertext::HpuRadixCiphertext;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::*;
+
 impl<Id> OverflowingAdd<Self> for &FheUint<Id>
 where
     Id: FheUintId,
@@ -64,8 +69,30 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = other.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_OVF_ADD;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let overflow = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
+                let result = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
+                (
+                    FheUint::new(result, device.tag.clone()),
+                    FheBool::new(overflow, device.tag.clone()),
+                )
             }
         })
     }
@@ -165,8 +192,29 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let imm_rhs = {
+                    let as_u64: u64 = other.cast_into();
+                    u128::from(as_u64)
+                };
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_OVF_ADDS;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result =
+                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_lhs.clone()], &[imm_rhs]);
+                let overflow = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
+                let result = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
+                (
+                    FheUint::new(result, device.tag.clone()),
+                    FheBool::new(overflow, device.tag.clone()),
+                )
             }
         })
     }
@@ -306,8 +354,30 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = other.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_OVF_SUB;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let overflow = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
+                let result = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
+                (
+                    FheUint::new(result, device.tag.clone()),
+                    FheBool::new(overflow, device.tag.clone()),
+                )
             }
         })
     }
@@ -353,7 +423,7 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for &FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear>,
+    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
 {
     type Output = FheUint<Id>;
 
@@ -398,8 +468,29 @@ where
                 panic!("Cuda devices do not support overflowing_add yet");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let imm_rhs = {
+                    let as_u64: u64 = other.cast_into();
+                    u128::from(as_u64)
+                };
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_OVF_SUBS;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result =
+                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_lhs.clone()], &[imm_rhs]);
+                let overflow = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
+                let result = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
+                (
+                    FheUint::new(result, device.tag.clone()),
+                    FheBool::new(overflow, device.tag.clone()),
+                )
             }
         })
     }
@@ -408,7 +499,7 @@ where
 impl<Id, Clear> OverflowingSub<Clear> for FheUint<Id>
 where
     Id: FheUintId,
-    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear>,
+    Clear: UnsignedNumeric + DecomposableInto<u8> + std::ops::Not<Output = Clear> + CastInto<u64>,
 {
     type Output = Self;
 
@@ -489,8 +580,30 @@ where
                 todo!("Cuda devices do not support overflowing_mul");
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = other.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_OVF_MUL;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let overflow = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");
+                let result = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");
+                (
+                    FheUint::new(result, device.tag.clone()),
+                    FheBool::new(overflow, device.tag.clone()),
+                )
             }
         })
     }

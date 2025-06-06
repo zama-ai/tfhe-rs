@@ -274,15 +274,15 @@ pbs!(
 ]],
 ["ManyGenProp" => 18 [ // Turns carry save into a generate/propagate pair and message with manyLUT
     @0 =>{
-        |params: &DigitParameters, val| { val & params.msg_mask()};
-        |params: &DigitParameters, _deg| params.msg_mask();
-    },
-    @1 =>{
         |params: &DigitParameters, val| {
                ((val & params.carry_mask()) >> (params.msg_w)) << 1|       // Generate
                (((val & params.msg_mask()) == params.msg_mask()) as usize) // Propagate
            };
         |_params: &DigitParameters, _deg| 3;
+    },
+    @1 =>{
+        |params: &DigitParameters, val| { val & params.msg_mask()};
+        |params: &DigitParameters, _deg| params.msg_mask();
     }
 ]],
 ["ReduceCarry2" => 19 [ // Reduces a carry propagation add to two bits from an
@@ -309,6 +309,13 @@ pbs!(
 ]],
 ["ReduceCarryPad" => 21 [ // Reduces a carry propagation add to two bits from an
                           // input in which the carry is in the padding bit.
+        // This corresponds to the accumulated propagation status
+        // of 4 consecutive blocks.
+        // !! The padding bit is used.
+        // +1 must be done after this PBS to retrieve the propagation status value.
+        // 0_1111 => 0_0000 + 1 => 1 Propagate
+        // 0_xxxx -> 1_1111 + 1 => 0 No carry
+        // 1_xxxx -> 0_0001 + 1 => 2 Generate
     @0 =>{
         |params: &DigitParameters, val | {
             if val == params.data_mask() {
@@ -317,7 +324,7 @@ pbs!(
                 params.raw_mask()
             }
        };
-        |params: &DigitParameters, _deg| params.raw_mask();
+        |_params: &DigitParameters, _deg| 1;
     }
 ]],
 ["GenPropAdd" => 22 [ // Adds a generate/propagate pair with a message modulus message
@@ -522,6 +529,901 @@ pbs!(
             }
         };
         |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["IsSome" => 33 [
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            if val != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["CarryIsSome" => 34 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            if carry_field != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["CarryIsNone" => 35 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            if carry_field == 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MultCarryMsgIsSome" => 36 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_x_msg = (((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) & params.data_mask();
+            if carry_x_msg != 0 { 1 } else { 0 }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MultCarryMsgMsbIsSome" => 37 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let mul_msb = ((((val & params.carry_mask()) >> params.msg_w) * (val & params.msg_mask())) >> params.msg_w) & params.msg_mask();
+            if mul_msb != 0 { 1} else {0}
+        };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["IsNull" => 38 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field,msg_field) {
+                (0,0) => 1,
+                _ => 0,
+            }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["IsNullPos1" => 39 [ // Output boolean at bit position 1 instead of 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field,msg_field) {
+                (0,0) => 1 << 1,
+                _ => 0,
+            }
+        };
+        |_params: &DigitParameters, _deg| 1 << 1;
+    }
+]],
+["NotNull" => 40 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let carry_field = (val & params.carry_mask()) >> params.msg_w;
+            let msg_field = val & params.msg_mask();
+
+            match (carry_field,msg_field) {
+                (0,0) => 0,
+                _ => 1,
+            }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MsgNotNull" => 41 [
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let msg_field = val & params.msg_mask();
+
+            match msg_field {
+                0 => 0,
+                _ => 1,
+            }
+        };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["MsgNotNullPos1" => 42 [ // Return the null (0) or not null (1)
+        // status of the msg part.
+        // Put the result at position 1.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let msg_field = val & params.msg_mask();
+
+            match msg_field {
+                0 => 0,
+                _ => 1 << 1,
+            }
+        };
+        |_params: &DigitParameters, _deg| 1 << 1;
+    }
+]],
+["ManyMsgSplitShift1" => 43 [ // Use manyLUT : split msg in halves, inverse their position
+        // in the message, and  output them separately.
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msg_lsb = val & ((1 << lsb_size)-1);
+                msg_lsb << lsb_size
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                ((1 << lsb_size)-1) << lsb_size
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (val & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
+    }
+]],
+["SolvePropGroupFinal0" => 44 [ // Solve the propagation status of
+        // of 4 blocks.
+        // The input contains the sum of the propagate status
+        // of (position + 1) blocks + the carry of previous group.
+        // The result depends on the position to solve. Here we solve position 0.
+        // The output value is then directly the carry.
+        // 1/0 + [0]
+        // 0x => NO_CARRY(0)
+        // 1x => GENERATE(1)
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            let position = 0;
+            let pos_w = position + 2;
+            (val >> (pos_w-1)) & 1_usize // msb
+       };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["SolvePropGroupFinal1" => 45 [ // Solve the propagation status of
+        // of 4 blocks.
+        // The input contains the sum of the propagate status
+        // of (position + 1) blocks + the carry of previous group.
+        // The result depends on the position to solve. Here we solve position 1.
+        // The output value is then directly the carry.
+        // 1/0 + + [0] + [1] << 1
+        // 0xx => NO_CARRY(0)
+        // 1xx => GENERATE(1)
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            let position = 1;
+            let pos_w = position + 2;
+            (val >> (pos_w-1)) & 1_usize // msb
+       };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["SolvePropGroupFinal2" => 46 [ // Solve the propagation status of
+        // of 4 blocks.
+        // The input contains the sum of the propagate status
+        // of (position + 1) blocks + the carry of previous group.
+        // The result depends on the position to solve. Here we solve position 2.
+        // The output value is then directly the carry.
+        // 1/0 + + [0] + [1] << 1 + [2] << 2
+        // 0xxx => NO_CARRY(0)
+        // 1xxx => GENERATE(1)
+    @0 =>{
+        |_params: &DigitParameters, val | {
+            let position = 2;
+            let pos_w = position + 2;
+            (val >> (pos_w-1)) & 1_usize // msb
+       };
+        |_params: &DigitParameters, _deg| 1;
+    }
+]],
+["ExtractPropGroup0" => 47 [ // Extract propagation status and
+        // set the value at the correct position location.
+        // Here the position is 0.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let position = 0;
+            let msg   = val & params.msg_mask();
+            let carry = (val >> params.msg_w) & 1_usize;
+            if carry == 1 {
+                2 << position // Generate
+            } else if msg == params.msg_mask() {
+                1 << position // Propagate
+            } else {
+                0 << position // No carry
+            }
+       };
+        |_params: &DigitParameters, _deg| {
+                let position = 0;
+                2 << position
+        };
+    }
+]],
+["ExtractPropGroup1" => 48 [ // Extract propagation status and
+        // set the value at the correct position location.
+        // Here the position is 1.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let position = 1;
+            let msg   = val & params.msg_mask();
+            let carry = (val >> params.msg_w) & 1_usize;
+            if carry == 1 {
+                2 << position // Generate
+            } else if msg == params.msg_mask() {
+                1 << position // Propagate
+            } else {
+                0 << position // No carry
+            }
+       };
+        |_params: &DigitParameters, _deg| {
+                let position = 1;
+                2 << position
+        };
+    }
+]],
+["ExtractPropGroup2" => 49 [ // Extract propagation status and
+        // set the value at the correct position location.
+        // Here the position is 2.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let position = 2;
+            let msg   = val & params.msg_mask();
+            let carry = (val >> params.msg_w) & 1_usize;
+            if carry == 1 {
+                2 << position // Generate
+            } else if msg == params.msg_mask() {
+                1 << position // Propagate
+            } else {
+                0 << position // No carry
+            }
+       };
+        |_params: &DigitParameters, _deg| {
+                let position = 2;
+                2 << position
+        };
+    }
+]],
+["ExtractPropGroup3" => 50 [ // Extract propagation status and
+        // set the value at the correct position location.
+        // Here the position is 3.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let position = 3;
+            let msg   = val & params.msg_mask();
+            let carry = (val >> params.msg_w) & 1_usize;
+            if carry == 1 {
+                2 << position // Generate
+            } else if msg == params.msg_mask() {
+                1 << position // Propagate
+            } else {
+                0 << position // No carry
+            }
+       };
+        |_params: &DigitParameters, _deg| {
+                let position = 3;
+                2 << position
+        };
+    }
+]],
+["SolveProp" => 51 [ // Solve the propagation status.
+        // 2 propagation status are stored in the input:
+        // MSB : propagation to solved
+        // LSB : neighbor's propagation
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let msb = (val >> params.msg_w) & params.msg_mask();
+            let lsb = val & params.msg_mask();
+
+            if msb == 1 { // Propagate
+                lsb
+            } else {
+                msb
+            }
+       };
+        |_params: &DigitParameters, _deg| 2;
+    }
+]],
+["SolvePropCarry" => 52 [ // Solve the propagation status.
+        // A propagation status and a carry are stored in the input:
+        // Output a carry value.
+        // MSB : propagation to solved
+        // LSB : neighbor's carry bit
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let msb = (val >> params.msg_w) & params.msg_mask();
+            let lsb = val & params.msg_mask();
+
+            if msb == 1 { // Propagate
+                lsb
+            } else {
+                msb >> 1 // Since generate equals 2. Here we want a carry output
+            }
+       };
+        |_params: &DigitParameters, _deg| 2;
+    }
+]],
+["SolveQuotient" => 53 [ // Solve the quotient of a division.
+        // The input contains the sum of 4 bits, representing the comparison of current remaining
+        // and the different multiples of the divider.
+        // Note that the values form a multi-hot. Therefore, their sum
+        // gives the value of the divider quotient, that corresponds to the remaining.
+        // 'b0000 => 3 (sum = 0)
+        // 'b1000 => 2 (sum = 1)
+        // 'b1100 => 1 (sum = 2)
+        // 'b1110 => 0 (sum = 3)
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let v = val & params.data_mask();
+
+            match v {
+                0  => 3,
+                1  => 2,
+                2  => 1,
+                3  => 0,
+                _  => 0,
+                //_  => panic!("Unknown quotient value {}!",v) // should not end here
+            }
+       };
+        |_params: &DigitParameters, _deg| 3;
+    }
+]],
+["SolveQuotientPos1" => 54 [ // Solve the quotient of a division.
+        // The input contains the sum of 4 bits, representing the comparison of current remaining
+        // and the different multiples of the divider.
+        // Note that the comparison stored in position 1 instead of 0.
+        // Therefore the sum value is doubled.
+        // Note that the values form a multi-hot. Therefore, their sum
+        // gives the value of the divider quotient, that corresponds to the remaining.
+        // 'b0000 => 3 (sum = 0*2)
+        // 'b1000 => 2 (sum = 1*2)
+        // 'b1100 => 1 (sum = 2*2)
+        // 'b1110 => 0 (sum = 3*2)
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let v = val & params.data_mask();
+
+            match v {
+                0  => 3,
+                2  => 2,
+                4  => 1,
+                6  => 0,
+                _  => 0,
+                //_  => panic!("Unknown quotient value {}!",v) // should not end here
+            }
+       };
+        |_params: &DigitParameters, _deg| 3;
+    }
+]],
+["IfPos1FalseZeroed" => 55 [ // Ct must contain CondCt in Carry bit 1 and ValueCt in Msg. If condition it's *FALSE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = (val >> (params.msg_w + 1)) & 1;
+           if cond != 0 {value} else {0}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["IfPos1FalseZeroedMsgCarry1" => 56 [ // Ct must contain CondCt in Carry bit 1
+        // and ValueCt in Msg + 1 carry bit. If condition it's *FALSE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & (params.msg_mask() * 2 + 1);
+           let cond = (val >> (params.msg_w + 1)) & 1;
+           if cond != 0 {value} else {0}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+
+// Shift related Pbs
+["ShiftLeftByCarryPos0Msg" => 57 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           (value << shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["ShiftLeftByCarryPos0MsgNext" => 58 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+            ((value << shift) & params.carry_mask()) >> params.msg_w
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+
+["ShiftRightByCarryPos0Msg" => 59 [ // Ct must contain shift amount only bit 1 considered
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           (value >> shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["ShiftRightByCarryPos0MsgNext" => 60 [ // Ct must contain shift amount only bit 1 considered
+    // NB: MsgNext with right shift is the content of blk at the right position (i.e. LSB side)
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let shift = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           ((value << params.msg_w) >> shift) & params.msg_mask()
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// If then zero with condition in Carry0 or Carry1
+["IfPos0TrueZeroed" => 61 [ // Ct must contain CondCt in Carry[0] and ValueCt in Msg. If condition it's *TRUE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           if cond != 0 {0} else {value}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+["IfPos0FalseZeroed" => 62 [ // Ct must contain CondCt in Carry[0] and ValueCt in Msg. If condition it's *FALSE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x1;
+           if cond != 0 {value} else {0}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// If then zero with condition in Carry0 or Carry1
+["IfPos1TrueZeroed" => 63 [ // Ct must contain CondCt in Carry[1] and ValueCt in Msg. If condition it's *TRUE*, value ct is forced to 0
+    @0 =>{
+        |params: &DigitParameters, val | {
+           let value =  val & params.msg_mask();
+           let cond = ((val & params.carry_mask()) >> params.msg_w) & 0x2;
+           if cond != 0 {0} else {value}
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    }
+]],
+// NB: Lut IfPos1FalseZeroed already defined earlier
+["ManyInv1CarryMsg" => 64 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 1;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 1;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+["ManyInv2CarryMsg" => 65 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 2;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 2;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+
+["ManyInv3CarryMsg" => 66 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 3;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 3;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+
+["ManyInv4CarryMsg" => 67 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 4;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 4;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+
+["ManyInv5CarryMsg" => 68 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 5;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 5;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+
+["ManyInv6CarryMsg" => 69 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 6;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 6;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+
+["ManyInv7CarryMsg" => 70 [ // Proceed Inv - ct
+        // Extract message and carry using many LUT.
+    @0 =>{
+        |params: &DigitParameters, val | {
+            let inv = 7;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value & params.msg_mask()
+            }
+       };
+        |params: &DigitParameters, _deg| params.msg_mask();
+    },
+    @1 =>{
+        |params: &DigitParameters, val | {
+            let inv = 7;
+            let mut value =  val & params.data_mask();
+            if value > inv {
+                0
+            } else {
+                value = inv - value;
+                value >> params.msg_w
+            }
+       };
+        |_params: &DigitParameters, _deg| 1;
+    },
+]],
+["ManyMsgSplit" => 71 [ // Use manyLUT : split msg in halves
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                val & ((1 << lsb_size)-1) // msg_lsb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (1 << lsb_size)-1
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (val & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
+    }
+]],
+["Manym2lPropBit1MsgSplit" => 72 [ // Use ManyLut
+        // In carry part, contains the info if neighbor has a bit=1 (not null)
+        // or not (null).
+        // Propagate bits equal to 1 from msb to lsb.
+        // Split resulting message part into 2. Put both in lsb.
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from msb to lsb
+                for idx in (0..params.msg_w).rev() {
+                    let mut b = (m >> idx) & 1;
+                    m &= (1 << idx)-1;
+                    if c > 0 {b = 1;} // propagate to lsb
+                    if b == 1 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                exp & ((1 << lsb_size)-1) // msg_lsb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (1 << lsb_size)-1
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from msb to lsb
+                for idx in (0..params.msg_w).rev() {
+                    let mut b = (m >> idx) & 1;
+                    m &= (1 << idx)-1;
+                    if c > 0 {b = 1;} // propagate to lsb
+                    if b == 1 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                (exp & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
+    }
+]],
+["Manym2lPropBit0MsgSplit" => 73 [ // Use ManyLut
+        // In carry part, contains the info if neighbor has a bit=0 (not null)
+        // or not (null).
+        // Propagate bits equal to 0 from msb to lsb.
+        // Split resulting message part into 2. Put both in lsb.
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from msb to lsb
+                for idx in (0..(params.msg_w)).rev() {
+                    let mut b = (m >> idx) & 1;
+                    m &= (1 << idx)-1;
+                    if c > 0 {b = 0;} // propagate to lsb
+                    if b == 0 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                exp & ((1 << lsb_size)-1) // msg_lsb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (1 << lsb_size)-1
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from msb to lsb
+                for idx in (0..(params.msg_w)).rev() {
+                    let mut b = (m >> idx) & 1;
+                    m &= (1 << idx)-1;
+                    if c > 0 {b = 0;} // propagate to lsb
+                    if b == 0 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                (exp & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
+    }
+]],
+["Manyl2mPropBit1MsgSplit" => 74 [ // Use ManyLut
+        // In carry part, contains the info if neighbor has a bit=1 (not null)
+        // or not (null).
+        // Propagate bits equal to 1 from lsb to msb.
+        // Split resulting message part into 2. Put both in lsb.
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from lsb to msb
+                for idx in 0..(params.msg_w) {
+                    let mut b = m & 1;
+                    m >>= 1;
+                    if c > 0 {b = 1;} // propagate to msb
+                    if b == 1 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                exp & ((1 << lsb_size)-1) // msg_lsb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (1 << lsb_size)-1
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from lsb to msb
+                for idx in 0..(params.msg_w) {
+                    let mut b = m & 1;
+                    m >>= 1;
+                    if c > 0 {b = 1;} // propagate to msb
+                    if b == 1 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                (exp & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
+    }
+]],
+["Manyl2mPropBit0MsgSplit" => 75 [ // Use ManyLut
+        // In carry part, contains the info if neighbor has a bit=0 (not null)
+        // or not (null).
+        // Propagate bits equal to 0 from lsb to msb.
+        // Split resulting message part into 2. Put both in lsb.
+    @0 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from lsb to msb
+                for idx in 0..(params.msg_w) {
+                    let mut b = m & 1;
+                    m >>= 1;
+                    if c > 0 {b = 0;} // propagate to msb
+                    if b == 0 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                exp & ((1 << lsb_size)-1) // msg_lsb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                (1 << lsb_size)-1
+        };
+    },
+    @1 =>{
+        |params: &DigitParameters, val| {
+                let mut c = val & params.carry_mask();
+                let mut m = val & params.msg_mask();
+                let mut exp = 0;
+                // Expand from lsb to msb
+                for idx in 0..(params.msg_w) {
+                    let mut b = m & 1;
+                    m >>= 1;
+                    if c > 0 {b = 0;} // propagate to msb
+                    if b == 0 {c = 1;}
+                    exp += b << idx;
+                }
+                let lsb_size = params.msg_w.div_ceil(2);
+                (exp & params.msg_mask()) >> lsb_size // msg_msb
+        };
+        |params: &DigitParameters, _deg| {
+                let lsb_size = params.msg_w.div_ceil(2);
+                let msb_size = params.msg_w - lsb_size;
+                (1 << msb_size)-1
+        };
     }
 ]],
 );

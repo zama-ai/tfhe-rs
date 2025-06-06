@@ -1,3 +1,4 @@
+#![allow(clippy::unnecessary_cast)]
 //! Define a test-harness that handle setup and configuration of Hpu Backend
 //! The test harness take a list of testcase and run them
 //! A testcase simply bind a IOp to a closure describing it's behavior
@@ -165,6 +166,19 @@ mod hpu_test {
             pub fn [<hpu_ $iop:lower _ $user_type>](iter: usize, device: &mut HpuDevice, rng: &mut StdRng, cks: &tfhe::integer::ClientKey) -> bool {
                 use tfhe::integer::hpu::ciphertext::HpuRadixCiphertext;
 
+                // Check if user ask for test over trivial ciphertext
+                let (test_trivial, sks) = match(std::env::var("HPU_TEST_TRIVIAL")){
+                Ok(var) => {
+                    let flag_val = usize::from_str(&var).unwrap_or_else(|_| {
+                    panic!("HPU_TEST_TRIVIAL env variable {var} couldn't be casted in usize")
+                    });
+                    let sks_compressed =
+                    tfhe::integer::ServerKey::new_radix_server_key(&cks);
+                    (flag_val != 0, Some(sks_compressed))
+                    },
+                _ => (false, None)
+                    };
+
                 let iop = hpu_asm::AsmIOpcode::from_str($iop).expect("Invalid AsmIOpcode ");
                 let proto = if let Some(format) = iop.format() {
                     format.proto.clone()
@@ -189,7 +203,11 @@ mod hpu_test {
                             };
 
                             let clear = rng.gen_range(0..=$user_type::MAX >> ($user_type::BITS - (bw as u32)));
-                            let fhe = cks.encrypt_radix(clear, block);
+                            let fhe = if test_trivial {
+                                sks.as_ref().unwrap().create_trivial_radix(clear, block)
+                            } else {
+                                cks.encrypt_radix(clear, block)
+                            };
                             let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, device);
                             (clear, hpu_fhe)
                         })
@@ -214,7 +232,7 @@ mod hpu_test {
                         let $imm = imms.iter().map(|x| *x as $user_type).collect::<Vec<_>>();
                         ($behav.iter().map(|x| *x as $user_type).collect::<Vec<_>>())
                     };
-                        println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
+                    println!("{:>8} <{:>8x?}> <{:>8x?}> => {:<8x?} [exp {:<8x?}] {{Delta: {:x?} }}", iop, srcs_clear, imms, res, exp_res, std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x ^y).collect::<Vec<_>>());
                     std::iter::zip(res.iter(), exp_res.iter()).map(|(x,y)| x== y).fold(true, |acc, val| acc & val)
                 }).fold(true, |acc, val| acc & val)
             }
@@ -233,6 +251,42 @@ mod hpu_test {
     |ct, imm| [imm[0].wrapping_sub(ct[0])]);
     hpu_testcase!("MULS" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].wrapping_mul(imm[0])]);
+    hpu_testcase!("DIVS" => [u8, u16, u32, u64, u128]
+    |ct, imm| if imm[0] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(imm[0]), ct[0] % imm[0]]});
+    hpu_testcase!("MODS" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0] % imm[0]]);
+
+    // Version with overflow flag
+    hpu_testcase!("OVF_ADDS" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_add(imm[0]);
+            [res, flag.into()]
+    });
+    hpu_testcase!("OVF_SUBS" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_sub(imm[0]);
+            [res, flag.into()]
+    });
+    hpu_testcase!("OVF_SSUB" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = imm[0].overflowing_sub(ct[0]);
+            [res, flag.into()]
+    });
+    hpu_testcase!("OVF_MULS" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_mul(imm[0]);
+            [res, flag.into()]
+    });
+
+    // Shift/Rotation with Scalar IOp
+    hpu_testcase!("SHIFTS_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shr(imm[0] as u32)] );
+    hpu_testcase!("SHIFTS_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shl(imm[0] as u32)] );
+    hpu_testcase!("ROTS_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_right(imm[0] as u32)] );
+    hpu_testcase!("ROTS_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_left(imm[0] as u32)] );
 
     // Alu IOp with Ct x Ct
     hpu_testcase!("ADD" => [u8, u16, u32, u64, u128]
@@ -241,6 +295,36 @@ mod hpu_test {
     |ct, imm| [ct[0].wrapping_sub(ct[1])]);
     hpu_testcase!("MUL" => [u8, u16, u32, u64, u128]
     |ct, imm| [ct[0].wrapping_mul(ct[1])]);
+    hpu_testcase!("DIV" => [u8, u16, u32, u64, u128]
+    |ct, imm| if ct[1] == 0 {[0, ct[0]]} else {[ct[0].wrapping_div(ct[1]), ct[0] % ct[1]]});
+    hpu_testcase!("MOD" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0] % ct[1]]);
+
+    hpu_testcase!("OVF_ADD" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_add(ct[1]);
+            [res, flag.into()]
+    });
+    hpu_testcase!("OVF_SUB" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_sub(ct[1]);
+            [res, flag.into()]
+    });
+    hpu_testcase!("OVF_MUL" => [u8, u16, u32, u64, u128]
+        |ct, imm| {
+            let (res, flag) = ct[0].overflowing_mul(ct[1]);
+            [res, flag.into()]
+    });
+
+    // Shift/Rotation IOp
+    hpu_testcase!("SHIFT_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shr(ct[1] as u32)] );
+    hpu_testcase!("SHIFT_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].wrapping_shl(ct[1] as u32)] );
+    hpu_testcase!("ROT_R" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_right(ct[1] as u32)] );
+    hpu_testcase!("ROT_L" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].rotate_left(ct[1] as u32)] );
 
     // Bitwise IOp
     hpu_testcase!("BW_AND" => [u8, u16, u32, u64, u128]
@@ -284,6 +368,22 @@ mod hpu_test {
                 }
     });
 
+    // Bit count IOp
+    hpu_testcase!("COUNT0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].count_zeros()]);
+    hpu_testcase!("COUNT1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].count_ones()]);
+    hpu_testcase!("ILOG2" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].ilog2()]);
+    hpu_testcase!("LEAD0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].leading_zeros()]);
+    hpu_testcase!("LEAD1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].leading_ones()]);
+    hpu_testcase!("TRAIL0" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].trailing_zeros()]);
+    hpu_testcase!("TRAIL1" => [u8, u16, u32, u64, u128]
+    |ct, imm| [ct[0].trailing_ones()]);
+
     // Define a set of test bundle for various size
     // 8bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
@@ -291,14 +391,54 @@ mod hpu_test {
         "adds",
         "subs",
         "ssub",
-        "muls"
+        "muls",
+        "divs",
+        "mods"
     ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alus"::8 => [
+        "ovf_adds",
+        "ovf_subs",
+        "ovf_ssub",
+        "ovf_muls"
+    ]);
+
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::8 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::8 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::8 => [
         "add",
         "sub",
-        "mul"
+        "mul",
+        "div",
+        "mod"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alu"::8 => [
+        "ovf_add",
+        "ovf_sub",
+        "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::8 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::8 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -329,20 +469,71 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::8 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 16bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::16 => [
         "adds",
         "subs",
         "ssub",
-        "muls"
+        "muls",
+        "divs",
+        "mods"
     ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alus"::16 => [
+        "ovf_adds",
+        "ovf_subs",
+        "ovf_ssub",
+        "ovf_muls"
+    ]);
+
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::16 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::16 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::16 => [
         "add",
         "sub",
-        "mul"
+        "mul",
+        "div",
+        "mod"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alu"::16 => [
+        "ovf_add",
+        "ovf_sub",
+        "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::16 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::16 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -373,20 +564,71 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::16 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 32bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::32 => [
         "adds",
         "subs",
         "ssub",
-        "muls"
+        "muls",
+        "divs",
+        "mods"
     ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alus"::32 => [
+        "ovf_adds",
+        "ovf_subs",
+        "ovf_ssub",
+        "ovf_muls"
+    ]);
+
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::32 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::32 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::32 => [
         "add",
         "sub",
-        "mul"
+        "mul",
+        "div",
+        "mod"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alu"::32 => [
+        "ovf_add",
+        "ovf_sub",
+        "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::32 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::32 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -417,20 +659,71 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::32 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 64bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::64 => [
         "adds",
         "subs",
         "ssub",
-        "muls"
+        "muls",
+        "divs",
+        "mods"
     ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alus"::64 => [
+        "ovf_adds",
+        "ovf_subs",
+        "ovf_ssub",
+        "ovf_muls"
+    ]);
+
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::64 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::64 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::64 => [
         "add",
         "sub",
-        "mul"
+        "mul",
+        "div",
+        "mod"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alu"::64 => [
+        "ovf_add",
+        "ovf_sub",
+        "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::64 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::64 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -461,20 +754,71 @@ mod hpu_test {
         "erc_20"
     ]);
 
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::64 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
+    ]);
+
     // 128bit ciphertext -----------------------------------------
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alus"::128 => [
         "adds",
         "subs",
         "ssub",
-        "muls"
+        "muls",
+        "divs",
+        "mods"
     ]);
+
+    hpu_testbundle!("ovf_alus"::128 => [
+        "ovf_adds",
+        "ovf_subs",
+        "ovf_ssub",
+        "ovf_muls"
+    ]);
+
+    // NB: Scalar Rot/Shift not supported yet
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("rots"::128 => [
+    //     "rots_r",
+    //     "rots_l"
+    // ]);
+    // #[cfg(feature = "hpu")]
+    // hpu_testbundle!("shifts"::128 => [
+    //     "shifts_r",
+    //     "shifts_l"
+    // ]);
 
     #[cfg(feature = "hpu")]
     hpu_testbundle!("alu"::128 => [
         "add",
         "sub",
-        "mul"
+        "mul",
+        "div",
+        "mod"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("ovf_alu"::128 => [
+        "ovf_add",
+        "ovf_sub",
+        "ovf_mul"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("rot"::128 => [
+        "rot_r",
+        "rot_l"
+    ]);
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("shift"::128 => [
+        "shift_r",
+        "shift_l"
     ]);
 
     #[cfg(feature = "hpu")]
@@ -503,6 +847,17 @@ mod hpu_test {
     #[cfg(feature = "hpu")]
     hpu_testbundle!("algo"::128 => [
         "erc_20"
+    ]);
+
+    #[cfg(feature = "hpu")]
+    hpu_testbundle!("cntbit"::128 => [
+        "count0",
+        "count1",
+        "ilog2",
+        "lead0",
+        "lead1",
+        "trail0",
+        "trail1"
     ]);
 
     /// Simple test dedicated to check entities conversion from/to Cpu

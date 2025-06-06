@@ -20,11 +20,42 @@ crate::impl_fw!("Llt" [
     ADD => fw_impl::llt::iop_add;
     SUB => fw_impl::llt::iop_sub;
     MUL => fw_impl::llt::iop_mul;
+    DIV => fw_impl::ilp_div::iop_div;
+    MOD => fw_impl::ilp_div::iop_mod;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    OVF_ADD => fw_impl::ilp::iop_overflow_add;
+    OVF_SUB => fw_impl::ilp::iop_overflow_sub;
+    OVF_MUL => fw_impl::ilp::iop_overflow_mul;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    ROT_R => fw_impl::ilp::iop_rotate_right;
+    ROT_L => fw_impl::ilp::iop_rotate_left;
+    SHIFT_R => fw_impl::ilp::iop_shift_right;
+    SHIFT_L => fw_impl::ilp::iop_shift_left;
 
     ADDS => fw_impl::llt::iop_adds;
     SUBS => fw_impl::llt::iop_subs;
     SSUB => fw_impl::llt::iop_ssub;
     MULS => fw_impl::llt::iop_muls;
+    DIVS => fw_impl::ilp_div::iop_divs;
+    MODS => fw_impl::ilp_div::iop_mods;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    ROTS_R => fw_impl::ilp::iop_rotate_scalar_right;
+    ROTS_L => fw_impl::ilp::iop_rotate_scalar_left;
+    SHIFTS_R => fw_impl::ilp::iop_shift_scalar_right;
+    SHIFTS_L => fw_impl::ilp::iop_shift_scalar_left;
+
+    // NB: fallback to ilp
+    // TODO: Add dedicated llt implementation
+    OVF_ADDS => fw_impl::ilp::iop_overflow_adds;
+    OVF_SUBS => fw_impl::ilp::iop_overflow_subs;
+    OVF_SSUB => fw_impl::ilp::iop_overflow_ssub;
+    OVF_MULS => fw_impl::ilp::iop_overflow_muls;
 
     BW_AND => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwAnd::default().into())});
     BW_OR  => (|prog| {fw_impl::ilp::iop_bw(prog, asm::dop::PbsBwOr::default().into())});
@@ -42,6 +73,14 @@ crate::impl_fw!("Llt" [
 
     ERC_20 => fw_impl::llt::iop_erc_20;
     MEMCPY => fw_impl::ilp::iop_memcpy;
+
+    COUNT0 => fw_impl::ilp_log::iop_count0;
+    COUNT1 => fw_impl::ilp_log::iop_count1;
+    ILOG2 => fw_impl::ilp_log::iop_ilog2;
+    LEAD0 => fw_impl::ilp_log::iop_lead0;
+    LEAD1 => fw_impl::ilp_log::iop_lead1;
+    TRAIL0 => fw_impl::ilp_log::iop_trail0;
+    TRAIL1 => fw_impl::ilp_log::iop_trail1;
 ]);
 
 // ----------------------------------------------------------------------------

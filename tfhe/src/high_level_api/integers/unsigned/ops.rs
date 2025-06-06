@@ -269,7 +269,9 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                use crate::prelude::IfThenElse;
+                let max_cmp = self.ge(rhs);
+                max_cmp.if_then_else(self, rhs)
             }
         })
     }
@@ -320,7 +322,9 @@ where
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                use crate::prelude::IfThenElse;
+                let min_cmp = self.le(rhs);
+                min_cmp.if_then_else(self, rhs)
             }
         })
     }
@@ -826,8 +830,30 @@ where
                 )
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_DIV;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                (
+                    FheUint::new(quotient, device.tag.clone()),
+                    FheUint::new(remainder, device.tag.clone()),
+                )
             }
         })
     }
@@ -1201,9 +1227,28 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 },
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
-                }
+                InternalServerKey::Hpu(device) => {
+                let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_DIV;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                    FheUint::new(quotient, device.tag.clone())
+            }
             })
         }
     },
@@ -1258,9 +1303,27 @@ generic_integer_impl_operation!(
                     FheUint::new(inner_result, cuda_key.tag.clone())
                 },
                 #[cfg(feature = "hpu")]
-                InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
-                }
+                InternalServerKey::Hpu(device) => {
+                let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_MOD;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let remainder = hpu_result.pop().expect("IOP_MOD must return 1 value");
+                    FheUint::new(remainder, device.tag.clone())
+            }
             })
         }
     },
@@ -1374,8 +1437,25 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                    InternalServerKey::Hpu(device) => {
+                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                        let (opcode, proto) = {
+                            let asm_iop = &hpu_asm::iop::IOP_SHIFT_L;
+                            (
+                                asm_iop.opcode(),
+                                &asm_iop.format().expect("Unspecified IOP format").proto,
+                            )
+                        };
+                        // These clones are cheap are they are just Arc
+                        let hpu_result = HpuRadixCiphertext::exec(
+                            proto,
+                            opcode,
+                            &[hpu_lhs.clone(), hpu_rhs.clone()],
+                            &[],
+                        ).pop().expect("IOP_SHIFT_L must return 1 value");
+                            FheUint::new(hpu_result, device.tag.clone())
                     }
                 }
             })
@@ -1421,8 +1501,25 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                    InternalServerKey::Hpu(device) => {
+                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                        let (opcode, proto) = {
+                            let asm_iop = &hpu_asm::iop::IOP_SHIFT_R;
+                            (
+                                asm_iop.opcode(),
+                                &asm_iop.format().expect("Unspecified IOP format").proto,
+                            )
+                        };
+                        // These clones are cheap are they are just Arc
+                        let hpu_result = HpuRadixCiphertext::exec(
+                            proto,
+                            opcode,
+                            &[hpu_lhs.clone(), hpu_rhs.clone()],
+                            &[],
+                        ).pop().expect("IOP_SHIFT_R must return 1 value");
+                            FheUint::new(hpu_result, device.tag.clone())
                     }
                 }
             })
@@ -1468,8 +1565,25 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                    InternalServerKey::Hpu(device) => {
+                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                        let (opcode, proto) = {
+                            let asm_iop = &hpu_asm::iop::IOP_ROT_L;
+                            (
+                                asm_iop.opcode(),
+                                &asm_iop.format().expect("Unspecified IOP format").proto,
+                            )
+                        };
+                        // These clones are cheap are they are just Arc
+                        let hpu_result = HpuRadixCiphertext::exec(
+                            proto,
+                            opcode,
+                            &[hpu_lhs.clone(), hpu_rhs.clone()],
+                            &[],
+                        ).pop().expect("IOP_ROT_L must return 1 value");
+                            FheUint::new(hpu_result, device.tag.clone())
                     }
                 }
             })
@@ -1515,8 +1629,25 @@ generic_integer_impl_shift_rotate!(
                             FheUint::new(inner_result, cuda_key.tag.clone())
                     }
                     #[cfg(feature = "hpu")]
-                    InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+                    InternalServerKey::Hpu(device) => {
+                        let hpu_lhs = lhs.ciphertext.on_hpu(device);
+                        let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                        let (opcode, proto) = {
+                            let asm_iop = &hpu_asm::iop::IOP_ROT_R;
+                            (
+                                asm_iop.opcode(),
+                                &asm_iop.format().expect("Unspecified IOP format").proto,
+                            )
+                        };
+                        // These clones are cheap are they are just Arc
+                        let hpu_result = HpuRadixCiphertext::exec(
+                            proto,
+                            opcode,
+                            &[hpu_lhs.clone(), hpu_rhs.clone()],
+                            &[],
+                        ).pop().expect("IOP_ROT_R must return 1 value");
+                            FheUint::new(hpu_result, device.tag.clone())
                     }
                 }
             })
@@ -1879,8 +2010,28 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_DIV;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let mut hpu_result = HpuRadixCiphertext::exec(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
+                let _remainder = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                let quotient = hpu_result.pop().expect("IOP_DIV must return 2 value");
+                // TODO Add a dedicated IOp with only one output to use real exec_assign ?
+                *hpu_lhs = quotient;
             }
         })
     }
@@ -1932,8 +2083,24 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_MOD;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                HpuRadixCiphertext::exec_assign(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
             }
         })
     }
@@ -1992,8 +2159,24 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_SHIFT_L;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                HpuRadixCiphertext::exec_assign(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
             }
         })
     }
@@ -2051,8 +2234,24 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_SHIFT_R;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                HpuRadixCiphertext::exec_assign(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
             }
         })
     }
@@ -2111,8 +2310,24 @@ where
                 };
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_ROT_L;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                HpuRadixCiphertext::exec_assign(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
             }
         })
     }
@@ -2169,8 +2384,24 @@ where
                 );
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_lhs = self.ciphertext.as_hpu_mut(device);
+                let hpu_rhs = rhs.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_ROT_R;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                HpuRadixCiphertext::exec_assign(
+                    proto,
+                    opcode,
+                    &[hpu_lhs.clone(), hpu_rhs.clone()],
+                    &[],
+                );
             }
         })
     }
@@ -2253,8 +2484,22 @@ where
                 FheUint::new(inner_result, cuda_key.tag.clone())
             }
             #[cfg(feature = "hpu")]
-            InternalServerKey::Hpu(_device) => {
-                panic!("Hpu does not support this operation yet.")
+            InternalServerKey::Hpu(device) => {
+                let hpu_self = self.ciphertext.on_hpu(device);
+
+                let (opcode, proto) = {
+                    let asm_iop = &hpu_asm::iop::IOP_SSUB;
+                    (
+                        asm_iop.opcode(),
+                        &asm_iop.format().expect("Unspecified IOP format").proto,
+                    )
+                };
+                // These clones are cheap are they are just Arc
+                let hpu_result =
+                    HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[0_u128])
+                        .pop()
+                        .expect("SSUB must return a single value");
+                FheUint::new(hpu_result, device.tag.clone())
             }
         })
     }
