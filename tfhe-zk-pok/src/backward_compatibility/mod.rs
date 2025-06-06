@@ -11,14 +11,9 @@ use std::fmt::Display;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::curve_api::Curve;
-use crate::four_squares::sqr;
 use crate::proofs::pke_v2::Bound;
 use crate::proofs::GroupElements;
-use crate::serialization::{
-    SerializableAffine, SerializableCubicExtField, SerializableFp, SerializableFp2,
-    SerializableFp6, SerializableGroupElements, SerializablePKEv1PublicParams,
-    SerializablePKEv2PublicParams, SerializableQuadExtField,
-};
+use crate::serialization::*;
 
 #[derive(VersionsDispatch)]
 pub enum SerializableAffineVersions<F> {
@@ -73,49 +68,35 @@ pub(crate) enum SerializableGroupElementsVersions {
 
 #[derive(Version)]
 pub struct SerializablePKEv2PublicParamsV0 {
-    pub(crate) g_lists: SerializableGroupElements,
-    pub(crate) D: usize,
-    pub n: usize,
-    pub d: usize,
-    pub k: usize,
-    pub B: u64,
-    pub B_r: u64,
-    pub B_bound: u64,
-    pub m_bound: usize,
-    pub q: u64,
-    pub t: u64,
-    pub msbs_zero_padding_bit_count: u64,
+    g_lists: SerializableGroupElements,
+    D: usize,
+    n: usize,
+    d: usize,
+    k: usize,
+    B_bound_squared: u128,
+    B_inf: u64,
+    q: u64,
+    t: u64,
+    msbs_zero_padding_bit_count: u64,
+    bound_type: Bound,
     // We use Vec<u8> since serde does not support fixed size arrays of 256 elements
-    pub(crate) hash: Vec<u8>,
-    pub(crate) hash_R: Vec<u8>,
-    pub(crate) hash_t: Vec<u8>,
-    pub(crate) hash_w: Vec<u8>,
-    pub(crate) hash_agg: Vec<u8>,
-    pub(crate) hash_lmap: Vec<u8>,
-    pub(crate) hash_phi: Vec<u8>,
-    pub(crate) hash_xi: Vec<u8>,
-    pub(crate) hash_z: Vec<u8>,
-    pub(crate) hash_chi: Vec<u8>,
+    hash: Vec<u8>,
+    hash_R: Vec<u8>,
+    hash_t: Vec<u8>,
+    hash_w: Vec<u8>,
+    hash_agg: Vec<u8>,
+    hash_lmap: Vec<u8>,
+    hash_phi: Vec<u8>,
+    hash_xi: Vec<u8>,
+    hash_z: Vec<u8>,
+    hash_chi: Vec<u8>,
 }
 
 impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv2PublicParams, Self::Error> {
-        let slack_factor = (self.d + self.k).isqrt() as u64;
-        let B_inf = self.B / slack_factor;
-        Ok(SerializablePKEv2PublicParams {
-            g_lists: self.g_lists,
-            D: self.D,
-            n: self.n,
-            d: self.d,
-            k: self.k,
-            B_bound_squared: sqr(self.B_bound),
-            B_inf,
-            q: self.q,
-            t: self.t,
-            msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
-            bound_type: Bound::CS,
+        let domain_separators = SerializablePKEv2DomainSeparators {
             hash: self.hash,
             hash_R: self.hash_R,
             hash_t: self.hash_t,
@@ -126,18 +107,96 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
             hash_xi: self.hash_xi,
             hash_z: self.hash_z,
             hash_chi: self.hash_chi,
+        };
+
+        Ok(SerializablePKEv2PublicParams {
+            g_lists: self.g_lists,
+            D: self.D,
+            n: self.n,
+            d: self.d,
+            k: self.k,
+            B_bound_squared: self.B_bound_squared,
+            B_inf: self.B_inf,
+            q: self.q,
+            t: self.t,
+            msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
+            bound_type: self.bound_type,
+            sid: None,
+            domain_separators,
         })
     }
 }
 
 #[derive(VersionsDispatch)]
 pub enum SerializablePKEv2PublicParamsVersions {
-    V0(SerializablePKEv2PublicParams),
+    V0(SerializablePKEv2PublicParamsV0),
+    V1(SerializablePKEv2PublicParams),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SerializablePKEv2DomainSeparatorsVersions {
+    V0(SerializablePKEv2DomainSeparators),
+}
+
+#[derive(Version)]
+pub struct SerializablePKEv1PublicParamsV0 {
+    g_lists: SerializableGroupElements,
+    big_d: usize,
+    n: usize,
+    d: usize,
+    k: usize,
+    b: u64,
+    b_r: u64,
+    q: u64,
+    t: u64,
+    msbs_zero_padding_bit_count: u64,
+    hash: Vec<u8>,
+    hash_t: Vec<u8>,
+    hash_agg: Vec<u8>,
+    hash_lmap: Vec<u8>,
+    hash_z: Vec<u8>,
+    hash_w: Vec<u8>,
+}
+
+impl Upgrade<SerializablePKEv1PublicParams> for SerializablePKEv1PublicParamsV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SerializablePKEv1PublicParams, Self::Error> {
+        let domain_separators = SerializablePKEv1DomainSeparators {
+            hash: self.hash,
+            hash_t: self.hash_t,
+            hash_agg: self.hash_agg,
+            hash_lmap: self.hash_lmap,
+            hash_w: self.hash_w,
+            hash_z: self.hash_z,
+        };
+
+        Ok(SerializablePKEv1PublicParams {
+            g_lists: self.g_lists,
+            big_d: self.big_d,
+            n: self.n,
+            d: self.d,
+            k: self.k,
+            b: self.b,
+            b_r: self.b_r,
+            q: self.q,
+            t: self.t,
+            msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
+            sid: None,
+            domain_separators,
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]
 pub enum SerializablePKEv1PublicParamsVersions {
-    V0(SerializablePKEv1PublicParams),
+    V0(SerializablePKEv1PublicParamsV0),
+    V1(SerializablePKEv1PublicParams),
+}
+
+#[derive(VersionsDispatch)]
+pub enum SerializablePKEv1DomainSeparatorsVersions {
+    V0(SerializablePKEv1DomainSeparators),
 }
 
 #[derive(VersionsDispatch)]

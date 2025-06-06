@@ -3,20 +3,20 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct PublicParams<G: Curve> {
     g_lists: GroupElements<G>,
-    hash: [u8; HASH_METADATA_LEN_BYTES],
-    hash_s: [u8; HASH_METADATA_LEN_BYTES],
-    hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+    hash: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_s: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_t: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_agg: [u8; LEGACY_HASH_DS_LEN_BYTES],
 }
 
 impl<G: Curve> PublicParams<G> {
     pub fn from_vec(
         g_list: Vec<Affine<G::Zp, G::G1>>,
         g_hat_list: Vec<Affine<G::Zp, G::G2>>,
-        hash: [u8; HASH_METADATA_LEN_BYTES],
-        hash_s: [u8; HASH_METADATA_LEN_BYTES],
-        hash_t: [u8; HASH_METADATA_LEN_BYTES],
-        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
+        hash: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_s: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_t: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_agg: [u8; LEGACY_HASH_DS_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),

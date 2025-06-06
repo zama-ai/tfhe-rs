@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 use tfhe_zk_pok::backward_compatibility::pke::ProofV0;
-use tfhe_zk_pok::backward_compatibility::IncompleteProof;
+use tfhe_zk_pok::backward_compatibility::{IncompleteProof, SerializablePKEv1PublicParamsV0};
 use tfhe_zk_pok::proofs::pke::Proof;
 use tfhe_zk_pok::serialization::InvalidSerializedPublicParamsError;
 
@@ -14,13 +14,18 @@ use super::{
 
 #[derive(Version)]
 #[repr(transparent)]
-pub struct CompactPkeCrsV0(SerializableCompactPkePublicParams);
+pub struct CompactPkeCrsV0(SerializablePKEv1PublicParamsV0);
 
 impl Upgrade<CompactPkeCrs> for CompactPkeCrsV0 {
     type Error = InvalidSerializedPublicParamsError;
 
     fn upgrade(self) -> Result<CompactPkeCrs, Self::Error> {
-        Ok(CompactPkeCrs::PkeV1(self.0.try_into()?))
+        Ok(CompactPkeCrs::PkeV1(
+            self.0
+                .upgrade()
+                .unwrap() // update is infallible so it is ok to unwrap
+                .try_into()?,
+        ))
     }
 }
 

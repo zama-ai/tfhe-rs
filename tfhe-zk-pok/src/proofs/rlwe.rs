@@ -15,12 +15,12 @@ pub struct PublicParams<G: Curve> {
     big_m: usize,
     b_i: u64,
     q: u64,
-    hash: [u8; HASH_METADATA_LEN_BYTES],
-    hash_t: [u8; HASH_METADATA_LEN_BYTES],
-    hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-    hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-    hash_z: [u8; HASH_METADATA_LEN_BYTES],
-    hash_w: [u8; HASH_METADATA_LEN_BYTES],
+    hash: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_t: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_agg: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_lmap: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_z: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    hash_w: [u8; LEGACY_HASH_DS_LEN_BYTES],
 }
 
 impl<G: Curve> PublicParams<G> {
@@ -33,12 +33,12 @@ impl<G: Curve> PublicParams<G> {
         big_m: usize,
         b_i: u64,
         q: u64,
-        hash: [u8; HASH_METADATA_LEN_BYTES],
-        hash_t: [u8; HASH_METADATA_LEN_BYTES],
-        hash_agg: [u8; HASH_METADATA_LEN_BYTES],
-        hash_lmap: [u8; HASH_METADATA_LEN_BYTES],
-        hash_z: [u8; HASH_METADATA_LEN_BYTES],
-        hash_w: [u8; HASH_METADATA_LEN_BYTES],
+        hash: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_t: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_agg: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_lmap: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_z: [u8; LEGACY_HASH_DS_LEN_BYTES],
+        hash_w: [u8; LEGACY_HASH_DS_LEN_BYTES],
     ) -> Self {
         Self {
             g_lists: GroupElements::from_vec(g_list, g_hat_list),

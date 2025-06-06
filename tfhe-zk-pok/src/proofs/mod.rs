@@ -294,7 +294,36 @@ where
     }
 }
 
-pub const HASH_METADATA_LEN_BYTES: usize = 256;
+/// Len of the "domain separator" fields used with the sha3 XoF PRNG
+pub const HASH_DS_LEN_BYTES: usize = 8;
+
+pub const LEGACY_HASH_DS_LEN_BYTES: usize = 256;
+
+/// A unique id that is used to tie the hash functions to a specific CRS
+#[derive(Debug, Clone, Copy)]
+// This is an option for backward compatibility reasons
+pub(crate) struct Sid(pub(crate) Option<u128>);
+
+impl Sid {
+    fn new(rng: &mut dyn RngCore) -> Self {
+        Self(Some(rng.gen()))
+    }
+
+    fn to_le_bytes(self) -> SidBytes {
+        self.0
+            .map(|val| SidBytes(Some(val.to_le_bytes())))
+            .unwrap_or_default()
+    }
+}
+
+#[derive(Default)]
+struct SidBytes(Option<[u8; 16]>);
+
+impl SidBytes {
+    fn as_slice(&self) -> &[u8] {
+        self.0.as_ref().map(|val| val.as_slice()).unwrap_or(&[])
+    }
+}
 
 // The verifier is meant to be executed on a large server with a high number of core. However, some
 // arkworks operations do not scale well in that case, and we actually see decreased performance
@@ -386,6 +415,8 @@ pub mod rlwe;
 mod test {
     #![allow(non_snake_case)]
     use std::fmt::Display;
+    use std::num::Wrapping;
+    use std::ops::Sub;
 
     use ark_ec::{short_weierstrass, CurveConfig};
     use ark_ff::UniformRand;
@@ -440,6 +471,17 @@ mod test {
         }
 
         c
+    }
+
+    /// Wrapper that panics on overflow even in release mode
+    pub(super) struct Strict<Num>(pub Num);
+
+    impl Sub for Strict<u128> {
+        type Output = Strict<u128>;
+
+        fn sub(self, rhs: Self) -> Self::Output {
+            Strict(self.0.checked_sub(rhs.0).unwrap())
+        }
     }
 
     /// Parameters needed for a PKE zk proof test
@@ -546,7 +588,13 @@ mod test {
 
             let mut a = (0..d).map(|_| rng.gen::<i64>()).collect::<Vec<_>>();
 
-            let b = a.iter().zip(&self.s).map(|(ai, si)| ai * si).sum::<i64>() + e;
+            let b = a
+                .iter()
+                .zip(&self.s)
+                .map(|(ai, si)| Wrapping(ai * si))
+                .sum::<Wrapping<i64>>()
+                .0
+                + e;
 
             a.push(b);
             a
