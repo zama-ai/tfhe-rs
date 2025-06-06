@@ -46,7 +46,7 @@ __global__ void device_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t num_many_lut,
-    uint32_t lut_stride) {
+    uint32_t lut_stride, bool uses_noise_reduction) {
 
   grid_group grid = this_grid();
 
@@ -80,7 +80,9 @@ __global__ void device_programmable_bootstrap_cg(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
+      uses_noise_reduction
+          ? &lwe_array_in[blockIdx.x * (lwe_dimension + 1)]
+          : &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
       &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
@@ -263,7 +265,9 @@ __host__ void host_programmable_bootstrap_cg(
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
-  void *kernel_args[16];
+  bool uses_noise_reduction = buffer->uses_noise_reduction;
+
+  void *kernel_args[17];
   kernel_args[0] = &lwe_array_out;
   kernel_args[1] = &lwe_output_indexes;
   kernel_args[2] = &lut_vector;
@@ -279,6 +283,7 @@ __host__ void host_programmable_bootstrap_cg(
   kernel_args[12] = &d_mem;
   kernel_args[14] = &num_many_lut;
   kernel_args[15] = &lut_stride;
+  kernel_args[16] = &uses_noise_reduction;
 
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;

@@ -200,7 +200,8 @@ __global__ void __launch_bounds__(512)
   sum_mask_errors[threadIdx.x] = 0.f;
   sum_squared_mask_errors[threadIdx.x] = 0.f;
   auto this_block_lwe_in = array_in + indexes[blockIdx.x] * lwe_size;
-  auto this_block_lwe_out = array_out + indexes[blockIdx.x] * lwe_size;
+  // We use modulus switch to gather the output in trivial order
+  auto this_block_lwe_out = array_out + blockIdx.x * lwe_size;
   Torus input_element1 = this_block_lwe_in[threadIdx.x];
 
   Torus input_element2 = threadIdx.x + blockDim.x < lwe_size

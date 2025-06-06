@@ -46,7 +46,7 @@ __global__ void device_programmable_bootstrap_tbc(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, bool support_dsm,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+    uint32_t num_many_lut, uint32_t lut_stride, bool uses_noise_reduction) {
 
   cluster_group cluster = this_cluster();
 
@@ -83,7 +83,9 @@ __global__ void device_programmable_bootstrap_tbc(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
+      uses_noise_reduction
+          ? &lwe_array_in[blockIdx.x * (lwe_dimension + 1)]
+          : &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
   const Torus *block_lut_vector =
       &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
@@ -294,7 +296,7 @@ __host__ void host_programmable_bootstrap_tbc(
 
   int8_t *d_mem = buffer->d_mem;
   double2 *buffer_fft = buffer->global_join_buffer;
-
+  bool uses_noise_reduction = buffer->uses_noise_reduction;
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
@@ -322,7 +324,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, full_dm,
-        supports_dsm, num_many_lut, lut_stride));
+        supports_dsm, num_many_lut, lut_stride, uses_noise_reduction));
   } else if (max_shared_memory < full_sm + minimum_sm_tbc) {
     config.dynamicSmemBytes = partial_sm + minimum_sm_tbc;
 
@@ -331,7 +333,8 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem,
-        partial_dm, supports_dsm, num_many_lut, lut_stride));
+        partial_dm, supports_dsm, num_many_lut, lut_stride,
+        uses_noise_reduction));
   } else {
     config.dynamicSmemBytes = full_sm + minimum_sm_tbc;
 
@@ -340,7 +343,7 @@ __host__ void host_programmable_bootstrap_tbc(
         lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
         lwe_array_in, lwe_input_indexes, bootstrapping_key, buffer_fft,
         lwe_dimension, polynomial_size, base_log, level_count, d_mem, 0,
-        supports_dsm, num_many_lut, lut_stride));
+        supports_dsm, num_many_lut, lut_stride, buffer->uses_noise_reduction));
   }
 }
 

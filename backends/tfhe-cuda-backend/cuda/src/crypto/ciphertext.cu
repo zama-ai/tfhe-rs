@@ -84,6 +84,8 @@ void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
       static_cast<uint64_t *>(lwe_array_out), size, log_modulus);
 }
 
+// This end point is used only for testing purposes
+// its output always follows trivial ordering
 void cuda_improve_noise_modulus_switch_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *lwe_array_indexes,
