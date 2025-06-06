@@ -128,7 +128,7 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
+        let res = unsafe { self.unchecked_scalar_div_old(numerator, divisor, streams) };
         streams.synchronize();
         res
     }
@@ -138,6 +138,89 @@ impl CudaServerKey {
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronized
     pub unsafe fn unchecked_scalar_div_async<Scalar>(
+        &self,
+        numerator: &CudaUnsignedRadixCiphertext,
+        divisor: Scalar,
+        streams: &CudaStreams,
+    ) -> CudaUnsignedRadixCiphertext
+    where
+        Scalar: Reciprocable,
+    {
+        let numerator_bits = numerator
+            .as_ref()
+            .info
+            .blocks
+            .first()
+            .unwrap()
+            .message_modulus
+            .0
+            .ilog2()
+            * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
+        // Rust has a check on all division, so we shall also have one
+        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+
+        assert!(
+            Scalar::BITS >= numerator_bits as usize,
+            "The scalar divisor type must have a number of bits that is \
+            >= to the number of bits encrypted in the ciphertext: \n\
+            encrypted bits: {numerator_bits}, scalar bits: {}
+            ",
+            Scalar::BITS
+        );
+
+        if MiniUnsignedInteger::is_power_of_two(divisor) {
+            // Even in FHE, shifting is faster than multiplying / dividing
+            return self.unchecked_scalar_right_shift_async(
+                numerator,
+                MiniUnsignedInteger::ilog2(divisor) as u64,
+                streams,
+            );
+        }
+
+        let log2_divisor = MiniUnsignedInteger::ceil_ilog2(divisor);
+        if log2_divisor > numerator_bits {
+            return self.create_trivial_zero_radix_async(
+                numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
+                streams,
+            );
+        }
+
+        let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+        let shift_pre = if chosen_multiplier.multiplier
+            >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+            && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        {
+            let divisor = Scalar::DoublePrecision::cast_from(divisor);
+            // Find e such that d = (1 << e) * divisor_odd
+            // where divisor_odd is odd
+            let two_pow_e =
+                divisor & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor);
+            let e = MiniUnsignedInteger::ilog2(two_pow_e);
+            let divisor_odd = divisor / two_pow_e;
+
+            assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+            let divisor_odd: Scalar = divisor_odd.cast_into(); // cast to lower precision
+            chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+            e as u64
+        } else {
+            0
+        };
+
+        let output: CudaUnsignedRadixCiphertext = self.create_trivial_zero_radix_async(
+            numerator.as_ref().d_blocks.lwe_ciphertext_count().0,
+            streams,
+        );
+
+        output
+    }
+
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
+    pub unsafe fn unchecked_scalar_div_old<Scalar>(
         &self,
         numerator: &CudaUnsignedRadixCiphertext,
         divisor: Scalar,
@@ -296,7 +379,7 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
-        let res = unsafe { self.unchecked_scalar_div_async(numerator, divisor, streams) };
+        let res = unsafe { self.unchecked_scalar_div_old(numerator, divisor, streams) };
         streams.synchronize();
         res
     }
@@ -323,7 +406,7 @@ impl CudaServerKey {
             &tmp_numerator
         };
 
-        self.unchecked_scalar_div_async(numerator, divisor, streams)
+        self.unchecked_scalar_div_old(numerator, divisor, streams)
     }
 
     pub fn unchecked_scalar_div_rem<Scalar>(
@@ -361,7 +444,7 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let quotient = self.unchecked_scalar_div_async(numerator, divisor, streams);
+        let quotient = self.unchecked_scalar_div_old(numerator, divisor, streams);
         let remainder = if MiniUnsignedInteger::is_power_of_two(divisor) {
             // unchecked_scalar_div would have panicked if divisor was zero
             let mut tmp = numerator.duplicate_async(streams);
