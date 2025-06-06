@@ -2,6 +2,7 @@ pub mod boolean_value;
 pub mod compact_list;
 pub mod compressed_ciphertext_list;
 pub mod info;
+pub mod squashed_noise;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
     prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,

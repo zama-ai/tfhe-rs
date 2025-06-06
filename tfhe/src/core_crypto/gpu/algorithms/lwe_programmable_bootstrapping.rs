@@ -156,7 +156,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
 ///   be dropped until streams is synchronised
 #[allow(clippy::too_many_arguments)]
 pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+    input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     num_samples: LweCiphertextCount,
@@ -219,15 +219,7 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
     );
 
     assert_eq!(
-        input.ciphertext_modulus(),
         output.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and output ({:?})",
-        input.ciphertext_modulus(),
-        output.ciphertext_modulus(),
-    );
-
-    assert_eq!(
-        input.ciphertext_modulus(),
         accumulator.ciphertext_modulus(),
         "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
         input.ciphertext_modulus(),
@@ -323,7 +315,7 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
 ///   index** in `output`.
 #[allow(clippy::too_many_arguments)]
 pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
-    input: &CudaLweCiphertextList<Scalar>,
+    input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
     num_samples: LweCiphertextCount,

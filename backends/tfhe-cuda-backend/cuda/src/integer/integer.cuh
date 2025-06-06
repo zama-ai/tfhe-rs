@@ -9,6 +9,7 @@
 #include "linear_algebra.h"
 #include "linearalgebra/addition.cuh"
 #include "linearalgebra/negation.cuh"
+#include "pbs/pbs_128_utilities.h"
 #include "pbs/programmable_bootstrap.h"
 #include "polynomial/functions.cuh"
 #include "utils/helper.cuh"
@@ -866,7 +867,7 @@ uint64_t generate_lookup_table_with_encoding(
   memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
 
   auto body = &acc[glwe_dimension * polynomial_size];
-  uint64_t degree = 0;
+  Torus degree = 0;
 
   // This accumulator extracts the carry bits
   for (int i = 0; i < input_modulus_sup; i++) {
@@ -886,7 +887,7 @@ uint64_t generate_lookup_table_with_encoding(
   }
 
   rotate_left<Torus>(body, half_box_size, polynomial_size);
-  return degree;
+  return (uint64_t)degree;
 }
 
 template <typename Torus>
@@ -2198,6 +2199,112 @@ void host_single_borrow_propagate(
     cuda_stream_wait_event(streams[0], mem->outgoing_events2[j],
                            gpu_indexes[0]);
   }
+}
+
+/// num_radix_blocks corresponds to the number of blocks on which to apply the
+/// LUT In scalar bitops we use a number of blocks that may be lower or equal to
+/// the input and output numbers of blocks
+template <typename InputTorus>
+__host__ void integer_radix_apply_noise_squashing_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array_out,
+    CudaRadixCiphertextFFI const *lwe_array_in,
+    int_noise_squashing_lut<InputTorus> *lut, void *const *bsks,
+    InputTorus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
+  PUSH_RANGE("apply noise squashing")
+  auto params = lut->params;
+  auto pbs_type = params.pbs_type;
+  auto big_lwe_dimension = params.big_lwe_dimension;
+  auto small_lwe_dimension = params.small_lwe_dimension;
+  auto ks_level = params.ks_level;
+  auto ks_base_log = params.ks_base_log;
+  auto pbs_level = params.pbs_level;
+  auto pbs_base_log = params.pbs_base_log;
+  auto glwe_dimension = params.glwe_dimension;
+  auto polynomial_size = params.polynomial_size;
+  auto grouping_factor = params.grouping_factor;
+
+  if (lwe_array_out->num_radix_blocks !=
+      (lwe_array_in->num_radix_blocks + 1) / 2)
+    PANIC("Cuda error: num output radix blocks should be "
+          "half ceil the number input radix blocks")
+
+  /// For multi GPU execution we create vectors of pointers for inputs and
+  /// outputs
+  auto lwe_array_pbs_in = lut->tmp_lwe_before_ks;
+  std::vector<InputTorus *> lwe_array_in_vec = lut->lwe_array_in_vec;
+  std::vector<InputTorus *> lwe_after_ks_vec = lut->lwe_after_ks_vec;
+  std::vector<__uint128_t *> lwe_after_pbs_vec = lut->lwe_after_pbs_vec;
+  std::vector<InputTorus *> lwe_trivial_indexes_vec =
+      lut->lwe_trivial_indexes_vec;
+
+  // We know carry is empty so we can pack two blocks in one
+  pack_blocks<InputTorus>(streams[0], gpu_indexes[0], lwe_array_pbs_in,
+                          lwe_array_in, lwe_array_in->num_radix_blocks,
+                          params.message_modulus);
+
+  // Since the radix ciphertexts are packed, we have to use the num_radix_blocks
+  // from the output ct
+  auto active_gpu_count =
+      get_active_gpu_count(lwe_array_out->num_radix_blocks, gpu_count);
+  if (active_gpu_count == 1) {
+    execute_keyswitch_async<InputTorus>(
+        streams, gpu_indexes, 1, lwe_after_ks_vec[0],
+        lwe_trivial_indexes_vec[0], (InputTorus *)lwe_array_pbs_in->ptr,
+        lut->lwe_indexes_in, ksks, lut->input_big_lwe_dimension,
+        small_lwe_dimension, ks_base_log, ks_level,
+        lwe_array_out->num_radix_blocks);
+
+    /// Apply PBS to apply a LUT, reduce the noise and go from a small LWE
+    /// dimension to a big LWE dimension
+    execute_pbs_128_async<__uint128_t>(
+        streams, gpu_indexes, 1, (__uint128_t *)lwe_array_out->ptr,
+        lut->lut_vec, lwe_after_ks_vec[0], bsks, ms_noise_reduction_key,
+        lut->pbs_buffer, small_lwe_dimension, glwe_dimension, polynomial_size,
+        pbs_base_log, pbs_level, lwe_array_out->num_radix_blocks);
+  } else {
+    /// Make sure all data that should be on GPU 0 is indeed there
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+
+    /// With multiple GPUs we push to the vectors on each GPU then when we
+    /// gather data to GPU 0 we can copy back to the original indexing
+    multi_gpu_scatter_lwe_async<InputTorus>(
+        streams, gpu_indexes, active_gpu_count, lwe_array_in_vec,
+        (InputTorus *)lwe_array_pbs_in->ptr, lut->h_lwe_indexes_in,
+        lut->using_trivial_lwe_indexes, lwe_array_out->num_radix_blocks,
+        lut->input_big_lwe_dimension + 1);
+
+    execute_keyswitch_async<InputTorus>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_ks_vec,
+        lwe_trivial_indexes_vec, lwe_array_in_vec, lwe_trivial_indexes_vec,
+        ksks, lut->input_big_lwe_dimension, small_lwe_dimension, ks_base_log,
+        ks_level, lwe_array_out->num_radix_blocks);
+
+    execute_pbs_128_async<__uint128_t>(
+        streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec, lut->lut_vec,
+        lwe_after_ks_vec, bsks, ms_noise_reduction_key, lut->pbs_buffer,
+        small_lwe_dimension, glwe_dimension, polynomial_size, pbs_base_log,
+        pbs_level, lwe_array_out->num_radix_blocks);
+
+    /// Copy data back to GPU 0 and release vecs
+    multi_gpu_gather_lwe_async<__uint128_t>(
+        streams, gpu_indexes, active_gpu_count,
+        (__uint128_t *)lwe_array_out->ptr, lwe_after_pbs_vec,
+        (__uint128_t *)lut->h_lwe_indexes_out, lut->using_trivial_lwe_indexes,
+        lwe_array_out->num_radix_blocks, big_lwe_dimension + 1);
+
+    /// Synchronize all GPUs
+    for (uint i = 0; i < active_gpu_count; i++) {
+      cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+    }
+  }
+  for (uint i = 0; i < lut->num_blocks; i++) {
+    lwe_array_out->degrees[i] = lut->degrees[0];
+    lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+  }
+  POP_RANGE()
 }
 
 #endif // TFHE_RS_INTERNAL_INTEGER_CUH

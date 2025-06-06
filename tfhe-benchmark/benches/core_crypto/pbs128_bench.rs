@@ -177,7 +177,10 @@ mod cuda {
     };
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::engine::ShortintEngine;
-    use tfhe::shortint::parameters::ModulusSwitchNoiseReductionParams;
+    use tfhe::shortint::parameters::{
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
     use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
 
     fn cuda_pbs_128(c: &mut Criterion) {
@@ -188,25 +191,11 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(30));
 
         type Scalar = u128;
+        let input_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let squash_params = NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
-        let lwe_dimension = LweDimension(879);
-        let glwe_dimension = GlweDimension(2);
-        let polynomial_size = PolynomialSize(2048);
-        let lwe_noise_distribution = DynamicDistribution::new_t_uniform(46);
-        let lwe_noise_distribution_u128: DynamicDistribution<u128> =
-            DynamicDistribution::new_t_uniform(46);
-        let glwe_noise_distribution = DynamicDistribution::new_t_uniform(30);
-        let pbs_base_log = DecompositionBaseLog(24);
-        let pbs_level = DecompositionLevelCount(3);
-        let ciphertext_modulus = CiphertextModulus::new_native();
+        let lwe_noise_distribution_u64 = DynamicDistribution::new_t_uniform(46);
         let ct_modulus_u64: CiphertextModulus<u64> = CiphertextModulus::new_native();
-
-        let modulus_switch_noise_reduction_params = ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1449),
-            ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-            ms_r_sigma_factor: RSigmaFactor(13.179852282053789f64),
-            ms_input_variance: Variance(2.63039184094559E-7f64),
-        };
 
         let params_name = "PARAMS_SWITCH_SQUASH";
 
@@ -220,20 +209,11 @@ mod cuda {
             EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
 
         let input_lwe_secret_key =
-            LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);
-
-        let input_lwe_secret_key_u128 = LweSecretKey::from_container(
-            input_lwe_secret_key
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| x as u128)
-                .collect::<Vec<_>>(),
-        );
+            LweSecretKey::generate_new_binary(input_params.lwe_dimension, &mut secret_generator);
 
         let output_glwe_secret_key = GlweSecretKey::<Vec<Scalar>>::generate_new_binary(
-            glwe_dimension,
-            polynomial_size,
+            squash_params.glwe_dimension,
+            squash_params.polynomial_size,
             &mut secret_generator,
         );
 
@@ -241,29 +221,32 @@ mod cuda {
 
         let bsk = LweBootstrapKey::new(
             Scalar::ZERO,
-            glwe_dimension.to_glwe_size(),
-            polynomial_size,
-            pbs_base_log,
-            pbs_level,
-            lwe_dimension,
-            ciphertext_modulus,
+            squash_params.glwe_dimension.to_glwe_size(),
+            squash_params.polynomial_size,
+            squash_params.decomp_base_log,
+            squash_params.decomp_level_count,
+            LweDimension(input_params.lwe_dimension.0),
+            squash_params.ciphertext_modulus,
         );
 
         let mut engine = ShortintEngine::new();
 
-        let modulus_switch_noise_reduction_key = Some(ModulusSwitchNoiseReductionKey::new(
-            modulus_switch_noise_reduction_params,
-            &input_lwe_secret_key,
-            &mut engine,
-            CiphertextModulus::new_native(),
-            lwe_noise_distribution,
-        ));
-
+        let modulus_switch_noise_reduction_key = squash_params
+            .modulus_switch_noise_reduction_params
+            .map(|modulus_switch_noise_reduction_params| {
+                ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    &input_lwe_secret_key,
+                    &mut engine,
+                    input_params.ciphertext_modulus,
+                    input_params.lwe_noise_distribution,
+                )
+            });
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
-        let message_modulus: Scalar = 1 << 4;
-        let input_message: Scalar = 3;
-        let delta: Scalar = (1 << (Scalar::BITS - 1)) / message_modulus;
+        let message_modulus: u64 = 1 << 4;
+        let input_message: u64 = 3;
+        let delta: u64 = (1 << (u64::BITS - 1)) / message_modulus;
         let plaintext = Plaintext(input_message * delta);
 
         let bench_id;
@@ -277,12 +260,12 @@ mod cuda {
                     &streams,
                 );
 
-                let lwe_ciphertext_in: LweCiphertextOwned<Scalar> =
+                let lwe_ciphertext_in: LweCiphertextOwned<u64> =
                     allocate_and_encrypt_new_lwe_ciphertext(
-                        &input_lwe_secret_key_u128,
+                        &input_lwe_secret_key,
                         plaintext,
-                        lwe_noise_distribution_u128,
-                        ciphertext_modulus,
+                        lwe_noise_distribution_u64,
+                        ct_modulus_u64,
                         &mut encryption_generator,
                     );
                 let lwe_ciphertext_in_gpu =
@@ -290,9 +273,9 @@ mod cuda {
 
                 let accumulator: GlweCiphertextOwned<Scalar> = GlweCiphertextOwned::new(
                     Scalar::ONE,
-                    glwe_dimension.to_glwe_size(),
-                    polynomial_size,
-                    ciphertext_modulus,
+                    squash_params.glwe_dimension.to_glwe_size(),
+                    squash_params.polynomial_size,
+                    squash_params.ciphertext_modulus,
                 );
                 let accumulator_gpu =
                     CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &streams);
@@ -300,7 +283,7 @@ mod cuda {
                 let out_pbs_ct = LweCiphertext::new(
                     Scalar::ZERO,
                     output_lwe_secret_key.lwe_dimension().to_lwe_size(),
-                    ciphertext_modulus,
+                    squash_params.ciphertext_modulus,
                 );
                 let mut out_pbs_ct_gpu =
                     CudaLweCiphertextList::from_lwe_ciphertext(&out_pbs_ct, &streams);
@@ -337,22 +320,22 @@ mod cuda {
                         let local_streams = cuda_local_streams_core();
 
                         let plaintext_list =
-                            PlaintextList::new(Scalar::ZERO, PlaintextCount(elements_per_stream));
+                            PlaintextList::new(u64::ZERO, PlaintextCount(elements_per_stream));
 
                         let input_cts = (0..gpu_count)
                             .map(|i| {
                                 let mut input_ct_list = LweCiphertextList::new(
-                                    Scalar::ZERO,
+                                    u64::ZERO,
                                     input_lwe_secret_key.lwe_dimension().to_lwe_size(),
                                     LweCiphertextCount(elements_per_stream),
-                                    ciphertext_modulus,
+                                    ct_modulus_u64,
                                 );
 
                                 encrypt_lwe_ciphertext_list(
-                                    &input_lwe_secret_key_u128,
+                                    &input_lwe_secret_key,
                                     &mut input_ct_list,
                                     &plaintext_list,
-                                    lwe_noise_distribution_u128,
+                                    lwe_noise_distribution_u64,
                                     &mut encryption_generator,
                                 );
 
@@ -367,9 +350,9 @@ mod cuda {
                             .map(|i| {
                                 let accumulator = GlweCiphertextOwned::new(
                                     Scalar::ONE,
-                                    glwe_dimension.to_glwe_size(),
-                                    polynomial_size,
-                                    ciphertext_modulus,
+                                    squash_params.glwe_dimension.to_glwe_size(),
+                                    squash_params.polynomial_size,
+                                    squash_params.ciphertext_modulus,
                                 );
                                 CudaGlweCiphertextList::from_glwe_ciphertext(
                                     &accumulator,
@@ -385,7 +368,7 @@ mod cuda {
                                     Scalar::ZERO,
                                     output_lwe_secret_key.lwe_dimension().to_lwe_size(),
                                     LweCiphertextCount(elements_per_stream),
-                                    ciphertext_modulus,
+                                    squash_params.ciphertext_modulus,
                                 );
                                 CudaLweCiphertextList::from_lwe_ciphertext_list(
                                     &output_ct_list,
@@ -428,14 +411,14 @@ mod cuda {
         };
 
         let params_record = CryptoParametersRecord {
-            lwe_dimension: Some(lwe_dimension),
-            glwe_dimension: Some(glwe_dimension),
-            polynomial_size: Some(polynomial_size),
-            lwe_noise_distribution: Some(lwe_noise_distribution),
-            glwe_noise_distribution: Some(glwe_noise_distribution),
-            pbs_base_log: Some(pbs_base_log),
-            pbs_level: Some(pbs_level),
-            ciphertext_modulus: Some(ct_modulus_u64),
+            lwe_dimension: Some(input_params.lwe_dimension),
+            glwe_dimension: Some(squash_params.glwe_dimension),
+            polynomial_size: Some(squash_params.polynomial_size),
+            lwe_noise_distribution: Some(lwe_noise_distribution_u64),
+            glwe_noise_distribution: Some(input_params.glwe_noise_distribution),
+            pbs_base_log: Some(squash_params.decomp_base_log),
+            pbs_level: Some(squash_params.decomp_level_count),
+            ciphertext_modulus: Some(input_params.ciphertext_modulus),
             ..Default::default()
         };
 

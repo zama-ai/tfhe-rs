@@ -211,7 +211,7 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
     streams: &CudaStreams,
     lwe_array_out: &mut CudaVec<T>,
     test_vector: &CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
+    lwe_array_in: &CudaVec<u64>,
     bootstrapping_key: &CudaVec<f64>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,

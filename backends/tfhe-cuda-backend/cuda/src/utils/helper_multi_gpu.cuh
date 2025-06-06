@@ -62,6 +62,12 @@ void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
   }
 }
 
+template void multi_gpu_alloc_lwe_async<__uint128_t>(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, std::vector<__uint128_t *> &dest, uint32_t num_inputs,
+    uint32_t lwe_size, uint64_t *size_tracker_on_gpu_0,
+    bool allocate_gpu_memory);
+
 /// Allocates the input/output vector for all devices
 /// Initializes also the related indexing and initializes it to the trivial
 /// index
@@ -219,5 +225,9 @@ void multi_gpu_release_async(cudaStream_t const *streams,
   for (uint i = 0; i < vec.size(); i++)
     cuda_drop_async(vec[i], streams[i], gpu_indexes[i]);
 }
+template void
+multi_gpu_release_async<__uint128_t>(cudaStream_t const *streams,
+                                     uint32_t const *gpu_indexes,
+                                     std::vector<__uint128_t *> &vec);
 
 #endif

@@ -178,10 +178,12 @@ __device__ __forceinline__ double measure_modulus_switch_noise(
 
 // Each thread processes two elements of the lwe array
 template <typename Torus>
-__global__ void improve_noise_modulus_switch(
-    Torus *array_out, const Torus *array_in, const uint64_t *indexes,
-    const Torus *zeros, int lwe_size, int num_zeros, double input_variance,
-    double r_sigma, double bound, uint32_t log_modulus) {
+__global__ void __launch_bounds__(512)
+    improve_noise_modulus_switch(Torus *array_out, const Torus *array_in,
+                                 const uint64_t *indexes, const Torus *zeros,
+                                 int lwe_size, int num_zeros,
+                                 double input_variance, double r_sigma,
+                                 double bound, uint32_t log_modulus) {
 
   // First we will assume size is less than the number of threads per block
   // I should switch this to dynamic shared memory

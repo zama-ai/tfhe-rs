@@ -100,7 +100,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
     void const *lut_vector, void const *lwe_array_in,
     void const *bootstrapping_key,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *ms_noise_reduction_ptr, int8_t *buffer, uint32_t lwe_dimension,
+    void const *ms_noise_reduction_ptr, int8_t *buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, uint32_t num_samples);
 

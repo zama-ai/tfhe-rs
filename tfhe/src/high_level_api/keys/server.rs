@@ -341,6 +341,13 @@ impl CompressedServerKey {
             }
             None => None,
         };
+        let noise_squashing_key: Option<
+            crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey,
+        > = self
+            .integer_key
+            .noise_squashing_key
+            .as_ref()
+            .map(|noise_squashing_key| noise_squashing_key.decompress_to_cuda(&streams));
         synchronize_devices(streams.len() as u32);
         CudaServerKey {
             key: Arc::new(IntegerCudaServerKey {
@@ -348,6 +355,7 @@ impl CompressedServerKey {
                 cpk_key_switching_key_material,
                 compression_key,
                 decompression_key,
+                noise_squashing_key,
             }),
             tag: self.tag.clone(),
             streams,
