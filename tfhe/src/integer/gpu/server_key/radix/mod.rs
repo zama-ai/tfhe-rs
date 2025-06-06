@@ -16,11 +16,12 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    apply_bivariate_lut_kb_async, apply_many_univariate_lut_kb_async,
-    apply_univariate_lut_kb_async, compute_prefix_sum_hillis_steele_async,
-    extend_radix_with_trivial_zero_blocks_msb_async, full_propagate_assign_async,
-    noise_squashing_async, propagate_single_carry_assign_async, trim_radix_blocks_lsb_async,
-    CudaServerKey, PBSType,
+    add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
+    apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
+    compute_prefix_sum_hillis_steele_async, extend_radix_with_trivial_zero_blocks_msb_async,
+    full_propagate_assign_async, noise_squashing_async, propagate_single_carry_assign_async,
+    sub_and_propagate_single_carry_assign_async, trim_radix_blocks_lsb_async, CudaServerKey,
+    PBSType,
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
