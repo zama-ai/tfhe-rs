@@ -1,11 +1,8 @@
 use benchmark::params_aliases::*;
-use benchmark::utilities::{
-    get_bench_type, throughput_num_threads, write_to_json, BenchmarkType, OperatorType,
-};
+use benchmark::utilities::{get_bench_type, write_to_json, BenchmarkType, OperatorType};
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
-use std::cmp::max;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::Path;
@@ -16,7 +13,6 @@ use tfhe::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use tfhe::keycache::NamedParam;
 use tfhe::shortint::parameters::*;
 use tfhe::zk::{CompactPkeCrs, ZkComputeLoad};
-use tfhe::{get_pbs_count, reset_pbs_count};
 
 fn write_result(file: &mut File, name: &str, value: usize) {
     let line = format!("{name},{value}\n");
@@ -31,7 +27,7 @@ fn zk_throughput_num_elements() -> u64 {
     (rayon::current_num_threads() as u64 / max_threads).max(1) + 1
 }
 
-fn pke_zk_proof(c: &mut Criterion) {
+fn cpu_pke_zk_proof(c: &mut Criterion) {
     let bench_name = "zk::pke_zk_proof";
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -111,17 +107,8 @@ fn pke_zk_proof(c: &mut Criterion) {
                         });
                     }
                     BenchmarkType::Throughput => {
-                        // Execute the operation once to know its cost.
-                        let input_msg = rng.gen::<u64>();
-                        let messages = vec![input_msg; fhe_uint_count];
-
-                        reset_pbs_count();
-                        let _ = tfhe::integer::ProvenCompactCiphertextList::builder(&pk)
-                            .extend(messages.iter().copied())
-                            .build_with_proof_packed(&crs, &metadata, compute_load);
-                        let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
-
-                        let elements = throughput_num_threads(num_block, pbs_count);
+                        let elements = zk_throughput_num_elements() * 2; // This value, found empirically, ensure saturation of current target
+                                                                         // machine
                         bench_group.throughput(Throughput::Elements(elements));
 
                         bench_id = format!(
@@ -165,7 +152,7 @@ fn pke_zk_proof(c: &mut Criterion) {
     bench_group.finish()
 }
 
-criterion_group!(zk_proof, pke_zk_proof);
+criterion_group!(zk_proof, cpu_pke_zk_proof);
 
 fn cpu_pke_zk_verify(c: &mut Criterion, results_file: &Path) {
     let bench_name = "zk::pke_zk_verify";
@@ -737,10 +724,11 @@ mod cuda {
     }
 }
 
-pub fn zk_verify() {
+pub fn zk_verify_and_proof() {
     let results_file = Path::new("pke_zk_crs_sizes.csv");
     let mut criterion: Criterion<_> = (Criterion::default()).configure_from_args();
     cpu_pke_zk_verify(&mut criterion, results_file);
+    cpu_pke_zk_proof(&mut criterion);
 }
 
 #[cfg(all(feature = "gpu", feature = "zk-pok"))]
@@ -750,7 +738,7 @@ fn main() {
     #[cfg(all(feature = "gpu", feature = "zk-pok"))]
     gpu_zk_verify();
     #[cfg(not(feature = "gpu"))]
-    zk_verify();
+    zk_verify_and_proof();
 
     Criterion::default().configure_from_args().final_summary();
 }
