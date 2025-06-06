@@ -1379,6 +1379,55 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_sub_and_propagate_single_carry_kb_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        big_lwe_dimension: u32,
+        small_lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        requested_flag: u32,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_sub_and_propagate_single_carry_kb_64_inplace(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lhs_array: *mut CudaRadixCiphertextFFI,
+        rhs_array: *const CudaRadixCiphertextFFI,
+        carry_out: *mut CudaRadixCiphertextFFI,
+        carry_in: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+        requested_flag: u32,
+        uses_carry: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_sub_and_propagate_single_carry(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
 pub const KS_TYPE_BIG_TO_SMALL: KS_TYPE = 0;
 pub const KS_TYPE_SMALL_TO_BIG: KS_TYPE = 1;
 pub type KS_TYPE = ffi::c_uint;

@@ -281,10 +281,9 @@ impl CudaServerKey {
             }
         };
 
-        let neg_rhs = self.unchecked_neg_async(rhs, streams);
-        let _carry = self.add_and_propagate_single_carry_assign_async(
+        let _carry = self.sub_and_propagate_single_carry_assign_async(
             lhs,
-            &neg_rhs,
+            rhs,
             streams,
             None,
             OutputFlag::None,
