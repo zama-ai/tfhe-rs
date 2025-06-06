@@ -143,6 +143,7 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
     /// Read data slice from memory cut_id
     /// NB: User specify offset in unit of data.
     #[tracing::instrument(level = "trace", skip(data), ret)]
+    #[allow(dead_code)]
     pub fn read_cut_at(&mut self, cut_id: usize, ofst: usize, data: &mut [T]) {
         assert!(
             ofst + data.len() <= self.cut_coefs,
