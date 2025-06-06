@@ -530,6 +530,53 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn get_compression_size_on_gpu(
+    streams: &CudaStreams,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    compression_glwe_dimension: GlweDimension,
+    compression_polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_base_log: DecompositionBaseLog,
+    ks_level: DecompositionLevelCount,
+    lwe_per_glwe: u32,
+    storage_log_modulus: u32,
+    num_blocks: u32,
+) -> u64 {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            lwe_per_glwe,
+            storage_log_modulus,
+            false,
+        )
+    };
+
+    unsafe {
+        cleanup_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -615,6 +662,58 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         streams.len() as u32,
         std::ptr::addr_of_mut!(mem_ptr),
     );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn get_decompression_size_on_gpu(
+    streams: &CudaStreams,
+    bodies_count: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    encryption_glwe_dimension: GlweDimension,
+    encryption_polynomial_size: PolynomialSize,
+    compression_glwe_dimension: GlweDimension,
+    compression_polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    pbs_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    storage_log_modulus: u32,
+    num_lwes: u32,
+) -> u64 {
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_integer_decompress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            encryption_glwe_dimension.0 as u32,
+            encryption_polynomial_size.0 as u32,
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            num_lwes,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            storage_log_modulus,
+            bodies_count,
+            false,
+            false,
+        )
+    };
+
+    unsafe {
+        cleanup_cuda_integer_decompress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
+    size_tracker
 }
 
 #[allow(clippy::too_many_arguments)]

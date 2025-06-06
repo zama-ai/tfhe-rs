@@ -719,6 +719,20 @@ impl CiphertextList for CompactCiphertextListExpander {
         }
         expanded
     }
+    #[cfg(feature = "gpu")]
+    fn get_decompression_size_on_gpu(&self, index: usize) -> crate::Result<Option<u64>> {
+        {
+            match &self.inner {
+                InnerCompactCiphertextListExpander::Cpu(_) => Ok(Some(0)),
+                InnerCompactCiphertextListExpander::Cuda(inner) => {
+                    Ok(with_cuda_internal_keys(|keys| {
+                        let streams = &keys.streams;
+                        inner.get_decompression_size_on_gpu(index, streams)
+                    }))
+                }
+            }
+        }
+    }
 }
 
 fn num_bits_to_strict_num_blocks(

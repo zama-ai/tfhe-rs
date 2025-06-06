@@ -122,6 +122,26 @@ impl CudaCompactCiphertextListExpander {
         };
         Some((blocks, current_info.data_kind))
     }
+    #[cfg(feature = "gpu")]
+    fn get_blocks_of_size_on_gpu(&self, index: usize, streams: &CudaStreams) -> Option<u64> {
+        let preceding_infos = self.blocks_info.get(..index)?;
+        let current_info = self.blocks_info.get(index)?;
+        let message_modulus = self.blocks_info.get(index)?.info.message_modulus;
+
+        let start_block_index: usize = preceding_infos
+            .iter()
+            .clone()
+            .map(|ct_info| ct_info.data_kind.num_blocks(message_modulus))
+            .sum();
+
+        let block_count = current_info.data_kind.num_blocks(message_modulus);
+        let end_block_index = start_block_index + block_count;
+
+        Some(
+            self.expanded_blocks
+                .get_decompression_size_on_gpu(streams, start_block_index..end_block_index),
+        )
+    }
 
     pub fn get<T>(&self, index: usize, streams: &CudaStreams) -> crate::Result<Option<T>>
     where
@@ -130,6 +150,15 @@ impl CudaCompactCiphertextListExpander {
         self.blocks_of(index, streams)
             .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
             .transpose()
+    }
+
+    #[cfg(feature = "gpu")]
+    pub fn get_decompression_size_on_gpu(
+        &self,
+        index: usize,
+        streams: &CudaStreams,
+    ) -> Option<u64> {
+        self.get_blocks_of_size_on_gpu(index, streams)
     }
 
     pub fn to_compact_ciphertext_list_expander(

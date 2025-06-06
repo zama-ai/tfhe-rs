@@ -13,10 +13,11 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
+    get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
-use crate::shortint::prelude::GlweDimension;
+use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
 
@@ -220,6 +221,32 @@ impl CudaCompressionKey {
             initial_len: uncompressed_len,
         }
     }
+    pub fn get_compression_size_on_gpu(
+        &self,
+        num_lwes: u32,
+        lwe_dimension: LweDimension,
+        message_modulus: MessageModulus,
+        carry_modulus: CarryModulus,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let lwe_pksk = &self.packing_key_switching_key;
+        let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
+        let compressed_glwe_size = lwe_pksk.output_glwe_size();
+
+        get_compression_size_on_gpu(
+            streams,
+            message_modulus,
+            carry_modulus,
+            compressed_glwe_size.to_glwe_dimension(),
+            compressed_polynomial_size,
+            lwe_dimension,
+            lwe_pksk.decomposition_base_log(),
+            lwe_pksk.decomposition_level_count(),
+            self.lwe_per_glwe.0 as u32,
+            self.storage_log_modulus.0 as u32,
+            num_lwes,
+        )
+    }
 }
 
 impl CudaDecompressionKey {
@@ -322,6 +349,56 @@ impl CudaDecompressionKey {
                     d_blocks: output_lwe,
                     info: CudaRadixCiphertextInfo { blocks },
                 })
+            }
+            CudaBootstrappingKey::MultiBit(_) => {
+                panic! {"Compression is currently not compatible with Multi-Bit PBS"}
+            }
+        }
+    }
+    pub fn get_unpack_size_on_gpu(
+        &self,
+        packed_list: &CudaPackedGlweCiphertextList,
+        start_block_index: usize,
+        end_block_index: usize,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let indexes_array = (start_block_index..=end_block_index)
+            .map(|x| x as u32)
+            .collect_vec();
+
+        let encryption_glwe_dimension = self.glwe_dimension;
+        let encryption_polynomial_size = self.polynomial_size;
+        let compression_glwe_dimension = packed_list.glwe_dimension;
+        let compression_polynomial_size = packed_list.polynomial_size;
+        let indexes_array_len = LweCiphertextCount(indexes_array.len());
+
+        let message_modulus = self.message_modulus;
+        let carry_modulus = self.carry_modulus;
+        let storage_log_modulus = packed_list.storage_log_modulus;
+
+        match &self.blind_rotate_key {
+            CudaBootstrappingKey::Classic(bsk) => {
+                assert!(
+                    bsk.d_ms_noise_reduction_key.is_none(),
+                    "Decompression key should not do modulus switch noise reduction"
+                );
+                let lwe_dimension = bsk.output_lwe_dimension();
+
+                get_decompression_size_on_gpu(
+                    streams,
+                    packed_list.bodies_count as u32,
+                    message_modulus,
+                    carry_modulus,
+                    encryption_glwe_dimension,
+                    encryption_polynomial_size,
+                    compression_glwe_dimension,
+                    compression_polynomial_size,
+                    lwe_dimension,
+                    bsk.decomp_base_log(),
+                    bsk.decomp_level_count(),
+                    storage_log_modulus.0 as u32,
+                    indexes_array_len.0 as u32,
+                )
             }
             CudaBootstrappingKey::MultiBit(_) => {
                 panic! {"Compression is currently not compatible with Multi-Bit PBS"}
