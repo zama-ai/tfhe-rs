@@ -2561,6 +2561,148 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
+    T: UnsignedInteger,
+    B: Numeric,
+    Scalar,
+>(
+    streams: &CudaStreams,
+    numerator: &mut CudaRadixCiphertext,
+    rhs: Scalar,
+    msg_bits: usize,
+    ksks: &CudaVec<T>,
+    bsks: &CudaVec<B>,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    lwe_dimension: LweDimension,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    num_blocks: u32,
+    multiplier_exceeds_threshold: bool,
+    is_divisor_power_of_two: bool,
+    log2_divisor_exceeds_threshold: bool,
+    ilog2_divisor: u32,
+    shift_pre: u64,
+    shift_post: u32,
+    pbs_type: PBSType,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) where
+    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+{
+    assert_eq!(
+        streams.gpu_indexes[0],
+        numerator.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+
+    let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut numerator_degrees = numerator.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut numerator_noise_levels = numerator
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_numerator = prepare_cuda_radix_ffi(
+        numerator,
+        &mut numerator_degrees,
+        &mut numerator_noise_levels,
+    );
+
+    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+
+    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+
+    let mut has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+
+    let num_ciphertext_bits = msg_bits * num_blocks as usize;
+    let num_scalar_bits = decomposed_scalar
+        .iter()
+        .take(num_ciphertext_bits)
+        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .count() as u32;
+
+    scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        is_divisor_power_of_two,
+        log2_divisor_exceeds_threshold,
+        multiplier_exceeds_threshold,
+        num_scalar_bits,
+        ilog2_divisor,
+        allocate_ms_array,
+    );
+
+    cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_numerator,
+        mem_ptr,
+        ksks.ptr.as_ptr(),
+        decomposed_scalar.as_ptr(),
+        has_at_least_one_set.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        bsks.ptr.as_ptr(),
+        decomposed_scalar.len() as u32,
+        multiplier_exceeds_threshold,
+        is_divisor_power_of_two,
+        log2_divisor_exceeds_threshold,
+        ilog2_divisor,
+        shift_pre,
+        shift_post,
+        rhs.cast_into(),
+    );
+
+    cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(numerator, &cuda_ffi_numerator);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
@@ -2661,145 +2803,6 @@ pub unsafe fn unchecked_scalar_left_shift_integer_radix_kb_assign_async<
         std::ptr::addr_of_mut!(mem_ptr),
     );
     update_noise_degree(input, &cuda_ffi_radix_lwe_left);
-}
-
-#[allow(clippy::too_many_arguments)]
-/// # Safety
-///
-/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
-///   is required
-pub unsafe fn unchecked_scalar_mul_high_integer_radix_kb_async<
-    T: UnsignedInteger,
-    B: Numeric,
-    Scalar,
->(
-    streams: &CudaStreams,
-    ct: &mut CudaRadixCiphertext,
-    rhs: Scalar,
-    keyswitch_key: &CudaVec<T>,
-    ks_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
-    msg_bits: usize,
-    bootstrapping_key: &CudaVec<B>,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    small_lwe_dimension: LweDimension,
-    pbs_level: DecompositionLevelCount,
-    pbs_base_log: DecompositionBaseLog,
-    grouping_factor: LweBskGroupingFactor,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-    pbs_type: PBSType,
-) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
-    assert_eq!(
-        streams.gpu_indexes[0],
-        ct.d_blocks.0.d_vec.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        ct.d_blocks.0.d_vec.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        bootstrapping_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        bootstrapping_key.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        keyswitch_key.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        keyswitch_key.gpu_index(0).get(),
-    );
-
-    let message_modulus = ct.info.blocks.first().unwrap().message_modulus;
-    let carry_modulus = ct.info.blocks.first().unwrap().carry_modulus;
-
-    let num_blocks = ct.d_blocks.lwe_ciphertext_count().0 as u32;
-
-    let ct_modulus = ct.d_blocks.ciphertext_modulus().raw_modulus_float();
-
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
-
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let mut degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
-    let mut noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
-
-    let mut cuda_ffi_radix_ct = prepare_cuda_radix_ffi(ct, &mut degrees, &mut noise_levels);
-
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-    let value_rhs: u64 = rhs.cast_into();
-
-    let num_ciphertext_bits = msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1)
-        .count() as u32;
-
-    scratch_cuda_integer_radix_scalar_mul_high_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        small_lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        grouping_factor.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        pbs_type as u32,
-        num_scalar_bits,
-        true,
-        true,
-        allocate_ms_noise_array,
-    );
-
-    cuda_integer_radix_scalar_mul_high_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        &raw mut cuda_ffi_radix_ct,
-        mem_ptr,
-        keyswitch_key.ptr.as_ptr(),
-        value_rhs,
-        decomposed_scalar.as_slice().as_ptr().cast::<u64>(),
-        has_at_least_one_set.as_slice().as_ptr().cast::<u64>(),
-        &raw const ms_noise_reduction_key_ffi,
-        bootstrapping_key.ptr.as_ptr(),
-        decomposed_scalar.len() as u32,
-    );
-
-    cleanup_cuda_integer_radix_scalar_mul_high_kb_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
-
-    update_noise_degree(ct, &cuda_ffi_radix_ct);
 }
 
 #[allow(clippy::too_many_arguments)]
