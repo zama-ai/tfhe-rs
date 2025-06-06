@@ -2090,6 +2090,188 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub(crate) unsafe fn sub_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    lhs_input: &mut CudaRadixCiphertext,
+    rhs_input: &CudaRadixCiphertext,
+    carry_out: &mut CudaRadixCiphertext,
+    carry_in: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_blocks: u32,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    requested_flag: OutputFlag,
+    uses_carry: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lhs_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first lhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lhs_input.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        rhs_input.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first rhs pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        rhs_input.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        carry_out.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first carry_out pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        carry_out.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        carry_in.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first carry_in pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        carry_in.d_blocks.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first bsk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        bootstrapping_key.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first ksk pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        keyswitch_key.gpu_index(0).get(),
+    );
+
+    let ct_modulus = lhs_input.d_blocks.ciphertext_modulus().raw_modulus_float();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
+
+    let mut lhs_input_degrees = lhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut lhs_input_noise_levels = lhs_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_lhs_input = prepare_cuda_radix_ffi(
+        lhs_input,
+        &mut lhs_input_degrees,
+        &mut lhs_input_noise_levels,
+    );
+
+    let mut rhs_input_degrees = rhs_input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut rhs_input_noise_levels = rhs_input
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_rhs_input = prepare_cuda_radix_ffi(
+        rhs_input,
+        &mut rhs_input_degrees,
+        &mut rhs_input_noise_levels,
+    );
+
+    let mut carry_out_degrees = carry_out.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_out_noise_levels = carry_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_carry_out = prepare_cuda_radix_ffi(
+        carry_out,
+        &mut carry_out_degrees,
+        &mut carry_out_noise_levels,
+    );
+
+    let mut carry_in_degrees = carry_in.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut carry_in_noise_levels = carry_in
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_carry_in =
+        prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
+
+    scratch_cuda_sub_and_propagate_single_carry_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        big_lwe_dimension,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        requested_flag as u32,
+        true,
+        allocate_ms_noise_array,
+    );
+
+    cuda_sub_and_propagate_single_carry_kb_64_inplace(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_lhs_input,
+        &raw const cuda_ffi_rhs_input,
+        &raw mut cuda_ffi_carry_out,
+        &raw const cuda_ffi_carry_in,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        requested_flag as u32,
+        uses_carry,
+    );
+
+    cleanup_cuda_sub_and_propagate_single_carry(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(lhs_input, &cuda_ffi_lhs_input);
+    update_noise_degree(carry_out, &cuda_ffi_carry_out);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,

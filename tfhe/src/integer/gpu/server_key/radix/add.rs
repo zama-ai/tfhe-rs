@@ -7,6 +7,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 use crate::integer::gpu::{
+    add_and_propagate_single_carry_assign_async,
     get_add_and_propagate_single_carry_assign_async_size_on_gpu,
     get_full_propagate_assign_size_on_gpu, unchecked_add_integer_radix_assign_async,
     unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async, PBSType,
@@ -797,5 +798,85 @@ impl CudaServerKey {
         };
         stream.synchronize();
         (result, overflowed)
+    }
+
+    /// # Safety
+    ///
+    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
+    ///   not be dropped until streams is synchronized
+    pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T>(
+        &self,
+        lhs: &mut T,
+        rhs: &T,
+        streams: &CudaStreams,
+        input_carry: Option<&CudaBooleanBlock>,
+        requested_flag: OutputFlag,
+    ) -> T
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        let mut carry_out: T = self.create_trivial_zero_radix(1, streams);
+
+        let num_blocks = lhs.as_mut().d_blocks.lwe_ciphertext_count().0 as u32;
+        let uses_carry = input_carry.map_or(0u32, |_block| 1u32);
+        let aux_block: T = self.create_trivial_zero_radix(1, streams);
+        let in_carry: &CudaRadixCiphertext =
+            input_carry.map_or_else(|| aux_block.as_ref(), |block| block.0.as_ref());
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                add_and_propagate_single_carry_assign_async(
+                    streams,
+                    lhs.as_mut(),
+                    rhs.as_ref(),
+                    carry_out.as_mut(),
+                    in_carry,
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    requested_flag,
+                    uses_carry,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                add_and_propagate_single_carry_assign_async(
+                    streams,
+                    lhs.as_mut(),
+                    rhs.as_ref(),
+                    carry_out.as_mut(),
+                    in_carry,
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    num_blocks,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    requested_flag,
+                    uses_carry,
+                    None,
+                );
+            }
+        }
+        carry_out
     }
 }
