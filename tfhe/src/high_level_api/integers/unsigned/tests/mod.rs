@@ -329,8 +329,7 @@ fn test_case_uint32_shift(cks: &ClientKey) {
     }
 
     // clear shifts
-    #[cfg(not(feature = "hpu"))]
-    {
+    if cfg!(not(feature = "hpu")) {
         let c = &a << clear_b;
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a << clear_b);
@@ -348,6 +347,8 @@ fn test_case_uint32_shift(cks: &ClientKey) {
         c <<= clear_b;
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a << clear_b);
+    } else {
+        println!("WARN: HPU currently not support Shift by a scalar");
     }
 }
 
@@ -458,8 +459,7 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
     }
 
     // clear rotate
-    #[cfg(not(feature = "hpu"))]
-    {
+    if cfg!(not(feature = "hpu")) {
         let c = (&a).rotate_left(clear_b);
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a.rotate_left(clear_b));
@@ -477,6 +477,8 @@ fn test_case_uint32_rotate(cks: &ClientKey) {
         c.rotate_left_assign(clear_b);
         let decrypted: u32 = c.decrypt(cks);
         assert_eq!(decrypted, clear_a.rotate_left(clear_b));
+    } else {
+        println!("WARN: HPU currently not support Shift by a scalar");
     }
 }
 

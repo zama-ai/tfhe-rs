@@ -183,7 +183,7 @@ where
                     &iop.format().expect("Unspecified IOP format").proto,
                 )
             };
-            // These clones are cheap are they are just Arc
+            // These clones are cheap as they are just Arc
             let hpu_res = HpuRadixCiphertext::exec(proto, opcode, &srcs, &src.imm);
             HpuHandle {
                 native: hpu_res
@@ -507,7 +507,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_LEAD0 must return 1 value");
@@ -570,7 +570,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_LEAD1 must return 1 value");
@@ -633,7 +633,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_TRAIL0 must return 1 value");
@@ -696,7 +696,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_TRAIL1 must return 1 value");
@@ -750,7 +750,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_COUNT0 must return 1 value");
@@ -804,7 +804,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_COUNT1 must return 1 value");
@@ -869,7 +869,7 @@ where
                         &asm_iop.format().expect("Unspecified IOP format").proto,
                     )
                 };
-                // These clones are cheap are they are just Arc
+                // These clones are cheap as they are just Arc
                 let hpu_result = HpuRadixCiphertext::exec(proto, opcode, &[hpu_self.clone()], &[])
                     .pop()
                     .expect("IOP_ILOG2 must return 1 value");
