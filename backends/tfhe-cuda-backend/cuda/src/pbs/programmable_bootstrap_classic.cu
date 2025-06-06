@@ -647,7 +647,7 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_output_indexes, void const *lut_vector,
     void const *lut_vector_indexes, void const *lwe_array_in,
-    void const *lwe_input_indexes, void const *bootstrapping_key,
+    void const *pbs_input_indexes, void const *bootstrapping_key,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     void *ms_noise_reduction_ptr, int8_t *mem_ptr, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t base_log,
@@ -658,29 +658,27 @@ void cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
 
   pbs_buffer<uint64_t, CLASSICAL> *buffer =
       (pbs_buffer<uint64_t, CLASSICAL> *)mem_ptr;
-
+  void *lwe_input_indexes;
   // If the parameters contain noise reduction key, then apply it
   if (ms_noise_reduction_key != nullptr &&
       ms_noise_reduction_key->ptr != nullptr) {
-    if (ms_noise_reduction_key->num_zeros != 0) {
-      uint32_t log_modulus = log2(polynomial_size) + 1;
-      host_improve_noise_modulus_switch<uint64_t>(
-          static_cast<cudaStream_t>(stream), gpu_index,
-          buffer->temp_lwe_array_in,
-          static_cast<uint64_t const *>(lwe_array_in),
-          static_cast<uint64_t const *>(lwe_input_indexes),
-          static_cast<uint64_t *>(ms_noise_reduction_ptr), lwe_dimension + 1,
-          num_samples, ms_noise_reduction_key->num_zeros,
-          ms_noise_reduction_key->ms_input_variance,
-          ms_noise_reduction_key->ms_r_sigma, ms_noise_reduction_key->ms_bound,
-          log_modulus);
-    } else {
-      buffer->temp_lwe_array_in =
-          const_cast<uint64_t *>(static_cast<const uint64_t *>(lwe_array_in));
-    }
+    uint32_t log_modulus = log2(polynomial_size) + 1;
+    host_improve_noise_modulus_switch<uint64_t>(
+        static_cast<cudaStream_t>(stream), gpu_index, buffer->temp_lwe_array_in,
+        static_cast<uint64_t const *>(lwe_array_in),
+        static_cast<uint64_t const *>(pbs_input_indexes),
+        static_cast<uint64_t *>(ms_noise_reduction_ptr), lwe_dimension + 1,
+        num_samples, ms_noise_reduction_key->num_zeros,
+        ms_noise_reduction_key->ms_input_variance,
+        ms_noise_reduction_key->ms_r_sigma, ms_noise_reduction_key->ms_bound,
+        log_modulus);
+    lwe_input_indexes = const_cast<uint64_t *>(
+        static_cast<const uint64_t *>(buffer->trivial_indexes));
   } else {
     buffer->temp_lwe_array_in =
         const_cast<uint64_t *>(static_cast<const uint64_t *>(lwe_array_in));
+    lwe_input_indexes = const_cast<uint64_t *>(
+        static_cast<const uint64_t *>(pbs_input_indexes));
   }
   check_cuda_error(cudaGetLastError());
 
