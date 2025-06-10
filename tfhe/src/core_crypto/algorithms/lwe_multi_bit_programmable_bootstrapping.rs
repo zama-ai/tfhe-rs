@@ -1141,56 +1141,36 @@ pub fn std_prepare_multi_bit_ggsw<Scalar, GgswBufferCont, TmpGgswBufferCont, Ggs
     }
 }
 
-pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>(
-    input: &LweCiphertext<InputCont>,
+pub fn std_multi_bit_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
+    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedCt,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
     deterministic_execution: bool,
 ) where
-    // CastInto required for PBS modulus switch which returns a usize
-    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync + Send,
-    InputCont: Container<Element = Scalar> + Sync,
+    Scalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
     OutputCont: ContainerMut<Element = Scalar>,
     KeyCont: Container<Element = Scalar> + Sync,
 {
     assert_eq!(
-        input.lwe_size().to_lwe_dimension(),
+        multi_bit_modulus_switched_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
         "Mismatched input LweDimension. LweCiphertext input LweDimension {:?}. \
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
-        input.lwe_size().to_lwe_dimension(),
+        multi_bit_modulus_switched_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
     );
 
-    assert_eq!(
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-        "Mismatched CiphertextModulus between input ({:?}) and accumulator ({:?})",
-        input.ciphertext_modulus(),
-        accumulator.ciphertext_modulus(),
-    );
-
-    let grouping_factor = multi_bit_bsk.grouping_factor();
-
-    let lut_poly_size = accumulator.polynomial_size();
-
-    let multi_bitmodulus_switched_ct = StandardMultiBitModulusSwitchedCt {
-        input: input.as_view(),
-        grouping_factor,
-        log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
-    };
-
     if deterministic_execution {
         std_multi_bit_deterministic_blind_rotate_assign(
-            &multi_bitmodulus_switched_ct,
+            multi_bit_modulus_switched_input,
             accumulator,
             multi_bit_bsk,
             thread_count,
         )
     } else {
         std_multi_bit_non_deterministic_blind_rotate_assign(
-            &multi_bitmodulus_switched_ct,
+            multi_bit_modulus_switched_input,
             accumulator,
             multi_bit_bsk,
             thread_count,
@@ -1812,8 +1792,18 @@ pub fn std_multi_bit_programmable_bootstrap_lwe_ciphertext<
         .as_mut()
         .copy_from_slice(accumulator.as_ref());
 
+    let grouping_factor = multi_bit_bsk.grouping_factor();
+
+    let lut_poly_size = accumulator.polynomial_size();
+
+    let multi_bit_modulus_switched_input = StandardMultiBitModulusSwitchedCt {
+        input: input.as_view(),
+        grouping_factor,
+        log_modulus: lut_poly_size.to_blind_rotation_input_modulus_log(),
+    };
+
     std_multi_bit_blind_rotate_assign(
-        input,
+        &multi_bit_modulus_switched_input,
         &mut local_accumulator,
         multi_bit_bsk,
         thread_count,
