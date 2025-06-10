@@ -44,7 +44,7 @@ const TEST_PARAM: MsNoiseReductionTestParams = MsNoiseReductionTestParams {
 };
 
 thread_local! {
-    static TEST_RESOURCES: RefCell<TestResources> = {
+    pub static TEST_RESOURCES: RefCell<TestResources> = {
         RefCell::new(TestResources::new())
     }
 }
@@ -321,7 +321,7 @@ fn improve_modulus_switch_noise_test_average_number_checks(params: MsNoiseReduct
     );
 }
 
-fn round_mask<C: ContainerMut<Element = u64>>(
+pub fn round_mask<C: ContainerMut<Element = u64>>(
     ct: &mut LweCiphertext<C>,
     log_modulus: CiphertextModulusLog,
 ) {
@@ -330,7 +330,7 @@ fn round_mask<C: ContainerMut<Element = u64>>(
     }
 }
 
-fn measure_noise_added_by_message_preserving_operation<C1, C2>(
+pub fn measure_noise_added_by_message_preserving_operation<C1, C2>(
     sk: &LweSecretKey<C1>,
     mut ct: LweCiphertext<C2>,
     message_preserving_operation: impl Fn(&mut LweCiphertext<C2>),
