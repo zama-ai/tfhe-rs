@@ -14,7 +14,7 @@ use crate::integer::gpu::ciphertext::{
 };
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    add_and_propagate_single_carry_assign_async, apply_bivariate_lut_kb_async,
+    add_and_propagate_single_carry_async, apply_bivariate_lut_kb_async,
     apply_many_univariate_lut_kb_async, apply_univariate_lut_kb_async,
     compute_prefix_sum_hillis_steele_async, extend_radix_with_trivial_zero_blocks_msb_async,
     full_propagate_assign_async, propagate_single_carry_assign_async, trim_radix_blocks_lsb_async,
@@ -295,7 +295,7 @@ impl CudaServerKey {
     ///
     /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until streams is synchronized
-    pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T>(
+    pub(crate) unsafe fn add_and_propagate_single_carry_async<T>(
         &self,
         lhs: &mut T,
         rhs: &T,
@@ -316,7 +316,7 @@ impl CudaServerKey {
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                add_and_propagate_single_carry_assign_async(
+                add_and_propagate_single_carry_async(
                     streams,
                     lhs.as_mut(),
                     rhs.as_ref(),
@@ -342,7 +342,7 @@ impl CudaServerKey {
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                add_and_propagate_single_carry_assign_async(
+                add_and_propagate_single_carry_async(
                     streams,
                     lhs.as_mut(),
                     rhs.as_ref(),

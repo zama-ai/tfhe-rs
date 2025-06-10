@@ -89,7 +89,7 @@ impl CudaServerKey {
     ///
     /// - `stream` __must__ be synchronized to guarantee computation has finished, and inputs must
     ///   not be dropped until stream is synchronised
-    pub unsafe fn add_assign_async<T: CudaIntegerRadixCiphertext>(
+    pub unsafe fn add_and_propagate_async<T: CudaIntegerRadixCiphertext>(
         &self,
         ct_left: &mut T,
         ct_right: &T,
@@ -120,13 +120,8 @@ impl CudaServerKey {
             }
         };
 
-        let _carry = self.add_and_propagate_single_carry_assign_async(
-            lhs,
-            rhs,
-            streams,
-            None,
-            OutputFlag::None,
-        );
+        let _carry =
+            self.add_and_propagate_single_carry_async(lhs, rhs, streams, None, OutputFlag::None);
     }
 
     pub fn add_assign<T: CudaIntegerRadixCiphertext>(
@@ -136,7 +131,7 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) {
         unsafe {
-            self.add_assign_async(ct_left, ct_right, streams);
+            self.add_and_propagate_async(ct_left, ct_right, streams);
         }
         streams.synchronize();
     }
@@ -363,7 +358,7 @@ impl CudaServerKey {
         );
 
         if ciphertexts.len() == 2 {
-            self.add_assign_async(result, &ciphertexts[1], streams);
+            self.add_and_propagate_async(result, &ciphertexts[1], streams);
             return;
         }
 
@@ -639,14 +634,8 @@ impl CudaServerKey {
         let output_flag = OutputFlag::from_signedness(CudaUnsignedRadixCiphertext::IS_SIGNED);
 
         let mut ct_res = lhs.duplicate_async(stream);
-        let mut carry_out: CudaUnsignedRadixCiphertext = self
-            .add_and_propagate_single_carry_assign_async(
-                &mut ct_res,
-                rhs,
-                stream,
-                None,
-                output_flag,
-            );
+        let mut carry_out: CudaUnsignedRadixCiphertext =
+            self.add_and_propagate_single_carry_async(&mut ct_res, rhs, stream, None, output_flag);
 
         if lhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
             && rhs.as_ref().info.blocks.last().unwrap().noise_level == NoiseLevel::ZERO
@@ -675,14 +664,13 @@ impl CudaServerKey {
         let output_flag = OutputFlag::from_signedness(CudaSignedRadixCiphertext::IS_SIGNED);
 
         let mut ct_res = lhs.duplicate_async(stream);
-        let carry_out: CudaSignedRadixCiphertext = self
-            .add_and_propagate_single_carry_assign_async(
-                &mut ct_res,
-                rhs,
-                stream,
-                input_carry,
-                output_flag,
-            );
+        let carry_out: CudaSignedRadixCiphertext = self.add_and_propagate_single_carry_async(
+            &mut ct_res,
+            rhs,
+            stream,
+            input_carry,
+            output_flag,
+        );
 
         let ct_overflowed = CudaBooleanBlock::from_cuda_radix_ciphertext(carry_out.ciphertext);
 

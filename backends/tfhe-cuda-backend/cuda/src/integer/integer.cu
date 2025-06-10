@@ -65,7 +65,7 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
   POP_RANGE()
 }
 
-uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t big_lwe_dimension, uint32_t small_lwe_dimension, uint32_t ks_level,
@@ -121,7 +121,7 @@ void cuda_propagate_single_carry_kb_64_inplace(
       (uint64_t **)(ksks), ms_noise_reduction_key, requested_flag, uses_carry);
 }
 
-void cuda_add_and_propagate_single_carry_kb_64_inplace(
+void cuda_add_and_propagate_single_carry_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lhs_array, const CudaRadixCiphertextFFI *rhs_array,
     CudaRadixCiphertextFFI *carry_out, const CudaRadixCiphertextFFI *carry_in,

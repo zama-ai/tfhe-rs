@@ -225,7 +225,7 @@ impl CudaServerKey {
             let mut quotient = self.sub_async(numerator, &t1, streams);
             self.unchecked_scalar_right_shift_assign_async(&mut quotient, 1, streams);
 
-            self.add_assign_async(&mut quotient, &t1, streams);
+            self.add_and_propagate_async(&mut quotient, &t1, streams);
             assert!(chosen_multiplier.shift_post > 0);
 
             self.unchecked_scalar_right_shift_assign_async(
@@ -646,7 +646,7 @@ impl CudaServerKey {
                 streams,
             );
             // n + SRL(SRA(n, l − 1), N − l)
-            self.add_assign_async(&mut tmp, numerator, streams);
+            self.add_and_propagate_async(&mut tmp, numerator, streams);
             // SRA(n + SRL(SRA(n, l − 1), N − l), l);
             quotient = self.unchecked_scalar_right_shift_async(&tmp, l, streams);
         } else if chosen_multiplier.multiplier
@@ -702,7 +702,7 @@ impl CudaServerKey {
                     let mut tmp = self.signed_scalar_mul_high_async(numerator, cst, streams);
 
                     // n + MULSH(m − 2^N , n)
-                    self.add_assign_async(&mut tmp, numerator, streams);
+                    self.add_and_propagate_async(&mut tmp, numerator, streams);
 
                     // SRA(n + MULSH(m - 2^N, n), shpost)
                     tmp = self.unchecked_scalar_right_shift_async(

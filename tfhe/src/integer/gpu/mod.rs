@@ -2049,7 +2049,7 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let big_lwe_dimension: u32 = glwe_dimension.0 as u32 * polynomial_size.0 as u32;
     let size_tracker = unsafe {
-        scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+        scratch_cuda_add_and_propagate_single_carry_kb_64(
             streams.ptr.as_ptr(),
             streams.gpu_indexes_ptr(),
             streams.len() as u32,
@@ -2089,7 +2089,7 @@ pub(crate) fn get_add_and_propagate_single_carry_assign_async_size_on_gpu(
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInteger, B: Numeric>(
+pub(crate) unsafe fn add_and_propagate_single_carry_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     lhs_input: &mut CudaRadixCiphertext,
     rhs_input: &CudaRadixCiphertext,
@@ -2207,7 +2207,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         .collect();
     let cuda_ffi_carry_in =
         prepare_cuda_radix_ffi(carry_in, &mut carry_in_degrees, &mut carry_in_noise_levels);
-    scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+    scratch_cuda_add_and_propagate_single_carry_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
@@ -2230,7 +2230,7 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
         true,
         allocate_ms_noise_array,
     );
-    cuda_add_and_propagate_single_carry_kb_64_inplace(
+    cuda_add_and_propagate_single_carry_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,

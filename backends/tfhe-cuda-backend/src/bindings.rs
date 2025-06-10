@@ -866,7 +866,7 @@ unsafe extern "C" {
     ) -> u64;
 }
 unsafe extern "C" {
-    pub fn scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
+    pub fn scratch_cuda_add_and_propagate_single_carry_kb_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -907,7 +907,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn cuda_add_and_propagate_single_carry_kb_64_inplace(
+    pub fn cuda_add_and_propagate_single_carry_kb_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
@@ -1317,7 +1317,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn trim_radix_blocks_lsb_64(
+    pub fn extend_radix_with_trivial_zero_blocks_msb_64(
         output: *mut CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         streams: *const *mut ffi::c_void,
@@ -1325,7 +1325,7 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn extend_radix_with_trivial_zero_blocks_msb_64(
+    pub fn trim_radix_blocks_lsb_64(
         output: *mut CudaRadixCiphertextFFI,
         input: *const CudaRadixCiphertextFFI,
         streams: *const *mut ffi::c_void,
