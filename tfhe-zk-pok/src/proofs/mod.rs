@@ -42,6 +42,7 @@ impl<T: ?Sized> OneBased<T> {
         Self(inner)
     }
 
+    #[cfg(feature = "experimental")]
     pub fn new_ref(inner: &T) -> &Self {
         unsafe { &*(inner as *const T as *const Self) }
     }
@@ -375,12 +376,17 @@ where
     }
 }
 
+#[cfg(feature = "experimental")]
 pub mod binary;
+#[cfg(feature = "experimental")]
 pub mod index;
+#[cfg(feature = "experimental")]
+pub mod range;
+#[cfg(feature = "experimental")]
+pub mod rlwe;
+
 pub mod pke;
 pub mod pke_v2;
-pub mod range;
-pub mod rlwe;
 
 #[cfg(test)]
 mod test {

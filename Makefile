@@ -462,6 +462,8 @@ clippy_tfhe_csprng: install_rs_check_toolchain
 clippy_zk_pok: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-zk-pok -- --no-deps -D warnings
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
+		-p tfhe-zk-pok --features=experimental -- --no-deps -D warnings
 
 .PHONY: clippy_versionable # Run clippy lints on tfhe-versionable
 clippy_versionable: install_rs_check_toolchain
@@ -993,7 +995,7 @@ test_tfhe_csprng_big_endian: install_rs_build_toolchain install_cargo_cross
 .PHONY: test_zk_pok # Run tfhe-zk-pok tests
 test_zk_pok: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		-p tfhe-zk-pok
+		-p tfhe-zk-pok --features experimental
 
 .PHONY: test_zk_wasm_x86_compat_ci
 test_zk_wasm_x86_compat_ci: check_nvm_installed
