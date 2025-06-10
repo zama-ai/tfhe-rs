@@ -1,12 +1,5 @@
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 
-pub trait Encrypt<EncryptionKey>
-where
-    Self: Sized,
-{
-    fn encrypt(key: &EncryptionKey, msg: u64) -> Self;
-}
-
 pub trait ScalarMul<Scalar> {
     type Output;
     type SideResources;
@@ -59,26 +52,48 @@ pub trait ClassicPBSModSwitch<Output> {
     );
 }
 
-pub trait AllocateDriftTechniqueModSwitchResult {
+pub trait AllocateDriftTechniqueClassicModSwitchResult {
     type AfterDriftOutput;
     type AfterMsOutput;
     type SideResources;
 
-    fn allocate_drift_technique_mod_switch_result(
+    fn allocate_drift_technique_classic_mod_switch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput);
 }
 
-pub trait DrifTechniqueModSwitch<Input, OutputAfterDriftTechnique, OutputAfterMs> {
+pub trait DrifTechniqueClassicModSwitch<Input, OutputAfterDriftTechnique, OutputAfterMs> {
     type SideResources;
 
-    fn drift_technique_and_mod_switch(
+    fn drift_technique_and_classic_mod_switch(
         &self,
         output_modulus_log: CiphertextModulusLog,
         input: &Input,
         after_drift_technique: &mut OutputAfterDriftTechnique,
         after_mod_switch: &mut OutputAfterMs,
+        side_resources: &mut Self::SideResources,
+    );
+}
+
+pub trait AllocateBlindRotationResult {
+    type Output;
+    type SideResources;
+
+    fn allocated_blind_rotation_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
+}
+
+pub trait ClassicBootstrap<Input, Output, Accumulator> {
+    type SideResources;
+
+    fn classic_pbs(
+        &self,
+        input: &Input,
+        output: &mut Output,
+        accumulator: &Accumulator,
         side_resources: &mut Self::SideResources,
     );
 }

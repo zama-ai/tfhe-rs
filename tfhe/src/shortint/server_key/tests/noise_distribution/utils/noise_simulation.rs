@@ -93,8 +93,8 @@ impl NoiseSimulationLwe {
     }
 }
 
-impl Encrypt<ClientKey> for NoiseSimulationLwe {
-    fn encrypt(key: &ClientKey, _msg: u64) -> Self {
+impl NoiseSimulationLwe {
+    pub fn encrypt(key: &ClientKey, _msg: u64) -> Self {
         let (encryption_key, encryption_noise_distribution) = key.encryption_key_and_noise();
         let enc_var = match encryption_noise_distribution {
             DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
@@ -395,36 +395,31 @@ impl ClassicPBSModSwitch<NoiseSimulationLwe> for NoiseSimulationLwe {
     }
 }
 
-impl AllocateDriftTechniqueModSwitchResult for NoiseSimulationDriftTechniqueKey {
+impl AllocateDriftTechniqueClassicModSwitchResult for NoiseSimulationDriftTechniqueKey {
     type AfterDriftOutput = NoiseSimulationLwe;
     type AfterMsOutput = NoiseSimulationLwe;
     type SideResources = ();
 
-    fn allocate_drift_technique_mod_switch_result(
+    fn allocate_drift_technique_classic_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        side_resources: &mut Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
-        (
-            NoiseSimulationLwe {
-                lwe_dimension: self.lwe_dimension,
-                variance: Variance(-2.0f64.powi(128)),
-                modulus: self.modulus,
-            },
-            NoiseSimulationLwe {
-                lwe_dimension: self.lwe_dimension,
-                variance: Variance(-2.0f64.powi(128)),
-                modulus: self.modulus,
-            },
-        )
+        let after_drift = NoiseSimulationLwe {
+            lwe_dimension: self.lwe_dimension,
+            variance: Variance(-2.0f64.powi(128)),
+            modulus: self.modulus,
+        };
+        let after_ms = after_drift.allocate_classic_mod_switch_result(side_resources);
+        (after_drift, after_ms)
     }
 }
 
-impl DrifTechniqueModSwitch<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationLwe>
+impl DrifTechniqueClassicModSwitch<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationLwe>
     for NoiseSimulationDriftTechniqueKey
 {
     type SideResources = ();
 
-    fn drift_technique_and_mod_switch(
+    fn drift_technique_and_classic_mod_switch(
         &self,
         output_modulus_log: CiphertextModulusLog,
         input: &NoiseSimulationLwe,

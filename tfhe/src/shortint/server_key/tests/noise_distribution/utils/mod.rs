@@ -8,22 +8,25 @@ use crate::core_crypto::algorithms::lwe_keyswitch::{
 use crate::core_crypto::algorithms::lwe_linear_algebra::{
     lwe_ciphertext_cleartext_mul, lwe_ciphertext_cleartext_mul_assign,
 };
+use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft64_pbs::programmable_bootstrap_lwe_ciphertext;
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
 use crate::core_crypto::algorithms::test::round_decode;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
     minimal_lwe_variance_for_132_bits_security_tuniform,
 };
-use crate::core_crypto::commons::numeric::{CastFrom, UnsignedInteger};
+use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
     CiphertextModulusLog, DynamicDistribution, LweDimension,
 };
 use crate::core_crypto::commons::test_tools::{
     arithmetic_mean, gaussian_mean_confidence_interval, gaussian_variance_confidence_interval,
-    variance,
+    normality_test_f64, variance, NormalityTestResult,
 };
 use crate::core_crypto::commons::traits::container::{Container, ContainerMut};
+use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
 use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
@@ -32,10 +35,26 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
-use crate::shortint::client_key::ClientKey;
 use crate::shortint::server_key::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionKey;
 use std::any::TypeId;
 use traits::*;
+
+pub fn normality_check(
+    noise_samples: &[f64],
+    check_location: &str,
+    alpha: f64,
+) -> NormalityTestResult {
+    let normality_check =
+        normality_test_f64(&noise_samples[..5000.min(noise_samples.len())], alpha);
+
+    if normality_check.null_hypothesis_is_valid {
+        println!("Normality check {check_location} is OK\n");
+    } else {
+        println!("Normality check {check_location} failed\n");
+    }
+
+    normality_check
+}
 
 pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     noise_samples: &[f64],
@@ -189,11 +208,21 @@ impl DecryptionAndNoiseResult {
             Self::DecryptionFailed
         }
     }
-}
 
-impl Encrypt<ClientKey> for LweCiphertextOwned<u64> {
-    fn encrypt(key: &ClientKey, msg: u64) -> Self {
-        key.encrypt(msg).ct
+    pub fn get_noise_if_decryption_was_correct(&self) -> Option<NoiseSample> {
+        match self {
+            DecryptionAndNoiseResult::DecryptionSucceeded { noise } => Some(*noise),
+            DecryptionAndNoiseResult::DecryptionFailed => None,
+        }
+    }
+
+    /// If decryption failed (in context of pfail evaluation) returns 1.0 else 0.0, to easily sum
+    /// failures to evaluate pfail
+    pub fn failure_as_f64(&self) -> f64 {
+        match self {
+            DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+            DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+        }
     }
 }
 
@@ -253,11 +282,15 @@ impl<
         _side_resources: &mut Self::SideResources,
     ) {
         // We are forced to do this because rust complains of conflicting trait implementations even
-        // though generics are different
+        // though generics are different, it's not enough to rule that actual concrete types are
+        // different, but in our case they would be mutually exclusive
         if TypeId::of::<InputScalar>() == TypeId::of::<OutputScalar>() {
-            // Cannot use Any as Any requires a type to be 'static and we would be operating on
-            // views, we know types are supposed to be the same, so convert the slice (as we already
-            // have the primitive) and cast the modulus which will be a no-op in practice
+            // Cannot use Any as Any requires a type to be 'static (lifetime information is not
+            // available at runtime, it's lost during compilation and only used for the rust borrock
+            // "proofs", so types need to be 'static to use the dynamic runtime Any facilities)
+            // Let's operate on views, we know types are supposed to be the same, so convert the
+            // slice (as we already have the primitive) and cast the modulus which will be a no-op
+            // in practice
             let input_content = input.as_ref();
             let input_as_output_scalar = LweCiphertext::from_container(
                 id(input_content),
@@ -316,29 +349,24 @@ impl<
     }
 }
 
-impl<Scalar: UnsignedInteger> AllocateDriftTechniqueModSwitchResult
+impl<Scalar: UnsignedInteger> AllocateDriftTechniqueClassicModSwitchResult
     for ModulusSwitchNoiseReductionKey<Scalar>
 {
     type AfterDriftOutput = LweCiphertextOwned<Scalar>;
     type AfterMsOutput = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocate_drift_technique_mod_switch_result(
+    fn allocate_drift_technique_classic_mod_switch_result(
         &self,
-        _side_resources: &mut Self::SideResources,
+        side_resources: &mut Self::SideResources,
     ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
-        (
-            Self::AfterDriftOutput::new(
-                Scalar::ZERO,
-                self.modulus_switch_zeros.lwe_size(),
-                self.modulus_switch_zeros.ciphertext_modulus(),
-            ),
-            Self::AfterMsOutput::new(
-                Scalar::ZERO,
-                self.modulus_switch_zeros.lwe_size(),
-                self.modulus_switch_zeros.ciphertext_modulus(),
-            ),
-        )
+        let after_drift = Self::AfterDriftOutput::new(
+            Scalar::ZERO,
+            self.modulus_switch_zeros.lwe_size(),
+            self.modulus_switch_zeros.ciphertext_modulus(),
+        );
+        let after_ms = after_drift.allocate_classic_mod_switch_result(side_resources);
+        (after_drift, after_ms)
     }
 }
 
@@ -348,7 +376,7 @@ impl<
         AfterDriftCont: ContainerMut<Element = Scalar>,
         AfterMsCont: ContainerMut<Element = Scalar>,
     >
-    DrifTechniqueModSwitch<
+    DrifTechniqueClassicModSwitch<
         LweCiphertext<InputCont>,
         LweCiphertext<AfterDriftCont>,
         LweCiphertext<AfterMsCont>,
@@ -356,7 +384,7 @@ impl<
 {
     type SideResources = ();
 
-    fn drift_technique_and_mod_switch(
+    fn drift_technique_and_classic_mod_switch(
         &self,
         output_modulus_log: CiphertextModulusLog,
         input: &LweCiphertext<InputCont>,
@@ -374,5 +402,50 @@ impl<
             after_mod_switch,
             side_resources,
         );
+    }
+}
+
+impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateBlindRotationResult
+    for GlweCiphertext<AccCont>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocated_blind_rotation_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let glwe_dim = self.glwe_size().to_glwe_dimension();
+        let poly_size = self.polynomial_size();
+        let equivalent_lwe_dim = glwe_dim.to_equivalent_lwe_dimension(poly_size);
+
+        LweCiphertext::new(
+            Scalar::ZERO,
+            equivalent_lwe_dim.to_lwe_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+}
+
+impl<
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        KeyCont: Container<Element = c64>,
+        InputCont: Container<Element = InputScalar>,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+    > ClassicBootstrap<LweCiphertext<InputCont>, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
+    for FourierLweBootstrapKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn classic_pbs(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        programmable_bootstrap_lwe_ciphertext(input, output, accumulator, self);
     }
 }
