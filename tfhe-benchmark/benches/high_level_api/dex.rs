@@ -1071,10 +1071,10 @@ fn cuda_bench_swap_claim_throughput<FheType, F1, F2>(
     let num_gpus = get_number_of_gpus() as u64;
     let compressed_server_key = CompressedServerKey::new(client_key);
 
-    let sks_vec = (0..num_gpus)
-        .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
-        .collect::<Vec<_>>();
     let dex_balance_update_sks = compressed_server_key.decompress_to_gpu();
+    let sks_vec = (0..num_gpus)
+        .map(|_| dex_balance_update_sks.clone())
+        .collect::<Vec<_>>();
 
     for num_elems in [num_gpus, 2 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
