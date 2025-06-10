@@ -54,11 +54,10 @@ use crate::shortint::list_compression::CompressionPrivateKeys;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 
 use crate::shortint::parameters::{
-    CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters,
-    ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters, ShortintParameterSet,
+    COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 };
 
 use crate::core_crypto::prelude::{
@@ -109,7 +108,6 @@ use crate::integer::RadixClientKey;
 
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::numeric::CastInto;
-use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -573,9 +571,9 @@ where
 
 create_parameterized_test!(
     noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise_gpu {
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
     }
 );
 
@@ -1224,9 +1222,9 @@ where
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_noise_gpu {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
 fn noise_check_shortint_classic_pbs_atomic_pattern_pfail_gpu<P>(parameters_set: P)
@@ -1384,9 +1382,9 @@ where
 }
 
 create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail_gpu {
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
 fn pbs_compress_and_classic_ap_inner_helper_gpu(
@@ -2331,16 +2329,16 @@ fn noise_check_shortint_pbs_compression_ap_noise_gpu<P>(
 #[test]
 fn test_noise_check_shortint_classic_pbs_compression_ap_noise_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_noise_gpu(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_noise_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_noise_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
@@ -2564,15 +2562,15 @@ fn noise_check_shortint_pbs_compression_ap_pfail_gpu<P>(
 #[test]
 fn test_noise_check_shortint_classic_pbs_compression_ap_after_ap_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_pfail_gpu(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_after_ap_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_pfail_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
@@ -2761,15 +2759,15 @@ fn noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu<P>(
 #[test]
 fn test_noise_check_shortint_classic_pbs_compression_ap_after_ms_storage_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu(
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 #[test]
 fn test_noise_check_shortint_multi_bit_pbs_compression_ap_after_ms_storage_pfail_tuniform_gpu() {
     noise_check_shortint_pbs_compression_ap_after_ms_storage_pfail_gpu(
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
 
@@ -3535,7 +3533,7 @@ fn test_noise_check_classical_shortint_compute_br_to_squash_pbs_128_atomic_patte
 ) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
@@ -3545,7 +3543,7 @@ fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_patte
 ) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
@@ -3555,9 +3553,9 @@ fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_n
 {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Decompression {
-            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         },
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
@@ -3816,7 +3814,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
 fn test_noise_check_classical_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Compute,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
@@ -3825,7 +3823,7 @@ fn test_noise_check_classical_shortint_compute_br_to_squash_pbs_128_atomic_patte
 fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Compute,
-        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
@@ -3835,9 +3833,9 @@ fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_p
 {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Decompression {
-            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         },
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
