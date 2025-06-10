@@ -902,6 +902,15 @@ test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "$(TFHE_SPEC)"
 
+.PHONY: test_noise_check # Run dedicated noise and pfail check tests
+test_noise_check: install_rs_check_toolchain
+	@# First run the sanity checks to make sure the atomic patterns are correct
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,nightly-avx512 -p $(TFHE_SPEC) -- noise_sanity_check
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=boolean,shortint,integer,nightly-avx512 -p $(TFHE_SPEC) -- noise_check \
+		--test-threads=1
+
 .PHONY: test_safe_serialization # Run the tests for safe serialization
 test_safe_serialization: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
