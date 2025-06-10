@@ -539,6 +539,10 @@ impl CompactPkeCrs {
             .map(CastFrom::cast_from)
             .collect::<Vec<_>>();
 
+        // 128bits seed as defined in the NIST document
+        let mut seed = [0u8; 16];
+        random_generator.fill_bytes(&mut seed);
+
         match self {
             Self::PkeV1(public_params) => {
                 let (public_commit, private_commit) = commit_v1(
@@ -551,7 +555,6 @@ impl CompactPkeCrs {
                     messages,
                     body_noise,
                     public_params,
-                    random_generator,
                 );
 
                 let proof = prove_v1(
@@ -559,7 +562,7 @@ impl CompactPkeCrs {
                     &private_commit,
                     metadata,
                     load,
-                    random_generator,
+                    &seed,
                 );
 
                 CompactPkeProof::PkeV1(proof)
@@ -575,7 +578,6 @@ impl CompactPkeCrs {
                     messages,
                     body_noise,
                     public_params,
-                    random_generator,
                 );
 
                 let proof = prove_v2(
@@ -583,7 +585,7 @@ impl CompactPkeCrs {
                     &private_commit,
                     metadata,
                     load,
-                    random_generator,
+                    &seed,
                 );
 
                 CompactPkeProof::PkeV2(proof)

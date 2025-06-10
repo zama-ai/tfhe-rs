@@ -401,7 +401,6 @@ pub fn init_params_v1(
         testcase.m.clone(),
         testcase.e2.clone(),
         &public_param,
-        rng,
     );
 
     (
@@ -452,7 +451,6 @@ pub fn init_params_v2(
         testcase.m.clone(),
         testcase.e2.clone(),
         &public_param,
-        rng,
     );
 
     (
