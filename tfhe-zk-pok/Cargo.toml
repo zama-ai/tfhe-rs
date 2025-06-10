@@ -25,6 +25,9 @@ zeroize = "1.7.0"
 num-bigint = "0.4.5"
 tfhe-versionable = { version = "0.6.0", path = "../utils/tfhe-versionable" }
 
+[features]
+experimental = []
+
 [dev-dependencies]
 serde_json = "~1.0"
 itertools = { workspace = true }
