@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use rand::Rng;
 use tfhe_zk_pok::proofs::pke::{prove, verify};
 use tfhe_zk_pok::proofs::ComputeLoad;
 use utils::{write_to_json, PKEV1_TEST_PARAMS, PKEV2_TEST_PARAMS};
@@ -29,6 +30,8 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
 
+            let seed: u64 = rng.gen();
+
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {
                     prove(
@@ -36,7 +39,7 @@ fn bench_pke_v1_prove(c: &mut Criterion) {
                         &private_commit,
                         &metadata,
                         load,
-                        rng,
+                        &seed.to_le_bytes(),
                     )
                 })
             });
@@ -67,12 +70,14 @@ fn bench_pke_v1_verify(c: &mut Criterion) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             let bench_id = format!("{bench_name}::{param_name}_{bits}_bits_packed_{load}");
 
+            let seed: u64 = rng.gen();
+
             let proof = prove(
                 (&public_param, &public_commit),
                 &private_commit,
                 &metadata,
                 load,
-                rng,
+                &seed.to_le_bytes(),
             );
 
             bench_group.bench_function(&bench_id, |b| {

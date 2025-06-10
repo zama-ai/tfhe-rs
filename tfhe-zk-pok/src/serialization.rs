@@ -512,6 +512,7 @@ pub struct SerializablePKEv2DomainSeparators {
     pub(crate) hash_xi: Vec<u8>,
     pub(crate) hash_z: Vec<u8>,
     pub(crate) hash_chi: Vec<u8>,
+    pub(crate) hash_gamma: Vec<u8>,
 }
 
 impl From<PKEv2DomainSeparators> for SerializablePKEv2DomainSeparators {
@@ -527,6 +528,7 @@ impl From<PKEv2DomainSeparators> for SerializablePKEv2DomainSeparators {
             hash_xi: value.hash_xi().to_vec(),
             hash_z: value.hash_z().to_vec(),
             hash_chi: value.hash_chi().to_vec(),
+            hash_gamma: value.hash_gamma().to_vec(),
         }
     }
 }
@@ -546,6 +548,7 @@ impl TryFrom<SerializablePKEv2DomainSeparators> for LegacyPKEv2DomainSeparators 
             hash_xi,
             hash_z,
             hash_chi,
+            hash_gamma,
         } = value;
 
         Ok(Self {
@@ -559,6 +562,7 @@ impl TryFrom<SerializablePKEv2DomainSeparators> for LegacyPKEv2DomainSeparators 
             hash_xi: try_vec_to_array(hash_xi)?,
             hash_z: try_vec_to_array(hash_z)?,
             hash_chi: try_vec_to_array(hash_chi)?,
+            hash_gamma: try_vec_to_array(hash_gamma)?,
         })
     }
 }
@@ -578,6 +582,7 @@ impl TryFrom<SerializablePKEv2DomainSeparators> for ShortPKEv2DomainSeparators {
             hash_xi,
             hash_z,
             hash_chi,
+            hash_gamma,
         } = value;
 
         Ok(Self {
@@ -591,6 +596,7 @@ impl TryFrom<SerializablePKEv2DomainSeparators> for ShortPKEv2DomainSeparators {
             hash_xi: try_vec_to_array(hash_xi)?,
             hash_z: try_vec_to_array(hash_z)?,
             hash_chi: try_vec_to_array(hash_chi)?,
+            hash_gamma: try_vec_to_array(hash_gamma)?,
         })
     }
 }
@@ -714,6 +720,7 @@ pub struct SerializablePKEv1DomainSeparators {
     pub(crate) hash_lmap: Vec<u8>,
     pub(crate) hash_w: Vec<u8>,
     pub(crate) hash_z: Vec<u8>,
+    pub(crate) hash_gamma: Vec<u8>,
 }
 
 impl From<PKEv1DomainSeparators> for SerializablePKEv1DomainSeparators {
@@ -725,6 +732,7 @@ impl From<PKEv1DomainSeparators> for SerializablePKEv1DomainSeparators {
             hash_lmap: value.hash_lmap().to_vec(),
             hash_w: value.hash_w().to_vec(),
             hash_z: value.hash_z().to_vec(),
+            hash_gamma: value.hash_gamma().to_vec(),
         }
     }
 }
@@ -740,6 +748,7 @@ impl TryFrom<SerializablePKEv1DomainSeparators> for LegacyPKEv1DomainSeparators 
             hash_lmap,
             hash_w,
             hash_z,
+            hash_gamma,
         } = value;
 
         Ok(Self {
@@ -749,6 +758,7 @@ impl TryFrom<SerializablePKEv1DomainSeparators> for LegacyPKEv1DomainSeparators 
             hash_lmap: try_vec_to_array(hash_lmap)?,
             hash_w: try_vec_to_array(hash_w)?,
             hash_z: try_vec_to_array(hash_z)?,
+            hash_gamma: try_vec_to_array(hash_gamma)?,
         })
     }
 }
@@ -764,6 +774,7 @@ impl TryFrom<SerializablePKEv1DomainSeparators> for ShortPKEv1DomainSeparators {
             hash_lmap,
             hash_w,
             hash_z,
+            hash_gamma,
         } = value;
 
         Ok(Self {
@@ -773,6 +784,7 @@ impl TryFrom<SerializablePKEv1DomainSeparators> for ShortPKEv1DomainSeparators {
             hash_lmap: try_vec_to_array(hash_lmap)?,
             hash_w: try_vec_to_array(hash_w)?,
             hash_z: try_vec_to_array(hash_z)?,
+            hash_gamma: try_vec_to_array(hash_gamma)?,
         })
     }
 }
