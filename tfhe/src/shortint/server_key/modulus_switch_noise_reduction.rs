@@ -16,6 +16,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
 
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::fmt::Debug;
 use tfhe_versionable::Versionize;
 
@@ -309,6 +310,90 @@ where
             ms_bound: self.ms_bound,
             ms_r_sigma_factor: self.ms_r_sigma_factor,
             ms_input_variance: self.ms_input_variance,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(CompressedModulusSwitchConfigurationVersions)]
+pub enum CompressedModulusSwitchConfiguration<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    Plain,
+    PlainAddZero(CompressedModulusSwitchNoiseReductionKey<Scalar>),
+    Centered,
+}
+
+impl<Scalar: UnsignedTorus> CompressedModulusSwitchConfiguration<Scalar> {
+    pub fn decompress(&self) -> ModulusSwitchConfiguration<Scalar> {
+        match self {
+            Self::Plain => ModulusSwitchConfiguration::Plain,
+            Self::PlainAddZero(compressed_modulus_switch_noise_reduction_key) => {
+                ModulusSwitchConfiguration::PlainAddZero(
+                    compressed_modulus_switch_noise_reduction_key.decompress(),
+                )
+            }
+            Self::Centered => ModulusSwitchConfiguration::Centered,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(ModulusSwitchConfigurationVersions)]
+pub enum ModulusSwitchConfiguration<Scalar>
+where
+    Scalar: UnsignedInteger,
+{
+    Plain,
+    PlainAddZero(ModulusSwitchNoiseReductionKey<Scalar>),
+    Centered,
+}
+
+impl<'a, Scalar: UnsignedInteger> ModulusSwitchConfiguration<Scalar> {
+    pub fn lwe_ciphertext_modulus_switch<SwitchedScalar, Cont>(
+        &self,
+        lwe_in: &'a LweCiphertext<Cont>,
+        log_modulus: CiphertextModulusLog,
+    ) -> LazyStandardModulusSwitchedLweCiphertext<Scalar, SwitchedScalar, Cow<'a, [Scalar]>>
+    where
+        Scalar: UnsignedInteger + CastInto<SwitchedScalar>,
+        SwitchedScalar: UnsignedInteger,
+        Cont: Container<Element = Scalar>,
+    {
+        let lwe_in = LweCiphertext::from_container(
+            Cow::Borrowed(lwe_in.as_ref()),
+            lwe_in.ciphertext_modulus(),
+        );
+
+        match self {
+            Self::Plain => lwe_ciphertext_modulus_switch(lwe_in, log_modulus),
+            Self::PlainAddZero(modulus_switch_noise_reduction_key) => {
+                let lazy_msed_ct: LazyStandardModulusSwitchedLweCiphertext<
+                    Scalar,
+                    SwitchedScalar,
+                    Vec<Scalar>,
+                > = modulus_switch_noise_reduction_key
+                    .improve_noise_and_modulus_switch(&lwe_in, log_modulus);
+
+                let (lwe_ct, body_correction_to_add_before_switching, log_modulus) =
+                    lazy_msed_ct.into_raw_parts();
+
+                let ciphertext_modulus = lwe_ct.ciphertext_modulus();
+
+                // Change lwe_ct container from Vec<Scalar> to Cow<'_, [Scalar]>
+                let lwe_ct = LweCiphertext::from_container(
+                    Cow::Owned(lwe_ct.into_container()),
+                    ciphertext_modulus,
+                );
+
+                LazyStandardModulusSwitchedLweCiphertext::from_raw_parts(
+                    lwe_ct,
+                    body_correction_to_add_before_switching,
+                    log_modulus,
+                )
+            }
+            Self::Centered => lwe_ciphertext_centered_binary_modulus_switch(lwe_in, log_modulus),
         }
     }
 }
