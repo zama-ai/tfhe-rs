@@ -8,6 +8,8 @@ use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Display;
 
+use rand::{thread_rng, RngCore};
+use sha3::digest::{ExtendableOutput, Update};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::curve_api::Curve;
@@ -96,7 +98,7 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv2PublicParams, Self::Error> {
-        let domain_separators = SerializablePKEv2DomainSeparators {
+        let domain_separators = SerializablePKEv2DomainSeparatorsV0 {
             hash: self.hash,
             hash_R: self.hash_R,
             hash_t: self.hash_t,
@@ -122,7 +124,7 @@ impl Upgrade<SerializablePKEv2PublicParams> for SerializablePKEv2PublicParamsV0 
             msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
             bound_type: self.bound_type,
             sid: None,
-            domain_separators,
+            domain_separators: domain_separators.upgrade().unwrap(), // upgrade is infallible
         })
     }
 }
@@ -133,9 +135,49 @@ pub enum SerializablePKEv2PublicParamsVersions {
     V1(SerializablePKEv2PublicParams),
 }
 
+#[derive(Version)]
+pub struct SerializablePKEv2DomainSeparatorsV0 {
+    hash: Vec<u8>,
+    hash_R: Vec<u8>,
+    hash_t: Vec<u8>,
+    hash_w: Vec<u8>,
+    hash_agg: Vec<u8>,
+    hash_lmap: Vec<u8>,
+    hash_phi: Vec<u8>,
+    hash_xi: Vec<u8>,
+    hash_z: Vec<u8>,
+    hash_chi: Vec<u8>,
+}
+
+impl Upgrade<SerializablePKEv2DomainSeparators> for SerializablePKEv2DomainSeparatorsV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SerializablePKEv2DomainSeparators, Self::Error> {
+        // V0 used a non seedable random for gamma anyways, so we can simply use a random DS
+        let ds_len = self.hash.len();
+        let mut hash_gamma = vec![0u8; ds_len];
+        thread_rng().fill_bytes(&mut hash_gamma);
+
+        Ok(SerializablePKEv2DomainSeparators {
+            hash: self.hash,
+            hash_R: self.hash_R,
+            hash_t: self.hash_t,
+            hash_w: self.hash_w,
+            hash_agg: self.hash_agg,
+            hash_lmap: self.hash_lmap,
+            hash_phi: self.hash_phi,
+            hash_xi: self.hash_xi,
+            hash_z: self.hash_z,
+            hash_chi: self.hash_chi,
+            hash_gamma,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum SerializablePKEv2DomainSeparatorsVersions {
-    V0(SerializablePKEv2DomainSeparators),
+    V0(SerializablePKEv2DomainSeparatorsV0),
+    V1(SerializablePKEv2DomainSeparators),
 }
 
 #[derive(Version)]
@@ -162,7 +204,7 @@ impl Upgrade<SerializablePKEv1PublicParams> for SerializablePKEv1PublicParamsV0 
     type Error = Infallible;
 
     fn upgrade(self) -> Result<SerializablePKEv1PublicParams, Self::Error> {
-        let domain_separators = SerializablePKEv1DomainSeparators {
+        let domain_separators = SerializablePKEv1DomainSeparatorsV0 {
             hash: self.hash,
             hash_t: self.hash_t,
             hash_agg: self.hash_agg,
@@ -183,7 +225,7 @@ impl Upgrade<SerializablePKEv1PublicParams> for SerializablePKEv1PublicParamsV0 
             t: self.t,
             msbs_zero_padding_bit_count: self.msbs_zero_padding_bit_count,
             sid: None,
-            domain_separators,
+            domain_separators: domain_separators.upgrade().unwrap(), // upgrade is infallible
         })
     }
 }
@@ -194,9 +236,54 @@ pub enum SerializablePKEv1PublicParamsVersions {
     V1(SerializablePKEv1PublicParams),
 }
 
+#[derive(Version)]
+pub struct SerializablePKEv1DomainSeparatorsV0 {
+    hash: Vec<u8>,
+    hash_t: Vec<u8>,
+    hash_agg: Vec<u8>,
+    hash_lmap: Vec<u8>,
+    hash_w: Vec<u8>,
+    hash_z: Vec<u8>,
+}
+
+impl Upgrade<SerializablePKEv1DomainSeparators> for SerializablePKEv1DomainSeparatorsV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SerializablePKEv1DomainSeparators, Self::Error> {
+        // V0 used an unspecified random for gamma anyways, so we can simply use a random DS.
+        // We use Shake256 XoF to get a reproducible value for a given CRS.
+        let mut hasher = sha3::Shake256::default();
+        for data in &[
+            &self.hash,
+            &self.hash_t,
+            &self.hash_w,
+            &self.hash_agg,
+            &self.hash_lmap,
+            &self.hash_z,
+        ] {
+            hasher.update(data);
+        }
+
+        let len = self.hash.len();
+        let mut hash_gamma = vec![0u8; len];
+        hasher.finalize_xof_into(&mut hash_gamma);
+
+        Ok(SerializablePKEv1DomainSeparators {
+            hash: self.hash,
+            hash_t: self.hash_t,
+            hash_w: self.hash_w,
+            hash_agg: self.hash_agg,
+            hash_lmap: self.hash_lmap,
+            hash_z: self.hash_z,
+            hash_gamma,
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum SerializablePKEv1DomainSeparatorsVersions {
-    V0(SerializablePKEv1DomainSeparators),
+    V0(SerializablePKEv1DomainSeparatorsV0),
+    V1(SerializablePKEv1DomainSeparators),
 }
 
 #[derive(VersionsDispatch)]
