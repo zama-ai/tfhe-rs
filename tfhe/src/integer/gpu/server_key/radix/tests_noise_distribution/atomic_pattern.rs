@@ -43,8 +43,10 @@ use crate::core_crypto::commons::test_tools::{
 use crate::core_crypto::entities::{LweCiphertext, Plaintext};
 use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::prelude::misc::torus_modular_diff;
+use crate::core_crypto::prelude::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
 use crate::core_crypto::prelude::test::{round_decode, TestResources};
 use crate::integer::tests::create_parameterized_test;
+use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::NoiseLevel;
 
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
@@ -53,12 +55,10 @@ use crate::shortint::list_compression::CompressionPrivateKeys;
 
 use crate::shortint::parameters::list_compression::CompressionParameters;
 
+use crate::shortint::parameters::v0_11::compact_public_key_only::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
+use crate::shortint::parameters::v0_11::key_switching::p_fail_2_minus_64::ks_pbs::V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use crate::shortint::parameters::{
-    CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters,
-    ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
+    CiphertextModulus, CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters, ShortintKeySwitchingParameters, ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64
 };
 
 use crate::core_crypto::prelude::{
@@ -73,7 +73,7 @@ use crate::shortint::server_key::tests::noise_distribution::{
     scalar_multiplication_variance, should_run_long_pfail_tests, should_use_one_key_per_sample,
 };
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
-use crate::shortint::{CarryModulus, ClientKey, MessageModulus, PBSParameters};
+use crate::shortint::{CarryModulus, ClassicPBSParameters, ClientKey, MessageModulus, PBSParameters};
 
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -105,13 +105,20 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     gen_keys_radix_gpu, unchecked_small_scalar_mul_integer_async, CudaServerKey,
 };
-use crate::integer::RadixClientKey;
+use crate::integer::{CompactPrivateKey, RadixClientKey};
 
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::numeric::CastInto;
 use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 use itertools::Itertools;
 use rayon::prelude::*;
+// use crate::integer::gpu::key_switching_key::CudaKeySwitchingKeyMaterial;
+// use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
+// use crate::integer::gpu::zk::CudaProvenCompactCiphertextList;
+// use crate::integer::key_switching_key::KeySwitchingKey;
+// use crate::integer::{CompactPublicKey, CompressedServerKey,
+//     ProvenCompactCiphertextList,
+// };
 
 pub fn decrypt_multi_bit_lwe_ciphertext(
     lwe_secret_key: &LweSecretKey<&[u64]>,
@@ -1388,6 +1395,737 @@ create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
 });
+
+// // fn pke_encrypt_ks_to_compute_inner_helper_gpu(
+// //     cpke_params: CompactPublicKeyEncryptionParameters,
+// //     ksk_params: ShortintKeySwitchingParameters,
+// //     block_params: ShortintParameterSet,
+// //     single_cpk: &CompactPublicKey,
+// //     single_ksk: &KeySwitchingKey,
+// //     single_cks: &ClientKey,
+// //     single_sks: &ServerKey,
+// //     msg: u64,
+// //     scalar_for_multiplication: u64,
+// // ) -> DecryptionAndNoiseResult {
+// //     assert!(block_params.pbs_only());
+// //     assert!(
+// //         matches!(
+// //             block_params.encryption_key_choice(),
+// //             EncryptionKeyChoice::Big
+// //         ),
+// //         "This test only supports encryption under the big key for now."
+// //     );
+// //     assert!(
+// //         block_params
+// //             .ciphertext_modulus()
+// //             .is_compatible_with_native_modulus(),
+// //         "This test only supports encrytpion with power of 2 moduli for now."
+// //     );
+
+// //     let mut engine = ShortintEngine::new();
+// //     let thread_compact_encryption_secret_key;
+// //     let thread_cpk;
+// //     let thread_ksk;
+// //     let thread_cks;
+// //     let thread_sks;
+// //     let (cpk, ksk, cks, sks) = if should_use_one_key_per_sample() {
+// //         thread_compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+// //         thread_cpk = CompactPublicKey::new(&thread_compact_encryption_secret_key);
+// //         thread_cks = engine.new_client_key(block_params);
+// //         thread_sks = engine.new_server_key(&thread_cks);
+// //         thread_ksk = KeySwitchingKey::new(
+// //             (&thread_compact_encryption_secret_key, None),
+// //             (&thread_cks, &thread_sks),
+// //             ksk_params,
+// //         );
+
+// //         (&thread_cpk, &thread_ksk, &thread_cks, &thread_sks)
+// //     } else {
+// //         // If we don't want to use per thread keys (to go faster), we use those single keys for all
+// //         // threads
+// //         (single_cpk, single_ksk, single_cks, single_sks)
+// //     };
+// //     let (key_switching_key, _bootstrapping_key) = match &sks.atomic_pattern {
+// //         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+// //             standard_atomic_pattern_server_key
+// //                 .key_switching_key
+// //                 .as_view(),
+// //             &standard_atomic_pattern_server_key.bootstrapping_key,
+// //         ),
+// //         AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+// //         AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+// //     };
+// //     let small_lwe_secret_key = match &cks.atomic_pattern {
+// //         AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+// //         AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
+// //     };
+
+// //     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+// //     let br_input_modulus_log = block_params
+// //         .polynomial_size()
+// //         .to_blind_rotation_input_modulus_log();
+// //     let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
+
+// //     let delta = (1u64 << 63) / cleartext_modulus;
+
+// //     let shortint_compact_ct_list = cpk.encrypt_slice_with_modulus(&[msg], cleartext_modulus);
+// //     let expanded = shortint_compact_ct_list
+// //         .expand(ShortintCompactCiphertextListCastingMode::NoCasting)
+// //         .unwrap();
+// //     let expanded_ct = expanded.into_iter().next().unwrap();
+
+// //     let core_ksk = &ksk.key_switching_key_material.key_switching_key;
+
+// //     let mut after_ks_lwe_ct = LweCiphertext::new(
+// //         0u64,
+// //         core_ksk.output_lwe_size(),
+// //         core_ksk.ciphertext_modulus(),
+// //     );
+
+// //     // We don't call the ksk.cast function from shortint as it's doing too many automatic things
+// //     keyswitch_lwe_ciphertext(core_ksk, &expanded_ct.ct, &mut after_ks_lwe_ct);
+
+// //     let before_ms = {
+// //         match ksk_params.destination_key {
+// //             EncryptionKeyChoice::Big => {
+// //                 let mut shortint_ct_after_pke_ks = Ciphertext::new(
+// //                     after_ks_lwe_ct,
+// //                     expanded_ct.degree,
+// //                     expanded_ct.noise_level(),
+// //                     expanded_ct.message_modulus,
+// //                     expanded_ct.carry_modulus,
+// //                     expanded_ct.atomic_pattern,
+// //                 );
+
+// //                 // First remove the msg from the ciphertext to avoid a problem with the mul result
+// //                 // overflowing
+// //                 lwe_ciphertext_plaintext_sub_assign(
+// //                     &mut shortint_ct_after_pke_ks.ct,
+// //                     Plaintext(delta * msg),
+// //                 );
+
+// //                 sks.unchecked_scalar_mul_assign(
+// //                     &mut shortint_ct_after_pke_ks,
+// //                     scalar_for_multiplication.try_into().unwrap(),
+// //                 );
+
+// //                 // Put it back in
+// //                 sks.unchecked_scalar_add_assign(
+// //                     &mut shortint_ct_after_pke_ks,
+// //                     msg.try_into().unwrap(),
+// //                 );
+
+// //                 let mut lwe_keyswitchted = LweCiphertext::new(
+// //                     0u64,
+// //                     key_switching_key.output_lwe_size(),
+// //                     key_switching_key.ciphertext_modulus(),
+// //                 );
+
+// //                 keyswitch_lwe_ciphertext(
+// //                     &key_switching_key,
+// //                     &shortint_ct_after_pke_ks.ct,
+// //                     &mut lwe_keyswitchted,
+// //                 );
+
+// //                 // Return the result
+// //                 lwe_keyswitchted
+// //             }
+// //             EncryptionKeyChoice::Small => after_ks_lwe_ct,
+// //         }
+// //     };
+
+// //     let mut after_ms = LweCiphertext::new(
+// //         0u64,
+// //         before_ms.lwe_size(),
+// //         // This will be easier to manage when decrypting, we'll put the value in the
+// //         // MSB
+// //         before_ms.ciphertext_modulus(),
+// //     );
+
+// //     for (dst, src) in after_ms.as_mut().iter_mut().zip(before_ms.as_ref().iter()) {
+// //         *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
+// //     }
+
+// //     DecryptionAndNoiseResult::new(
+// //         &after_ms,
+// //         &small_lwe_secret_key,
+// //         msg,
+// //         delta,
+// //         cleartext_modulus,
+// //     )
+// // }
+
+// // fn pke_encrypt_ks_to_compute_noise_helper(
+// //     cpke_params: CompactPublicKeyEncryptionParameters,
+// //     ksk_params: ShortintKeySwitchingParameters,
+// //     block_params: ShortintParameterSet,
+// //     single_cpk: &CompactPublicKey,
+// //     single_ksk: &KeySwitchingKey,
+// //     single_cks: &ClientKey,
+// //     single_sks: &ServerKey,
+// //     msg: u64,
+// //     scalar_for_multiplication: u64,
+// // ) -> NoiseSample {
+// //     let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper_gpu(
+// //         cpke_params,
+// //         ksk_params,
+// //         block_params,
+// //         single_cpk,
+// //         single_ksk,
+// //         single_cks,
+// //         single_sks,
+// //         msg,
+// //         scalar_for_multiplication,
+// //     );
+
+// //     match decryption_and_noise_result {
+// //         DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
+// //         DecryptionAndNoiseResult::DecryptionFailed => {
+// //             panic!("Failed decryption, noise measurement will be wrong.")
+// //         }
+// //     }
+// // }
+
+// // // fn pke_encrypt_ks_to_compute_pfail_helper_gpu(
+// // //     cpke_params: CompactPublicKeyEncryptionParameters,
+// // //     ksk_params: ShortintKeySwitchingParameters,
+// // //     block_params: ShortintParameterSet,
+// // //     single_cpk: &CompactPublicKey,
+// // //     single_ksk: &KeySwitchingKey,
+// // //     single_cks: &ClientKey,
+// // //     single_sks: &ServerKey,
+// // //     msg: u64,
+// // //     scalar_for_multiplication: u64,
+// // // ) -> f64 {
+// // //     let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper_gpu(
+// // //         cpke_params,
+// // //         ksk_params,
+// // //         block_params,
+// // //         single_cpk,
+// // //         single_ksk,
+// // //         single_cks,
+// // //         single_sks,
+// // //         msg,
+// // //         scalar_for_multiplication,
+// // //     );
+
+// // //     match decryption_and_noise_result {
+// // //         DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+// // //         DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+// // //     }
+// // // }
+
+// // fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+// //     mut cpke_params: CompactPublicKeyEncryptionParameters,
+// //     ksk_params: ShortintKeySwitchingParameters,
+// //     block_params: ClassicPBSParameters,
+// // ) {
+// //     // Disable the auto casting in the keyswitching key to be able to measure things ourselves
+// //     cpke_params.expansion_kind =
+// //         CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+// //     // Remove mutability
+// //     let cpke_params = cpke_params;
+
+// //     let block_params: ShortintParameterSet = block_params.into();
+// //     assert!(
+// //         matches!(
+// //             block_params.encryption_key_choice(),
+// //             EncryptionKeyChoice::Big
+// //         ),
+// //         "This test only supports encryption under the big key for now."
+// //     );
+// //     assert!(
+// //         block_params
+// //             .ciphertext_modulus()
+// //             .is_compatible_with_native_modulus(),
+// //         "This test only supports encrytpion with power of 2 moduli for now."
+// //     );
+
+// //     let modulus_as_f64 = if block_params.ciphertext_modulus().is_native_modulus() {
+// //         2.0f64.powi(64)
+// //     } else {
+// //         block_params.ciphertext_modulus().get_custom_modulus() as f64
+// //     };
+
+// //     let compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+// //     let cpk = CompactPublicKey::new(&compact_encryption_secret_key);
+
+// //     let gpu_index = 0;
+// //     let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+// //     //let num_blocks = 1;
+
+// //     //let cks = ClientKey::new(block_params);
+// //     //let sks = ServerKey::new(&cks);
+// //     let cks = ClientKey::new(block_params);
+// //     let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+// //     let sks = compressed_server_key.decompress();    
+// //     let gpu_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+
+// //     let (key_switching_key, bootstrapping_key) = match &sks.atomic_pattern {
+// //         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+// //             standard_atomic_pattern_server_key
+// //                 .key_switching_key
+// //                 .as_view(),
+// //             &standard_atomic_pattern_server_key.bootstrapping_key,
+// //         ),
+// //         AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+// //         AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+// //     };
+
+// //     let ksk = KeySwitchingKey::new(
+// //         (&compact_encryption_secret_key, None),
+// //         (&cks, &sks),
+// //         ksk_params,
+// //     );
+// // //    let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+// //     let d_ksk_material =
+// //         CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+// //     let d_ksk =
+// //         CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sks);
+
+// //     let cpk_lwe_dimension = cpk.parameters.encryption_lwe_dimension;
+// //     let cpk_encryption_noise = cpk.parameters.encryption_noise_distribution;
+
+// //     let encryption_variance = match cpk_encryption_noise {
+// //         DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
+// //         DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
+// //     };
+// //     let pke_ks_input_lwe_dimension = d_ksk_material.lwe_keyswitch_key.input_key_lwe_dimension();
+// //     let pke_ks_output_lwe_dimension = d_ksk_material.lwe_keyswitch_key.output_key_lwe_dimension();
+// //     let pke_ks_decomp_base_log = d_ksk_material.lwe_keyswitch_key.decomposition_base_log();
+// //     let pke_ks_decomp_level_count = d_ksk_material.lwe_keyswitch_key.decomposition_level_count();
+// //     // let pke_ks_input_lwe_dimension = ksk.key
+// //     //     .key_switching_key_material
+// //     //     .key_switching_key
+// //     //     .input_key_lwe_dimension();
+// //     // let pke_ks_output_lwe_dimension = ksk
+// //     //     .key_switching_key_material
+// //     //     .key_switching_key
+// //     //     .output_key_lwe_dimension();
+// //     // let pke_ks_decomp_base_log = ksk
+// //     //     .key_switching_key_material
+// //     //     .key_switching_key
+// //     //     .decomposition_base_log();
+// //     // let pke_ks_decomp_level_count = ksk
+// //     //     .key_switching_key_material
+// //     //     .key_switching_key
+// //     //     .decomposition_level_count();
+// //     let compute_ks_input_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+// //     let compute_ks_output_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+// //     let compute_ks_decomp_base_log = key_switching_key.decomposition_base_log();
+// //     let compute_ks_decomp_level_count = key_switching_key.decomposition_level_count();
+
+// //     let compute_pbs_input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+
+// //     // Only in the Big key case
+// //     let scalar_for_multiplication = block_params.max_noise_level().get();
+
+// //     // Compute expected variance after getting out of the PKE and doing the keyswitch to the compute
+// //     // parameters until the first blind rotation mod switch.
+// //     //
+// //     // This gives:
+// //     // For a KS to the small destination key:
+// //     // Encrypt PKE -> PKE-KS -> MS
+// //     //
+// //     // For a KS to the big destination key:
+// //     // Encrypt PKE -> PKE-KS -> times MaxNoiseLevel -> KS -> MS
+
+// //     let expected_variance_after_cpke =
+// //         lwe_compact_public_key_encryption_expected_variance(encryption_variance, cpk_lwe_dimension);
+
+// //     // The encryption noise for the keyswitching keys comes from the destination params as we are
+// //     // keyswitching to a dimension of the parameter set.
+// //     let pke_ks_additive_variance = {
+// //         let destination_encryption_noise_distribution = match ksk_params.destination_key {
+// //             EncryptionKeyChoice::Big => block_params.glwe_noise_distribution(),
+// //             EncryptionKeyChoice::Small => block_params.lwe_noise_distribution(),
+// //         };
+
+// //         match destination_encryption_noise_distribution {
+// //             DynamicDistribution::Gaussian(_) => {
+// //                 keyswitch_additive_variance_132_bits_security_gaussian(
+// //                     pke_ks_input_lwe_dimension,
+// //                     pke_ks_output_lwe_dimension,
+// //                     pke_ks_decomp_base_log,
+// //                     pke_ks_decomp_level_count,
+// //                     modulus_as_f64,
+// //                 )
+// //             }
+// //             DynamicDistribution::TUniform(_) => {
+// //                 keyswitch_additive_variance_132_bits_security_tuniform(
+// //                     pke_ks_input_lwe_dimension,
+// //                     pke_ks_output_lwe_dimension,
+// //                     pke_ks_decomp_base_log,
+// //                     pke_ks_decomp_level_count,
+// //                     modulus_as_f64,
+// //                 )
+// //             }
+// //         }
+// //     };
+
+// //     let expected_variance_after_pke_ks =
+// //         Variance(expected_variance_after_cpke.0 + pke_ks_additive_variance.0);
+
+// //     let expected_variance_before_ms = {
+// //         match ksk_params.destination_key {
+// //             // In the case of the Big key we are allowed theoretically to do the AP
+// //             EncryptionKeyChoice::Big => {
+// //                 let expected_variance_after_scalar_mul = scalar_multiplication_variance(
+// //                     expected_variance_after_pke_ks,
+// //                     scalar_for_multiplication,
+// //                 );
+
+// //                 let compute_ks_additive_variance = match block_params.lwe_noise_distribution() {
+// //                     DynamicDistribution::Gaussian(_) => {
+// //                         keyswitch_additive_variance_132_bits_security_gaussian(
+// //                             compute_ks_input_lwe_dimension,
+// //                             compute_ks_output_lwe_dimension,
+// //                             compute_ks_decomp_base_log,
+// //                             compute_ks_decomp_level_count,
+// //                             modulus_as_f64,
+// //                         )
+// //                     }
+// //                     DynamicDistribution::TUniform(_) => {
+// //                         keyswitch_additive_variance_132_bits_security_tuniform(
+// //                             compute_ks_input_lwe_dimension,
+// //                             compute_ks_output_lwe_dimension,
+// //                             compute_ks_decomp_base_log,
+// //                             compute_ks_decomp_level_count,
+// //                             modulus_as_f64,
+// //                         )
+// //                     }
+// //                 };
+
+// //                 Variance(expected_variance_after_scalar_mul.0 + compute_ks_additive_variance.0)
+// //             }
+// //             EncryptionKeyChoice::Small => expected_variance_after_pke_ks,
+// //         }
+// //     };
+
+// //     let br_input_modulus_log = block_params
+// //         .polynomial_size()
+// //         .to_blind_rotation_input_modulus_log();
+// //     let br_input_modulus = 1u64 << br_input_modulus_log.0;
+
+// //     let ms_additive_variance = modulus_switch_additive_variance(
+// //         compute_pbs_input_lwe_dimension,
+// //         modulus_as_f64,
+// //         br_input_modulus as f64,
+// //     );
+
+// //     let expected_variance_after_ms =
+// //         Variance(expected_variance_before_ms.0 + ms_additive_variance.0);
+
+// //     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+// //     let mut noise_samples = vec![];
+// //     for msg in 0..cleartext_modulus {
+// //         let current_noise_samples: Vec<_> = (0..1000)
+// //             .into_par_iter()
+// //             .map(|_| {
+// //                 pke_encrypt_ks_to_compute_noise_helper(
+// //                     cpke_params,
+// //                     ksk_params,
+// //                     block_params,
+// //                     &cpk,
+// //                     &ksk,
+// //                     &cks,
+// //                     &sks,
+// //                     msg,
+// //                     scalar_for_multiplication,
+// //                 )
+// //                 .value
+// //             })
+// //             .collect();
+
+// //         noise_samples.extend(current_noise_samples);
+// //     }
+
+// //     let measured_mean = mean(&noise_samples);
+// //     let measured_variance = variance(&noise_samples);
+
+// //     let mean_ci = mean_confidence_interval(
+// //         noise_samples.len() as f64,
+// //         measured_mean,
+// //         measured_variance.get_standard_dev(),
+// //         0.99,
+// //     );
+
+// //     let variance_ci =
+// //         variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.99);
+
+// //     let expected_mean = 0.0;
+
+// //     println!("measured_variance={measured_variance:?}");
+// //     println!("expected_variance_after_ms={expected_variance_after_ms:?}");
+// //     println!("variance_lower_bound={:?}", variance_ci.lower_bound());
+// //     println!("variance_upper_bound={:?}", variance_ci.upper_bound());
+// //     println!("measured_mean={measured_mean:?}");
+// //     println!("expected_mean={expected_mean:?}");
+// //     println!("mean_lower_bound={:?}", mean_ci.lower_bound());
+// //     println!("mean_upper_bound={:?}", mean_ci.upper_bound());
+
+// //     // Expected mean is 0
+// //     assert!(mean_ci.mean_is_in_interval(expected_mean));
+// //     // We want to be smaller but secure or in the interval
+// //     if measured_variance <= expected_variance_after_ms {
+// //         let noise_for_security = match block_params.lwe_noise_distribution() {
+// //             DynamicDistribution::Gaussian(_) => {
+// //                 minimal_lwe_variance_for_132_bits_security_gaussian(
+// //                     bootstrapping_key.input_lwe_dimension(),
+// //                     modulus_as_f64,
+// //                 )
+// //             }
+// //             DynamicDistribution::TUniform(_) => {
+// //                 minimal_lwe_variance_for_132_bits_security_tuniform(
+// //                     bootstrapping_key.input_lwe_dimension(),
+// //                     modulus_as_f64,
+// //                 )
+// //             }
+// //         };
+
+// //         if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
+// //             println!(
+// //                 "\n==========\n\
+// //                 Warning: noise formula might be over estimating the noise.\n\
+// //                 ==========\n"
+// //             );
+// //         }
+
+// //         assert!(measured_variance >= noise_for_security);
+// //     } else {
+// //         assert!(variance_ci.variance_is_in_interval(expected_variance_after_ms));
+// //     }
+
+// //     // Normality check of heavily discretized gaussian does not seem to work
+// //     // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
+// //     // 0.05); assert!(normality_check.null_hypothesis_is_valid);
+// // }
+
+// // #[test]
+// // fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise_gpu() {
+// //     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+// //         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// //         V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// //     )
+// // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_small_noise_zkv1() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+// // //         V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+// // //         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_big_noise_zkv1() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
+// // //         V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+// // //     mut cpke_params: CompactPublicKeyEncryptionParameters,
+// // //     ksk_params: ShortintKeySwitchingParameters,
+// // //     mut block_params: ClassicPBSParameters,
+// // // ) {
+// // //     assert_eq!(
+// // //         block_params.carry_modulus.0, 4,
+// // //         "This test is only for 2_2 parameters"
+// // //     );
+// // //     assert_eq!(
+// // //         block_params.message_modulus.0, 4,
+// // //         "This test is only for 2_2 parameters"
+// // //     );
+
+// // //     // Padding bit + carry and message
+// // //     let original_precision_with_padding =
+// // //         (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+// // //     block_params.carry_modulus.0 = 1 << 4;
+// // //     cpke_params.carry_modulus = block_params.carry_modulus;
+
+// // //     let new_precision_with_padding =
+// // //         (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
+
+// // //     let original_pfail = 2.0f64.powf(block_params.log2_p_fail);
+
+// // //     println!("original_pfail={original_pfail}");
+// // //     println!("original_pfail_log2={}", block_params.log2_p_fail);
+
+// // //     let expected_pfail = equivalent_pfail_gaussian_noise(
+// // //         original_precision_with_padding,
+// // //         original_pfail,
+// // //         new_precision_with_padding,
+// // //     );
+
+// // //     block_params.log2_p_fail = expected_pfail.log2();
+
+// // //     println!("expected_pfail={expected_pfail}");
+// // //     println!("expected_pfail_log2={}", block_params.log2_p_fail);
+
+// // //     let (runs_for_expected_fails, expected_fails) = if should_run_long_pfail_tests() {
+// // //         let total_runs = 1_000_000;
+// // //         let expected_fails = (total_runs as f64 * expected_pfail).round() as u32;
+// // //         (total_runs, expected_fails)
+// // //     } else {
+// // //         let expected_fails = 200;
+// // //         let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as u32;
+// // //         (runs_for_expected_fails, expected_fails)
+// // //     };
+// // //     println!("runs_for_expected_fails={runs_for_expected_fails}");
+
+// // //     // Disable the auto casting in the keyswitching key to be able to measure things ourselves
+// // //     cpke_params.expansion_kind =
+// // //         CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice.into());
+// // //     // Remove mutability
+// // //     let cpke_params = cpke_params;
+
+// // //     let block_params: ShortintParameterSet = block_params.into();
+// // //     assert!(
+// // //         matches!(
+// // //             block_params.encryption_key_choice(),
+// // //             EncryptionKeyChoice::Big
+// // //         ),
+// // //         "This test only supports encryption under the big key for now."
+// // //     );
+// // //     assert!(
+// // //         block_params
+// // //             .ciphertext_modulus()
+// // //             .is_compatible_with_native_modulus(),
+// // //         "This test only supports encrytpion with power of 2 moduli for now."
+// // //     );
+
+// // //     let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+// // //     let scalar_for_multiplication = block_params.max_noise_level().get();
+
+// // //     let compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+// // //     let cpk = CompactPublicKey::new(&compact_encryption_secret_key);
+
+// // //     let cks = ClientKey::new(block_params);
+// // //     let sks = ServerKey::new(&cks);
+
+// // //     let ksk = KeySwitchingKey::new(
+// // //         (&compact_encryption_secret_key, None),
+// // //         (&cks, &sks),
+// // //         ksk_params,
+// // //     );
+
+// // //     let measured_fails: f64 = (0..runs_for_expected_fails)
+// // //         .into_par_iter()
+// // //         .map(|_| {
+// // //             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
+
+// // //             pke_encrypt_ks_to_compute_pfail_helper(
+// // //                 cpke_params,
+// // //                 ksk_params,
+// // //                 block_params,
+// // //                 &cpk,
+// // //                 &ksk,
+// // //                 &cks,
+// // //                 &sks,
+// // //                 msg,
+// // //                 scalar_for_multiplication.try_into().unwrap(),
+// // //             )
+// // //         })
+// // //         .sum();
+
+// // //     let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+// // //     println!("measured_fails={measured_fails}");
+// // //     println!("expected_fails={expected_fails}");
+// // //     println!("measured_pfail={measured_pfail}");
+// // //     println!("expected_pfail={expected_pfail}");
+
+// // //     if measured_fails > 0.0 {
+// // //         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+// // //             runs_for_expected_fails as f64,
+// // //             measured_fails,
+// // //             0.99,
+// // //         );
+
+// // //         println!(
+// // //             "pfail_lower_bound={}",
+// // //             pfail_confidence_interval.lower_bound()
+// // //         );
+// // //         println!(
+// // //             "pfail_upper_bound={}",
+// // //             pfail_confidence_interval.upper_bound()
+// // //         );
+
+// // //         if measured_pfail <= expected_pfail {
+// // //             if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+// // //                 println!(
+// // //                     "\n==========\n\
+// // //                     WARNING: measured pfail is smaller than expected pfail \
+// // //                     and out of the confidence interval\n\
+// // //                     the optimizer might be pessimistic when generating parameters.\n\
+// // //                     ==========\n"
+// // //                 );
+// // //             }
+// // //         } else {
+// // //             assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+// // //         }
+// // //     } else {
+// // //         println!(
+// // //             "\n==========\n\
+// // //             WARNING: measured pfail is 0, it is either a bug or \
+// // //             it is way smaller than the expected pfail\n\
+// // //             the optimizer might be pessimistic when generating parameters, \
+// // //             or some hypothesis does not hold.\n\
+// // //             ==========\n"
+// // //         );
+// // //     }
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_small_pfail() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+// // //         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_small_pfail_zkv1() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+// // //         V0_11_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+// // //         V0_11_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
+// // // #[test]
+// // // fn test_noise_check_shortint_pke_encrypt_ks_to_big_pfail_zkv1() {
+// // //     noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail(
+// // //         V0_11_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
+// // //         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+// // //     )
+// // // }
+
 
 fn pbs_compress_and_classic_ap_inner_helper_gpu(
     block_params: ShortintParameterSet,
@@ -3130,7 +3868,7 @@ fn br_to_squash_pbs_128_inner_helper(
         }
     };
     let decryption_noise_after_ks = DecryptionAndNoiseResult::new(
-        &after_ks_lwe,
+        &after_ms_lwe,
         &small_lwe_secret_key,
         msg,
         delta,
@@ -3481,7 +4219,6 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
             .map(|index| {
                 let local_stream = &vec_local_streams[index % num_streams];
                 let msg: u64 = rand::random::<u64>() % cleartext_modulus;
-                println!("Running iteration {index} with msg={msg} ... ");
                 br_to_squash_pbs_128_noise_helper(
                     input_br_params,
                     block_params,
@@ -3548,7 +4285,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 }
 
 #[test]
-fn test_noise_check_classic_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu(
+fn test_noise_check_classical_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu(
 ) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
@@ -3763,7 +4500,6 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
         .map(|index| {
             let local_stream = &vec_local_streams[index % num_streams];
             let msg: u64 = rand::random::<u64>() % cleartext_modulus;
-            println!("Running iteration {index} with msg={msg} ... ");
             br_to_squash_pbs_128_pfail_helper(
                 input_br_params,
                 block_params,
@@ -3830,10 +4566,19 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail<P>(
 }
 
 #[test]
-fn test_noise_check_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
+fn test_noise_check_classical_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
         PBS128InputBRParams::Compute,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform_gpu() {
+    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
+        PBS128InputBRParams::Compute,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
