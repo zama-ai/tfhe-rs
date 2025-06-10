@@ -144,7 +144,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_tfhe_zk_pok
+          name: ${{ github.sha }}_tfhe_zk_pok_${{ env.BENCH_TYPE }}
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Checkout Slab repo
