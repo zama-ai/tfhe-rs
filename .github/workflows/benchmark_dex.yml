@@ -98,15 +98,27 @@ jobs:
         env:
           REF_NAME: ${{ github.ref_name }}
 
-      - name: Parse swap request PBS counts
+      - name: Parse swap request update PBS counts
         run: |
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_request_pbs_count.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_request_update_dex_balance_pbs_count.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
-      - name: Parse swap claim PBS counts
+      - name: Parse swap request finalize PBS counts
         run: |
-          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_claim_pbs_count.csv "${RESULTS_FILENAME}" \
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_request_finalize_pbs_count.csv "${RESULTS_FILENAME}" \
+          --object-sizes \
+          --append-results
+
+      - name: Parse swap claim prepare PBS counts
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_claim_prepare_pbs_count.csv "${RESULTS_FILENAME}" \
+          --object-sizes \
+          --append-results
+
+      - name: Parse swap claim update PBS counts
+        run: |
+          python3 ./ci/benchmark_parser.py tfhe-benchmark/dex_swap_claim_update_dex_balance_pbs_count.csv "${RESULTS_FILENAME}" \
           --object-sizes \
           --append-results
 
