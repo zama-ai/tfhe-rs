@@ -102,6 +102,7 @@ EXCLUDED_BIG_PARAMETERS = [
 ]
 
 
+
 def filter_integer_tests(input_args):
     (multi_bit_filter, group_filter) = (
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
@@ -146,22 +147,16 @@ def filter_integer_tests(input_args):
                 f"test(/.*_default_.*?_param{multi_bit_filter}{group_filter}_message_3_carry_3_.*/)"
             )
         excluded_tests = (
-            EXCLUDED_INTEGER_FAST_TESTS
-            if input_args.fast_tests
-            else EXCLUDED_INTEGER_TESTS
+            EXCLUDED_INTEGER_FAST_TESTS if input_args.fast_tests else EXCLUDED_INTEGER_TESTS
         )
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
     else:
         if input_args.backend == "gpu":
-            filter_expression = [
-                "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
-            ]
+            filter_expression = ["test(/^integer::gpu::server_key::radix::tests_long_run.*/)"]
         elif input_args.backend == "cpu":
-            filter_expression = [
-                "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
-            ]
+            filter_expression = ["test(/^integer::server_key::radix_parallel::tests_long_run.*/)"]
 
     return " and ".join(filter_expression)
 
@@ -197,7 +192,13 @@ def filter_shortint_tests(input_args):
     ]
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
 
-    return " or ".join(filter_expression)
+    opt_in_tests = " or ".join(filter_expression)
+
+    # Do not run noise check tests by default as they can be very slow
+    # they will be run e.g. nightly or on demand
+    filter = f"({opt_in_tests}) and not test(/^shortint::.*test_noise_check/)"
+
+    return filter
 
 
 if __name__ == "__main__":
