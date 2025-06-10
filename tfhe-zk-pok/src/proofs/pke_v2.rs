@@ -66,6 +66,7 @@ impl PKEv2DomainSeparators {
             hash_xi: core::array::from_fn(|_| rng.gen()),
             hash_z: core::array::from_fn(|_| rng.gen()),
             hash_chi: core::array::from_fn(|_| rng.gen()),
+            hash_gamma: core::array::from_fn(|_| rng.gen()),
         };
 
         Self::Short(ds)
@@ -140,6 +141,13 @@ impl PKEv2DomainSeparators {
             PKEv2DomainSeparators::Short(ds) => &ds.hash_chi,
         }
     }
+
+    pub(crate) fn hash_gamma(&self) -> &[u8] {
+        match self {
+            PKEv2DomainSeparators::Legacy(ds) => &ds.hash_gamma,
+            PKEv2DomainSeparators::Short(ds) => &ds.hash_gamma,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -154,6 +162,7 @@ pub struct LegacyPKEv2DomainSeparators {
     pub(crate) hash_xi: [u8; LEGACY_HASH_DS_LEN_BYTES],
     pub(crate) hash_z: [u8; LEGACY_HASH_DS_LEN_BYTES],
     pub(crate) hash_chi: [u8; LEGACY_HASH_DS_LEN_BYTES],
+    pub(crate) hash_gamma: [u8; LEGACY_HASH_DS_LEN_BYTES],
 }
 
 #[derive(Clone, Debug)]
@@ -168,6 +177,7 @@ pub struct ShortPKEv2DomainSeparators {
     pub(crate) hash_xi: [u8; HASH_DS_LEN_BYTES],
     pub(crate) hash_z: [u8; HASH_DS_LEN_BYTES],
     pub(crate) hash_chi: [u8; HASH_DS_LEN_BYTES],
+    pub(crate) hash_gamma: [u8; HASH_DS_LEN_BYTES],
 }
 
 impl<G: Curve> Compressible for PublicParams<G>
@@ -281,6 +291,7 @@ impl<G: Curve> PublicParams<G> {
         hash_xi: [u8; HASH_DS_LEN_BYTES],
         hash_z: [u8; HASH_DS_LEN_BYTES],
         hash_chi: [u8; HASH_DS_LEN_BYTES],
+        hash_gamma: [u8; HASH_DS_LEN_BYTES],
     ) -> Self {
         let B_squared = inf_norm_bound_to_euclidean_squared(B_inf, d + k);
         let (n, D, B_bound_squared, _) =
@@ -309,6 +320,7 @@ impl<G: Curve> PublicParams<G> {
                 hash_xi,
                 hash_z,
                 hash_chi,
+                hash_gamma,
             }),
         }
     }
@@ -750,9 +762,8 @@ pub fn commit<G: Curve>(
     m: Vec<i64>,
     e2: Vec<i64>,
     public: &PublicParams<G>,
-    rng: &mut dyn RngCore,
 ) -> (PublicCommit<G>, PrivateCommit<G>) {
-    let _ = (public, rng);
+    let _ = public;
     (
         PublicCommit {
             a,
@@ -776,14 +787,14 @@ pub fn prove<G: Curve>(
     private_commit: &PrivateCommit<G>,
     metadata: &[u8],
     load: ComputeLoad,
-    rng: &mut dyn RngCore,
+    seed: &[u8],
 ) -> Proof<G> {
     prove_impl(
         public,
         private_commit,
         metadata,
         load,
-        rng,
+        seed,
         ProofSanityCheckMode::Panic,
     )
 }
@@ -793,7 +804,7 @@ fn prove_impl<G: Curve>(
     private_commit: &PrivateCommit<G>,
     metadata: &[u8],
     load: ComputeLoad,
-    rng: &mut dyn RngCore,
+    seed: &[u8],
     sanity_check_mode: ProofSanityCheckMode,
 ) -> Proof<G> {
     _ = load;
@@ -860,12 +871,9 @@ fn prove_impl<G: Curve>(
 
     let g = G::G1::GENERATOR;
     let g_hat = G::G2::GENERATOR;
-    let gamma_e = G::Zp::rand(rng);
-    let gamma_hat_e = G::Zp::rand(rng);
-    let gamma_r = G::Zp::rand(rng);
-    let gamma_R = G::Zp::rand(rng);
-    let gamma_bin = G::Zp::rand(rng);
-    let gamma_y = G::Zp::rand(rng);
+    let mut gamma_list = [G::Zp::ZERO; 6];
+    G::Zp::hash(&mut gamma_list, &[ds.hash_gamma(), seed]);
+    let [gamma_e, gamma_hat_e, gamma_r, gamma_R, gamma_bin, gamma_y] = gamma_list;
 
     let r1 = compute_r1(e1, c1, a, r, d, decoded_q);
     let r2 = compute_r2(e2, c2, m, b, r, d, delta, decoded_q);
@@ -2675,7 +2683,6 @@ mod tests {
                     testcase.e2.clone()
                 },
                 &public_param,
-                rng,
             );
 
             for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
@@ -2684,7 +2691,7 @@ mod tests {
                     &private_commit,
                     &testcase.metadata,
                     load,
-                    rng,
+                    &seed.to_le_bytes(),
                 );
 
                 let verify_metadata = if use_fake_metadata_verify {
@@ -2710,8 +2717,8 @@ mod tests {
         ct: &PkeTestCiphertext,
         crs: &PublicParams<Curve>,
         load: ComputeLoad,
+        seed: &[u8],
         sanity_check_mode: ProofSanityCheckMode,
-        rng: &mut StdRng,
     ) -> VerificationResult {
         let (public_commit, private_commit) = commit(
             testcase.a.clone(),
@@ -2723,7 +2730,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             crs,
-            rng,
         );
 
         let proof = prove_impl(
@@ -2731,7 +2737,7 @@ mod tests {
             &private_commit,
             &testcase.metadata,
             load,
-            rng,
+            seed,
             sanity_check_mode,
         );
 
@@ -2747,13 +2753,13 @@ mod tests {
         ct: &PkeTestCiphertext,
         testcase_name: &str,
         crs: &PublicParams<Curve>,
+        seed: &[u8],
         sanity_check_mode: ProofSanityCheckMode,
         expected_result: VerificationResult,
-        rng: &mut StdRng,
     ) {
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
             assert_eq!(
-                prove_and_verify(testcase, ct, crs, load, sanity_check_mode, rng),
+                prove_and_verify(testcase, ct, crs, load, seed, sanity_check_mode),
                 expected_result,
                 "Testcase {testcase_name} with load {load} failed"
             )
@@ -3020,18 +3026,18 @@ mod tests {
                 &ct,
                 &format!("{name}_crs"),
                 &crs,
+                &seed.to_le_bytes(),
                 ProofSanityCheckMode::Ignore,
                 expected_result,
-                rng,
             );
             assert_prove_and_verify(
                 &testcase,
                 &ct,
                 &format!("{name}_crs_max_k"),
                 &crs_max_k,
+                &seed.to_le_bytes(),
                 ProofSanityCheckMode::Ignore,
                 expected_result,
-                rng,
             );
         }
     }
@@ -3122,9 +3128,9 @@ mod tests {
                 &ct,
                 test_name,
                 &public_param,
+                &seed.to_le_bytes(),
                 ProofSanityCheckMode::Panic,
                 VerificationResult::Reject,
-                rng,
             );
         }
     }
@@ -3199,7 +3205,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             &crs,
-            rng,
         );
 
         let (public_commit_verify_zero, _) = commit(
@@ -3212,7 +3217,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             &crs,
-            rng,
         );
 
         let (public_commit_verify_trivial, _) = commit(
@@ -3225,7 +3229,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             &crs,
-            rng,
         );
 
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
@@ -3234,7 +3237,7 @@ mod tests {
                 &private_commit,
                 &testcase.metadata,
                 load,
-                rng,
+                &seed.to_le_bytes(),
             );
 
             assert!(verify(
@@ -3295,9 +3298,9 @@ mod tests {
             &ct_bad_delta,
             "testcase_bad_delta",
             &crs,
+            &seed.to_le_bytes(),
             ProofSanityCheckMode::Panic,
             VerificationResult::Reject,
-            rng,
         );
     }
 
@@ -3336,9 +3339,9 @@ mod tests {
                 &ct,
                 &format!("testcase_big_params_{bound:?}"),
                 &crs,
+                &seed.to_le_bytes(),
                 ProofSanityCheckMode::Panic,
                 VerificationResult::Accept,
-                rng,
             );
         }
     }
@@ -3376,7 +3379,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             &public_param,
-            rng,
         );
 
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
@@ -3385,7 +3387,7 @@ mod tests {
                 &private_commit,
                 &testcase.metadata,
                 load,
-                rng,
+                &seed.to_le_bytes(),
             );
 
             let compressed_proof = bincode::serialize(&proof.compress()).unwrap();
@@ -3462,7 +3464,6 @@ mod tests {
             testcase.m.clone(),
             testcase.e2.clone(),
             &public_param,
-            rng,
         );
 
         for load in [ComputeLoad::Proof, ComputeLoad::Verify] {
@@ -3471,7 +3472,7 @@ mod tests {
                 &private_commit,
                 &testcase.metadata,
                 load,
-                rng,
+                &seed.to_le_bytes(),
             );
 
             let compressed_proof = bincode::serialize(&valid_proof.compress()).unwrap();
