@@ -7,6 +7,7 @@
 
 use crate::conformance::ListSizeConstraint;
 pub use crate::core_crypto::commons::dispersion::{StandardDev, Variance};
+use crate::core_crypto::commons::math::random::{CompressionSeed, Uniform};
 pub use crate::core_crypto::commons::parameters::{
     CiphertextModulus as CoreCiphertextModulus, CiphertextModulusLog, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
@@ -15,14 +16,21 @@ pub use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::{
-    GlweCiphertextConformanceParams, LweCiphertextConformanceParams,
-    LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams,
+    Container, Encryptable, GlweCiphertextConformanceParams, LweCiphertextConformanceParams,
+    LweCiphertextListConformanceParams, LweKeyswitchKeyConformanceParams, LweSecretKey,
+    UnsignedInteger,
 };
 use crate::shortint::backward_compatibility::parameters::*;
+use crate::shortint::engine::ShortintEngine;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, CompressedModulusSwitchNoiseReductionKey,
+    ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey,
+};
 #[cfg(feature = "zk-pok")]
 use crate::zk::CompactPkeZkScheme;
 use serde::{Deserialize, Serialize};
 
+use tfhe_csprng::seeders::Seeder;
 use tfhe_versionable::Versionize;
 
 pub mod aliases;
@@ -704,4 +712,71 @@ pub struct ModulusSwitchNoiseReductionParams {
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
     pub ms_input_variance: Variance,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(ModSwitchTypeVersions)]
+pub enum ModSwitchType {
+    Plain,
+    PlainAddZero(ModulusSwitchNoiseReductionParams),
+    Centered,
+}
+
+impl ModSwitchType {
+    pub fn to_modulus_switch_configuration<Scalar, Keycont>(
+        self,
+        in_key: &LweSecretKey<Keycont>,
+        ciphertext_modulus: CoreCiphertextModulus<Scalar>,
+        noise_distribution: DynamicDistribution<Scalar>,
+        engine: &mut ShortintEngine,
+    ) -> ModulusSwitchConfiguration<Scalar>
+    where
+        Scalar: UnsignedInteger + Encryptable<Uniform, DynamicDistribution<Scalar>>,
+        Keycont: Container<Element = Scalar> + Sync,
+    {
+        match self {
+            Self::Plain => ModulusSwitchConfiguration::Plain,
+            Self::PlainAddZero(modulus_switch_noise_reduction_params) => {
+                ModulusSwitchConfiguration::PlainAddZero(ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    in_key,
+                    engine,
+                    ciphertext_modulus,
+                    noise_distribution,
+                ))
+            }
+            Self::Centered => ModulusSwitchConfiguration::Centered,
+        }
+    }
+
+    pub fn to_compressed_modulus_switch_configuration<Scalar, Keycont>(
+        self,
+        in_key: &LweSecretKey<Keycont>,
+        ciphertext_modulus: CoreCiphertextModulus<Scalar>,
+        noise_distribution: DynamicDistribution<Scalar>,
+        engine: &mut ShortintEngine,
+    ) -> CompressedModulusSwitchConfiguration<Scalar>
+    where
+        Scalar: UnsignedInteger + Encryptable<Uniform, DynamicDistribution<Scalar>>,
+        Keycont: Container<Element = Scalar> + Sync,
+    {
+        match self {
+            Self::Plain => CompressedModulusSwitchConfiguration::Plain,
+            Self::PlainAddZero(modulus_switch_noise_reduction_params) => {
+                let seed = engine.seeder.seed();
+
+                CompressedModulusSwitchConfiguration::PlainAddZero(
+                    CompressedModulusSwitchNoiseReductionKey::new(
+                        modulus_switch_noise_reduction_params,
+                        in_key,
+                        engine,
+                        ciphertext_modulus,
+                        noise_distribution,
+                        CompressionSeed { seed },
+                    ),
+                )
+            }
+            Self::Centered => CompressedModulusSwitchConfiguration::Centered,
+        }
+    }
 }
