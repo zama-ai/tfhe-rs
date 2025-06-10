@@ -8,7 +8,10 @@ use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweDimension, PolynomialSize,
 };
-use crate::shortint::parameters::{ShortintParameterSetInner, SupportedCompactPkeZkScheme};
+use crate::shortint::parameters::{
+    CiphertextModulus32, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
+    ShortintParameterSetInner, SupportedCompactPkeZkScheme,
+};
 use crate::shortint::*;
 use parameters::KeySwitch32PBSParameters;
 use std::convert::Infallible;
@@ -108,4 +111,9 @@ pub enum SupportedCompactPkeZkSchemeVersions {
 #[derive(VersionsDispatch)]
 pub enum KeySwitch32PBSParametersVersions {
     V0(KeySwitch32PBSParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum ModulusSwitchTypeVersions {
+    V0(ModulusSwitchType),
 }
