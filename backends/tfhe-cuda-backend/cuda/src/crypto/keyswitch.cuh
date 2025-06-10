@@ -172,13 +172,14 @@ __host__ uint64_t scratch_packing_keyswitch_lwe_list_to_glwe(
 
   // allocate at least LWE-mask times two: to keep both decomposition state and
   // decomposed intermediate value
-  int memory_unit = glwe_accumulator_size > lwe_dimension * 2
+  uint64_t memory_unit = glwe_accumulator_size > lwe_dimension * 2
                         ? glwe_accumulator_size
                         : lwe_dimension * 2;
 
   uint64_t size_tracker;
+  uint64_t buffer_size = 2 * num_lwes * memory_unit * sizeof(Torus);
   *fp_ks_buffer = (int8_t *)cuda_malloc_with_size_tracking_async(
-      2 * num_lwes * memory_unit * sizeof(Torus), stream, gpu_index,
+      buffer_size, stream, gpu_index,
       &size_tracker, allocate_gpu_memory);
   return size_tracker;
 }
