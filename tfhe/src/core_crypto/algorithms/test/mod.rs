@@ -178,6 +178,36 @@ pub const DUMMY_31_U32: ClassicTestParams<u32> = ClassicTestParams {
     ciphertext_modulus: CiphertextModulus::new(1 << 31),
 };
 
+#[cfg(feature = "gpu")]
+pub const NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingMultiBitTestParameters<u128> = NoiseSquashingMultiBitTestParameters {
+    glwe_dimension: GlweDimension(2),
+    polynomial_size: PolynomialSize(2048),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
+    decomp_base_log: DecompositionBaseLog(23),
+    decomp_level_count: DecompositionLevelCount(3),
+    grouping_factor: LweBskGroupingFactor(4),
+    message_modulus_log: MessageModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::<u128>::new_native(),
+};
+
+#[cfg(feature = "gpu")]
+pub const PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: MultiBitTestParams<
+    u64,
+> = MultiBitTestParams {
+    input_lwe_dimension: LweDimension(920),
+    lwe_noise_distribution: DynamicDistribution::new_t_uniform(45),
+    decomp_base_log: DecompositionBaseLog(22),
+    decomp_level_count: DecompositionLevelCount(1),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(17),
+    message_modulus_log: MessageModulusLog(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    grouping_factor: LweBskGroupingFactor(4),
+    thread_count: ThreadCount(5),
+};
+
 pub const MULTI_BIT_2_2_2_PARAMS: MultiBitTestParams<u64> = MultiBitTestParams {
     input_lwe_dimension: LweDimension(818),
     lwe_noise_distribution: DynamicDistribution::new_gaussian_from_std_dev(StandardDev(

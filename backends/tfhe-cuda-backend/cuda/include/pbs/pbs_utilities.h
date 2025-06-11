@@ -240,7 +240,10 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
   }
 };
 
-template <typename InputTorus, PBS_TYPE pbs_type> struct pbs_buffer_128 {
+template <typename Torus, PBS_TYPE pbs_type> struct pbs_buffer_128;
+
+template <typename InputTorus>
+struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
   int8_t *d_mem;
 
   __uint128_t *global_accumulator;

@@ -66,6 +66,13 @@ __device__ inline void typecast_torus_to_double<uint64_t>(uint64_t x,
   r = __ll2double_rn(x);
 }
 
+template <>
+__device__ inline void typecast_torus_to_double<__uint128_t>(__uint128_t x,
+                                                             double &r) {
+  // We truncate x
+  r = __ll2double_rn(static_cast<uint64_t>(x));
+}
+
 template <typename T>
 __device__ inline T init_decomposer_state(T input, uint32_t base_log,
                                           uint32_t level_count) {
