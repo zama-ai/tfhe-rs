@@ -1,4 +1,7 @@
-use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::gpu::{
+    get_programmable_bootstrap_multi_bit_size_on_gpu, get_programmable_bootstrap_size_on_gpu,
+    CudaStreams,
+};
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
@@ -25,6 +28,7 @@ use crate::core_crypto::prelude::CastInto;
 use crate::integer::gpu::server_key::radix::{CudaLweCiphertextList, LweCiphertextCount};
 use crate::integer::gpu::CudaVec;
 use itertools::Itertools;
+
 impl CudaServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in its full range using the given seed.
@@ -114,6 +118,32 @@ impl CudaServerKey {
             })
             .collect::<Vec<_>>();
         self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
+    }
+
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_programmable_bootstrap_size_on_gpu(
+                streams,
+                d_bsk.input_lwe_dimension,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                d_bsk.decomp_level_count,
+                1,
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                get_programmable_bootstrap_multi_bit_size_on_gpu(
+                    streams,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    d_bsk.decomp_level_count,
+                    1,
+                )
+            }
+        }
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -217,6 +247,12 @@ impl CudaServerKey {
         self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
     }
 
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+    }
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in its full range using the given seed.
     /// The encryted value is oblivious to the server.
@@ -276,6 +312,13 @@ impl CudaServerKey {
             })
             .collect::<Vec<_>>();
         self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
+    }
+
+    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -382,6 +425,12 @@ impl CudaServerKey {
         self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
     }
 
+    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(streams)
+    }
     /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
     /// `2^random_bits_count` must be smaller than the message modulus
     /// The encryted value is oblivious to the server

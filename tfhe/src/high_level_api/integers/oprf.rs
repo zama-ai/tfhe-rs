@@ -56,6 +56,38 @@ impl<Id: FheUintId> FheUint<Id> {
             }
         })
     }
+    #[cfg(feature = "gpu")]
+    /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let random_bits_count = 3;
+    ///
+    /// let size = FheUint8::get_generate_oblivious_pseudo_random_size_on_gpu();
+    ///
+    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// ```
+    pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+            } else {
+                0
+            }
+        })
+    }
     /// Generates an encrypted `num_block` blocks unsigned integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
     /// The encryted value is oblivious to the server.
@@ -107,6 +139,40 @@ impl<Id: FheUintId> FheUint<Id> {
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+    #[cfg(feature = "gpu")]
+    /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let random_bits_count = 3;
+    ///
+    /// let size = FheUint8::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
+    ///
+    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// ```
+    pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                        streams,
+                    )
+            } else {
+                0
             }
         })
     }
@@ -165,6 +231,38 @@ impl<Id: FheIntId> FheInt<Id> {
         })
     }
 
+    #[cfg(feature = "gpu")]
+    /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let random_bits_count = 3;
+    ///
+    /// let size = FheInt8::get_generate_oblivious_pseudo_random_size_on_gpu();
+    ///
+    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// ```
+    pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(streams)
+            } else {
+                0
+            }
+        })
+    }
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in `[0, 2^random_bits_count[` using the given seed.
     /// The encryted value is oblivious to the server.
@@ -217,6 +315,40 @@ impl<Id: FheIntId> FheInt<Id> {
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+    #[cfg(feature = "gpu")]
+    /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::prelude::FheDecrypt;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
+    ///
+    /// let config = ConfigBuilder::default().build();
+    /// let (client_key, server_key) = generate_keys(config);
+    ///
+    /// set_server_key(server_key);
+    ///
+    /// let random_bits_count = 3;
+    ///
+    /// let size = FheInt8::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
+    ///
+    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// ```
+    pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
+        global_state::with_internal_keys(|key| {
+            if let InternalServerKey::Cuda(cuda_key) = key {
+                let streams = &cuda_key.streams;
+                cuda_key
+                    .key
+                    .key
+                    .get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+                        streams,
+                    )
+            } else {
+                0
             }
         })
     }

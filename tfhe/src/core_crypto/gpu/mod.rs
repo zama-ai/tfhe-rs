@@ -200,6 +200,43 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
+pub fn get_programmable_bootstrap_size_on_gpu(
+    streams: &CudaStreams,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    level: DecompositionLevelCount,
+    num_samples: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) -> u64 {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let size_tracker = unsafe {
+        scratch_cuda_programmable_bootstrap_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            false,
+            allocate_ms_noise_array,
+        )
+    };
+
+    unsafe {
+        cleanup_cuda_programmable_bootstrap(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    }
+    size_tracker
+}
+
 /// Programmable bootstrap on a vector of 128 bit LWE ciphertexts
 ///
 /// # Safety
@@ -330,6 +367,37 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
         streams.gpu_indexes[0].get(),
         std::ptr::addr_of_mut!(pbs_buffer),
     );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn get_programmable_bootstrap_multi_bit_size_on_gpu(
+    streams: &CudaStreams,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    level: DecompositionLevelCount,
+    num_samples: u32,
+) -> u64 {
+    let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_cuda_multi_bit_programmable_bootstrap_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_cuda_multi_bit_programmable_bootstrap(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    }
+    size_tracker
 }
 
 /// Keyswitch on a vector of LWE ciphertexts
