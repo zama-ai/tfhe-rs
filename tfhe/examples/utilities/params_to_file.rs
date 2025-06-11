@@ -13,10 +13,12 @@ use tfhe::shortint::parameters::current_params::{
     VEC_ALL_COMPRESSION_PARAMETERS, VEC_ALL_HPU_PARAMETERS, VEC_ALL_KS32_PARAMETERS,
     VEC_ALL_MULTI_BIT_PBS_PARAMETERS, VEC_ALL_NOISE_SQUASHING_PARAMETERS,
 };
+use tfhe::shortint::parameters::v1_3::VEC_ALL_NOISE_SQUASHING_MULTI_BIT_PARAMETERS;
 use tfhe::shortint::parameters::{
     CompactPublicKeyEncryptionParameters, CompressionParameters, NoiseSquashingParameters,
 };
 use tfhe::shortint::AtomicPatternParameters;
+use tfhe::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum ParamModulus {
@@ -207,6 +209,36 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
 
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
         panic!("lwe_ciphertext_modulus not applicable for NoiseSquashingParameters")
+    }
+
+    fn glwe_ciphertext_modulus(&self) -> ParamModulus {
+        ParamModulus::from_ciphertext_modulus(self.ciphertext_modulus)
+    }
+}
+
+impl ParamDetails<u128> for NoiseSquashingMultiBitParameters {
+    fn lwe_dimension(&self) -> LweDimension {
+        panic!("lwe_dimension not applicable for NoiseSquashingMultiBitParameters")
+    }
+
+    fn glwe_dimension(&self) -> GlweDimension {
+        self.glwe_dimension
+    }
+
+    fn lwe_noise_distribution(&self) -> DynamicDistribution<u128> {
+        panic!("lwe_noise_distribution not applicable for NoiseSquashingMultiBitParameters")
+    }
+
+    fn glwe_noise_distribution(&self) -> DynamicDistribution<u128> {
+        self.glwe_noise_distribution
+    }
+
+    fn polynomial_size(&self) -> PolynomialSize {
+        self.polynomial_size
+    }
+
+    fn lwe_ciphertext_modulus(&self) -> ParamModulus {
+        panic!("lwe_ciphertext_modulus not applicable for NoiseSquashingMultiBitParameters")
     }
 
     fn glwe_ciphertext_modulus(&self) -> ParamModulus {
@@ -490,6 +522,16 @@ fn main() {
     write_all_params_in_file(
         "shortint_noise_squashing_parameters_lattice_estimator.sage",
         &noise_squasing_params,
+        ParametersFormat::Glwe,
+    );
+
+    let noise_squasing_multi_bit_params: Vec<_> = VEC_ALL_NOISE_SQUASHING_MULTI_BIT_PARAMETERS
+        .into_iter()
+        .map(|p| (*p.0, Some(p.1)))
+        .collect();
+    write_all_params_in_file(
+        "shortint_noise_squashing_multi_bit_parameters_lattice_estimator.sage",
+        &noise_squasing_multi_bit_params,
         ParametersFormat::Glwe,
     );
 

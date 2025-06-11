@@ -521,8 +521,9 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size);
+  auto lwe_chunk_size =
+      get_lwe_chunk_size<Torus, params>(gpu_index, input_lwe_ciphertext_count,
+                                        polynomial_size, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
@@ -546,7 +547,7 @@ __host__ void execute_compute_keybundle(
 
   uint32_t keybundle_size_per_input =
       lwe_chunk_size * level_count * (glwe_dimension + 1) *
-      (glwe_dimension + 1) * (polynomial_size / 2);
+      (glwe_dimension + 1) * (polynomial_size / 2) * 4;
 
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(

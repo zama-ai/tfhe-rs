@@ -14,9 +14,11 @@ use crate::core_crypto::prelude::{
 };
 pub use algorithms::*;
 pub use entities::*;
+use std::any::{Any, TypeId};
 use std::ffi::c_void;
 use tfhe_cuda_backend::bindings::*;
 use tfhe_cuda_backend::cuda_bind::*;
+
 pub struct CudaStreams {
     pub ptr: Vec<*mut c_void>,
     pub gpu_indexes: Vec<GpuIndex>,
@@ -311,15 +313,18 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
+pub unsafe fn programmable_bootstrap_multi_bit_async<
+    T: UnsignedInteger,
+    B: ?Sized + Any + UnsignedInteger,
+>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
+    lwe_array_out: &mut CudaVec<B>,
     output_indexes: &CudaVec<T>,
-    test_vector: &CudaVec<T>,
+    test_vector: &CudaVec<B>,
     test_vector_indexes: &CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
     input_indexes: &CudaVec<T>,
-    bootstrapping_key: &CudaVec<u64>,
+    bootstrapping_key: &CudaVec<B>,
     lwe_dimension: LweDimension,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
@@ -331,42 +336,83 @@ pub unsafe fn programmable_bootstrap_multi_bit_async<T: UnsignedInteger>(
     let num_many_lut = 1u32;
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_multi_bit_programmable_bootstrap_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        level.0 as u32,
-        num_samples,
-        true,
-    );
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        output_indexes.as_c_ptr(0),
-        test_vector.as_c_ptr(0),
-        test_vector_indexes.as_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        input_indexes.as_c_ptr(0),
-        bootstrapping_key.as_c_ptr(0),
-        pbs_buffer,
-        lwe_dimension.0 as u32,
-        glwe_dimension.0 as u32,
-        polynomial_size.0 as u32,
-        grouping_factor.0 as u32,
-        base_log.0 as u32,
-        level.0 as u32,
-        num_samples,
-        num_many_lut,
-        lut_stride,
-    );
-    cleanup_cuda_multi_bit_programmable_bootstrap(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        std::ptr::addr_of_mut!(pbs_buffer),
-    );
+    if TypeId::of::<B>() == TypeId::of::<u128>() {
+        scratch_cuda_multi_bit_programmable_bootstrap_128_vector_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            true,
+        );
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_128(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            output_indexes.as_c_ptr(0),
+            test_vector.as_c_ptr(0),
+            test_vector_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            input_indexes.as_c_ptr(0),
+            bootstrapping_key.as_c_ptr(0),
+            pbs_buffer,
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            grouping_factor.0 as u32,
+            base_log.0 as u32,
+            level.0 as u32,
+            num_samples,
+            num_many_lut,
+            lut_stride,
+        );
+        cleanup_cuda_multi_bit_programmable_bootstrap_128(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    } else if TypeId::of::<B>() == TypeId::of::<u64>() {
+        scratch_cuda_multi_bit_programmable_bootstrap_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            level.0 as u32,
+            num_samples,
+            true,
+        );
+        cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            output_indexes.as_c_ptr(0),
+            test_vector.as_c_ptr(0),
+            test_vector_indexes.as_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            input_indexes.as_c_ptr(0),
+            bootstrapping_key.as_c_ptr(0),
+            pbs_buffer,
+            lwe_dimension.0 as u32,
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            grouping_factor.0 as u32,
+            base_log.0 as u32,
+            level.0 as u32,
+            num_samples,
+            num_many_lut,
+            lut_stride,
+        );
+        cleanup_cuda_multi_bit_programmable_bootstrap(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(pbs_buffer),
+        );
+    } else {
+        panic!("Unsupported torus size")
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -607,9 +653,11 @@ pub unsafe fn convert_lwe_programmable_bootstrap_key_async<T: UnsignedInteger>(
 /// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
 /// required
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: UnsignedInteger>(
+pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<
+    T: ?Sized + Any + UnsignedInteger,
+>(
     streams: &CudaStreams,
-    dest: &mut CudaVec<u64>,
+    dest: &mut CudaVec<T>,
     src: &[T],
     input_lwe_dim: LweDimension,
     glwe_dim: GlweDimension,
@@ -620,17 +668,34 @@ pub unsafe fn convert_lwe_multi_bit_programmable_bootstrap_key_async<T: Unsigned
     let size = std::mem::size_of_val(src);
     for (i, &stream_ptr) in streams.ptr.iter().enumerate() {
         assert_eq!(dest.len() * std::mem::size_of::<T>(), size);
-        cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
-            stream_ptr,
-            streams.gpu_indexes[i].get(),
-            dest.as_mut_c_ptr(i as u32),
-            src.as_ptr().cast(),
-            input_lwe_dim.0 as u32,
-            glwe_dim.0 as u32,
-            l_gadget.0 as u32,
-            polynomial_size.0 as u32,
-            grouping_factor.0 as u32,
-        );
+
+        if TypeId::of::<T>() == TypeId::of::<u128>() {
+            cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128(
+                stream_ptr,
+                streams.gpu_indexes[i].get(),
+                dest.as_mut_c_ptr(i as u32),
+                src.as_ptr().cast(),
+                input_lwe_dim.0 as u32,
+                glwe_dim.0 as u32,
+                l_gadget.0 as u32,
+                polynomial_size.0 as u32,
+                grouping_factor.0 as u32,
+            );
+        } else if TypeId::of::<T>() == TypeId::of::<u64>() {
+            cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
+                stream_ptr,
+                streams.gpu_indexes[i].get(),
+                dest.as_mut_c_ptr(i as u32),
+                src.as_ptr().cast(),
+                input_lwe_dim.0 as u32,
+                glwe_dim.0 as u32,
+                l_gadget.0 as u32,
+                polynomial_size.0 as u32,
+                grouping_factor.0 as u32,
+            );
+        } else {
+            panic!("Unsupported torus size for bsk conversion")
+        }
     }
 }
 
