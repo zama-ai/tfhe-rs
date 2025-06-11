@@ -3,7 +3,7 @@
 use super::PER_SAMPLE_TARGET_FAILURE_PROBABILITY_LOG2;
 use crate::core_crypto::commons::math::random::{
     ByteRandomGenerator, Distribution, ParallelByteRandomGenerator, RandomGenerable,
-    RandomGenerator, Seed, Uniform,
+    RandomGenerator, Uniform,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;
 use crate::core_crypto::commons::parameters::{
@@ -11,6 +11,7 @@ use crate::core_crypto::commons::parameters::{
 };
 use rayon::prelude::*;
 use tfhe_csprng::generators::ForkError;
+use tfhe_csprng::seeders::SeedKind;
 
 #[derive(Clone, Copy, Debug)]
 pub struct MaskRandomGeneratorForkConfig {
@@ -97,7 +98,7 @@ pub struct MaskRandomGenerator<G: ByteRandomGenerator> {
 }
 
 impl<G: ByteRandomGenerator> MaskRandomGenerator<G> {
-    pub fn new(seed: Seed) -> Self {
+    pub fn new(seed: impl Into<SeedKind>) -> Self {
         Self {
             gen: RandomGenerator::new(seed),
         }
