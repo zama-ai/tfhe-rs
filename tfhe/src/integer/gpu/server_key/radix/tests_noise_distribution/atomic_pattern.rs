@@ -37,7 +37,7 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
 use crate::core_crypto::commons::parameters::MonomialDegree;
 
 use crate::core_crypto::commons::test_tools::{
-    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, mean,
+    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, arithmetic_mean,
     mean_confidence_interval, normality_test_f64, variance, variance_confidence_interval,
 };
 use crate::core_crypto::entities::{LweCiphertext, Plaintext};
@@ -502,7 +502,7 @@ where
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = mean(&noise_samples);
+    let measured_mean = arithmetic_mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
