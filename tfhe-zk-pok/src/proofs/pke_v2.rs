@@ -1929,11 +1929,11 @@ pub fn verify<G: Curve + Send + Sync>(
 ) -> Result<(), ()> {
     // By running it in a limited thread pool, we make sure that the rayon overhead stays minimal
     // compared to the actual verification work
-    run_in_pool(|| verify_inner(proof, public, metadata))
+    run_in_pool(|| verify_impl(proof, public, metadata))
 }
 
 #[allow(clippy::result_unit_err)]
-pub fn verify_inner<G: Curve>(
+pub fn verify_impl<G: Curve>(
     proof: &Proof<G>,
     public: (&PublicParams<G>, &PublicCommit<G>),
     metadata: &[u8],
