@@ -66,6 +66,9 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector(
     uint32_t num_many_lut, uint32_t lut_stride);
 
 template <typename Torus>
+uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle(
+    uint32_t polynomial_size);
+template <typename Torus>
 uint64_t get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle(
     uint32_t polynomial_size);
 template <typename Torus>
@@ -95,8 +98,12 @@ uint64_t get_buffer_size_full_sm_tbc_multibit_programmable_bootstrap(
 
 template <typename Torus, class params>
 uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
-                            uint32_t polynomial_size);
-
+                            uint32_t polynomial_size,
+                            uint64_t full_sm_keybundle);
+template <typename Torus, class params>
+uint32_t get_lwe_chunk_size_128(uint32_t gpu_index, uint32_t max_num_pbs,
+                                uint32_t polynomial_size,
+                                uint64_t full_sm_keybundle);
 template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_keybundle = NULL;
   int8_t *d_mem_acc_step_one = NULL;
@@ -268,6 +275,148 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
                                            gpu_memory_allocated);
       break;
 #endif
+    default:
+      PANIC("Cuda error (PBS): unsupported implementation variant.")
+    }
+
+    cuda_drop_with_size_tracking_async(keybundle_fft, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
+                                       gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
+                                       gpu_memory_allocated);
+  }
+};
+
+template <typename InputTorus>
+struct pbs_buffer_128<InputTorus, PBS_TYPE::MULTI_BIT> {
+  int8_t *d_mem_keybundle = NULL;
+  int8_t *d_mem_acc_step_one = NULL;
+  int8_t *d_mem_acc_step_two = NULL;
+  int8_t *d_mem_acc_cg = NULL;
+  int8_t *d_mem_acc_tbc = NULL;
+  uint32_t lwe_chunk_size;
+  double *keybundle_fft;
+  __uint128_t *global_accumulator;
+  double *global_join_buffer;
+
+  PBS_VARIANT pbs_variant;
+  bool gpu_memory_allocated;
+
+  pbs_buffer_128(cudaStream_t stream, uint32_t gpu_index,
+                 uint32_t glwe_dimension, uint32_t polynomial_size,
+                 uint32_t level_count, uint32_t input_lwe_ciphertext_count,
+                 uint32_t lwe_chunk_size, PBS_VARIANT pbs_variant,
+                 bool allocate_gpu_memory, uint64_t *size_tracker) {
+    gpu_memory_allocated = allocate_gpu_memory;
+    cuda_set_device(gpu_index);
+
+    this->pbs_variant = pbs_variant;
+    this->lwe_chunk_size = lwe_chunk_size;
+    auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
+    // default
+    uint64_t full_sm_keybundle =
+        get_buffer_size_full_sm_multibit_programmable_bootstrap_128_keybundle<
+            __uint128_t>(polynomial_size);
+    uint64_t full_sm_accumulate_step_one =
+        get_buffer_size_full_sm_multibit_programmable_bootstrap_step_one<
+            __uint128_t>(polynomial_size);
+    uint64_t full_sm_accumulate_step_two =
+        get_buffer_size_full_sm_multibit_programmable_bootstrap_step_two<
+            __uint128_t>(polynomial_size);
+    uint64_t partial_sm_accumulate_step_one =
+        get_buffer_size_partial_sm_multibit_programmable_bootstrap_step_one<
+            __uint128_t>(polynomial_size);
+    // cg
+    uint64_t full_sm_cg_accumulate =
+        get_buffer_size_full_sm_cg_multibit_programmable_bootstrap<__uint128_t>(
+            polynomial_size);
+    uint64_t partial_sm_cg_accumulate =
+        get_buffer_size_partial_sm_cg_multibit_programmable_bootstrap<
+            __uint128_t>(polynomial_size);
+
+    auto num_blocks_keybundle = input_lwe_ciphertext_count * lwe_chunk_size *
+                                (glwe_dimension + 1) * (glwe_dimension + 1) *
+                                level_count;
+    auto num_blocks_acc_step_one =
+        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
+    auto num_blocks_acc_step_two =
+        input_lwe_ciphertext_count * (glwe_dimension + 1);
+    auto num_blocks_acc_cg =
+        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count;
+
+    // Keybundle
+    if (max_shared_memory < full_sm_keybundle)
+      d_mem_keybundle = (int8_t *)cuda_malloc_with_size_tracking_async(
+          num_blocks_keybundle * full_sm_keybundle, stream, gpu_index,
+          size_tracker, allocate_gpu_memory);
+
+    switch (pbs_variant) {
+    case PBS_VARIANT::CG:
+      // Accumulator CG
+      if (max_shared_memory < partial_sm_cg_accumulate)
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
+            num_blocks_acc_cg * full_sm_cg_accumulate, stream, gpu_index,
+            size_tracker, allocate_gpu_memory);
+      else if (max_shared_memory < full_sm_cg_accumulate)
+        d_mem_acc_cg = (int8_t *)cuda_malloc_with_size_tracking_async(
+            num_blocks_acc_cg * partial_sm_cg_accumulate, stream, gpu_index,
+            size_tracker, allocate_gpu_memory);
+      break;
+    case PBS_VARIANT::DEFAULT:
+      // Accumulator step one
+      if (max_shared_memory < partial_sm_accumulate_step_one)
+        d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
+            num_blocks_acc_step_one * full_sm_accumulate_step_one, stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
+      else if (max_shared_memory < full_sm_accumulate_step_one)
+        d_mem_acc_step_one = (int8_t *)cuda_malloc_with_size_tracking_async(
+            num_blocks_acc_step_one * partial_sm_accumulate_step_one, stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
+
+      // Accumulator step two
+      if (max_shared_memory < full_sm_accumulate_step_two)
+        d_mem_acc_step_two = (int8_t *)cuda_malloc_with_size_tracking_async(
+            num_blocks_acc_step_two * full_sm_accumulate_step_two, stream,
+            gpu_index, size_tracker, allocate_gpu_memory);
+      break;
+    default:
+      PANIC("Cuda error (PBS): unsupported implementation variant.")
+    }
+
+    keybundle_fft = (double *)cuda_malloc_with_size_tracking_async(
+        num_blocks_keybundle * (polynomial_size / 2) * 4 * sizeof(double),
+        stream, gpu_index, size_tracker, allocate_gpu_memory);
+    global_accumulator = (__uint128_t *)cuda_malloc_with_size_tracking_async(
+        input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
+            sizeof(__uint128_t),
+        stream, gpu_index, size_tracker, allocate_gpu_memory);
+    global_join_buffer = (double *)cuda_malloc_with_size_tracking_async(
+        level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
+            (polynomial_size / 2) * 4 * sizeof(double),
+        stream, gpu_index, size_tracker, allocate_gpu_memory);
+  }
+
+  void release(cudaStream_t stream, uint32_t gpu_index) {
+
+    if (d_mem_keybundle)
+      cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
+                                         gpu_memory_allocated);
+    switch (pbs_variant) {
+    case DEFAULT:
+      if (d_mem_acc_step_one)
+        cuda_drop_with_size_tracking_async(d_mem_acc_step_one, stream,
+                                           gpu_index, gpu_memory_allocated);
+      if (d_mem_acc_step_two)
+        cuda_drop_with_size_tracking_async(d_mem_acc_step_two, stream,
+                                           gpu_index, gpu_memory_allocated);
+      break;
+    case CG:
+      if (d_mem_acc_cg)
+        cuda_drop_with_size_tracking_async(d_mem_acc_cg, stream, gpu_index,
+                                           gpu_memory_allocated);
+      break;
     default:
       PANIC("Cuda error (PBS): unsupported implementation variant.")
     }

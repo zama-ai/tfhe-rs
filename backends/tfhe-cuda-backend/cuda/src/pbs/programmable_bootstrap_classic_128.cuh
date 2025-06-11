@@ -18,62 +18,6 @@
 #include "programmable_bootstrap.cuh"
 #include "types/complex/operations.cuh"
 
-/** Perform the matrix multiplication between the GGSW and the GLWE,
- * each block operating on a single level for mask and body.
- * Both operands should be at fourier domain
- *
- * This function assumes:
- *  - Thread blocks at dimension z relates to the decomposition level.
- *  - Thread blocks at dimension y relates to the glwe dimension.
- *  - polynomial_size / params::opt threads are available per block
- */
-template <typename G, class params>
-__device__ void mul_ggsw_glwe_in_fourier_domain_128(
-    double *fft, double *join_buffer,
-    const double *__restrict__ bootstrapping_key, int iteration, G &group,
-    bool support_dsm = false) {
-  const uint32_t polynomial_size = params::degree;
-  const uint32_t glwe_dimension = gridDim.y - 1;
-  const uint32_t level_count = gridDim.z;
-
-  // The first product is used to initialize level_join_buffer
-  auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
-
-  // Continues multiplying fft by every polynomial in that particular bsk level
-  // Each y-block accumulates in a different polynomial at each iteration
-  auto bsk_slice = get_ith_mask_kth_block_128(
-      bootstrapping_key, iteration, blockIdx.y, blockIdx.z, polynomial_size,
-      glwe_dimension, level_count);
-  for (int j = 0; j < glwe_dimension + 1; j++) {
-    int idx = (j + this_block_rank) % (glwe_dimension + 1);
-
-    auto bsk_poly = bsk_slice + idx * polynomial_size / 2 * 4;
-    auto buffer_slice = get_join_buffer_element_128<G>(
-        blockIdx.z, idx, group, join_buffer, polynomial_size, glwe_dimension,
-        support_dsm);
-
-    polynomial_product_accumulate_in_fourier_domain_128<params>(
-        buffer_slice, fft, bsk_poly, j == 0);
-    group.sync();
-  }
-
-  // -----------------------------------------------------------------
-  // All blocks are synchronized here; after this sync, level_join_buffer has
-  // the values needed from every other block
-
-  // accumulate rest of the products into fft buffer
-  for (int l = 0; l < level_count; l++) {
-    auto cur_src_acc = get_join_buffer_element_128<G>(
-        l, blockIdx.y, group, join_buffer, polynomial_size, glwe_dimension,
-        support_dsm);
-
-    polynomial_accumulate_in_fourier_domain_128<params>(fft, cur_src_acc,
-                                                        l == 0);
-  }
-
-  __syncthreads();
-}
-
 template <typename InputTorus, class params, sharedMemDegree SMD,
           bool first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
@@ -174,9 +118,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                                accumulator);
   gadget_acc.decompose_and_compress_level_128(accumulator_fft, blockIdx.z);
 
-  // We are using the same memory space for accumulator_fft and
-  // accumulator_rotated, so we need to synchronize here to make sure they
-  // don't modify the same memory space at the same time
   // Switch to the FFT space
   auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
   auto acc_fft_re_lo = accumulator_fft + 1 * params::degree / 2;
