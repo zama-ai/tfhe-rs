@@ -5077,6 +5077,82 @@ template <typename Torus> struct int_sub_and_propagate {
   }
 };
 
+template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
+
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_radix_lut<Torus> *lut;
+
+  CudaRadixCiphertextFFI *last_block;
+  CudaRadixCiphertextFFI *padding_block;
+
+  int_extend_radix_with_sign_msb_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, uint32_t num_additional_blocks,
+      const bool allocate_gpu_memory, uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->lut = nullptr;
+    this->last_block = nullptr;
+    this->padding_block = nullptr;
+
+    if (num_additional_blocks != 0) {
+      this->lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
+                                           params, 1, num_radix_blocks,
+                                           allocate_gpu_memory, size_tracker);
+
+      uint32_t bits_per_block = std::log2(params.message_modulus);
+      uint32_t msg_modulus = params.message_modulus;
+
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], lut->get_lut(0, 0), lut->get_degree(0),
+          lut->get_max_degree(0), params.glwe_dimension, params.polynomial_size,
+          params.message_modulus, params.carry_modulus,
+          [msg_modulus, bits_per_block](Torus x) {
+            const auto xm = x % msg_modulus;
+            const auto sign_bit = (xm >> (bits_per_block - 1)) & 1;
+            return (Torus)((msg_modulus - 1) * sign_bit);
+          },
+          allocate_gpu_memory);
+
+      this->last_block = new CudaRadixCiphertextFFI;
+
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], last_block, 1, params.big_lwe_dimension,
+          size_tracker, allocate_gpu_memory);
+
+      this->padding_block = new CudaRadixCiphertextFFI;
+
+      create_zero_radix_ciphertext_async<Torus>(
+          streams[0], gpu_indexes[0], padding_block, 1,
+          params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    if (lut != nullptr) {
+      lut->release(streams, gpu_indexes, gpu_count);
+      delete lut;
+    }
+    if (last_block != nullptr) {
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], last_block,
+                                     allocate_gpu_memory);
+      delete last_block;
+    }
+    if (padding_block != nullptr) {
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], padding_block,
+                                     allocate_gpu_memory);
+      delete padding_block;
+    }
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
