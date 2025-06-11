@@ -4677,6 +4677,94 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub unsafe fn extend_radix_with_sign_msb_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    ct: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    num_additional_blocks: u32,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    let message_modulus = ct.info.blocks.first().unwrap().message_modulus;
+    let carry_modulus = ct.info.blocks.first().unwrap().carry_modulus;
+    let ct_modulus = ct.d_blocks.ciphertext_modulus().raw_modulus_float();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut input_degrees = ct.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = ct.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_radix_input =
+        prepare_cuda_radix_ffi(ct, &mut input_degrees, &mut input_noise_levels);
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_radix_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    scratch_cuda_extend_radix_with_sign_msb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        1u32,
+        num_additional_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        allocate_ms_noise_array,
+    );
+
+    cuda_extend_radix_with_sign_msb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_radix_output,
+        &raw const cuda_ffi_radix_input,
+        mem_ptr,
+        num_additional_blocks,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+    );
+
+    cleanup_cuda_extend_radix_with_sign_msb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(output, &cuda_ffi_radix_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn apply_univariate_lut_kb_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
     output: &mut CudaSliceMut<T>,

@@ -143,6 +143,7 @@ where
         self.lengths[index] == 0
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_mut<R>(&mut self, range: R, index: usize) -> Option<CudaSliceMut<T>>
     where
         R: std::ops::RangeBounds<usize>,
@@ -166,6 +167,7 @@ where
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn split_at_mut(
         &mut self,
         mid: usize,
