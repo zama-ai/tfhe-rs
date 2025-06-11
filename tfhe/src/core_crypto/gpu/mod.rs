@@ -8,9 +8,7 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::{
 };
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::prelude::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, GlweCiphertextCount,
-    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize,
-    UnsignedInteger,
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweCiphertextCount, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize, UnsignedInteger
 };
 pub use algorithms::*;
 pub use entities::*;
@@ -697,40 +695,36 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     );
 }
 
-/// # Safety
-///
-/// [CudaStreams::synchronize] __must__ be called as soon as synchronization is
-/// required
+
 #[allow(clippy::too_many_arguments)]
-pub unsafe fn cuda_improve_noise_modulus_switch_ciphertext_async<T: UnsignedInteger>(
-    streams: &CudaStreams,
+pub fn cuda_improve_noise_modulus_switch_ciphertext<T: UnsignedInteger>(
     lwe_array_out: &mut CudaVec<T>,
     lwe_array_in: &CudaVec<T>,
     lwe_in_indexes: &CudaVec<T>,
-    encrypted_zeros: &CudaVec<T>,
     lwe_dimension: LweDimension,
     num_samples: u32,
-    num_zeros: u32,
-    input_variance: f64,
-    r_sigma_factor: f64,
-    bound: f64,
     log_modulus: u32,
+    modulus: f64,
+    noise_reduction_key: &CudaModulusSwitchNoiseReductionKey,
+    streams: &CudaStreams,
 ) {
+    unsafe{
     cuda_improve_noise_modulus_switch_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
         lwe_array_out.as_mut_c_ptr(0),
         lwe_array_in.as_c_ptr(0),
         lwe_in_indexes.as_c_ptr(0),
-        encrypted_zeros.as_c_ptr(0),
+        noise_reduction_key.modulus_switch_zeros.as_c_ptr(0),
         lwe_dimension.to_lwe_size().0 as u32,
         num_samples,
-        num_zeros,
-        input_variance,
-        r_sigma_factor,
-        bound,
+        noise_reduction_key.num_zeros,
+        noise_reduction_key.ms_input_variance.get_modular_variance(modulus).value,
+        noise_reduction_key.ms_r_sigma_factor.0,
+        noise_reduction_key.ms_bound.0,
         log_modulus,
-    );
+    );}
+    streams.synchronize_one(0);
 }
 
 /// # Safety
