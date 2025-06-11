@@ -1,17 +1,18 @@
 use std::sync::LazyLock;
 
+use super::atomic_pattern::AtomicPatternParameters;
 use crate::keycache::utils::named_params_impl;
 use crate::keycache::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
+use crate::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 use crate::shortint::parameters::parameters_wopbs::*;
+use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use serde::{Deserialize, Serialize};
-
-use super::atomic_pattern::AtomicPatternParameters;
 
 named_params_impl!( ShortintParameterSet =>
     V1_3_PARAM_MESSAGE_1_CARRY_0_KS_PBS_GAUSSIAN_2M128,
@@ -490,6 +491,10 @@ fn cpke_params_default_name(params: &CompactPublicKeyEncryptionParameters) -> St
 
 named_params_impl!( NoiseSquashingParameters =>
     V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+);
+
+named_params_impl!( NoiseSquashingMultiBitParameters =>
+    V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
 impl From<AtomicPatternParameters> for (ClientKey, ServerKey) {

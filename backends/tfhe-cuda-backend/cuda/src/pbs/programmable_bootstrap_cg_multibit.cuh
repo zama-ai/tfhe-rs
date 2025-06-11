@@ -280,8 +280,9 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  auto lwe_chunk_size = get_lwe_chunk_size<Torus, params>(
-      gpu_index, input_lwe_ciphertext_count, polynomial_size);
+  auto lwe_chunk_size =
+      get_lwe_chunk_size<Torus, params>(gpu_index, input_lwe_ciphertext_count,
+                                        polynomial_size, full_sm_keybundle);
   uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
