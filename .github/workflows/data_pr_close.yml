@@ -3,7 +3,7 @@ name: Close or Merge corresponding PR on the data repo
 # When a PR with the data_PR tag is closed or merged, this will close the corresponding PR in the data repo.
 
 env:
-  TARGET_REPO_API_URL: ${{ github.api_url }}/repos/zama-ai/tfhe-backward-compat-data
+  DATA_REPO: zama-ai/tfhe-backward-compat-data
   SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
   SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -16,122 +16,43 @@ on:
   pull_request:
     types: [ closed ]
 
-# The same pattern is used for jobs that use the github api:
-# - save the result of the API call in the env var "GH_API_RES". Since the var is multiline
-# we use this trick: https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#example-of-a-multiline-string
-# - "set +e" will make sure we reach the last "echo EOF" even in case of error
-# - "set -o" pipefail makes one line piped command return the error of the first failure
-# - 'RES="$?"' and 'exit $RES' are used to return the error code if a command failed. Without it, with "set +e"
-# the script will always return 0 because of the "echo EOF".
-
-
-
 permissions: {}
 
 jobs:
   auto_close_job:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') && github.repository == 'zama-ai/tfhe-rs' }}
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}  # Needed for gh CLI commands
     steps:
-    - name: Find corresponding Pull Request in the data repo
+    - name: Fetch PR number
       run: |
-        {
-          set +e
-          set -o pipefail
-          echo 'TARGET_REPO_PR<<EOF'
-          curl --fail-with-body --no-progress-meter -L -X GET \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: 2022-11-28"  \
-          "${TARGET_REPO_API_URL}"/pulls\?head="${REPO_OWNER}":"${PR_BRANCH}" | jq -e '.[0]' | sed 's/null/{ "message": "corresponding PR not found" }/'
-          RES="$?"
-          echo EOF
-        } >> "${GITHUB_ENV}"
-        exit $RES
-      env:
-        REPO_OWNER: ${{ github.repository_owner }}
+        PR_NUMBER=$(gh pr view "${PR_BRANCH}" --repo "${DATA_REPO}" --json number | jq '.number')
+        echo "DATA_REPO_PR_NUMBER=${PR_NUMBER}" >> "${GITHUB_ENV}"
 
     - name: Comment on the PR to indicate the reason of the close
       run: |
-        BODY="'{ \"body\": \"PR ${CLOSE_TYPE}d because the corresponding PR in main repo was ${CLOSE_TYPE}d: ${REPO}#${EVENT_NUMBER}\" }'"
-        {
-          set +e
-          set -o pipefail
-          echo 'GH_API_RES<<EOF'
-          curl --fail-with-body --no-progress-meter -L -X POST \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${TOKEN}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "${COMMENTS_URL}" \
-          -d "${BODY}"
-          RES="$?"
-          echo EOF
-        } >> "${GITHUB_ENV}"
-        exit $RES
+        gh pr comment "${PR_BRANCH}" \
+        --repo "${DATA_REPO}" \
+        --body "PR ${CLOSE_TYPE}d because the corresponding PR in main repo was ${CLOSE_TYPE}d: ${REPO}#${EVENT_NUMBER}"
       env:
         REPO: ${{ github.repository }}
         EVENT_NUMBER: ${{ github.event.number }}
-        COMMENTS_URL: ${{ fromJson(env.TARGET_REPO_PR).comments_url }}
-        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
 
     - name: Merge the Pull Request in the data repo
       if: ${{ github.event.pull_request.merged }}
       run: |
-        {
-          set +e
-          set -o pipefail
-          echo 'GH_API_RES<<EOF'
-          curl --fail-with-body --no-progress-meter -L -X PUT \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${TOKEN}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "${TARGET_REPO_PR_URL}"/merge \
-          -d '{ "merge_method": "rebase" }'
-          RES="$?"
-          echo EOF
-        } >> "${GITHUB_ENV}"
-        exit $RES
-      env:
-        TARGET_REPO_PR_URL: ${{ fromJson(env.TARGET_REPO_PR).url }}
-        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+        gh pr merge "${PR_BRANCH}" \
+        --repo "${DATA_REPO}" \
+        --rebase \
+        --delete-branch
 
     - name: Close the Pull Request in the data repo
       if: ${{ !github.event.pull_request.merged }}
       run: |
-        {
-          set +e
-          set -o pipefail
-          echo 'GH_API_RES<<EOF'
-          curl --fail-with-body --no-progress-meter -L -X PATCH \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${TOKEN}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "${TARGET_REPO_PR_URL}" \
-          -d '{ "state": "closed" }'
-          RES="$?"
-          echo EOF
-        } >> "${GITHUB_ENV}"
-        exit $RES
-      env:
-        TARGET_REPO_PR_URL: ${{ fromJson(env.TARGET_REPO_PR).url }}
-        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
-
-    - name: Delete the associated branch in the data repo
-      run: |
-        {
-          set +e
-          set -o pipefail
-          echo 'GH_API_RES<<EOF'
-          curl --fail-with-body --no-progress-meter -L -X DELETE \
-          -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${TOKEN}" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          "${TARGET_REPO_API_URL}"/git/refs/heads/"${PR_BRANCH}"
-          RES="$?"
-          echo EOF
-        } >> "${GITHUB_ENV}"
-        exit $RES
-      env:
-        TOKEN: ${{ secrets.FHE_ACTIONS_TOKEN }}
+        gh pr close "${PR_BRANCH}" \
+        --repo "${DATA_REPO}" \
+        --delete-branch
 
     - name: Slack Notification
       if: ${{ always() && job.status == 'failure' }}
@@ -139,4 +60,4 @@ jobs:
       uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
       env:
         SLACK_COLOR: ${{ job.status }}
-        SLACK_MESSAGE: "Failed to auto-${{ env.CLOSE_TYPE }} PR on data repo: ${{ fromJson(env.GH_API_RES || env.TARGET_REPO_PR).message }}"
+        SLACK_MESSAGE: "Failed to auto-${{ env.CLOSE_TYPE }} PR on data repo: https://github.com/${{ env.DATA_REPO }}/pull/${{ env.DATA_REPO_PR_NUMBER }}"
