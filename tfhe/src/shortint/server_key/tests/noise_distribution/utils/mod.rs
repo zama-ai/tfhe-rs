@@ -22,8 +22,9 @@ use crate::core_crypto::commons::parameters::{
     CiphertextModulusLog, DynamicDistribution, LweDimension,
 };
 use crate::core_crypto::commons::test_tools::{
-    arithmetic_mean, gaussian_mean_confidence_interval, gaussian_variance_confidence_interval,
-    normality_test_f64, variance, NormalityTestResult,
+    arithmetic_mean, equivalent_pfail_gaussian_noise, gaussian_mean_confidence_interval,
+    gaussian_variance_confidence_interval, normality_test_f64,
+    pfail_clopper_pearson_exact_confidence_interval, variance, NormalityTestResult,
 };
 use crate::core_crypto::commons::traits::container::{Container, ContainerMut};
 use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
@@ -35,6 +36,7 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
+use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus, MessageModulus};
 use crate::shortint::server_key::modulus_switch_noise_reduction::ModulusSwitchNoiseReductionKey;
 use std::any::TypeId;
 use traits::*;
@@ -164,6 +166,204 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     mean_is_in_interval && variance_is_ok
 }
 
+#[derive(Clone, Copy)]
+pub struct PfailAndPrecision {
+    pfail: f64,
+    precision_with_padding: u32,
+}
+
+impl PfailAndPrecision {
+    pub fn new(pfail: f64, msg_mod: MessageModulus, carry_mod: CarryModulus) -> Self {
+        assert!(msg_mod.0.is_power_of_two());
+        assert!(carry_mod.0.is_power_of_two());
+
+        let precision_with_padding = precision_with_padding(msg_mod, carry_mod);
+
+        Self {
+            pfail,
+            precision_with_padding,
+        }
+    }
+
+    pub fn new_from_ap_params(ap_params: &AtomicPatternParameters) -> Self {
+        Self::new(
+            2.0f64.powf(ap_params.log2_p_fail()),
+            ap_params.message_modulus(),
+            ap_params.carry_modulus(),
+        )
+    }
+
+    pub fn pfail(&self) -> f64 {
+        self.pfail
+    }
+
+    pub fn precision_with_padding(&self) -> u32 {
+        self.precision_with_padding
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct PfailTestMeta {
+    original_pfail_and_precision: PfailAndPrecision,
+    new_pfail_and_precision: PfailAndPrecision,
+    expected_fails: u32,
+    runs_for_expected_fails: u32,
+}
+
+impl PfailTestMeta {
+    pub fn new_with_desired_expected_fails(
+        original_pfail_and_precision: PfailAndPrecision,
+        new_pfail_and_precision: PfailAndPrecision,
+        expected_fails: u32,
+    ) -> Self {
+        let expected_fails_f64: f64 = expected_fails.into();
+        let runs_for_expected_fails =
+            (expected_fails_f64 / new_pfail_and_precision.pfail).round() as u32;
+
+        println!("expected_fails: {}", expected_fails);
+        println!("runs_for_expected_fails: {}", runs_for_expected_fails);
+
+        Self {
+            original_pfail_and_precision,
+            new_pfail_and_precision,
+            expected_fails,
+            runs_for_expected_fails,
+        }
+    }
+
+    pub fn new_with_set_runs(
+        original_pfail_and_precision: PfailAndPrecision,
+        new_pfail_and_precision: PfailAndPrecision,
+        total_runs: u32,
+    ) -> Self {
+        let total_runs_f64: f64 = total_runs.into();
+        let expected_fails = (total_runs_f64 * new_pfail_and_precision.pfail).round() as u32;
+
+        println!("expected_fails: {}", expected_fails);
+        println!("runs_for_expected_fails: {}", total_runs);
+
+        Self {
+            original_pfail_and_precision,
+            new_pfail_and_precision,
+            expected_fails,
+            runs_for_expected_fails: total_runs,
+        }
+    }
+
+    pub fn original_pfail_and_precision(&self) -> PfailAndPrecision {
+        self.original_pfail_and_precision
+    }
+    pub fn new_pfail_and_precision(&self) -> PfailAndPrecision {
+        self.new_pfail_and_precision
+    }
+    pub fn expected_fails(&self) -> u32 {
+        self.expected_fails
+    }
+    pub fn runs_for_expected_fails(&self) -> u32 {
+        self.runs_for_expected_fails
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct PfailTestResult {
+    pub measured_fails: f64,
+}
+
+pub fn pfail_check(pfail_test_meta: &PfailTestMeta, pfail_test_result: &PfailTestResult) {
+    let measured_fails = pfail_test_result.measured_fails;
+    let runs_for_expected_fails = pfail_test_meta.runs_for_expected_fails;
+    let expected_fails = pfail_test_meta.expected_fails();
+
+    let new_pfail_and_precision = pfail_test_meta.new_pfail_and_precision();
+    let expected_pfail = new_pfail_and_precision.pfail();
+    let new_precision_with_padding = pfail_test_meta
+        .new_pfail_and_precision
+        .precision_with_padding();
+
+    let original_pfail_and_precision = pfail_test_meta.original_pfail_and_precision();
+    let original_pfail = original_pfail_and_precision.pfail();
+    let original_precision_with_padding = original_pfail_and_precision.precision_with_padding();
+
+    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+    println!("measured_fails={measured_fails}");
+    println!("expected_fails={expected_fails}");
+    println!("measured_pfail={measured_pfail}");
+    println!("expected_pfail={expected_pfail}");
+
+    let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail={equivalent_measured_pfail}");
+    println!("original_expected_pfail  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_log2={}",
+        equivalent_measured_pfail.log2()
+    );
+    println!("original_expected_pfail_log2  ={}", original_pfail.log2());
+
+    if measured_fails > 0.0 {
+        let pfail_confidence_interval = pfail_clopper_pearson_exact_confidence_interval(
+            runs_for_expected_fails as f64,
+            measured_fails,
+            0.99,
+        );
+
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
+        println!(
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
+        );
+        println!(
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
+        );
+
+        if measured_pfail <= expected_pfail {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+                println!(
+                    "\n==========\n\
+                    WARNING: measured pfail is smaller than expected pfail \
+                    and out of the confidence interval\n\
+                    the optimizer might be pessimistic when generating parameters.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+        }
+    } else {
+        println!(
+            "\n==========\n\
+            WARNING: measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail\n\
+            the optimizer might be pessimistic when generating parameters, \
+            or some hypothesis does not hold.\n\
+            ==========\n"
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct NoiseSample {
     pub value: f64,
@@ -224,6 +424,74 @@ impl DecryptionAndNoiseResult {
             DecryptionAndNoiseResult::DecryptionFailed => 1.0,
         }
     }
+}
+
+pub fn update_ap_params_for_pfail(
+    ap_params: &mut AtomicPatternParameters,
+    new_message_modulus: MessageModulus,
+    new_carry_modulus: CarryModulus,
+) -> (PfailAndPrecision, PfailAndPrecision) {
+    let orig_pfail_and_precision = PfailAndPrecision::new_from_ap_params(&*ap_params);
+
+    println!("original_pfail: {}", orig_pfail_and_precision.pfail());
+    println!(
+        "original_pfail_log2: {}",
+        orig_pfail_and_precision.pfail().log2()
+    );
+
+    match ap_params {
+        AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+            crate::shortint::PBSParameters::PBS(classic_pbsparameters) => {
+                classic_pbsparameters.message_modulus = new_message_modulus;
+                classic_pbsparameters.carry_modulus = new_carry_modulus;
+            }
+            crate::shortint::PBSParameters::MultiBitPBS(multi_bit_pbsparameters) => {
+                multi_bit_pbsparameters.message_modulus = new_message_modulus;
+                multi_bit_pbsparameters.carry_modulus = new_carry_modulus;
+            }
+        },
+        AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+            key_switch32_pbsparameters.message_modulus = new_message_modulus;
+            key_switch32_pbsparameters.carry_modulus = new_carry_modulus;
+        }
+    }
+
+    let new_expected_pfail = equivalent_pfail_gaussian_noise(
+        orig_pfail_and_precision.precision_with_padding(),
+        orig_pfail_and_precision.pfail(),
+        precision_with_padding(ap_params.message_modulus(), ap_params.carry_modulus()),
+    );
+    let new_expected_log2_pfail = new_expected_pfail.log2();
+
+    match ap_params {
+        AtomicPatternParameters::Standard(pbsparameters) => match pbsparameters {
+            crate::shortint::PBSParameters::PBS(classic_pbsparameters) => {
+                classic_pbsparameters.log2_p_fail = new_expected_log2_pfail;
+            }
+            crate::shortint::PBSParameters::MultiBitPBS(multi_bit_pbsparameters) => {
+                multi_bit_pbsparameters.log2_p_fail = new_expected_log2_pfail;
+            }
+        },
+        AtomicPatternParameters::KeySwitch32(key_switch32_pbsparameters) => {
+            key_switch32_pbsparameters.log2_p_fail = new_expected_log2_pfail;
+        }
+    }
+
+    let new_expected_pfail = PfailAndPrecision::new_from_ap_params(&*ap_params);
+
+    println!("new_expected_pfail: {}", new_expected_pfail.pfail());
+    println!(
+        "new_expected_pfail_log2: {}",
+        new_expected_pfail.pfail().log2()
+    );
+
+    (orig_pfail_and_precision, new_expected_pfail)
+}
+
+pub fn precision_with_padding(msg_mod: MessageModulus, carr_mod: CarryModulus) -> u32 {
+    let cleartext_modulus = msg_mod.0 * carr_mod.0;
+    assert!(cleartext_modulus.is_power_of_two());
+    cleartext_modulus.ilog2() + 1
 }
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ScalarMul<Scalar>
