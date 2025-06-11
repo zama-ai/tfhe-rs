@@ -4990,7 +4990,7 @@ template <typename Torus> struct int_div_rem_memory {
   }
 };
 
-template <typename Torus> struct int_scalar_mul_high {
+template <typename Torus> struct int_scalar_mul_high_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
@@ -4999,11 +4999,12 @@ template <typename Torus> struct int_scalar_mul_high {
 
   CudaRadixCiphertextFFI *tmp;
 
-  int_scalar_mul_high(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                      uint32_t gpu_count, const int_radix_params params,
-                      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-                      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
-                      bool anticipated_buffer_drop, uint64_t *size_tracker) {
+  int_scalar_mul_high_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
+      bool anticipated_buffer_drop, uint64_t *size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5160,7 +5161,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
   CudaRadixCiphertextFFI *tmp_ffi;
 
   int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
-  int_scalar_mul_high<Torus> *scalar_mul_high_mem;
+  int_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem;
   int_sc_prop_memory<Torus> *scp_mem;
   int_sub_and_propagate<Torus> *sub_and_propagate_mem;
 
@@ -5201,7 +5202,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
         logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
             streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
             num_radix_blocks, allocate_gpu_memory, size_tracker);
-        scalar_mul_high_mem = new int_scalar_mul_high<Torus>(
+        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
             allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
             size_tracker);
@@ -5221,7 +5222,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
         logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
             streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
             num_radix_blocks, allocate_gpu_memory, size_tracker);
-        scalar_mul_high_mem = new int_scalar_mul_high<Torus>(
+        scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
             allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
             size_tracker);
@@ -5252,6 +5253,187 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_ffi,
                                      allocate_gpu_memory);
       delete tmp_ffi;
+    }
+  }
+};
+
+template <typename Torus> struct int_signed_scalar_mul_high_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
+  int_scalar_mul_buffer<Torus> *scalar_mul_mem;
+  int_extend_radix_with_sign_msb_buffer<Torus> *extend_radix_mem;
+
+  CudaRadixCiphertextFFI *tmp;
+
+  int_signed_scalar_mul_high_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
+      uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, shift_type, params,
+        2 * num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+    this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, params, 2 * num_radix_blocks,
+        num_scalar_bits, allocate_gpu_memory, true, size_tracker);
+
+    this->tmp = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], tmp, 2 * num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->extend_radix_mem = new int_extend_radix_with_sign_msb_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        num_radix_blocks, allocate_gpu_memory, size_tracker);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+    delete logical_scalar_shift_mem;
+
+    scalar_mul_mem->release(streams, gpu_indexes, gpu_count);
+    delete scalar_mul_mem;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp,
+                                   allocate_gpu_memory);
+    delete tmp;
+
+    extend_radix_mem->release(streams, gpu_indexes, gpu_count);
+    delete extend_radix_mem;
+  }
+};
+
+template <typename Torus> struct int_signed_scalar_div_mem {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  CudaRadixCiphertextFFI *tmp_ffi;
+  CudaRadixCiphertextFFI *xsign_ffi;
+
+  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem;
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
+  int_signed_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem;
+  int_sc_prop_memory<Torus> *scp_mem;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+
+  int_signed_scalar_div_mem(cudaStream_t const *streams,
+                            uint32_t const *gpu_indexes, uint32_t gpu_count,
+                            const int_radix_params params,
+                            uint32_t num_radix_blocks, uint32_t num_scalar_bits,
+                            const bool allocate_gpu_memory,
+                            bool is_absolute_divisor_one,
+                            bool is_divisor_negative, bool l_exceed_threshold,
+                            bool is_power_of_two, bool multiplier_is_small,
+                            uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->tmp_ffi = nullptr;
+    this->xsign_ffi = nullptr;
+    this->arithmetic_scalar_shift_mem = nullptr;
+    this->logical_scalar_shift_mem = nullptr;
+    this->scalar_mul_high_mem = nullptr;
+    this->scp_mem = nullptr;
+    this->sub_and_propagate_mem = nullptr;
+
+    if (!l_exceed_threshold) {
+
+      if (is_absolute_divisor_one && is_divisor_negative) {
+        tmp_ffi = new CudaRadixCiphertextFFI;
+
+        create_zero_radix_ciphertext_async<Torus>(
+            streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
+            params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+      } else if (!is_absolute_divisor_one) {
+
+        tmp_ffi = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
+            params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+        arithmetic_scalar_shift_mem =
+            new int_arithmetic_scalar_shift_buffer<Torus>(
+                streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
+                num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+        if (is_power_of_two) {
+
+          logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+              streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
+              num_radix_blocks, allocate_gpu_memory, size_tracker);
+          scp_mem = new int_sc_prop_memory<Torus>(
+              streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+              FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+
+        } else {
+
+          xsign_ffi = new CudaRadixCiphertextFFI;
+          create_zero_radix_ciphertext_async<Torus>(
+              streams[0], gpu_indexes[0], xsign_ffi, num_radix_blocks,
+              params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+          scalar_mul_high_mem = new int_signed_scalar_mul_high_buffer<Torus>(
+              streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+              allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, size_tracker);
+
+          sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+              streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+              FLAG_NONE, allocate_gpu_memory, size_tracker);
+
+          if (!multiplier_is_small) {
+            scp_mem = new int_sc_prop_memory<Torus>(
+                streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+                FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+          }
+        }
+      }
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    if (arithmetic_scalar_shift_mem != nullptr) {
+      arithmetic_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+      delete arithmetic_scalar_shift_mem;
+    }
+    if (logical_scalar_shift_mem != nullptr) {
+      logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+      delete logical_scalar_shift_mem;
+    }
+    if (scalar_mul_high_mem != nullptr) {
+      scalar_mul_high_mem->release(streams, gpu_indexes, gpu_count);
+      delete scalar_mul_high_mem;
+    }
+    if (scp_mem != nullptr) {
+      scp_mem->release(streams, gpu_indexes, gpu_count);
+      delete scp_mem;
+    }
+    if (sub_and_propagate_mem != nullptr) {
+      sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
+      delete sub_and_propagate_mem;
+    }
+    if (tmp_ffi != nullptr) {
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_ffi,
+                                     allocate_gpu_memory);
+      delete tmp_ffi;
+    }
+    if (xsign_ffi != nullptr) {
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], xsign_ffi,
+                                     allocate_gpu_memory);
+      delete xsign_ffi;
     }
   }
 };
