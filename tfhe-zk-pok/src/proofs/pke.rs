@@ -1815,7 +1815,9 @@ mod tests {
             (q / t as i128) as u64
         };
 
-        let trivial = rng.gen::<u64>() % effective_cleartext_t;
+        // If trivial is 0 the ct is not modified so the proof will be accepted
+        let trivial = rng.gen_range(1..effective_cleartext_t);
+
         let trivial_pt = trivial * delta;
         let c2_plus_trivial = vec![ct.c2[0].wrapping_add(trivial_pt as i64)];
 
@@ -1863,7 +1865,7 @@ mod tests {
             ct_plus_trivial.c2.clone(),
             testcase.r.clone(),
             testcase.e1.clone(),
-            testcase.m.clone(),
+            m_plus_trivial,
             testcase.e2.clone(),
             &crs,
             rng,
