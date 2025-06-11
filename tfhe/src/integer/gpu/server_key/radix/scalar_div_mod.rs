@@ -72,10 +72,10 @@ impl CudaServerKey {
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let num_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0;
-        let mut result = self.extend_radix_with_sign_msb_async(lhs, num_blocks, streams);
+        let num_additional_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let mut result = self.extend_radix_with_sign_msb_async(lhs, num_additional_blocks, streams);
         self.scalar_mul_assign_async(&mut result, rhs, streams);
-        self.trim_radix_blocks_lsb_async(&result, num_blocks, streams)
+        self.trim_radix_blocks_lsb_async(&result, num_additional_blocks, streams)
     }
 
     /// Computes homomorphically a division between a ciphertext and a scalar.
