@@ -1,6 +1,6 @@
 use crate::core_crypto::prelude::*;
 use crate::shortint::parameters::noise_squashing::{
-    NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingMultiBitParameters, NoiseSquashingParameters,
 };
 use crate::shortint::parameters::{
     CoreCiphertextModulus, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
@@ -68,4 +68,9 @@ pub enum NoiseSquashingParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum NoiseSquashingCompressionParametersVersions {
     V0(NoiseSquashingCompressionParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingMultiBitParametersVersions {
+    V0(NoiseSquashingMultiBitParameters),
 }

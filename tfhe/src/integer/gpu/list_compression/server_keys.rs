@@ -30,7 +30,7 @@ pub struct CudaCompressionKey {
 }
 
 pub struct CudaDecompressionKey {
-    pub blind_rotate_key: CudaBootstrappingKey,
+    pub blind_rotate_key: CudaBootstrappingKey<u64>,
     pub lwe_per_glwe: LweCiphertextCount,
     pub glwe_dimension: GlweDimension,
     pub polynomial_size: PolynomialSize,

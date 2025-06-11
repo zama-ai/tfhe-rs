@@ -234,6 +234,29 @@ __device__ void convert_u128_to_f128_as_torus(
   }
 }
 
+// params is expected to be full degree not half degree
+// same as convert_u128_to_f128_as_torus() but expects input to be on registers
+template <class params>
+__device__ void convert_u128_on_regs_to_f128_as_torus(
+    double *out_re_hi, double *out_re_lo, double *out_im_hi, double *out_im_lo,
+    const __uint128_t *in_re_on_regs, const __uint128_t *in_im_on_regs) {
+
+  const double normalization = pow(2., -128.);
+  Index tid = threadIdx.x;
+  // #pragma unroll
+  for (Index i = 0; i < params::opt / 2; i++) {
+    auto out_re = u128_to_signed_to_f128(in_re_on_regs[i]);
+    auto out_im = u128_to_signed_to_f128(in_im_on_regs[i]);
+
+    out_re_hi[tid] = out_re.hi * normalization;
+    out_re_lo[tid] = out_re.lo * normalization;
+    out_im_hi[tid] = out_im.hi * normalization;
+    out_im_lo[tid] = out_im.lo * normalization;
+
+    tid += params::degree / params::opt;
+  }
+}
+
 template <class params>
 __device__ void
 convert_f128_to_u128_as_torus(__uint128_t *out_re, __uint128_t *out_im,
@@ -272,7 +295,7 @@ batch_convert_u128_to_f128_as_integer(double *out_re_hi, double *out_re_lo,
 }
 
 // params is expected to be full degree not half degree
-// converts standqard input into complex<128> represented by 4 double
+// converts standard input into complex<128> represented by 4 double
 // with following pattern: [re_hi_0, re_hi_1, ... re_hi_n, re_lo_0, re_lo_1,
 // ... re_lo_n, im_hi_0, im_hi_1, ..., im_hi_n,  im_lo_0, im_lo_1, ..., im_lo_n]
 template <class params>
@@ -291,7 +314,7 @@ batch_convert_u128_to_f128_as_torus(double *out_re_hi, double *out_re_lo,
 }
 
 // params is expected to be full degree not half degree
-// converts standqard input into complex<128> represented by 4 double
+// converts standard input into complex<128> represented by 4 double
 // with following pattern: [re_hi_0, re_lo_0, im_hi_0, im_lo_0, re_hi_1,
 // re_lo_1, im_hi_1, im_lo_1,
 // ...,re_hi_n, re_lo_n, im_hi_n, im_lo_n, ]
