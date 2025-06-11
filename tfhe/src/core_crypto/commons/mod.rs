@@ -131,26 +131,6 @@ pub mod test_tools {
         }
     }
 
-    #[derive(Debug, Clone, Copy)]
-    pub struct MeanConfidenceInterval {
-        lower_bound: f64,
-        upper_bound: f64,
-    }
-
-    impl MeanConfidenceInterval {
-        pub fn mean_is_in_interval(&self, mean_to_check: f64) -> bool {
-            self.lower_bound <= mean_to_check && self.upper_bound >= mean_to_check
-        }
-
-        pub fn lower_bound(&self) -> f64 {
-            self.lower_bound
-        }
-
-        pub fn upper_bound(&self) -> f64 {
-            self.upper_bound
-        }
-    }
-
     pub fn mean_confidence_interval(
         sample_count: f64,
         measured_mean: f64,
@@ -286,26 +266,6 @@ pub mod test_tools {
         VarianceConfidenceInterval {
             lower_bound,
             upper_bound,
-        }
-    }
-
-    #[derive(Debug, Clone, Copy)]
-    pub struct VarianceConfidenceInterval {
-        lower_bound: Variance,
-        upper_bound: Variance,
-    }
-
-    impl VarianceConfidenceInterval {
-        pub fn variance_is_in_interval(&self, variance_to_check: Variance) -> bool {
-            self.lower_bound <= variance_to_check && self.upper_bound >= variance_to_check
-        }
-
-        pub fn lower_bound(&self) -> Variance {
-            self.lower_bound
-        }
-
-        pub fn upper_bound(&self) -> Variance {
-            self.upper_bound
         }
     }
 

@@ -41,7 +41,7 @@ use crate::core_crypto::commons::parameters::{
     GlweDimension, LweDimension, MonomialDegree, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools::{
-    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, mean,
+    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, arithmetic_mean,
     mean_confidence_interval, normality_test_f64, torus_modular_diff, variance,
     variance_confidence_interval,
 };
@@ -321,7 +321,7 @@ fn noise_check_shortint_classic_pbs_before_pbs_after_encryption_noise(
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = mean(&noise_samples);
+    let measured_mean = arithmetic_mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
@@ -1493,7 +1493,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise(
         noise_samples.extend(current_noise_samples);
     }
 
-    let measured_mean = mean(&noise_samples);
+    let measured_mean = arithmetic_mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
@@ -2822,7 +2822,7 @@ pub(crate) fn mean_and_variance_check<Scalar: UnsignedInteger>(
     decryption_key_lwe_dimension: LweDimension,
     modulus_as_f64: f64,
 ) -> bool {
-    let measured_mean = mean(&noise_samples);
+    let measured_mean = arithmetic_mean(&noise_samples);
     let measured_variance = variance(&noise_samples);
 
     let mean_ci = mean_confidence_interval(
