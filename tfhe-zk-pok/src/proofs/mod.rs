@@ -83,7 +83,7 @@ impl<G: Curve> GroupElements<G> {
             || {
                 let mut g_list = Vec::with_capacity(2 * message_len);
 
-                let mut g_cur = G::G1::GENERATOR.mul_scalar(alpha);
+                let mut g_cur = G::G1::GENERATOR.mul_scalar(&alpha);
 
                 for i in 0..2 * message_len {
                     if i == message_len {
@@ -91,17 +91,17 @@ impl<G: Curve> GroupElements<G> {
                     } else {
                         g_list.push(g_cur.normalize());
                     }
-                    g_cur = g_cur.mul_scalar(alpha);
+                    g_cur = g_cur.mul_scalar(&alpha);
                 }
 
                 g_list
             },
             || {
                 let mut g_hat_list = Vec::with_capacity(message_len);
-                let mut g_hat_cur = G::G2::GENERATOR.mul_scalar(alpha);
+                let mut g_hat_cur = G::G2::GENERATOR.mul_scalar(&alpha);
                 for _ in 0..message_len {
                     g_hat_list.push(g_hat_cur.normalize());
-                    g_hat_cur = g_hat_cur.mul_scalar(alpha);
+                    g_hat_cur = g_hat_cur.mul_scalar(&alpha);
                 }
                 g_hat_list
             },

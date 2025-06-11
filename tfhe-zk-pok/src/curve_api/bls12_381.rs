@@ -1,7 +1,7 @@
 use super::*;
 
 /// multiply EC point with scalar (= exponentiation in multiplicative notation)
-fn mul_zp<T: Copy + Zero + Add<Output = T> + Group>(x: T, scalar: Zp) -> T {
+fn mul_zp<T: Copy + Zero + Add<Output = T> + Group>(x: T, scalar: &Zp) -> T {
     let zero = T::zero();
     let n: BigInt<4> = scalar.inner.into();
 
@@ -166,7 +166,7 @@ mod g1 {
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 2 * 6 * 8 + 1;
 
-        pub fn mul_scalar(self, scalar: Zp) -> Self {
+        pub fn mul_scalar(self, scalar: &Zp) -> Self {
             Self {
                 inner: mul_zp(self.inner, scalar),
             }
@@ -180,7 +180,7 @@ mod g1 {
                 .par_iter()
                 .map(|&x| x.inner.into_affine())
                 .chunks(chunk_size)
-                .zip(scalars.par_iter().map(|&x| x.inner).chunks(chunk_size))
+                .zip(scalars.par_iter().map(|x| x.inner).chunks(chunk_size))
                 .map(|(bases, scalars)| Self {
                     inner: ark_bls12_381::G1Projective::msm(&bases, &scalars).unwrap(),
                 })
@@ -434,9 +434,9 @@ mod g2 {
         // This is not the size after serialization!
         pub const BYTE_SIZE: usize = 4 * 6 * 8 + 1;
 
-        pub fn mul_scalar(self, scalar: Zp) -> Self {
+        pub fn mul_scalar(self, scalar: &Zp) -> Self {
             Self {
-                inner: mul_zp(self.inner, scalar),
+                inner: mul_zp(self.inner, &scalar),
             }
         }
 
@@ -448,7 +448,7 @@ mod g2 {
                 .par_iter()
                 .map(|&x| x.inner.into_affine())
                 .chunks(chunk_size)
-                .zip(scalars.par_iter().map(|&x| x.inner).chunks(chunk_size))
+                .zip(scalars.par_iter().map(|x| x.inner).chunks(chunk_size))
                 .map(|(bases, scalars)| Self {
                     inner: ark_bls12_381::G2Projective::msm(&bases, &scalars).unwrap(),
                 })
@@ -629,7 +629,7 @@ mod gt {
             }
         }
 
-        pub fn mul_scalar(self, scalar: Zp) -> Self {
+        pub fn mul_scalar(self, scalar: &Zp) -> Self {
             Self {
                 inner: mul_zp(self.inner, scalar),
             }
@@ -687,7 +687,7 @@ mod zp {
     use super::*;
     use ark_ff::Fp;
     use tfhe_versionable::Versionize;
-    use zeroize::Zeroize;
+    use zeroize::{Zeroize, ZeroizeOnDrop};
 
     fn redc(n: [u64; 4], nprime: u64, mut t: [u64; 6]) -> [u64; 4] {
         for i in 0..2 {
@@ -723,7 +723,9 @@ mod zp {
         t
     }
 
-    #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize)]
+    #[derive(
+        Clone, PartialEq, Eq, Serialize, Deserialize, Versionize, Hash, Zeroize, ZeroizeOnDrop,
+    )]
     #[serde(try_from = "SerializableFp", into = "SerializableFp")]
     #[versionize(try_from = "SerializableFp", into = "SerializableFp")]
     #[repr(transparent)]
@@ -784,7 +786,7 @@ mod zp {
             }
         }
 
-        pub fn to_le_bytes(self) -> [u8; 4 * 8] {
+        pub fn to_le_bytes(&self) -> [u8; 4 * 8] {
             let buf = [
                 self.inner.0 .0[0].to_le_bytes(),
                 self.inner.0 .0[1].to_le_bytes(),
@@ -862,6 +864,50 @@ mod zp {
         }
     }
 
+    impl Add for &Zp {
+        type Output = Zp;
+
+        #[inline]
+        fn add(self, rhs: Self) -> Self::Output {
+            Zp {
+                inner: self.inner + rhs.inner,
+            }
+        }
+    }
+
+    impl Sub for &Zp {
+        type Output = Zp;
+
+        #[inline]
+        fn sub(self, rhs: Self) -> Self::Output {
+            Zp {
+                inner: self.inner - rhs.inner,
+            }
+        }
+    }
+
+    impl Mul for &Zp {
+        type Output = Zp;
+
+        #[inline]
+        fn mul(self, rhs: Self) -> Self::Output {
+            Zp {
+                inner: self.inner * rhs.inner,
+            }
+        }
+    }
+
+    impl Div for &Zp {
+        type Output = Zp;
+
+        #[inline]
+        fn div(self, rhs: Self) -> Self::Output {
+            Zp {
+                inner: self.inner / rhs.inner,
+            }
+        }
+    }
+
     impl Add for Zp {
         type Output = Zp;
 
@@ -905,6 +951,7 @@ mod zp {
             }
         }
     }
+
     impl AddAssign for Zp {
         #[inline]
         fn add_assign(&mut self, rhs: Self) {
@@ -919,11 +966,19 @@ mod zp {
         }
     }
 
-    impl Neg for Zp {
-        type Output = Self;
+    impl Neg for &Zp {
+        type Output = Zp;
 
         fn neg(self) -> Self::Output {
-            Self { inner: -self.inner }
+            Zp { inner: -self.inner }
+        }
+    }
+
+    impl Neg for Zp {
+        type Output = Zp;
+
+        fn neg(self) -> Self::Output {
+            Zp { inner: -self.inner }
         }
     }
 
@@ -965,15 +1020,18 @@ mod tests {
             ),
         };
 
-        assert_eq!((((a - b) * c) - (a * c - b * c)).inner, Zp::ZERO.inner);
+        assert_eq!(
+            ((&(&a - &b) * &c) - (&a * &c - b * c)).inner,
+            Zp::ZERO.inner
+        );
     }
 
     #[test]
     fn test_serialization() {
         let rng = &mut StdRng::seed_from_u64(0);
         let alpha = Zp::rand(rng);
-        let g_cur = G1::GENERATOR.mul_scalar(alpha);
-        let g_hat_cur = G2::GENERATOR.mul_scalar(alpha);
+        let g_cur = G1::GENERATOR.mul_scalar(&alpha);
+        let g_hat_cur = G2::GENERATOR.mul_scalar(&alpha);
 
         let alpha2: Zp = serde_json::from_str(&serde_json::to_string(&alpha).unwrap()).unwrap();
         assert_eq!(alpha, alpha2);
@@ -990,8 +1048,8 @@ mod tests {
     fn test_compressed_serialization() {
         let rng = &mut StdRng::seed_from_u64(0);
         let alpha = Zp::rand(rng);
-        let g_cur = G1::GENERATOR.mul_scalar(alpha);
-        let g_hat_cur = G2::GENERATOR.mul_scalar(alpha);
+        let g_cur = G1::GENERATOR.mul_scalar(&alpha);
+        let g_hat_cur = G2::GENERATOR.mul_scalar(&alpha);
 
         let g_cur2 = G1::uncompress(
             serde_json::from_str(&serde_json::to_string(&g_cur.compress()).unwrap()).unwrap(),
@@ -1013,7 +1071,7 @@ mod tests {
         // then they still hash into the same thing
         let rng = &mut StdRng::seed_from_u64(0);
         let alpha = Zp::rand(rng);
-        let a = G1::GENERATOR.mul_scalar(alpha);
+        let a = G1::GENERATOR.mul_scalar(&alpha);
 
         // serialization should convert the point to affine representation
         // after deserializing it we should have the same point

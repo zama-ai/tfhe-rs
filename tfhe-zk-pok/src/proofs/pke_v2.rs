@@ -917,25 +917,25 @@ fn prove_impl<G: Curve>(
 
     let mut scalars = e1_zp
         .iter()
-        .copied()
-        .chain(e2_zp.iter().copied())
+        .cloned()
+        .chain(e2_zp.iter().cloned())
         .chain(v_zp)
         .collect::<Box<[_]>>();
-    let C_hat_e =
-        g_hat.mul_scalar(gamma_hat_e) + G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &scalars);
+    let C_hat_e = g_hat.mul_scalar(&gamma_hat_e)
+        + G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &scalars);
 
     let (C_e, C_r_tilde) = rayon::join(
         || {
             scalars.reverse();
-            g.mul_scalar(gamma_e) + G::G1::multi_mul_scalar(&g_list[n - (d + k + 4)..n], &scalars)
+            g.mul_scalar(&gamma_e) + G::G1::multi_mul_scalar(&g_list[n - (d + k + 4)..n], &scalars)
         },
         || {
             let scalars = r1_zp
                 .iter()
                 .chain(r2_zp.iter())
-                .copied()
+                .cloned()
                 .collect::<Box<[_]>>();
-            g.mul_scalar(gamma_r) + G::G1::multi_mul_scalar(&g_list[..d + k], &scalars)
+            g.mul_scalar(&gamma_r) + G::G1::multi_mul_scalar(&g_list[..d + k], &scalars)
         },
     );
 
@@ -1032,7 +1032,7 @@ fn prove_impl<G: Curve>(
         })
         .collect::<Box<[_]>>();
 
-    let C_R = g.mul_scalar(gamma_R)
+    let C_R = g.mul_scalar(&gamma_R)
         + G::G1::multi_mul_scalar(
             &g_list[..128],
             &w_R.iter()
@@ -1073,7 +1073,7 @@ fn prove_impl<G: Curve>(
         .chain(w_R_bin.iter().copied())
         .collect::<Box<[_]>>();
 
-    let C_hat_bin = g_hat.mul_scalar(gamma_bin)
+    let C_hat_bin = g_hat.mul_scalar(&gamma_bin)
         + g_hat_list
             .iter()
             .zip(&*w_bin)
@@ -1138,7 +1138,7 @@ fn prove_impl<G: Curve>(
         .map(|(&y, &w)| if w { y } else { G::Zp::ZERO })
         .collect::<Box<[_]>>();
     let C_y =
-        g.mul_scalar(gamma_y) + G::G1::multi_mul_scalar(&g_list[n - (D + 128 * m)..n], &scalars);
+        g.mul_scalar(&gamma_y) + G::G1::multi_mul_scalar(&g_list[n - (D + 128 * m)..n], &scalars);
 
     let mut t = vec![G::Zp::ZERO; n];
     G::Zp::hash_128bit(
@@ -1196,7 +1196,7 @@ fn prove_impl<G: Curve>(
 
     let t_theta = theta
         .iter()
-        .copied()
+        .cloned()
         .zip(c1.iter().chain(c2.iter()).copied().map(G::Zp::from_i64))
         .map(|(x, y)| x * y)
         .sum::<G::Zp>();
@@ -1504,7 +1504,7 @@ fn prove_impl<G: Curve>(
     let pi = if P_pi.is_empty() {
         G::G1::ZERO
     } else {
-        g.mul_scalar(P_pi[0]) + G::G1::multi_mul_scalar(&g_list[..P_pi.len() - 1], &P_pi[1..])
+        g.mul_scalar(&P_pi[0]) + G::G1::multi_mul_scalar(&g_list[..P_pi.len() - 1], &P_pi[1..])
     };
 
     let mut xi_scaled = xi.clone();
@@ -1801,7 +1801,7 @@ fn prove_impl<G: Curve>(
         Q_kzg[j + 1] = G::Zp::ZERO;
     }
 
-    let pi_kzg = g.mul_scalar(q[0]) + G::G1::multi_mul_scalar(&g_list[..n - 1], &q[1..n]);
+    let pi_kzg = g.mul_scalar(&q[0]) + G::G1::multi_mul_scalar(&g_list[..n - 1], &q[1..n]);
 
     Proof {
         C_hat_e,
@@ -2272,8 +2272,8 @@ pub fn verify_inner<G: Curve>(
 
     let rhs = pairing(pi, g_hat);
     let lhs = {
-        let lhs0 = pairing(C_y.mul_scalar(delta_y) + C_h1, C_hat_bin);
-        let lhs1 = pairing(C_e.mul_scalar(delta_l) + C_h2, C_hat_e);
+        let lhs0 = pairing(C_y.mul_scalar(&delta_y) + C_h1, C_hat_bin);
+        let lhs1 = pairing(C_e.mul_scalar(&delta_l) + C_h2, C_hat_e);
 
         let lhs2 = pairing(
             C_r_tilde,
@@ -2313,7 +2313,7 @@ pub fn verify_inner<G: Curve>(
             ),
         );
         let lhs4 = pairing(
-            C_e.mul_scalar(delta_e),
+            C_e.mul_scalar(&delta_e),
             match compute_load_proof_fields.as_ref() {
                 Some(&ComputeLoadProofFields {
                     C_hat_h3: _,
@@ -2322,12 +2322,12 @@ pub fn verify_inner<G: Curve>(
                 None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
             },
         );
-        let lhs5 = pairing(C_y.mul_scalar(delta_eq), C_hat_t);
+        let lhs5 = pairing(C_y.mul_scalar(&delta_eq), C_hat_t);
         let lhs6 = pairing(
             G::G1::projective(g_list[0]),
             G::G2::projective(g_hat_list[n - 1]),
         )
-        .mul_scalar(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared));
+        .mul_scalar(&(delta_theta * t_theta + delta_l * G::Zp::from_u128(B_squared)));
 
         lhs0 + lhs1 + lhs2 - lhs3 - lhs4 - lhs5 - lhs6
     };
@@ -2513,22 +2513,22 @@ pub fn verify_inner<G: Curve>(
     let chi4 = chi3 * chi;
 
     let lhs = pairing(
-        C_h1 + C_h2.mul_scalar(chi) - g.mul_scalar(p_h1 + chi * p_h2),
+        C_h1 + C_h2.mul_scalar(&chi) - g.mul_scalar(&(p_h1 + chi * p_h2)),
         g_hat,
     ) + pairing(
         g,
         {
-            let mut C_hat = C_hat_t.mul_scalar(chi2);
+            let mut C_hat = C_hat_t.mul_scalar(&chi2);
             if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
-                C_hat += C_hat_h3.mul_scalar(chi3);
-                C_hat += C_hat_w.mul_scalar(chi4);
+                C_hat += C_hat_h3.mul_scalar(&chi3);
+                C_hat += C_hat_w.mul_scalar(&chi4);
             }
             C_hat
-        } - g_hat.mul_scalar(p_t * chi2 + p_h3 * chi3 + p_w * chi4),
+        } - g_hat.mul_scalar(&(p_t * chi2 + p_h3 * chi3 + p_w * chi4)),
     );
     let rhs = pairing(
         pi_kzg,
-        G::G2::projective(g_hat_list[0]) - g_hat.mul_scalar(z),
+        G::G2::projective(g_hat_list[0]) - g_hat.mul_scalar(&z),
     );
     if lhs != rhs {
         Err(())

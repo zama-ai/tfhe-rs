@@ -69,7 +69,7 @@ pub fn commit<G: Curve>(
     let gamma = G::Zp::rand(rng);
     let x = OneBased::new_ref(message);
 
-    let mut c_hat = g_hat.mul_scalar(gamma);
+    let mut c_hat = g_hat.mul_scalar(&gamma);
     for j in 1..n + 1 {
         let term = if x[j] != 0 {
             G::G2::projective(public.g_lists.g_hat_list[j])
@@ -97,16 +97,16 @@ pub fn prove<G: Curve>(
     let g = G::G1::GENERATOR;
     let x = OneBased::new_ref(&*private_commit.message);
     let c_hat = public.1.c_hat;
-    let gamma = private_commit.gamma;
+    let gamma = &private_commit.gamma;
     let gamma_y = G::Zp::rand(rng);
     let g_list = &public.0.g_lists.g_list;
 
     let mut y = OneBased(vec![G::Zp::ZERO; n]);
     G::Zp::hash(&mut y.0, &[&public.0.hash, c_hat.to_le_bytes().as_ref()]);
 
-    let mut c_y = g.mul_scalar(gamma_y);
+    let mut c_y = g.mul_scalar(&gamma_y);
     for j in 1..n + 1 {
-        c_y += (G::G1::projective(g_list[n + 1 - j])).mul_scalar(y[j] * G::Zp::from_u64(x[j]));
+        c_y += (G::G1::projective(g_list[n + 1 - j])).mul_scalar(&(&y[j] * G::Zp::from_u64(x[j])));
     }
 
     let y_bytes = &*(1..n + 1)
@@ -146,7 +146,7 @@ pub fn prove<G: Curve>(
                 delta_y * (G::Zp::from_u64(x[i]) * y[i]) + (delta_eq * t[i] - delta_y) * y[i];
         }
 
-        poly_1[0] = gamma;
+        poly_1[0] = gamma.clone();
         for i in 1..n + 1 {
             poly_1[i] = G::Zp::from_u64(x[i]);
         }
@@ -165,9 +165,9 @@ pub fn prove<G: Curve>(
             &G::Zp::poly_mul(&poly_2, &poly_3),
         );
 
-        let mut proof = g.mul_scalar(poly[0]);
+        let mut proof = g.mul_scalar(&poly[0]);
         for i in 1..poly.len() {
-            proof += G::G1::projective(g_list[i]).mul_scalar(poly[i]);
+            proof += G::G1::projective(g_list[i]).mul_scalar(&poly[i]);
         }
         proof
     };
@@ -221,10 +221,10 @@ pub fn verify<G: Curve>(
     let rhs = e(pi, g_hat);
     let lhs = {
         let numerator = {
-            let mut p = c_y.mul_scalar(delta_y);
+            let mut p = c_y.mul_scalar(&delta_y);
             for i in 1..n + 1 {
-                let gy = G::G1::projective(g_list[n + 1 - i]).mul_scalar(y[i]);
-                p += gy.mul_scalar(delta_eq).mul_scalar(t[i]) - gy.mul_scalar(delta_y);
+                let gy = G::G1::projective(g_list[n + 1 - i]).mul_scalar(&y[i]);
+                p += gy.mul_scalar(&delta_eq).mul_scalar(&t[i]) - gy.mul_scalar(&delta_y);
             }
             e(p, c_hat)
         };
@@ -232,8 +232,8 @@ pub fn verify<G: Curve>(
             let mut q = G::G2::ZERO;
             for i in 1..n + 1 {
                 q += G::G2::projective(g_hat_list[i])
-                    .mul_scalar(delta_eq)
-                    .mul_scalar(t[i]);
+                    .mul_scalar(&delta_eq)
+                    .mul_scalar(&t[i]);
             }
             e(c_y, q)
         };

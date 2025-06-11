@@ -641,7 +641,7 @@ fn prove_impl<G: Curve>(
 
     let w = OneBased(w);
 
-    let mut c_hat = g_hat.mul_scalar(gamma);
+    let mut c_hat = g_hat.mul_scalar(&gamma);
     for j in 1..big_d + 1 {
         if w[j] {
             c_hat += G::G2::projective(g_hat_list[j]);
@@ -679,9 +679,9 @@ fn prove_impl<G: Curve>(
     let y = OneBased(y);
 
     let scalars = (n + 1 - big_d..n + 1)
-        .map(|j| (y[n + 1 - j] * G::Zp::from_u64(w[n + 1 - j] as u64)))
+        .map(|j| (y[n + 1 - j] * &G::Zp::from_u64(w[n + 1 - j] as u64)))
         .collect::<Vec<_>>();
-    let c_y = g.mul_scalar(gamma_y) + G::G1::multi_mul_scalar(&g_list.0[n - big_d..n], &scalars);
+    let c_y = g.mul_scalar(&gamma_y) + G::G1::multi_mul_scalar(&g_list.0[n - big_d..n], &scalars);
 
     let mut theta = vec![G::Zp::ZERO; d + k + 1];
     G::Zp::hash(
@@ -795,7 +795,7 @@ fn prove_impl<G: Curve>(
     }
 
     let pi =
-        g.mul_scalar(poly[0]) + G::G1::multi_mul_scalar(&g_list.0[..poly.len() - 1], &poly[1..]);
+        g.mul_scalar(&poly[0]) + G::G1::multi_mul_scalar(&g_list.0[..poly.len() - 1], &poly[1..]);
 
     if load == ComputeLoad::Proof {
         let c_hat_t = G::G2::multi_mul_scalar(&g_hat_list.0, &t.0);
@@ -902,7 +902,7 @@ fn prove_impl<G: Curve>(
             q[i] = poly[i + 1];
             poly[i + 1] = G::Zp::ZERO;
         }
-        let pi_kzg = g.mul_scalar(q[0]) + G::G1::multi_mul_scalar(&g_list.0[..n - 1], &q[1..n]);
+        let pi_kzg = g.mul_scalar(&q[0]) + G::G1::multi_mul_scalar(&g_list.0[..n - 1], &q[1..n]);
 
         Proof {
             c_hat,
@@ -1246,13 +1246,13 @@ pub fn verify<G: Curve>(
         }
 
         if e(pi, G::G2::GENERATOR)
-            != e(c_y.mul_scalar(delta_y) + c_h, c_hat)
-                - e(c_y.mul_scalar(delta_eq), c_hat_t)
+            != e(c_y.mul_scalar(&delta_y) + c_h, c_hat)
+                - e(c_y.mul_scalar(&delta_eq), c_hat_t)
                 - e(
                     G::G1::projective(g_list[1]),
                     G::G2::projective(g_hat_list[n]),
                 )
-                .mul_scalar(t_theta * delta_theta)
+                .mul_scalar(&(t_theta * delta_theta))
         {
             return Err(());
         }
@@ -1286,8 +1286,12 @@ pub fn verify<G: Curve>(
             ],
         );
 
-        if e(c_h - G::G1::GENERATOR.mul_scalar(p_h), G::G2::GENERATOR)
-            + e(G::G1::GENERATOR, c_hat_t - G::G2::GENERATOR.mul_scalar(p_t)).mul_scalar(w)
+        if e(c_h - G::G1::GENERATOR.mul_scalar(&p_h), G::G2::GENERATOR)
+            + e(
+                G::G1::GENERATOR,
+                c_hat_t - G::G2::GENERATOR.mul_scalar(&p_t),
+            )
+            .mul_scalar(&w)
             == e(
                 pi_kzg,
                 G::G2::projective(g_hat_list[1]) - G::G2::GENERATOR.mul_scalar(z),
@@ -1301,7 +1305,7 @@ pub fn verify<G: Curve>(
         // PERF: rewrite as multi_mul_scalar?
         let (term0, term1) = rayon::join(
             || {
-                let p = c_y.mul_scalar(delta_y)
+                let p = c_y.mul_scalar(&delta_y)
                     + (1..n + 1)
                         .into_par_iter()
                         .map(|i| {
@@ -1309,7 +1313,7 @@ pub fn verify<G: Curve>(
                             if i < big_d + 1 {
                                 factor += delta_theta * a_theta[i - 1];
                             }
-                            G::G1::projective(g_list[n + 1 - i]).mul_scalar(factor)
+                            G::G1::projective(g_list[n + 1 - i]).mul_scalar(&factor)
                         })
                         .sum::<G::G1>();
                 let q = c_hat;
@@ -1319,7 +1323,7 @@ pub fn verify<G: Curve>(
                 let p = c_y;
                 let q = (1..n + 1)
                     .into_par_iter()
-                    .map(|i| G::G2::projective(g_hat_list[i]).mul_scalar(delta_eq * t[i]))
+                    .map(|i| G::G2::projective(g_hat_list[i]).mul_scalar(&(delta_eq * t[i])))
                     .sum::<G::G2>();
                 e(p, q)
             },
@@ -1331,7 +1335,7 @@ pub fn verify<G: Curve>(
         };
 
         let lhs = e(pi, G::G2::GENERATOR);
-        let rhs = term0 - term1 - term2.mul_scalar(t_theta * delta_theta);
+        let rhs = term0 - term1 - term2.mul_scalar(&(t_theta * delta_theta));
 
         if lhs == rhs {
             Ok(())

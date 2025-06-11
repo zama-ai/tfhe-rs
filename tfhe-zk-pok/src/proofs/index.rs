@@ -58,9 +58,9 @@ pub fn commit<G: Curve>(
     let gamma = G::Zp::rand(rng);
     let m = OneBased::new_ref(message);
 
-    let mut c = g.mul_scalar(gamma);
+    let mut c = g.mul_scalar(&gamma);
     for j in 1..n + 1 {
-        let term = G::G1::projective(public.g_lists.g_list[j]).mul_scalar(G::Zp::from_u64(m[j]));
+        let term = G::G1::projective(public.g_lists.g_list[j]).mul_scalar(&G::Zp::from_u64(m[j]));
         c += term;
     }
 
@@ -85,7 +85,7 @@ pub fn prove<G: Curve>(
     let gamma = private.gamma;
     let g_list = &public.0.g_lists.g_list;
 
-    let mut pi = G::G1::projective(g_list[n + 1 - i]).mul_scalar(gamma);
+    let mut pi = G::G1::projective(g_list[n + 1 - i]).mul_scalar(&gamma);
     for j in 1..n + 1 {
         if i != j {
             let term = if m[j] & 1 == 1 {
@@ -121,7 +121,7 @@ pub fn verify<G: Curve>(
             G::G1::projective(g_list[1]),
             G::G2::projective(g_hat_list[n]),
         ))
-        .mul_scalar(G::Zp::from_u64(mi));
+        .mul_scalar(G::Zp::from_u64(&mi));
 
     if lhs == rhs {
         Ok(())

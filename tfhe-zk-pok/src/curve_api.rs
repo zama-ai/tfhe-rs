@@ -27,19 +27,40 @@ pub mod msm;
 pub mod bls12_381;
 pub mod bls12_446;
 
+pub trait NumOps<Rhs = Self, Output = Self>:
+    Add<Rhs, Output = Output>
+    + Sub<Rhs, Output = Output>
+    + Mul<Rhs, Output = Output>
+    + Div<Rhs, Output = Output>
+{
+}
+
+impl<T, Rhs, Output> NumOps<Rhs, Output> for T where
+    T: Add<Rhs, Output = Output>
+        + Sub<Rhs, Output = Output>
+        + Mul<Rhs, Output = Output>
+        + Div<Rhs, Output = Output>
+{
+}
+
+pub trait NumRef: Sized + for<'r> NumOps<&'r Self> {}
+impl<T> NumRef for T where T: Sized + for<'r> NumOps<&'r T> {}
+
+pub trait RefRef<'a, Base: 'a>: NumOps<Base, Base> + NumOps<&'a Base, Base> {}
+impl<T, Base> RefRef<Base> for T where T: NumOps<Base, Base> + for<'r> NumOps<&'r Base, Base> {}
+
 pub trait FieldOps:
-    Copy
+    Clone
     + Send
     + Sync
     + core::fmt::Debug
     + core::ops::AddAssign<Self>
     + core::ops::SubAssign<Self>
-    + core::ops::Add<Self, Output = Self>
-    + core::ops::Sub<Self, Output = Self>
-    + core::ops::Mul<Self, Output = Self>
-    + core::ops::Div<Self, Output = Self>
+    + NumOps
     + core::ops::Neg<Output = Self>
     + core::iter::Sum
+where
+    for<'a> &'a Self: RefRef<Self>,
 {
     const ZERO: Self;
     const ONE: Self;
@@ -47,7 +68,7 @@ pub trait FieldOps:
     fn from_u128(n: u128) -> Self;
     fn from_u64(n: u64) -> Self;
     fn from_i64(n: i64) -> Self;
-    fn to_le_bytes(self) -> impl AsRef<[u8]>;
+    fn to_le_bytes(&self) -> impl AsRef<[u8]>;
     fn rand(rng: &mut dyn rand::RngCore) -> Self;
     fn hash(values: &mut [Self], data: &[&[u8]]);
     fn hash_128bit(values: &mut [Self], data: &[&[u8]]);
@@ -59,8 +80,8 @@ pub trait FieldOps:
         for (out, (p, q)) in zip(
             &mut out,
             zip(
-                p.iter().copied().chain(core::iter::repeat(Self::ZERO)),
-                q.iter().copied().chain(core::iter::repeat(Self::ZERO)),
+                p.iter().cloned().chain(core::iter::repeat(Self::ZERO)),
+                q.iter().cloned().chain(core::iter::repeat(Self::ZERO)),
             ),
         ) {
             *out = p - q;
@@ -75,8 +96,8 @@ pub trait FieldOps:
         for (out, (p, q)) in zip(
             &mut out,
             zip(
-                p.iter().copied().chain(core::iter::repeat(Self::ZERO)),
-                q.iter().copied().chain(core::iter::repeat(Self::ZERO)),
+                p.iter().cloned().chain(core::iter::repeat(Self::ZERO)),
+                q.iter().cloned().chain(core::iter::repeat(Self::ZERO)),
             ),
         ) {
             *out = p + q;
@@ -112,7 +133,7 @@ pub trait CurveGroupOps<Zp>:
 
     fn projective(affine: Self::Affine) -> Self;
 
-    fn mul_scalar(self, scalar: Zp) -> Self;
+    fn mul_scalar(self, scalar: &Zp) -> Self;
     fn multi_mul_scalar(bases: &[Self::Affine], scalars: &[Zp]) -> Self;
     fn to_le_bytes(self) -> impl AsRef<[u8]>;
     fn double(self) -> Self;
@@ -148,11 +169,14 @@ pub trait PairingGroupOps<Zp, G1, G2>:
     + core::ops::Sub<Self, Output = Self>
     + core::ops::Neg<Output = Self>
 {
-    fn mul_scalar(self, scalar: Zp) -> Self;
+    fn mul_scalar(self, scalar: &Zp) -> Self;
     fn pairing(x: G1, y: G2) -> Self;
 }
 
-pub trait Curve: Clone {
+pub trait Curve: Clone
+where
+    for<'a> &'a Self::Zp: RefNum<Self::Zp>,
+{
     type Zp: FieldOps;
     type G1: CurveGroupOps<Self::Zp>;
     type G2: CurveGroupOps<Self::Zp>;
@@ -172,7 +196,7 @@ impl FieldOps for bls12_381::Zp {
     fn from_i64(n: i64) -> Self {
         Self::from_i64(n)
     }
-    fn to_le_bytes(self) -> impl AsRef<[u8]> {
+    fn to_le_bytes(&self) -> impl AsRef<[u8]> {
         self.to_le_bytes()
     }
     fn rand(rng: &mut dyn rand::RngCore) -> Self {
@@ -210,7 +234,7 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G1 {
         }
     }
 
-    fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_381::Zp) -> Self {
         if scalar.inner == MontFp!("2") {
             self.double()
         } else {
@@ -254,7 +278,7 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
         }
     }
 
-    fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_381::Zp) -> Self {
         if scalar.inner == MontFp!("2") {
             self.double()
         } else {
@@ -287,7 +311,7 @@ impl CurveGroupOps<bls12_381::Zp> for bls12_381::G2 {
 }
 
 impl PairingGroupOps<bls12_381::Zp, bls12_381::G1, bls12_381::G2> for bls12_381::Gt {
-    fn mul_scalar(self, scalar: bls12_381::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_381::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
@@ -350,7 +374,7 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G1 {
         }
     }
 
-    fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_446::Zp) -> Self {
         if scalar.inner == MontFp!("2") {
             self.double()
         } else {
@@ -399,7 +423,7 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
         }
     }
 
-    fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_446::Zp) -> Self {
         if scalar.inner == MontFp!("2") {
             self.double()
         } else {
@@ -432,7 +456,7 @@ impl CurveGroupOps<bls12_446::Zp> for bls12_446::G2 {
 }
 
 impl PairingGroupOps<bls12_446::Zp, bls12_446::G1, bls12_446::G2> for bls12_446::Gt {
-    fn mul_scalar(self, scalar: bls12_446::Zp) -> Self {
+    fn mul_scalar(self, scalar: &bls12_446::Zp) -> Self {
         self.mul_scalar(scalar)
     }
 
