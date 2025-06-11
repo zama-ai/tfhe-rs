@@ -52,3 +52,62 @@ void cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
 
   mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
 }
+
+uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t num_scalar_bits, uint32_t message_modulus,
+    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    bool is_absolute_divisor_one, bool is_divisor_negative,
+    bool l_exceed_threshold, bool is_power_of_two, bool multiplier_is_small,
+    bool allocate_ms_array) {
+
+  int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
+                          glwe_dimension * polynomial_size, lwe_dimension,
+                          ks_level, ks_base_log, pbs_level, pbs_base_log,
+                          grouping_factor, message_modulus, carry_modulus,
+                          allocate_ms_array);
+
+  return scratch_integer_signed_scalar_div_radix_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
+      (int_signed_scalar_div_mem<uint64_t> **)mem_ptr, num_blocks,
+      num_scalar_bits, allocate_gpu_memory, is_absolute_divisor_one,
+      is_divisor_negative, l_exceed_threshold, is_power_of_two,
+      multiplier_is_small);
+}
+
+void cuda_integer_signed_scalar_div_radix_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *ksks,
+    void *const *bsks,
+    const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
+    bool is_absolute_divisor_one, bool is_divisor_negative,
+    bool l_exceed_threshold, bool is_power_of_two, bool multiplier_is_small,
+    uint32_t l, uint32_t shift_post, bool is_rhs_power_of_two, bool is_rhs_zero,
+    bool is_rhs_one, uint32_t rhs_shift, uint32_t numerator_bits,
+    uint32_t num_scalars, uint64_t const *decomposed_scalar,
+    uint64_t const *has_at_least_one_set) {
+
+  host_integer_signed_scalar_div_radix_kb<uint64_t>(
+      (cudaStream_t *)streams, gpu_indexes, gpu_count, numerator_ct,
+      (int_signed_scalar_div_mem<uint64_t> *)mem_ptr, (uint64_t **)ksks, bsks,
+      ms_noise_reduction_key, is_absolute_divisor_one, is_divisor_negative,
+      l_exceed_threshold, is_power_of_two, multiplier_is_small, l, shift_post,
+      is_rhs_power_of_two, is_rhs_zero, is_rhs_one, rhs_shift, numerator_bits,
+      num_scalars, decomposed_scalar, has_at_least_one_set);
+}
+
+void cleanup_cuda_integer_signed_scalar_div_radix_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void) {
+
+  int_signed_scalar_div_mem<uint64_t> *mem_ptr =
+      (int_signed_scalar_div_mem<uint64_t> *)(*mem_ptr_void);
+
+  mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
+
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
+}
