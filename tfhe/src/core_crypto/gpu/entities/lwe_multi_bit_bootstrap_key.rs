@@ -10,9 +10,9 @@ use crate::core_crypto::prelude::{
 
 /// A structure representing a vector of GLWE ciphertexts with 64 bits of precision on the GPU.
 #[derive(Debug)]
-pub struct CudaLweMultiBitBootstrapKey {
+pub struct CudaLweMultiBitBootstrapKey<Scalar: UnsignedInteger> {
     // Pointers to GPU data
-    pub(crate) d_vec: CudaVec<u64>,
+    pub(crate) d_vec: CudaVec<Scalar>,
     // Lwe dimension
     pub(crate) input_lwe_dimension: LweDimension,
     // Glwe dimension
@@ -27,14 +27,11 @@ pub struct CudaLweMultiBitBootstrapKey {
     pub(crate) grouping_factor: LweBskGroupingFactor,
 }
 
-impl CudaLweMultiBitBootstrapKey {
-    pub fn from_lwe_multi_bit_bootstrap_key<InputBskCont: Container>(
+impl<Scalar: UnsignedInteger> CudaLweMultiBitBootstrapKey<Scalar> {
+    pub fn from_lwe_multi_bit_bootstrap_key<InputBskCont: Container<Element = Scalar>>(
         bsk: &LweMultiBitBootstrapKey<InputBskCont>,
         streams: &CudaStreams,
-    ) -> Self
-    where
-        InputBskCont::Element: UnsignedInteger,
-    {
+    ) -> Self {
         let input_lwe_dimension = bsk.input_lwe_dimension();
         let polynomial_size = bsk.polynomial_size();
         let decomp_level_count = bsk.decomposition_level_count();
@@ -43,7 +40,7 @@ impl CudaLweMultiBitBootstrapKey {
         let grouping_factor = bsk.grouping_factor();
 
         // Allocate memory
-        let mut d_vec = CudaVec::<u64>::new_multi_gpu(
+        let mut d_vec = CudaVec::<InputBskCont::Element>::new_multi_gpu(
             lwe_multi_bit_bootstrap_key_size(
                 input_lwe_dimension,
                 glwe_dimension.to_glwe_size(),
