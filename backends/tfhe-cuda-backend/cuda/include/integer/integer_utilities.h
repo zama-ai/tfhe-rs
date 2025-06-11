@@ -1447,6 +1447,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
             (params.message_modulus - 1);
     setup_index_buffers(streams, gpu_indexes);
     setup_lookup_tables(streams, gpu_indexes, gpu_count);
+    printf("num_blocks_in_radix: %lu\n", num_blocks_in_radix);
+    printf("max_num_radix_in_vec: %lu\n", max_num_radix_in_vec);
+    printf("chunk_size: %lu\n", chunk_size);
 
     // create and allocate intermediate buffers
     current_blocks = new CudaRadixCiphertextFFI;
