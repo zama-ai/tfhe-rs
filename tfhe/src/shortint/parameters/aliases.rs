@@ -5,6 +5,8 @@ use crate::shortint::parameters::{
 };
 
 use crate::shortint::parameters::current_params::key_switching::p_fail_2_minus_128::ks_pbs_gpu::V1_2_PARAM_MULTI_BIT_GROUP_4_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+use crate::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
+use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use current_params::classic::gaussian::p_fail_2_minus_128::ks_pbs::{
     V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     V1_2_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
@@ -111,6 +113,10 @@ pub const PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: ShortintKeySw
 // Noise squashing
 pub const NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128: NoiseSquashingParameters =
     V1_2_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingMultiBitParameters =
+    V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
 // GPU 2^-64
 // GPU TUniform

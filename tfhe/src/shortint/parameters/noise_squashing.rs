@@ -1,4 +1,7 @@
-use crate::shortint::backward_compatibility::parameters::noise_squashing::NoiseSquashingParametersVersions;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
+use crate::shortint::backward_compatibility::parameters::noise_squashing::{
+    NoiseSquashingMultiBitParametersVersions, NoiseSquashingParametersVersions,
+};
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, MessageModulus, ModulusSwitchNoiseReductionParams,
@@ -16,6 +19,20 @@ pub struct NoiseSquashingParameters {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CoreCiphertextModulus<u128>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
+#[versionize(NoiseSquashingMultiBitParametersVersions)]
+pub struct NoiseSquashingMultiBitParameters {
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub glwe_noise_distribution: DynamicDistribution<u128>,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub grouping_factor: LweBskGroupingFactor,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
     pub ciphertext_modulus: CoreCiphertextModulus<u128>,

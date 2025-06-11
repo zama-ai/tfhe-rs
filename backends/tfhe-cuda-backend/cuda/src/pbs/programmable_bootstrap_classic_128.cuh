@@ -174,9 +174,6 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                                                accumulator);
   gadget_acc.decompose_and_compress_level_128(accumulator_fft, blockIdx.z);
 
-  // We are using the same memory space for accumulator_fft and
-  // accumulator_rotated, so we need to synchronize here to make sure they
-  // don't modify the same memory space at the same time
   // Switch to the FFT space
   auto acc_fft_re_hi = accumulator_fft + 0 * params::degree / 2;
   auto acc_fft_re_lo = accumulator_fft + 1 * params::degree / 2;
