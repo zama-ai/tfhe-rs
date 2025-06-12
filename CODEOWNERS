@@ -1,17 +1,27 @@
 # Specifying a path without code owners means that path won't have owners and is akin to a negation
 # i.e. the `core_crypto` dir is owned and needs owner approval/review, but not the `gpu` sub dir
 # See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#example-of-a-codeowners-file
+
+/backends/tfhe-cuda-backend/            @agnesLeroy
+/backends/tfhe-hpu-backend/             @zama-ai/hardware
+
+/tfhe/examples/hpu                      @zama-ai/hardware
+
 /tfhe/src/core_crypto/                  @IceTDrinker
-/tfhe/src/core_crypto/gpu
+/tfhe/src/core_crypto/gpu               @agnesLeroy
+/tfhe/src/core_crypto/hpu               @zama-ai/hardware
 
 /tfhe/src/shortint/                     @mayeul-zama
 
 /tfhe/src/integer/                      @tmontaigu
-/tfhe/src/integer/gpu
+/tfhe/src/integer/gpu                   @agnesLeroy
+/tfhe/src/integer/hpu                   @zama-ai/hardware
 
 /tfhe/src/high_level_api/               @tmontaigu
 
 /Makefile                               @IceTDrinker @soonum
+
+/mockups/tfhe-hpu-mockup                @zama-ai/hardware
 
 /.github/                               @soonum
 
