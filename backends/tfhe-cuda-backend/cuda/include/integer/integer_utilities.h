@@ -1394,12 +1394,12 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   }
 
   void setup_lookup_tables(cudaStream_t const *streams,
-                           uint32_t const *gpu_indexes, uint32_t gpu_count) {
+                           uint32_t const *gpu_indexes, uint32_t gpu_count,
+                           size_t pbs_count) {
     uint32_t message_modulus = params.message_modulus;
-
     if (!mem_reuse) {
       luts_message_carry = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 2, 2 * max_total_blocks_in_vec / chunk_size ,
+          streams, gpu_indexes, gpu_count, params, 2, pbs_count,
           gpu_memory_allocated, size_tracker);
     }
     auto message_acc = luts_message_carry->get_lut(0, 0);
@@ -1442,14 +1442,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->size_tracker = size_tracker;
-    this->chunk_size =
-        (params.message_modulus * params.carry_modulus - 1) /
-            (params.message_modulus - 1);
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
     setup_index_buffers(streams, gpu_indexes);
-    setup_lookup_tables(streams, gpu_indexes, gpu_count);
-    printf("num_blocks_in_radix: %lu\n", num_blocks_in_radix);
-    printf("max_num_radix_in_vec: %lu\n", max_num_radix_in_vec);
-    printf("chunk_size: %lu\n", chunk_size);
 
     // create and allocate intermediate buffers
     current_blocks = new CudaRadixCiphertextFFI;
@@ -1476,9 +1471,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->size_tracker = size_tracker;
-    this->chunk_size =
-        (params.message_modulus * params.carry_modulus - 1) /
-            (params.message_modulus - 1);
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
 
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
@@ -1509,12 +1503,10 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                      gpu_memory_allocated);
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      small_lwe_vector, gpu_memory_allocated);
-      luts_message_carry->release(streams, gpu_indexes, gpu_count);
       cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
       delete current_blocks;
       delete small_lwe_vector;
-      delete luts_message_carry;
     }
   }
 };

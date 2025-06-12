@@ -422,10 +422,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   auto d_columns_counter = mem_ptr->d_columns_counter;
   auto d_new_columns = mem_ptr->d_new_columns;
   auto d_new_columns_counter = mem_ptr->d_new_columns_counter;
-  auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
-  auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
-
-  auto luts_message_carry = mem_ptr->luts_message_carry;
 
   auto glwe_dimension = mem_ptr->params.glwe_dimension;
   auto polynomial_size = mem_ptr->params.polynomial_size;
@@ -458,9 +454,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     return;
   }
 
-  if (mem_ptr->mem_reuse) {
-    mem_ptr->setup_lookup_tables(streams, gpu_indexes, gpu_count);
-  }
+  size_t pbs_count = max(2 * num_radix_blocks * (num_radix_in_vec / chunk_size),
+                         2 * num_radix_blocks);
+  mem_ptr->setup_lookup_tables(streams, gpu_indexes, gpu_count, pbs_count);
+  auto luts_message_carry = mem_ptr->luts_message_carry;
+  auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
+  auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
 
   if (current_blocks != terms) {
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
@@ -607,6 +606,12 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out,
                          current_blocks, &current_blocks_slice,
                          num_radix_blocks);
+  }
+
+  if (!mem_ptr->mem_reuse) {
+    luts_message_carry->release(streams, gpu_indexes, gpu_count);
+    cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+    delete luts_message_carry;
   }
 }
 
