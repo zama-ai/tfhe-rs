@@ -54,6 +54,7 @@ use crate::shortint::list_compression::CompressionPrivateKeys;
 
 use crate::shortint::parameters::list_compression::CompressionParameters;
 
+use crate::shortint::parameters::v1_3::V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 use crate::shortint::parameters::{
     CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters,
     ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -3777,6 +3778,17 @@ fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_patte
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
+
+#[test]
+fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu_v13(
+) {
+    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
+        PBS128InputBRParams::Compute,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
 
 #[test]
 fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu()
