@@ -90,6 +90,205 @@ impl ServerKey {
         (quotient, remainder)
     }
 
+    fn unsigned_div_rem_block_by_block_2_2(
+        &self,
+        numerator: &RadixCiphertext,
+        divisor: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let num_bits_in_block = self.message_modulus().0.ilog2() as usize;
+        assert!(
+            num_bits_in_block == 2 && self.carry_modulus().0 == 4,
+            "This algorithm only works for 2_2 parameters"
+        );
+
+        let num_blocks = numerator.blocks.len();
+
+        let mut remainder = numerator.clone();
+        let mut quotient_blocks = Vec::with_capacity(num_blocks);
+
+        let mut d1 = divisor.clone();
+
+        let (d2, d3) = rayon::join(
+            || {
+                let mut d2 = self.extend_radix_with_trivial_zero_blocks_msb(divisor, 1);
+                self.scalar_left_shift_assign_parallelized(&mut d2, 1);
+                d2
+            },
+            || {
+                self.extend_radix_with_trivial_zero_blocks_msb_assign(&mut d1, 1);
+                let mut d4 = self.blockshift(&d1, 1);
+                self.sub_assign_parallelized(&mut d4, &d1);
+                self.trim_radix_blocks_msb_assign(&mut d1, 1);
+                d4 // 4 * d - d = 3 * d
+            },
+        );
+
+        // This will be used on blocks that contain 2 blocks encoded in
+        // the following way: (block, condition_block) = (block * 2) + condition_block
+        // As the condition_block is always 0 or 1
+        //
+        // The goal is to return 0 if the condition is not 1
+        // (i.e., return block is condition is 1)
+        let zero_out_if_not_1_lut = (
+            self.key.generate_lookup_table(|x| {
+                let block = x / 2;
+                let condition = (x & 1) == 1;
+
+                block * u64::from(condition)
+            }),
+            2u8,
+        );
+
+        // This will be used on blocks that contain 2 blocks encoded in
+        // the following way: (block, condition_block) = (block * 3) + condition_block
+        // As the condition_block is in [0, 1, 2]
+        //
+        // The goal is to return 0 if the condition is not 2
+        // (i.e., return block is condition is 2)
+        let zero_out_if_not_2_lut = (
+            self.key.generate_lookup_table(|x| {
+                let block = x / 3;
+                let condition = (x % 3) == 2;
+
+                block * u64::from(condition)
+            }),
+            3u8,
+        );
+
+        // Luts to generate quotient blocks from a condition block
+        let quotient_block_luts = [
+            // cond is in [0, 1, 2], but only 2 means true
+            // (the divisor fit 1 time)
+            self.key.generate_lookup_table(|cond| u64::from(cond == 2)),
+            // cond is in [0, 1, 2], but only 2 means true
+            // (the divisor fit 2 times)
+            self.key
+                .generate_lookup_table(|cond| u64::from(cond == 2) * 2),
+            // cond is in [0, 1], 1 meaning true
+            // (the divisor fit 3 times)
+            self.key.generate_lookup_table(|cond| cond * 3),
+        ];
+
+        for block_index in (0..num_blocks).rev() {
+            let low1 = RadixCiphertext::from(d1.blocks[..num_blocks - block_index].to_vec());
+            let low2 = RadixCiphertext::from(d2.blocks[..num_blocks - block_index].to_vec());
+            let low3 = RadixCiphertext::from(d3.blocks[..num_blocks - block_index].to_vec());
+            let mut rem = RadixCiphertext::from(remainder.blocks[block_index..].to_vec());
+
+            let (mut sub_results, cmps) = rayon::join(
+                || {
+                    [&low3, &low2, &low1]
+                        .into_par_iter()
+                        .map(|rhs| self.unsigned_overflowing_sub_parallelized(&rem, rhs))
+                        .collect::<Vec<_>>()
+                },
+                || {
+                    [
+                        &d3.blocks[num_blocks - block_index..],
+                        &d2.blocks[num_blocks - block_index..],
+                        &d1.blocks[num_blocks - block_index..],
+                    ]
+                    .into_par_iter()
+                    .map(|blocks| {
+                        let mut b = BooleanBlock::new_unchecked(self.are_all_blocks_zero(blocks));
+                        self.boolean_bitnot_assign(&mut b);
+                        b
+                    })
+                    .collect::<Vec<_>>()
+                },
+            );
+
+            let (mut r1, mut o1) = sub_results.pop().unwrap();
+            let (mut r2, mut o2) = sub_results.pop().unwrap();
+            let (mut r3, mut o3) = sub_results.pop().unwrap();
+
+            [&mut o3, &mut o2, &mut o1]
+                .into_par_iter()
+                .zip(cmps.par_iter())
+                .for_each(|(ox, cmpx)| {
+                    self.boolean_bitor_assign(ox, cmpx);
+                });
+
+            // The cx variables tell whether the corresponding result of the subtraction
+            // should be kept, and what value the quotient block should have
+            //
+            // for c3, c0; the block values are in [0, 1]
+            // for c2, c1; the block values are in [0, 1, 2], 2 meaning true; 0,1 meaning false
+            let c3 = self.boolean_bitnot(&o3).0;
+            let c2 = {
+                let mut c2 = self.boolean_bitnot(&o2).0;
+                self.key.unchecked_add_assign(&mut c2, &o3.0);
+                c2
+            };
+            let c1 = {
+                let mut c1 = self.boolean_bitnot(&o1).0;
+                self.key.unchecked_add_assign(&mut c1, &o2.0);
+                c1
+            };
+            let c0 = o1.0;
+
+            let (_, [q1, q2, q3]) = rayon::join(
+                || {
+                    [&c3, &c2, &c1, &c0]
+                        .into_par_iter()
+                        .zip([&mut r3, &mut r2, &mut r1, &mut rem])
+                        .zip([
+                            &zero_out_if_not_1_lut,
+                            &zero_out_if_not_2_lut,
+                            &zero_out_if_not_2_lut,
+                            &zero_out_if_not_1_lut,
+                        ])
+                        .for_each(|((cx, rx), (lut, factor))| {
+                            // Manual zero_out_if to avoid noise problems
+                            rx.blocks.par_iter_mut().for_each(|block| {
+                                self.key.unchecked_scalar_mul_assign(block, *factor);
+                                self.key.unchecked_add_assign(block, cx);
+                                self.key.apply_lookup_table_assign(block, lut);
+                            });
+                        });
+                },
+                || {
+                    let mut qs = [c1.clone(), c2.clone(), c3.clone()];
+                    qs.par_iter_mut()
+                        .zip(&quotient_block_luts)
+                        .for_each(|(qx, lut)| {
+                            self.key.apply_lookup_table_assign(qx, lut);
+                        });
+                    qs
+                },
+            );
+
+            // Only one of rx and rem is not zero
+            for rx in [&r3, &r2, &r1] {
+                self.unchecked_add_assign(&mut rem, rx);
+            }
+
+            // only one of q1, q2, q3 is not zero
+            let mut q = q1;
+            for qx in [q2, q3] {
+                self.key.unchecked_add_assign(&mut q, &qx);
+            }
+
+            rayon::join(
+                || {
+                    rem.blocks.par_iter_mut().for_each(|block| {
+                        self.key.message_extract_assign(block);
+                    });
+                },
+                || {
+                    self.key.message_extract_assign(&mut q);
+                },
+            );
+
+            remainder.blocks[block_index..].clone_from_slice(&rem.blocks);
+            quotient_blocks.push(q);
+        }
+
+        quotient_blocks.reverse();
+
+        (RadixCiphertext::from(quotient_blocks), remainder)
+    }
+
     fn unsigned_unchecked_div_rem_parallelized(
         &self,
         numerator: &RadixCiphertext,
@@ -100,6 +299,11 @@ impl ServerKey {
             divisor.blocks.len(),
             "numerator and divisor must have same number of blocks"
         );
+
+        if self.message_modulus().0 == 4 && self.carry_modulus().0 == 4 {
+            return self.unsigned_div_rem_block_by_block_2_2(numerator, divisor);
+        }
+
         // Pseudocode of the school-book / long-division algorithm:
         //
         //
