@@ -456,8 +456,6 @@ where
             let (input_lwe_secret_key, output_lwe_secret_key, fbsk) =
                 (keys.small_lwe_sk, keys.big_lwe_sk, keys.fbsk);
 
-            let mut buffers = ComputationBuffers::new();
-
             for _ in 0..NB_TESTS {
                 let plaintext = Plaintext(msg * delta);
 
@@ -476,9 +474,10 @@ where
 
                 let mut tmp_acc = accumulator.clone();
 
-                let msed = lwe_ciphertext_modulus_switch::<_, usize, _>(lwe_ciphertext_in, log_modulus);
+                let msed =
+                    lwe_ciphertext_modulus_switch::<_, usize, _>(lwe_ciphertext_in, log_modulus);
 
-                blind_rotate_assign(&msed, &mut tmp_acc, &fbsk, &mut buffers);
+                blind_rotate_assign(&msed, &mut tmp_acc, &fbsk);
 
                 assert!(check_encrypted_content_respects_mod(
                     &tmp_acc,
