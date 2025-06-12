@@ -7,3 +7,4 @@ pub mod lwe_programmable_bootstrap;
 pub mod lwe_programmable_bootstrap_128;
 pub mod modulus_switch;
 pub mod secure_noise;
+pub mod generalized_modulus_switch;
