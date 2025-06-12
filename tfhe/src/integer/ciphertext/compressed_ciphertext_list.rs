@@ -118,7 +118,7 @@ impl CompressedCiphertextList {
     ) -> Option<(Vec<Ciphertext>, DataKind)> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
-        let message_modulus = self.packed_list.message_modulus;
+        let message_modulus = self.packed_list.message_modulus()?;
 
         let start_block_index: usize = preceding_infos
             .iter()
