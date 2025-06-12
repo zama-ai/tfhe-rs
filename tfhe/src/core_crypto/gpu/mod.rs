@@ -1062,6 +1062,37 @@ pub fn is_cuda_available() -> bool {
     result == 1u32
 }
 
+pub fn get_packing_keyswitch_list_64_size_on_gpu(
+    streams: &CudaStreams,
+    input_lwe_dimension: LweDimension,
+    output_glwe_dimension: GlweDimension,
+    output_polynomial_size: PolynomialSize,
+    num_lwes: LweCiphertextCount,
+) -> u64 {
+    let mut fp_ks_buffer: *mut i8 = std::ptr::null_mut();
+    let size_tracker = unsafe {
+        scratch_packing_keyswitch_lwe_list_to_glwe_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(fp_ks_buffer),
+            input_lwe_dimension.0 as u32,
+            output_glwe_dimension.0 as u32,
+            output_polynomial_size.0 as u32,
+            num_lwes.0 as u32,
+            false,
+        )
+    };
+    unsafe {
+        cleanup_packing_keyswitch_lwe_list_to_glwe(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            std::ptr::addr_of_mut!(fp_ks_buffer),
+            false,
+        );
+    }
+    size_tracker
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
