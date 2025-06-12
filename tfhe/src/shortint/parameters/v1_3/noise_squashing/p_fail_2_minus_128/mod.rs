@@ -38,3 +38,23 @@ pub const V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M12
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
 };
+
+pub const V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingParameters = NoiseSquashingParameters {
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(4096),
+    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
+    decomp_base_log: DecompositionBaseLog(24),
+    decomp_level_count: DecompositionLevelCount(3),
+    modulus_switch_noise_reduction_params: ModulusSwitchType::DriftTechniqueNoiseReduction(
+        ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: LweCiphertextCount(2827),
+            ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
+            ms_r_sigma_factor: RSigmaFactor(20.83904137608219f64),
+            ms_input_variance: Variance(2.7596542105799535e-07f64),
+        },
+    ),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CoreCiphertextModulus::<u128>::new_native(),
+};

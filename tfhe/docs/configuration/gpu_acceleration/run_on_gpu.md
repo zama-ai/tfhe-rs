@@ -18,7 +18,7 @@ This guide explains how to update your existing program to leverage GPU accelera
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
 ```toml
-tfhe = { version = "~1.3.0", features = ["boolean", "shortint", "integer", "gpu"] }
+tfhe = { version = "~1.3.1", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
 {% hint style="success" %}

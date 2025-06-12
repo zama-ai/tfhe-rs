@@ -1,5 +1,8 @@
 pub(crate) use crate::core_crypto::algorithms::test::gen_keys_or_get_from_cache_if_enabled;
-use crate::shortint::parameters::DynamicDistribution;
+use crate::shortint::parameters::{
+    DynamicDistribution, NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
 use crate::shortint::prelude::{DecompositionBaseLog, LweDimension};
 
 use crate::core_crypto::algorithms::par_allocate_and_generate_new_lwe_bootstrap_key;
@@ -18,13 +21,9 @@ use crate::core_crypto::prelude::{
     Plaintext, SignedDecomposer, UnsignedTorus,
 };
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{
-    ModulusSwitchType, NoiseSquashingParameters,
-    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-};
+use crate::shortint::parameters::{ModulusSwitchType, NoiseSquashingParameters};
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
-use crate::shortint::ClassicPBSParameters;
+use crate::shortint::MultiBitPBSParameters;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -74,7 +73,7 @@ pub fn generate_keys<
 
 pub fn execute_bootstrap_u128(
     squash_params: NoiseSquashingParameters,
-    input_params: ClassicPBSParameters,
+    input_params: MultiBitPBSParameters,
 ) {
     let glwe_dimension = squash_params.glwe_dimension;
     let polynomial_size = squash_params.polynomial_size;
@@ -209,7 +208,7 @@ pub fn execute_bootstrap_u128(
 #[test]
 fn test_bootstrap_u128_with_squashing() {
     execute_bootstrap_u128(
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     );
 }
