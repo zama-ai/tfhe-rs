@@ -8,7 +8,9 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::{
 };
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::prelude::{
-    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter, GlweCiphertextCount, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, PolynomialSize, UnsignedInteger
+    CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, DispersionParameter,
+    GlweCiphertextCount, GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension,
+    PolynomialSize, UnsignedInteger,
 };
 pub use algorithms::*;
 pub use entities::*;
@@ -627,7 +629,6 @@ pub unsafe fn cuda_modulus_switch_ciphertext_async<T: UnsignedInteger>(
     );
 }
 
-
 #[allow(clippy::too_many_arguments)]
 pub fn cuda_improve_noise_modulus_switch_ciphertext<T: UnsignedInteger>(
     lwe_array_out: &mut CudaVec<T>,
@@ -640,22 +641,26 @@ pub fn cuda_improve_noise_modulus_switch_ciphertext<T: UnsignedInteger>(
     noise_reduction_key: &CudaModulusSwitchNoiseReductionKey,
     streams: &CudaStreams,
 ) {
-    unsafe{
-    cuda_improve_noise_modulus_switch_64(
-        streams.ptr[0],
-        streams.gpu_indexes[0].get(),
-        lwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        lwe_in_indexes.as_c_ptr(0),
-        noise_reduction_key.modulus_switch_zeros.as_c_ptr(0),
-        lwe_dimension.to_lwe_size().0 as u32,
-        num_samples,
-        noise_reduction_key.num_zeros,
-        noise_reduction_key.ms_input_variance.get_modular_variance(modulus).value,
-        noise_reduction_key.ms_r_sigma_factor.0,
-        noise_reduction_key.ms_bound.0,
-        log_modulus,
-    );}
+    unsafe {
+        cuda_improve_noise_modulus_switch_64(
+            streams.ptr[0],
+            streams.gpu_indexes[0].get(),
+            lwe_array_out.as_mut_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            lwe_in_indexes.as_c_ptr(0),
+            noise_reduction_key.modulus_switch_zeros.as_c_ptr(0),
+            lwe_dimension.to_lwe_size().0 as u32,
+            num_samples,
+            noise_reduction_key.num_zeros,
+            noise_reduction_key
+                .ms_input_variance
+                .get_modular_variance(modulus)
+                .value,
+            noise_reduction_key.ms_r_sigma_factor.0,
+            noise_reduction_key.ms_bound.0,
+            log_modulus,
+        );
+    }
     streams.synchronize_one(0);
 }
 

@@ -6,7 +6,9 @@
 //     V0_11_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
 //     V0_11_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64_ZKV1,
 // };
-use crate::shortint::parameters::{CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters};
+use crate::shortint::parameters::{
+    CompactPublicKeyEncryptionParameters, ShortintKeySwitchingParameters,
+};
 use crate::shortint::ClassicPBSParameters;
 
 use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
@@ -22,8 +24,7 @@ use crate::shortint::parameters::test_params::{
     TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     TEST_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use crate::shortint::parameters::{
-    AtomicPatternParameters};
+use crate::shortint::parameters::AtomicPatternParameters;
 use crate::{ClientKey, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint2};
 
 use rayon::prelude::*;

@@ -293,7 +293,6 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_no_ms_noise_reduction_a
     );
 }
 
-
 /// # Safety
 ///
 /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
@@ -475,7 +474,6 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext_no_ms_noise_reduction<Scalar>(
     }
     streams.synchronize();
 }
-
 
 /// Performs a programmable bootstrap (PBS) on a list of 128-bit LWE ciphertexts,
 /// storing the result back into the provided `output` list at matching indices.

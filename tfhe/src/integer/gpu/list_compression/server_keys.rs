@@ -14,8 +14,7 @@ use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
-    get_compression_size_on_gpu, get_decompression_size_on_gpu,
-    extract_glwe_async,
+    extract_glwe_async, get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;

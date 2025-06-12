@@ -41,7 +41,7 @@ use crate::core_crypto::commons::parameters::{
     GlweDimension, LweDimension, MonomialDegree, PolynomialSize,
 };
 use crate::core_crypto::commons::test_tools::{
-    clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise, arithmetic_mean,
+    arithmetic_mean, clopper_pearson_exact_confidence_interval, equivalent_pfail_gaussian_noise,
     mean_confidence_interval, normality_test_f64, torus_modular_diff, variance,
     variance_confidence_interval,
 };

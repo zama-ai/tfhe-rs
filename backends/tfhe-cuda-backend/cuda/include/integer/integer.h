@@ -594,7 +594,6 @@ void cuda_small_scalar_multiplication_integer_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *lwe_array, uint64_t scalar);
 
-
 uint64_t scratch_cuda_sub_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
