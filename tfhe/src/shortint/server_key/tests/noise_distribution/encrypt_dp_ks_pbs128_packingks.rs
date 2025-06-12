@@ -102,6 +102,95 @@ where
     )
 }
 
+/// Test function to verify that the noise checking tools match the actual atomic patterns
+/// implemented in shortint
+fn noise_sanity_check_encrypt_dp_ks_classic_pbs128<P>(
+    params: P,
+    noise_squashing_params: NoiseSquashingParameters,
+) where
+    P: Into<AtomicPatternParameters>,
+{
+    let params: AtomicPatternParameters = params.into();
+    let cks = ClientKey::new(params);
+    let sks = ServerKey::new(&cks);
+    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
+    let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
+
+    let u128_encoding = ShortintEncoding {
+        ciphertext_modulus: noise_squashing_params.ciphertext_modulus,
+        message_modulus: noise_squashing_params.message_modulus,
+        carry_modulus: noise_squashing_params.carry_modulus,
+        padding_bit: PaddingBit::Yes,
+    };
+
+    let max_scalar_mul = sks.max_noise_level.get();
+
+    match &sks.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
+            let ksk = &standard_atomic_pattern_server_key.key_switching_key;
+            let fbsk = noise_squashing_key.bootstrapping_key();
+            let drift_key = noise_squashing_key
+                .modulus_switch_noise_reduction_key()
+                .unwrap();
+
+            let id_lut = generate_programmable_bootstrap_glwe_lut(
+                fbsk.polynomial_size(),
+                fbsk.glwe_size(),
+                u128_encoding
+                    .cleartext_space_without_padding()
+                    .try_into()
+                    .unwrap(),
+                u128_encoding.ciphertext_modulus,
+                u128_encoding.delta(),
+                |x| x,
+            );
+
+            let br_input_modulus_log = fbsk.polynomial_size().to_blind_rotation_input_modulus_log();
+
+            for _ in 0..10 {
+                let input_zero = cks.encrypt(0);
+                let input_zero_as_lwe = input_zero.ct.clone();
+
+                let (_input, _after_dp, _after_ks, _after_drift, _after_ms, after_pbs) =
+                    dp_ks_classic_pbs128(
+                        input_zero_as_lwe,
+                        max_scalar_mul,
+                        ksk,
+                        drift_key,
+                        fbsk,
+                        br_input_modulus_log,
+                        &id_lut,
+                        &mut (),
+                    );
+
+                let shortint_mul =
+                    sks.unchecked_scalar_mul(&input_zero, max_scalar_mul.try_into().unwrap());
+
+                let noise_squashed =
+                    noise_squashing_key.squash_ciphertext_noise(&shortint_mul, &sks);
+
+                assert_eq!(
+                    after_pbs.as_view(),
+                    noise_squashed.lwe_ciphertext().as_view()
+                );
+            }
+        }
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => {
+            todo!();
+        }
+        AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
+    };
+}
+
+#[test]
+fn test_noise_sanity_check_encrypt_dp_ks_classic_pbs128_test_param_message_2_carry_2_ks_pbs_tuniform_2m128(
+) {
+    noise_sanity_check_encrypt_dp_ks_classic_pbs128(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
 fn encrypt_dp_ks_classic_pbs128_inner_helper(
     params: AtomicPatternParameters,
     noise_squashing_params: NoiseSquashingParameters,
@@ -181,7 +270,10 @@ fn encrypt_dp_ks_classic_pbs128_inner_helper(
     let id_lut = generate_programmable_bootstrap_glwe_lut(
         bsk_polynomial_size,
         bsk_glwe_size,
-        u128_encoding.cleartext_space().try_into().unwrap(),
+        u128_encoding
+            .cleartext_space_without_padding()
+            .try_into()
+            .unwrap(),
         u128_encoding.ciphertext_modulus,
         u128_encoding.delta(),
         |x| x,
@@ -207,42 +299,42 @@ fn encrypt_dp_ks_classic_pbs128_inner_helper(
                 &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                 msg,
                 u64_encoding.delta(),
-                u64_encoding.cleartext_space(),
+                u64_encoding.cleartext_space_with_padding(),
             ),
             DecryptionAndNoiseResult::new(
                 &after_dp,
                 &standard_atomic_pattern_client_key.large_lwe_secret_key(),
                 msg,
                 u64_encoding.delta(),
-                u64_encoding.cleartext_space(),
+                u64_encoding.cleartext_space_with_padding(),
             ),
             DecryptionAndNoiseResult::new(
                 &after_ks,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
                 u64_encoding.delta(),
-                u64_encoding.cleartext_space(),
+                u64_encoding.cleartext_space_with_padding(),
             ),
             DecryptionAndNoiseResult::new(
                 &after_drift,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
                 u64_encoding.delta(),
-                u64_encoding.cleartext_space(),
+                u64_encoding.cleartext_space_with_padding(),
             ),
             DecryptionAndNoiseResult::new(
                 &after_ms,
                 &standard_atomic_pattern_client_key.small_lwe_secret_key(),
                 msg,
                 u64_encoding.delta(),
-                u64_encoding.cleartext_space(),
+                u64_encoding.cleartext_space_with_padding(),
             ),
             DecryptionAndNoiseResult::new(
                 &after_pbs128,
                 &noise_squashing_private_key.post_noise_squashing_lwe_secret_key(),
                 msg.into(),
                 u128_encoding.delta(),
-                u128_encoding.cleartext_space(),
+                u128_encoding.cleartext_space_with_padding(),
             ),
         ),
         AtomicPatternClientKey::KeySwitch32(_) => todo!(),

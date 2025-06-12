@@ -304,8 +304,6 @@ impl NoiseSquashingKey {
             .try_unaligned_bytes_required()
             .unwrap();
 
-        // CarryModulus set to 1, as the output ciphertext does not have a carry space, mod == 1,
-        // means carry max == 0
         let delta = compute_delta(
             output_ciphertext_modulus,
             output_message_modulus,

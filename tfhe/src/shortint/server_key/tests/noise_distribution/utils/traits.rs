@@ -109,3 +109,13 @@ pub trait ClassicFft128Bootstrap<Input, Output, Accumulator> {
         side_resources: &mut Self::SideResources,
     );
 }
+
+pub trait AllocatePackingKeyswitchResult {
+    type Output;
+    type SideResources;
+
+    fn allocate_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
+}

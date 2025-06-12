@@ -28,9 +28,10 @@ use crate::core_crypto::commons::test_tools::{
     pfail_clopper_pearson_exact_confidence_interval, variance, NormalityTestResult,
 };
 use crate::core_crypto::commons::traits::container::{Container, ContainerMut};
-use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertext;
+use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextOwned};
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
 use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
+use crate::core_crypto::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKey;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::Cleartext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
@@ -748,5 +749,24 @@ impl<
         _side_resources: &mut Self::SideResources,
     ) {
         programmable_bootstrap_f128_lwe_ciphertext(input, output, accumulator, self);
+    }
+}
+
+impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocatePackingKeyswitchResult
+    for LwePackingKeyswitchKey<KeyCont>
+{
+    type Output = GlweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        Self::Output::new(
+            Scalar::ZERO,
+            self.output_glwe_size(),
+            self.output_polynomial_size(),
+            self.ciphertext_modulus(),
+        )
     }
 }

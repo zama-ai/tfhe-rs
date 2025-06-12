@@ -75,13 +75,13 @@ pub struct NoiseSimulationLwe {
 }
 
 impl NoiseSimulationLwe {
-    pub fn new_zero() -> Self {
-        Self {
-            lwe_dimension: LweDimension(0),
-            variance: Variance(-2.0f64.powi(128)),
-            modulus: NoiseSimulationModulus::Other(0),
-        }
-    }
+    // pub fn new_zero() -> Self {
+    //     Self {
+    //         lwe_dimension: LweDimension(0),
+    //         variance: Variance(-2.0f64.powi(128)),
+    //         modulus: NoiseSimulationModulus::Other(0),
+    //     }
+    // }
 
     pub fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension
@@ -207,7 +207,11 @@ impl AllocateKeyswtichResult for NoiseSimulationLweKsk {
     type SideResources = ();
 
     fn allocate_keyswitch_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
-        Self::Output::new_zero()
+        Self::Output {
+            lwe_dimension: self.output_lwe_dimension,
+            variance: Variance(-2.0f64.powi(128)),
+            modulus: self.output_modulus,
+        }
     }
 }
 
@@ -607,5 +611,39 @@ impl ClassicFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulat
         output.lwe_dimension = output_lwe_dimension;
         output.variance = Variance(accumulator.variance_per_slot().0 + br_additive_variance.0);
         output.modulus = accumulator.modulus;
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct NoiseSimulationLwePackingKeyswitchKey<Scalar: UnsignedInteger> {
+    input_lwe_dimension: LweDimension,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    output_glwe_size: GlweSize,
+    output_polynomial_size: PolynomialSize,
+    noise_distribution: DynamicDistribution<Scalar>,
+    modulus: NoiseSimulationModulus,
+}
+
+impl<Scalar: UnsignedInteger> AllocatePackingKeyswitchResult
+    for NoiseSimulationLwePackingKeyswitchKey<Scalar>
+{
+    type Output = NoiseSimulationLwe;
+    type SideResources = ();
+
+    fn allocate_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        let output_lwe_dimension = self
+            .output_glwe_size
+            .to_glwe_dimension()
+            .to_equivalent_lwe_dimension(self.output_polynomial_size);
+
+        Self::Output {
+            lwe_dimension: output_lwe_dimension,
+            variance: Variance(-2.0f64.powi(128)),
+            modulus: self.modulus,
+        }
     }
 }
