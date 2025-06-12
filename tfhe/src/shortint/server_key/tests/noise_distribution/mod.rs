@@ -1,4 +1,5 @@
 pub(crate) mod encrypt_dp_ks_modswitch;
+pub(crate) mod encrypt_dp_ks_pbs128_packingks;
 pub(crate) mod utils;
 
 pub fn should_use_single_key_debug() -> bool {

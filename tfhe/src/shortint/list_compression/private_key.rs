@@ -87,4 +87,12 @@ impl NoiseSquashingCompressionPrivateKey {
             })
             .collect()
     }
+
+    pub fn post_packing_ks_key(&self) -> &GlweSecretKeyOwned<u128> {
+        &self.post_packing_ks_key
+    }
+
+    pub fn params(&self) -> NoiseSquashingCompressionParameters {
+        self.params
+    }
 }
