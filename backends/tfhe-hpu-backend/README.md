@@ -200,7 +200,7 @@ There are some example applications already available in `tfhe/examples/hpu`:
 
 In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-v80` features:
 
-> NB: Running examples required to have correctly pulled the `.pdi` files. Those files, due to their size, are backed by git-lfs and disabled by default.
+> NB: Running examples required to have correctly pulled the `.hpu` files. Those files, due to their size, are backed by git-lfs and disabled by default.
 > In order to retrieve them, use the following command:
 > ```bash
 > git lfs pull --include="*" --exclude=""
@@ -209,10 +209,17 @@ In order to run those applications on hardware, user must build from the project
 ``` bash
 cargo build --release --features="hpu-v80" --example hpu_hlapi --example hpu_bench
 # Correctly setup environment with setup_hpu.sh script
-source setup_hpu.sh --config v80 --init-qdma
+source setup_hpu.sh --config v80
 ./target/release/examples/hpu_bench --integer-w 64 --integer-w 32 --iop MUL --iter 10
 ./target/release/examples/hpu_hlapi
 ```
+
+> NB: Error that occurred when ".hpu" files weren't correctly fetch could be a bit enigmatic: `memory allocation of ... bytes failed`
+> If you encountered this issue, you should run the following command:
+> ```bash
+> git lfs pull --include="*" --exclude=""
+> ```
+
 
 ## Test framework
 There is also a set of tests backed in tfhe-rs. Tests are gather in testbundle over various integer width.

@@ -23,6 +23,7 @@
 //! ```
 
 use lazy_static::lazy_static;
+use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 
@@ -35,16 +36,15 @@ pub(crate) struct QdmaDriver {
 }
 
 impl QdmaDriver {
-    pub fn new(h2c_path: &str, c2h_path: &str) -> Self {
-        Self::check_version().unwrap();
-
+    pub fn new(h2c_path: &str, c2h_path: &str) -> Result<Self, Box<dyn Error>> {
+        Self::check_version()?;
         // Open HostToCard xfer file
         let qdma_h2c = OpenOptions::new()
             .read(false)
             .write(true)
             .create(false)
             .open(h2c_path)
-            .unwrap_or_else(|e| panic!("Invalid qdma_h2c path: {h2c_path} -> {e}. Check queue initialization and configuration."));
+            .map_err(|err| format!("Opening file {h2c_path} failed: {err:?}"))?;
 
         // Open CardToHost xfer file
         let qdma_c2h = OpenOptions::new()
@@ -52,16 +52,16 @@ impl QdmaDriver {
             .write(false)
             .create(false)
             .open(c2h_path)
-            .unwrap_or_else(|e| panic!("Invalid qdma_c2h path: {c2h_path} -> {e}. Check queue initialization and configuration."));
+            .map_err(|err| format!("Opening file {c2h_path} failed: {err:?}"))?;
 
-        Self { qdma_h2c, qdma_c2h }
+        Ok(Self { qdma_h2c, qdma_c2h })
     }
 
     /// Check if current qdma version is compliant
     ///
     /// For this purpose we use a regex.
     /// it's easy to expressed and understand breaking rules with it
-    pub fn check_version() -> Result<(), String> {
+    pub fn check_version() -> Result<(), Box<dyn Error>> {
         lazy_static! {
             static ref QDMA_VERSION_RE: regex::Regex =
                 regex::Regex::new(QDMA_VERSION_PATTERN).expect("Invalid regex");
@@ -73,7 +73,7 @@ impl QdmaDriver {
             .write(false)
             .create(false)
             .open(QDMA_VERSION_FILE)
-            .unwrap();
+            .map_err(|err| format!("Opening file {QDMA_VERSION_FILE} failed: {err:?}"))?;
 
         let qdma_version = {
             let mut ver = String::new();
@@ -90,7 +90,8 @@ impl QdmaDriver {
             Err(format!(
                 "Invalid qdma version. Get {} expect something matching pattern {}",
                 qdma_version, QDMA_VERSION_PATTERN
-            ))
+            )
+            .into())
         }
     }
 
