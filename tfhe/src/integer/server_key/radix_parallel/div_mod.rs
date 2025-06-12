@@ -1,7 +1,7 @@
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext, SignedRadixCiphertext};
 use crate::integer::server_key::comparator::ZeroComparisonType;
 use crate::integer::{BooleanBlock, IntegerCiphertext, ServerKey};
-use crate::shortint::MessageModulus;
+use crate::shortint::{Ciphertext, MessageModulus};
 use rayon::prelude::*;
 
 impl ServerKey {
@@ -90,6 +90,349 @@ impl ServerKey {
         (quotient, remainder)
     }
 
+    /// Precomputes whether the blocks are all zeros
+    ///
+    /// The block by block div needs to checks whether MSB blocks are zeros or not.
+    /// The number of block to checks decreases with each iteration.
+    ///
+    /// So for a N block division, the first iteration will check if the N MBS blocks are zeros,
+    /// the second will check if N-1 blocks are zeros, etc
+    ///
+    /// By computing whether the N MSB blocks are all zeros, we actually did 99% of the work for
+    /// all other sizes < N, so computing whether the N-1 blocks are all zeros from scrath would
+    /// make us redo computations that where already done.
+    ///
+    /// This function caches results of computations, where for i in 0..N, blocks[0..i] are zeros
+    ///
+    /// The returned array, contains blocks for which the answer is not complete yet,
+    /// a small PBS maybe be needed, and that PBS is done in parallel to other computation
+    /// in the division's main loop
+    fn precompute_zero(
+        &self,
+        blocks: &[Ciphertext], // from lsb to msb
+    ) -> Vec<Ciphertext> {
+        assert_eq!(self.key.max_noise_level.get(), 5);
+
+        // As the rest of the block by block division it is hardcoded for 2_2, which
+        // have a max noise level == 5, meaning we can add 5 blocks together, before needing
+        // to do a PBS (no matter the input degree as we assume all block are dependent)
+        //
+        // So the core of the algorithm is to cache computations, which are done on chunks of
+        // size 5. And multiple layers are built, each layer being computed from the previous one.
+        //
+        // Blocks in layers contains whether a certain number of contiguous blocks from the input
+        // where all zeros. Each layer is a power of 5 in terms of count.
+        //
+        // i.e:
+        // in layer 1, each block tells whether 5^1 = 5 contiguous blocks where all zeros,
+        //     layer1[0] tells if bocks[0..5] where all zeros,
+        //     layer1[1] tels if blocks[5..10] where all zeros
+        //     etc
+        //
+        // in layer 2, each block tells whether 5^2 = 25 contiguous blocks where all zeros,
+        //     layer2[0] tells if bocks[0..25] where all zeros,
+        //     layer2[1] tels if blocks[25..50] where all zeros
+        //     etc
+        //
+        // etc
+        //
+        //
+        // layer0 contains for each chunk of five blocks, whether all blocks in the chunk (up to
+        // the position in the chunk) where all zeros.
+        // i.e layer[5][2] tells whether blocks[25..27] where all zeros
+        //
+        // This is needed to complete blocks where are not multiple of 5
+        //
+        // e.g, to know if block[0..27] where all zeros:
+        //  add layer2[0] + layer[5][2] and check via PBS the result
+
+        let is_zero_lut = self.key.generate_lookup_table(|x| u64::from(x == 0));
+
+        let mut blocks = blocks.to_vec();
+
+        // Reverse, as we are interested in computing from MSB to LSB
+        blocks.reverse();
+
+        let (l0, l1) = rayon::join(
+            || {
+                // Layer 0 Vec<Vec<_>>,
+                // Each inner Vec<_> has 5 blocks,
+                blocks
+                    .par_chunks(5)
+                    .map(|chunk| {
+                        let mut cum_sum_array = Vec::with_capacity(chunk.len());
+                        cum_sum_array.push(chunk[0].clone());
+
+                        // We don't want the last block when the chunk is full (5)
+                        for o in &chunk[1..4.min(chunk.len())] {
+                            let s = self.key.unchecked_add(cum_sum_array.last().unwrap(), o);
+                            cum_sum_array.push(s);
+                        }
+
+                        cum_sum_array[0..]
+                            .par_iter_mut()
+                            .for_each(|s| self.key.apply_lookup_table_assign(s, &is_zero_lut));
+
+                        cum_sum_array
+                    })
+                    .collect::<Vec<Vec<_>>>()
+            },
+            || {
+                blocks
+                    .par_chunks(5)
+                    .map(|chunk| {
+                        let mut sum = chunk[0].clone();
+                        for o in chunk[1..].iter() {
+                            self.key.unchecked_add_assign(&mut sum, o);
+                        }
+                        self.key.apply_lookup_table_assign(&mut sum, &is_zero_lut);
+
+                        sum
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+
+        let mut layers = vec![l1];
+        let mut layer_val = vec![5];
+        let is_5_lut = self.key.generate_lookup_table(|x| u64::from(x == 5));
+        while layers.last().unwrap().len() >= 5 {
+            let previous_layer = layers.last().unwrap();
+
+            let new_layer = previous_layer
+                .par_chunks(5)
+                .map(|chunk| {
+                    let mut sum = chunk[0].clone();
+                    for o in chunk[1..].iter() {
+                        self.key.unchecked_add_assign(&mut sum, o);
+                    }
+                    self.key.apply_lookup_table_assign(&mut sum, &is_5_lut);
+
+                    sum
+                })
+                .collect::<Vec<_>>();
+
+            layers.push(new_layer);
+            layer_val.push(layer_val.last().unwrap() * 5);
+        }
+
+        let mut results = Vec::with_capacity(blocks.len());
+        let num_layers = layers.len();
+        for mut target_n_blocks in 1..blocks.len() + 1 {
+            let m = target_n_blocks / 5;
+
+            let mut block = self.key.create_trivial(0);
+
+            let mut offset = 0;
+            for l in (0..num_layers).rev() {
+                let n = target_n_blocks / layer_val[l];
+                if n > 0 {
+                    for b in &mut layers[l][offset..offset + n] {
+                        self.key.unchecked_add_assign(&mut block, b);
+                    }
+                    if l != 0 {
+                        offset += (layer_val[l] * n) / layer_val[l - 1];
+                    }
+                    target_n_blocks -= layer_val[l] * n;
+                }
+            }
+
+            // if target_n_blocks == 0, it means it was a multiple of 5
+            if target_n_blocks > 0 {
+                self.key
+                    .unchecked_add_assign(&mut block, &l0[m][target_n_blocks - 1]);
+            }
+
+            assert!(block.degree.get() <= 5);
+
+            results.push(block);
+        }
+
+        results
+    }
+
+    fn unsigned_div_rem_block_by_block_2_2(
+        &self,
+        numerator: &RadixCiphertext,
+        divisor: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let num_bits_in_block = self.message_modulus().0.ilog2() as usize;
+        assert_eq!(
+            num_bits_in_block, 2,
+            "This algorithm only works for 2_2 parameters"
+        );
+
+        let num_blocks = numerator.blocks.len();
+
+        let mut remainder = numerator.clone();
+        let mut quotient_blocks = Vec::with_capacity(num_blocks);
+
+        let mut d1 = divisor.clone();
+
+        let (d2, d3) = rayon::join(
+            || {
+                let mut d2 = self.extend_radix_with_trivial_zero_blocks_msb(divisor, 1);
+                self.scalar_left_shift_assign_parallelized(&mut d2, 1);
+                d2
+            },
+            || {
+                self.extend_radix_with_trivial_zero_blocks_msb_assign(&mut d1, 1);
+                let mut d4 = self.blockshift(&d1, 1);
+                self.sub_assign_parallelized(&mut d4, &d1);
+                self.trim_radix_blocks_msb_assign(&mut d1, 1);
+                d4 // 4 * d - d = 3 * d
+            },
+        );
+
+        let cmp_luts = (2..=5)
+            .map(|i| self.key.generate_lookup_table(|x| u64::from(x == i)))
+            .collect::<Vec<_>>();
+
+        let is_zeros_till2 = [&d1.blocks[1..], &d2.blocks[1..], &d3.blocks[1..]]
+            .into_par_iter()
+            .map(|btex| self.precompute_zero(btex))
+            .collect::<Vec<_>>();
+
+        let zero_out_if_not_1_lut = (
+            self.key.generate_lookup_table(|x| {
+                let block = x / 2;
+                let condition = (x & 1) == 1;
+
+                block * u64::from(condition)
+            }),
+            2u8,
+        );
+        let zero_out_if_not_2_lut = (
+            self.key.generate_lookup_table(|x| {
+                let block = x / 3;
+                let condition = (x % 3) == 2;
+
+                block * u64::from(condition)
+            }),
+            3u8,
+        );
+
+        for block_index in (0..num_blocks).rev() {
+            let low1 = RadixCiphertext::from(d1.blocks[..num_blocks - block_index].to_vec());
+            let low2 = RadixCiphertext::from(d2.blocks[..num_blocks - block_index].to_vec());
+            let low3 = RadixCiphertext::from(d3.blocks[..num_blocks - block_index].to_vec());
+            let mut rem = RadixCiphertext::from(remainder.blocks[block_index..].to_vec());
+
+            let (mut sub_results, cmps) = rayon::join(
+                || {
+                    [&low3, &low2, &low1]
+                        .into_par_iter()
+                        .map(|rhs| self.unsigned_overflowing_sub_parallelized(&rem, rhs))
+                        .collect::<Vec<_>>()
+                },
+                || {
+                    let mut cmps = [
+                        BooleanBlock::new_unchecked(is_zeros_till2[2][block_index].clone()),
+                        BooleanBlock::new_unchecked(is_zeros_till2[1][block_index].clone()),
+                        if block_index > 0 {
+                            BooleanBlock::new_unchecked(is_zeros_till2[0][block_index - 1].clone())
+                        } else {
+                            self.create_trivial_boolean_block(true)
+                        },
+                    ];
+                    cmps.par_iter_mut().for_each(|b| {
+                        let d = b.0.degree.0;
+                        if d > 1 {
+                            self.key
+                                .apply_lookup_table_assign(&mut b.0, &cmp_luts[d as usize - 2]);
+                        }
+
+                        self.boolean_bitnot_assign(b);
+                    });
+                    cmps
+                },
+            );
+
+            let (mut r1, mut o1) = sub_results.pop().unwrap();
+            let (mut r2, mut o2) = sub_results.pop().unwrap();
+            let (mut r3, mut o3) = sub_results.pop().unwrap();
+
+            [&mut o3, &mut o2, &mut o1]
+                .into_par_iter()
+                .zip(cmps.par_iter())
+                .for_each(|(ox, cmpx)| {
+                    self.boolean_bitor_assign(ox, cmpx);
+                });
+
+            let c3 = self.boolean_bitnot(&o3).0;
+            let c2 = {
+                let mut c2 = self.boolean_bitnot(&o2).0;
+                self.key.unchecked_add_assign(&mut c2, &o3.0);
+                c2
+            };
+            let c1 = {
+                let mut c1 = self.boolean_bitnot(&o1).0;
+                self.key.unchecked_add_assign(&mut c1, &o2.0);
+                c1
+            };
+            let c0 = o1.0;
+
+            let (_, [q1, q2, q3]) = rayon::join(
+                || {
+                    [&c3, &c2, &c1, &c0]
+                        .into_par_iter()
+                        .zip([&mut r3, &mut r2, &mut r1, &mut rem])
+                        .zip([
+                            &zero_out_if_not_1_lut,
+                            &zero_out_if_not_2_lut,
+                            &zero_out_if_not_2_lut,
+                            &zero_out_if_not_1_lut,
+                        ])
+                        .for_each(|((cx, rx), (lut, factor))| {
+                            rx.blocks.par_iter_mut().for_each(|block| {
+                                self.key.unchecked_scalar_mul_assign(block, *factor);
+                                self.key.unchecked_add_assign(block, cx);
+                                self.key.apply_lookup_table_assign(block, lut);
+                            });
+                        });
+                },
+                || {
+                    let mut qs = [c1.clone(), c2.clone(), c3.clone()];
+                    let luts = [|x| u64::from(x == 2), |x| u64::from(x == 2) * 2, |x| x * 3];
+                    qs.par_iter_mut().zip(&luts).for_each(|(qx, lut)| {
+                        let lut = self.key.generate_lookup_table(lut);
+                        self.key.apply_lookup_table_assign(qx, &lut);
+                    });
+                    qs
+                },
+            );
+
+            // Only one of rx and rem is not zero
+            for rx in [&r3, &r2, &r1] {
+                self.unchecked_add_assign(&mut rem, rx);
+            }
+
+            // only one of q1, q2, q3 is not zero
+            let mut q = q1;
+            for qx in [q2, q3] {
+                self.key.unchecked_add_assign(&mut q, &qx);
+            }
+
+            rayon::join(
+                || {
+                    rem.blocks.par_iter_mut().for_each(|block| {
+                        self.key.message_extract_assign(block);
+                    });
+                },
+                || {
+                    self.key.message_extract_assign(&mut q);
+                },
+            );
+
+            remainder.blocks[block_index..].clone_from_slice(&rem.blocks);
+            quotient_blocks.push(q);
+        }
+
+        quotient_blocks.reverse();
+
+        (RadixCiphertext::from(quotient_blocks), remainder)
+    }
+
     fn unsigned_unchecked_div_rem_parallelized(
         &self,
         numerator: &RadixCiphertext,
@@ -100,6 +443,11 @@ impl ServerKey {
             divisor.blocks.len(),
             "numerator and divisor must have same number of blocks"
         );
+
+        if self.message_modulus().0 == 4 && self.carry_modulus().0 == 4 {
+            return self.unsigned_div_rem_block_by_block_2_2(numerator, divisor);
+        }
+
         // Pseudocode of the school-book / long-division algorithm:
         //
         //
