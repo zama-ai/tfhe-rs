@@ -135,7 +135,7 @@ where
     // one to allocate the blind rotation result
     Accumulator: AllocateBlindRotationResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: ClassicBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: ClassicFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_modswitch(
         input,
@@ -147,7 +147,7 @@ where
     );
 
     let mut pbs_result = accumulator.allocated_blind_rotation_result(side_resources);
-    bsk.classic_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    bsk.classic_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,

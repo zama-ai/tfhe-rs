@@ -343,6 +343,16 @@ impl NoiseSquashingKey {
         res
     }
 
+    pub fn bootstrapping_key(&self) -> &Fourier128LweBootstrapKeyOwned {
+        &self.bootstrapping_key
+    }
+
+    pub fn modulus_switch_noise_reduction_key(
+        &self,
+    ) -> Option<&ModulusSwitchNoiseReductionKey<u64>> {
+        self.modulus_switch_noise_reduction_key.as_ref()
+    }
+
     pub fn message_modulus(&self) -> MessageModulus {
         self.message_modulus
     }

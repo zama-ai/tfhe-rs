@@ -86,10 +86,22 @@ pub trait AllocateBlindRotationResult {
     ) -> Self::Output;
 }
 
-pub trait ClassicBootstrap<Input, Output, Accumulator> {
+pub trait ClassicFftBootstrap<Input, Output, Accumulator> {
     type SideResources;
 
-    fn classic_pbs(
+    fn classic_fft_pbs(
+        &self,
+        input: &Input,
+        output: &mut Output,
+        accumulator: &Accumulator,
+        side_resources: &mut Self::SideResources,
+    );
+}
+
+pub trait ClassicFft128Bootstrap<Input, Output, Accumulator> {
+    type SideResources;
+
+    fn classic_fft_128_pbs(
         &self,
         input: &Input,
         output: &mut Output,

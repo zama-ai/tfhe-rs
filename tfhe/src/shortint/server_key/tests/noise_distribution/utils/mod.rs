@@ -8,6 +8,7 @@ use crate::core_crypto::algorithms::lwe_keyswitch::{
 use crate::core_crypto::algorithms::lwe_linear_algebra::{
     lwe_ciphertext_cleartext_mul, lwe_ciphertext_cleartext_mul_assign,
 };
+use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft128_pbs::programmable_bootstrap_f128_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft64_pbs::programmable_bootstrap_lwe_ciphertext;
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
 use crate::core_crypto::algorithms::test::round_decode;
@@ -33,6 +34,7 @@ use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
 use crate::core_crypto::entities::Cleartext;
 use crate::core_crypto::fft_impl::common::modulus_switch;
+use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::c64;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
@@ -702,12 +704,16 @@ impl<
         InputCont: Container<Element = InputScalar>,
         OutputCont: ContainerMut<Element = OutputScalar>,
         AccCont: Container<Element = OutputScalar>,
-    > ClassicBootstrap<LweCiphertext<InputCont>, LweCiphertext<OutputCont>, GlweCiphertext<AccCont>>
-    for FourierLweBootstrapKey<KeyCont>
+    >
+    ClassicFftBootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for FourierLweBootstrapKey<KeyCont>
 {
     type SideResources = ();
 
-    fn classic_pbs(
+    fn classic_fft_pbs(
         &self,
         input: &LweCiphertext<InputCont>,
         output: &mut LweCiphertext<OutputCont>,
@@ -715,5 +721,32 @@ impl<
         _side_resources: &mut Self::SideResources,
     ) {
         programmable_bootstrap_lwe_ciphertext(input, output, accumulator, self);
+    }
+}
+
+impl<
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        KeyCont: Container<Element = f64>,
+        InputCont: Container<Element = InputScalar>,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+    >
+    ClassicFft128Bootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for Fourier128LweBootstrapKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn classic_fft_128_pbs(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        programmable_bootstrap_f128_lwe_ciphertext(input, output, accumulator, self);
     }
 }
