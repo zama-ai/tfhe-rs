@@ -168,11 +168,15 @@ impl HpuHw {
         {
             match mode {
                 FFIMode::V80 {
-                    ami_id,
+                    id,
+                    hpu_path,
+                    ami_path,
                     qdma_h2c,
                     qdma_c2h,
                 } => Self(v80::HpuHw::new_hpu_hw(
-                    *ami_id,
+                    *id,
+                    &hpu_path.expand(),
+                    &ami_path.expand(),
                     retry_rate,
                     &qdma_h2c.expand(),
                     &qdma_c2h.expand(),
@@ -321,6 +325,9 @@ impl MemZone {
 
 #[cfg(feature = "hw-v80")]
 mod v80;
+#[cfg(all(feature = "hw-v80", feature = "utils"))]
+pub use v80::HpuV80Pdi;
+
 #[cfg(feature = "hw-xrt")]
 mod xrt;
 

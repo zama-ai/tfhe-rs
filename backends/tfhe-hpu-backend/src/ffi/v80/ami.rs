@@ -3,8 +3,9 @@
 //! AMI driver is used to issue gcq command to the RPU
 //! Those command are used for configuration and register R/W
 use lazy_static::lazy_static;
+use std::error::Error;
 use std::fs::{File, OpenOptions};
-use std::io::Read;
+use std::io::{BufRead, BufReader, Read};
 use std::os::fd::AsRawFd;
 use std::time::Duration;
 
@@ -15,7 +16,64 @@ const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
 const AMI_ID_PATTERN: &str = r"(?<pci>\d{2}:\d{2}\.\d)\s(?<dev_id>\d+)\s\d+";
 
 const HIS_VERSION_FILE: &str = "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/amc_version";
-const HIS_VERSION_PATTERN: &str = r".*- zama ucore 2.0";
+const HIS_VERSION_PATTERN: &str = r".*- zama ucore (?<major>\d+).(?<minor>\d+)";
+
+use crate::ffi::v80::pdi::metadata::Version;
+use crate::ffi::v80::pdi::uuid::AMI_UUID_WORDS;
+
+const AMI_UUID_BAR_OFFSET: u64 = 0x1001000;
+
+const AMI_DEVICES_MAP: &'static str = "/sys/bus/pci/drivers/ami/devices";
+
+// NB: Some field available in the driver file were never used
+#[allow(dead_code)]
+pub struct AmiInfo {
+    bus_id: usize,
+    dev_id: usize,
+    func_id: usize,
+    devn: usize,
+    hwmon: usize,
+}
+
+/// Set of discovery function
+/// Enable to probe the device IDs and status
+impl AmiInfo {
+    pub fn new() -> Result<Self, Box<dyn Error>> {
+        // First read content of AMI_DEVICES_MAP
+        let devices_file = OpenOptions::new()
+            .read(true)
+            .create(false)
+            .open(AMI_DEVICES_MAP)?;
+
+        let devices_rd = BufReader::new(devices_file);
+        // TODO handle multi-devices cases
+        let line = devices_rd.lines().nth(1).ok_or("No device found")??;
+
+        // Second extract formatted information from string
+        lazy_static! {
+            static ref AMI_DEVICES_RE: regex::Regex = regex::Regex::new(
+                r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)"
+            )
+            .expect("Invalid regex");
+        }
+
+        let caps = AMI_DEVICES_RE
+            .captures(&line)
+            .ok_or("Invalid AMI_DEVICES_MAP format")?;
+        let bus_id = usize::from_str_radix(&caps["bus"], 16)?;
+        let dev_id = usize::from_str_radix(&caps["dev"], 16)?;
+        let func_id = usize::from_str_radix(&caps["func"], 16)?;
+        let devn = caps["devn"].parse::<usize>()?;
+        let hwmon = caps["hwmon"].parse::<usize>()?;
+        Ok(Self {
+            bus_id,
+            dev_id,
+            func_id,
+            devn,
+            hwmon,
+        })
+    }
+}
 
 pub struct AmiDriver {
     ami_dev: File,
@@ -23,8 +81,14 @@ pub struct AmiDriver {
 }
 
 impl AmiDriver {
-    pub fn new(ami_id: usize, retry_rate: Duration) -> Self {
-        Self::check_version();
+    pub fn new(
+        ami_id: u32,
+        amc_ver: &Version,
+        retry_rate: Duration,
+    ) -> Result<Self, Box<dyn Error>> {
+        Self::check_version(amc_ver)?;
+        // Read Ami info
+        let ami_info = AmiInfo::new()?;
 
         // Read ami_id_file to get ami device
         let ami_path = {
@@ -38,7 +102,7 @@ impl AmiDriver {
             let ami_id_f = std::fs::read_to_string(AMI_ID_FILE).expect("Invalid ami_id filepath");
             let id_line = ami_id_f
                 .lines()
-                .nth(ami_id)
+                .nth(ami_info.devn)
                 .unwrap_or_else(|| panic!("Invalid ami id {ami_id}."));
 
             let id_str = AMI_ID_RE
@@ -51,24 +115,60 @@ impl AmiDriver {
             format!("/dev/ami{dev_id}")
         };
 
-        // Open ami device file
         let ami_dev = OpenOptions::new()
             .read(true)
             .write(true)
             .create(false)
-            .open(&ami_path)
-            .unwrap();
-        Self {
+            .open(ami_path)?;
+
+        Ok(Self {
             ami_dev,
             retry_rate,
+        })
+    }
+
+    /// Read currently loaded UUID in BAR
+    pub fn uuid(&self) -> String {
+        let ami_fd = self.ami_dev.as_raw_fd();
+
+        // Allocate heap memory for read value
+        let uuid = Box::new([0_u32; AMI_UUID_WORDS]);
+        let data_ptr = Box::into_raw(uuid);
+
+        // Populate payload
+        let mut payload = AmiBarPayload {
+            num: AMI_UUID_WORDS as u32,
+            data_ptr: data_ptr as *mut u32,
+            bar_idx: 0,
+            offset: AMI_UUID_BAR_OFFSET,
+            cap_override: true,
+        };
+
+        tracing::trace!("AMI: Read request with following payload {payload:x?}");
+        loop {
+            let ret = unsafe { ami_bar_read(ami_fd, &mut payload) };
+            match ret {
+                Err(err) => {
+                    tracing::debug!("AMI: Read failed -> {err:?}");
+                    std::thread::sleep(self.retry_rate);
+                }
+                Ok(val) => {
+                    tracing::trace!("AMI: Read ack received {payload:x?} -> {val:?}");
+                    break;
+                }
+            }
         }
+        let uuid = unsafe { *Box::from_raw(data_ptr) };
+        uuid.iter()
+            .rev()
+            .fold(String::new(), |acc, w| acc + &format!("{w:0>8x}"))
     }
 
     /// Check if current ami version is compliant
     ///
     /// For this purpose we use a regex.
     /// it's easy to expressed and understand breaking rules with it
-    pub fn check_version() {
+    pub fn check_version(amc_ver: &Version) -> Result<(), Box<dyn Error>> {
         // Check AMI version
         lazy_static! {
             static ref AMI_VERSION_RE: regex::Regex =
@@ -81,7 +181,7 @@ impl AmiDriver {
             .write(false)
             .create(false)
             .open(AMI_VERSION_FILE)
-            .unwrap();
+            .map_err(|err| format!("Opening file {AMI_VERSION_FILE} failed: {err:?}"))?;
 
         let ami_version = {
             let mut ver = String::new();
@@ -93,10 +193,11 @@ impl AmiDriver {
         };
 
         if !AMI_VERSION_RE.is_match(&ami_version) {
-            panic!(
+            return Err(format!(
                 "Invalid ami version. Get {} expect something matching pattern {}",
                 ami_version, AMI_VERSION_PATTERN
             )
+            .into());
         }
 
         // Check HIS version
@@ -114,23 +215,38 @@ impl AmiDriver {
             .write(false)
             .create(false)
             .open(his_version_file.expand())
-            .unwrap();
+            .unwrap_or_else(|err| {
+                panic!("Opening file {} failed: {err:?}", his_version_file.expand())
+            });
 
         let his_version = {
             let mut ver = String::new();
             his_ver_f
                 .read_to_string(&mut ver)
-                .expect("Invalid HIS_VERSION string format");
-
+                .map_err(|e| format!("Invalid HIS_VERSION string format: {e:?}"))?;
             ver
         };
 
-        if !HIS_VERSION_RE.is_match(&his_version) {
-            panic!(
-                "Invalid his version. Get {} expect something matching pattern {}",
-                his_version, HIS_VERSION_PATTERN
+        let caps = HIS_VERSION_RE
+            .captures(&his_version)
+            .ok_or("Invalid his version format")?;
+        let amc_major = caps["major"].parse::<u32>()?;
+        let amc_minor = caps["minor"].parse::<u32>()?;
+        if amc_major != amc_ver.major {
+            return Err(format!(
+                "Invalid his major version. Get {} expect {}",
+                amc_major, amc_ver.major
             )
+            .into());
         }
+        if amc_minor != amc_ver.minor {
+            return Err(format!(
+                "Invalid his minor version. Get {} expect {}",
+                amc_minor, amc_ver.minor
+            )
+            .into());
+        }
+        Ok(())
     }
 
     /// Issue read register request through AMI driver
@@ -291,6 +407,40 @@ impl AmiDriver {
 
 // Define driver IOCTL command and associated payload -------------------------
 const AMI_IOC_MAGIC: u8 = b'a';
+
+// Bar Read/Write command used for PCIe device probing ------------------------
+const AMI_BAR_READ_CMD: u8 = 1;
+// const AMI_BAR_WRITE_CMD: u8 = 2;
+
+/// Payload used for PCI BAR registers read/write
+/// Args:
+/// * num: Number of BAR registers (to read or write).
+/// * data_ptr: Userspace address of data payload (read or write).
+/// * bar_idx: Bar number.
+/// * offset: Offset within BAR.
+/// * cap_override: Bypass permission checks. This may not apply to all IOCTL's.
+///
+/// Note:
+/// For reading a BAR, `addr` is the userspace address of a u32 buffer to be
+/// populated with data read from the BAR and `num` is the number of values to read.
+/// To write to a BAR, `addr` is the userspace address of the u32 buffer to
+/// write and `num` is the number of values to write.
+#[derive(Debug)]
+#[repr(C)]
+struct AmiBarPayload {
+    num: u32,
+    data_ptr: *mut u32,
+    bar_idx: u8,
+    offset: u64,
+    cap_override: bool,
+}
+nix::ioctl_readwrite!(ami_bar_read, AMI_IOC_MAGIC, AMI_BAR_READ_CMD, AmiBarPayload);
+// nix::ioctl_write_ptr!(
+//     ami_bar_write,
+//     AMI_IOC_MAGIC,
+//     AMI_BAR_WRITE_CMD,
+//     AmiBarPayload
+// );
 
 // Peak/Poke command used for Read/Write in registers -------------------------
 const AMI_PEAK_CMD: u8 = 15;

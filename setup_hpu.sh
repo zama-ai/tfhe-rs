@@ -24,12 +24,15 @@ else
     V80_PCIE_DEV="${DEVICE[0]%%:*}"
 fi
 
-# Default Qdma init
-V80_QDMA_INIT=false
+# V80 bitstream refresh rely on XilinxVivado tools
+XILINX_VIVADO=${XILINX_VIVADO:-"/opt/xilinx/Vivado/2024.2"}
+
+# V80 bitstream refresh require insmod of ami.ko module
+AMI_PATH=${AMI_PATH:-"/opt/ami_drv/7423535"}
 
 # Parse user CLI ##############################################################
-opt_short="hc:l:p:i"
-opt_long="help,config:,rust-log:pcie-dev:init-qdma"
+opt_short="hc:l:p:"
+opt_long="help,config:,rust-log:pcie-dev"
 OPTS=$(getopt -o "$opt_short" -l "$opt_long" -- "$@")
 
 while true
@@ -40,7 +43,6 @@ do
             echo " * --config: target configuration [sim, u55c_gf64, v80]"
             echo " * --rust-log: Specify rust verbosity [Cf. tracing]"
             echo " * --pcie-dev: target pcie device [Warn: v80 only]"
-            echo " * --init-qdma: init the qdma driver [Warn: v80 only]"
             return 0
             ;;
         -c|--config)
@@ -72,10 +74,6 @@ do
             fi
             shift 2
             ;;
-        -i|--init-qdma)
-            V80_QDMA_INIT=true
-            shift
-            ;;
         "") # End of input reading
             break ;;
         *)
@@ -95,7 +93,8 @@ if [[ "$HPU_CONFIG" == sim* ]]; then
 echo "# * Mockup directory: ${HPU_MOCKUP_DIR}"
 elif [[ "$HPU_CONFIG" == v80* ]]; then
 echo "# * PCIe id: ${V80_PCIE_DEV} [V80 only]"
-echo "# * Init Qdma: ${V80_QDMA_INIT} [V80 only]"
+echo "# * XilinxVivado: ${XILINX_VIVADO} [V80 only]"
+echo "# * AmiPath: ${AMI_PATH} [V80 only]"
 fi
 echo "# * Rust verbosity: ${RUST_LOG}"
 echo "###############################################################################"
@@ -123,24 +122,6 @@ fi
 # V80 specific init ###########################################################
 if [[ "$HPU_CONFIG" == v80* ]]; then
     export V80_PCIE_DEV
-    if [[ "$V80_QDMA_INIT" == true ]]; then
-        while true; do
-            read -p "QDMA_PF init requested by user. This required sudo right, Are you sure to process [Y/n]" user_input
-            if [[ "$user_input" == [Yy] ]]; then
-                echo "Continuing... You could be prompt for sudo password"
-                sudo modprobe -r qdma-pf &&  sudo modprobe qdma-pf
-                sudo bash -c "echo 100 > /sys/bus/pci/devices/0000\:${V80_PCIE_DEV}\:00.1/qdma/qmax"
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 1 mode mm dir h2c
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q add   idx 2 mode mm dir c2h
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 1 dir h2c
-                sudo dma-ctl qdma${V80_PCIE_DEV}001 q start idx 2 dir c2h
-                break
-            elif [[ "$user_input" == [Nn] ]]; then
-                echo "Skipped QDMA_PF init"
-                break
-            else
-                echo "Invalid input. Please enter 'Y' or 'n'."
-            fi
-        done
-    fi
+    export XILINX_VIVADO
+    export AMI_PATH
 fi
