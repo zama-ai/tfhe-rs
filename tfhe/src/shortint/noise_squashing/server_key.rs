@@ -54,21 +54,21 @@ pub enum Shortint128BootstrappingKey {
 }
 
 impl Shortint128BootstrappingKey {
-    fn output_lwe_dimension(&self) -> LweDimension {
+    pub fn output_lwe_dimension(&self) -> LweDimension {
         match self {
             Self::Classic { bsk, .. } => bsk.output_lwe_dimension(),
             Self::MultiBit { bsk, .. } => bsk.output_lwe_dimension(),
         }
     }
 
-    fn glwe_size(&self) -> GlweSize {
+    pub fn glwe_size(&self) -> GlweSize {
         match self {
             Self::Classic { bsk, .. } => bsk.glwe_size(),
             Self::MultiBit { bsk, .. } => bsk.glwe_size(),
         }
     }
 
-    fn polynomial_size(&self) -> PolynomialSize {
+    pub fn polynomial_size(&self) -> PolynomialSize {
         match self {
             Self::Classic { bsk, .. } => bsk.polynomial_size(),
             Self::MultiBit { bsk, .. } => bsk.polynomial_size(),
@@ -425,6 +425,10 @@ impl NoiseSquashingKey {
         res.set_degree(ciphertext.degree);
 
         res
+    }
+
+    pub fn bootstrapping_key(&self) -> &Shortint128BootstrappingKey {
+        &self.bootstrapping_key
     }
 
     pub fn message_modulus(&self) -> MessageModulus {
