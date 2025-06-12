@@ -331,10 +331,13 @@ mod cuda {
     use serde::Serialize;
     use tfhe::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
     use tfhe::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
+    use tfhe::core_crypto::gpu::vec::GpuIndex;
     use tfhe::core_crypto::gpu::{
-        cuda_keyswitch_lwe_ciphertext, cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64,
-        get_number_of_gpus, CudaStreams,
+        check_valid_cuda_malloc, cuda_keyswitch_lwe_ciphertext,
+        cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64, get_number_of_gpus,
+        get_packing_keyswitch_list_64_size_on_gpu, CudaStreams,
     };
+
     use tfhe::core_crypto::prelude::*;
 
     fn cuda_keyswitch<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64> + Serialize>(
@@ -588,58 +591,74 @@ mod cuda {
             let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().packing_keyswitch_key(pksk).build();
 
             let bench_id;
-
+            let mut skip_bench;
             match get_bench_type() {
                 BenchmarkType::Latency => {
                     let streams = CudaStreams::new_multi_gpu();
-                    let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
-
-                    let mut input_ct_list = LweCiphertextList::new(
-                        Scalar::ZERO,
-                        lwe_sk.lwe_dimension().to_lwe_size(),
-                        LweCiphertextCount(glwe_sk.polynomial_size().0),
-                        ciphertext_modulus,
-                    );
-
-                    let plaintext_list = PlaintextList::new(
-                        Scalar::ZERO,
-                        PlaintextCount(input_ct_list.lwe_ciphertext_count().0),
-                    );
-
-                    encrypt_lwe_ciphertext_list(
-                        &lwe_sk,
-                        &mut input_ct_list,
-                        &plaintext_list,
-                        params.lwe_noise_distribution.unwrap(),
-                        &mut encryption_generator,
-                    );
-
-                    let mut d_input_lwe_list =
-                        CudaLweCiphertextList::from_lwe_ciphertext_list(&input_ct_list, &streams);
-
-                    let mut d_output_glwe = CudaGlweCiphertextList::new(
-                        glwe_sk.glwe_dimension(),
-                        glwe_sk.polynomial_size(),
-                        GlweCiphertextCount(1),
-                        ciphertext_modulus,
-                        &streams,
-                    );
-
-                    streams.synchronize();
 
                     bench_id = format!("{bench_name}::{name}");
-                    {
-                        bench_group.bench_function(&bench_id, |b| {
-                            b.iter(|| {
-                                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
-                                    gpu_keys.pksk.as_ref().unwrap(),
-                                    &d_input_lwe_list,
-                                    &mut d_output_glwe,
-                                    &streams,
-                                );
-                                black_box(&mut d_input_lwe_list);
-                            })
-                        });
+
+                    let mem_size = get_packing_keyswitch_list_64_size_on_gpu(
+                        &streams,
+                        lwe_sk.lwe_dimension(),
+                        glwe_sk.glwe_dimension(),
+                        glwe_sk.polynomial_size(),
+                        LweCiphertextCount(glwe_sk.polynomial_size().0),
+                    );
+
+                    skip_bench = !check_valid_cuda_malloc(mem_size, GpuIndex::new(0));
+
+                    if !skip_bench {
+                        let gpu_keys = CudaLocalKeys::from_cpu_keys(&cpu_keys, None, &streams);
+
+                        let mut input_ct_list = LweCiphertextList::new(
+                            Scalar::ZERO,
+                            lwe_sk.lwe_dimension().to_lwe_size(),
+                            LweCiphertextCount(glwe_sk.polynomial_size().0),
+                            ciphertext_modulus,
+                        );
+
+                        let plaintext_list = PlaintextList::new(
+                            Scalar::ZERO,
+                            PlaintextCount(input_ct_list.lwe_ciphertext_count().0),
+                        );
+
+                        encrypt_lwe_ciphertext_list(
+                            &lwe_sk,
+                            &mut input_ct_list,
+                            &plaintext_list,
+                            params.lwe_noise_distribution.unwrap(),
+                            &mut encryption_generator,
+                        );
+
+                        let mut d_input_lwe_list = CudaLweCiphertextList::from_lwe_ciphertext_list(
+                            &input_ct_list,
+                            &streams,
+                        );
+
+                        let mut d_output_glwe = CudaGlweCiphertextList::new(
+                            glwe_sk.glwe_dimension(),
+                            glwe_sk.polynomial_size(),
+                            GlweCiphertextCount(1),
+                            ciphertext_modulus,
+                            &streams,
+                        );
+
+                        streams.synchronize();
+
+                        {
+                            bench_group.bench_function(&bench_id, |b| {
+                                b.iter(|| {
+                                    cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                                        gpu_keys.pksk.as_ref().unwrap(),
+                                        &d_input_lwe_list,
+                                        &mut d_output_glwe,
+                                        &streams,
+                                    );
+                                    black_box(&mut d_input_lwe_list);
+                                })
+                            });
+                        }
                     }
                 }
                 BenchmarkType::Throughput => {
@@ -647,104 +666,125 @@ mod cuda {
                     let gpu_count = get_number_of_gpus() as usize;
 
                     bench_id = format!("{bench_name}::throughput::{name}");
-                    let blocks: usize = 1;
-                    let elements = throughput_num_threads(blocks, 1);
-                    let elements_per_stream = elements as usize / gpu_count;
-                    bench_group.throughput(Throughput::Elements(elements));
-                    bench_group.sample_size(50);
-                    bench_group.bench_function(&bench_id, |b| {
-                        let setup_encrypted_values = || {
-                            let local_streams = cuda_local_streams_core();
 
-                            let plaintext_list = PlaintextList::new(
-                                Scalar::ZERO,
-                                PlaintextCount(elements_per_stream),
-                            );
+                    let mem_size = get_packing_keyswitch_list_64_size_on_gpu(
+                        &CudaStreams::new_single_gpu(GpuIndex::new(0)),
+                        lwe_sk.lwe_dimension(),
+                        glwe_sk.glwe_dimension(),
+                        glwe_sk.polynomial_size(),
+                        LweCiphertextCount(glwe_sk.polynomial_size().0),
+                    );
 
-                            let input_lwe_lists = (0..gpu_count)
-                                .map(|i| {
-                                    let mut input_ct_list = LweCiphertextList::new(
-                                        Scalar::ZERO,
-                                        lwe_sk.lwe_dimension().to_lwe_size(),
-                                        LweCiphertextCount(glwe_sk.polynomial_size().0),
-                                        ciphertext_modulus,
-                                    );
-                                    encrypt_lwe_ciphertext_list(
-                                        &lwe_sk,
-                                        &mut input_ct_list,
-                                        &plaintext_list,
-                                        params.lwe_noise_distribution.unwrap(),
-                                        &mut encryption_generator,
-                                    );
+                    skip_bench = false;
+                    for gpu_index in 0..gpu_count {
+                        if !check_valid_cuda_malloc(mem_size, GpuIndex::new(gpu_index as u32)) {
+                            skip_bench = true;
+                        }
+                    }
 
-                                    CudaLweCiphertextList::from_lwe_ciphertext_list(
-                                        &input_ct_list,
-                                        &local_streams[i],
-                                    )
-                                })
-                                .collect::<Vec<_>>();
+                    if !skip_bench {
+                        let blocks: usize = 1;
+                        let elements = throughput_num_threads(blocks, 1);
+                        let elements_per_stream = elements as usize / gpu_count;
+                        bench_group.throughput(Throughput::Elements(elements));
+                        bench_group.sample_size(50);
+                        bench_group.bench_function(&bench_id, |b| {
+                            let setup_encrypted_values = || {
+                                let local_streams = cuda_local_streams_core();
 
-                            let output_glwe_list = (0..gpu_count)
-                                .map(|i| {
-                                    CudaGlweCiphertextList::new(
-                                        glwe_sk.glwe_dimension(),
-                                        glwe_sk.polynomial_size(),
-                                        GlweCiphertextCount(1),
-                                        ciphertext_modulus,
-                                        &local_streams[i],
-                                    )
-                                })
-                                .collect::<Vec<_>>();
+                                let plaintext_list = PlaintextList::new(
+                                    Scalar::ZERO,
+                                    PlaintextCount(elements_per_stream),
+                                );
 
-                            local_streams.iter().for_each(|stream| stream.synchronize());
+                                let input_lwe_lists = (0..gpu_count)
+                                    .map(|i| {
+                                        let mut input_ct_list = LweCiphertextList::new(
+                                            Scalar::ZERO,
+                                            lwe_sk.lwe_dimension().to_lwe_size(),
+                                            LweCiphertextCount(glwe_sk.polynomial_size().0),
+                                            ciphertext_modulus,
+                                        );
+                                        encrypt_lwe_ciphertext_list(
+                                            &lwe_sk,
+                                            &mut input_ct_list,
+                                            &plaintext_list,
+                                            params.lwe_noise_distribution.unwrap(),
+                                            &mut encryption_generator,
+                                        );
 
-                            (input_lwe_lists, output_glwe_list, local_streams)
-                        };
+                                        CudaLweCiphertextList::from_lwe_ciphertext_list(
+                                            &input_ct_list,
+                                            &local_streams[i],
+                                        )
+                                    })
+                                    .collect::<Vec<_>>();
 
-                        b.iter_batched(
-                            setup_encrypted_values,
-                            |(input_lwe_lists, mut output_glwe_lists, local_streams)| {
-                                (0..gpu_count)
-                                    .into_par_iter()
-                                    .zip(input_lwe_lists.par_iter())
-                                    .zip(output_glwe_lists.par_iter_mut())
-                                    .zip(local_streams.par_iter())
-                                    .for_each(
-                                        |(
-                                            ((i, input_lwe_list), output_glwe_list),
-                                            local_stream,
-                                        )| {
-                                            cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
-                                                gpu_keys_vec[i].pksk.as_ref().unwrap(),
-                                                input_lwe_list,
-                                                output_glwe_list,
+                                let output_glwe_list = (0..gpu_count)
+                                    .map(|i| {
+                                        CudaGlweCiphertextList::new(
+                                            glwe_sk.glwe_dimension(),
+                                            glwe_sk.polynomial_size(),
+                                            GlweCiphertextCount(1),
+                                            ciphertext_modulus,
+                                            &local_streams[i],
+                                        )
+                                    })
+                                    .collect::<Vec<_>>();
+
+                                local_streams.iter().for_each(|stream| stream.synchronize());
+
+                                (input_lwe_lists, output_glwe_list, local_streams)
+                            };
+
+                            b.iter_batched(
+                                setup_encrypted_values,
+                                |(input_lwe_lists, mut output_glwe_lists, local_streams)| {
+                                    (0..gpu_count)
+                                        .into_par_iter()
+                                        .zip(input_lwe_lists.par_iter())
+                                        .zip(output_glwe_lists.par_iter_mut())
+                                        .zip(local_streams.par_iter())
+                                        .for_each(
+                                            |(
+                                                ((i, input_lwe_list), output_glwe_list),
                                                 local_stream,
-                                            );
-                                        },
-                                    )
-                            },
-                            criterion::BatchSize::SmallInput,
-                        )
-                    });
+                                            )| {
+                                                cuda_keyswitch_lwe_ciphertext_list_into_glwe_ciphertext_64(
+                                                    gpu_keys_vec[i].pksk.as_ref().unwrap(),
+                                                    input_lwe_list,
+                                                    output_glwe_list,
+                                                    local_stream,
+                                                );
+                                            },
+                                        )
+                                },
+                                criterion::BatchSize::SmallInput,
+                            )
+                        });
+                    }
                 }
             };
 
-            let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
-            write_to_json(
-                &bench_id,
-                *params,
-                name,
-                "packing_ks",
-                &OperatorType::Atomic,
-                bit_size,
-                vec![bit_size],
-            );
+            if !skip_bench {
+                let bit_size = (params.message_modulus.unwrap_or(2) as u32).ilog2();
+                write_to_json(
+                    &bench_id,
+                    *params,
+                    name,
+                    "packing_ks",
+                    &OperatorType::Atomic,
+                    bit_size,
+                    vec![bit_size],
+                );
+            }
         }
     }
 
     pub fn cuda_ks_group() {
-        let mut criterion: Criterion<_> =
-            (Criterion::default().sample_size(2000)).configure_from_args();
+        let mut criterion: Criterion<_> = (Criterion::default().sample_size(15))
+            .measurement_time(std::time::Duration::from_secs(60))
+            .configure_from_args();
         cuda_keyswitch(&mut criterion, &benchmark_parameters());
         cuda_packing_keyswitch(&mut criterion, &benchmark_parameters());
     }
