@@ -1,6 +1,7 @@
 use crate::core_crypto::algorithms::glwe_secret_key_generation::allocate_and_generate_new_binary_glwe_secret_key;
 use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKeyOwned;
+use crate::core_crypto::entities::lwe_secret_key::LweSecretKeyView;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingPrivateKeyVersions;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
@@ -70,6 +71,10 @@ impl NoiseSquashingPrivateKey {
 
     pub fn into_raw_parts(self) -> (GlweSecretKeyOwned<u128>, NoiseSquashingParameters) {
         (self.post_noise_squashing_secret_key, self.params)
+    }
+
+    pub fn post_noise_squashing_lwe_secret_key(&self) -> LweSecretKeyView<'_, u128> {
+        self.post_noise_squashing_secret_key.as_lwe_secret_key()
     }
 }
 
