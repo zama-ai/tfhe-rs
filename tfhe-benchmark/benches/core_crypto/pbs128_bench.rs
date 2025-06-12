@@ -178,8 +178,8 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::engine::ShortintEngine;
     use tfhe::shortint::parameters::{
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
 
@@ -191,8 +191,8 @@ mod cuda {
             .measurement_time(std::time::Duration::from_secs(30));
 
         type Scalar = u128;
-        let input_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let squash_params = NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let input_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let squash_params = NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
         let lwe_noise_distribution_u64 = DynamicDistribution::new_t_uniform(46);
         let ct_modulus_u64: CiphertextModulus<u64> = CiphertextModulus::new_native();
