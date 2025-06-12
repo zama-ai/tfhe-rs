@@ -147,7 +147,7 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) =
+            let (mut ciphertext_buffer, _buffers) =
                 engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             match self.pbs_order {
@@ -163,7 +163,6 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
                         &ciphertext_buffer,
                         &mut ct.ct,
                         &acc.acc,
-                        buffers,
                     );
                 }
                 PBSOrder::BootstrapKeyswitch => {
@@ -172,7 +171,6 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
                         &ct.ct,
                         &mut ciphertext_buffer,
                         &acc.acc,
-                        buffers,
                     );
 
                     keyswitch_lwe_ciphertext(
@@ -283,7 +281,7 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
         );
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) =
+            let (mut ciphertext_buffer, _buffers) =
                 engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             match self.pbs_order {
@@ -293,7 +291,6 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
                         &lut.acc,
                         &self.bootstrapping_key,
                         &mut output.as_mut_view(),
-                        buffers,
                     );
                 }
                 PBSOrder::BootstrapKeyswitch => {
@@ -302,7 +299,6 @@ impl AtomicPattern for StandardAtomicPatternServerKey {
                         &lut.acc,
                         &self.bootstrapping_key,
                         &mut ciphertext_buffer,
-                        buffers,
                     );
 
                     keyswitch_lwe_ciphertext(
@@ -341,7 +337,7 @@ impl StandardAtomicPatternServerKey {
         let mut acc = lut.acc.clone();
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) =
+            let (mut ciphertext_buffer, _buffers) =
                 engine.get_buffers(self.intermediate_lwe_dimension(), self.ciphertext_modulus());
 
             // Compute a key switch
@@ -351,7 +347,6 @@ impl StandardAtomicPatternServerKey {
                 &self.bootstrapping_key,
                 &ciphertext_buffer.as_view(),
                 &mut acc,
-                buffers,
             );
         });
 
@@ -384,12 +379,7 @@ impl StandardAtomicPatternServerKey {
     ) -> Vec<Ciphertext> {
         let mut acc = lut.acc.clone();
 
-        ShortintEngine::with_thread_local_mut(|engine| {
-            // Compute the programmable bootstrapping with fixed test polynomial
-            let buffers = engine.get_computation_buffers();
-
-            apply_ms_blind_rotate(&self.bootstrapping_key, &ct.ct, &mut acc, buffers);
-        });
+        apply_ms_blind_rotate(&self.bootstrapping_key, &ct.ct, &mut acc);
 
         // The accumulator has been rotated, we can now proceed with the various sample extractions
         let function_count = lut.function_count();

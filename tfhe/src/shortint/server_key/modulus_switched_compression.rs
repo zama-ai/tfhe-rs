@@ -5,9 +5,8 @@ use super::{
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::{
     blind_rotate_assign, lwe_ciphertext_modulus_switch, CastFrom, CastInto,
-    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, LweCiphertext,
-    LweCiphertextMutView, LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext,
-    UnsignedInteger, UnsignedTorus,
+    CompressedModulusSwitchedMultiBitLweCiphertext, LweCiphertext, LweCiphertextMutView,
+    LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext, UnsignedInteger, UnsignedTorus,
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
@@ -69,7 +68,6 @@ pub(crate) fn decompress_and_apply_lookup_table<InputScalar, OutputScalar>(
     acc: &GlweCiphertext<Vec<OutputScalar>>,
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     ciphertext_buffer: &mut LweCiphertextMutView<OutputScalar>,
-    buffers: &mut ComputationBuffers,
 ) where
     InputScalar: UnsignedInteger + CastInto<usize> + CastFrom<usize> + CastFrom<u64> + Sync,
     OutputScalar: UnsignedTorus + CastFrom<usize>,
@@ -94,7 +92,7 @@ cannot decompress with a Classic bootstrapping key"
                 }
             };
 
-            blind_rotate_assign(&ct, &mut local_accumulator, bsk, buffers);
+            blind_rotate_assign(&ct, &mut local_accumulator, bsk);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

@@ -1,13 +1,11 @@
 use super::{CompressionKey, DecompressionKey};
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    blind_rotate_assign, extract_lwe_sample_from_glwe_ciphertext,
-    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, lwe_ciphertext_modulus_switch,
-    CiphertextCount, GlweCiphertext, LweCiphertext, LweCiphertextCount, LweCiphertextList,
-    MonomialDegree,
+    blind_rotate_assign, extract_lwe_sample_from_glwe_ciphertext, lwe_ciphertext_modulus_switch,
+    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
+    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
 };
 use crate::shortint::ciphertext::CompressedCiphertextList;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     generate_lookup_table_with_output_encoding, unchecked_scalar_mul_assign, LookupTableSize,
@@ -220,19 +218,15 @@ impl DecompressionKey {
                     "Decompression key should not do modulus switch noise reduction"
                 );
 
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    let buffers = engine.get_computation_buffers();
+                let mut glwe_out: GlweCiphertext<_> = decompression_rescale.acc.clone();
 
-                    let mut glwe_out: GlweCiphertext<_> = decompression_rescale.acc.clone();
+                blind_rotate_assign(&intermediate_lwe, &mut glwe_out, bsk);
 
-                    blind_rotate_assign(&intermediate_lwe, &mut glwe_out, bsk, buffers);
-
-                    extract_lwe_sample_from_glwe_ciphertext(
-                        &glwe_out,
-                        &mut output_br,
-                        MonomialDegree(0),
-                    );
-                });
+                extract_lwe_sample_from_glwe_ciphertext(
+                    &glwe_out,
+                    &mut output_br,
+                    MonomialDegree(0),
+                );
             }
             ShortintBootstrappingKey::MultiBit { .. } => {
                 panic!("Decompression can't use a multi bit PBS")
