@@ -1347,6 +1347,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   int_radix_lut<Torus> *luts_message_carry;
 
   bool mem_reuse = false;
+  bool allocated_luts_message_carry;
 
   void setup_index_buffers(cudaStream_t const *streams,
                            uint32_t const *gpu_indexes) {
@@ -1398,35 +1399,42 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t message_modulus = params.message_modulus;
 
     if (!mem_reuse) {
-      luts_message_carry = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 2, 2 * max_total_blocks_in_vec / chunk_size ,
-          gpu_memory_allocated, size_tracker);
+      if (2 * max_total_blocks_in_vec / chunk_size > 0) {
+        luts_message_carry =
+            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                     2 * max_total_blocks_in_vec / chunk_size,
+                                     gpu_memory_allocated, size_tracker);
+      } else {
+        allocated_luts_message_carry = false;
+      }
     }
-    auto message_acc = luts_message_carry->get_lut(0, 0);
-    auto carry_acc = luts_message_carry->get_lut(0, 1);
+    if (allocated_luts_message_carry) {
+      auto message_acc = luts_message_carry->get_lut(0, 0);
+      auto carry_acc = luts_message_carry->get_lut(0, 1);
 
-    // define functions for each accumulator
-    auto lut_f_message = [message_modulus](Torus x) -> Torus {
-      return x % message_modulus;
-    };
-    auto lut_f_carry = [message_modulus](Torus x) -> Torus {
-      return x / message_modulus;
-    };
+      // define functions for each accumulator
+      auto lut_f_message = [message_modulus](Torus x) -> Torus {
+        return x % message_modulus;
+      };
+      auto lut_f_carry = [message_modulus](Torus x) -> Torus {
+        return x / message_modulus;
+      };
 
-    // generate accumulators
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], message_acc,
-        luts_message_carry->get_degree(0),
-        luts_message_carry->get_max_degree(0), params.glwe_dimension,
-        params.polynomial_size, message_modulus, params.carry_modulus,
-        lut_f_message, gpu_memory_allocated);
-    generate_device_accumulator<Torus>(
-        streams[0], gpu_indexes[0], carry_acc,
-        luts_message_carry->get_degree(1),
-        luts_message_carry->get_max_degree(1), params.glwe_dimension,
-        params.polynomial_size, message_modulus, params.carry_modulus,
-        lut_f_carry, gpu_memory_allocated);
-    luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+      // generate accumulators
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], message_acc,
+          luts_message_carry->get_degree(0),
+          luts_message_carry->get_max_degree(0), params.glwe_dimension,
+          params.polynomial_size, message_modulus, params.carry_modulus,
+          lut_f_message, gpu_memory_allocated);
+      generate_device_accumulator<Torus>(
+          streams[0], gpu_indexes[0], carry_acc,
+          luts_message_carry->get_degree(1),
+          luts_message_carry->get_max_degree(1), params.glwe_dimension,
+          params.polynomial_size, message_modulus, params.carry_modulus,
+          lut_f_carry, gpu_memory_allocated);
+      luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+    }
   }
   int_sum_ciphertexts_vec_memory(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
@@ -1442,9 +1450,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->size_tracker = size_tracker;
-    this->chunk_size =
-        (params.message_modulus * params.carry_modulus - 1) /
-            (params.message_modulus - 1);
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
+    this->allocated_luts_message_carry = true;
     setup_index_buffers(streams, gpu_indexes);
     setup_lookup_tables(streams, gpu_indexes, gpu_count);
 
@@ -1473,9 +1481,9 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
     this->size_tracker = size_tracker;
-    this->chunk_size =
-        (params.message_modulus * params.carry_modulus - 1) /
-            (params.message_modulus - 1);
+    this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
+                       (params.message_modulus - 1);
+    this->allocated_luts_message_carry = true;
 
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
@@ -1506,12 +1514,13 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                                      gpu_memory_allocated);
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      small_lwe_vector, gpu_memory_allocated);
-      luts_message_carry->release(streams, gpu_indexes, gpu_count);
-      cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      if (allocated_luts_message_carry) {
+        luts_message_carry->release(streams, gpu_indexes, gpu_count);
+        delete luts_message_carry;
+      }
 
       delete current_blocks;
       delete small_lwe_vector;
-      delete luts_message_carry;
     }
   }
 };
@@ -4667,26 +4676,28 @@ template <typename Torus> struct int_scalar_mul_buffer {
   int_sc_prop_memory<Torus> *sc_prop_mem;
   bool anticipated_buffers_drop;
   bool gpu_memory_allocated;
+  uint32_t num_ciphertext_bits;
 
   int_scalar_mul_buffer(cudaStream_t const *streams,
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
                         int_radix_params params, uint32_t num_radix_blocks,
-                        bool allocate_gpu_memory, bool anticipated_buffer_drop,
-                        uint64_t *size_tracker) {
+                        uint32_t num_scalar_bits, bool allocate_gpu_memory,
+                        bool anticipated_buffer_drop, uint64_t *size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->anticipated_buffers_drop = anticipated_buffer_drop;
 
     uint32_t msg_bits = (uint32_t)std::log2(params.message_modulus);
-    size_t num_ciphertext_bits = msg_bits * num_radix_blocks;
+    num_ciphertext_bits = msg_bits * num_scalar_bits;
 
     //// Contains all shifted values of lhs for shift in range (0..msg_bits)
     //// The idea is that with these we can create all other shift that are
     /// in / range (0..total_bits) for free (block rotation)
     preshifted_buffer = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
-        streams[0], gpu_indexes[0], preshifted_buffer, num_ciphertext_bits,
-        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+        streams[0], gpu_indexes[0], preshifted_buffer,
+        msg_bits * num_radix_blocks, params.big_lwe_dimension, size_tracker,
+        allocate_gpu_memory);
 
     all_shifted_buffer = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -4703,9 +4714,11 @@ template <typename Torus> struct int_scalar_mul_buffer {
           streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
           allocate_gpu_memory, size_tracker);
 
-    sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        num_ciphertext_bits, allocate_gpu_memory, size_tracker);
+    if (num_ciphertext_bits > 0) {
+      sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+          num_ciphertext_bits, allocate_gpu_memory, size_tracker);
+    }
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
@@ -4717,9 +4730,11 @@ template <typename Torus> struct int_scalar_mul_buffer {
                uint32_t gpu_count) {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                    all_shifted_buffer, gpu_memory_allocated);
-    sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
+    if (num_ciphertext_bits > 0) {
+      sum_ciphertexts_vec_mem->release(streams, gpu_indexes, gpu_count);
+      delete sum_ciphertexts_vec_mem;
+    }
     sc_prop_mem->release(streams, gpu_indexes, gpu_count);
-    delete sum_ciphertexts_vec_mem;
     delete sc_prop_mem;
     delete all_shifted_buffer;
     if (!anticipated_buffers_drop) {
@@ -4987,7 +5002,7 @@ template <typename Torus> struct int_scalar_mul_high {
   int_scalar_mul_high(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                       uint32_t gpu_count, const int_radix_params params,
                       uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-                      SHIFT_OR_ROTATE_TYPE shift_type,
+                      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
                       bool anticipated_buffer_drop, uint64_t *size_tracker) {
 
     this->params = params;
@@ -4999,7 +5014,8 @@ template <typename Torus> struct int_scalar_mul_high {
 
     this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
         streams, gpu_indexes, gpu_count, params, 2 * num_radix_blocks,
-        allocate_gpu_memory, anticipated_buffer_drop, size_tracker);
+        num_scalar_bits, allocate_gpu_memory, anticipated_buffer_drop,
+        size_tracker);
 
     this->tmp = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
