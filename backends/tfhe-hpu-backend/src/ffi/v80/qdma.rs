@@ -88,8 +88,7 @@ impl QdmaDriver {
             Ok(())
         } else {
             Err(format!(
-                "Invalid qdma version. Get {} expect something matching pattern {}",
-                qdma_version, QDMA_VERSION_PATTERN
+                "Invalid qdma version. Get {qdma_version} expect something matching pattern {QDMA_VERSION_PATTERN}"
             )
             .into())
         }
