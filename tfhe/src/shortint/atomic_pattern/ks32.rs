@@ -140,7 +140,7 @@ impl AtomicPattern for KS32AtomicPatternServerKey {
 
     fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+            let (mut ciphertext_buffer, _buffers) = engine.get_buffers(
                 self.intermediate_lwe_dimension(),
                 self.intermediate_ciphertext_modulus(),
             );
@@ -156,7 +156,6 @@ impl AtomicPattern for KS32AtomicPatternServerKey {
                 &ciphertext_buffer,
                 &mut ct.ct,
                 &acc.acc,
-                buffers,
             );
         });
     }
@@ -234,17 +233,12 @@ impl AtomicPattern for KS32AtomicPatternServerKey {
             self.ciphertext_lwe_dimension().to_lwe_size(),
             self.ciphertext_modulus(),
         );
-
-        ShortintEngine::with_thread_local_mut(|engine| {
-            let buffers = engine.get_computation_buffers();
-            decompress_and_apply_lookup_table(
-                compressed_ct,
-                &lut.acc,
-                &self.bootstrapping_key,
-                &mut output.as_mut_view(),
-                buffers,
-            );
-        });
+        decompress_and_apply_lookup_table(
+            compressed_ct,
+            &lut.acc,
+            &self.bootstrapping_key,
+            &mut output.as_mut_view(),
+        );
 
         Ciphertext::new(
             output,
@@ -273,7 +267,7 @@ impl KS32AtomicPatternServerKey {
         let mut acc = lut.acc.clone();
 
         ShortintEngine::with_thread_local_mut(|engine| {
-            let (mut ciphertext_buffer, buffers) = engine.get_buffers(
+            let (mut ciphertext_buffer, _buffers) = engine.get_buffers(
                 self.intermediate_lwe_dimension(),
                 self.intermediate_ciphertext_modulus(),
             );
@@ -289,7 +283,6 @@ impl KS32AtomicPatternServerKey {
                 &self.bootstrapping_key,
                 &ciphertext_buffer.as_view(),
                 &mut acc,
-                buffers,
             );
         });
 

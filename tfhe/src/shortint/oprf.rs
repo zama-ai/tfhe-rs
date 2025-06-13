@@ -4,7 +4,6 @@ use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::Degree;
-use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::NoiseLevel;
 use crate::shortint::server_key::generate_lookup_table_no_encode;
 use itertools::Itertools;
@@ -209,11 +208,7 @@ where
 
     match bootstrapping_key {
         ShortintBootstrappingKey::Classic { bsk, .. } => {
-            ShortintEngine::with_thread_local_mut(|engine| {
-                let buffers = engine.get_computation_buffers();
-
-                blind_rotate_assign(&seeded, &mut glwe_out, bsk, buffers);
-            });
+            blind_rotate_assign(&seeded, &mut glwe_out, bsk);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

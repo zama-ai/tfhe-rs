@@ -43,7 +43,6 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::ComputationBuffers;
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -1388,7 +1387,6 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
     bootstrapping_key: &ShortintBootstrappingKey<InputScalar>,
     lwe_in: &LweCiphertext<InputCont>,
     acc: &mut GlweCiphertext<OutputCont>,
-    buffers: &mut ComputationBuffers,
 ) where
     InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
     InputCont: Container<Element = InputScalar>,
@@ -1425,7 +1423,7 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
                 lwe_ciphertext_modulus_switch(lwe_in, log_modulus)
             };
 
-            blind_rotate_assign(&msed, acc, fourier_bsk, buffers);
+            blind_rotate_assign(&msed, acc, fourier_bsk);
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,
@@ -1448,7 +1446,6 @@ pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar,
     lwe_in: &LweCiphertext<InputCont>,
     lwe_out: &mut LweCiphertext<OutputCont>,
     acc: &GlweCiphertext<Vec<OutputScalar>>,
-    buffers: &mut ComputationBuffers,
 ) where
     InputScalar: UnsignedTorus + CastInto<usize> + CastFrom<usize> + Sync,
     InputCont: Container<Element = InputScalar>,
@@ -1457,7 +1454,7 @@ pub(crate) fn apply_programmable_bootstrap<InputScalar, InputCont, OutputScalar,
 {
     let mut glwe_out: GlweCiphertext<_> = acc.clone();
 
-    apply_ms_blind_rotate(bootstrapping_key, lwe_in, &mut glwe_out, buffers);
+    apply_ms_blind_rotate(bootstrapping_key, lwe_in, &mut glwe_out);
 
     extract_lwe_sample_from_glwe_ciphertext(&glwe_out, lwe_out, MonomialDegree(0));
 }
