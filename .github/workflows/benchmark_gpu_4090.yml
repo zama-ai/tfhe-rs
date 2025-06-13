@@ -168,7 +168,8 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
-      
+        env:
+          REF_NAME: ${{ github.ref_name }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
