@@ -1,9 +1,10 @@
 use super::{CompressionKey, DecompressionKey};
 use crate::core_crypto::prelude::compressed_modulus_switched_glwe_ciphertext::CompressedModulusSwitchedGlweCiphertext;
 use crate::core_crypto::prelude::{
-    blind_rotate_assign, extract_lwe_sample_from_glwe_ciphertext, lwe_ciphertext_modulus_switch,
-    par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext, CiphertextCount, GlweCiphertext,
-    LweCiphertext, LweCiphertextCount, LweCiphertextList, MonomialDegree,
+    blind_rotate_assign_mem_optimized, extract_lwe_sample_from_glwe_ciphertext,
+    lwe_ciphertext_modulus_switch, par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext,
+    CiphertextCount, Fft, GlweCiphertext, LweCiphertext, LweCiphertextCount, LweCiphertextList,
+    MonomialDegree,
 };
 use crate::shortint::ciphertext::CompressedCiphertextList;
 use crate::shortint::engine::ShortintEngine;
@@ -222,9 +223,19 @@ impl DecompressionKey {
                 ShortintEngine::with_thread_local_mut(|engine| {
                     let buffers = engine.get_computation_buffers();
 
+                    let fft = Fft::new(polynomial_size);
+
+                    let fft = fft.as_view();
+
                     let mut glwe_out = decompression_rescale.acc.clone();
 
-                    blind_rotate_assign(&intermediate_lwe, &mut glwe_out, bsk, buffers);
+                    blind_rotate_assign_mem_optimized(
+                        &intermediate_lwe,
+                        &mut glwe_out,
+                        bsk,
+                        fft,
+                        buffers.stack(),
+                    );
 
                     extract_lwe_sample_from_glwe_ciphertext(
                         &glwe_out,

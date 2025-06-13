@@ -4,8 +4,8 @@ use super::{
 };
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::{
-    blind_rotate_assign, lwe_ciphertext_modulus_switch, CastFrom, CastInto,
-    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, LweCiphertext,
+    blind_rotate_assign_mem_optimized, lwe_ciphertext_modulus_switch, CastFrom, CastInto,
+    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, Fft, LweCiphertext,
     LweCiphertextMutView, LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext,
     UnsignedInteger, UnsignedTorus,
 };
@@ -94,7 +94,17 @@ cannot decompress with a Classic bootstrapping key"
                 }
             };
 
-            blind_rotate_assign(&ct, &mut local_accumulator, bsk, buffers);
+            let fft = Fft::new(bootstrapping_key.polynomial_size());
+
+            let fft = fft.as_view();
+
+            blind_rotate_assign_mem_optimized(
+                &ct,
+                &mut local_accumulator,
+                bsk,
+                fft,
+                buffers.stack(),
+            );
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

@@ -43,7 +43,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::ComputationBuffers;
+use crate::core_crypto::prelude::{ComputationBuffers, Fft};
 use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::{
@@ -1426,7 +1426,11 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
                 },
             );
 
-            blind_rotate_assign(&msed, acc, fourier_bsk, buffers);
+            let fft = Fft::new(poly_size);
+
+            let fft = fft.as_view();
+
+            blind_rotate_assign_mem_optimized(&msed, acc, fourier_bsk, fft, buffers.stack());
         }
         ShortintBootstrappingKey::MultiBit {
             fourier_bsk,

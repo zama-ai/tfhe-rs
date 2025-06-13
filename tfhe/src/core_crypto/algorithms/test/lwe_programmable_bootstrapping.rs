@@ -448,6 +448,10 @@ where
             ciphertext_modulus
         ));
 
+        let fft = Fft::new(polynomial_size);
+
+        let fft = fft.as_view();
+
         while msg != Scalar::ZERO {
             msg = msg.wrapping_sub(Scalar::ONE);
 
@@ -478,7 +482,7 @@ where
 
                 let msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
 
-                blind_rotate_assign(&msed, &mut tmp_acc, &fbsk, &mut buffers);
+                blind_rotate_assign_mem_optimized(&msed, &mut tmp_acc, &fbsk, fft, buffers.stack());
 
                 assert!(check_encrypted_content_respects_mod(
                     &tmp_acc,

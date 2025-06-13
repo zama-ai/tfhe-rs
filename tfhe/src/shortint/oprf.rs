@@ -178,12 +178,11 @@ where
 
     let in_lwe_size = bootstrapping_key.input_lwe_dimension().to_lwe_size();
 
+    let polynomial_size = bootstrapping_key.polynomial_size();
     let seeded: PrfSeededModulusSwitched = create_random_from_seed_modulus_switched::<InputScalar>(
         seed,
         in_lwe_size,
-        bootstrapping_key
-            .polynomial_size()
-            .to_blind_rotation_input_modulus_log(),
+        polynomial_size.to_blind_rotation_input_modulus_log(),
     );
 
     let p = 1 << random_bits_count;
@@ -191,12 +190,9 @@ where
 
     let delta = 1_u64 << (64 - full_bits_count);
 
-    let poly_delta = 2 * bootstrapping_key.polynomial_size().0 as u64 / p;
+    let poly_delta = 2 * polynomial_size.0 as u64 / p;
 
-    let lut_size = LookupTableSize::new(
-        bootstrapping_key.glwe_size(),
-        bootstrapping_key.polynomial_size(),
-    );
+    let lut_size = LookupTableSize::new(bootstrapping_key.glwe_size(), polynomial_size);
     let acc = generate_lookup_table_no_encode(lut_size, ciphertext_modulus, |x| {
         (2 * (x / poly_delta) + 1) * delta / 2
     });
@@ -212,7 +208,17 @@ where
             ShortintEngine::with_thread_local_mut(|engine| {
                 let buffers = engine.get_computation_buffers();
 
-                blind_rotate_assign(&seeded, &mut glwe_out, bsk, buffers);
+                let fft = Fft::new(polynomial_size);
+
+                let fft = fft.as_view();
+
+                blind_rotate_assign_mem_optimized(
+                    &seeded,
+                    &mut glwe_out,
+                    bsk,
+                    fft,
+                    buffers.stack(),
+                );
             });
         }
         ShortintBootstrappingKey::MultiBit {
