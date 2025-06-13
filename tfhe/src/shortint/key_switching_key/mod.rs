@@ -688,27 +688,23 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .par_iter_mut()
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
-                                ShortintEngine::with_thread_local_mut(|engine| {
-                                    let buffers = engine.get_computation_buffers();
-                                    let acc = self.dest_server_key.generate_lookup_table(function);
-                                    apply_programmable_bootstrap(
-                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
-                                        &wrong_key_ct.ct,
-                                        &mut correct_key_ct.ct,
-                                        &acc.acc,
-                                        buffers,
-                                    );
+                                let acc = self.dest_server_key.generate_lookup_table(function);
+                                apply_programmable_bootstrap(
+                                    &self.dest_server_key.atomic_pattern.bootstrapping_key,
+                                    &wrong_key_ct.ct,
+                                    &mut correct_key_ct.ct,
+                                    &acc.acc,
+                                );
 
-                                    // Update degree depending on the LUT used (as this is a PBS and
-                                    // not a full apply lookup table)
-                                    if using_user_provided_functions {
-                                        correct_key_ct.degree = acc.degree;
-                                    } else {
-                                        correct_key_ct.degree = degree_after_keyswitch;
-                                    }
-                                    // Update the noise as well
-                                    correct_key_ct.set_noise_level_to_nominal();
-                                });
+                                // Update degree depending on the LUT used (as this is a PBS and
+                                // not a full apply lookup table)
+                                if using_user_provided_functions {
+                                    correct_key_ct.degree = acc.degree;
+                                } else {
+                                    correct_key_ct.degree = degree_after_keyswitch;
+                                }
+                                // Update the noise as well
+                                correct_key_ct.set_noise_level_to_nominal();
                             });
                     }
                 }
@@ -735,24 +731,20 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .par_iter_mut()
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
-                                ShortintEngine::with_thread_local_mut(|engine| {
-                                    let buffers = engine.get_computation_buffers();
-                                    let acc = self.dest_server_key.generate_lookup_table(|n| {
-                                        // Call the function on the shifted arrival
-                                        // value
-                                        function(n >> cast_rshift)
-                                    });
-                                    apply_programmable_bootstrap(
-                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
-                                        &wrong_key_ct.ct,
-                                        &mut correct_key_ct.ct,
-                                        &acc.acc,
-                                        buffers,
-                                    );
-                                    // Update degree and noise as it's a raw PBS
-                                    correct_key_ct.degree = acc.degree;
-                                    correct_key_ct.set_noise_level_to_nominal();
+                                let acc = self.dest_server_key.generate_lookup_table(|n| {
+                                    // Call the function on the shifted arrival
+                                    // value
+                                    function(n >> cast_rshift)
                                 });
+                                apply_programmable_bootstrap(
+                                    &self.dest_server_key.atomic_pattern.bootstrapping_key,
+                                    &wrong_key_ct.ct,
+                                    &mut correct_key_ct.ct,
+                                    &acc.acc,
+                                );
+                                // Update degree and noise as it's a raw PBS
+                                correct_key_ct.degree = acc.degree;
+                                correct_key_ct.set_noise_level_to_nominal();
                             });
                     }
                 }
@@ -795,26 +787,21 @@ impl<'keys> KeySwitchingKeyView<'keys> {
                             .par_iter_mut()
                             .zip(functions_to_use.par_iter())
                             .for_each(|(correct_key_ct, function)| {
-                                ShortintEngine::with_thread_local_mut(|engine| {
-                                    let buffers = engine.get_computation_buffers();
-                                    let acc = self.dest_server_key.generate_lookup_table(function);
-                                    apply_programmable_bootstrap(
-                                        &self.dest_server_key.atomic_pattern.bootstrapping_key,
-                                        &wrong_key_ct.ct,
-                                        &mut correct_key_ct.ct,
-                                        &acc.acc,
-                                        buffers,
-                                    );
-                                    if using_user_provided_functions {
-                                        correct_key_ct.degree = acc.degree;
-                                    } else {
-                                        let new_degree = Degree::new(
-                                            degree_after_keyswitch.get() >> -cast_rshift,
-                                        );
-                                        correct_key_ct.degree = new_degree;
-                                    }
-                                    correct_key_ct.set_noise_level_to_nominal();
-                                });
+                                let acc = self.dest_server_key.generate_lookup_table(function);
+                                apply_programmable_bootstrap(
+                                    &self.dest_server_key.atomic_pattern.bootstrapping_key,
+                                    &wrong_key_ct.ct,
+                                    &mut correct_key_ct.ct,
+                                    &acc.acc,
+                                );
+                                if using_user_provided_functions {
+                                    correct_key_ct.degree = acc.degree;
+                                } else {
+                                    let new_degree =
+                                        Degree::new(degree_after_keyswitch.get() >> -cast_rshift);
+                                    correct_key_ct.degree = new_degree;
+                                }
+                                correct_key_ct.set_noise_level_to_nominal();
                             });
                     }
                 }

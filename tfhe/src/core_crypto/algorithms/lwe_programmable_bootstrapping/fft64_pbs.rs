@@ -154,8 +154,6 @@ use tfhe_fft::c64;
 ///
 /// let lwe_ciphertext_in_msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
 ///
-/// let mut buffers = ComputationBuffers::new();
-///
 /// println!("Performing blind rotation...");
 /// blind_rotate_assign(&lwe_ciphertext_in_msed, &mut accumulator, &fourier_bsk);
 /// println!("Performing sample extraction...");
@@ -189,7 +187,6 @@ pub fn blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
     msed_input: &impl ModulusSwitchedCt<usize>,
     lut: &mut GlweCiphertext<OutputCont>,
     fourier_bsk: &FourierLweBootstrapKey<KeyCont>,
-    buffers: &mut ComputationBuffers,
 ) where
     OutputScalar: UnsignedTorus,
     OutputCont: ContainerMut<Element = OutputScalar>,
@@ -202,6 +199,8 @@ pub fn blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
 
     let fft = Fft::new(fourier_bsk.polynomial_size());
     let fft = fft.as_view();
+
+    let mut buffers = ComputationBuffers::new();
 
     buffers.resize(
         blind_rotate_assign_mem_optimized_requirement::<OutputScalar>(
