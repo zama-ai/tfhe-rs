@@ -2827,7 +2827,7 @@ fn br_to_squash_pbs_128_inner_helper(
 
     let (cks, sks, encryption_key, input_br_key, pbs_128_key, output_pbs_128_glwe_secret_key) =
         if should_use_one_key_per_sample() {
-            (thread_radix_cks, thread_sks) = gen_keys_radix_gpu(block_params, num_blocks, &streams);
+            (thread_radix_cks, thread_sks) = gen_keys_radix_gpu(block_params, num_blocks, streams);
             thread_cks = thread_radix_cks.as_ref();
             thread_small_lwe_secret_key = match &thread_cks.key.atomic_pattern {
                 AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
@@ -2879,7 +2879,7 @@ fn br_to_squash_pbs_128_inner_helper(
                 let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &std_bootstrapping_key,
                     modulus_switch_noise_reduction_key.as_ref(),
-                    &streams,
+                    streams,
                 );
                 d_bsk
             };
@@ -2890,7 +2890,7 @@ fn br_to_squash_pbs_128_inner_helper(
                     (_, thread_cuda_decompression_key) = thread_radix_cks
                         .new_cuda_compression_decompression_keys(
                             &thread_compression_private_key,
-                            &streams,
+                            streams,
                         );
                     thread_compression_private_key_key = thread_compression_private_key
                         .key
@@ -3488,22 +3488,48 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 
     // We get out under the big key of the compute params, so we can check this noise distribution
     let expected_variance_after_input_br = match block_params.glwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
-            input_lwe_dim,
-            glwe_dim,
-            pol_size,
-            decomp_base_log,
-            decomp_level_count,
-            compute_modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
-            input_lwe_dim,
-            glwe_dim,
-            pol_size,
-            decomp_base_log,
-            decomp_level_count,
-            compute_modulus_as_f64,
-        ),
+        DynamicDistribution::Gaussian(_) => match &input_br_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_gaussian(
+                input_lwe_dim,
+                glwe_dim,
+                pol_size,
+                decomp_base_log,
+                decomp_level_count,
+                compute_modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_gaussian(
+                    input_lwe_dim,
+                    glwe_dim,
+                    pol_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    compute_modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
+        DynamicDistribution::TUniform(_) => match &input_br_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_tuniform(
+                input_lwe_dim,
+                glwe_dim,
+                pol_size,
+                decomp_base_log,
+                decomp_level_count,
+                compute_modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_tuniform(
+                    input_lwe_dim,
+                    glwe_dim,
+                    pol_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    compute_modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
     };
 
     let scalar_for_multiplication = block_params.max_noise_level().get();
