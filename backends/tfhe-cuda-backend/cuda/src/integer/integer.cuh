@@ -521,8 +521,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   if (num_radix_blocks > lut->num_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of lut radix blocks")
-  if (num_radix_blocks > lwe_array_out->num_radix_blocks ||
-      num_radix_blocks > lwe_array_in->num_radix_blocks)
+  if (num_radix_blocks > lwe_array_out->num_radix_blocks)
     PANIC("Cuda error: num radix blocks on which lut is applied should be "
           "smaller or equal to the number of input & output radix blocks")
 
