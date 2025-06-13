@@ -354,6 +354,14 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         &mut lwe_array_degrees,
         &mut lwe_array_noise_levels,
     );
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let num_blocks = lwe_array.d_blocks.lwe_ciphertext_count().0 as u32;
+    let num_ciphertext_bits = msg_bits * num_blocks as usize;
+    let num_scalar_bits = decomposed_scalar
+        .iter()
+        .take(num_ciphertext_bits)
+        .filter(|&&rhs_bit| rhs_bit == T::ONE)
+        .count() as u32;
 
     scratch_cuda_integer_scalar_mul_kb_64(
         streams.ptr.as_ptr(),
@@ -372,6 +380,7 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        num_scalar_bits,
         true,
         allocate_ms_noise_array,
     );
@@ -402,8 +411,9 @@ pub unsafe fn unchecked_scalar_mul_integer_radix_kb_async<T: UnsignedInteger, B:
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_mul_integer_radix_kb_size_on_gpu(
+pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
     streams: &CudaStreams,
+    decomposed_scalar: &[T],
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -420,6 +430,14 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu(
 ) -> u64 {
     let allocate_ms_noise_array = noise_reduction_key.is_some();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let num_ciphertext_bits = msg_bits * num_blocks as usize;
+    let num_scalar_bits = decomposed_scalar
+        .iter()
+        .take(num_ciphertext_bits)
+        .filter(|&&rhs_bit| rhs_bit == T::ONE)
+        .count() as u32;
+
     let size_tracker = unsafe {
         scratch_cuda_integer_scalar_mul_kb_64(
             streams.ptr.as_ptr(),
@@ -438,6 +456,7 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu(
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             pbs_type as u32,
+            num_scalar_bits,
             false,
             allocate_ms_noise_array,
         )
@@ -2726,8 +2745,14 @@ pub unsafe fn unchecked_scalar_mul_high_integer_radix_kb_async<
             has_at_least_one_set[i % msg_bits] = 1;
         }
     }
-
     let value_rhs: u64 = rhs.cast_into();
+
+    let num_ciphertext_bits = msg_bits * num_blocks as usize;
+    let num_scalar_bits = decomposed_scalar
+        .iter()
+        .take(num_ciphertext_bits)
+        .filter(|&&rhs_bit| rhs_bit == 1)
+        .count() as u32;
 
     scratch_cuda_integer_radix_scalar_mul_high_kb_64(
         streams.ptr.as_ptr(),
@@ -2746,6 +2771,7 @@ pub unsafe fn unchecked_scalar_mul_high_integer_radix_kb_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        num_scalar_bits,
         true,
         true,
         allocate_ms_noise_array,

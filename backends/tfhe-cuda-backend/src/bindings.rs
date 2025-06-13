@@ -1051,6 +1051,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        num_scalar_bits: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
     ) -> u64;
@@ -1351,6 +1352,7 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        num_scalar_bits: u32,
         anticipated_buffer_drop: bool,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,

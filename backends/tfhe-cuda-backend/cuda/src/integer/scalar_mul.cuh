@@ -33,12 +33,12 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_scalar_mul_buffer<T> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
-    bool allocate_gpu_memory) {
+    uint32_t num_scalar_bits, bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
   *mem_ptr = new int_scalar_mul_buffer<T>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      allocate_gpu_memory, true, &size_tracker);
+      num_scalar_bits, allocate_gpu_memory, true, &size_tracker);
   return size_tracker;
 }
 
@@ -174,13 +174,15 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_mul_high_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, int_scalar_mul_high<Torus> **mem_ptr,
     uint32_t num_radix_blocks, int_radix_params params,
-    bool anticipated_buffer_drop, bool allocate_gpu_memory) {
+    uint32_t num_scalar_bits, bool anticipated_buffer_drop,
+    bool allocate_gpu_memory) {
 
   uint64_t size_tracker = 0;
 
   *mem_ptr = new int_scalar_mul_high<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      allocate_gpu_memory, LEFT_SHIFT, anticipated_buffer_drop, &size_tracker);
+      allocate_gpu_memory, LEFT_SHIFT, num_scalar_bits, anticipated_buffer_drop,
+      &size_tracker);
 
   return size_tracker;
 }

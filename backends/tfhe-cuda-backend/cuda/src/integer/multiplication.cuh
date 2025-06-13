@@ -414,6 +414,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     PANIC("Cuda error: input vector does not have enough blocks")
   if (num_radix_blocks > radix_lwe_out->num_radix_blocks)
     PANIC("Cuda error: output does not have enough blocks")
+  if (num_radix_in_vec == 0)
+    return;
 
   auto current_blocks = mem_ptr->current_blocks;
   auto small_lwe_vector = mem_ptr->small_lwe_vector;
