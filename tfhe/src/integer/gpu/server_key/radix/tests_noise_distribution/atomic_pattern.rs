@@ -3488,22 +3488,48 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 
     // We get out under the big key of the compute params, so we can check this noise distribution
     let expected_variance_after_input_br = match block_params.glwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
-            input_lwe_dim,
-            glwe_dim,
-            pol_size,
-            decomp_base_log,
-            decomp_level_count,
-            compute_modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
-            input_lwe_dim,
-            glwe_dim,
-            pol_size,
-            decomp_base_log,
-            decomp_level_count,
-            compute_modulus_as_f64,
-        ),
+        DynamicDistribution::Gaussian(_) => match &input_br_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_gaussian(
+                input_lwe_dim,
+                glwe_dim,
+                pol_size,
+                decomp_base_log,
+                decomp_level_count,
+                compute_modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_gaussian(
+                    input_lwe_dim,
+                    glwe_dim,
+                    pol_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    compute_modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
+        DynamicDistribution::TUniform(_) => match &input_br_key {
+            CudaBootstrappingKey::Classic(_d_bsk) => pbs_variance_132_bits_security_tuniform(
+                input_lwe_dim,
+                glwe_dim,
+                pol_size,
+                decomp_base_log,
+                decomp_level_count,
+                compute_modulus_as_f64,
+            ),
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                multi_bit_pbs_variance_132_bits_security_tuniform(
+                    input_lwe_dim,
+                    glwe_dim,
+                    pol_size,
+                    decomp_base_log,
+                    decomp_level_count,
+                    compute_modulus_as_f64,
+                    d_multibit_bsk.grouping_factor.0 as u32,
+                )
+            }
+        },
     };
 
     let scalar_for_multiplication = block_params.max_noise_level().get();
