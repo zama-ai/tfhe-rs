@@ -2,16 +2,13 @@ use super::super::math::fft::{wrapping_neg, Fft128View};
 use super::ggsw::cmux_split;
 use crate::core_crypto::algorithms::extract_lwe_sample_from_glwe_ciphertext;
 use crate::core_crypto::commons::math::decomposition::SignedDecomposer;
-use crate::core_crypto::commons::math::torus::UnsignedTorus;
-use crate::core_crypto::commons::numeric::CastInto;
 use crate::core_crypto::commons::parameters::{
     CiphertextModulus, DecompositionBaseLog, DecompositionLevelCount, MonomialDegree,
 };
 use crate::core_crypto::commons::traits::ContiguousEntityContainerMut;
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::*;
-use crate::core_crypto::fft_impl::common::pbs_modulus_switch;
-use crate::core_crypto::prelude::{Container, ContainerMut};
+use crate::core_crypto::prelude::{Container, ContainerMut, ModulusSwitchedLweCiphertext};
 use aligned_vec::CACHELINE_ALIGN;
 use dyn_stack::PodStack;
 
@@ -60,36 +57,27 @@ impl<Cont> Fourier128LweBootstrapKey<Cont>
 where
     Cont: Container<Element = f64>,
 {
-    pub fn blind_rotate_assign_split<InputScalar, ContLutLo, ContLutHi, ContLwe>(
+    pub fn blind_rotate_assign_split<ContLutLo, ContLutHi>(
         &self,
         lut_lo: &mut GlweCiphertext<ContLutLo>,
         lut_hi: &mut GlweCiphertext<ContLutHi>,
-        lwe: &LweCiphertext<ContLwe>,
+        msed_lwe: &impl ModulusSwitchedLweCiphertext<usize>,
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) where
-        // CastInto required for PBS modulus switch which returns a usize
-        InputScalar: UnsignedTorus + CastInto<usize>,
         ContLutLo: ContainerMut<Element = u64>,
         ContLutHi: ContainerMut<Element = u64>,
-        ContLwe: Container<Element = InputScalar>,
     {
-        fn implementation<InputScalar>(
+        fn implementation(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lut_lo: GlweCiphertext<&mut [u64]>,
             mut lut_hi: GlweCiphertext<&mut [u64]>,
-            lwe: LweCiphertext<&[InputScalar]>,
+            msed_lwe: &impl ModulusSwitchedLweCiphertext<usize>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
-        ) where
-            // CastInto required for PBS modulus switch which returns a usize
-            InputScalar: UnsignedTorus + CastInto<usize>,
-        {
-            let lwe = lwe.as_ref();
-            let (lwe_body, lwe_mask) = lwe.split_last().unwrap();
-
-            let lut_poly_size = lut_lo.polynomial_size();
-            let monomial_degree = pbs_modulus_switch(*lwe_body, lut_poly_size);
+        ) {
+            let msed_lwe_mask = msed_lwe.mask();
+            let msed_lwe_body = msed_lwe.body();
 
             for (poly_lo, poly_hi) in izip!(
                 lut_lo.as_mut_polynomial_list().iter_mut(),
@@ -98,7 +86,7 @@ where
                 polynomial_wrapping_monic_monomial_div_assign_split(
                     poly_lo,
                     poly_hi,
-                    MonomialDegree(monomial_degree),
+                    MonomialDegree(msed_lwe_body),
                 );
             }
 
@@ -107,9 +95,9 @@ where
             let mut ct0_hi = lut_hi;
 
             for (lwe_mask_element, bootstrap_key_ggsw) in
-                izip!(lwe_mask.iter(), this.into_ggsw_iter())
+                izip!(msed_lwe_mask, this.into_ggsw_iter())
             {
-                if *lwe_mask_element != InputScalar::ZERO {
+                if lwe_mask_element != 0 {
                     let stack = &mut *stack;
                     // We copy ct_0 to ct_1
                     let (ct1_lo, stack) =
@@ -135,7 +123,7 @@ where
                         polynomial_wrapping_monic_monomial_mul_assign_split(
                             poly_lo,
                             poly_hi,
-                            MonomialDegree(pbs_modulus_switch(*lwe_mask_element, lut_poly_size)),
+                            MonomialDegree(lwe_mask_element),
                         );
                     }
 
@@ -155,37 +143,31 @@ where
             self.as_view(),
             lut_lo.as_mut_view(),
             lut_hi.as_mut_view(),
-            lwe.as_view(),
+            msed_lwe,
             fft,
             stack,
         );
     }
 
-    pub fn bootstrap_u128<InputScalar, ContLweOut, ContLweIn, ContAcc>(
+    pub fn blind_rotate_u128<ContLweOut, ContAcc>(
         &self,
         lwe_out: &mut LweCiphertext<ContLweOut>,
-        lwe_in: &LweCiphertext<ContLweIn>,
+        msed_lwe_in: &impl ModulusSwitchedLweCiphertext<usize>,
         accumulator: &GlweCiphertext<ContAcc>,
         fft: Fft128View<'_>,
         stack: &mut PodStack,
     ) where
-        // CastInto required for PBS modulus switch which returns a usize
-        InputScalar: UnsignedTorus + CastInto<usize>,
         ContLweOut: ContainerMut<Element = u128>,
-        ContLweIn: Container<Element = InputScalar>,
         ContAcc: Container<Element = u128>,
     {
-        fn implementation<InputScalar>(
+        fn implementation(
             this: Fourier128LweBootstrapKey<&[f64]>,
             mut lwe_out: LweCiphertext<&mut [u128]>,
-            lwe_in: LweCiphertext<&[InputScalar]>,
+            msed_lwe_in: &impl ModulusSwitchedLweCiphertext<usize>,
             accumulator: GlweCiphertext<&[u128]>,
             fft: Fft128View<'_>,
             stack: &mut PodStack,
-        ) where
-            // CastInto required for PBS modulus switch which returns a usize
-            InputScalar: UnsignedTorus + CastInto<usize>,
-        {
+        ) {
             let align = CACHELINE_ALIGN;
             let ciphertext_modulus = accumulator.ciphertext_modulus();
 
@@ -212,10 +194,11 @@ where
                 // native modulus
                 CiphertextModulus::new_native(),
             );
+
             this.blind_rotate_assign_split(
                 &mut local_accumulator_lo,
                 &mut local_accumulator_hi,
-                &lwe_in,
+                msed_lwe_in,
                 fft,
                 stack,
             );
@@ -256,7 +239,7 @@ where
         implementation(
             self.as_view(),
             lwe_out.as_mut_view(),
-            lwe_in.as_view(),
+            msed_lwe_in,
             accumulator.as_view(),
             fft,
             stack,

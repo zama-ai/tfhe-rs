@@ -395,6 +395,8 @@ where
     let glwe_dimension = params.glwe_dimension;
     let polynomial_size = params.polynomial_size;
 
+    let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
+
     let total_plaintext_modulus = msg_modulus;
 
     let mut rsc = TestResources::new();
@@ -446,6 +448,10 @@ where
             ciphertext_modulus
         ));
 
+        let fft = Fft::new(polynomial_size);
+
+        let fft = fft.as_view();
+
         while msg != Scalar::ZERO {
             msg = msg.wrapping_sub(Scalar::ONE);
 
@@ -453,6 +459,8 @@ where
             let keys = gen_keys_or_get_from_cache_if_enabled(params, &mut keys_gen);
             let (input_lwe_secret_key, output_lwe_secret_key, fbsk) =
                 (keys.small_lwe_sk, keys.big_lwe_sk, keys.fbsk);
+
+            let mut buffers = ComputationBuffers::new();
 
             for _ in 0..NB_TESTS {
                 let plaintext = Plaintext(msg * delta);
@@ -472,7 +480,9 @@ where
 
                 let mut tmp_acc = accumulator.clone();
 
-                blind_rotate_assign(&lwe_ciphertext_in, &mut tmp_acc, &fbsk);
+                let msed = lwe_ciphertext_modulus_switch(lwe_ciphertext_in, log_modulus);
+
+                blind_rotate_assign_mem_optimized(&msed, &mut tmp_acc, &fbsk, fft, buffers.stack());
 
                 assert!(check_encrypted_content_respects_mod(
                     &tmp_acc,

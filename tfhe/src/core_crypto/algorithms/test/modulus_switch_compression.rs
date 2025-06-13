@@ -9,11 +9,14 @@ const NB_TESTS: usize = 1;
 
 fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> + CastFrom<u64>>(
     params: ClassicTestParams<Scalar>,
-) {
+) where
+    usize: CastFrom<Scalar>,
+{
     let ClassicTestParams {
         lwe_noise_distribution,
         message_modulus_log,
         ciphertext_modulus,
+        polynomial_size,
         ..
     } = params;
 
@@ -24,6 +27,8 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
     let msg_modulus = Scalar::ONE.shl(message_modulus_log.0);
     let mut msg = msg_modulus;
     let delta: Scalar = encoding_with_padding / msg_modulus;
+
+    let log_modulus = polynomial_size.to_blind_rotation_input_modulus_log();
 
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
@@ -42,13 +47,20 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
                 &mut rsc.encryption_random_generator,
             );
 
-            // Can be stored using much less space than the standard lwe ciphertexts
-            let compressed = CompressedModulusSwitchedLweCiphertext::<u64>::compress(
-                &lwe,
-                params.polynomial_size.to_blind_rotation_input_modulus_log(),
-            );
+            let lwe = lwe_ciphertext_modulus_switch::<_, Scalar, _>(lwe.as_view(), log_modulus);
 
-            let lwe_ms_ed = compressed.extract();
+            // Can be stored using much less space than the standard lwe ciphertexts
+            let compressed = lwe.pack::<u64>();
+
+            let container: Vec<Scalar> = compressed
+                .extract::<u64>()
+                .container()
+                .iter()
+                .map(|i| (*i).cast_into())
+                .map(|i: Scalar| i << (Scalar::BITS - log_modulus.0))
+                .collect();
+
+            let lwe_ms_ed = LweCiphertext::from_container(container, ciphertext_modulus);
 
             let decrypted = decrypt_lwe_ciphertext(&lwe_secret_key, &lwe_ms_ed);
 
@@ -63,16 +75,22 @@ fn encryption_ms_decryption<Scalar: UnsignedTorus + Sync + Send + CastInto<u64> 
     }
 }
 
-fn assert_ms_compression<Scalar: UnsignedTorus + CastInto<u64> + CastFrom<u64>>(
-    ct: &LweCiphertext<Vec<Scalar>>,
-    log_modulus: CiphertextModulusLog,
-) {
-    let a = CompressedModulusSwitchedLweCiphertext::<u64>::compress(ct, log_modulus);
+fn assert_ms_compression<Scalar>(ct: &LweCiphertext<Vec<Scalar>>, log_modulus: CiphertextModulusLog)
+where
+    Scalar: UnsignedTorus + CastInto<u64>,
+    u64: CastInto<Scalar>,
+{
+    let msed_ct = lwe_ciphertext_modulus_switch::<_, u64, _>(ct.as_view(), log_modulus);
 
-    let b = a.extract();
+    let a = msed_ct.pack::<u64>();
 
-    for (i, j) in ct.as_ref().iter().zip_eq(b.as_ref().iter()) {
-        assert_eq!(modulus_switch(*i, log_modulus) << (64 - log_modulus.0), *j);
+    let b = a.extract::<u64>();
+    let b = b.container();
+
+    for (i, j) in ct.as_ref().iter().zip_eq(b.iter()) {
+        let i_ms: u64 = modulus_switch(*i, log_modulus).cast_into();
+
+        assert_eq!(i_ms, *j);
     }
 }
 

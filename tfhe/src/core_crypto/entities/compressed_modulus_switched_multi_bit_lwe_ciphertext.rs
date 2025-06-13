@@ -484,9 +484,12 @@ pub struct FromCompressionMultiBitModulusSwitchedCt {
     lwe_dimension: LweDimension,
 }
 
-impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
+impl MultiBitModulusSwitchedLweCiphertext for FromCompressionMultiBitModulusSwitchedCt {
     fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension
+    }
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
     }
     fn switched_modulus_input_lwe_body(&self) -> usize {
         self.switched_modulus_input_lwe_body
