@@ -1,0 +1,34 @@
+# Benchmark regression profile structure is defined as:
+#
+# [<tfhe-rs_backend>.<regression_profile_name>]
+# integer-ops = ["<operation_name>", ]
+# hl-ops = ["<operation_name>", ]
+# slab-instance-provider = "<provider_name>"
+# slab-profile = "<slab_profile_name>"
+#
+# Details:
+# --------
+# tfhe-rs_backend: cpu|gpu|hpu
+# regression_profile_name: any string (containing only dash or underscore as special chars)
+# <layer>-ops: list of operations to benchmark on the given tfhe-rs layer
+# operation_name: name of the operation to run (name must match one declared in benchmark file)
+# slab-instance-provider: aws|hyperstack
+# slab-profile: last part of a section defined in ci/slab.toml
+#
+
+[gpu.default]
+target.integer = ["mul", "div"]
+target.dex = ["dex_swap"]
+slab.backend = "hyperstack"
+slab.profile = "single-h100"
+
+[gpu.multi-h100]
+target.integer = ["mul", "div"]
+target.dex = ["dex_swap"]
+slab.backend = "hyperstack"
+slab.profile = "multi-h100"
+
+[cpu.default]
+integer = ["add", "mul", "div"]
+slab.backend = "aws"
+slab.profile = "bench"
