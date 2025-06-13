@@ -1,6 +1,7 @@
 pub mod noise_simulation;
 pub mod traits;
 
+use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_keyswitch::{
     keyswitch_lwe_ciphertext, keyswitch_lwe_ciphertext_with_scalar_change,
@@ -8,6 +9,7 @@ use crate::core_crypto::algorithms::lwe_keyswitch::{
 use crate::core_crypto::algorithms::lwe_linear_algebra::{
     lwe_ciphertext_cleartext_mul, lwe_ciphertext_cleartext_mul_assign,
 };
+use crate::core_crypto::algorithms::lwe_packing_keyswitch::par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft128_pbs::programmable_bootstrap_f128_lwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft64_pbs::programmable_bootstrap_lwe_ciphertext;
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
@@ -20,7 +22,7 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
 };
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulusLog, DynamicDistribution, LweDimension,
+    CiphertextModulusLog, DynamicDistribution, LweCiphertextCount, LweDimension, PlaintextCount,
 };
 use crate::core_crypto::commons::test_tools::{
     arithmetic_mean, equivalent_pfail_gaussian_noise, gaussian_mean_confidence_interval,
@@ -29,11 +31,13 @@ use crate::core_crypto::commons::test_tools::{
 };
 use crate::core_crypto::commons::traits::container::{Container, ContainerMut};
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextOwned};
+use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
+use crate::core_crypto::entities::lwe_ciphertext_list::LweCiphertextList;
 use crate::core_crypto::entities::lwe_keyswitch_key::LweKeyswitchKey;
 use crate::core_crypto::entities::lwe_packing_keyswitch_key::LwePackingKeyswitchKey;
 use crate::core_crypto::entities::lwe_secret_key::LweSecretKey;
-use crate::core_crypto::entities::Cleartext;
+use crate::core_crypto::entities::{Cleartext, PlaintextList};
 use crate::core_crypto::fft_impl::common::modulus_switch;
 use crate::core_crypto::fft_impl::fft128::crypto::bootstrap::Fourier128LweBootstrapKey;
 use crate::core_crypto::fft_impl::fft64::c64;
@@ -412,6 +416,51 @@ impl DecryptionAndNoiseResult {
         }
     }
 
+    pub fn new_from_glwe<Scalar: UnsignedInteger, CtCont, KeyCont>(
+        ct: &GlweCiphertext<CtCont>,
+        secret_key: &GlweSecretKey<KeyCont>,
+        lwe_per_glwe: LweCiphertextCount,
+        expected_msg: Scalar,
+        delta: Scalar,
+        cleartext_modulus_with_padding: Scalar,
+    ) -> Vec<Self>
+    where
+        CtCont: Container<Element = Scalar>,
+        KeyCont: Container<Element = Scalar>,
+    {
+        let mut decrypted =
+            PlaintextList::new(Scalar::ZERO, PlaintextCount(ct.polynomial_size().0));
+
+        decrypt_glwe_ciphertext(&secret_key, &ct, &mut decrypted);
+
+        let expected_plaintext = expected_msg * delta;
+
+        decrypted
+            .as_ref()
+            .iter()
+            .take(lwe_per_glwe.0)
+            .map(|&decrypted_plaintext| {
+                // We apply the modulus on the cleartext + the padding bit
+                let decoded_msg =
+                    round_decode(decrypted_plaintext, delta) % cleartext_modulus_with_padding;
+
+                let noise = torus_modular_diff(
+                    expected_plaintext,
+                    decrypted_plaintext,
+                    ct.ciphertext_modulus(),
+                );
+
+                if decoded_msg == expected_msg {
+                    Self::DecryptionSucceeded {
+                        noise: NoiseSample { value: noise },
+                    }
+                } else {
+                    Self::DecryptionFailed
+                }
+            })
+            .collect()
+    }
+
     pub fn get_noise_if_decryption_was_correct(&self) -> Option<NoiseSample> {
         match self {
             DecryptionAndNoiseResult::DecryptionSucceeded { noise } => Some(*noise),
@@ -760,7 +809,7 @@ impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocatePack
 
     fn allocate_packing_keyswitch_result(
         &self,
-        side_resources: &mut Self::SideResources,
+        _side_resources: &mut Self::SideResources,
     ) -> Self::Output {
         Self::Output::new(
             Scalar::ZERO,
@@ -768,5 +817,30 @@ impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocatePack
             self.output_polynomial_size(),
             self.ciphertext_modulus(),
         )
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        OutputCont: ContainerMut<Element = Scalar>,
+        KeyCont: Container<Element = Scalar> + Sync,
+    > LwePackingKeyswitch<[LweCiphertext<InputCont>], GlweCiphertext<OutputCont>>
+    for LwePackingKeyswitchKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn keyswitch_lwes_and_pack_in_glwe(
+        &self,
+        input: &[LweCiphertext<InputCont>],
+        output: &mut GlweCiphertext<OutputCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        let input = LweCiphertextList::new_from_lwe_ciphertext_iterator(
+            input.iter().map(|lwe| lwe.as_view()),
+        )
+        .unwrap();
+
+        par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext(self, &input, output);
     }
 }

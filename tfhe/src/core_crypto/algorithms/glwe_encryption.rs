@@ -776,7 +776,7 @@ pub fn decrypt_glwe_ciphertext<Scalar, KeyCont, InputCont, OutputCont>(
     input_glwe_ciphertext: &GlweCiphertext<InputCont>,
     output_plaintext_list: &mut PlaintextList<OutputCont>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: UnsignedInteger,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -803,7 +803,7 @@ pub fn decrypt_glwe_ciphertext_native_mod_compatible<Scalar, KeyCont, InputCont,
     input_glwe_ciphertext: &GlweCiphertext<InputCont>,
     output_plaintext_list: &mut PlaintextList<OutputCont>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: UnsignedInteger,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
@@ -854,7 +854,7 @@ pub fn decrypt_glwe_ciphertext_other_mod<Scalar, KeyCont, InputCont, OutputCont>
     input_glwe_ciphertext: &GlweCiphertext<InputCont>,
     output_plaintext_list: &mut PlaintextList<OutputCont>,
 ) where
-    Scalar: UnsignedTorus,
+    Scalar: UnsignedInteger,
     KeyCont: Container<Element = Scalar>,
     InputCont: Container<Element = Scalar>,
     OutputCont: ContainerMut<Element = Scalar>,
