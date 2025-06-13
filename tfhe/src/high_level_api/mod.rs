@@ -155,6 +155,7 @@ pub use crate::core_crypto::gpu::vec::GpuIndex;
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;
+pub mod upgrade;
 #[cfg(feature = "zk-pok")]
 mod zk;
 
