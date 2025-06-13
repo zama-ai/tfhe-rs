@@ -67,6 +67,7 @@ pub(crate) fn selection_bit(
 
 pub trait MultiBitModulusSwitchedCt: Sync {
     fn lwe_dimension(&self) -> LweDimension;
+    fn grouping_factor(&self) -> LweBskGroupingFactor;
     fn switched_modulus_input_lwe_body(&self) -> usize;
     fn switched_modulus_input_mask_per_group(
         &self,
@@ -90,6 +91,9 @@ impl<
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()
+    }
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
     }
     fn switched_modulus_input_lwe_body(&self) -> usize {
         let input_lwe_body = self.input.get_body();
@@ -378,6 +382,15 @@ pub fn multi_bit_blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         multi_bit_modulus_switched_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        multi_bit_modulus_switched_input.grouping_factor(),
+        multi_bit_bsk.grouping_factor(),
+        "Mismatched input grouping_factor. LweCiphertext input grouping_factor {:?}. \
+        FourierLweMultiBitBootstrapKey input grouping_factor {:?}.",
+        multi_bit_modulus_switched_input.grouping_factor(),
+        multi_bit_bsk.grouping_factor(),
     );
 
     if deterministic_execution {
@@ -1167,6 +1180,15 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
         FourierLweMultiBitBootstrapKey input LweDimension {:?}.",
         multi_bit_modulus_switched_input.lwe_dimension(),
         multi_bit_bsk.input_lwe_dimension(),
+    );
+
+    assert_eq!(
+        multi_bit_modulus_switched_input.grouping_factor(),
+        multi_bit_bsk.grouping_factor(),
+        "Mismatched input grouping_factor. LweCiphertext input grouping_factor {:?}. \
+        FourierLweMultiBitBootstrapKey input grouping_factor {:?}.",
+        multi_bit_modulus_switched_input.grouping_factor(),
+        multi_bit_bsk.grouping_factor(),
     );
 
     if deterministic_execution {

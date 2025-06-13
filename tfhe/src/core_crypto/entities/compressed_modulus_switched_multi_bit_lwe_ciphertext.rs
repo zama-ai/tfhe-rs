@@ -488,6 +488,9 @@ impl MultiBitModulusSwitchedCt for FromCompressionMultiBitModulusSwitchedCt {
     fn lwe_dimension(&self) -> LweDimension {
         self.lwe_dimension
     }
+    fn grouping_factor(&self) -> LweBskGroupingFactor {
+        self.grouping_factor
+    }
     fn switched_modulus_input_lwe_body(&self) -> usize {
         self.switched_modulus_input_lwe_body
     }
