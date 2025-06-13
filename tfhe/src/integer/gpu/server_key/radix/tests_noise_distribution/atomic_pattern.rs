@@ -3780,7 +3780,7 @@ fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_patte
 }
 
 #[test]
-fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_gpu_v13(
+fn test_noise_check_multi_bit_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform_v13_gpu(
 ) {
     noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
         PBS128InputBRParams::Compute,
