@@ -273,17 +273,17 @@ impl NoiseSquashingPrivateKey {
     ) -> NoiseSquashingCompressionKey {
         let params = &private_compression_key.params;
 
-        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &self.post_noise_squashing_secret_key().as_lwe_secret_key(),
-                &private_compression_key.post_packing_ks_key,
-                params.packing_ks_base_log,
-                params.packing_ks_level,
-                params.packing_ks_key_noise_distribution,
-                params.ciphertext_modulus,
-                &mut engine.encryption_generator,
-            )
-        });
+        let mut engine = ShortintEngine::new();
+
+        let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &self.post_noise_squashing_secret_key().as_lwe_secret_key(),
+            &private_compression_key.post_packing_ks_key,
+            params.packing_ks_base_log,
+            params.packing_ks_level,
+            params.packing_ks_key_noise_distribution,
+            params.ciphertext_modulus,
+            &mut engine.encryption_generator,
+        );
 
         NoiseSquashingCompressionKey {
             packing_key_switching_key,

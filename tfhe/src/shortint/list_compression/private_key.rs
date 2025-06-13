@@ -59,13 +59,13 @@ pub struct NoiseSquashingCompressionPrivateKey {
 
 impl NoiseSquashingCompressionPrivateKey {
     pub fn new(params: NoiseSquashingCompressionParameters) -> Self {
-        let post_packing_ks_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.packing_ks_glwe_dimension,
-                params.packing_ks_polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
+        let mut engine = ShortintEngine::new();
+
+        let post_packing_ks_key = allocate_and_generate_new_binary_glwe_secret_key(
+            params.packing_ks_glwe_dimension,
+            params.packing_ks_polynomial_size,
+            &mut engine.secret_generator,
+        );
 
         Self {
             post_packing_ks_key,

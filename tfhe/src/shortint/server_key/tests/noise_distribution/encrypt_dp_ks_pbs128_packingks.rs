@@ -1025,7 +1025,7 @@ fn noise_check_encrypt_dp_ks_classic_pbs128_packing_ks_noise<P>(
     let cleartext_modulus = params.message_modulus().0 * params.carry_modulus().0;
     let mut noise_samples_after_packing = vec![];
 
-    let sample_count_per_msg = 1000usize.div_ceil(noise_squashing_compression_key.lwe_per_glwe().0);
+    let sample_count_per_msg = 1000usize;
 
     for _ in 0..cleartext_modulus {
         let current_noise_samples_after_packing: Vec<_> = (0..sample_count_per_msg)
@@ -1056,6 +1056,8 @@ fn noise_check_encrypt_dp_ks_classic_pbs128_packing_ks_noise<P>(
                 .map(|x| x.value),
         );
     }
+
+    println!("Sample count: {}", noise_samples_after_packing.len());
 
     let after_packing_is_ok = mean_and_variance_check(
         &noise_samples_after_packing,

@@ -20,13 +20,12 @@ pub struct NoiseSquashingPrivateKey {
 
 impl NoiseSquashingPrivateKey {
     pub fn new(params: NoiseSquashingParameters) -> Self {
-        let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
-                &mut engine.secret_generator,
-            )
-        });
+        let mut engine = ShortintEngine::new();
+        let post_noise_squashing_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
+            params.glwe_dimension,
+            params.polynomial_size,
+            &mut engine.secret_generator,
+        );
 
         Self {
             post_noise_squashing_secret_key,
