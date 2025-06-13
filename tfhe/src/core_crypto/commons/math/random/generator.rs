@@ -13,7 +13,8 @@ use tfhe_csprng::generators::{BytesPerChild, ChildrenCount, ForkError};
 pub use tfhe_csprng::generators::{
     ParallelRandomGenerator as ParallelByteRandomGenerator, RandomGenerator as ByteRandomGenerator,
 };
-pub use tfhe_csprng::seeders::{Seed, Seeder};
+use tfhe_csprng::seeders::SeedKind;
+pub use tfhe_csprng::seeders::{Seed, Seeder, XofSeed};
 
 /// Module to proxy the serialization for `tfhe-csprng::Seed` to avoid adding serde as a
 /// dependency to `tfhe-csprng`
@@ -122,7 +123,7 @@ impl<G: ByteRandomGenerator> RandomGenerator<G> {
     /// use tfhe_csprng::seeders::Seed;
     /// let generator = RandomGenerator::<SoftwareRandomGenerator>::new(Seed(0));
     /// ```
-    pub fn new(seed: Seed) -> Self {
+    pub fn new(seed: impl Into<SeedKind>) -> Self {
         Self(G::new(seed))
     }
 
