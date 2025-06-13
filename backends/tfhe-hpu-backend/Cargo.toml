@@ -72,8 +72,8 @@ path = "src/utils/hputil.rs"
 required-features = ["utils"]
 
 [[bin]]
-name = "pdi_mgmt"
-path = "src/utils/pdi_mgmt.rs"
+name = "hpu_archive_mgmt"
+path = "src/utils/hpu_archive_mgmt.rs"
 required-features = ["utils", "hw-v80"]
 
 # Binary for asm manipulation
