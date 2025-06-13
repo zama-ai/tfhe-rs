@@ -24,5 +24,5 @@ For this purpose use `hpu_archive_mgmt`:
 For example, if you have previously unpacked the psi64.hpu, you can use the following command to pack it back:
 
 ```
-./target/devo/hpu_archive_mgmt pack backends/tfhe-hpu-backend/config_store/v80_archives/psi64 backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu
+./target/release/hpu_archive_mgmt pack backends/tfhe-hpu-backend/config_store/v80_archives/psi64 backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu
 ```
