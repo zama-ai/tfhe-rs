@@ -257,3 +257,14 @@ pub enum CompressedCiphertextListVersions {
 pub enum SquashedNoiseCiphertextVersions {
     V0(SquashedNoiseCiphertext),
 }
+
+#[derive(VersionsDispatch)]
+pub enum CompressedSquashedNoiseCiphertextListVersions {
+    V0(CompressedSquashedNoiseCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+#[allow(dead_code)]
+pub(crate) enum CompressedSquashedNoiseCiphertextListMetaVersions {
+    V0(CompressedSquashedNoiseCiphertextListMeta),
+}

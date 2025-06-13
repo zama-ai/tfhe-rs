@@ -18,6 +18,11 @@ pub fn modulus_switch<Scalar: UnsignedInteger>(
     input: Scalar,
     log_modulus: CiphertextModulusLog,
 ) -> Scalar {
+    assert!(log_modulus.0 <= Scalar::BITS);
+    if log_modulus.0 == Scalar::BITS {
+        return input;
+    }
+
     // Flooring output_to_floor is equivalent to rounding the input
     let output_to_floor = input.wrapping_add(Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1));
 

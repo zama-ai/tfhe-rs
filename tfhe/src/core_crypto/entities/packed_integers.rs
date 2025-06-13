@@ -47,6 +47,8 @@ impl<Scalar: UnsignedInteger> PackedIntegers<Scalar> {
 
         let in_len = slice.len();
 
+        assert!(log_modulus <= Scalar::BITS);
+
         let number_bits_to_pack = in_len * log_modulus;
 
         let len = number_bits_to_pack.div_ceil(Scalar::BITS);
