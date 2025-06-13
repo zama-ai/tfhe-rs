@@ -15,6 +15,7 @@ use crate::core_crypto::entities::ggsw_ciphertext::{
     fourier_ggsw_level_matrix_size, GgswCiphertextView,
 };
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertextMutView, GlweCiphertextView};
+use crate::core_crypto::prelude::ContainerMut;
 use aligned_vec::{avec, ABox, CACHELINE_ALIGN};
 use dyn_stack::{PodStack, StackReq};
 use tfhe_fft::c64;
@@ -131,6 +132,12 @@ impl<C: Container<Element = c64>> FourierGgswCiphertext<C> {
             decomposition_base_log: self.decomposition_base_log,
             decomposition_level_count: self.decomposition_level_count,
         }
+    }
+}
+
+impl<C: ContainerMut<Element = c64>> FourierGgswCiphertext<C> {
+    pub fn as_mut_polynomial_list(&mut self) -> &mut FourierPolynomialList<C> {
+        &mut self.fourier
     }
 }
 
