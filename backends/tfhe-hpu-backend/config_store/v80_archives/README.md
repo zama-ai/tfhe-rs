@@ -1,28 +1,28 @@
 # Hpu archives
 
-This folder contains a set of custom archive used to reload the FPGA.
-This archives contains pdi files and other metadata.
-A tool `pdi_mgmt` is provided to create/expand archives.
+This folder contains a set of custom archives used to reload the FPGA.
+These archives contains pdi files and other metadata.
+A tool `hpu_archive_mgmt` is provided to create/expand archives.
 
 
 
-## How to build `pdi_mgmt`
-Simply go in tfhe-hpu-backend folder and use cargo:
+## How to build `hpu_archive_mgmt`
+Simply go into the tfhe-hpu-backend folder and use cargo:
 ```
 cargo build --release --features hw-v80,utils
 ```
 
 
 ## How to unpack an archive for inspection
-For this purpose use `pdi_mgmt`:
+For this purpose use `hpu_archive_mgmt`:
 ```
-./target/devo/pdi_mgmt unpack backends/tfhe-hpu-backend/config_store/v80_pdi/psi64.hpu backends/tfhe-hpu-backend/config_store/v80_pdi/psi64
+./target/release/hpu_archive_mgmt unpack backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu backends/tfhe-hpu-backend/config_store/v80_archives/psi64
 ```
 
 
 ## How to pack an archive after update
-For example, if you have previously unpack the psi64.hpu, you can use the following command to pack it back:
+For example, if you have previously unpacked the psi64.hpu, you can use the following command to pack it back:
 
 ```
-./target/devo/pdi_mgmt pack backends/tfhe-hpu-backend/config_store/v80_pdi/psi64 backends/tfhe-hpu-backend/config_store/v80_pdi/psi64.hpu
+./target/devo/hpu_archive_mgmt pack backends/tfhe-hpu-backend/config_store/v80_archives/psi64 backends/tfhe-hpu-backend/config_store/v80_archives/psi64.hpu
 ```
