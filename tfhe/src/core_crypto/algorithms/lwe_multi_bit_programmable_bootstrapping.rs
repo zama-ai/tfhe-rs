@@ -65,7 +65,7 @@ pub(crate) fn selection_bit(
     })
 }
 
-pub trait MultiBitModulusSwitchedCt: Sync {
+pub trait MultiBitModulusSwitchedLweCiphertext: Sync {
     fn lwe_dimension(&self) -> LweDimension;
     fn switched_modulus_input_lwe_body(&self) -> usize;
     fn switched_modulus_input_mask_per_group(
@@ -86,7 +86,7 @@ pub struct StandardMultiBitModulusSwitchedCt<
 impl<
         Scalar: UnsignedInteger + CastInto<usize> + CastFrom<usize>,
         C: Container<Element = Scalar> + Sync,
-    > MultiBitModulusSwitchedCt for StandardMultiBitModulusSwitchedCt<Scalar, C>
+    > MultiBitModulusSwitchedLweCiphertext for StandardMultiBitModulusSwitchedCt<Scalar, C>
 {
     fn lwe_dimension(&self) -> LweDimension {
         self.input.lwe_size().to_lwe_dimension()
@@ -361,7 +361,7 @@ pub fn modulus_switch_multi_bit_blind_rotate_assign<
 }
 
 pub fn multi_bit_blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
-    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedCt,
+    multi_bit_modulus_switched_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -398,7 +398,7 @@ pub fn multi_bit_blind_rotate_assign<OutputScalar, OutputCont, KeyCont>(
 }
 
 pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -629,7 +629,7 @@ pub fn multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCo
 
 /// Deterministic version of [`multi_bit_blind_rotate_assign`].
 pub fn multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &FourierLweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -1207,7 +1207,7 @@ pub fn std_multi_bit_blind_rotate_assign<Scalar, InputCont, OutputCont, KeyCont>
 }
 
 pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -1473,7 +1473,7 @@ pub fn std_multi_bit_non_deterministic_blind_rotate_assign<Scalar, OutputCont, K
 /// Deterministic variant of [`std_multi_bit_blind_rotate_assign`]. Performance
 /// may be slightly worse than the non deterministic version.
 pub fn std_multi_bit_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -1885,7 +1885,7 @@ pub fn std_multi_bit_f128_blind_rotate_assign<Scalar, InputCont, OutputCont, Key
 /// Deterministic variant of [`std_multi_bit_blind_rotate_assign`]. Performance
 /// may be slightly worse than the non deterministic version.
 pub fn std_multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
@@ -2329,7 +2329,7 @@ pub fn prepare_multi_bit_fourier_128_ggsw_mem_optimized<
 }
 
 pub fn multi_bit_f128_deterministic_blind_rotate_assign<Scalar, OutputCont, KeyCont>(
-    switched_modulus_input: &impl MultiBitModulusSwitchedCt,
+    switched_modulus_input: &impl MultiBitModulusSwitchedLweCiphertext,
     accumulator: &mut GlweCiphertext<OutputCont>,
     multi_bit_bsk: &Fourier128LweMultiBitBootstrapKey<KeyCont>,
     thread_count: ThreadCount,
