@@ -127,7 +127,7 @@ impl HpuV80Pdi {
         }
 
         // Start from beginning and use bufReader for performance
-        rd_f.seek(std::io::SeekFrom::Start(0));
+        rd_f.rewind();
         let rd_bfr = BufReader::new(rd_f);
         let hpu_pdi = bincode::deserialize_from(rd_bfr)?;
         Ok(hpu_pdi)

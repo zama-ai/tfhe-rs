@@ -23,7 +23,7 @@ use crate::ffi::v80::pdi::uuid::AMI_UUID_WORDS;
 
 const AMI_UUID_BAR_OFFSET: u64 = 0x1001000;
 
-const AMI_DEVICES_MAP: &'static str = "/sys/bus/pci/drivers/ami/devices";
+const AMI_DEVICES_MAP: &str = "/sys/bus/pci/drivers/ami/devices";
 
 // NB: Some field available in the driver file were never used
 #[allow(dead_code)]
@@ -110,8 +110,10 @@ impl AmiDriver {
                 .expect("Invalid AMI_ID_FILE content")
                 .name("dev_id")
                 .unwrap();
-            let dev_id =
-                usize::from_str_radix(id_str.as_str(), 10).expect("Invalid AMI_DEV_ID encoding");
+            let dev_id = id_str
+                .as_str()
+                .parse::<usize>()
+                .expect("Invalid AMI_DEV_ID encoding");
             format!("/dev/ami{dev_id}")
         };
 
@@ -194,9 +196,7 @@ impl AmiDriver {
 
         if !AMI_VERSION_RE.is_match(&ami_version) {
             return Err(format!(
-                "Invalid ami version. Get {} expect something matching pattern {}",
-                ami_version, AMI_VERSION_PATTERN
-            )
+                "Invalid ami version. Get {ami_version} expect something matching pattern {AMI_VERSION_PATTERN}")
             .into());
         }
 

@@ -17,7 +17,7 @@ impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "v{}.{}", self.major, self.minor)?;
         if let Some(flavor) = &self.flavor {
-            write!(f, "-{}", flavor)?;
+            write!(f, "-{flavor}")?;
         }
         Ok(())
     }

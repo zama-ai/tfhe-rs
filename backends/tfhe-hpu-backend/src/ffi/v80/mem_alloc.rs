@@ -107,8 +107,7 @@ impl MemAlloc {
                 let chunk_nb = props.size_b.div_ceil(MEM_CHUNK_SIZE_B);
                 assert!(
                     bank.len() >= chunk_nb,
-                    "Not enough memory in selected Hbm bank {pc} [req: {:?}]",
-                    props
+                    "Not enough memory in selected Hbm bank {pc} [req: {props:?}]"
                 );
                 bank.drain(0..chunk_nb).collect::<Vec<_>>()
             }
