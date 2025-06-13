@@ -269,9 +269,11 @@ impl<'de> serde::Deserialize<'de> for SmallVec {
 /// The `Tag` allows to store bytes alongside entities (keys, and ciphertexts)
 /// the main purpose of this system is to `tag` / identify ciphertext with their keys.
 ///
-/// TFHE-rs does not interpret or check this data, it only stores it and passes it around
-/// like so:
+/// TFHE-rs generally does not interpret or check this data, it only stores it and passes it around.
 ///
+/// The [crate::upgrade::UpgradeKeyChain] uses the tag to differentiate keys
+///
+/// The rules for how the Tag is passed around are:
 /// * When encrypted, a ciphertext gets the tag of the key used to encrypt it.
 /// * Ciphertexts resulting from operations (add, sub, etc.) get the tag from the ServerKey used
 /// * PublicKey gets its tag from the ClientKey that was used to create it
@@ -372,6 +374,14 @@ impl Tag {
     /// * This overwrites existing data stored
     pub fn set_u128(&mut self, value: u128) {
         self.inner.set_u128(value);
+    }
+}
+
+impl From<u64> for Tag {
+    fn from(value: u64) -> Self {
+        let mut s = Self::default();
+        s.set_u64(value);
+        s
     }
 }
 

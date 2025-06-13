@@ -48,6 +48,44 @@ impl DecompressionKey {
 }
 
 impl ClientKey {
+    pub(crate) fn new_decompression_key_with_params(
+        &self,
+        private_compression_key: &CompressionPrivateKeys,
+        compression_params: CompressionParameters,
+    ) -> DecompressionKey {
+        let AtomicPatternClientKey::Standard(std_cks) = &self.atomic_pattern else {
+            panic!("Only the standard atomic pattern supports compression")
+        };
+
+        let pbs_params = std_cks.parameters;
+
+        assert_eq!(
+            pbs_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big,
+            "Compression is only compatible with ciphertext in post PBS dimension"
+        );
+
+        let blind_rotate_key =
+            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
+                bsk: engine.new_classic_bootstrapping_key(
+                    &private_compression_key
+                        .post_packing_ks_key
+                        .as_lwe_secret_key(),
+                    &std_cks.glwe_secret_key,
+                    pbs_params.glwe_noise_distribution(),
+                    compression_params.br_base_log,
+                    compression_params.br_level,
+                    pbs_params.ciphertext_modulus(),
+                ),
+                modulus_switch_noise_reduction_key: None,
+            });
+
+        DecompressionKey {
+            blind_rotate_key,
+            lwe_per_glwe: compression_params.lwe_per_glwe,
+        }
+    }
+
     pub fn new_compression_decompression_keys(
         &self,
         private_compression_key: &CompressionPrivateKeys,
@@ -66,6 +104,15 @@ impl ClientKey {
 
         let compression_params = &private_compression_key.params;
 
+        assert!(
+            compression_params.storage_log_modulus.0
+                <= pbs_params
+                    .polynomial_size()
+                    .to_blind_rotation_input_modulus_log()
+                    .0,
+            "Compression parameters say to store more bits than useful"
+        );
+
         let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_lwe_packing_keyswitch_key(
                 &std_cks.large_lwe_secret_key(),
@@ -78,40 +125,16 @@ impl ClientKey {
             )
         });
 
-        assert!(
-            compression_params.storage_log_modulus.0
-                <= pbs_params
-                    .polynomial_size()
-                    .to_blind_rotation_input_modulus_log()
-                    .0,
-            "Compression parameters say to store more bits than useful"
-        );
-
         let glwe_compression_key = CompressionKey {
             packing_key_switching_key,
             lwe_per_glwe: compression_params.lwe_per_glwe,
             storage_log_modulus: compression_params.storage_log_modulus,
         };
 
-        let blind_rotate_key =
-            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
-                bsk: engine.new_classic_bootstrapping_key(
-                    &private_compression_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key(),
-                    &std_cks.glwe_secret_key,
-                    pbs_params.glwe_noise_distribution(),
-                    compression_params.br_base_log,
-                    compression_params.br_level,
-                    pbs_params.ciphertext_modulus(),
-                ),
-                modulus_switch_noise_reduction_key: None,
-            });
-
-        let glwe_decompression_key = DecompressionKey {
-            blind_rotate_key,
-            lwe_per_glwe: compression_params.lwe_per_glwe,
-        };
+        let glwe_decompression_key = self.new_decompression_key_with_params(
+            private_compression_key,
+            private_compression_key.params,
+        );
 
         (glwe_compression_key, glwe_decompression_key)
     }

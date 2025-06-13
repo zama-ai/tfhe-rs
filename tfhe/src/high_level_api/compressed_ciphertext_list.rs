@@ -19,6 +19,7 @@ use crate::high_level_api::global_state::device_of_internal_keys;
 use crate::high_level_api::global_state::with_cuda_internal_keys;
 use crate::high_level_api::integers::{FheIntId, FheUintId};
 use crate::integer::ciphertext::{DataKind, Expandable};
+use crate::integer::compression_keys::DecompressionKey;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::{
     CudaCompressedCiphertextList, CudaExpandable,
@@ -511,11 +512,7 @@ impl CiphertextList for CompressedCiphertextList {
                     crate::Error::new("Compression key not set in server key".to_owned())
                 })
                 .and_then(|decompression_key| {
-                    let mut ct = self.inner.on_cpu().get::<T>(index, decompression_key);
-                    if let Ok(Some(ct_ref)) = &mut ct {
-                        ct_ref.tag_mut().set_data(cpu_key.tag.data())
-                    }
-                    ct
+                    self.get_using_key(index, decompression_key, &cpu_key.tag)
                 }),
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(cuda_key)) => cuda_key
@@ -606,6 +603,23 @@ impl CompressedCiphertextList {
             self.inner.move_to_device(device);
         }
     }
+
+    pub(crate) fn get_using_key<T>(
+        &self,
+        index: usize,
+        decompression_key: &DecompressionKey,
+        tag: &Tag,
+    ) -> crate::Result<Option<T>>
+    where
+        T: HlExpandable + Tagged,
+    {
+        let mut ct = self.inner.on_cpu().get::<T>(index, decompression_key);
+        if let Ok(Some(ct_ref)) = &mut ct {
+            ct_ref.tag_mut().set_data(tag.data());
+        }
+        ct
+    }
+
     #[cfg(feature = "gpu")]
     pub fn gpu_indexes(&self) -> &[GpuIndex] {
         match &self.inner {
