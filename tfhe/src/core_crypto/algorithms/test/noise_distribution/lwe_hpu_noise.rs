@@ -183,13 +183,19 @@ pub fn get_modulo_value<T: UnsignedInteger>(modulus: &CiphertextModulus<T>) -> u
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum HpuNoiseMode {
+    Variance,
+    Normality,
+}
+
 //fn lwe_noise_distribution_hpu<Scalar: UnsignedTorus + CastInto<usize> + CastFrom<u64>>(
 fn hpu_noise_distribution(
     params: HpuTestParams,
     max_msg_val: u64,
     nb_tests: usize,
     nb_pbs_per_test: usize,
-    check_variance: bool,
+    test_mode: HpuNoiseMode,
 ) {
     let lwe_dimension = params.lwe_dimension;
     let glwe_dimension = params.glwe_dimension;
@@ -511,7 +517,7 @@ fn hpu_noise_distribution(
                 noise_samples[2].push(torus_diff);
                 normality_test_samples.push(torus_diff);
                 //println!("added in normality_test_samples: {torus_diff:?}");
-                if (j == nb_pbs_per_test - 1) && !check_variance {
+                if (j == nb_pbs_per_test - 1) && (test_mode == HpuNoiseMode::Normality) {
                     let sample_set_mean = arithmetic_mean(&normality_test_samples);
                     let sample_set_var = variance(&normality_test_samples);
                     let sample_set_score = sample_set_mean / sample_set_var.get_standard_dev().0
@@ -557,7 +563,7 @@ fn hpu_noise_distribution(
                 assert_eq!(decoded_pbs, f(msg));
                 let torus_diff =
                     torus_modular_diff(plaintext.0, decrypted_pbs.0, ciphertext_modulus);
-                if check_variance {
+                if test_mode == HpuNoiseMode::Variance {
                     println!("after pbs (msg={msg},test_nb={i}/{nb_tests},pbs_nb={j}/{nb_pbs_per_test}): plaintext {:?} post pbs {:?} torus_diff {:?}", plaintext.0, decrypted_pbs.0, torus_diff);
                 }
                 noise_samples[3].push(torus_diff);
@@ -565,141 +571,144 @@ fn hpu_noise_distribution(
         }
     }
 
-    if !check_variance {
-        let normality_failure_rate = arithmetic_mean(&normality_check_result);
-        println!("normality failure rate: {normality_failure_rate:?}");
-        assert!(
-            normality_failure_rate <= 0.065,
-            "normality failure rate is not acceptable"
-        );
-        let expvalue_score_failure_rate = arithmetic_mean(&expvalue_score_result);
-        println!("expected value score failure rate: {expvalue_score_failure_rate:?}");
-        assert!(
-            expvalue_score_failure_rate <= 0.065,
-            "expected value score failure rate is not acceptable"
-        );
-    }
+    match test_mode {
+        HpuNoiseMode::Normality => {
+            let normality_failure_rate = arithmetic_mean(&normality_check_result);
+            println!("normality failure rate: {normality_failure_rate:?}");
+            assert!(
+                normality_failure_rate <= 0.065,
+                "normality failure rate is not acceptable"
+            );
+            let expvalue_score_failure_rate = arithmetic_mean(&expvalue_score_result);
+            println!("expected value score failure rate: {expvalue_score_failure_rate:?}");
+            assert!(
+                expvalue_score_failure_rate <= 0.065,
+                "expected value score failure rate is not acceptable"
+            );
+        }
+        HpuNoiseMode::Variance => {
+            let encryption_variance = variance(&noise_samples[0]);
+            let bynorm2_variance = variance(&noise_samples[1]);
+            let after_ks_variance = variance(&noise_samples[2]);
+            let after_pbs_variance = variance(&noise_samples[3]);
+            println!(
+                "exp encrypt var {:?} encrypt var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
+                expected_variance.0,
+                encryption_variance.0,
+                bynorm2_variance.0,
+                after_ks_variance.0,
+                after_pbs_variance.0
+            );
+            // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
+            // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
+            // variance after PBS must be around (exp_pbs_variance)
+            let expected_bynorm2_variance = Variance(exp_pbs_variance.0 * (norm2 as f64).powf(2.0));
+            let expected_after_ks_variance =
+                Variance(expected_bynorm2_variance.0 + exp_add_ks_variance.0);
 
-    if check_variance {
-        let encryption_variance = variance(&noise_samples[0]);
-        let bynorm2_variance = variance(&noise_samples[1]);
-        let after_ks_variance = variance(&noise_samples[2]);
-        let after_pbs_variance = variance(&noise_samples[3]);
-        println!(
-            "exp encrypt var {:?} encrypt var {:?} bynorm2 var {} after_ks_variance {} after_pbs_variance {:?}",
-            expected_variance.0,
-            encryption_variance.0,
-            bynorm2_variance.0,
-            after_ks_variance.0,
-            after_pbs_variance.0
-        );
-        // variance after *norm2 must be around (exp_pbs_variance)*(norm2**2)
-        // variance after KS must be around (exp_pbs_variance)*(norm2**2)+exp_add_ks_variance
-        // variance after PBS must be around (exp_pbs_variance)
-        let expected_bynorm2_variance = Variance(exp_pbs_variance.0 * (norm2 as f64).powf(2.0));
-        let expected_after_ks_variance =
-            Variance(expected_bynorm2_variance.0 + exp_add_ks_variance.0);
+            let mut wtr = csv::Writer::from_writer(io::stdout());
+            let _ = wtr.write_record([
+                "data type",
+                "encrypt exp",
+                "encrypt",
+                "post *norm2",
+                "post KS",
+                "theo KS",
+                "post PBS",
+                "theo PBS",
+            ]);
+            let _ = wtr.write_record([
+                "variances",
+                expected_variance.0.to_string().as_str(),
+                encryption_variance.0.to_string().as_str(),
+                bynorm2_variance.0.to_string().as_str(),
+                after_ks_variance.0.to_string().as_str(),
+                expected_after_ks_variance.0.to_string().as_str(),
+                after_pbs_variance.0.to_string().as_str(),
+                exp_pbs_variance.0.to_string().as_str(),
+            ]);
+            let _ = wtr.write_record([
+                "std_dev",
+                expected_variance.get_standard_dev().0.to_string().as_str(),
+                encryption_variance
+                    .get_standard_dev()
+                    .0
+                    .to_string()
+                    .as_str(),
+                bynorm2_variance.get_standard_dev().0.to_string().as_str(),
+                after_ks_variance.get_standard_dev().0.to_string().as_str(),
+                expected_after_ks_variance
+                    .get_standard_dev()
+                    .0
+                    .to_string()
+                    .as_str(),
+                after_pbs_variance.get_standard_dev().0.to_string().as_str(),
+                exp_pbs_variance.get_standard_dev().0.to_string().as_str(),
+            ]);
+            let _ = wtr.write_record([
+                "log2 std_dev + ct_w",
+                (expected_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (encryption_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (bynorm2_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (expected_after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (after_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+                (exp_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
+                    .to_string()
+                    .as_str(),
+            ]);
 
-        let mut wtr = csv::Writer::from_writer(io::stdout());
-        let _ = wtr.write_record([
-            "data type",
-            "encrypt exp",
-            "encrypt",
-            "post *norm2",
-            "post KS",
-            "theo KS",
-            "post PBS",
-            "theo PBS",
-        ]);
-        let _ = wtr.write_record([
-            "variances",
-            expected_variance.0.to_string().as_str(),
-            encryption_variance.0.to_string().as_str(),
-            bynorm2_variance.0.to_string().as_str(),
-            after_ks_variance.0.to_string().as_str(),
-            expected_after_ks_variance.0.to_string().as_str(),
-            after_pbs_variance.0.to_string().as_str(),
-            exp_pbs_variance.0.to_string().as_str(),
-        ]);
-        let _ = wtr.write_record([
-            "std_dev",
-            expected_variance.get_standard_dev().0.to_string().as_str(),
-            encryption_variance
-                .get_standard_dev()
-                .0
-                .to_string()
-                .as_str(),
-            bynorm2_variance.get_standard_dev().0.to_string().as_str(),
-            after_ks_variance.get_standard_dev().0.to_string().as_str(),
-            expected_after_ks_variance
-                .get_standard_dev()
-                .0
-                .to_string()
-                .as_str(),
-            after_pbs_variance.get_standard_dev().0.to_string().as_str(),
-            exp_pbs_variance.get_standard_dev().0.to_string().as_str(),
-        ]);
-        let _ = wtr.write_record([
-            "log2 std_dev + ct_w",
-            (expected_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (encryption_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (bynorm2_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (expected_after_ks_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (after_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-            (exp_pbs_variance.get_log_standard_dev().0 + params.ct_width as f64)
-                .to_string()
-                .as_str(),
-        ]);
+            let var_pbs_abs_diff = (exp_pbs_variance.0 - after_pbs_variance.0).abs();
+            let pbs_tolerance_thres = RELATIVE_TOLERANCE * exp_pbs_variance.0;
 
-        let var_pbs_abs_diff = (exp_pbs_variance.0 - after_pbs_variance.0).abs();
-        let pbs_tolerance_thres = RELATIVE_TOLERANCE * exp_pbs_variance.0;
+            let var_ksk_abs_diff = (expected_after_ks_variance.0 - after_ks_variance.0).abs();
+            let ks_tolerance_thres = RELATIVE_TOLERANCE * expected_after_ks_variance.0;
 
-        let var_ksk_abs_diff = (expected_after_ks_variance.0 - after_ks_variance.0).abs();
-        let ks_tolerance_thres = RELATIVE_TOLERANCE * expected_after_ks_variance.0;
+            let var_bynorm2_abs_diff = (expected_bynorm2_variance.0 - bynorm2_variance.0).abs();
+            let bynorm2_tolerance_thres = RELATIVE_TOLERANCE * expected_bynorm2_variance.0;
 
-        let var_bynorm2_abs_diff = (expected_bynorm2_variance.0 - bynorm2_variance.0).abs();
-        let bynorm2_tolerance_thres = RELATIVE_TOLERANCE * expected_bynorm2_variance.0;
-
-        let after_pbs_errbit = params.ct_width as f64 + after_pbs_variance.get_log_standard_dev().0;
-        let after_pbs_exp_errbit =
-            params.ct_width as f64 + exp_pbs_variance.get_log_standard_dev().0;
-        let bynorm2_errbit = params.ct_width as f64 + bynorm2_variance.get_log_standard_dev().0;
-        let bynorm2_exp_errbit =
-            params.ct_width as f64 + expected_bynorm2_variance.get_log_standard_dev().0;
-        let after_ks_errbit = params.ct_width as f64 + after_ks_variance.get_log_standard_dev().0;
-        let after_ks_exp_errbit =
-            params.ct_width as f64 + expected_after_ks_variance.get_log_standard_dev().0;
-        assert!(
-            var_pbs_abs_diff < pbs_tolerance_thres,
-            "Absolute difference for after PBS is incorrect: {var_pbs_abs_diff} >= {pbs_tolerance_thres}, \
-            got variance: {after_pbs_variance:?} - log2(str_dev): {after_pbs_errbit:?}, \
-            expected variance: {exp_pbs_variance:?} - log2(std_dev): {after_pbs_exp_errbit:?}"
-        );
-        assert!(
-            var_bynorm2_abs_diff < bynorm2_tolerance_thres,
-            "Absolute difference for after *norm2 in incorrect: {var_bynorm2_abs_diff} >= {bynorm2_tolerance_thres} \
-            got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
-            expected variance: {expected_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
-        );
-        assert!(
-            (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit - after_ks_errbit < 1f64)),
-            "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
-            got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
-            expected variance: {expected_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
-        );
+            let after_pbs_errbit =
+                params.ct_width as f64 + after_pbs_variance.get_log_standard_dev().0;
+            let after_pbs_exp_errbit =
+                params.ct_width as f64 + exp_pbs_variance.get_log_standard_dev().0;
+            let bynorm2_errbit = params.ct_width as f64 + bynorm2_variance.get_log_standard_dev().0;
+            let bynorm2_exp_errbit =
+                params.ct_width as f64 + expected_bynorm2_variance.get_log_standard_dev().0;
+            let after_ks_errbit =
+                params.ct_width as f64 + after_ks_variance.get_log_standard_dev().0;
+            let after_ks_exp_errbit =
+                params.ct_width as f64 + expected_after_ks_variance.get_log_standard_dev().0;
+            assert!(
+                var_pbs_abs_diff < pbs_tolerance_thres,
+                "Absolute difference for after PBS is incorrect: {var_pbs_abs_diff} >= {pbs_tolerance_thres}, \
+                got variance: {after_pbs_variance:?} - log2(str_dev): {after_pbs_errbit:?}, \
+                expected variance: {exp_pbs_variance:?} - log2(std_dev): {after_pbs_exp_errbit:?}"
+            );
+            assert!(
+                var_bynorm2_abs_diff < bynorm2_tolerance_thres,
+                "Absolute difference for after *norm2 in incorrect: {var_bynorm2_abs_diff} >= {bynorm2_tolerance_thres} \
+                got variance: {bynorm2_variance:?} - log2(str_dev): {bynorm2_errbit:?}, \
+                expected variance: {expected_bynorm2_variance:?} - log2(std_dev): {bynorm2_exp_errbit:?}"
+            );
+            assert!(
+                (var_ksk_abs_diff < ks_tolerance_thres) || (after_ks_errbit < after_ks_exp_errbit && (after_ks_exp_errbit - after_ks_errbit < 1f64)),
+                "Absolute difference for after KS is incorrect: {var_ksk_abs_diff} >= {ks_tolerance_thres} or more than 1 bit away \
+                got variance: {after_ks_variance:?} - log2(str_dev): {after_ks_errbit:?}, \
+                expected variance: {expected_after_ks_variance:?} - log2(std_dev): {after_ks_exp_errbit:?}"
+            );
+        }
     }
 }
 
@@ -709,13 +718,16 @@ macro_rules! create_parameterized_test_hpu{
         ::paste::paste! {
             $(
             #[test]
-            fn [<test_ $name _ $param:lower _ $max_msg _ $nb_test _ $nb_pbs _ $check_var>]() {
+            fn [<test_ $name _ $param:lower _ $max_msg _ $nb_test _ $nb_pbs _ $check_var:lower>]() {
                 $name($param, $max_msg, $nb_test, $nb_pbs, $check_var)
             }
             )*
         }
     };
 }
+
+static NORMALITY_MODE: HpuNoiseMode = HpuNoiseMode::Normality;
+static VARIANCE_MODE: HpuNoiseMode = HpuNoiseMode::Variance;
 
 // tests with >= 16k samples for variance check
 create_parameterized_test_hpu!(
@@ -731,7 +743,7 @@ create_parameterized_test_hpu!(
     16,
     5,
     200,
-    true
+    VARIANCE_MODE
 );
 
 // tests for checking normality & expected value after KS
@@ -742,7 +754,7 @@ create_parameterized_test_hpu!(
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM_2M128,
     },
     2,
-    10,
+    80,
     100,
-    false
+    NORMALITY_MODE
 );
