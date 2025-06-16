@@ -1399,11 +1399,10 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t message_modulus = params.message_modulus;
 
     if (!mem_reuse) {
-      if (2 * max_total_blocks_in_vec / chunk_size > 0) {
-        luts_message_carry =
-            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
-                                     2 * max_total_blocks_in_vec / chunk_size,
-                                     gpu_memory_allocated, size_tracker);
+      if (max_total_blocks_in_vec > 0) {
+        luts_message_carry = new int_radix_lut<Torus>(
+            streams, gpu_indexes, gpu_count, params, 2, max_total_blocks_in_vec,
+            gpu_memory_allocated, size_tracker);
       } else {
         allocated_luts_message_carry = false;
       }
