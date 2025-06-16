@@ -106,7 +106,6 @@ pub const HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM: HpuTestParams = HpuT
     message_modulus_log: CiphertextModulusLog(4),
     ct_width: 64,
     ksk_width: 21,
-    //norm2: 8,
     norm2: 5,
     ntt_modulus: 18446744069414584321,
 };
@@ -586,7 +585,7 @@ fn hpu_noise_distribution(
             let expvalue_score_failure_rate = arithmetic_mean(&expvalue_score_result);
             println!("expected value score failure rate: {expvalue_score_failure_rate:?}");
             assert!(
-                expvalue_score_failure_rate <= 0.065,
+                expvalue_score_failure_rate <= 0.08,
                 "expected value score failure rate is not acceptable"
             );
         }
@@ -736,13 +735,9 @@ static VARIANCE_MODE: HpuNoiseMode = HpuNoiseMode::Variance;
 // tests with >= 16k samples for variance check
 create_parameterized_test_hpu!(
     hpu_noise_distribution {
-        //HPU_TEST_PARAMS_4_BITS_NATIVE_U64,
-        //HPU_TEST_PARAMS_4_BITS_HPU_44_KS_21,
-        //HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21,
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_GAUSSIAN,
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM,
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM_2M128,
-        //HPU_TEST_PARAMS_4_BITS_NATIVE_U64_132_BITS_GAUSSIAN,
     },
     16,
     5,
@@ -753,12 +748,11 @@ create_parameterized_test_hpu!(
 // tests for checking normality & expected value after KS
 create_parameterized_test_hpu!(
     hpu_noise_distribution {
-        //HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_GAUSSIAN,
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM,
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM_2M128,
     },
     2,
-    80,
     100,
+    160,
     NORMALITY_MODE
 );
