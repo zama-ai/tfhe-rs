@@ -141,7 +141,7 @@ void host_programmable_bootstrap_lwe_ciphertext_vector_128(
     PANIC("Cuda error (classical PBS): base log should be <= 64")
 
   // If the parameters contain noise reduction key, then apply it
-  if (ms_noise_reduction_key->num_zeros != 0) {
+  if (buffer->uses_noise_reduction) {
     uint32_t log_modulus = log2(polynomial_size) + 1;
     host_improve_noise_modulus_switch<InputTorus>(
         static_cast<cudaStream_t>(stream), gpu_index,

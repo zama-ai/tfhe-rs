@@ -1551,7 +1551,7 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
         local_streams,
     );
 
-    let mut before_ms = {
+    let mut d_before_drift = {
         match ksk_params.destination_key {
             EncryptionKeyChoice::Big => {
                 let before_ms_list = d_after_ks_lwe_ct.to_lwe_ciphertext_list(local_streams);
@@ -1640,6 +1640,27 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
             }
             EncryptionKeyChoice::Small => d_after_ks_lwe_ct,
         }
+    };
+
+    let mut before_ms = match &sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(d_bsk) => {
+            let d_before_drift_as_input = d_before_drift.clone();
+            let input_lwe_dimension = d_bsk.input_lwe_dimension;
+            let ct_modulus = d_before_drift.ciphertext_modulus().raw_modulus_float();
+            cuda_improve_noise_modulus_switch_ciphertext(
+                &mut d_before_drift.0.d_vec,
+                &d_before_drift_as_input.0.d_vec,
+                &d_input_indexes,
+                input_lwe_dimension,
+                num_ct_blocks as u32,
+                br_input_modulus_log.0 as u32,
+                ct_modulus,
+                d_bsk.d_ms_noise_reduction_key.as_ref().unwrap(),
+                local_streams,
+            );
+            d_before_drift
+        }
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => d_before_drift,
     };
 
     let mut mod_switched_array: Vec<u64> = match &sks.bootstrapping_key {
@@ -2327,7 +2348,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu<P>(
 
     let measured_fails: f64 = failures_vec.iter().sum();
 
-    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+    let measured_pfail = measured_fails / (failures_vec.len() as f64);
 
     println!("measured_fails={measured_fails}");
     println!("expected_fails={expected_fails}");
@@ -2350,7 +2371,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu<P>(
 
     if measured_fails > 0.0 {
         let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
-            runs_for_expected_fails as f64,
+            failures_vec.len() as f64,
             measured_fails,
             0.99,
         );
