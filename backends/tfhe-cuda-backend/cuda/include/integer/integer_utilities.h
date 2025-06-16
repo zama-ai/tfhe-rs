@@ -1328,7 +1328,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
 template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   int_radix_params params;
-  size_t max_total_blocks_in_vec;
+  uint32_t max_total_blocks_in_vec;
   uint32_t num_blocks_in_radix;
   uint32_t max_num_radix_in_vec;
   uint32_t chunk_size;
@@ -1405,9 +1405,11 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     uint32_t message_modulus = params.message_modulus;
 
     if (!mem_reuse) {
+      uint32_t pbs_count = std::max(2 * (max_total_blocks_in_vec / chunk_size),
+                                    2 * num_blocks_in_radix);
       if (max_total_blocks_in_vec > 0) {
         luts_message_carry = new int_radix_lut<Torus>(
-            streams, gpu_indexes, gpu_count, params, 2, max_total_blocks_in_vec,
+            streams, gpu_indexes, gpu_count, params, 2, pbs_count,
             gpu_memory_allocated, size_tracker);
       } else {
         allocated_luts_message_carry = false;
