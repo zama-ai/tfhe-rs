@@ -15,6 +15,10 @@ use core::marker::PhantomData;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+mod hashes;
+
+use hashes::RHash;
+
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
 }
@@ -414,6 +418,19 @@ impl<G: Curve> Proof<G> {
 pub(crate) struct ComputeLoadProofFields<G: Curve> {
     pub(crate) C_hat_h3: G::G2,
     pub(crate) C_hat_w: G::G2,
+}
+
+impl<G: Curve> ComputeLoadProofFields<G> {
+    fn to_le_bytes(fields: &Option<Self>) -> (Box<[u8]>, Box<[u8]>) {
+        if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = fields.as_ref() {
+            (
+                Box::from(G::G2::to_le_bytes(*C_hat_h3).as_ref()),
+                Box::from(G::G2::to_le_bytes(*C_hat_w).as_ref()),
+            )
+        } else {
+            (Box::from([]), Box::from([]))
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Versionize)]
@@ -821,7 +838,7 @@ fn prove_impl<G: Curve>(
             t: t_input,
             msbs_zero_padding_bit_count,
             bound_type,
-            sid,
+            sid: _,
             domain_separators: ref ds,
         },
         PublicCommit { a, b, c1, c2, .. },
@@ -939,69 +956,8 @@ fn prove_impl<G: Curve>(
         },
     );
 
-    let x_bytes = &*[
-        q.to_le_bytes().as_slice(),
-        (d as u64).to_le_bytes().as_slice(),
-        B_squared.to_le_bytes().as_slice(),
-        t_input.to_le_bytes().as_slice(),
-        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
-        &*a.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*b.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*c1.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*c2.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-    ]
-    .iter()
-    .copied()
-    .flatten()
-    .copied()
-    .collect::<Box<[_]>>();
-
-    // make R_bar a random number generator from the given bytes
-    use sha3::digest::{ExtendableOutput, Update, XofReader};
-
-    let mut hasher = sha3::Shake256::default();
-    for &data in &[
-        ds.hash_R(),
-        sid.to_le_bytes().as_slice(),
-        metadata,
-        x_bytes,
-        C_hat_e.to_le_bytes().as_ref(),
-        C_e.to_le_bytes().as_ref(),
-        C_r_tilde.to_le_bytes().as_ref(),
-    ] {
-        hasher.update(data);
-    }
-    let mut R_bar = hasher.finalize_xof();
-    let R = (0..128 * (2 * (d + k) + 4))
-        .map(|_| {
-            let mut byte = 0u8;
-            R_bar.read(core::slice::from_mut(&mut byte));
-
-            // take two bits
-            match byte & 0b11 {
-                // probability 1/2
-                0 | 1 => 0,
-                // probability 1/4
-                2 => 1,
-                // probability 1/4
-                3 => -1,
-                _ => unreachable!(),
-            }
-        })
-        .collect::<Box<[i8]>>();
-
+    let (R, R_hash) = RHash::new(public, metadata, C_hat_e, C_e, C_r_tilde);
     let R = |i: usize, j: usize| R[i + j * 128];
-    let R_bytes = &*(0..128)
-        .flat_map(|i| (0..(2 * (d + k) + 4)).map(move |j| R(i, j) as u8))
-        .collect::<Box<[u8]>>();
 
     let w_R = (0..128)
         .map(|i| {
@@ -1041,25 +997,7 @@ fn prove_impl<G: Curve>(
                 .collect::<Box<[_]>>(),
         );
 
-    let mut phi = vec![G::Zp::ZERO; 128];
-    G::Zp::hash(
-        &mut phi,
-        &[
-            ds.hash_phi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            R_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            C_R.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
-    let phi_bytes = &*phi
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (phi, phi_hash) = R_hash.gen_phi(C_R);
 
     let m = m_bound;
 
@@ -1082,51 +1020,9 @@ fn prove_impl<G: Curve>(
             .map(G::G2::projective)
             .sum::<G::G2>();
 
-    let mut xi = vec![G::Zp::ZERO; 128];
-    G::Zp::hash(
-        &mut xi,
-        &[
-            ds.hash_xi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            phi_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
+    let (xi, xi_hash) = phi_hash.gen_xi(C_hat_bin);
 
-    let xi_bytes = &*xi
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
-
-    let mut y = vec![G::Zp::ZERO; D + 128 * m];
-    G::Zp::hash(
-        &mut y,
-        &[
-            ds.hash(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            R_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
-    let y_bytes = &*y
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (y, y_hash) = xi_hash.gen_y();
 
     if sanity_check_mode == ProofSanityCheckMode::Panic {
         assert_eq!(y.len(), w_bin.len());
@@ -1140,56 +1036,9 @@ fn prove_impl<G: Curve>(
     let C_y =
         g.mul_scalar(gamma_y) + G::G1::multi_mul_scalar(&g_list[n - (D + 128 * m)..n], &scalars);
 
-    let mut t = vec![G::Zp::ZERO; n];
-    G::Zp::hash_128bit(
-        &mut t,
-        &[
-            ds.hash_t(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let t_bytes = &*t
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (t, t_hash) = y_hash.gen_t(C_y);
 
-    let mut theta = vec![G::Zp::ZERO; d + k];
-    G::Zp::hash(
-        &mut theta,
-        &[
-            ds.hash_lmap(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let theta_bytes = &*theta
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (theta, theta_hash) = t_hash.gen_theta();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
     compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
@@ -1201,61 +1050,10 @@ fn prove_impl<G: Curve>(
         .map(|(x, y)| x * y)
         .sum::<G::Zp>();
 
-    let mut w = vec![G::Zp::ZERO; n];
-    G::Zp::hash_128bit(
-        &mut w,
-        &[
-            ds.hash_w(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let w_bytes = &*w
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (omega, omega_hash) = theta_hash.gen_omega();
 
-    let mut delta = [G::Zp::ZERO; 7];
-    G::Zp::hash(
-        &mut delta,
-        &[
-            ds.hash_agg(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            w_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
+    let (delta, delta_hash) = omega_hash.gen_delta();
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
-    let delta_bytes = &*delta
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
 
     let mut poly_0_lhs = vec![G::Zp::ZERO; 1 + n];
     let mut poly_0_rhs = vec![G::Zp::ZERO; 1 + D + 128 * m];
@@ -1270,7 +1068,7 @@ fn prove_impl<G: Curve>(
     let mut poly_5_lhs = vec![G::Zp::ZERO; 1 + n];
     let mut poly_5_rhs = vec![G::Zp::ZERO; 1 + n];
 
-    let mut xi_scaled = xi.clone();
+    let mut xi_scaled = xi;
     poly_0_lhs[0] = delta_y * gamma_y;
     for j in 0..D + 128 * m {
         let p = &mut poly_0_lhs[n - j];
@@ -1326,7 +1124,7 @@ fn prove_impl<G: Curve>(
 
     for j in 0..n {
         let p = &mut poly_1_lhs[n - j];
-        let mut acc = delta_e * w[j];
+        let mut acc = delta_e * omega[j];
         if j < d + k {
             acc += delta_theta * theta[j];
         }
@@ -1413,7 +1211,7 @@ fn prove_impl<G: Curve>(
 
     for j in 0..d + k + 4 {
         let p = &mut poly_4_rhs[1 + j];
-        *p = w[j];
+        *p = omega[j];
     }
 
     poly_5_lhs[0] = delta_eq * gamma_y;
@@ -1507,7 +1305,7 @@ fn prove_impl<G: Curve>(
         g.mul_scalar(P_pi[0]) + G::G1::multi_mul_scalar(&g_list[..P_pi.len() - 1], &P_pi[1..])
     };
 
-    let mut xi_scaled = xi.clone();
+    let mut xi_scaled = xi;
     let mut scalars = (0..D + 128 * m)
         .map(|j| {
             let mut acc = G::Zp::ZERO;
@@ -1545,7 +1343,7 @@ fn prove_impl<G: Curve>(
                 acc += delta_theta * theta[j];
             }
 
-            acc += delta_e * w[j];
+            acc += delta_e * omega[j];
 
             if j < d + k + 4 {
                 let mut acc2 = G::Zp::ZERO;
@@ -1587,7 +1385,7 @@ fn prove_impl<G: Curve>(
                             .collect::<Box<[_]>>(),
                     )
                 },
-                || G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
+                || G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
             );
 
             Some(ComputeLoadProofFields { C_hat_h3, C_hat_w })
@@ -1595,50 +1393,9 @@ fn prove_impl<G: Curve>(
         ComputeLoad::Verify => None,
     };
 
-    let byte_generators =
-        if let Some(ComputeLoadProofFields { C_hat_h3, C_hat_w }) = compute_load_proof_fields {
-            Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
-        } else {
-            None
-        };
-
-    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
-        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
-            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
-        } else {
-            (&[], &[])
-        };
-
     let C_hat_t = G::G2::multi_mul_scalar(g_hat_list, &t);
 
-    let mut z = G::Zp::ZERO;
-    G::Zp::hash(
-        core::slice::from_mut(&mut z),
-        &[
-            ds.hash_z(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            x_bytes,
-            theta_bytes,
-            delta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-            C_h1.to_le_bytes().as_ref(),
-            C_h2.to_le_bytes().as_ref(),
-            C_hat_t.to_le_bytes().as_ref(),
-            C_hat_h3_bytes,
-            C_hat_w_bytes,
-        ],
-    );
+    let (z, z_hash) = delta_hash.gen_z(C_h1, C_h2, C_hat_t, compute_load_proof_fields.clone());
 
     let mut P_h1 = vec![G::Zp::ZERO; 1 + n];
     let mut P_h2 = vec![G::Zp::ZERO; 1 + n];
@@ -1652,7 +1409,7 @@ fn prove_impl<G: Curve>(
         ComputeLoad::Verify => vec![],
     };
 
-    let mut xi_scaled = xi.clone();
+    let mut xi_scaled = xi;
     for j in 0..D + 128 * m {
         let p = &mut P_h1[n - j];
         if j < D {
@@ -1684,7 +1441,7 @@ fn prove_impl<G: Curve>(
             *p += delta_theta * theta[j];
         }
 
-        *p += delta_e * w[j];
+        *p += delta_e * omega[j];
 
         if j < d + k + 4 {
             let mut acc = G::Zp::ZERO;
@@ -1720,7 +1477,7 @@ fn prove_impl<G: Curve>(
     }
 
     if !P_w.is_empty() {
-        P_w[1..].copy_from_slice(&w[..d + k + 4]);
+        P_w[1..].copy_from_slice(&omega[..d + k + 4]);
     }
 
     let mut p_h1 = G::Zp::ZERO;
@@ -1745,38 +1502,7 @@ fn prove_impl<G: Curve>(
         pow = pow * z;
     }
 
-    let mut chi = G::Zp::ZERO;
-    G::Zp::hash(
-        core::slice::from_mut(&mut chi),
-        &[
-            ds.hash_chi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            delta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-            C_h1.to_le_bytes().as_ref(),
-            C_h2.to_le_bytes().as_ref(),
-            C_hat_t.to_le_bytes().as_ref(),
-            C_hat_h3_bytes,
-            C_hat_w_bytes,
-            z.to_le_bytes().as_ref(),
-            p_h1.to_le_bytes().as_ref(),
-            p_h2.to_le_bytes().as_ref(),
-            p_t.to_le_bytes().as_ref(),
-        ],
-    );
+    let chi = z_hash.gen_chi(p_h1, p_h2, p_t);
 
     let mut Q_kzg = vec![G::Zp::ZERO; 1 + n];
     let chi2 = chi * chi;
@@ -1967,8 +1693,8 @@ pub fn verify_impl<G: Curve>(
         t: t_input,
         msbs_zero_padding_bit_count,
         bound_type,
-        sid,
-        domain_separators: ref ds,
+        sid: _,
+        domain_separators: _,
     } = public.0;
     let g_list = &*g_lists.g_list.0;
     let g_hat_list = &*g_lists.g_hat_list.0;
@@ -2004,227 +1730,18 @@ pub fn verify_impl<G: Curve>(
         return Err(());
     }
 
-    let byte_generators = if let Some(&ComputeLoadProofFields { C_hat_h3, C_hat_w }) =
-        compute_load_proof_fields.as_ref()
-    {
-        Some((G::G2::to_le_bytes(C_hat_h3), G::G2::to_le_bytes(C_hat_w)))
-    } else {
-        None
-    };
-
-    let (C_hat_h3_bytes, C_hat_w_bytes): (&[u8], &[u8]) =
-        if let Some((C_hat_h3_bytes_owner, C_hat_w_bytes_owner)) = byte_generators.as_ref() {
-            (C_hat_h3_bytes_owner.as_ref(), C_hat_w_bytes_owner.as_ref())
-        } else {
-            (&[], &[])
-        };
-
-    let x_bytes = &*[
-        q.to_le_bytes().as_slice(),
-        (d as u64).to_le_bytes().as_slice(),
-        B_squared.to_le_bytes().as_slice(),
-        t_input.to_le_bytes().as_slice(),
-        msbs_zero_padding_bit_count.to_le_bytes().as_slice(),
-        &*a.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*b.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*c1.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-        &*c2.iter()
-            .flat_map(|&x| x.to_le_bytes())
-            .collect::<Box<[_]>>(),
-    ]
-    .iter()
-    .copied()
-    .flatten()
-    .copied()
-    .collect::<Box<[_]>>();
-
-    // make R_bar a random number generator from the given bytes
-    use sha3::digest::{ExtendableOutput, Update, XofReader};
-
-    let mut hasher = sha3::Shake256::default();
-    for &data in &[
-        ds.hash_R(),
-        sid.to_le_bytes().as_slice(),
-        metadata,
-        x_bytes,
-        C_hat_e.to_le_bytes().as_ref(),
-        C_e.to_le_bytes().as_ref(),
-        C_r_tilde.to_le_bytes().as_ref(),
-    ] {
-        hasher.update(data);
-    }
-    let mut R_bar = hasher.finalize_xof();
-    let R = (0..128 * (2 * (d + k) + 4))
-        .map(|_| {
-            let mut byte = 0u8;
-            R_bar.read(core::slice::from_mut(&mut byte));
-
-            // take two bits
-            match byte & 0b11 {
-                // probability 1/2
-                0 | 1 => 0,
-                // probability 1/4
-                2 => 1,
-                // probability 1/4
-                3 => -1,
-                _ => unreachable!(),
-            }
-        })
-        .collect::<Box<[i8]>>();
-
+    let (R, R_hash) = RHash::new(public, metadata, C_hat_e, C_e, C_r_tilde);
     let R = |i: usize, j: usize| R[i + j * 128];
-    let R_bytes = &*(0..128)
-        .flat_map(|i| (0..(2 * (d + k) + 4)).map(move |j| R(i, j) as u8))
-        .collect::<Box<[u8]>>();
 
-    let mut phi = vec![G::Zp::ZERO; 128];
-    G::Zp::hash(
-        &mut phi,
-        &[
-            ds.hash_phi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            R_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            C_R.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
-    let phi_bytes = &*phi
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (phi, phi_hash) = R_hash.gen_phi(C_R);
 
-    let mut xi = vec![G::Zp::ZERO; 128];
-    G::Zp::hash(
-        &mut xi,
-        &[
-            ds.hash_xi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            phi_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
-    let xi_bytes = &*xi
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (xi, xi_hash) = phi_hash.gen_xi(C_hat_bin);
 
-    let mut y = vec![G::Zp::ZERO; D + 128 * m];
-    G::Zp::hash(
-        &mut y,
-        &[
-            ds.hash(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            R_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-        ],
-    );
-    let y_bytes = &*y
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (y, y_hash) = xi_hash.gen_y();
 
-    let mut t = vec![G::Zp::ZERO; n];
-    G::Zp::hash_128bit(
-        &mut t,
-        &[
-            ds.hash_t(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let t_bytes = &*t
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (t, t_hash) = y_hash.gen_t(C_y);
 
-    let mut theta = vec![G::Zp::ZERO; d + k];
-    G::Zp::hash(
-        &mut theta,
-        &[
-            ds.hash_lmap(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let theta_bytes = &*theta
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
-
-    let mut w = vec![G::Zp::ZERO; n];
-    G::Zp::hash_128bit(
-        &mut w,
-        &[
-            ds.hash_w(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
-    let w_bytes = &*w
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
+    let (theta, theta_hash) = t_hash.gen_theta();
 
     let mut a_theta = vec![G::Zp::ZERO; D];
     compute_a_theta::<G>(&mut a_theta, &theta, a, k, b, effective_cleartext_t, delta);
@@ -2236,34 +1753,10 @@ pub fn verify_impl<G: Curve>(
         .map(|(x, y)| x * y)
         .sum::<G::Zp>();
 
-    let mut delta = [G::Zp::ZERO; 7];
-    G::Zp::hash(
-        &mut delta,
-        &[
-            ds.hash_agg(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            w_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-        ],
-    );
+    let (omega, omega_hash) = theta_hash.gen_omega();
+
+    let (delta, delta_hash) = omega_hash.gen_delta();
     let [delta_r, delta_dec, delta_eq, delta_y, delta_theta, delta_e, delta_l] = delta;
-    let delta_bytes = &*delta
-        .iter()
-        .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-        .collect::<Box<[_]>>();
 
     let g = G::G1::GENERATOR;
     let g_hat = G::G2::GENERATOR;
@@ -2319,7 +1812,7 @@ pub fn verify_impl<G: Curve>(
                     C_hat_h3: _,
                     C_hat_w,
                 }) => C_hat_w,
-                None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &w[..d + k + 4]),
+                None => G::G2::multi_mul_scalar(&g_hat_list[..d + k + 4], &omega[..d + k + 4]),
             },
         );
         let lhs5 = pairing(C_y.mul_scalar(delta_eq), C_hat_t);
@@ -2336,40 +1829,13 @@ pub fn verify_impl<G: Curve>(
         return Err(());
     }
 
-    let mut z = G::Zp::ZERO;
-    G::Zp::hash(
-        core::slice::from_mut(&mut z),
-        &[
-            ds.hash_z(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            x_bytes,
-            theta_bytes,
-            delta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-            C_h1.to_le_bytes().as_ref(),
-            C_h2.to_le_bytes().as_ref(),
-            C_hat_t.to_le_bytes().as_ref(),
-            C_hat_h3_bytes,
-            C_hat_w_bytes,
-        ],
-    );
-
     let load = if compute_load_proof_fields.is_some() {
         ComputeLoad::Proof
     } else {
         ComputeLoad::Verify
     };
+
+    let (z, z_hash) = delta_hash.gen_z(C_h1, C_h2, C_hat_t, compute_load_proof_fields.clone());
 
     let mut P_h1 = vec![G::Zp::ZERO; 1 + n];
     let mut P_h2 = vec![G::Zp::ZERO; 1 + n];
@@ -2383,7 +1849,7 @@ pub fn verify_impl<G: Curve>(
         ComputeLoad::Verify => vec![],
     };
 
-    let mut xi_scaled = xi.clone();
+    let mut xi_scaled = xi;
     for j in 0..D + 128 * m {
         let p = &mut P_h1[n - j];
         if j < D {
@@ -2415,7 +1881,7 @@ pub fn verify_impl<G: Curve>(
             *p += delta_theta * theta[j];
         }
 
-        *p += delta_e * w[j];
+        *p += delta_e * omega[j];
 
         if j < d + k + 4 {
             let mut acc = G::Zp::ZERO;
@@ -2451,7 +1917,7 @@ pub fn verify_impl<G: Curve>(
     }
 
     if !P_w.is_empty() {
-        P_w[1..].copy_from_slice(&w[..d + k + 4]);
+        P_w[1..].copy_from_slice(&omega[..d + k + 4]);
     }
 
     let mut p_h1 = G::Zp::ZERO;
@@ -2476,38 +1942,8 @@ pub fn verify_impl<G: Curve>(
         pow = pow * z;
     }
 
-    let mut chi = G::Zp::ZERO;
-    G::Zp::hash(
-        core::slice::from_mut(&mut chi),
-        &[
-            ds.hash_chi(),
-            sid.to_le_bytes().as_slice(),
-            metadata,
-            x_bytes,
-            y_bytes,
-            t_bytes,
-            phi_bytes,
-            xi_bytes,
-            theta_bytes,
-            delta_bytes,
-            C_hat_e.to_le_bytes().as_ref(),
-            C_e.to_le_bytes().as_ref(),
-            R_bytes,
-            C_R.to_le_bytes().as_ref(),
-            C_hat_bin.to_le_bytes().as_ref(),
-            C_r_tilde.to_le_bytes().as_ref(),
-            C_y.to_le_bytes().as_ref(),
-            C_h1.to_le_bytes().as_ref(),
-            C_h2.to_le_bytes().as_ref(),
-            C_hat_t.to_le_bytes().as_ref(),
-            C_hat_h3_bytes,
-            C_hat_w_bytes,
-            z.to_le_bytes().as_ref(),
-            p_h1.to_le_bytes().as_ref(),
-            p_h2.to_le_bytes().as_ref(),
-            p_t.to_le_bytes().as_ref(),
-        ],
-    );
+    let chi = z_hash.gen_chi(p_h1, p_h2, p_t);
+
     let chi2 = chi * chi;
     let chi3 = chi2 * chi;
     let chi4 = chi3 * chi;
