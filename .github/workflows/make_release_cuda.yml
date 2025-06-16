@@ -93,6 +93,9 @@ jobs:
             echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
             echo "HOME=/home/ubuntu";
           } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: ${{ matrix.gcc }}
+
       - name: Prepare package
         run: |
           cargo package -p tfhe-cuda-backend
