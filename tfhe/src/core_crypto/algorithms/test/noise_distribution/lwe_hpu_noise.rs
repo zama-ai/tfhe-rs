@@ -754,7 +754,7 @@ create_parameterized_test_hpu!(
         HPU_TEST_PARAMS_4_BITS_HPU_64_KS_21_132_TUNIFORM_2M128,
     },
     2,
-    80,
     100,
+    160,
     NORMALITY_MODE
 );
