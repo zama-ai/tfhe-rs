@@ -1,10 +1,30 @@
 # GPU acceleration
 
-This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU.
+**TFHE-rs** has a CUDA GPU backend  that enables faster integer arithmetic operations on encrypted data, when compared to the default CPU backend. This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU. 
 
-**TFHE-rs** now supports a GPU backend with CUDA implementation, enabling integer arithmetic operations on encrypted data.
+1. [FHE Performance on GPU](#performance)
+2. [GPU programming model](#gpu-programming-model)
+3. [Quick start](#gpu-programming-quick-start)
 
-## Prerequisites
+## FHE Performance on GPU
+
+The GPU backend is, on average, **between 1.6x and 4.2x faster** than the CPU one, depending on the type of integer operation. For a detailed comparison, see the following page.    
+{% content-ref url="../../getting_started/benchmarks/README.md" %} GPU vs CPU benchmarks {% endcontent-ref %}
+
+## GPU Programming model
+
+The GPU TFHE-rs integer API is identical to the CPU API in all respects but one: server keys must be copied to one or multiple GPUs. While the API is otherwise identical to the CPU, some GPU program design principles must be considered:
+1. Key Generation, Encryption and Decryption are performed on the CPU. When used in operations, ciphertexts are automatically stored on the first available GPU.
+2. GPU code that performs integer FHE operations is identical with equivalent CPU code.
+3. The GPU backend has specific crypto-system parameters. Ciphertexts that are encrypted with CPU parameters cannot be processed with GPU server keys. Server keys generated with the CPU backend are not compatible with the GPU backend.  
+4. Each server key instance is assigned to a single GPU. The GPU backend can use multiple GPUs. To set the current GPU, activate the server key assigned to the GPU you want to use.
+5. GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.  
+
+## GPU programming quick start
+
+### 1. Prerequisites
+
+To compile and execute GPU TFHE-rs programs, make sure your system has the following software installed.
 
 * Cuda version >= 10
 * Compute Capability >= 3.0
@@ -13,7 +33,7 @@ This guide explains how to update your existing program to leverage GPU accelera
 * libclang, to match Rust bingen [requirements](https://rust-lang.github.io/rust-bindgen/requirements.html) >= 9.0
 * Rust version - check this [page](../rust_configuration.md)
 
-## Importing to your project
+### 2. Import GPU-enabled TFHE-rs
 
 To use the **TFHE-rs** GPU backend in your project, add the following dependency in your `Cargo.toml`.
 
@@ -21,104 +41,19 @@ To use the **TFHE-rs** GPU backend in your project, add the following dependency
 tfhe = { version = "~1.2.0", features = ["boolean", "shortint", "integer", "gpu"] }
 ```
 
+If none of the supported backends is configured in `Cargo.toml`, the CPU backend is used.
+
 {% hint style="success" %}
 For optimal performance when using **TFHE-rs**, run your code in release mode with the `--release` flag.
 {% endhint %}
 
-### Supported platforms
+### 3. Supported platforms
 
 **TFHE-rs** GPU backend is supported on Linux (x86, aarch64).
 
 | OS      | x86         | aarch64       |
-| ------- | ----------- | ------------- |
-| Linux   | Supported   | Supported\*   |
-| macOS   | Unsupported | Unsupported\* |
+| ------- | ----------- |---------------|
+| Linux   | Supported   | Supported     |
+| macOS   | Unsupported | Unsupported   |
 | Windows | Unsupported | Unsupported   |
 
-## A first example
-
-### Configuring and creating keys.
-
-Comparing to the [CPU example](../../getting_started/quick_start.md), GPU set up differs in the key creation, as detailed [here](run\_on\_gpu.md#setting-the-keys)
-
-Here is a full example (combining the client and server parts):
-
-```rust
-use tfhe::{ConfigBuilder, set_server_key, FheUint8, ClientKey, CompressedServerKey};
-use tfhe::prelude::*;
-
-fn main() {
-
-    let config = ConfigBuilder::default().build();
-
-    let client_key= ClientKey::generate(config);
-    let compressed_server_key = CompressedServerKey::new(&client_key);
-
-    let gpu_key = compressed_server_key.decompress_to_gpu();
-
-    let clear_a = 27u8;
-    let clear_b = 128u8;
-
-    let a = FheUint8::encrypt(clear_a, &client_key);
-    let b = FheUint8::encrypt(clear_b, &client_key);
-
-    //Server-side
-
-    set_server_key(gpu_key);
-    let result = a + b;
-
-    //Client-side
-    let decrypted_result: u8 = result.decrypt(&client_key);
-
-    let clear_result = clear_a + clear_b;
-
-    assert_eq!(decrypted_result, clear_result);
-}
-```
-
-Beware that when the GPU feature is activated, when calling: `let config = ConfigBuilder::default().build();`, the cryptographic parameters differ from the CPU ones, used when the GPU feature is not activated. Indeed, TFHE-rs uses dedicated parameters for the GPU in order to achieve better performance.
-
-### Setting the keys
-
-The configuration of the key is different from the CPU. More precisely, if both client and server keys are still generated by the client (which is assumed to run on a CPU), the server key has then to be decompressed by the server to be converted into the right format. To do so, the server should run this function: `decompressed_to_gpu()`.
-
-Once decompressed, the operations between CPU and GPU are identical.
-
-### Encryption
-
-On the client-side, the method to encrypt the data is exactly the same than the CPU one, as shown in the following example:
-
-```Rust
-    let clear_a = 27u8;
-    let clear_b = 128u8;
-    
-    let a = FheUint8::encrypt(clear_a, &client_key);
-    let b = FheUint8::encrypt(clear_b, &client_key);
-```
-
-### Computation
-
-The server first need to set up its keys with `set_server_key(gpu_key)`.
-
-Then, homomorphic computations are performed using the same approach as the [CPU operations](../../fhe-computation/operations/README.md).
-
-```Rust
-    //Server-side
-    set_server_key(gpu_key);
-    let result = a + b;
-
-    //Client-side
-    let decrypted_result: u8 = result.decrypt(&client_key);
-
-    let clear_result = clear_a + clear_b;
-
-    assert_eq!(decrypted_result, clear_result);
-```
-
-### Decryption
-
-Finally, the client decrypts the results using:
-
-```Rust
-    let decrypted_result: u8 = result.decrypt(&client_key);
-```
