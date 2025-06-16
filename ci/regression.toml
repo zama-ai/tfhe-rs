@@ -29,6 +29,6 @@ slab.backend = "hyperstack"
 slab.profile = "multi-h100"
 
 [cpu.default]
-integer = ["add", "mul", "div"]
+target.integer = ["add", "mul", "div"]
 slab.backend = "aws"
 slab.profile = "bench"
