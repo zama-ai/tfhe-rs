@@ -1,13 +1,29 @@
-# Compressing ciphertexts
+# Compressing ciphertexts on the GPU
 
-This document explains how to compress ciphertexts using the GPU - even after homomorphic computations - just like on the [CPU](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation).
+This document explains how to compress ciphertexts using the GPU. Compression can be applied on freshly encrypted ciphertexts or on ciphertexts that are the result of FHE integer operations. The syntax for ciphertext compression is identical to the one for the [CPU backend](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation), but cryptographic parameters specific to the GPU must be configured for compression.
 
-Compressing ciphertexts after computation using GPU is very similar to how it's done on the CPU. The following example shows how to compress and decompress a list containing 4 messages:
+## API elements discussed in this document
 
-* One 32-bits integer
-* One 64-bit integer
-* One Boolean
-* One 2-bit integer
+- [tfhe::shortint::parameters](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/index.html): this module provides the structure containing the cryptographic parameters required for the homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter sets.
+- [tfhe::ConfigBuilder::with_custom_parameters](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.with_custom_parameters): initializes a configuration builder with a user-specified parameter set
+- [tfhe::ConfigBuilder::enable_compression](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.enable_compression): enables the compression feature in the configuration builder 
+
+## Cryptographic parameter setting
+
+When using compression, the [`ConfigBuilder`](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html) class must be initialized with the `enable_compression` calls. This requires that the caller sets both the cryptographic PBS parameters and the compression cryptographic parameters.
+
+The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter set corresponds to the default PBS parameter set instantiated by `ConfigBuilder::default()` when the `"gpu"` feature enabled. The [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression cryptographic parameters.
+
+```Rust
+    let config =
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+            .enable_compression(COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+            .build();
+```
+
+## GPU compression Example
+
+The following example shows how to compress and decompress a list containing 4 messages: one 32-bit integer, one 64-bit integer, one Boolean, and one 2-bit integer.
 
 ```rust
 use tfhe::prelude::*;
