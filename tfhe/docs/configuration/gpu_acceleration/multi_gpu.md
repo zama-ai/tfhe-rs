@@ -1,31 +1,34 @@
 # Multi-GPU support
-This guide explains the multi GPU support of TFHE-rs, and walks through a practical example of performing a large batch of encrypted 64-bit additions using manual GPU 
+This guide explains the multi-GPU support of TFHE-rs, and walks through a practical example of performing a large batch of encrypted 64-bit additions using manual GPU 
 dispatching to improve the performance.
 
-## Multi-GPU support overview
+## Multi-GPU programming model
 
-TFHE-rs supports platforms with multiple GPUs. There is **nothing to change in the code to execute on such platforms**. To keep the API as user-friendly as possible, the configuration is automatically set, i.e., the user has no fine-grained control over the number of GPUs to be used.
-However, you can decide to have operations be executed on a single GPU of your choice.
-In many cases this provides better throughput than using all the available GPUs to perform the operation.
-Indeed, except for integer precisions above 64 bits and for the multiplication, which involves many bootstrap computations in parallel, most operations on up to 64 bits do not necessitate the full power of a GPU.
-You will then be able to maximize throughput on multiple GPUs with TFHE-rs.
+TFHE-rs supports platforms with multiple GPUs. By default, when decompressing a server key with the [`decompress_to_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_gpu) function, TFHE-rs will assign all available GPUs to the server key. TFHE-rs uses all GPUs assigned to the current server key when executing operations. Depending on the type and number of available GPUs, this automatic mechanism may not achieve optimal throughput.  
 
-## Improving throughput on multiple-GPUs
+Most integer operations have low GPU-intensity: they use few GPU cores and may not fully use the resources of a single GPU. Manual scheduling of operations on a single or on several GPUs, so that several such operations can be processed in parallel, is helpful for these types of low-GPU intensity operations. 
 
-By default, when multiple GPUs are available on the machine, TFHE-rs automatically uses them all
-to perform encrypted operations. Under the hood, it includes a hard-coded logic to dispatch work across all the GPUs and to copy essential data—like the server key—to each GPU.
-This approach is efficient for operations that load the GPU extensively (e.g. the 64-bit multiplication),
-but not so much for smaller operations like the encrypted addition or comparison on 64-bits.
-To address this, TFHE-rs also provides a mechanism to manually select which GPU to operate on.
+Other types of operations run optimally over several GPUs without manual scheduling but may benefit from manual scheduling on different GPUs when more than 4 GPUs are available:
+- operations on operands of 64-bits or more
+- multiplication of operands of 8-bits or more
 
-### Dispatch operations on the GPUs of your choice
+To improve throughput by increasing GPU core utilization on all available GPUs, you can:
+- optimize the number of GPUs assigned to a decompressed server key using the [`decompress_to_specific_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_specific_gpu) function.
+- execute several operations in parallel on the same GPU
+
+## API elements discussed in this document
+
+- [`tfhe::ServerKey::decompress_to_specific_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_specific_gpu): decompresses a server key to one or multiple GPUs
+- [`tfhe::set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html): sets the current server key. When this is a GPU key, this function activates execution of integer operations on all GPUs assigned to this key. Moreover, this function will create anew CUDA stream on the current CPU thread.
+
+## Multi-GPU operation scheduling example
 
 When selecting a specific GPU to execute on, there are two essential requirements that are different from a default GPU execution:
-- You must create a GPU server key on each GPU individually.
+- You must create a GPU server key on each GPU, or subset of GPUs, individually.
 - The batch of operations must be distributed on all the GPUs manually.
 
 #### Step 1: Decompress the server key to each GPU
-Instead of a single server key being used across all GPUs automatically, you’ll need specifically decompress the server key to each GPU, so that the key is available in memory.
+Instead of a single server key being used across all GPUs automatically, you’ll need decompress the server key to each GPU, so that the key is available in memory.
 For example, by default, the GPU server key is decompressed and loaded onto all available GPUs automatically as follows:
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey};

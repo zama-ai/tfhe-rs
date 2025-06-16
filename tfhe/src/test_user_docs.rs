@@ -232,16 +232,16 @@ mod test_gpu_doc {
         configuration_gpu_acceleration_array_type
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/benchmark.md",
-        configuration_gpu_acceleration_benchmark
-    );
-    doctest!(
         "../docs/configuration/gpu_acceleration/multi_gpu.md",
         configuration_gpu_acceleration_multi_gpu_device_selection
     );
     doctest!(
         "../docs/configuration/gpu_acceleration/zk-pok.md",
         configuration_gpu_acceleration_zk_pok
+    );
+    doctest!(
+        "../docs/configuration/gpu_acceleration/simple_example.md",
+        configuration_gpu_simple_example
     );
 }
 

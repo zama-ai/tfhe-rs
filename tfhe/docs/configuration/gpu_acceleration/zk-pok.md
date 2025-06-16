@@ -1,23 +1,27 @@
 # Zero-knowledge proofs
 
-Zero-knowledge proofs (ZK) are a powerful tool to assert that the encryption of a message is correct, as discussed in [advanced features](../../fhe-computation/advanced-features/zk-pok.md).
-However, computation is not possible on the type of ciphertexts it produces (i.e. `ProvenCompactCiphertextList`). This document explains how to use the GPU to accelerate the
-preprocessing step needed to convert ciphertexts formatted for ZK to ciphertexts in the right format for computation purposes on GPU. This 
-operation is called "expansion".
+Zero-knowledge proofs (ZK) are a powerful tool to assert that the encryption of a message is correctly formed with secure cryptographic parameters and helps thwart chosen ciphertext attacks (CCA) such as replay attacks. 
 
-## Proven compact ciphertext list
+The CPU implementation is discussed in [advanced features](../../fhe-computation/advanced-features/zk-pok.md). During encryption, ZK proofs can be generated for a single ciphertext or for a list of ciphertexts. To use ciphertexts with proofs for computation, additional conversion steps are needed: proof expansion and proof verification. While both steps are necessary to use ciphertexts with proofs for computation, only proof expansion is sped up on GPU, while verification is performed by the CPU.
 
-A proven compact list of ciphertexts can be seen as a compacted collection of ciphertexts for which encryption can be verified.
-This verification is currently only supported on the CPU, but the expansion can be accelerated using the GPU.
-This way, verification and expansion can be performed in parallel, efficiently using all the available computational resources.
-
-## Supported types
-Encrypted messages can be integers (like FheUint64) or booleans. The GPU backend does not currently support encrypted strings.
+## Configuration
 
 {% hint style="info" %}
 You can enable this feature using the flag: `--features=zk-pok,gpu` when building **TFHE-rs**.
 {% endhint %}
 
+## API elements discussed in this document
+
+- [`tfhe::ProvenCompactCiphertextList`](https://docs.rs/tfhe/latest/tfhe/struct.ProvenCompactCiphertextList.html): a list of ciphertexts with accompanying ZK-proofs. The ciphertexts are stored in a compact form and must be expanded for computation.
+- [`tfhe::ProvenCompactCiphertextList::verify_and_expand`](https://docs.rs/tfhe/latest/tfhe/struct.ProvenCompactCiphertextList.html#method.verify_and_expand): verify the proofs for this ciphertext list and expand each ciphertext into a form that is supported for computation.
+
+## Proven compact ciphertext list
+
+A proven compact list of ciphertexts can be seen as a compacted collection of ciphertexts for which encryption can be verified.
+This verification is currently only supported on the CPU, but the expansion can be sped up using the GPU. However, verification and expansion can be performed in parallel, efficiently using all the available computational resources.
+
+## Supported types
+Encrypted messages can be integers (like FheUint64) or booleans. The GPU backend does not currently support encrypted strings.
 
 ## Example
 
