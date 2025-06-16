@@ -112,6 +112,9 @@ impl CompactPublicKeyEncryptionParameters {
             padding_bit: PaddingBit::Yes,
         }
     }
+    pub fn set_carry_modulus(&mut self, new_carry_modulus: CarryModulus) {
+        self.carry_modulus = new_carry_modulus;
+    }
 }
 
 impl TryFrom<ShortintParameterSet> for CompactPublicKeyEncryptionParameters {

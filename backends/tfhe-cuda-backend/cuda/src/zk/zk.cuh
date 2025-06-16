@@ -34,7 +34,8 @@ __host__ void host_expand_without_verification(
   if (sizeof(Torus) == 8) {
     cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
                        lwe_flattened_compact_array_in, lwe_dimension, num_lwes,
-                       d_lwe_compact_input_indexes, d_body_id_per_compact_list);
+                       (void *)d_lwe_compact_input_indexes,
+                       (void *)d_body_id_per_compact_list);
 
   } else
     PANIC("Cuda error: expand is only supported on 64 bits")

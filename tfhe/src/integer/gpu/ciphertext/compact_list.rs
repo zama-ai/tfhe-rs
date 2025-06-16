@@ -197,7 +197,7 @@ impl CudaCompactCiphertextListExpander {
 // lwe_dimension and lwe_ciphertext_count at runtime, these and other attributes are pre-computed
 // and stored directly in the CudaVec structure.
 pub struct CudaFlattenedVecCompactCiphertextList {
-    d_flattened_vec: CudaVec<u64>,
+    pub(crate) d_flattened_vec: CudaVec<u64>,
     num_lwe_per_compact_list: Vec<u32>,
     pub(crate) data_info: Vec<DataKind>,
     is_boolean: Vec<bool>,

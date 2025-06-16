@@ -46,6 +46,7 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::prelude::misc::torus_modular_diff;
 use crate::core_crypto::prelude::test::{round_decode, TestResources};
 use crate::integer::tests::create_parameterized_test;
+use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::NoiseLevel;
 
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
@@ -54,6 +55,15 @@ use crate::shortint::list_compression::CompressionPrivateKeys;
 
 use crate::shortint::parameters::list_compression::CompressionParameters;
 
+use crate::shortint::parameters::v1_3::{
+    V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+    V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+    V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_3_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+    V1_3_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+};
 use crate::shortint::parameters::{
     CiphertextModulus, DynamicDistribution, EncryptionKeyChoice, NoiseSquashingParameters,
     ShortintParameterSet, COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -86,9 +96,7 @@ use crate::core_crypto::gpu::{
     cuda_keyswitch_lwe_ciphertext, cuda_lwe_ciphertext_plaintext_sub_assign,
     cuda_modulus_switch_ciphertext, cuda_modulus_switch_multi_bit_ciphertext,
     cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
-    cuda_programmable_bootstrap_128_lwe_ciphertext,
-    cuda_programmable_bootstrap_128_lwe_ciphertext_async,
-    cuda_programmable_bootstrap_lwe_ciphertext,
+    cuda_programmable_bootstrap_128_lwe_ciphertext, cuda_programmable_bootstrap_lwe_ciphertext,
     cuda_programmable_bootstrap_lwe_ciphertext_no_ms_noise_reduction, CudaStreams,
 };
 use crate::core_crypto::prelude::{
@@ -97,7 +105,7 @@ use crate::core_crypto::prelude::{
 };
 use crate::integer::ciphertext::DataKind;
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextList;
-use crate::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
+use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaUnsignedRadixCiphertext};
 
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 use crate::integer::gpu::list_compression::server_keys::{
@@ -107,12 +115,25 @@ use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     gen_keys_radix_gpu, unchecked_small_scalar_mul_integer_async, CudaServerKey,
 };
-use crate::integer::RadixClientKey;
+use crate::integer::{CompactPrivateKey, RadixClientKey};
 
 use crate::core_crypto::commons::dispersion::DispersionParameter;
 use crate::core_crypto::commons::numeric::CastInto;
 use itertools::Itertools;
 use rayon::prelude::*;
+use tfhe_cuda_backend::bindings::cuda_lwe_expand_64;
+
+use crate::core_crypto::prelude::test::noise_distribution::lwe_encryption_noise::lwe_compact_public_key_encryption_expected_variance;
+use crate::integer::gpu::ciphertext::compact_list::CudaFlattenedVecCompactCiphertextList;
+use crate::shortint::parameters::{
+    CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
+    ShortintKeySwitchingParameters,
+};
+
+use crate::integer::gpu::key_switching_key::{CudaKeySwitchingKey, CudaKeySwitchingKeyMaterial};
+use crate::integer::key_switching_key::KeySwitchingKey;
+use crate::integer::{CompactPublicKey, CompressedServerKey};
+use crate::shortint::Ciphertext;
 
 pub fn decrypt_multi_bit_lwe_ciphertext(
     lwe_secret_key: &LweSecretKey<&[u64]>,
@@ -1389,6 +1410,1073 @@ create_parameterized_test!(noise_check_shortint_classic_pbs_atomic_pattern_pfail
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
+
+fn pke_encrypt_ks_to_compute_inner_helper_gpu(
+    cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params: ShortintParameterSet,
+    single_cpk: &CompactPublicKey,
+    single_ksk: &CudaKeySwitchingKey,
+    single_cks: &ClientKey,
+    single_sks: &CudaServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+    local_streams: &CudaStreams,
+) -> DecryptionAndNoiseResult {
+    assert!(block_params.pbs_only());
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let num_ct_blocks = 1;
+    let thread_compact_encryption_secret_key;
+    let thread_cpk;
+    let thread_ksk;
+    let thread_cks;
+    let thread_sks;
+    let thread_ksk_material;
+    let thread_cpu_ksk;
+    let (cpk, ksk, cks, sks) = if should_use_one_key_per_sample() {
+        thread_compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+        thread_cpk = CompactPublicKey::new(&thread_compact_encryption_secret_key);
+
+        thread_cks = crate::integer::ClientKey::new(block_params);
+        let compressed_server_key =
+            CompressedServerKey::new_radix_compressed_server_key(&thread_cks);
+        let thread_cpu_sks = compressed_server_key.decompress();
+        thread_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, local_streams);
+        thread_cpu_ksk = KeySwitchingKey::new(
+            (&thread_compact_encryption_secret_key, None),
+            (&thread_cks, &thread_cpu_sks),
+            ksk_params,
+        );
+        thread_ksk_material =
+            CudaKeySwitchingKeyMaterial::from_key_switching_key(&thread_cpu_ksk, local_streams);
+        thread_ksk = CudaKeySwitchingKey::from_cuda_key_switching_key_material(
+            &thread_ksk_material,
+            &thread_sks,
+        );
+
+        (&thread_cpk, &thread_ksk, &thread_cks.key, &thread_sks)
+    } else {
+        // If we don't want to use per thread keys (to go faster), we use those single keys for all
+        // threads
+        (single_cpk, single_ksk, single_cks, single_sks)
+    };
+
+    let small_lwe_secret_key = match &cks.atomic_pattern {
+        AtomicPatternClientKey::Standard(ap_ck) => ap_ck.small_lwe_secret_key(),
+        AtomicPatternClientKey::KeySwitch32(_ap_ck) => todo!(),
+    };
+
+    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+    let br_input_modulus_log = block_params
+        .polynomial_size()
+        .to_blind_rotation_input_modulus_log();
+    let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
+
+    let delta = (1u64 << 63) / cleartext_modulus;
+
+    let shortint_compact_ct_list = cpk
+        .key
+        .encrypt_slice_with_modulus(&[msg], cleartext_modulus);
+
+    //Indexes for keyswitching and expanding
+    let h_indexes = [u64::ZERO];
+    let h_expand_indexes = [u32::ZERO];
+    let mut d_expand_indexes = unsafe { CudaVec::<u32>::new_async(1, local_streams, 0) };
+    let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(1, local_streams, 0) };
+    let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(1, local_streams, 0) };
+    unsafe {
+        d_expand_indexes.copy_from_cpu_async(h_expand_indexes.as_ref(), local_streams, 0);
+        d_input_indexes.copy_from_cpu_async(h_indexes.as_ref(), local_streams, 0);
+        d_output_indexes.copy_from_cpu_async(h_indexes.as_ref(), local_streams, 0);
+    }
+    local_streams.synchronize();
+
+    let single_element_vec = vec![shortint_compact_ct_list.clone()];
+    let data_info = vec![DataKind::Unsigned(num_ct_blocks)];
+    let gpu_flatten_compact_ct_list =
+        CudaFlattenedVecCompactCiphertextList::from_vec_shortint_compact_ciphertext_list(
+            single_element_vec,
+            data_info,
+            local_streams,
+        );
+    let mut gpu_expanded_ct: CudaUnsignedRadixCiphertext =
+        sks.create_trivial_zero_radix(num_ct_blocks, local_streams);
+
+    //we need to call directly to the expand function in the backend for the non-casting case
+    unsafe {
+        cuda_lwe_expand_64(
+            local_streams.ptr[0],
+            0u32,
+            gpu_expanded_ct.ciphertext.d_blocks.0.d_vec.as_mut_c_ptr(0),
+            gpu_flatten_compact_ct_list.d_flattened_vec.as_c_ptr(0),
+            gpu_flatten_compact_ct_list.lwe_dimension.0 as u32,
+            gpu_flatten_compact_ct_list.lwe_ciphertext_count.0 as u32,
+            d_expand_indexes.as_c_ptr(0),
+            d_expand_indexes.as_c_ptr(0),
+        );
+    }
+    local_streams.synchronize();
+    let gpu_expanded_info = gpu_expanded_ct.ciphertext.info.blocks[0];
+
+    let core_ksk = &ksk.key_switching_key_material.lwe_keyswitch_key;
+
+    let after_ks_lwe_ct = LweCiphertext::new(
+        0u64,
+        core_ksk.output_key_lwe_size(),
+        core_ksk.ciphertext_modulus(),
+    );
+
+    let mut d_after_ks_lwe_ct =
+        CudaLweCiphertextList::from_lwe_ciphertext(&after_ks_lwe_ct, local_streams);
+
+    cuda_keyswitch_lwe_ciphertext(
+        &core_ksk,
+        &gpu_expanded_ct.ciphertext.d_blocks,
+        &mut d_after_ks_lwe_ct,
+        &d_input_indexes,
+        &d_output_indexes,
+        local_streams,
+    );
+
+    let mut before_ms = {
+        match ksk_params.destination_key {
+            EncryptionKeyChoice::Big => {
+                let before_ms_list = d_after_ks_lwe_ct.to_lwe_ciphertext_list(local_streams);
+                let before_ms_ct = LweCiphertext::from_container(
+                    before_ms_list.into_container(),
+                    sks.key_switching_key.ciphertext_modulus(),
+                );
+
+                let shortint_ct_after_pke_ks2: Ciphertext = Ciphertext::new(
+                    before_ms_ct,
+                    gpu_expanded_info.degree,
+                    gpu_expanded_info.noise_level,
+                    gpu_expanded_info.message_modulus,
+                    gpu_expanded_info.carry_modulus,
+                    gpu_expanded_info.atomic_pattern,
+                );
+
+                let mut shortint_ct_after_pke_ks = CudaRadixCiphertext::from_cpu_blocks(
+                    &[shortint_ct_after_pke_ks2],
+                    local_streams,
+                );
+
+                let scalar_vector = vec![msg * delta; num_ct_blocks];
+                let mut d_decomposed_scalar = CudaVec::<u64>::new(num_ct_blocks, local_streams, 0);
+                unsafe {
+                    d_decomposed_scalar.copy_from_cpu_async(
+                        scalar_vector.as_slice(),
+                        local_streams,
+                        0,
+                    );
+                }
+                // First remove the msg from the ciphertext to avoid a problem with the mul result
+                // overflowing
+                cuda_lwe_ciphertext_plaintext_sub_assign(
+                    &mut shortint_ct_after_pke_ks.d_blocks,
+                    &d_decomposed_scalar,
+                    local_streams,
+                );
+
+                let scalar_u64 = scalar_for_multiplication as u64;
+                unsafe {
+                    unchecked_small_scalar_mul_integer_async(
+                        local_streams,
+                        &mut shortint_ct_after_pke_ks,
+                        scalar_u64,
+                    );
+                }
+                local_streams.synchronize();
+
+                // Put it back in
+                let big_lwe_dim =
+                    block_params.polynomial_size().0 * block_params.glwe_dimension().0;
+                let tmp = shortint_ct_after_pke_ks.duplicate(local_streams);
+                let encoded_msg = sks.encoding().encode(Cleartext(msg));
+                unsafe {
+                    add_lwe_ciphertext_vector_plaintext_scalar_async(
+                        local_streams,
+                        &mut shortint_ct_after_pke_ks.d_blocks.0.d_vec,
+                        &tmp.d_blocks.0.d_vec,
+                        encoded_msg.0,
+                        LweDimension(big_lwe_dim),
+                        num_ct_blocks as u32,
+                    );
+                }
+                local_streams.synchronize();
+
+                let lwe_keyswitched = LweCiphertext::new(
+                    0u64,
+                    sks.key_switching_key.output_key_lwe_size(),
+                    sks.key_switching_key.ciphertext_modulus(),
+                );
+
+                let mut d_lwe_keyswitched =
+                    CudaLweCiphertextList::from_lwe_ciphertext(&lwe_keyswitched, local_streams);
+
+                cuda_keyswitch_lwe_ciphertext(
+                    &sks.key_switching_key,
+                    &shortint_ct_after_pke_ks.d_blocks,
+                    &mut d_lwe_keyswitched,
+                    &d_input_indexes,
+                    &d_output_indexes,
+                    local_streams,
+                );
+                // Return the result
+                d_lwe_keyswitched
+            }
+            EncryptionKeyChoice::Small => d_after_ks_lwe_ct,
+        }
+    };
+
+    let mut mod_switched_array: Vec<u64> = match &sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(_d_bsk) => Vec::with_capacity(0),
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+            let mod_switched_array_size =
+                (2_u32.pow(d_multibit_bsk.grouping_factor.0.try_into().unwrap()) as usize - 1)
+                    * d_multibit_bsk.input_lwe_dimension.0;
+            vec![0; mod_switched_array_size]
+        }
+    };
+
+    match &sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(_d_bsk) => {
+            cuda_modulus_switch_ciphertext(
+                &mut before_ms,
+                br_input_modulus_log.0 as u32,
+                local_streams,
+            );
+        }
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+            let mod_switched_array_size =
+                (2_u32.pow(d_multibit_bsk.grouping_factor.0.try_into().unwrap()) as usize - 1)
+                    * d_multibit_bsk.input_lwe_dimension.0;
+
+            let mut d_mod_switched_array =
+                unsafe { CudaVec::<u64>::new_async(mod_switched_array_size, local_streams, 0) };
+            cuda_modulus_switch_multi_bit_ciphertext(
+                &mut d_mod_switched_array,
+                &mut before_ms,
+                br_input_modulus_log.0 as u32,
+                block_params.polynomial_size().0 as u32,
+                d_multibit_bsk.grouping_factor.0 as u32,
+                local_streams,
+            );
+            unsafe {
+                d_mod_switched_array.copy_to_cpu_async(&mut mod_switched_array, local_streams, 0);
+            }
+            local_streams.synchronize();
+        }
+    };
+
+    let after_ms_lwe_list = before_ms.to_lwe_ciphertext_list(local_streams);
+    let mut after_ms_lwe = LweCiphertext::from_container(
+        after_ms_lwe_list.into_container(),
+        block_params.ciphertext_modulus(),
+    );
+
+    let decryption_noise_after_ms = match &sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(_d_bsk) => {
+            for val in after_ms_lwe.as_mut() {
+                *val <<= shift_to_map_to_native;
+            }
+            DecryptionAndNoiseResult::new(
+                &after_ms_lwe,
+                &small_lwe_secret_key,
+                msg,
+                delta,
+                cleartext_modulus,
+            )
+        }
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+            for val in mod_switched_array.iter_mut() {
+                *val <<= shift_to_map_to_native;
+            }
+            let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
+            DecryptionAndNoiseResult::new_multi_bit(
+                &after_ms_lwe,
+                &small_lwe_secret_key,
+                msg,
+                delta,
+                cleartext_modulus,
+                d_multibit_bsk.grouping_factor,
+                output_ks_lwe_dimension,
+                &mod_switched_array,
+            )
+        }
+    };
+    decryption_noise_after_ms
+}
+
+fn pke_encrypt_ks_to_compute_noise_helper(
+    cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params: ShortintParameterSet,
+    single_cpk: &CompactPublicKey,
+    single_ksk: &CudaKeySwitchingKey,
+    single_cks: &ClientKey,
+    single_sks: &CudaServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+    streams: &CudaStreams,
+) -> NoiseSample {
+    let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper_gpu(
+        cpke_params,
+        ksk_params,
+        block_params,
+        single_cpk,
+        single_ksk,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+        streams,
+    );
+
+    match decryption_and_noise_result {
+        DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
+        DecryptionAndNoiseResult::DecryptionFailed => {
+            panic!("Failed decryption, noise measurement will be wrong.")
+        }
+    }
+}
+
+fn pke_encrypt_ks_to_compute_pfail_helper_gpu(
+    cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params: ShortintParameterSet,
+    single_cpk: &CompactPublicKey,
+    single_ksk: &CudaKeySwitchingKey,
+    single_cks: &ClientKey,
+    single_sks: &CudaServerKey,
+    msg: u64,
+    scalar_for_multiplication: u64,
+    streams: &CudaStreams,
+) -> f64 {
+    let decryption_and_noise_result = pke_encrypt_ks_to_compute_inner_helper_gpu(
+        cpke_params,
+        ksk_params,
+        block_params,
+        single_cpk,
+        single_ksk,
+        single_cks,
+        single_sks,
+        msg,
+        scalar_for_multiplication,
+        streams,
+    );
+
+    match decryption_and_noise_result {
+        DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
+        DecryptionAndNoiseResult::DecryptionFailed => 1.0,
+    }
+}
+
+fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu<P>(
+    mut cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params_int: P,
+) where
+    P: Into<PBSParameters>,
+{
+    let block_params = block_params_int.into();
+    // Disable the auto casting in the keyswitching key to be able to measure things ourselves
+    cpke_params.expansion_kind =
+        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice().into());
+    // Remove mutability
+    let cpke_params = cpke_params;
+
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let modulus_as_f64 = if block_params.ciphertext_modulus().is_native_modulus() {
+        2.0f64.powi(64)
+    } else {
+        block_params.ciphertext_modulus().get_custom_modulus() as f64
+    };
+
+    let compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+    let cpk = CompactPublicKey::new(&compact_encryption_secret_key);
+
+    let gpu_index = 0;
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+
+    let block_params: ShortintParameterSet = block_params.into();
+    let cks = crate::integer::ClientKey::new(block_params);
+    let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+    let sks = compressed_server_key.decompress();
+    let gpu_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+
+    let (key_switching_key, bootstrapping_key) = match &sks.key.atomic_pattern {
+        AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => (
+            standard_atomic_pattern_server_key
+                .key_switching_key
+                .as_view(),
+            &standard_atomic_pattern_server_key.bootstrapping_key,
+        ),
+        AtomicPatternServerKey::KeySwitch32(_ks32_atomic_pattern_server_key) => todo!(),
+        AtomicPatternServerKey::Dynamic(_dynamic_atomic_pattern) => todo!(),
+    };
+
+    let ksk = KeySwitchingKey::new(
+        (&compact_encryption_secret_key, None),
+        (&cks, &sks),
+        ksk_params,
+    );
+
+    let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+    let d_ksk =
+        CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sks);
+
+    let cpk_lwe_dimension = cpk.parameters().encryption_lwe_dimension;
+    let cpk_encryption_noise = cpk.parameters().encryption_noise_distribution;
+
+    let encryption_variance = match cpk_encryption_noise {
+        DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
+        DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
+    };
+    let pke_ks_input_lwe_dimension = d_ksk_material.lwe_keyswitch_key.input_key_lwe_dimension();
+    let pke_ks_output_lwe_dimension = d_ksk_material.lwe_keyswitch_key.output_key_lwe_dimension();
+    let pke_ks_decomp_base_log = d_ksk_material.lwe_keyswitch_key.decomposition_base_log();
+    let pke_ks_decomp_level_count = d_ksk_material.lwe_keyswitch_key.decomposition_level_count();
+
+    let compute_ks_input_lwe_dimension = key_switching_key.input_key_lwe_dimension();
+    let compute_ks_output_lwe_dimension = key_switching_key.output_key_lwe_dimension();
+    let compute_ks_decomp_base_log = key_switching_key.decomposition_base_log();
+    let compute_ks_decomp_level_count = key_switching_key.decomposition_level_count();
+
+    let compute_pbs_input_lwe_dimension = bootstrapping_key.input_lwe_dimension();
+
+    // Only in the Big key case
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
+    // Compute expected variance after getting out of the PKE and doing the keyswitch to the compute
+    // parameters until the first blind rotation mod switch.
+    //
+    // This gives:
+    // For a KS to the small destination key:
+    // Encrypt PKE -> PKE-KS -> MS
+    //
+    // For a KS to the big destination key:
+    // Encrypt PKE -> PKE-KS -> times MaxNoiseLevel -> KS -> MS
+
+    let expected_variance_after_cpke =
+        lwe_compact_public_key_encryption_expected_variance(encryption_variance, cpk_lwe_dimension);
+
+    // The encryption noise for the keyswitching keys comes from the destination params as we are
+    // keyswitching to a dimension of the parameter set.
+    let pke_ks_additive_variance = {
+        let destination_encryption_noise_distribution = match ksk_params.destination_key {
+            EncryptionKeyChoice::Big => block_params.glwe_noise_distribution(),
+            EncryptionKeyChoice::Small => block_params.lwe_noise_distribution(),
+        };
+
+        match destination_encryption_noise_distribution {
+            DynamicDistribution::Gaussian(_) => {
+                keyswitch_additive_variance_132_bits_security_gaussian(
+                    pke_ks_input_lwe_dimension,
+                    pke_ks_output_lwe_dimension,
+                    pke_ks_decomp_base_log,
+                    pke_ks_decomp_level_count,
+                    modulus_as_f64,
+                )
+            }
+            DynamicDistribution::TUniform(_) => {
+                keyswitch_additive_variance_132_bits_security_tuniform(
+                    pke_ks_input_lwe_dimension,
+                    pke_ks_output_lwe_dimension,
+                    pke_ks_decomp_base_log,
+                    pke_ks_decomp_level_count,
+                    modulus_as_f64,
+                )
+            }
+        }
+    };
+
+    let expected_variance_after_pke_ks =
+        Variance(expected_variance_after_cpke.0 + pke_ks_additive_variance.0);
+
+    let expected_variance_before_drift_mitigation = {
+        match ksk_params.destination_key {
+            // In the case of the Big key we are allowed theoretically to do the AP
+            EncryptionKeyChoice::Big => {
+                let expected_variance_after_scalar_mul = scalar_multiplication_variance(
+                    expected_variance_after_pke_ks,
+                    scalar_for_multiplication,
+                );
+
+                let compute_ks_additive_variance = match block_params.lwe_noise_distribution() {
+                    DynamicDistribution::Gaussian(_) => {
+                        keyswitch_additive_variance_132_bits_security_gaussian(
+                            compute_ks_input_lwe_dimension,
+                            compute_ks_output_lwe_dimension,
+                            compute_ks_decomp_base_log,
+                            compute_ks_decomp_level_count,
+                            modulus_as_f64,
+                        )
+                    }
+                    DynamicDistribution::TUniform(_) => {
+                        keyswitch_additive_variance_132_bits_security_tuniform(
+                            compute_ks_input_lwe_dimension,
+                            compute_ks_output_lwe_dimension,
+                            compute_ks_decomp_base_log,
+                            compute_ks_decomp_level_count,
+                            modulus_as_f64,
+                        )
+                    }
+                };
+
+                Variance(expected_variance_after_scalar_mul.0 + compute_ks_additive_variance.0)
+            }
+            EncryptionKeyChoice::Small => expected_variance_after_pke_ks,
+        }
+    };
+
+    let br_input_modulus_log = block_params
+        .polynomial_size()
+        .to_blind_rotation_input_modulus_log();
+    let br_input_modulus = 1u64 << br_input_modulus_log.0;
+
+    // TODO output noise after drift mitigation, check normality
+    let drift_mitigation_additive_var = match block_params.lwe_noise_distribution() {
+        DynamicDistribution::Gaussian(gaussian) => gaussian.standard_dev().get_variance(),
+        DynamicDistribution::TUniform(tuniform) => tuniform.variance(modulus_as_f64),
+    };
+
+    let expected_variance_after_drift_mitigation: Variance = match &gpu_sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(_d_bsk) => {
+            Variance(expected_variance_before_drift_mitigation.0 + drift_mitigation_additive_var.0)
+        }
+        CudaBootstrappingKey::MultiBit(_d_multibit_bsk) => {
+            Variance(expected_variance_before_drift_mitigation.0)
+        }
+    };
+
+    let ms_additive_variance: Variance = match &gpu_sks.bootstrapping_key {
+        CudaBootstrappingKey::Classic(_d_bsk) => generalized_modulus_switch_additive_variance(
+            compute_pbs_input_lwe_dimension,
+            modulus_as_f64,
+            br_input_modulus as f64,
+        ),
+        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+            modulus_switch_multi_bit_additive_variance(
+                compute_pbs_input_lwe_dimension,
+                modulus_as_f64,
+                br_input_modulus as f64,
+                d_multibit_bsk.grouping_factor.0 as f64,
+            )
+        }
+    };
+    let expected_variance_after_ms =
+        Variance(expected_variance_after_drift_mitigation.0 + ms_additive_variance.0);
+
+    let num_runs = 1000usize;
+
+    let pool_count = rayon::current_num_threads();
+    let vec_local_streams = (0..pool_count)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
+        .collect::<Vec<_>>();
+
+    //Hack to avoid problems with the engine
+    // Div_ceil to be sure the product of pools * chunk_size can be a bit above NB_TEST
+    // Then the chunking logic will keep it == to NB_TEST
+    let chunk_size = num_runs.div_ceil(pool_count);
+    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+    let mut noise_samples = vec![];
+    for msg in 0..cleartext_modulus {
+        let thread_pools: Vec<_> = (0..pool_count)
+            .map(|_| {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(1)
+                    .build()
+                    .unwrap()
+            })
+            .collect();
+
+        let current_noise_samples: Vec<_> = thread_pools
+            .into_par_iter()
+            .zip((0..num_runs).into_par_iter().chunks(chunk_size))
+            .flat_map(|(pool, work_idx)| {
+                pool.install(|| {
+                    work_idx
+                        .into_iter()
+                        .map(|i| {
+                            let local_streams = &vec_local_streams[i % pool_count];
+                            pke_encrypt_ks_to_compute_noise_helper(
+                                cpke_params,
+                                ksk_params,
+                                block_params,
+                                &cpk,
+                                &d_ksk,
+                                &cks.key,
+                                &gpu_sks,
+                                msg,
+                                scalar_for_multiplication,
+                                local_streams,
+                            )
+                            .value
+                        })
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        noise_samples.extend(current_noise_samples);
+    }
+
+    let measured_mean = arithmetic_mean(&noise_samples);
+    let measured_variance = variance(&noise_samples);
+
+    let mean_ci = mean_confidence_interval(
+        noise_samples.len() as f64,
+        measured_mean,
+        measured_variance.get_standard_dev(),
+        0.99,
+    );
+
+    let variance_ci =
+        variance_confidence_interval(noise_samples.len() as f64, measured_variance, 0.99);
+
+    let expected_mean = 0.0;
+
+    println!("measured_variance={measured_variance:?}");
+    println!("expected_variance_after_ms={expected_variance_after_ms:?}");
+    println!("variance_lower_bound={:?}", variance_ci.lower_bound());
+    println!("variance_upper_bound={:?}", variance_ci.upper_bound());
+    println!("measured_mean={measured_mean:?}");
+    println!("expected_mean={expected_mean:?}");
+    println!("mean_lower_bound={:?}", mean_ci.lower_bound());
+    println!("mean_upper_bound={:?}", mean_ci.upper_bound());
+
+    // Expected mean is 0
+    assert!(mean_ci.mean_is_in_interval(expected_mean));
+    // We want to be smaller but secure or in the interval
+    if measured_variance <= expected_variance_after_ms {
+        let noise_for_security = match block_params.lwe_noise_distribution() {
+            DynamicDistribution::Gaussian(_) => {
+                minimal_lwe_variance_for_132_bits_security_gaussian(
+                    bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+            DynamicDistribution::TUniform(_) => {
+                minimal_lwe_variance_for_132_bits_security_tuniform(
+                    bootstrapping_key.input_lwe_dimension(),
+                    modulus_as_f64,
+                )
+            }
+        };
+
+        if !variance_ci.variance_is_in_interval(expected_variance_after_ms) {
+            println!(
+                "\n==========\n\
+                Warning: noise formula might be over estimating the noise.\n\
+                ==========\n"
+            );
+        }
+
+        assert!(measured_variance >= noise_for_security);
+    } else {
+        assert!(variance_ci.variance_is_in_interval(expected_variance_after_ms));
+    }
+
+    // Normality check of heavily discretized gaussian does not seem to work
+    // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
+    // 0.05); assert!(normality_check.null_hypothesis_is_valid);
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_small_noise_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_small_noise_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_small_noise_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_small_noise_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_big_noise_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_big_noise_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_big_noise_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_big_noise_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu(
+        V1_3_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu<P>(
+    mut cpke_params: CompactPublicKeyEncryptionParameters,
+    ksk_params: ShortintKeySwitchingParameters,
+    block_params_int: P,
+) where
+    P: Into<PBSParameters>,
+{
+    let mut block_params = block_params_int.into();
+    // Disable the auto casting in the keyswitching key to be able to measure things ourselves
+    cpke_params.expansion_kind =
+        CompactCiphertextListExpansionKind::NoCasting(block_params.encryption_key_choice().into());
+
+    assert_eq!(
+        block_params.carry_modulus().0,
+        4,
+        "This test is only for 2_2 parameters"
+    );
+    assert_eq!(
+        block_params.message_modulus().0,
+        4,
+        "This test is only for 2_2 parameters"
+    );
+    // Padding bit + carry and message
+    let original_precision_with_padding =
+        (2 * block_params.carry_modulus().0 * block_params.message_modulus().0).ilog2();
+    block_params.set_carry_modulus(CarryModulus(1 << 4));
+    cpke_params.set_carry_modulus(block_params.carry_modulus());
+
+    let new_precision_with_padding =
+        (2 * block_params.message_modulus().0 * block_params.carry_modulus().0).ilog2();
+
+    let original_pfail = 2.0f64.powf(block_params.log2_p_fail());
+
+    println!("original_pfail={original_pfail}");
+    println!("original_pfail_log2={}", block_params.log2_p_fail());
+
+    let expected_pfail = equivalent_pfail_gaussian_noise(
+        original_precision_with_padding,
+        original_pfail,
+        new_precision_with_padding,
+    );
+
+    block_params.set_log2_p_fail(expected_pfail.log2());
+
+    println!("expected_pfail={expected_pfail}");
+    println!("expected_pfail_log2={}", block_params.log2_p_fail());
+
+    let (runs_for_expected_fails, expected_fails) = if should_run_long_pfail_tests() {
+        let total_runs = 1_000_000usize;
+        let expected_fails = (total_runs as f64 * expected_pfail).round() as usize;
+        (total_runs, expected_fails)
+    } else {
+        let expected_fails = 200usize;
+        let runs_for_expected_fails = (expected_fails as f64 / expected_pfail).round() as usize;
+        (runs_for_expected_fails, expected_fails)
+    };
+    println!("runs_for_expected_fails={runs_for_expected_fails}");
+
+    // Remove mutability
+    let cpke_params = cpke_params;
+
+    let block_params: ShortintParameterSet = block_params.into();
+    assert!(
+        matches!(
+            block_params.encryption_key_choice(),
+            EncryptionKeyChoice::Big
+        ),
+        "This test only supports encryption under the big key for now."
+    );
+    assert!(
+        block_params
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus(),
+        "This test only supports encrytpion with power of 2 moduli for now."
+    );
+
+    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
+    let scalar_for_multiplication = block_params.max_noise_level().get();
+
+    let compact_encryption_secret_key = CompactPrivateKey::new(cpke_params);
+    let cpk = CompactPublicKey::new(&compact_encryption_secret_key);
+
+    let gpu_index = 0;
+    let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+
+    let block_params: ShortintParameterSet = block_params.into();
+    let cks = crate::integer::ClientKey::new(block_params);
+    let compressed_server_key = CompressedServerKey::new_radix_compressed_server_key(&cks);
+    let sks = compressed_server_key.decompress();
+    let gpu_sks = CudaServerKey::decompress_from_cpu(&compressed_server_key, &streams);
+
+    let ksk = KeySwitchingKey::new(
+        (&compact_encryption_secret_key, None),
+        (&cks, &sks),
+        ksk_params,
+    );
+    let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
+    let d_ksk =
+        CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sks);
+    let pool_count = rayon::current_num_threads();
+
+    let vec_local_streams = (0..pool_count)
+        .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
+        .collect::<Vec<_>>();
+
+    // Div_ceil to be sure the product of pools * chunk_size can be a bit above NB_TEST
+    // Then the chunking logic will keep it == to NB_TEST
+    let chunk_size = runs_for_expected_fails.div_ceil(pool_count);
+    let thread_pools: Vec<_> = (0..pool_count)
+        .map(|_| {
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(1)
+                .build()
+                .unwrap()
+        })
+        .collect();
+
+    let failures_vec: Vec<_> = thread_pools
+        .into_par_iter()
+        .zip(
+            (0..runs_for_expected_fails)
+                .into_par_iter()
+                .chunks(chunk_size),
+        )
+        .flat_map(|(pool, work_idx)| {
+            pool.install(|| {
+                work_idx
+                    .into_iter()
+                    .map(|i| {
+                        let msg: u64 = rand::random::<u64>() % cleartext_modulus;
+                        let local_streams = &vec_local_streams[i % pool_count];
+                        pke_encrypt_ks_to_compute_pfail_helper_gpu(
+                            cpke_params,
+                            ksk_params,
+                            block_params,
+                            &cpk,
+                            &d_ksk,
+                            &cks.key,
+                            &gpu_sks,
+                            msg,
+                            scalar_for_multiplication.try_into().unwrap(),
+                            local_streams,
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect();
+
+    let measured_fails: f64 = failures_vec.iter().sum();
+
+    let measured_pfail = measured_fails / (runs_for_expected_fails as f64);
+
+    println!("measured_fails={measured_fails}");
+    println!("expected_fails={expected_fails}");
+    println!("measured_pfail={measured_pfail}");
+    println!("expected_pfail={expected_pfail}");
+
+    let equivalent_measured_pfail = equivalent_pfail_gaussian_noise(
+        new_precision_with_padding,
+        measured_pfail,
+        original_precision_with_padding,
+    );
+
+    println!("equivalent_measured_pfail={equivalent_measured_pfail}");
+    println!("original_expected_pfail  ={original_pfail}");
+    println!(
+        "equivalent_measured_pfail_log2={}",
+        equivalent_measured_pfail.log2()
+    );
+    println!("original_expected_pfail_log2  ={}", original_pfail.log2());
+
+    if measured_fails > 0.0 {
+        let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
+            runs_for_expected_fails as f64,
+            measured_fails,
+            0.99,
+        );
+
+        let pfail_lower_bound = pfail_confidence_interval.lower_bound();
+        let pfail_upper_bound = pfail_confidence_interval.upper_bound();
+        println!("pfail_lower_bound={pfail_lower_bound}");
+        println!("pfail_upper_bound={pfail_upper_bound}");
+
+        let equivalent_pfail_lower_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_lower_bound,
+            original_precision_with_padding,
+        );
+        let equivalent_pfail_upper_bound = equivalent_pfail_gaussian_noise(
+            new_precision_with_padding,
+            pfail_upper_bound,
+            original_precision_with_padding,
+        );
+
+        println!("equivalent_pfail_lower_bound={equivalent_pfail_lower_bound}");
+        println!("equivalent_pfail_upper_bound={equivalent_pfail_upper_bound}");
+        println!(
+            "equivalent_pfail_lower_bound_log2={}",
+            equivalent_pfail_lower_bound.log2()
+        );
+        println!(
+            "equivalent_pfail_upper_bound_log2={}",
+            equivalent_pfail_upper_bound.log2()
+        );
+
+        if measured_pfail <= expected_pfail {
+            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail) {
+                println!(
+                    "\n==========\n\
+                    WARNING: measured pfail is smaller than expected pfail \
+                    and out of the confidence interval\n\
+                    the optimizer might be pessimistic when generating parameters.\n\
+                    ==========\n"
+                );
+            }
+        } else {
+            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail));
+        }
+    } else {
+        println!(
+            "\n==========\n\
+            WARNING: measured pfail is 0, it is either a bug or \
+            it is way smaller than the expected pfail\n\
+            the optimizer might be pessimistic when generating parameters, \
+            or some hypothesis does not hold.\n\
+            ==========\n"
+        );
+    }
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_small_pfail_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_small_pfail_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_small_pfail_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_small_pfail_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_SMALL_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_big_pfail_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_big_pfail_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_classical_shortint_pke_encrypt_ks_to_big_pfail_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
+
+#[test]
+fn test_noise_check_multi_bit_shortint_pke_encrypt_ks_to_big_pfail_zkv1_gpu() {
+    noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu(
+        V1_3_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        V1_3_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    )
+}
 
 fn pbs_compress_and_classic_ap_inner_helper_gpu(
     block_params: ShortintParameterSet,
@@ -3464,7 +4552,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
 
     match &input_br_key {
         CudaBootstrappingKey::Classic(d_bsk) => assert!(d_bsk.d_ms_noise_reduction_key.is_some()),
-        CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+        CudaBootstrappingKey::MultiBit(_d_multibit_bsk) => {
             assert!(true)
         }
     };
@@ -3617,7 +4705,7 @@ fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise<P>(
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
 
-    for msg in 0..cleartext_modulus {
+    for _msg in 0..cleartext_modulus {
         let (
             (
                 current_noise_samples_before_drift_mitigation,
@@ -4097,930 +5185,3 @@ fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_p
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     )
 }
-
-//Missing to merge the PBS128 GPU
-/*
-#[derive(Clone, Copy, Debug)]
-enum PBS128InputBRParams {
-    Decompression { params: CompressionParameters },
-    Compute,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct PBS128Parameters {
-    input_lwe_dimension: LweDimension,
-    glwe_dimension: GlweDimension,
-    polynomial_size: PolynomialSize,
-    glwe_noise_distribution: DynamicDistribution<u128>,
-    decomp_base_log: DecompositionBaseLog,
-    decomp_level_count: DecompositionLevelCount,
-    // There was a doubt on the mantissa size, several experiments were conducted
-    mantissa_size: f64,
-    ciphertext_modulus: CoreCiphertextModulus<u128>,
-}
-// Mantissa 106
-// hat_N, hat_k, hat_l_bs, hat_b_bs  , big_pbs_glwe_bound
-// 2048,      2,        3, 4294967296, 30
-// hat_b_bs_log2 = 32
-
-// Mantissa 100
-// hat_N, hat_k, hat_l_bs, hat_b_bs, big_pbs_glwe_bound
-// 2048,      2,        3, 67108864, 30
-// hat_b_bs_log2 = 26
-
-// Mantissa 104
-// hat_N, hat_k, hat_l_bs, hat_b_bs , big_pbs_glwe_bound
-// 2048,      2,        3, 536870912, 30
-// hat_b_bs_log2 = 29
-const PBS128_PARAMS: PBS128Parameters = PBS128Parameters {
-    input_lwe_dimension: PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.lwe_dimension,
-    glwe_dimension: GlweDimension(2),
-    polynomial_size: PolynomialSize(2048),
-    glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
-    decomp_base_log: DecompositionBaseLog(32),
-    decomp_level_count: DecompositionLevelCount(3),
-    mantissa_size: 106f64,
-    // 2^128
-    ciphertext_modulus: CoreCiphertextModulus::new_native(),
-};
-
-// #[test]
-// fn test_noise_check_pbs_128_secure_noise() {
-//     let params = PBS128_PARAMS;
-
-//     let modulus_as_f64 = if params.ciphertext_modulus.is_native_modulus() {
-//         2.0f64.powi(128)
-//     } else {
-//         params.ciphertext_modulus.get_custom_modulus() as f64
-//     };
-
-//     let tuniform_bound = minimal_glwe_bound_for_132_bits_security_tuniform(
-//         params.glwe_dimension,
-//         params.polynomial_size,
-//         modulus_as_f64,
-//     );
-
-//     match params.glwe_noise_distribution {
-//         DynamicDistribution::Gaussian(_) => panic!("Only TUniform is checked here"),
-//         DynamicDistribution::TUniform(tuniform) => {
-//             assert_eq!(tuniform.bound_log2(), tuniform_bound.0.log2() as i32)
-//         }
-//     }
-// }
-
-fn br_to_squash_pbs_128_inner_helper(
-    input_br_params: PBS128InputBRParams,
-    block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
-    single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
-    single_cks: &ClientKey,
-    single_sks: &ServerKey,
-    single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
-    single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
-    msg: u64,
-) -> (DecryptionAndNoiseResult, DecryptionAndNoiseResult) {
-    assert!(block_params.pbs_only());
-    assert!(
-        matches!(
-            block_params.encryption_key_choice(),
-            EncryptionKeyChoice::Big
-        ),
-        "This test only supports encryption under the big key for now."
-    );
-    assert!(
-        block_params
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
-        "This test only supports encrytpion with power of 2 moduli for now."
-    );
-
-    let mut engine = ShortintEngine::new();
-    let thread_compression_private_key;
-    let thread_decompression_key;
-    let thread_cks;
-    let thread_sks;
-    let thread_encryption_key;
-    let thread_input_br_key;
-    let thread_pbs_128_key;
-    let thread_output_pbs_128_glwe_secret_key;
-    let (cks, sks, encryption_key, input_br_key, pbs_128_key, output_pbs_128_glwe_secret_key) =
-        if should_use_one_key_per_sample() {
-            thread_cks = engine.new_client_key(block_params);
-            thread_sks = engine.new_server_key(&thread_cks);
-
-            (thread_encryption_key, thread_input_br_key) = match input_br_params {
-                PBS128InputBRParams::Decompression { params } => {
-                    thread_compression_private_key = thread_cks.new_compression_private_key(params);
-                    thread_decompression_key = thread_cks
-                        .new_compression_decompression_keys(&thread_compression_private_key)
-                        .1;
-
-                    (
-                        thread_compression_private_key
-                            .post_packing_ks_key
-                            .as_lwe_secret_key(),
-                        &thread_decompression_key.blind_rotate_key,
-                    )
-                }
-                PBS128InputBRParams::Compute => (
-                    thread_cks.small_lwe_secret_key(),
-                    &thread_sks.bootstrapping_key,
-                ),
-            };
-            thread_pbs_128_key = {
-                let thread_input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
-                    thread_cks
-                        .small_lwe_secret_key()
-                        .as_ref()
-                        .iter()
-                        .copied()
-                        .map(|x| x as u128)
-                        .collect::<Vec<_>>(),
-                );
-
-                thread_output_pbs_128_glwe_secret_key =
-                    allocate_and_generate_new_binary_glwe_secret_key::<u128, _>(
-                        pbs128_params.glwe_dimension,
-                        pbs128_params.polynomial_size,
-                        &mut engine.secret_generator,
-                    );
-
-                let std_bootstrapping_key =
-                    par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
-                        &thread_input_lwe_secret_key_as_u128,
-                        &thread_output_pbs_128_glwe_secret_key,
-                        pbs128_params.decomp_base_log,
-                        pbs128_params.decomp_level_count,
-                        pbs128_params.glwe_noise_distribution,
-                        pbs128_params.ciphertext_modulus,
-                        &mut engine.encryption_generator,
-                    );
-
-                let mut fbsk = Fourier128LweBootstrapKeyOwned::new(
-                    std_bootstrapping_key.input_lwe_dimension(),
-                    std_bootstrapping_key.glwe_size(),
-                    std_bootstrapping_key.polynomial_size(),
-                    std_bootstrapping_key.decomposition_base_log(),
-                    std_bootstrapping_key.decomposition_level_count(),
-                );
-
-                convert_standard_lwe_bootstrap_key_to_fourier_128(
-                    &std_bootstrapping_key,
-                    &mut fbsk,
-                );
-
-                fbsk
-            };
-
-            (
-                &thread_cks,
-                &thread_sks,
-                &thread_encryption_key,
-                thread_input_br_key,
-                &thread_pbs_128_key,
-                &thread_output_pbs_128_glwe_secret_key.as_view(),
-            )
-        } else {
-            // If we don't want to use per thread keys (to go faster), we use those single keys for
-            // all threads
-            (
-                single_cks,
-                single_sks,
-                single_encryption_key,
-                single_input_br_key,
-                single_pbs_128_key,
-                single_output_pbs_128_glwe_secret_key,
-            )
-        };
-
-    let identity_lut = sks.generate_lookup_table(|x| x);
-
-    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
-    let br_input_modulus_log = input_br_key
-        .polynomial_size()
-        .to_blind_rotation_input_modulus_log();
-    let shift_to_map_to_native = u64::BITS - br_input_modulus_log.0 as u32;
-
-    let delta = (1u64 << 63) / cleartext_modulus;
-    let delta_u128 = (1u128 << 127) / cleartext_modulus as u128;
-
-    // We want to encrypt the ciphertext under modulus 2N but then use the native
-    // modulus to simulate a noiseless mod switch as input
-    let input_pbs_lwe_ct = {
-        let ms_modulus = CiphertextModulus::try_new_power_of_2(br_input_modulus_log.0).unwrap();
-        let no_noise_dist = DynamicDistribution::new_gaussian(Variance(0.0));
-
-        let ms_delta = ms_modulus.get_custom_modulus() as u64 / (2 * cleartext_modulus);
-
-        let ms_plaintext = Plaintext(msg * ms_delta);
-
-        let simulated_mod_switch_ct = allocate_and_encrypt_new_lwe_ciphertext(
-            encryption_key,
-            ms_plaintext,
-            no_noise_dist,
-            ms_modulus,
-            &mut engine.encryption_generator,
-        );
-
-        let raw_data = simulated_mod_switch_ct.into_container();
-        // Now get the noiseless mod switched encryption under the proper modulus
-        // The power of 2 modulus are always encrypted in the MSBs, so this is fine
-        LweCiphertext::from_container(raw_data, block_params.ciphertext_modulus())
-    };
-
-    let mut after_pbs_shortint_ct = sks.unchecked_create_trivial_with_lwe_size(
-        Cleartext(0),
-        input_br_key.output_lwe_dimension().to_lwe_size(),
-    );
-
-    let (_, buffers) = engine.get_buffers(sks);
-
-    // Apply the PBS only
-    apply_programmable_bootstrap(
-        &input_br_key,
-        &input_pbs_lwe_ct,
-        &mut after_pbs_shortint_ct.ct,
-        &identity_lut.acc,
-        buffers,
-    );
-
-    after_pbs_shortint_ct.set_noise_level(NoiseLevel::NOMINAL, sks.max_noise_level);
-
-    let mut after_ks_lwe = LweCiphertext::new(
-        0u64,
-        sks.key_switching_key.output_lwe_size(),
-        sks.key_switching_key.ciphertext_modulus(),
-    );
-
-    keyswitch_lwe_ciphertext(
-        &sks.key_switching_key,
-        &after_pbs_shortint_ct.ct,
-        &mut after_ks_lwe,
-    );
-
-    let mut after_ms = LweCiphertext::new(
-        0u64,
-        after_ks_lwe.lwe_size(),
-        // This will be easier to manage when decrypting, we'll put the value in the
-        // MSB
-        block_params.ciphertext_modulus(),
-    );
-
-    for (dst, src) in after_ms
-        .as_mut()
-        .iter_mut()
-        .zip(after_ks_lwe.as_ref().iter())
-    {
-        *dst = modulus_switch(*src, br_input_modulus_log) << shift_to_map_to_native;
-    }
-
-    let mut input_pbs_128 = LweCiphertext::new(
-        0u128,
-        pbs_128_key.input_lwe_dimension().to_lwe_size(),
-        pbs128_params.ciphertext_modulus,
-    );
-
-    assert_eq!(input_pbs_128.lwe_size(), after_ks_lwe.lwe_size());
-
-    // Map the u64 to u128 because the pbs 128 currently does not support different input and scalar
-    // types
-    for (dst, src) in input_pbs_128
-        .as_mut()
-        .iter_mut()
-        .zip(after_ks_lwe.as_ref().iter())
-    {
-        *dst = (*src as u128) << 64;
-    }
-
-    let mut output_pbs_128 = LweCiphertext::new(
-        0u128,
-        pbs_128_key.output_lwe_dimension().to_lwe_size(),
-        pbs128_params.ciphertext_modulus,
-    );
-
-    let acc = generate_programmable_bootstrap_glwe_lut(
-        pbs_128_key.polynomial_size(),
-        pbs_128_key.glwe_size(),
-        cleartext_modulus as usize,
-        pbs128_params.ciphertext_modulus,
-        delta_u128,
-        |x| x,
-    );
-
-    programmable_bootstrap_f128_lwe_ciphertext(
-        &input_pbs_128,
-        &mut output_pbs_128,
-        &acc,
-        &pbs_128_key,
-    );
-
-    (
-        DecryptionAndNoiseResult::new(
-            &after_ms,
-            &cks.small_lwe_secret_key(),
-            msg,
-            delta,
-            cleartext_modulus,
-        ),
-        DecryptionAndNoiseResult::new(
-            &output_pbs_128,
-            &output_pbs_128_glwe_secret_key.as_lwe_secret_key(),
-            msg as u128,
-            delta_u128,
-            cleartext_modulus as u128,
-        ),
-    )
-}
-
-fn br_to_squash_pbs_128_noise_helper(
-    input_br_params: PBS128InputBRParams,
-    block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
-    single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
-    single_cks: &ClientKey,
-    single_sks: &ServerKey,
-    single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
-    single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
-    msg: u64,
-) -> (NoiseSample, NoiseSample) {
-    let (decryption_and_noise_result_before_pbs_128, decryption_and_noise_result_after_pbs_128) =
-        br_to_squash_pbs_128_inner_helper(
-            input_br_params,
-            block_params,
-            pbs128_params,
-            single_encryption_key,
-            single_input_br_key,
-            single_cks,
-            single_sks,
-            single_pbs_128_key,
-            single_output_pbs_128_glwe_secret_key,
-            msg,
-        );
-
-    (
-        match decryption_and_noise_result_before_pbs_128 {
-            DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
-            DecryptionAndNoiseResult::DecryptionFailed => {
-                panic!("Failed decryption, noise measurement will be wrong.")
-            }
-        },
-        match decryption_and_noise_result_after_pbs_128 {
-            DecryptionAndNoiseResult::DecryptionSucceeded { noise } => noise,
-            DecryptionAndNoiseResult::DecryptionFailed => {
-                panic!("Failed decryption, noise measurement will be wrong.")
-            }
-        },
-    )
-}
-
-fn br_to_squash_pbs_128_pfail_helper(
-    input_br_params: PBS128InputBRParams,
-    block_params: ShortintParameterSet,
-    pbs128_params: PBS128Parameters,
-    single_encryption_key: &LweSecretKey<&[u64]>,
-    single_input_br_key: &ShortintBootstrappingKey,
-    single_cks: &ClientKey,
-    single_sks: &ServerKey,
-    single_pbs_128_key: &Fourier128LweBootstrapKeyOwned,
-    single_output_pbs_128_glwe_secret_key: &GlweSecretKey<&[u128]>,
-    msg: u64,
-) -> (f64, f64) {
-    let (decryption_and_noise_result_before_pbs_128, decryption_and_noise_result_after_pbs_128) =
-        br_to_squash_pbs_128_inner_helper(
-            input_br_params,
-            block_params,
-            pbs128_params,
-            single_encryption_key,
-            single_input_br_key,
-            single_cks,
-            single_sks,
-            single_pbs_128_key,
-            single_output_pbs_128_glwe_secret_key,
-            msg,
-        );
-
-    (
-        match decryption_and_noise_result_before_pbs_128 {
-            DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
-            DecryptionAndNoiseResult::DecryptionFailed => 1.0,
-        },
-        match decryption_and_noise_result_after_pbs_128 {
-            DecryptionAndNoiseResult::DecryptionSucceeded { .. } => 0.0,
-            DecryptionAndNoiseResult::DecryptionFailed => 1.0,
-        },
-    )
-}
-
-fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
-    input_br_params: PBS128InputBRParams,
-    block_params: ClassicPBSParameters,
-    pbs128_params: PBS128Parameters,
-) {
-    let block_params: ShortintParameterSet = block_params.into();
-    assert!(
-        matches!(
-            block_params.encryption_key_choice(),
-            EncryptionKeyChoice::Big
-        ),
-        "This test only supports encryption under the big key for now."
-    );
-    assert!(
-        block_params
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
-        "This test only supports encrytpion with power of 2 moduli for now."
-    );
-
-    let compute_modulus_as_f64 = if block_params.ciphertext_modulus().is_native_modulus() {
-        2.0f64.powi(64)
-    } else {
-        block_params.ciphertext_modulus().get_custom_modulus() as f64
-    };
-
-    let pbs128_output_modulus_as_f64 = if pbs128_params.ciphertext_modulus.is_native_modulus() {
-        2.0f64.powi(128)
-    } else {
-        pbs128_params.ciphertext_modulus.get_custom_modulus() as f64
-    };
-
-    let cks = ClientKey::new(block_params);
-    let sks = ServerKey::new(&cks);
-    let output_pbs_128_glwe_secret_key;
-
-    let pbs_128_key = {
-        let input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
-            cks.small_lwe_secret_key()
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| x as u128)
-                .collect::<Vec<_>>(),
-        );
-
-        let mut engine = ShortintEngine::new();
-
-        output_pbs_128_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key::<u128, _>(
-            pbs128_params.glwe_dimension,
-            pbs128_params.polynomial_size,
-            &mut engine.secret_generator,
-        );
-
-        assert_eq!(
-            input_lwe_secret_key_as_u128.lwe_dimension(),
-            pbs128_params.input_lwe_dimension
-        );
-
-        let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
-                &input_lwe_secret_key_as_u128,
-                &output_pbs_128_glwe_secret_key,
-                pbs128_params.decomp_base_log,
-                pbs128_params.decomp_level_count,
-                pbs128_params.glwe_noise_distribution,
-                pbs128_params.ciphertext_modulus,
-                &mut engine.encryption_generator,
-            );
-
-        let mut fbsk = Fourier128LweBootstrapKeyOwned::new(
-            std_bootstrapping_key.input_lwe_dimension(),
-            std_bootstrapping_key.glwe_size(),
-            std_bootstrapping_key.polynomial_size(),
-            std_bootstrapping_key.decomposition_base_log(),
-            std_bootstrapping_key.decomposition_level_count(),
-        );
-
-        convert_standard_lwe_bootstrap_key_to_fourier_128(&std_bootstrapping_key, &mut fbsk);
-
-        fbsk
-    };
-
-    let compression_private_key;
-    let decompression_key;
-
-    let (encryption_key, input_br_key) = match input_br_params {
-        PBS128InputBRParams::Decompression { params } => {
-            compression_private_key = cks.new_compression_private_key(params);
-            decompression_key = cks
-                .new_compression_decompression_keys(&compression_private_key)
-                .1;
-
-            (
-                &compression_private_key
-                    .post_packing_ks_key
-                    .as_lwe_secret_key(),
-                &decompression_key.blind_rotate_key,
-            )
-        }
-        PBS128InputBRParams::Compute => (&cks.small_lwe_secret_key(), &sks.bootstrapping_key),
-    };
-
-    // We get out under the big key of the compute params, so we can check this noise distribution
-    let expected_variance_after_input_br = match block_params.glwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => pbs_variance_132_bits_security_gaussian(
-            input_br_key.input_lwe_dimension(),
-            input_br_key.glwe_size().to_glwe_dimension(),
-            input_br_key.polynomial_size(),
-            input_br_key.decomposition_base_log(),
-            input_br_key.decomposition_level_count(),
-            compute_modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_variance_132_bits_security_tuniform(
-            input_br_key.input_lwe_dimension(),
-            input_br_key.glwe_size().to_glwe_dimension(),
-            input_br_key.polynomial_size(),
-            input_br_key.decomposition_base_log(),
-            input_br_key.decomposition_level_count(),
-            compute_modulus_as_f64,
-        ),
-    };
-
-    let compute_ks_input_lwe_dimension = sks.key_switching_key.input_key_lwe_dimension();
-    let compute_ks_output_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
-    let compute_ks_decomp_base_log = sks.key_switching_key.decomposition_base_log();
-    let compute_ks_decomp_level_count = sks.key_switching_key.decomposition_level_count();
-
-    let keyswitch_additive_variance = match block_params.lwe_noise_distribution() {
-        DynamicDistribution::Gaussian(_) => keyswitch_additive_variance_132_bits_security_gaussian(
-            compute_ks_input_lwe_dimension,
-            compute_ks_output_lwe_dimension,
-            compute_ks_decomp_base_log,
-            compute_ks_decomp_level_count,
-            compute_modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => keyswitch_additive_variance_132_bits_security_tuniform(
-            compute_ks_input_lwe_dimension,
-            compute_ks_output_lwe_dimension,
-            compute_ks_decomp_base_log,
-            compute_ks_decomp_level_count,
-            compute_modulus_as_f64,
-        ),
-    };
-
-    let expected_variance_after_ks =
-        Variance(expected_variance_after_input_br.0 + keyswitch_additive_variance.0);
-
-    let br_128_input_modulus_log = pbs_128_key
-        .polynomial_size()
-        .to_blind_rotation_input_modulus_log();
-    let br_128_input_modulus = 1u64 << br_128_input_modulus_log.0;
-
-    let ms_additive_variance = modulus_switch_additive_variance(
-        compute_ks_output_lwe_dimension,
-        compute_modulus_as_f64,
-        br_128_input_modulus as f64,
-    );
-
-    let expected_variance_after_ms =
-        Variance(expected_variance_after_ks.0 + ms_additive_variance.0);
-
-    let expected_variance_after_pbs_128 = match pbs128_params.glwe_noise_distribution {
-        DynamicDistribution::Gaussian(_) => pbs_128_variance_132_bits_security_gaussian(
-            pbs_128_key.input_lwe_dimension(),
-            pbs_128_key.glwe_size().to_glwe_dimension(),
-            pbs_128_key.polynomial_size(),
-            pbs_128_key.decomposition_base_log(),
-            pbs_128_key.decomposition_level_count(),
-            pbs128_params.mantissa_size,
-            pbs128_output_modulus_as_f64,
-        ),
-        DynamicDistribution::TUniform(_) => pbs_128_variance_132_bits_security_tuniform(
-            pbs_128_key.input_lwe_dimension(),
-            pbs_128_key.glwe_size().to_glwe_dimension(),
-            pbs_128_key.polynomial_size(),
-            pbs_128_key.decomposition_base_log(),
-            pbs_128_key.decomposition_level_count(),
-            pbs128_params.mantissa_size,
-            pbs128_output_modulus_as_f64,
-        ),
-    };
-
-    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
-    let mut noise_samples_before_pbs_128 = vec![];
-    let mut noise_samples_after_pbs_128 = vec![];
-    for msg in 0..cleartext_modulus {
-        let (current_noise_samples_before_pbs_128, current_noise_samples_after_pbs_128): (
-            Vec<_>,
-            Vec<_>,
-        ) = (0..1000)
-            .into_par_iter()
-            .map(|_| {
-                br_to_squash_pbs_128_noise_helper(
-                    input_br_params,
-                    block_params,
-                    pbs128_params,
-                    &encryption_key,
-                    &input_br_key,
-                    &cks,
-                    &sks,
-                    &pbs_128_key,
-                    &output_pbs_128_glwe_secret_key.as_view(),
-                    msg,
-                )
-            })
-            .unzip();
-
-        noise_samples_before_pbs_128.extend(
-            current_noise_samples_before_pbs_128
-                .into_iter()
-                .map(|x| x.value),
-        );
-
-        noise_samples_after_pbs_128.extend(
-            current_noise_samples_after_pbs_128
-                .into_iter()
-                .map(|x| x.value),
-        );
-    }
-
-    println!();
-
-    let before_pbs_128_is_ok = mean_and_variance_check(
-        &noise_samples_before_pbs_128,
-        "before_pbs_128",
-        0.0,
-        expected_variance_after_ms,
-        block_params.lwe_noise_distribution(),
-        cks.small_lwe_secret_key().lwe_dimension(),
-        compute_modulus_as_f64,
-    );
-
-    let after_pbs_128_is_ok = mean_and_variance_check(
-        &noise_samples_after_pbs_128,
-        "after_pbs_128",
-        0.0,
-        expected_variance_after_pbs_128,
-        pbs128_params.glwe_noise_distribution,
-        output_pbs_128_glwe_secret_key
-            .as_lwe_secret_key()
-            .lwe_dimension(),
-        pbs128_output_modulus_as_f64,
-    );
-
-    assert!(before_pbs_128_is_ok && after_pbs_128_is_ok);
-
-    // Normality check of heavily discretized gaussian does not seem to work
-    // let normality_check = normality_test_f64(&noise_samples[..5000.min(noise_samples.len())],
-    // 0.05); assert!(normality_check.null_hypothesis_is_valid);
-}
-
-#[test]
-fn test_noise_check_shortint_compute_br_to_squash_pbs_128_atomic_pattern_noise_tuniform() {
-    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
-        PBS128InputBRParams::Compute,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
-    )
-}
-
-#[test]
-fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_noise_tuniform() {
-    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_noise(
-        PBS128InputBRParams::Decompression {
-            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        },
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
-    )
-}
-
-fn noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
-    input_br_params: PBS128InputBRParams,
-    mut block_params: ClassicPBSParameters,
-    pbs128_params: PBS128Parameters,
-) {
-    assert_eq!(
-        block_params.carry_modulus.0, 4,
-        "This test is only for 2_2 parameters"
-    );
-    assert_eq!(
-        block_params.message_modulus.0, 4,
-        "This test is only for 2_2 parameters"
-    );
-
-    // Padding bit + carry and message
-    let original_precision_with_padding =
-        (2 * block_params.carry_modulus.0 * block_params.message_modulus.0).ilog2();
-    block_params.carry_modulus.0 = 1 << 4;
-
-    let new_precision_with_padding =
-        (2 * block_params.message_modulus.0 * block_params.carry_modulus.0).ilog2();
-
-    let original_pfail = 2.0f64.powf(block_params.log2_p_fail);
-
-    println!("original_pfail={original_pfail}");
-    println!("original_pfail_log2={}", block_params.log2_p_fail);
-
-    let expected_pfail_before_pbs_128 = equivalent_pfail_gaussian_noise(
-        original_precision_with_padding,
-        original_pfail,
-        new_precision_with_padding,
-    );
-
-    let expected_pfail_before_pbs_128_log2 = expected_pfail_before_pbs_128.log2();
-
-    println!("expected_pfail_before_pbs_128={expected_pfail_before_pbs_128}");
-    println!("expected_pfail_before_pbs_128_log2={expected_pfail_before_pbs_128_log2}");
-
-    let (runs_for_expected_fails, expected_fails_before_pbs_128, total_sample_count) =
-        if should_run_long_pfail_tests() {
-            let total_runs = 1_000_000;
-            let expected_fails = (total_runs as f64 * expected_pfail_before_pbs_128).round() as u32;
-            (total_runs, expected_fails, total_runs)
-        } else {
-            let expected_fails_before_pbs_128 = 200;
-            let samples_per_run = 1;
-
-            let runs_for_expected_fails = (expected_fails_before_pbs_128 as f64
-                / (expected_pfail_before_pbs_128 * samples_per_run as f64))
-                .round() as usize;
-
-            let total_sample_count = runs_for_expected_fails * samples_per_run;
-            (
-                runs_for_expected_fails,
-                expected_fails_before_pbs_128,
-                total_sample_count,
-            )
-        };
-
-    println!("runs_for_expected_fails={runs_for_expected_fails}");
-    println!("total_sample_count={total_sample_count}");
-
-    let block_params: ShortintParameterSet = block_params.into();
-    assert!(
-        matches!(
-            block_params.encryption_key_choice(),
-            EncryptionKeyChoice::Big
-        ),
-        "This test only supports encryption under the big key for now."
-    );
-    assert!(
-        block_params
-            .ciphertext_modulus()
-            .is_compatible_with_native_modulus(),
-        "This test only supports encrytpion with power of 2 moduli for now."
-    );
-
-    let cks = ClientKey::new(block_params);
-    let sks = ServerKey::new(&cks);
-    let output_pbs_128_glwe_secret_key;
-
-    let pbs_128_key = {
-        let input_lwe_secret_key_as_u128 = LweSecretKey::from_container(
-            cks.small_lwe_secret_key()
-                .as_ref()
-                .iter()
-                .copied()
-                .map(|x| x as u128)
-                .collect::<Vec<_>>(),
-        );
-
-        let mut engine = ShortintEngine::new();
-
-        output_pbs_128_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key::<u128, _>(
-            pbs128_params.glwe_dimension,
-            pbs128_params.polynomial_size,
-            &mut engine.secret_generator,
-        );
-
-        assert_eq!(
-            input_lwe_secret_key_as_u128.lwe_dimension(),
-            pbs128_params.input_lwe_dimension
-        );
-
-        let std_bootstrapping_key =
-            par_allocate_and_generate_new_lwe_bootstrap_key::<u128, _, _, _, _>(
-                &input_lwe_secret_key_as_u128,
-                &output_pbs_128_glwe_secret_key,
-                pbs128_params.decomp_base_log,
-                pbs128_params.decomp_level_count,
-                pbs128_params.glwe_noise_distribution,
-                pbs128_params.ciphertext_modulus,
-                &mut engine.encryption_generator,
-            );
-
-        let mut fbsk = Fourier128LweBootstrapKeyOwned::new(
-            std_bootstrapping_key.input_lwe_dimension(),
-            std_bootstrapping_key.glwe_size(),
-            std_bootstrapping_key.polynomial_size(),
-            std_bootstrapping_key.decomposition_base_log(),
-            std_bootstrapping_key.decomposition_level_count(),
-        );
-
-        convert_standard_lwe_bootstrap_key_to_fourier_128(&std_bootstrapping_key, &mut fbsk);
-
-        fbsk
-    };
-
-    let compression_private_key;
-    let decompression_key;
-
-    let (encryption_key, input_br_key) = match input_br_params {
-        PBS128InputBRParams::Decompression { params } => {
-            compression_private_key = cks.new_compression_private_key(params);
-            decompression_key = cks
-                .new_compression_decompression_keys(&compression_private_key)
-                .1;
-
-            (
-                &compression_private_key
-                    .post_packing_ks_key
-                    .as_lwe_secret_key(),
-                &decompression_key.blind_rotate_key,
-            )
-        }
-        PBS128InputBRParams::Compute => (&cks.small_lwe_secret_key(), &sks.bootstrapping_key),
-    };
-
-    let cleartext_modulus = block_params.message_modulus().0 * block_params.carry_modulus().0;
-    let (measured_fails_before_pbs_128, _measured_fails_after_pbs_128): (Vec<_>, Vec<_>) = (0
-        ..runs_for_expected_fails)
-        .into_par_iter()
-        .map(|_| {
-            let msg: u64 = rand::random::<u64>() % cleartext_modulus;
-
-            br_to_squash_pbs_128_pfail_helper(
-                input_br_params,
-                block_params,
-                pbs128_params,
-                &encryption_key,
-                &input_br_key,
-                &cks,
-                &sks,
-                &pbs_128_key,
-                &output_pbs_128_glwe_secret_key.as_view(),
-                msg,
-            )
-        })
-        .unzip();
-
-    let sample_count = measured_fails_before_pbs_128.len();
-    let measured_fails_before_pbs_128: f64 = measured_fails_before_pbs_128.into_iter().sum();
-    let measured_pfail_before_pbs_128 = measured_fails_before_pbs_128 / (sample_count as f64);
-
-    println!("measured_fails_before_pbs_128={measured_fails_before_pbs_128}");
-    println!("measured_pfail_before_pbs_128={measured_pfail_before_pbs_128}");
-    println!("expected_fails_before_pbs_128={expected_fails_before_pbs_128}");
-    println!("expected_pfail_before_pbs_128={expected_pfail_before_pbs_128}");
-
-    if measured_fails_before_pbs_128 > 0.0 {
-        let pfail_confidence_interval = clopper_pearson_exact_confidence_interval(
-            total_sample_count as f64,
-            measured_fails_before_pbs_128,
-            0.99,
-        );
-
-        println!(
-            "pfail_lower_bound={}",
-            pfail_confidence_interval.lower_bound()
-        );
-        println!(
-            "pfail_upper_bound={}",
-            pfail_confidence_interval.upper_bound()
-        );
-
-        if measured_pfail_before_pbs_128 <= expected_pfail_before_pbs_128 {
-            if !pfail_confidence_interval.mean_is_in_interval(expected_pfail_before_pbs_128) {
-                println!(
-                    "\n==========\n\
-                    WARNING: measured pfail is smaller than expected pfail \
-                    and out of the confidence interval\n\
-                    the optimizer might be pessimistic when generating parameters.\n\
-                    ==========\n"
-                );
-            }
-        } else {
-            assert!(pfail_confidence_interval.mean_is_in_interval(expected_pfail_before_pbs_128));
-        }
-    } else {
-        println!(
-            "\n==========\n\
-            WARNING: measured pfail is 0, it is either a bug or \
-            it is way smaller than the expected pfail\n\
-            the optimizer might be pessimistic when generating parameters.\n\
-            ==========\n"
-        );
-    }
-}
-
-#[test]
-fn test_noise_check_shortint_compute_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform() {
-    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
-        PBS128InputBRParams::Compute,
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
-    )
-}
-
-#[test]
-fn test_noise_check_shortint_decompression_br_to_squash_pbs_128_atomic_pattern_pfail_tuniform() {
-    noise_check_shortint_br_to_squash_pbs_128_atomic_pattern_pfail(
-        PBS128InputBRParams::Decompression {
-            params: COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        },
-        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
-        PBS128_PARAMS,
-    )
-}
-*/

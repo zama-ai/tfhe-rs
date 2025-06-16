@@ -1531,8 +1531,8 @@ unsafe extern "C" {
         lwe_compact_array_in: *const ffi::c_void,
         lwe_dimension: u32,
         num_lwe: u32,
-        lwe_compact_input_indexes: *const u32,
-        output_body_id_per_compact_list: *const u32,
+        lwe_compact_input_indexes: *const ffi::c_void,
+        output_body_id_per_compact_list: *const ffi::c_void,
     );
 }
 unsafe extern "C" {
