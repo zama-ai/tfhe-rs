@@ -5057,6 +5057,62 @@ template <typename Torus> struct int_extend_radix_with_sign_msb {
   }
 };
 
+template <typename Torus> struct int_signed_scalar_mul_high {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
+  int_scalar_mul_buffer<Torus> *scalar_mul_mem;
+  int_extend_radix_with_sign_msb<Torus> *extend_radix_mem;
+
+  CudaRadixCiphertextFFI *tmp;
+
+  int_signed_scalar_mul_high(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, uint32_t num_additional_blocks,
+      const bool allocate_gpu_memory, SHIFT_OR_ROTATE_TYPE shift_type,
+      bool anticipated_buffer_drop, uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, shift_type, params,
+        2 * num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+    this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
+        streams, gpu_indexes, gpu_count, params, 2 * num_radix_blocks,
+        allocate_gpu_memory, anticipated_buffer_drop, size_tracker);
+
+    this->tmp = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], tmp, 2 * num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->extend_radix_mem = new int_extend_radix_with_sign_msb<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        num_additional_blocks, allocate_gpu_memory, size_tracker);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+    delete logical_scalar_shift_mem;
+
+    scalar_mul_mem->release(streams, gpu_indexes, gpu_count);
+    delete scalar_mul_mem;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp,
+                                   allocate_gpu_memory);
+    delete tmp;
+
+    extend_radix_mem->release(streams, gpu_indexes, gpu_count);
+    delete extend_radix_mem;
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
