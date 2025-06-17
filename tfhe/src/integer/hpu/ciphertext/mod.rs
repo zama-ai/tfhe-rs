@@ -20,7 +20,11 @@ impl HpuRadixCiphertext {
     /// Create a Hpu Radix ciphertext based on a Cpu one.
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
-    pub fn from_radix_ciphertext(cpu_ct: &RadixCiphertext, device: &HpuDevice) -> Self {
+    pub fn from_radix_ciphertext(
+        cpu_ct: &RadixCiphertext,
+        device: &HpuDevice,
+        pos: Option<hpu_asm::PhysId>,
+    ) -> Self {
         let params = device.params().clone();
 
         let hpu_ct = cpu_ct
@@ -29,7 +33,7 @@ impl HpuRadixCiphertext {
             .map(|blk| HpuLweCiphertextOwned::create_from(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
-        Self(device.new_var_from(hpu_ct, VarMode::Native))
+        Self(device.new_var_from(hpu_ct, VarMode::Native, pos))
     }
 
     /// Create a Cpu radix ciphertext copy from a Hpu one.
@@ -59,14 +63,18 @@ impl HpuRadixCiphertext {
     /// Create a Hpu boolean ciphertext based on a Cpu one.
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
-    pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
+    pub fn from_boolean_ciphertext(
+        cpu_ct: &BooleanBlock,
+        device: &HpuDevice,
+        pos: Option<hpu_asm::PhysId>,
+    ) -> Self {
         let params = device.params().clone();
 
         let hpu_ct = vec![HpuLweCiphertextOwned::create_from(
             cpu_ct.0.ct.as_view(),
             params,
         )];
-        Self(device.new_var_from(hpu_ct, VarMode::Bool))
+        Self(device.new_var_from(hpu_ct, VarMode::Bool, pos))
     }
 
     /// Create a Cpu boolean block from a Hpu one
@@ -105,9 +113,10 @@ impl HpuRadixCiphertext {
         opcode: IOpcode,
         rhs_ct: &[Self],
         rhs_imm: &[HpuImm],
+        dst_pos: Option<hpu_asm::PhysId>,
     ) -> Vec<Self> {
         let rhs_var = rhs_ct.iter().map(|x| x.0.clone()).collect::<Vec<_>>();
-        let res_var = HpuCmd::exec(proto, opcode, &rhs_var, rhs_imm);
+        let res_var = HpuCmd::exec(proto, opcode, &rhs_var, rhs_imm, dst_pos);
         res_var.into_iter().map(Self::new).collect::<Vec<Self>>()
     }
 
@@ -130,7 +139,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0, rhs.0], &[]);
+                    let res = HpuCmd::exec(proto, opcode, &[self.0, rhs.0], &[], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -142,7 +151,7 @@ macro_rules! map_ct_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[]);
+                    let res = HpuCmd::exec(proto, opcode, &[self.0.clone(), rhs.0.clone()], &[], None);
                     Self::Output::new(res[0].clone())
                     }
             }
@@ -178,7 +187,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[self.0], &[rhs]);
+                    let res = HpuCmd::exec(proto, opcode, &[self.0], &[rhs], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -190,7 +199,7 @@ macro_rules! map_ct_scalar {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[rhs]);
+                    let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[rhs], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -217,7 +226,7 @@ macro_rules! map_scalar_ct {
                     let opcode = $hpu_op.opcode();
                     let proto = &$hpu_op.format().expect("Bind to std::ops a unspecified IOP").proto;
 
-                    let res = HpuCmd::exec(proto, opcode, &[rhs.0], &[self]);
+                    let res = HpuCmd::exec(proto, opcode, &[rhs.0], &[self], None);
                     Self::Output::new(res[0].clone())
                 }
             }
@@ -247,7 +256,7 @@ impl std::ops::Not for HpuRadixCiphertext {
             .expect("Bind to std::ops a unspecified IOP")
             .proto;
 
-        let res = HpuCmd::exec(proto, opcode, &[self.0], &[]);
+        let res = HpuCmd::exec(proto, opcode, &[self.0], &[], None);
         Self::Output::new(res[0].clone())
     }
 }
@@ -262,7 +271,7 @@ impl std::ops::Not for &HpuRadixCiphertext {
             .expect("Bind to std::ops a unspecified IOP")
             .proto;
 
-        let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[]);
+        let res = HpuCmd::exec(proto, opcode, std::slice::from_ref(&self.0), &[], None);
         Self::Output::new(res[0].clone())
     }
 }

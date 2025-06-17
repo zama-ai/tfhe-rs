@@ -7,7 +7,7 @@ use std::path::Path;
 pub mod metadata;
 use metadata::{Metadata, HPU_METADATA_VERSION};
 pub mod uuid;
-pub use uuid::V80Uuid;
+pub use uuid::HpuV80Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct HpuV80Pdi {

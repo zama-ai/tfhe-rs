@@ -172,7 +172,7 @@ jobs:
       - name: Run Hpu fast integer tests
         if: inputs.run-fast-tests-hpu
         run: |
-          make test_integer_hpu_mockup_ci_fast
+          make test_integer_hpu_sim_ci_fast
 
       - name: Build Release tfhe full
         if: inputs.run-build-tfhe-full

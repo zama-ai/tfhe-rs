@@ -15,7 +15,7 @@ pub struct Opcode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum DOpType {
     ARITH = 0b00,
-    SYNC = 0b01,
+    UCORE = 0b01,
     MEM = 0b10,
     PBS = 0b11,
 }
@@ -33,7 +33,7 @@ impl From<u8> for Opcode {
         let optype_raw = (value >> 4) & 0x3;
         let optype = match optype_raw {
             x if x == DOpType::ARITH as u8 => DOpType::ARITH,
-            x if x == DOpType::SYNC as u8 => DOpType::SYNC,
+            x if x == DOpType::UCORE as u8 => DOpType::UCORE,
             x if x == DOpType::MEM as u8 => DOpType::MEM,
             x if x == DOpType::PBS as u8 => DOpType::PBS,
             _ => panic!("Invalid DOpType"),
@@ -100,14 +100,51 @@ impl Opcode {
     }
 }
 
-/// Implement helper function to create Sync DOp
+/// Implement helper function to create Ucore DOp
 impl Opcode {
     #[allow(non_snake_case)]
-    pub fn SYNC() -> Self {
+    pub fn NOTIFY() -> Self {
         Self {
-            optype: DOpType::SYNC,
+            optype: DOpType::UCORE,
             subtype: 0b0000,
         }
+    }
+    #[allow(non_snake_case)]
+    pub fn WAIT() -> Self {
+        Self {
+            optype: DOpType::UCORE,
+            subtype: 0b0001,
+        }
+    }
+
+    #[allow(non_snake_case)]
+    pub fn LD_B2B() -> Self {
+        Self {
+            optype: DOpType::UCORE,
+            subtype: 0b1000,
+        }
+    }
+
+    #[allow(non_snake_case)]
+    pub fn EXTEND() -> Self {
+        Self {
+            optype: DOpType::UCORE,
+            subtype: 0b1111,
+        }
+    }
+
+    pub fn is_notyf_inst(&self) -> bool {
+        self == &Self::NOTIFY()
+    }
+
+    pub fn is_wait_inst(&self) -> bool {
+        self == &Self::WAIT()
+    }
+    pub fn is_ld_b2b_inst(&self) -> bool {
+        self == &Self::LD_B2B()
+    }
+    pub fn is_extend_inst(&self) -> bool {
+        self == &Self::EXTEND()
     }
 }
 
@@ -126,6 +163,26 @@ impl Opcode {
             optype: DOpType::MEM,
             subtype: 0b0001,
         }
+    }
+
+    #[allow(non_snake_case)]
+    pub fn SYNC() -> Self {
+        Self {
+            optype: DOpType::MEM,
+            subtype: 0b1111,
+        }
+    }
+
+    pub fn is_ld_inst(&self) -> bool {
+        self == &Self::LD()
+    }
+
+    pub fn is_st_inst(&self) -> bool {
+        self == &Self::ST()
+    }
+
+    pub fn is_sync_inst(&self) -> bool {
+        self == &Self::SYNC()
     }
 }
 

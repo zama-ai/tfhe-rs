@@ -51,7 +51,6 @@ pub struct CiphertextMemoryProperties {
     pub mem_cut: Vec<ffi::MemKind>,
     pub cut_size_b: usize,
     pub slot_nb: usize,
-    pub used_as_heap: usize,
     pub retry_rate_us: u64,
 }
 
@@ -106,7 +105,7 @@ impl CiphertextMemory {
         ffi_hw: &mut ffi::HpuHw,
         regmap: &hw_regmap::FlatRegmap,
         props: &CiphertextMemoryProperties,
-    ) -> Self {
+    ) -> (Self, Vec<u64>) {
         let pool = (0..props.slot_nb)
             .map(|cid| {
                 let id = SlotId(cid);
@@ -161,17 +160,17 @@ impl CiphertextMemory {
         }
 
         // Store slot in ArrayQueue for MpMc access
-        let array_queue = ArrayQueue::new(props.slot_nb - props.used_as_heap);
-        for (idx, slot) in pool.into_iter().enumerate() {
-            if idx < (props.slot_nb - props.used_as_heap) {
-                array_queue.push(slot).expect("Check ArrayQueue allocation");
-            }
-            // else slot is used by heap and shouldn't be handled by the ct pool
+        let array_queue = ArrayQueue::new(props.slot_nb);
+        for slot in pool.into_iter() {
+            array_queue.push(slot).expect("Check ArrayQueue allocation");
         }
-        Self {
-            pool: std::sync::Arc::new(array_queue),
-            retry_rate_us: props.retry_rate_us,
-        }
+        (
+            Self {
+                pool: std::sync::Arc::new(array_queue),
+                retry_rate_us: props.retry_rate_us,
+            },
+            paddr,
+        )
     }
 
     #[tracing::instrument(level = "trace", skip(ffi_hw), ret)]
@@ -219,7 +218,7 @@ impl CiphertextMemory {
                 if is_contiguous {
                     let mut slots = Vec::with_capacity(bundle_size);
                     for (p, slot) in win_slots.into_iter().enumerate() {
-                        if (p < i) || p > (i + bundle_size) {
+                        if (p < i) || p >= (i + bundle_size) {
                             // Return slot to pool
                             self.pool
                                 .push(slot)

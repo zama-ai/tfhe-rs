@@ -463,14 +463,132 @@ impl FromRtl for HpuPBSParameters {
 
         // Check register encoding
         let field_code = pbs_app_val & (!0xFF_u32);
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
+        #[cfg(not(feature = "hw-v80"))]
         {
+            use crate::prelude::parameters::HpuNoiseDistributionInputRaw;
             if (field_code == 0) && (pbs_app_val == SIMULATION_CODE) {
                 tracing::warn!("Run an simulation backend with custom SIMU parameters set");
-                return ffi_hw.get_pbs_parameters();
+                // Read parameters set from simu_dummy regif
+                let reg_lwe_dimension = regmap
+                    .register()
+                    .get("pbs_parameters::lwe_dimension")
+                    .expect("Unknown register, check regmap definition");
+                let lwe_dimension = ffi_hw.read_reg(*reg_lwe_dimension.offset() as u64) as usize;
+                let reg_glwe_dimension = regmap
+                    .register()
+                    .get("pbs_parameters::glwe_dimension")
+                    .expect("Unknown register, check regmap definition");
+                let glwe_dimension = ffi_hw.read_reg(*reg_glwe_dimension.offset() as u64) as usize;
+                let reg_polynomial_size = regmap
+                    .register()
+                    .get("pbs_parameters::polynomial_size")
+                    .expect("Unknown register, check regmap definition");
+                let polynomial_size =
+                    ffi_hw.read_reg(*reg_polynomial_size.offset() as u64) as usize;
+                let reg_pbs_base_log = regmap
+                    .register()
+                    .get("pbs_parameters::pbs_base_log")
+                    .expect("Unknown register, check regmap definition");
+                let pbs_base_log = ffi_hw.read_reg(*reg_pbs_base_log.offset() as u64) as usize;
+                let reg_pbs_level = regmap
+                    .register()
+                    .get("pbs_parameters::pbs_level")
+                    .expect("Unknown register, check regmap definition");
+                let pbs_level = ffi_hw.read_reg(*reg_pbs_level.offset() as u64) as usize;
+                let reg_ks_base_log = regmap
+                    .register()
+                    .get("pbs_parameters::ks_base_log")
+                    .expect("Unknown register, check regmap definition");
+                let ks_base_log = ffi_hw.read_reg(*reg_ks_base_log.offset() as u64) as usize;
+                let reg_ks_level = regmap
+                    .register()
+                    .get("pbs_parameters::ks_level")
+                    .expect("Unknown register, check regmap definition");
+                let ks_level = ffi_hw.read_reg(*reg_ks_level.offset() as u64) as usize;
+                let reg_message_width = regmap
+                    .register()
+                    .get("pbs_parameters::message_width")
+                    .expect("Unknown register, check regmap definition");
+                let message_width = ffi_hw.read_reg(*reg_message_width.offset() as u64) as usize;
+                let reg_carry_width = regmap
+                    .register()
+                    .get("pbs_parameters::carry_width")
+                    .expect("Unknown register, check regmap definition");
+                let carry_width = ffi_hw.read_reg(*reg_carry_width.offset() as u64) as usize;
+                let reg_ciphertext_width = regmap
+                    .register()
+                    .get("pbs_parameters::ciphertext_width")
+                    .expect("Unknown register, check regmap definition");
+                let ciphertext_width =
+                    ffi_hw.read_reg(*reg_ciphertext_width.offset() as u64) as usize;
+
+                let lwe_noise_distribution = {
+                    let reg_mode = regmap
+                        .register()
+                        .get("pbs_noise_lwe::mode")
+                        .expect("Unknown register, check regmap definition");
+                    let reg_raw_0 = regmap
+                        .register()
+                        .get("pbs_noise_lwe::raw_0")
+                        .expect("Unknown register, check regmap definition");
+                    let reg_raw_1 = regmap
+                        .register()
+                        .get("pbs_noise_lwe::raw_1")
+                        .expect("Unknown register, check regmap definition");
+                    HpuNoiseDistributionInput::from(HpuNoiseDistributionInputRaw {
+                        mode: ffi_hw.read_reg(*reg_mode.offset() as u64),
+                        raw: [
+                            ffi_hw.read_reg(*reg_raw_0.offset() as u64),
+                            ffi_hw.read_reg(*reg_raw_1.offset() as u64),
+                        ],
+                    })
+                };
+                let glwe_noise_distribution = {
+                    let reg_mode = regmap
+                        .register()
+                        .get("pbs_noise_glwe::mode")
+                        .expect("Unknown register, check regmap definition");
+                    let reg_raw_0 = regmap
+                        .register()
+                        .get("pbs_noise_glwe::raw_0")
+                        .expect("Unknown register, check regmap definition");
+                    let reg_raw_1 = regmap
+                        .register()
+                        .get("pbs_noise_glwe::raw_1")
+                        .expect("Unknown register, check regmap definition");
+                    HpuNoiseDistributionInput::from(HpuNoiseDistributionInputRaw {
+                        mode: ffi_hw.read_reg(*reg_mode.offset() as u64),
+                        raw: [
+                            ffi_hw.read_reg(*reg_raw_0.offset() as u64),
+                            ffi_hw.read_reg(*reg_raw_1.offset() as u64),
+                        ],
+                    })
+                };
+
+                // TODO add dedicated register for those values
+                let log2_p_fail = -64.0;
+                let modulus_switch_type =
+                    parameters::HpuModulusSwitchType::CenteredMeanNoiseReduction;
+
+                return HpuPBSParameters {
+                    lwe_dimension,
+                    glwe_dimension,
+                    polynomial_size,
+                    pbs_base_log,
+                    pbs_level,
+                    ks_base_log,
+                    ks_level,
+                    message_width,
+                    carry_width,
+                    ciphertext_width,
+                    lwe_noise_distribution,
+                    glwe_noise_distribution,
+                    log2_p_fail,
+                    modulus_switch_type,
+                };
             }
         }
-        #[cfg(any(feature = "hw-xrt", feature = "hw-v80"))]
+        #[cfg(feature = "hw-v80")]
         {
             assert_eq!(
                 field_code, APPLICATION_NAME_OFS,

@@ -14,6 +14,52 @@ pub enum HpuModulusSwitchType {
     CenteredMeanNoiseReduction,
 }
 
+/// Structure to manually serialize/deserialize HpuNoiseDistributionInput in register (i.e. u32
+/// words)
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct HpuNoiseDistributionInputRaw {
+    pub mode: u32,
+    pub raw: [u32; 2],
+}
+const HPU_NOISE_MODE_GAUSSIAN: u32 = 1;
+const HPU_NOISE_MODE_TUNIFORM: u32 = 2;
+
+impl From<HpuNoiseDistributionInputRaw> for HpuNoiseDistributionInput {
+    fn from(value: HpuNoiseDistributionInputRaw) -> Self {
+        match value.mode {
+            HPU_NOISE_MODE_GAUSSIAN => {
+                let f64_bits = value.raw[0] as u64 | ((value.raw[1] as u64) << u32::BITS);
+                let float = f64::from_bits(f64_bits);
+                Self::GaussianStdDev(float)
+            }
+            HPU_NOISE_MODE_TUNIFORM => Self::TUniformBound(value.raw[0]),
+            _ => panic!(
+                "HpuNoiseDistributionInputRaw has invalid mode {}",
+                value.mode
+            ),
+        }
+    }
+}
+impl From<HpuNoiseDistributionInput> for HpuNoiseDistributionInputRaw {
+    fn from(value: HpuNoiseDistributionInput) -> Self {
+        match value {
+            HpuNoiseDistributionInput::GaussianStdDev(float) => {
+                let float_bits = float.to_bits();
+                let float_lsb = (float_bits & (u32::MAX as u64)) as u32;
+                let float_msb = ((float_bits >> u32::BITS) & (u32::MAX as u64)) as u32;
+                Self {
+                    mode: HPU_NOISE_MODE_GAUSSIAN,
+                    raw: [float_lsb, float_msb],
+                }
+            }
+            HpuNoiseDistributionInput::TUniformBound(bound) => Self {
+                mode: HPU_NOISE_MODE_TUNIFORM,
+                raw: [bound, 0],
+            },
+        }
+    }
+}
+
 /// Parameters related to Tfhe scheme computation
 /// Couldn't rely on ClassicPBSParameters to prevent dependency loop
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]

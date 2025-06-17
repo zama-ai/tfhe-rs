@@ -69,9 +69,9 @@ pub fn init_device(device: &HpuDevice, server_key: CompressedServerKey) -> crate
 
     // Upload them on Hpu and configure internal Fw/Lut
     device.init(
-        hpu_bsk,
-        hpu_ksk,
-        crate::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable,
+        hpu_bsk.as_view(),
+        hpu_ksk.as_view(),
+        &crate::core_crypto::hpu::glwe_lookuptable::create_hpu_lookuptable,
     );
 
     Ok(())
