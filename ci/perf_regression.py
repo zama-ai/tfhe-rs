@@ -26,6 +26,10 @@ parser.add_argument(
 COMMENT_IDENTIFIER = "/bench"
 PROFILE_DEFINITION_PATH = pathlib.Path("ci/regression.toml")
 BENCH_TARGETS_PATH = pathlib.Path("tfhe-benchmark/Cargo.toml")
+# Files generated after parsing an issue comment
+FILE_PREFIX = "perf_regression_"
+GENERATED_COMMANDS_PATH = pathlib.Path(f"ci/{FILE_PREFIX}generated_commands.json")
+CUSTOM_ENV_PATH = pathlib.Path(f"ci/{FILE_PREFIX}custom_env.sh")
 
 USER_TO_TFHE_TARGETS = {
     "boolean": "boolean-bench",
@@ -67,6 +71,8 @@ class ProfileOption(enum.Enum):
     RegressionProfile = 2
     Slab = 3
     BenchmarkTarget = 4
+    # TODO Add fast_bench/parameters_set/... handling
+    #  How to deal with these env vars ?? since they are not part of the cargo command
 
     @staticmethod
     def from_str(label):
@@ -82,6 +88,22 @@ class ProfileOption(enum.Enum):
             case _:
                 raise NotImplementedError
 
+class TfheBackend(enum.StrEnum):
+    Cpu = "cpu"
+    Gpu = "gpu"
+    Hpu = "hpu"  # Only v80 is supported for now
+
+    @staticmethod
+    def from_str(label):
+        match label.lower():
+            case "cpu":
+                return TfheBackend.Cpu
+            case "gpu":
+                return TfheBackend.Gpu
+            case "hpu":
+                return TfheBackend.Hpu
+            case _:
+                raise NotImplementedError
 
 class TargetOption(enum.Enum):
     Boolean = 1
@@ -162,6 +184,10 @@ def _parse_option_content(content):
 
 class ProfileDefinition:
     def __init__(self, tfhe_rs_targets: list[dict]):
+        """
+
+        :param tfhe_rs_targets:
+        """
         self.backend = None
         self.regression_profile = "default"
         self.targets = {}
@@ -170,15 +196,21 @@ class ProfileDefinition:
 
         check_targets_consistency(tfhe_rs_targets)
         self.tfhe_rs_targets = self._build_tfhe_rs_targets(tfhe_rs_targets)
-        print("TARGETS:", self.tfhe_rs_targets)  # DEBUG
+        # print("TARGETS:", self.tfhe_rs_targets)  # DEBUG
 
     def __str__(self):
         return f"ProfileDefinition(backend={self.backend}, regression_profile={self.regression_profile}, targets={self.targets}, slab_backend={self.slab_backend}, slab_profile={self.slab_profile})"
 
     def set_field_from_option(self, option: ProfileOption, value: str):
+        """
+
+        :param option:
+        :param value:
+        :return:
+        """
         match option:
             case ProfileOption.Backend:
-                self.backend = value
+                self.backend = TfheBackend.from_str(value)
             case ProfileOption.RegressionProfile:
                 self.regression_profile = value
             case ProfileOption.BenchmarkTarget:
@@ -198,6 +230,11 @@ class ProfileDefinition:
                 raise NotImplementedError
 
     def set_defaults_from_definitions_file(self, definitions: dict):
+        """
+
+        :param definitions:
+        :return:
+        """
         base_error_msg = "failed to set regression profile values"
 
         if not self.backend:
@@ -258,18 +295,43 @@ class ProfileDefinition:
 
         return targets
 
-        # TODO gérer le cas où hpu-<custom> est fourni en tant que backend
-        #  on doit avoir "hpu,hpu-<custom>" dans la suite de features
-        # TODO ajouter "nightly-avx512" si le backend est cpu|gpu
+    def _build_features(self, target):
+        features = self.tfhe_rs_targets[target]["required_features"]
 
-    def _build_operation_filter(self):
+        match self.backend:
+            case TfheBackend.Cpu:
+                features.append("nightly-avx512")
+            case TfheBackend.Gpu:
+                features.extend(["gpu", "nightly-avx512"])
+            case TfheBackend.Hpu:
+                features.extend(["hpu", "hpu-v80"])
+
+        print("features:", features)
+        return features
+
+    def _build_operation_filter(self, ops):
         pass
 
     def generate_cargo_commands(self):
-        pass
+        """
 
+        :return:
+        """
+        commands = []
+        for key, ops in self.targets.items():
+            print(ops)
+            features = self._build_features(key)
+            ops_filter = [f"::{op}::" for op in ops]  # FIXME ce filtre grossier ne fonctionne pas (voir comment on gère le truc avec les scripts pour nextest)
+            commands.append(f"--bench {self.tfhe_rs_targets[key]["target"]} --features={','.join(features)} -- '{"|".join(ops_filter)}'")
+
+        return commands
 
 def parse_issue_comment(comment):
+    """
+
+    :param comment:
+    :return:
+    """
     identifier, profile_arguments = comment.split(" ", maxsplit=1)
 
     if identifier != COMMENT_IDENTIFIER:
@@ -293,6 +355,12 @@ def parse_issue_comment(comment):
 
 
 def parse_toml_file(path):
+    """
+    Parse TOML file.
+
+    :param path: path to TOML file
+    :return: file content as :class:`dict`
+    """
     try:
         return tomllib.loads(pathlib.Path(path).read_text())
     except tomllib.TOMLDecodeError as err:
@@ -301,18 +369,34 @@ def parse_toml_file(path):
 
 
 def build_definition(profile_args_pairs, profile_defintions):
+    """
+
+    :param profile_args_pairs:
+    :param profile_defintions:
+    :return:
+    """
     bench_targets = parse_toml_file(BENCH_TARGETS_PATH)["bench"]
     definition = ProfileDefinition(bench_targets)
 
     for profile_option, value in profile_args_pairs:
         definition.set_field_from_option(profile_option, value)
 
-    print("Before defaults: ", definition)  # DEBUG
-
     definition.set_defaults_from_definitions_file(profile_defintions)
 
-    print("After  defaults: ", definition)  # DEBUG
+    return definition
 
+def write_commands_to_file(commands):
+    """
+    Write commands to a file.
+    This file is meant to be read a string and passed to `toJSON()` GitHub actions function.
+
+    :param commands: list of commands to write
+    """
+    with GENERATED_COMMANDS_PATH.open("w") as f:
+        f.write("[")
+        for command in commands[:-1]:
+            f.write(f"\"{command}\", ")
+        f.write(f"\"{commands[-1]}\"]")
 
 # Doit être capable de parser un commentaire d'issue
 # puis de sortir les commandes cargo à exécuter
@@ -333,6 +417,9 @@ if __name__ == "__main__":
 
         profile_args_pairs = parse_issue_comment(comment)
         profile_definitions = parse_toml_file(PROFILE_DEFINITION_PATH)
-        print(profile_definitions)
+        print(profile_definitions)  # DEBUG
 
-        build_definition(profile_args_pairs, profile_definitions)
+        definition = build_definition(profile_args_pairs, profile_definitions)
+        commands = definition.generate_cargo_commands()
+        print(commands)  # DEBUG
+        write_commands_to_file(commands)
