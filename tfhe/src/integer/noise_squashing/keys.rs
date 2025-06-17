@@ -21,6 +21,10 @@ pub struct NoiseSquashingPrivateKey {
     pub(crate) key: crate::shortint::noise_squashing::NoiseSquashingPrivateKey,
 }
 
+pub struct NoiseSquashingPrivateKeyView<'a> {
+    pub(crate) key: crate::shortint::noise_squashing::NoiseSquashingPrivateKeyView<'a>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
@@ -33,16 +37,16 @@ pub struct CompressedNoiseSquashingKey {
     pub(crate) key: crate::shortint::noise_squashing::CompressedNoiseSquashingKey,
 }
 
-impl Named for NoiseSquashingPrivateKey {
-    const NAME: &'static str = "integer::NoiseSquashingPrivateKey";
-}
-
 impl Named for NoiseSquashingKey {
     const NAME: &'static str = "integer::NoiseSquashingKey";
 }
 
 impl Named for CompressedNoiseSquashingKey {
     const NAME: &'static str = "integer::CompressedNoiseSquashingKey";
+}
+
+impl Named for NoiseSquashingPrivateKeyView<'_> {
+    const NAME: &'static str = "integer::NoiseSquashingPrivateKeyView";
 }
 
 impl CompressedNoiseSquashingKey {
@@ -64,28 +68,7 @@ impl CompressedNoiseSquashingKey {
     }
 }
 
-impl NoiseSquashingPrivateKey {
-    pub fn new_compressed_noise_squashing_key(
-        &self,
-        client_key: &ClientKey,
-    ) -> CompressedNoiseSquashingKey {
-        client_key.new_compressed_noise_squashing_key(self)
-    }
-
-    pub fn new(params: NoiseSquashingParameters) -> Self {
-        assert!(
-            params.carry_modulus.0 >= params.message_modulus.0,
-            "NoiseSquashingPrivateKey requires its CarryModulus {:?} to be greater \
-            or equal to its MessageModulus {:?}",
-            params.carry_modulus.0,
-            params.message_modulus.0,
-        );
-
-        Self {
-            key: crate::shortint::noise_squashing::NoiseSquashingPrivateKey::new(params),
-        }
-    }
-
+impl NoiseSquashingPrivateKeyView<'_> {
     pub fn decrypt_radix<T>(&self, ct: &SquashedNoiseRadixCiphertext) -> crate::Result<T>
     where
         T: RecomposableFrom<u128> + UnsignedNumeric,
@@ -240,6 +223,56 @@ impl NoiseSquashingPrivateKey {
         let decrypted = self.key.decrypt_squashed_noise_ciphertext(ciphertext);
 
         Ok(decrypted != 0)
+    }
+}
+
+impl NoiseSquashingPrivateKey {
+    pub fn new_compressed_noise_squashing_key(
+        &self,
+        client_key: &ClientKey,
+    ) -> CompressedNoiseSquashingKey {
+        client_key.new_compressed_noise_squashing_key(self)
+    }
+
+    pub fn new(params: NoiseSquashingParameters) -> Self {
+        assert!(
+            params.carry_modulus.0 >= params.message_modulus.0,
+            "NoiseSquashingPrivateKey requires its CarryModulus {:?} to be greater \
+            or equal to its MessageModulus {:?}",
+            params.carry_modulus.0,
+            params.message_modulus.0,
+        );
+
+        Self {
+            key: crate::shortint::noise_squashing::NoiseSquashingPrivateKey::new(params),
+        }
+    }
+
+    pub(crate) fn as_view(&self) -> NoiseSquashingPrivateKeyView {
+        NoiseSquashingPrivateKeyView {
+            key: self.key.as_view(),
+        }
+    }
+
+    pub fn decrypt_radix<T>(&self, ct: &SquashedNoiseRadixCiphertext) -> crate::Result<T>
+    where
+        T: RecomposableFrom<u128> + UnsignedNumeric,
+    {
+        self.as_view().decrypt_radix(ct)
+    }
+
+    pub fn decrypt_signed_radix<T>(
+        &self,
+        ct: &SquashedNoiseSignedRadixCiphertext,
+    ) -> crate::Result<T>
+    where
+        T: RecomposableFrom<u128> + SignExtendable,
+    {
+        self.as_view().decrypt_signed_radix(ct)
+    }
+
+    pub fn decrypt_bool(&self, ct: &SquashedNoiseBooleanBlock) -> crate::Result<bool> {
+        self.as_view().decrypt_bool(ct)
     }
 
     pub fn into_raw_parts(self) -> crate::shortint::noise_squashing::NoiseSquashingPrivateKey {
