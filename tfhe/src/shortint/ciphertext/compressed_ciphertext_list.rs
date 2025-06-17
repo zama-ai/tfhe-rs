@@ -232,4 +232,8 @@ impl CompressedSquashedNoiseCiphertextList {
 
         Ok(extracted_lwe)
     }
+
+    pub fn message_modulus(&self) -> Option<MessageModulus> {
+        self.meta.as_ref().map(|meta| meta.message_modulus)
+    }
 }
