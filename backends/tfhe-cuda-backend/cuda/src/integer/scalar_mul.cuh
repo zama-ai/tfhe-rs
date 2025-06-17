@@ -173,8 +173,9 @@ template <typename Torus>
 __host__ void host_integer_radix_scalar_mul_high_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *ct,
-    int_scalar_mul_high<Torus> *mem_ptr, Torus *const *ksks, uint64_t rhs,
-    uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
+    int_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    uint64_t rhs, uint64_t const *decomposed_scalar,
+    uint64_t const *has_at_least_one_set,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     void *const *bsks, uint32_t num_scalars) {
 
@@ -189,13 +190,118 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
   host_extend_radix_with_trivial_zero_blocks_msb<Torus>(tmp_ffi, ct, streams,
                                                         gpu_indexes);
 
-  if (rhs != (uint64_t)1 || tmp_ffi->num_radix_blocks != 0) {
+  if (num_scalars != (uint32_t)0 && rhs != (uint64_t)1 &&
+      tmp_ffi->num_radix_blocks != 0) {
     if ((rhs & (rhs - 1)) == 0) {
 
       uint32_t shift = std::log2(rhs);
 
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
           streams, gpu_indexes, gpu_count, tmp_ffi, shift,
+          mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
+          ms_noise_reduction_key, tmp_ffi->num_radix_blocks);
+
+    } else {
+
+      switch (mem_ptr->params.polynomial_size) {
+      case 512:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<512>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      case 1024:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<1024>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      case 2048:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<2048>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      case 4096:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<4096>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      case 8192:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<8192>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      case 16384:
+        host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<16384>>(
+            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+            (uint64_t **)ksks, ms_noise_reduction_key,
+            mem_ptr->params.message_modulus, num_scalars);
+        break;
+      default:
+        PANIC(
+            "Cuda error (scalar multiplication): unsupported polynomial size. "
+            "Only N = 512, 1024, 2048, 4096, 8192, 16384 are supported.")
+      }
+    }
+  }
+
+  host_trim_radix_blocks_lsb<Torus>(ct, tmp_ffi, streams, gpu_indexes);
+}
+
+template <typename Torus>
+__host__ uint64_t scratch_cuda_integer_radix_signed_scalar_mul_high_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, int_signed_scalar_mul_high_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, int_radix_params params,
+    uint32_t num_scalar_bits, bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_signed_scalar_mul_high_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+      allocate_gpu_memory, LEFT_SHIFT, num_scalar_bits, &size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_integer_radix_signed_scalar_mul_high_kb(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *ct,
+    int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    bool is_rhs_power_of_two, bool is_rhs_zero, bool is_rhs_one,
+    uint32_t rhs_shift, uint64_t const *decomposed_scalar,
+    uint64_t const *has_at_least_one_set,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    void *const *bsks, uint32_t num_scalars, uint32_t num_additional_blocks) {
+
+  if (is_rhs_zero) {
+    set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], ct,
+                                                 0, ct->num_radix_blocks);
+    return;
+  }
+
+  CudaRadixCiphertextFFI *tmp_ffi = mem_ptr->tmp;
+
+  host_extend_radix_with_sign_msb<Torus>(
+      streams, gpu_indexes, gpu_count, tmp_ffi, ct, mem_ptr->extend_radix_mem,
+      num_additional_blocks, bsks, (uint64_t **)ksks, ms_noise_reduction_key);
+
+  if (num_scalars != (uint32_t)0 && !is_rhs_one &&
+      tmp_ffi->num_radix_blocks != 0) {
+    if (is_rhs_power_of_two) {
+
+      host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
+          streams, gpu_indexes, gpu_count, tmp_ffi, rhs_shift,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           ms_noise_reduction_key, tmp_ffi->num_radix_blocks);
 

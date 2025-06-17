@@ -593,6 +593,7 @@ void cleanup_cuda_sub_and_propagate_single_carry(void *const *streams,
                                                  uint32_t const *gpu_indexes,
                                                  uint32_t gpu_count,
                                                  int8_t **mem_ptr_void);
+
 uint64_t scratch_cuda_extend_radix_with_sign_msb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
@@ -613,6 +614,28 @@ void cleanup_cuda_extend_radix_with_sign_msb_64(void *const *streams,
                                                 uint32_t const *gpu_indexes,
                                                 uint32_t gpu_count,
                                                 int8_t **mem_ptr_void);
+
+uint64_t scratch_cuda_integer_radix_signed_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
+    uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool allocate_gpu_memory,
+    bool allocate_ms_array);
+
+void cuda_integer_radix_signed_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    CudaRadixCiphertextFFI *ct, int8_t *mem_ptr, void *const *ksks,
+    bool is_rhs_power_of_two, bool is_rhs_zero, bool is_rhs_one,
+    uint32_t rhs_shift, uint64_t const *decomposed_scalar,
+    uint64_t const *has_at_least_one_set,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    void *const *bsks, uint32_t num_scalars, uint32_t num_additional_blocks);
+
+void cleanup_cuda_integer_radix_signed_scalar_mul_high_kb_64(
+    void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
+    int8_t **mem_ptr_void);
 
 uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
