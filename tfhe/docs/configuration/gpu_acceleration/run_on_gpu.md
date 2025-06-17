@@ -2,25 +2,44 @@
 
 **TFHE-rs** has a CUDA GPU backend  that enables faster integer arithmetic operations on encrypted data, when compared to the default CPU backend. This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU. 
 
-1. [FHE Performance on GPU](#performance)
-2. [GPU programming model](#gpu-programming-model)
-3. [Quick start](#gpu-programming-quick-start)
+1. [GPU FHE Performance Summary](#performance)
+2. [GPU Programming Model](#gpu-programming-model)
+3. [Project Configuration](#gpu-programming-quick-start)
+
+For a simple code example, go to:
+{% content-ref url="./simple_example.md" %} A simple TFHE-rs GPU example {% endcontent-ref %}
 
 ## FHE Performance on GPU
 
 The GPU backend is, on average, **between 1.6x and 4.2x faster** than the CPU one, depending on the type of integer operation. For a detailed comparison, see the following page.    
 {% content-ref url="../../getting_started/benchmarks/README.md" %} GPU vs CPU benchmarks {% endcontent-ref %}
 
+Please refer to the [GPU benchmarks](../../getting_started/benchmarks/gpu/README.md) for detailed performance benchmark results.
+
+{% hint style="warning" %}
+When measuring GPU times on your own on Linux, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
+{% endhint %}
+
+
 ## GPU Programming model
 
-The GPU TFHE-rs integer API is identical to the CPU API in all respects but one: server keys must be copied to one or multiple GPUs. While the API is otherwise identical to the CPU, some GPU program design principles must be considered:
-1. Key Generation, Encryption and Decryption are performed on the CPU. When used in operations, ciphertexts are automatically stored on the first available GPU.
-2. GPU code that performs integer FHE operations is identical with equivalent CPU code.
-3. The GPU backend has specific crypto-system parameters. Ciphertexts that are encrypted with CPU parameters cannot be processed with GPU server keys. Server keys generated with the CPU backend are not compatible with the GPU backend.  
-4. Each server key instance is assigned to a single GPU. The GPU backend can use multiple GPUs. To set the current GPU, activate the server key assigned to the GPU you want to use.
+The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer datatypes and operations syntax are the same. The following page details FHE integer operation support on CPU and GPU.
+
+{% content-ref url=".gpu_operations.md" %} GPU integer operation support {% endcontent-ref %}
+
+All the while, some GPU program design principles must be considered:
+1. Key generation, encryption, and decryption are performed on the CPU. When used in operations, ciphertexts are automatically copied to or from the first GPU that the user configures for TFHE-rs.
+2. GPU syntax for integer FHE operations, key generation, and serialization is identical with equivalent CPU code.
+3. When configured to compile for the GPU, TFHE-rs uses specific crypto-system parameters. Ciphertexts that are encrypted with CPU parameters cannot be processed with GPU server keys. Server keys generated with the CPU backend are not compatible with the GPU backend.  
+4. Each server key instance is assigned to a single GPU while the backend can use multiple GPUs in parallel. To set the current GPU assigned to a CPU thread, activate the server key assigned to the GPU you want to use.
 5. GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.  
 
-## GPU programming quick start
+The key differences between the CPU API and the GPU API are:
+1. The GPU backend only supports compressed server keys that must be decompressed on a GPU selected by the user
+2. For ciphertext compression the crypto-system parameters must be chosen by the user from the GPU parameter set
+3. GPU-specific ciphertext array types must be used instead of CPU ones 
+
+## Project configuration
 
 ### 1. Prerequisites
 
@@ -49,11 +68,11 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 ### 3. Supported platforms
 
-**TFHE-rs** GPU backend is supported on Linux (x86, aarch64).
+**TFHE-rs** GPU backend is supported on Linux (x86, aarch64). The following table lists compatibility status for other platforms.
 
-| OS      | x86         | aarch64       |
-| ------- | ----------- |---------------|
-| Linux   | Supported   | Supported     |
-| macOS   | Unsupported | Unsupported   |
-| Windows | Unsupported | Unsupported   |
+| OS      | x86 | aarch64 |
+| ------- |-----|---------|
+| Linux   | Yes | Yes     |
+| macOS   | No  | No      |
+| Windows | No  | No      |
 

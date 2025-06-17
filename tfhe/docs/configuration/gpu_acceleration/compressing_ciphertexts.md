@@ -1,13 +1,23 @@
-# Compressing ciphertexts
+# Compressing ciphertexts on the GPU
 
-This document explains how to compress ciphertexts using the GPU - even after homomorphic computations - just like on the [CPU](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation).
+This document explains how to compress ciphertexts using the GPU - even after homomorphic computations. The syntax for ciphertext compression is identical to the one for the [CPU backend](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation), but crypto-system parameters specific to the GPU must be configured for compression.
 
-Compressing ciphertexts after computation using GPU is very similar to how it's done on the CPU. The following example shows how to compress and decompress a list containing 4 messages:
+## Crypto-system parameter setting
 
-* One 32-bits integer
-* One 64-bit integer
-* One Boolean
-* One 2-bit integer
+When using compression, the [`ConfigBuilder`] class must be initialized with the `enable_compression` calls. This requires that the caller sets both the crypto-system PBS parameters and the compression crypto-system parameters.
+
+The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter sets corresponds to the default PBS parameters set using `ConfigBuilder::default()`, when the `"gpu"` feature enabled. The [COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression crypto-system parameters.
+
+```
+    let config =
+        tfhe::ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+            .enable_compression(COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS)
+            .build();
+```
+
+## GPU Compression Example
+
+The following example shows how to compress and decompress a list containing 4 messages: one 32-bit integer, one 64-bit integer, one Boolean, and one 2-bit integer.
 
 ```rust
 use tfhe::prelude::*;
