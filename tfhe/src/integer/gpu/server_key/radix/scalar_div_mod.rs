@@ -7,6 +7,7 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     get_full_propagate_assign_size_on_gpu, get_scalar_div_integer_radix_kb_size_on_gpu,
+    unchecked_signed_scalar_mul_high_integer_radix_kb_async,
     unchecked_unsigned_scalar_div_integer_radix_kb_assign_async, CudaServerKey, PBSType,
 };
 use crate::integer::server_key::radix_parallel::scalar_div_mod::{
@@ -52,10 +53,60 @@ impl CudaServerKey {
     where
         Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
-        let num_additional_blocks = lhs.as_ref().d_blocks.lwe_ciphertext_count().0;
-        let mut result = self.extend_radix_with_sign_msb_async(lhs, num_additional_blocks, streams);
-        self.scalar_mul_assign_async(&mut result, rhs, streams);
-        self.trim_radix_blocks_lsb_async(&result, num_additional_blocks, streams)
+        let mut output = lhs.duplicate_async(streams);
+
+        if !output.block_carries_are_empty() {
+            self.full_propagate_assign_async(&mut output, streams);
+        }
+
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    unchecked_signed_scalar_mul_high_integer_radix_kb_async(
+                        streams,
+                        output.as_mut(),
+                        rhs,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        &d_bsk.d_vec,
+                        d_bsk.glwe_dimension(),
+                        d_bsk.polynomial_size(),
+                        d_bsk.input_lwe_dimension(),
+                        d_bsk.decomp_level_count(),
+                        d_bsk.decomp_base_log(),
+                        LweBskGroupingFactor(0),
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        PBSType::Classical,
+                    );
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    unchecked_signed_scalar_mul_high_integer_radix_kb_async(
+                        streams,
+                        output.as_mut(),
+                        rhs,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        &self.key_switching_key.d_vec,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        &d_multibit_bsk.d_vec,
+                        d_multibit_bsk.glwe_dimension(),
+                        d_multibit_bsk.polynomial_size(),
+                        d_multibit_bsk.input_lwe_dimension(),
+                        d_multibit_bsk.decomp_level_count(),
+                        d_multibit_bsk.decomp_base_log(),
+                        d_multibit_bsk.grouping_factor,
+                        None,
+                        PBSType::MultiBit,
+                    );
+                }
+            }
+        }
+
+        output
     }
 
     /// Computes homomorphically a division between a ciphertext and a scalar.
@@ -137,14 +188,15 @@ impl CudaServerKey {
             .ilog2()
             * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
+        // Rust has a check on all division, so we shall also have one
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is \
-        >= to the number of bits encrypted in the ciphertext: \n\
-        encrypted bits: {numerator_bits}, scalar bits: {}
-        ",
+            >= to the number of bits encrypted in the ciphertext: \n\
+            encrypted bits: {numerator_bits}, scalar bits: {}
+            ",
             Scalar::BITS
         );
 
