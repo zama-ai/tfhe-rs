@@ -37,7 +37,7 @@ function fhe_uint32_example() {
 
   const U32_MAX = 4294967295;
 
-  const block_params = new ShortintParameters(ShortintParametersName.V1_2_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
+  const block_params = new ShortintParameters(ShortintParametersName.V1_3_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
   let config = TfheConfigBuilder.default()
       .build();
 
@@ -90,7 +90,7 @@ async function example() {
     await initThreadPool(navigator.hardwareConcurrency);
     await init_panic_hook();
 
-    const block_params = new ShortintParameters(ShortintParametersName.V1_2_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
+    const block_params = new ShortintParameters(ShortintParametersName.V1_3_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64);
     // ....
 }
 ```
