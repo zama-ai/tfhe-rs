@@ -1,0 +1,92 @@
+module_name="sim_dummy_regif"
+description="Fake registers needed for simulation. Used to exchange simulation parameters others simulation related information."
+word_size_b = 32
+offset = 0x40000
+range = 0x10000
+ext_pkg = []
+
+# ==============================================================================
+[section.pbs_parameters]
+description="Contain tfhe pbs parameters"
+
+[section.pbs_parameters.register.lwe_dimension]
+  description="Lwe dimension"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.glwe_dimension]
+  description="Glwe dimension"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.polynomial_size]
+  description="polynomial_size"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.pbs_base_log]
+  description="pbs_base_log"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.pbs_level]
+  description="pbs_level"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.ks_base_log]
+  description="ks_base_log"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.ks_level]
+  description="ks_level"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.message_width]
+  description="message_width"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.carry_width]
+  description="carry_width"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_parameters.register.ciphertext_width]
+  description="ciphertext_width"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_noise]
+description="Contain tfhe pbs parameters noise definition"
+duplicate=["_lwe", "_glwe"]
+
+[section.pbs_noise.register.mode]
+  description="noise mode"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_noise.register.raw_0]
+  description="noise raw data 0"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"
+
+[section.pbs_noise.register.raw_1]
+  description="noise raw data 1"
+  owner="Kernel"
+  read_access="Read"
+  write_access="None"

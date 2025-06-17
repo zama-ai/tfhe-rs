@@ -42,21 +42,15 @@ impl std::str::FromStr for ShellString {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum FFIMode {
     V80 {
-        id: ShellString,
-        board_sn: ShellString,
         hpu_path: ShellString,
         ami_path: ShellString,
-        qdma_h2c: ShellString,
-        qdma_c2h: ShellString,
-        force_reload: Option<ShellString>,
-    },
-    Xrt {
-        id: u32,
-        kernel: ShellString,
-        xclbin: ShellString,
     },
     Sim {
         ipc_name: ShellString,
+        /// IOp queue configuration
+        iopq: QueueConfig,
+        /// Ack queue configuration
+        ackq: QueueConfig,
     },
 }
 
@@ -66,6 +60,7 @@ pub enum FFIMode {
 pub struct FpgaConfig {
     pub regmap: Vec<ShellString>,
     pub polling_us: u64,
+    pub node_id: Vec<u8>,
     pub ffi: FFIMode,
 }
 
@@ -81,17 +76,36 @@ pub struct RtlConfig {
     pub bpip_timeout: u32,
 }
 
+/// In-Memory queue descriptor
+/// Describe queue structure and global position
+/// NB: Size is expressed in number of word not in bytes
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct QueueConfig {
+    pub head_ofst: usize,
+    pub tail_ofst: usize,
+    pub data_ofst: usize,
+    pub size_w: usize,
+    pub mem: ffi::MemKind,
+}
+
 /// On-board memory configuration
 /// Define the Hbm pc properties and required memory size
 /// NB: Hbm pc must match with `fpga/xr/kernel/${board}/cfg/${config}.cfg`
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct BoardConfig {
-    /// Ciphertext memory
-    /// Expressed the number of ciphertext slot to allocate
-    pub ct_mem: usize,
     /// Depict the list of memories connected to ct master_axi
+    /// Ciphertext memory is split in three ranges:
+    ///  * user: Area used for user communication (i.e. Src/Dst operands) -> use user_size entry
+    ///  * b2b: Area used for board2board communication -> use b2b_size entry
+    ///  * heap: Area used for temporary variables -> use heap_size entry
     pub ct_pc: Vec<ffi::MemKind>,
-    /// Expressed the number of ct_mem slot used for heap
+
+    /// Ciphertext memory size
+    /// Expressed the number of ciphertext slot reserved for user Src/Dst allocation
+    pub user_size: usize,
+    /// Expressed the number of ciphertext slot reserved for board2board pool
+    pub b2b_size: usize,
+    /// Expressed the number of ciphertext slot reserved for heap
     /// Heap is then used downward
     pub heap_size: usize,
 
@@ -128,7 +142,7 @@ pub struct FwConfig {
 
     /// List of custom iop to load
     /// IopName -> Iop asm file
-    pub custom_iop: HashMap<String, ShellString>,
+    pub custom_iop: HashMap<String, HashMap<String, ShellString>>,
 
     /// A per IOP configuration
     pub op_cfg: RtlCfg,

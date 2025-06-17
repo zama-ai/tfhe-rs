@@ -15,14 +15,15 @@ A trace event
 """
 class Event:
     EVENT_MAP = {
-        "ISSUE": lambda x: analysis.Issue(fmt.Insn(x.insn).to_analysis()),
-        "RETIRE": lambda x: analysis.Retire(fmt.Insn(x.insn).to_analysis()),
-        "RDUNLOCK": lambda x: analysis.RdUnlock(fmt.Insn(x.insn).to_analysis()),
-        "REFILL": lambda x: analysis.Refill(None),
+        "Issue": lambda x: analysis.Issue(fmt.Insn(x.insn).to_analysis()),
+        "Retire": lambda x: analysis.Retire(fmt.Insn(x.insn).to_analysis()),
+        "RdUnlock": lambda x: analysis.RdUnlock(fmt.Insn(x.insn).to_analysis()),
+        "Refill": lambda x: analysis.Refill(None),
+        "None": lambda x: analysis.Refill(None),
     }
 
     def __init__(self, trace_dict):
-        self.cmd = trace_dict['cmd']
+        self.cmd = trace_dict['state']['cmd']
         self.insn_asm = trace_dict['insn_asm']
         self.timestamp = trace_dict['timestamp']
         self.insn = trace_dict['insn']
@@ -63,12 +64,13 @@ class Trace:
     def iops(self):
         id_map = defaultdict(list, {})
         for event in self:
-            id_map[event.sync_id].append(event)
+            id_map[0].append(event)
             opcode = next(iter(event.insn.keys())) if event.insn is not None else None
+            is_inner = event.insn[opcode]["is_inner_sync"] if opcode == "SYNC" else None
 
-            if opcode == "SYNC":
-                yield Trace(id_map[event.sync_id])
-                del id_map[event.sync_id]
+            if opcode == "SYNC" and event.cmd == "Issue" and is_inner == False:
+                yield Trace(id_map[0])
+                del id_map[0]
 
         if len(id_map):
             logging.warning("The trace contains incomplete IOPs")

@@ -15,7 +15,7 @@ macro_rules! impl_dop_parser {
     ) => {
         ::paste::paste! {
             impl [<DOp $asm:camel>] {
-                fn from_args(args: &[arg::Arg]) -> Result<DOp, ParsingError> {
+                fn from_args(args: &[arg::Arg]) -> Result<DOp, Box<ParsingError>> {
                     let fmt_op = $field::from_args($opcode.into(), args)?;
                     Ok(DOp::[< $asm:upper >](Self(fmt_op)))
                 }
@@ -160,6 +160,7 @@ macro_rules! impl_dop {
                         rid,
                         })
                 }
+
                 /// Access inner rid
                 pub fn rid(&self) -> &RegId {
                     &self.0.rid
@@ -198,6 +199,7 @@ macro_rules! impl_dop {
                         rid,
                         })
                 }
+
                 /// Access inner rid
                 pub fn rid(&self) -> &RegId {
                     &self.0.rid
@@ -214,6 +216,39 @@ macro_rules! impl_dop {
 
             impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
+        }
+    };
+
+    // Sync operations ------------------------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeSyncInsn
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeSyncInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(iid: IOpId, flag: Option<UserFlag> ) -> Self {
+                    let (is_inner_sync, inner_flag) = if let Some(inner_flag) = flag {
+                        (true, inner_flag)
+                        } else {
+                            (false, Default::default())
+                            };
+                    Self(PeSyncInsn {
+                        opcode: $opcode,
+                        iid,
+                        is_inner_sync,
+                        flag: inner_flag,
+                        })
+                }
+
+            }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
+            impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
         }
     };
 
@@ -248,29 +283,31 @@ macro_rules! impl_dop {
         }
     };
 
-    // Sync operations ------------------------------------------------------------------------
+    // Ucore operations ------------------------------------------------------------------------
     (
         $asm: literal,
         $opcode: expr,
-        PeSyncInsn
+        PeUcoreInsn
         $(,)?
     ) => {
         ::paste::paste! {
             #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-            pub struct [<DOp $asm:camel>](pub PeSyncInsn);
+            pub struct [<DOp $asm:camel>](pub PeUcoreInsn);
 
             impl [<DOp $asm:camel>] {
-                pub fn new(sid: Option<SyncId>) -> Self {
-                    Self(PeSyncInsn {
+                pub fn new(hid: VirtId, flag: UserFlag, slot: MemId) -> Self {
+                    Self(PeUcoreInsn {
                         opcode: $opcode,
-                        sid: sid.unwrap_or(SyncId(0))
+                        hid,
+                        flag,
+                        slot
                         })
                 }
 
             }
 
             impl IsFlush for [<DOp $asm:camel>]{}
-            impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
+            impl_dop_parser!($asm, $opcode, PeUcoreInsn, PeUcoreHex);
         }
     };
 }
@@ -281,7 +318,7 @@ macro_rules! dop {
         $([$asm: literal, $opcode: expr, $type: ty $({$fmt: tt})? $(,$flush: literal)?] $(,)?)*
     ) => {
         ::paste::paste! {
-            type AsmCallback = fn(&[arg::Arg]) -> Result<DOp, ParsingError>;
+            type AsmCallback = fn(&[arg::Arg]) -> Result<DOp, Box<ParsingError>>;
             type HexCallback = fn(DOpRepr) -> DOp;
 
             $(
@@ -310,11 +347,11 @@ macro_rules! dop {
             }
 
             impl DOp {
-                pub fn from_args(name: &str, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+                pub fn from_args(name: &str, args: &[arg::Arg]) -> Result<Self, Box<ParsingError>> {
                     if let Some(cb) = DOP_LUT.asm.get(name) {
                         cb(args)
                     } else {
-                        Err(ParsingError::Unmatch(format!("{name} unknown")))
+                        Err(Box::new(ParsingError::Unmatch(format!("{name} unknown"))))
                     }
                 }
                 /// Construct DOp from hex word
@@ -340,7 +377,7 @@ macro_rules! dop {
 
             /// Construct DOp from ASM str
             impl std::str::FromStr for DOp {
-                type Err = ParsingError;
+                type Err = Box<ParsingError>;
 
                 fn from_str(asm: &str) -> Result<Self, Self::Err> {
 
@@ -357,7 +394,7 @@ macro_rules! dop {
 
                         Self::from_args(name, args.as_slice())
                     }else {
-                        Err(ParsingError::Empty)
+                        Err(Box::new(ParsingError::Empty))
                     }
                 }
             }
