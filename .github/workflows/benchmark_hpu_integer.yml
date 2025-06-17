@@ -33,6 +33,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: 'false'
+          lfs: true
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
       - name: Get benchmark details
@@ -61,6 +62,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
+          git lfs pull --include="*" --exclude=""
           make bench_integer_hpu
           make bench_hlapi_erc20_hpu
 
