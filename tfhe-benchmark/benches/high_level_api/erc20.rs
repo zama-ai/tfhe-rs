@@ -122,6 +122,7 @@ where
 
 /// This ones uses both overflowing_add/sub to check that both
 /// the sender has enough funds, and the receiver will not overflow its balance
+#[cfg(not(feature = "hpu"))]
 fn transfer_safe<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
@@ -755,14 +756,6 @@ fn main() {
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
         );
-        bench_transfer_latency(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            transfer_safe::<FheUint64>,
-        );
         // Erc20 optimized instruction only available on Hpu
         bench_transfer_latency(
             &mut group,
@@ -785,14 +778,6 @@ fn main() {
             "FheUint64",
             "whitepaper",
             transfer_whitepaper::<FheUint64>,
-        );
-        hpu_bench_transfer_throughput(
-            &mut group,
-            &cks,
-            bench_name,
-            "FheUint64",
-            "transfer::safe",
-            transfer_safe::<FheUint64>,
         );
         // Erc20 optimized instruction only available on Hpu
         hpu_bench_transfer_throughput(
