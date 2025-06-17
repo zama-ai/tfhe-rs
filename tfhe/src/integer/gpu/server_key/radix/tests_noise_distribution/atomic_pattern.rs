@@ -2017,7 +2017,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_noise_gpu<P>(
 
     let num_runs = 1000usize;
 
-    let pool_count = rayon::current_num_threads();
+    let pool_count = 4usize; //rayon::current_num_threads();
     let vec_local_streams = (0..pool_count)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
         .collect::<Vec<_>>();
@@ -2296,7 +2296,7 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu<P>(
     let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
     let d_ksk =
         CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sks);
-    let pool_count = rayon::current_num_threads();
+    let pool_count = 4usize; rayon::current_num_threads();
 
     let vec_local_streams = (0..pool_count)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
