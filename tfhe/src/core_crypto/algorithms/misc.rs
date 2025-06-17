@@ -54,7 +54,10 @@ where
     y.wrapping_rem(Scalar::ONE.shl(log2_modulo))
 }
 
-/// Compute the smallest signed difference between two torus elements
+/// Compute the smallest signed difference between two torus elements.
+///
+/// The provided modulus allows to interpret the input data, here the data is un-encrypted and
+/// therefore need to have `first` and `other` < `modulus`
 #[track_caller]
 pub fn torus_modular_diff<T: UnsignedInteger>(
     first: T,
