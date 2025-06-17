@@ -7,7 +7,7 @@ pub use super::ciphertext::{Ciphertext, CompressedCiphertext, PBSOrder};
 pub use super::client_key::ClientKey;
 pub use super::gen_keys;
 pub use super::key_switching_key::KeySwitchingKey;
-pub use super::parameters::current_params::V1_2_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
+pub use super::parameters::current_params::V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_2_KS_PBS_GAUSSIAN_2M128;
 pub use super::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MaxNoiseLevel,

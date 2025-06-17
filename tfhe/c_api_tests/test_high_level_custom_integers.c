@@ -215,7 +215,7 @@ int main(void) {
 
     config_builder_default(&builder);
     config_builder_use_custom_parameters(&builder,
-                                         SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128);
+                                         SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M128);
     config_builder_build(builder, &config);
 
     ClientKey *client_key = NULL;
@@ -243,7 +243,7 @@ int main(void) {
 
     config_builder_default(&builder);
     config_builder_use_custom_parameters(&builder,
-                                         SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128);
+                                         SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M128);
     config_builder_build(builder, &config);
 
     ClientKey *client_key = NULL;

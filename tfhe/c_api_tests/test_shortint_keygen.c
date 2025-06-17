@@ -15,7 +15,7 @@ void test_predefined_keygen_w_serde(void) {
   ShortintCompressedCiphertext *cct = NULL;
   ShortintCompressedCiphertext *deser_cct = NULL;
   ShortintCiphertext *decompressed_ct = NULL;
-  ShortintPBSParameters params = SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+  ShortintPBSParameters params = SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -79,7 +79,7 @@ void test_server_key_trivial_encrypt(void) {
   ShortintClientKey *cks = NULL;
   ShortintServerKey *sks = NULL;
   ShortintCiphertext *ct = NULL;
-  ShortintPBSParameters params = SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
+  ShortintPBSParameters params = SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128;
 
   int gen_keys_ok = shortint_gen_keys_with_parameters(params, &cks, &sks);
   assert(gen_keys_ok == 0);
@@ -219,10 +219,10 @@ void test_compressed_public_keygen(ShortintPBSParameters params) {
 int main(void) {
   test_predefined_keygen_w_serde();
   test_custom_keygen();
-  test_public_keygen(SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_public_keygen(SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
-  test_compressed_public_keygen(SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
-  test_compressed_public_keygen(SHORTINT_V1_2_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
+  test_public_keygen(SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+  test_public_keygen(SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
+  test_compressed_public_keygen(SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128);
+  test_compressed_public_keygen(SHORTINT_V1_3_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128);
   test_server_key_trivial_encrypt();
   return EXIT_SUCCESS;
 }
