@@ -1,6 +1,6 @@
 [package]
 name = "tfhe-zk-pok"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 keywords = ["zero", "knowledge", "proof", "vector-commitments"]
 homepage = "https://zama.ai/"

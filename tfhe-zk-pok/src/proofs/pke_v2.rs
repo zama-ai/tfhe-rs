@@ -1530,7 +1530,7 @@ fn prove_impl<G: Curve>(
             y_bytes,
             t_bytes,
             phi_bytes,
-            x_bytes,
+            xi_bytes,
             theta_bytes,
             delta_bytes,
             C_hat_e.to_le_bytes().as_ref(),
@@ -1653,6 +1653,18 @@ fn prove_impl<G: Curve>(
         pow = pow * z;
     }
 
+    let p_h3_bytes = if P_h3.is_empty() {
+        Box::from([])
+    } else {
+        Box::from(p_h3.to_le_bytes().as_ref())
+    };
+
+    let p_w_bytes = if P_w.is_empty() {
+        Box::from([])
+    } else {
+        Box::from(p_w.to_le_bytes().as_ref())
+    };
+
     let mut chi = G::Zp::ZERO;
     G::Zp::hash(
         core::slice::from_mut(&mut chi),
@@ -1682,6 +1694,8 @@ fn prove_impl<G: Curve>(
             p_h1.to_le_bytes().as_ref(),
             p_h2.to_le_bytes().as_ref(),
             p_t.to_le_bytes().as_ref(),
+            &p_h3_bytes,
+            &p_w_bytes,
         ],
     );
 
@@ -2242,7 +2256,7 @@ pub fn verify<G: Curve>(
             y_bytes,
             t_bytes,
             phi_bytes,
-            x_bytes,
+            xi_bytes,
             theta_bytes,
             delta_bytes,
             C_hat_e.to_le_bytes().as_ref(),
@@ -2371,6 +2385,18 @@ pub fn verify<G: Curve>(
         pow = pow * z;
     }
 
+    let p_h3_bytes = if P_h3.is_empty() {
+        Box::from([])
+    } else {
+        Box::from(p_h3.to_le_bytes().as_ref())
+    };
+
+    let p_w_bytes = if P_w.is_empty() {
+        Box::from([])
+    } else {
+        Box::from(p_w.to_le_bytes().as_ref())
+    };
+
     let mut chi = G::Zp::ZERO;
     G::Zp::hash(
         core::slice::from_mut(&mut chi),
@@ -2400,6 +2426,8 @@ pub fn verify<G: Curve>(
             p_h1.to_le_bytes().as_ref(),
             p_h2.to_le_bytes().as_ref(),
             p_t.to_le_bytes().as_ref(),
+            &p_h3_bytes,
+            &p_w_bytes,
         ],
     );
     let chi2 = chi * chi;
