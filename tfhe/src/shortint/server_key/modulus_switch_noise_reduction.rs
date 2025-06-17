@@ -82,7 +82,7 @@ impl<InputScalar> ModulusSwitchNoiseReductionKey<InputScalar>
 where
     InputScalar: UnsignedInteger,
 {
-    fn improve_modulus_switch_noise<Cont>(
+    pub(crate) fn improve_modulus_switch_noise<Cont>(
         &self,
         input: &mut LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,
@@ -378,6 +378,17 @@ impl<'a, Scalar: UnsignedInteger> ModulusSwitchConfiguration<Scalar> {
             }
             Self::CenteredMeanNoiseReduction => {
                 lwe_ciphertext_centered_binary_modulus_switch(lwe_in, log_modulus)
+            }
+        }
+    }
+
+    pub fn modulus_switch_noise_reduction_key(
+        &self,
+    ) -> Option<&ModulusSwitchNoiseReductionKey<Scalar>> {
+        match self {
+            Self::Standard | Self::CenteredMeanNoiseReduction => None,
+            Self::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_key) => {
+                Some(modulus_switch_noise_reduction_key)
             }
         }
     }
