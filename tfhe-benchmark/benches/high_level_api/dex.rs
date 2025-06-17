@@ -231,6 +231,7 @@ mod pbs_stats {
     pub fn print_swap_request_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
+        fn_name: &str,
         swap_request_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -254,9 +255,11 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::swap_request_update_dex_balance::pbs_count::{type_name}")
+            format!("hlapi::cuda::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{type_name}")
         } else {
-            format!("hlapi::dex::swap_request_update_dex_balance::pbs_count::{type_name}")
+            format!(
+                "hlapi::dex::pbs_count::swap_request_update_dex_balance::{fn_name}::{type_name}"
+            )
         };
 
         let results_file = Path::new("dex_swap_request_update_dex_balance_pbs_count.csv");
@@ -306,9 +309,9 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::swap_request_finalize::pbs_count::{type_name}")
+            format!("hlapi::cuda::dex::pbs_count::swap_request_finalize::{type_name}")
         } else {
-            format!("hlapi::dex::swap_request_finalize::pbs_count::{type_name}")
+            format!("hlapi::dex::pbs_count::swap_request_finalize::{type_name}")
         };
 
         let results_file = Path::new("dex_swap_request_finalize_pbs_count.csv");
@@ -368,9 +371,9 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::swap_claim_prepare::pbs_count::{type_name}")
+            format!("hlapi::cuda::pbs_count::dex::swap_claim_prepare::{type_name}")
         } else {
-            format!("hlapi::dex::swap_claim_prepare::pbs_count::{type_name}")
+            format!("hlapi::dex::pbs_count::swap_claim_prepare::{type_name}")
         };
 
         let results_file = Path::new("dex_swap_claim_prepare_pbs_count.csv");
@@ -397,6 +400,7 @@ mod pbs_stats {
     pub fn print_swap_claim_update_dex_balance_pbs_counts<FheType, F>(
         client_key: &ClientKey,
         type_name: &str,
+        fn_name: &str,
         swap_claim_update_dex_balance_func: F,
     ) where
         FheType: FheEncrypt<u64, ClientKey>,
@@ -426,9 +430,9 @@ mod pbs_stats {
         let params = client_key.computation_parameters();
 
         let test_name = if cfg!(feature = "gpu") {
-            format!("hlapi::cuda::dex::swap_claim_update_dex_balance::pbs_count::{type_name}")
+            format!("hlapi::cuda::pbs_count::dex::swap_claim_update_dex_balance::{fn_name}::{type_name}")
         } else {
-            format!("hlapi::dex::swap_claim_update_dex_balance::pbs_count::{type_name}")
+            format!("hlapi::dex::pbs_count::swap_claim_update_dex_balance:::{fn_name}:{type_name}")
         };
 
         let results_file = Path::new("dex_swap_claim_update_dex_balance_pbs_count.csv");
@@ -1293,11 +1297,13 @@ fn main() {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "whitepaper",
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "no_cmux",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
@@ -1313,11 +1319,13 @@ fn main() {
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "whitepaper",
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "no_cmux",
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
     }
@@ -1330,7 +1338,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_request_whitepaper",
+            "swap_request::whitepaper",
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
             swap_request_finalize::<FheUint64>,
         );
@@ -1339,7 +1347,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_request_no_cmux",
+            "swap_request::no_cmux",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
             swap_request_finalize::<FheUint64>,
         );
@@ -1348,7 +1356,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_claim_whitepaper",
+            "swap_claim::whitepaper",
             swap_claim_prepare::<FheUint64, FheUint128>,
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
@@ -1357,7 +1365,7 @@ fn main() {
             &cks,
             bench_name,
             "FheUint64",
-            "swap_claim_no_cmux",
+            "swap_claim::no_cmux",
             swap_claim_prepare::<FheUint64, FheUint128>,
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
@@ -1428,11 +1436,13 @@ fn main() {
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "whitepaper",
             swap_request_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_request_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "no_cmux",
             swap_request_update_dex_balance_no_cmux::<FheUint64>,
         );
         print_swap_request_finalize_pbs_counts(
@@ -1448,11 +1458,13 @@ fn main() {
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "whitepaper",
             swap_claim_update_dex_balance_whitepaper::<FheUint64>,
         );
         print_swap_claim_update_dex_balance_pbs_counts(
             &cks,
             "FheUint64",
+            "no_cmux",
             swap_claim_update_dex_balance_no_cmux::<FheUint64>,
         );
     }
