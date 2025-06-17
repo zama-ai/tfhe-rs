@@ -1,19 +1,14 @@
- 
 [fpga]
-  regmap=["${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_1in3.toml",
-          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_cfg_3in3.toml",
-          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_1in3.toml",
-          "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_regif_core_prc_3in3.toml"]
-  polling_us=2
+  regmap=["${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_cfg_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_cfg_3in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_mhdma_2in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_prc_1in3.toml",
+          "${HPU_BACKEND_DIR}/config_store/regmap/hpu_regif_core_prc_3in3.toml"]
+  polling_us=1
+  node_id=[0,1,2,3]
 [fpga.ffi.V80]
-  id="${V80_PCIE_DEV}"
-  board_sn="${V80_SERIAL_NUMBER}"
   hpu_path="${HPU_BACKEND_DIR}/config_store/v80_archives/psi64.hpu"
   ami_path="${AMI_PATH}/ami.ko"
-  qdma_h2c="/dev/qdma${V80_PCIE_DEV}001-MM-1"
-  qdma_c2h="/dev/qdma${V80_PCIE_DEV}001-MM-2"
-  # set force_reload to "true" if you want bitstream to be loaded even if ID is the same
-  force_reload="false"
 
 [rtl]
   bpip_use = true
@@ -21,11 +16,12 @@
   bpip_timeout = 100_000
 
 [board]
-  ct_mem = 32768
   ct_pc = [
     {Hbm= {pc=32}},
     {Hbm= {pc=33}},
   ]
+  user_size = 12288
+  b2b_size = 4096
   heap_size = 16384
 
 
@@ -74,31 +70,58 @@
   ]
 
   trace_pc = {Hbm={pc=35}}
-  trace_depth = 32 # In MB
+  trace_depth = 2 # In MB
 
 [firmware]
-  #implementation = "Ilp"
   implementation = "Llt"
-  integer_w=[2,4,6,8,10,12,14,16,32,64,128]
+  integer_w=[8,16,32,64,128]
   min_batch_size = 12
   kogge_cfg            = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/kogge_cfg.toml"
-  custom_iop.'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_0.asm"
-  custom_iop.'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_1.asm"
-  custom_iop.'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_2.asm"
-  custom_iop.'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_3.asm"
-  custom_iop.'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_4.asm"
-  #custom_iop.'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_5.asm"
-  #custom_iop.'IOP[6]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_6.asm"
-  #custom_iop.'IOP[7]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_7.asm"
-  custom_iop.'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_8.asm"
-  custom_iop.'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_9.asm"
-  custom_iop.'IOP[15]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_15.asm"
-  custom_iop.'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_16.asm"
-  custom_iop.'IOP[17]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_17.asm"
-  custom_iop.'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_18.asm"
-  custom_iop.'IOP[19]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_19.asm"
-  custom_iop.'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_20.asm"
-  custom_iop.'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/custom_iop/cust_21.asm"
+
+[firmware.custom_iop.integer_w_2]
+  'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_2/cust_16"
+
+[firmware.custom_iop.integer_w_4]
+  'IOP[18]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_4/cust_18"
+
+[firmware.custom_iop.integer_w_6]
+  'IOP[8]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_6/cust_8"
+
+[firmware.custom_iop.integer_w_8]
+  'IOP[0]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_0"
+  'IOP[1]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_1"
+  'IOP[2]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_2"
+  'IOP[3]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_3"
+  'IOP[9]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_9"
+  'IOP[16]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_10"
+  'IOP[17]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_17"
+  'IOP[19]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_19"
+  'IOP[20]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_20"
+  'IOP[32]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_32"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_33"
+  'IOP[34]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_34"
+  'IOP[35]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_35"
+  'IOP[36]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/mul8b"
+  'IOP[37]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_8/cust_37"
+
+[firmware.custom_iop.integer_w_16]
+  'IOP[21]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_21"
+  'IOP[33]' = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_16/cust_33"
+
+[firmware.custom_iop.integer_w_32]
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_32/cust_40"
+
+[firmware.custom_iop.integer_w_64]
+  'IOP[4]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_4"
+  'IOP[33]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_33"
+  'IOP[40]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_64/cust_40"
+
+[firmware.custom_iop.integer_w_128]
+'IOP[5]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_5"
+'IOP[6]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_6"
+'IOP[7]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_7"
+'IOP[15]'  = "${HPU_BACKEND_DIR}/config_store/custom_iop/integer_w_128/cust_15"
 
 [firmware.op_cfg.default]
   fill_batch_fifo = false

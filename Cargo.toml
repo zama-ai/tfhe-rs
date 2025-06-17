@@ -6,7 +6,6 @@ members = [
     "backends/tfhe-cuda-backend",
     "backends/tfhe-hpu-backend",
     "backends/zk-cuda-backend",
-    "mockups/tfhe-hpu-mockup",
     "tasks",
     "tests",
     "tfhe",
