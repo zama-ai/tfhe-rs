@@ -77,6 +77,13 @@ pub(crate) struct NoiseSquashingPrivateKeyView<'a> {
     params: NoiseSquashingParameters,
 }
 
+impl NoiseSquashingPrivateKeyView<'_> {
+    #[allow(unused, reason = "It's only used in integer module")]
+    pub fn noise_squashing_parameters(&self) -> NoiseSquashingParameters {
+        self.params
+    }
+}
+
 impl<'a> From<&'a NoiseSquashingPrivateKey> for NoiseSquashingPrivateKeyView<'a> {
     fn from(value: &'a NoiseSquashingPrivateKey) -> Self {
         Self {

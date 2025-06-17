@@ -1,3 +1,7 @@
+use crate::integer::ciphertext::{
+    CompressedNoiseSquashingCompressionKey, CompressedSquashedNoiseCiphertextList,
+    NoiseSquashingCompressionKey, NoiseSquashingCompressionPrivateKey,
+};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
@@ -41,4 +45,24 @@ pub enum CompressedDecompressionKeyVersions {
 #[derive(VersionsDispatch)]
 pub enum CompressionPrivateKeysVersions {
     V0(CompressionPrivateKeys),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingCompressionKeyVersions {
+    V0(NoiseSquashingCompressionKey),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingCompressionPrivateKeyVersions {
+    V0(NoiseSquashingCompressionPrivateKey),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedNoiseSquashingCompressionKeyVersions {
+    V0(CompressedNoiseSquashingCompressionKey),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedSquashedNoiseCiphertextListVersions {
+    V0(CompressedSquashedNoiseCiphertextList),
 }
