@@ -1053,6 +1053,8 @@ pub fn iop_rotate_scalar_left(prog: &mut Program) {
 }
 
 /// Generic shift function over scalar
+// TODO: This function couldn't be properly/efficiently implemented on HW without custom support in
+// ucore Currently it's only garbadge Dop to fulfill Hpu requirements
 #[instrument(level = "trace", skip(prog))]
 fn iop_scalar_shiftrotx(
     prog: &mut Program,
@@ -1061,8 +1063,16 @@ fn iop_scalar_shiftrotx(
     src: &[metavar::MetaVarCell],
     amount: &[metavar::MetaVarCell],
 ) {
-    for i in 0..prog.params().min_iop_size {
-        let _ = prog.new_cst(i);
+    // Generate garbage Dop to fulfill min_iop_size
+    if prog.params().min_iop_size > dst.len() {
+        for i in 0..(prog.params().min_iop_size - dst.len()) {
+            let _ = prog.new_cst(i);
+        }
+    }
+    // Generate write in Dst to prevent deadlock in ucore algo
+    let cst = prog.new_cst(0);
+    for d in dst.iter_mut() {
+        *d <<= cst.clone();
     }
 }
 

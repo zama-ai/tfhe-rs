@@ -124,6 +124,9 @@ impl From<&asm::DOp> for InstructionKind {
             | asm::DOp::PBS_ML4_F(_)
             | asm::DOp::PBS_ML8_F(_) => Self::Pbs,
             asm::DOp::SYNC(_) => Self::Sync,
+            asm::DOp::LD_B2B(_) | asm::DOp::WAIT(_) | asm::DOp::NOTIFY(_) => {
+                panic!("Error {value:?} must have been handled by ucore.")
+            }
         }
     }
 }

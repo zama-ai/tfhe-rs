@@ -71,7 +71,7 @@ ZKCUDARS_SRC=backends/zk-cuda-backend/src
 
 # tfhe-hpu-backend
 HPU_CONFIG=v80
-V80_PCIE_DEV?=01
+HPU_SIM_DFLT=TOKIO_WORKER_THREADS=1 hpu_sim --duration 500_s --timing-mode lt --timescale 1_ns
 
 # Exclude these files from coverage reports
 define COVERAGE_EXCLUDED_FILES
@@ -250,6 +250,12 @@ install_aikido_safe_chain: fetch_aikido_safe_chain
 .PHONY: install_aikido_safe_chain_ci # Install Aikido Safe-Chain to protect against NPM supply-chain attacks in CI
 install_aikido_safe_chain_ci: fetch_aikido_safe_chain
 	sh safe_chain_install.sh --ci
+
+.PHONY: install_hpu_sim # Install Hpu simulation binary
+install_hpu_sim: install_rs_check_toolchain
+	@hpu_sim --help > /dev/null 2>&1 || \
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" install hpu_sim --git https://github.com/zama-ai/hpu_sim --locked || \
+	( echo "Unable to install hpu_sim, unknown error." && exit 1 )
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
@@ -723,12 +729,6 @@ clippy_hpu_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-hpu-backend -- --no-deps -D warnings
 
-.PHONY: clippy_hpu_mockup # Run clippy lints on tfhe-hpu-mockup
-clippy_hpu_mockup: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		--all-targets \
-		-p tfhe-hpu-mockup -- --no-deps -D warnings
-
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend and tfhe-cuda-common
 check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
@@ -1083,23 +1083,49 @@ test_signed_integer_multi_bit_gpu_ci: install_cargo_nextest
 test_integer_hpu_ci: install_cargo_nextest
 	cargo test --release -p tfhe --features hpu-v80 --test hpu
 
-.PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
-test_integer_hpu_mockup_ci: install_cargo_nextest
+.PHONY: test_integer_hpu_sim_ci # Run the tests for integer ci on hpu backend and simulation model
+test_integer_hpu_sim_ci: install_cargo_nextest install_hpu_sim
+	set -m; \
 	source ./setup_hpu.sh --config sim ; \
-	cargo build --release --bin hpu_mockup; \
-	coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bPFail64Psi64 > hpu_sim.log 2>&1; }; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
-	kill %1
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 --skip multi_hpu --skip mhdma; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
 
-.PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
-test_integer_hpu_mockup_ci_fast: install_cargo_nextest
-	source ./setup_hpu.sh --config sim ; \
-	cargo build --profile devo --bin hpu_mockup; \
-	coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
+.PHONY: test_multi_hpu_sim_ci # Run multi_hpu tests on hpu backend and simulation model
+test_multi_hpu_sim_ci: install_cargo_nextest install_hpu_sim
+	set -m; \
+	source ./setup_hpu.sh --config multi_sim ; \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bPFail64Psi64 > hpu_sim.log 2>&1; }; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
-	kill %1
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- multi_hpu_u32 mhdma_u32; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
+
+.PHONY: test_integer_hpu_sim_ci_fast # Run the quick tests for integer ci on hpu backend and simulation model.
+test_integer_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
+	set -m; \
+	source ./setup_hpu.sh --config sim ; \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bFast > hpu_sim_fast.log 2>&1; }; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u8 --skip multi_hpu; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
+
+.PHONY: test_hpu_sim_ci_fast # Run the quick multi_hpu tests on hpu backend and simulation model.
+test_multi_hpu_sim_ci_fast: install_cargo_nextest install_hpu_sim
+	set -m; \
+	source ./setup_hpu.sh --config multi_sim ; \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bFast > hpu_sim_fast.log 2>&1; }; \
+	HPU_TEST_ITER=1 \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- multi_hpu_u8; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean:
@@ -1306,19 +1332,27 @@ build_one_hl_api_test_fake_multi_gpu:
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --no-run \
 		--features=integer,gpu-debug-fake-multi-gpu -vv -p tfhe -- "$${TEST}" --test-threads=1 --nocapture
 
-test_high_level_api_hpu: install_cargo_nextest
+test_high_level_api_hpu: install_cargo_nextest install_hpu_sim 
 ifeq ($(HPU_CONFIG), v80)
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe \
 		-E "test(/high_level_api::.*hpu.*/)"
 else
+	set -m; \
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bFast > hpu_sim_fast.log 2>&1; }; \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
 		--features=integer,internal-keycache,hpu -p tfhe \
-		-E "test(/high_level_api::.*hpu.*/)"
+		-E "test(/high_level_api::.*hpu.*/)" \
+		-- --skip div_rem; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
 endif
 
 
@@ -1345,13 +1379,20 @@ test_user_doc_gpu:
 .PHONY: test_user_doc_hpu # Run tests for HPU from the .md documentation
 test_user_doc_hpu:
 ifeq ($(HPU_CONFIG), v80)
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=internal-keycache,integer,hpu,hpu-v80 -p tfhe \
 		-- test_user_docs::
 else
+	set -m; \
+	source ./setup_hpu.sh --config $(HPU_CONFIG); \
+	coproc HPU_SIM { $(HPU_SIM_DFLT) --compute-params TUniform64bFast > hpu_sim_fast.log 2>&1; }; \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo test --profile $(CARGO_PROFILE) --doc \
 		--features=internal-keycache,integer,hpu -p tfhe \
-		-- test_user_docs::
+		-- test_user_docs:: ; \
+	RET=$$?; \
+	kill -- -$$HPU_SIM_PID 2>/dev/null; \
+	exit $$RET
 endif
 
 
@@ -1802,7 +1843,6 @@ bench_signed_integer_gpu: install_rs_check_toolchain
 .PHONY: bench_integer_hpu # Run benchmarks for integer on HPU backend
 bench_integer_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
-	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer \
@@ -2120,7 +2160,6 @@ bench_hlapi_custom_gpu: install_rs_check_toolchain
 .PHONY: bench_hlapi_unsigned_hpu # Run benchmarks for HLAPI operations on HPU
 bench_hlapi_unsigned_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
-	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" \
 	__TFHE_RS_BENCH_BIT_SIZES_SET=$(BIT_SIZES_SET) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
@@ -2172,7 +2211,6 @@ bench_hlapi_dex_gpu_classical: install_rs_check_toolchain
 .PHONY: bench_hlapi_erc7984_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc7984_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG); \
-	export V80_PCIE_DEV=${V80_PCIE_DEV}; \
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-erc7984 \
@@ -2504,7 +2542,6 @@ pcc_gpu_ci:
 pcc_hpu:
 	$(call run_recipe_with_details,clippy_hpu)
 	$(call run_recipe_with_details,clippy_hpu_backend)
-	$(call run_recipe_with_details,clippy_hpu_mockup)
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc:

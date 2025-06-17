@@ -39,6 +39,9 @@ fn main() {
         )]
         pub config: ShellString,
 
+        #[arg(long)]
+        pub force_reload: bool,
+
         /// Number of rows in matrix A
         #[arg(long, default_value_t = 2)]
         pub m: usize,
@@ -50,7 +53,8 @@ fn main() {
         pub p: usize,
     }
     let args = Args::parse();
-    let hpu_device = HpuDevice::from_config(&args.config.expand());
+    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload)
+        .expect("Hpu device init failed");
 
     println!("\n 1. Key generation");
     println!("   Generate client and server keys...");

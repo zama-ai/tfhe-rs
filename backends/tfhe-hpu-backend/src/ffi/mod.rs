@@ -6,21 +6,29 @@
 
 use crate::interface::FFIMode;
 
-#[cfg(feature = "hw-v80")]
-use crate::prelude::ShellString;
+mod mem_alloc;
+use mem_alloc::{MemAlloc, MemChunk};
 
-/// Enumeration to define the synchronisation of data between Host and Device
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub enum SyncMode {
-    Host2Device,
-    Device2Host,
-}
+// Some V80 constants
+// Chunk_size inherited from XRT limitation
+// NB: In Xilinx v80 implementation the HBM PC are not directly accessible.
+// Indeed, there is an extra level of abstraction called port:
+// Each HBM has 2 PC, and each PC has 2 Port.
+// To keep thing simple this is hided from the SW, thus instead of viewing the board memory as:
+//  * 2HBM with 8Bank each and 2PC per bank -> 32 memory
+// It's seen as:
+// * 2HBM with 8Bank each and 4PC per bank -> 64PC
+pub const MEM_BANK_NB: usize = 64;
+pub const MEM_BANK_SIZE_MB: usize = 512;
+pub const MEM_CHUNK_SIZE_B: usize = 16 * 1024 * 1024;
+pub const MEM_BASE_ADDR: u64 = 0x40_0000_0000;
 
 /// Specify kind of the target memory
 /// Used for target that has DDR and HBM
 /// Hbm is targeted based on attach PC number, the DDR otherwise is targeted based on offset
 /// For the sake of simplicity and prevent issue with large xfer, memory is always viewed as a chunk
-/// of 16MiB This is inherited from XRT allocator limitation...
+/// of 16MiB
+/// NB: This is inherited from XRT allocator limitation...
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum MemKind {
     Ddr { offset: usize },
@@ -34,27 +42,80 @@ pub struct MemZoneProperties {
     pub size_b: usize,
 }
 
+/// Define Mac address representation
+/// Define Board properties
+#[derive(Debug, Clone)]
+pub struct BoardProperties {
+    pub pcie_id: String,
+    pub serial_number: String,
+    /// Currently only used 3 lower Bytes.
+    /// > OUI number is fixed to Xilinx one in hardware and only V80 is currently supported
+    /// > pub mac_addr: u32,
+    pub mac_addr: u32,
+}
+
 pub struct HpuHw(
-    #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::HpuHw>,
     #[cfg(feature = "hw-v80")] v80::HpuHw,
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))] sim::HpuHw,
+    #[cfg(not(feature = "hw-v80"))] sim::HpuHw,
 );
 
 impl HpuHw {
+    /// Function used to lazily load Hw
+    /// It should probe the Hw state and reload it if required
+    pub fn lazy_load(node_id: &[u8], mode: &FFIMode, force_reload: bool) {
+        #[cfg(feature = "hw-v80")]
+        {
+            match mode {
+                FFIMode::V80 { hpu_path, ami_path } => {
+                    let board_props =
+                        v80::get_board_properties().expect("Error with V80_BOARD definition");
+                    let boards = node_id
+                        .iter()
+                        .map(|id| {
+                            board_props
+                                .get(*id as usize)
+                                .expect("Request invalid board id")
+                                .clone()
+                        })
+                        .collect::<Vec<_>>();
+                    v80::HpuHw::lazy_load(
+                        boards,
+                        &hpu_path.expand(),
+                        &ami_path.expand(),
+                        force_reload,
+                    );
+                }
+                _ => panic!("Unsupported config type with ffi::v80"),
+            }
+        }
+        #[cfg(not(feature = "hw-v80"))]
+        {
+            let _node_id = node_id;
+            let _mode = mode;
+            let _force_reload = force_reload;
+        }
+    }
+
+    pub fn get_board_properties() -> Vec<BoardProperties> {
+        #[cfg(feature = "hw-v80")]
+        {
+            v80::get_board_properties().expect("Error with V80 boards properties definition")
+        }
+        #[cfg(not(feature = "hw-v80"))]
+        {
+            sim::get_board_properties().expect("Error with SIM boards properties definition")
+        }
+    }
+
     /// Read Hw register through ffi
     #[inline(always)]
     pub fn read_reg(&self, addr: u64) -> u32 {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.read_reg(addr)
-        }
-
         #[cfg(feature = "hw-v80")]
         {
             self.0.ami.read_reg(addr)
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             self.0.read_reg(addr)
         }
@@ -63,20 +124,27 @@ impl HpuHw {
     /// Write Hw register through ffi
     #[inline(always)]
     pub fn write_reg(&mut self, addr: u64, value: u32) {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.pin_mut().write_reg(addr, value)
-        }
-
         #[cfg(feature = "hw-v80")]
         {
             self.0.ami.write_reg(addr, value)
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             self.0.write_reg(addr, value)
         }
+    }
+
+    /// Absolute read without preallocation
+    /// Allocation was inherited from XRT not needed anymore
+    pub fn read_abs<T: Sized + bytemuck::Pod>(&self, addr: u64, data: &mut [T]) {
+        let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
+        self.0.read_abs_bytes(addr, data_bytes);
+    }
+
+    pub fn write_abs<T: Sized + bytemuck::Pod>(&mut self, addr: u64, data: &[T]) {
+        let data_bytes = bytemuck::cast_slice::<T, u8>(data);
+        self.0.write_abs_bytes(addr, data_bytes);
     }
 
     /// Handle on-board memory init through ffi
@@ -87,134 +155,74 @@ impl HpuHw {
         config: &crate::interface::HpuConfig,
         params: &crate::entities::HpuParameters,
     ) {
-        // NB: Currently only v80 backend required explicit memory init
-        #[cfg(feature = "hw-v80")]
-        {
-            self.0.init_mem(config, params);
-        }
+        self.0.init_mem(config, params)
     }
+
     /// Handle on-board memory allocation through ffi
     #[inline(always)]
     pub fn alloc(&mut self, props: MemZoneProperties) -> MemZone {
-        #[cfg(feature = "hw-xrt")]
-        {
-            let xrt_mz = self.0.pin_mut().alloc(props.into());
-            MemZone(xrt_mz)
-        }
-
-        #[cfg(feature = "hw-v80")]
-        {
-            MemZone(self.0.alloc(props))
-        }
-
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-        {
-            MemZone(self.0.alloc(props))
-        }
+        MemZone(self.0.alloc(props))
     }
 
     /// Handle on-board memory deallocation through ffi
     #[inline(always)]
     #[allow(unused_variables)]
     pub fn release(&mut self, zone: &mut MemZone) {
-        // #[cfg(feature = "hw-xrt")]
-        // {
-        //     todo!("Handle memory release");
-        // }
-
-        #[cfg(feature = "hw-v80")]
-        {
-            self.0.release(&mut zone.0);
-        }
-
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-        {
-            self.0.release(&mut zone.0);
-        }
+        self.0.release(&mut zone.0);
     }
 
     /// Handle ffi instantiation
     #[inline(always)]
-    pub fn new_hpu_hw(mode: &FFIMode, #[allow(unused)] retry_rate: std::time::Duration) -> HpuHw {
-        #[cfg(feature = "hw-xrt")]
-        {
-            use tracing::{enabled, Level};
-            // Check config
-            match mode {
-                FFIMode::Xrt { id, kernel, xclbin } => {
-                    // Extract trace verbosity and convert it in cxx understandable value
-                    let verbosity = {
-                        if enabled!(target: "cxx", Level::TRACE) {
-                            xrt::VerbosityCxx::Trace
-                        } else if enabled!(target: "cxx", Level::DEBUG) {
-                            xrt::VerbosityCxx::Debug
-                        } else if enabled!(target: "cxx", Level::INFO) {
-                            xrt::VerbosityCxx::Info
-                        } else if enabled!(target: "cxx", Level::WARN) {
-                            xrt::VerbosityCxx::Warning
-                        } else {
-                            xrt::VerbosityCxx::Error
-                        }
-                    };
-                    Self(xrt::new_hpu_hw(
-                        *id,
-                        kernel.expand(),
-                        xclbin.expand(),
-                        verbosity,
-                    ))
-                }
-                _ => panic!("Unsupported config type with ffi::xrt"),
-            }
-        }
-
+    pub fn open_hpu_hw(
+        id: u8,
+        mode: &FFIMode,
+        #[allow(unused)] retry_rate: std::time::Duration,
+    ) -> HpuHw {
         #[cfg(feature = "hw-v80")]
         {
             match mode {
-                FFIMode::V80 {
-                    id,
-                    board_sn,
-                    hpu_path,
-                    ami_path,
-                    qdma_h2c,
-                    qdma_c2h,
-                    force_reload,
-                } => Self(v80::HpuHw::new_hpu_hw(
-                    &id.expand(),
-                    &board_sn.expand(),
-                    &hpu_path.expand(),
-                    &ami_path.expand(),
-                    retry_rate,
-                    &qdma_h2c.expand(),
-                    &qdma_c2h.expand(),
-                    &force_reload
-                        .clone()
-                        .unwrap_or_else(|| ShellString::new("false".into()))
-                        .expand(),
-                )),
+                FFIMode::V80 { hpu_path, .. } => {
+                    let board_props =
+                        v80::get_board_properties().expect("Error with V80_BOARD definition");
+                    let pcie_id = {
+                        let board = board_props
+                            .get(id as usize)
+                            .expect("Request invalid board id");
+                        board.pcie_id.clone()
+                    };
+                    Self(
+                        v80::HpuHw::open_hpu_hw(&pcie_id, &hpu_path.expand(), retry_rate)
+                            .expect("Error with hpu_hw opening"),
+                    )
+                }
                 _ => panic!("Unsupported config type with ffi::v80"),
             }
         }
 
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
+        #[cfg(not(feature = "hw-v80"))]
         {
             match mode {
-                FFIMode::Sim { ipc_name } => Self(sim::HpuHw::new_hpu_hw(&ipc_name.expand())),
+                FFIMode::Sim {
+                    ipc_name,
+                    iopq,
+                    ackq,
+                } => Self(sim::HpuHw::open_hpu_hw(id, &ipc_name.expand(), iopq, ackq)),
                 _ => panic!("Unsupported config type with ffi::sim"),
             }
         }
     }
 
-    /// Custom register command to retrieved custom parameters set from mockup.
-    /// Only available with mockup FFI
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-    pub fn get_pbs_parameters(&mut self) -> crate::entities::HpuPBSParameters {
-        self.0.get_pbs_parameters()
-    }
-
     /// Custom command only supported on V80 to push work
-    #[cfg(feature = "hw-v80")]
     pub fn iop_push(&mut self, stream: &[u32]) {
-        self.0.ami.iop_push(stream)
+        #[cfg(feature = "hw-v80")]
+        {
+            self.0.ami.iop_push(stream)
+        }
+
+        #[cfg(not(feature = "hw-v80"))]
+        {
+            self.0.iop_push(stream).expect("Handle queue")
+        }
     }
 
     /// Custom command only supported on V80 to push work
@@ -224,24 +232,23 @@ impl HpuHw {
     }
 
     /// Custom command only supported on V80 to rd_ack
-    #[cfg(feature = "hw-v80")]
     pub fn iop_ack_rd(&mut self) -> u32 {
-        self.0.ami.iop_ackq_rd()
+        #[cfg(feature = "hw-v80")]
+        {
+            self.0.ami.iop_ackq_rd()
+        }
+
+        #[cfg(not(feature = "hw-v80"))]
+        {
+            self.0.iop_ackq_rd()
+        }
     }
 }
 
 pub struct MemZone(
-    #[cfg(feature = "hw-xrt")] cxx::UniquePtr<xrt::MemZone>,
     #[cfg(feature = "hw-v80")] v80::MemZone,
-    #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))] sim::MemZone,
+    #[cfg(not(feature = "hw-v80"))] sim::MemZone,
 );
-
-// With Xrt backend, Opaque Cxx Object prevent compiler to auto impl Send+Sync
-// However, it's safe to implement them
-#[cfg(feature = "hw-xrt")]
-unsafe impl Send for MemZone {}
-#[cfg(feature = "hw-xrt")]
-unsafe impl Sync for MemZone {}
 
 impl MemZone {
     /// Read a bytes slice in the associated MemZone
@@ -266,55 +273,7 @@ impl MemZone {
     /// Get write byte slice in MemZone at a given offset
     #[inline(always)]
     pub fn write_bytes(&mut self, ofst: usize, bytes: &[u8]) {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.pin_mut().write_bytes(ofst, bytes)
-        }
-
-        #[cfg(feature = "hw-v80")]
-        {
-            self.0.write_bytes(ofst, bytes)
-        }
-
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-        {
-            self.0.write_bytes(ofst, bytes)
-        }
-    }
-
-    /// Map MemZone in userspace
-    #[inline(always)]
-    #[allow(unused)]
-    pub fn mmap(&mut self) -> &mut [u64] {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.pin_mut().mmap()
-        }
-
-        #[cfg(feature = "hw-v80")]
-        {
-            panic!("V80 ffi rely on QDMA and couldn't implement mmap")
-        }
-
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-        {
-            self.0.mmap()
-        }
-    }
-
-    /// Handle MemZone synchronisation with the hw target
-    #[inline(always)]
-    #[allow(unused)]
-    pub fn sync(&mut self, mode: SyncMode) {
-        #[cfg(feature = "hw-xrt")]
-        {
-            self.0.pin_mut().sync(mode.into())
-        }
-
-        #[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
-        {
-            self.0.sync(mode)
-        }
+        self.0.write_bytes(ofst, bytes)
     }
 }
 
@@ -336,10 +295,7 @@ impl MemZone {
 #[cfg(feature = "hw-v80")]
 mod v80;
 #[cfg(all(feature = "hw-v80", feature = "utils"))]
-pub use v80::HpuV80Pdi;
+pub use v80::{HpuV80Pdi, HpuV80Uuid};
 
-#[cfg(feature = "hw-xrt")]
-mod xrt;
-
-#[cfg(not(any(feature = "hw-xrt", feature = "hw-v80")))]
+#[cfg(not(feature = "hw-v80"))]
 pub(crate) mod sim;

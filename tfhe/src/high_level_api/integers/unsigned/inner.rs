@@ -70,7 +70,7 @@ impl Clone for RadixCiphertext {
                     )
                 };
                 let deep_clone =
-                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(inner), &[])
+                    HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(inner), &[], None)
                         .pop()
                         .expect("IOP_MEMCPY must return 1 operand");
                 Self::Hpu(deep_clone)
@@ -211,7 +211,7 @@ impl RadixCiphertext {
             self.on_cpu()
         };
 
-        let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_radix, &device.device);
+        let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_radix, &device.device, None);
         MaybeCloned::Cloned(hpu_ct)
     }
 
@@ -251,7 +251,7 @@ impl RadixCiphertext {
             radix_ct
         } else {
             let cpu_ct = self.on_cpu();
-            let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device);
+            let hpu_ct = HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device, None);
             *self = Self::Hpu(hpu_ct);
             let Self::Hpu(hpu_ct) = self else {
                 unreachable!()
@@ -290,7 +290,7 @@ impl RadixCiphertext {
             radix_ct
         } else {
             let cpu_ct = self.on_cpu();
-            HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device)
+            HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device, None)
         }
     }
 
@@ -336,7 +336,7 @@ impl RadixCiphertext {
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
-                    HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device)
+                    HpuRadixCiphertext::from_radix_ciphertext(&cpu_ct, &device.device, None)
                 });
                 *self = Self::Hpu(hpu_ct);
             }

@@ -64,7 +64,7 @@ impl From<HpuGlweLookuptableView<'_, u64>> for GlweCiphertextOwned<u64> {
 }
 
 pub fn create_hpu_lookuptable(
-    params: HpuParameters,
+    params: &HpuParameters,
     pbs: &hpu_asm::Pbs,
 ) -> HpuGlweLookuptableOwned<u64> {
     // Create Glwe
@@ -130,5 +130,5 @@ pub fn create_hpu_lookuptable(
     // Rotate the accumulator
     body_u64.rotate_left(half_box_size);
 
-    HpuGlweLookuptableOwned::create_from(cpu_acc.as_view(), params)
+    HpuGlweLookuptableOwned::create_from(cpu_acc.as_view(), params.clone())
 }

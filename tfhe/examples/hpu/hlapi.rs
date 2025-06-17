@@ -122,6 +122,9 @@ fn main() {
         )]
         pub config: ShellString,
 
+        #[arg(long)]
+        pub force_reload: bool,
+
         // Exec configuration ----------------------------------------------------
         /// Seed used for some rngs
         #[arg(long)]
@@ -151,7 +154,8 @@ fn main() {
     };
 
     // Instantiate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::from_config(&args.config.expand());
+    let hpu_device = HpuDevice::from_config(&args.config.expand(), args.force_reload)
+        .expect("Hpu device init failed");
 
     // Generate keys ----------------------------------------------------------
     let config = Config::from_hpu_device(&hpu_device);
