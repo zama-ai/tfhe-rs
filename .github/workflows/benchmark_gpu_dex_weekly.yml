@@ -16,6 +16,7 @@ jobs:
     with:
       profile: single-h100
       hardware_name: n3-H100x1
+      bench_type: both
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -33,6 +34,7 @@ jobs:
     with:
       profile: 2-h100
       hardware_name: n3-H100x2
+      bench_type: both
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
@@ -50,6 +52,7 @@ jobs:
     with:
       profile: multi-h100
       hardware_name: n3-H100x8
+      bench_type: both
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}

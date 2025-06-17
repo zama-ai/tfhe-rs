@@ -13,6 +13,9 @@ on:
       hardware_name:
         type: string
         required: true
+      bench_type:
+        type: string
+        default: latency
     secrets:
       REPO_CHECKOUT_TOKEN:
         required: true
@@ -46,8 +49,30 @@ env:
 permissions: {}
 
 jobs:
+  prepare-matrix:
+    name: Prepare operations matrix
+    runs-on: ubuntu-latest
+    outputs:
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    steps:
+      - name: Set benchmark types
+        run: |
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
+          fi
+        env:
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
   setup-instance:
     name: Setup instance (cuda-dex-benchmarks)
+    needs: prepare-matrix
     runs-on: ubuntu-latest
     if:  github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -92,12 +117,14 @@ jobs:
 
   cuda-dex-benchmarks:
     name: Cuda DEX benchmarks (${{ inputs.profile }})
-    needs: setup-instance
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
       fail-fast: false
+      max-parallel: 1
       # explicit include-based build matrix, of known valid options
       matrix:
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
         include:
           - os: ubuntu-22.04
             cuda: "12.2"
@@ -135,7 +162,9 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make bench_hlapi_dex_gpu
+          make BENCH_TYPE="${BENCH_TYPE}" bench_hlapi_dex_gpu
+        env:
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse results
         run: |

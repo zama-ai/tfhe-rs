@@ -3,6 +3,15 @@ name: DEX benchmarks
 
 on:
   workflow_dispatch:
+    inputs:
+      bench_type:
+        description: "Benchmarks type"
+        type: choice
+        default: latency
+        options:
+          - latency
+          - throughput
+          - both
   schedule:
     # Weekly benchmarks will be triggered each Saturday at 5a.m.
     - cron: '0 5 * * 6'
@@ -21,8 +30,36 @@ env:
 permissions: {}
 
 jobs:
+  prepare-matrix:
+    name: Prepare operations matrix
+    runs-on: ubuntu-latest
+    outputs:
+      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+    steps:
+      - name: Set benchmark types
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
+            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+          else
+            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
+          fi
+        env:
+          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+
+      - name: Set weekly benchmark type
+        if: github.event_name == 'schedule'
+        run: |
+          echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
+
+      - name: Set benchmark types output
+        id: set_bench_type
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+
   setup-instance:
     name: Setup instance (dex-benchmarks)
+    needs: prepare-matrix
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
@@ -42,12 +79,18 @@ jobs:
 
   dex-benchmarks:
     name: Execute DEX benchmarks
-    needs: setup-instance
+    needs: [ prepare-matrix, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     timeout-minutes: 720  # 12 hours
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      # explicit include-based build matrix, of known valid options
+      matrix:
+        bench_type: ${{ fromJSON(needs.prepare-matrix.outputs.bench_type) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -82,7 +125,9 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          make bench_hlapi_dex
+          make BENCH_TYPE="${BENCH_TYPE}" bench_hlapi_dex
+        env:
+          BENCH_TYPE: ${{ matrix.bench_type }}
 
       - name: Parse results
         run: |
