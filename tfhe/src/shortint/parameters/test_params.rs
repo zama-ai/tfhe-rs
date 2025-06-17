@@ -1,5 +1,8 @@
 use super::current_params::*;
-use super::{AtomicPatternParameters, KeySwitch32PBSParameters};
+use super::{
+    AtomicPatternParameters, KeySwitch32PBSParameters, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters,
+};
 
 use super::{
     ClassicPBSParameters, CompactPublicKeyEncryptionParameters, CompressionParameters,
@@ -221,3 +224,10 @@ pub const TEST_COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFOR
 // KS32 PBS AP
 pub const TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
     V1_3_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+
+pub const TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingCompressionParameters =
+    V1_3_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+pub const TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
+    NoiseSquashingParameters = V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
