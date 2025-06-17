@@ -139,15 +139,7 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
                                    // with both a small number of
                                    // block and low PBs count.
     }
-    #[cfg(feature = "hpu")]
-    {
-        // NB: unused with HPU
-        let _ = minimum_loading;
-        let _ = op_pbs_count;
-        // Enforce that a minimum of 64 IOp is sent
-        block_multiplicator.min(64.0) as u64
-    }
-    #[cfg(not(any(feature = "gpu", feature = "hpu")))]
+    #[cfg(not(any(feature = "gpu")))]
     {
         let num_threads = rayon::current_num_threads() as f64;
         let operation_loading = (num_threads / (op_pbs_count as f64)).max(minimum_loading);

@@ -1,5 +1,5 @@
-# An abstraction layer that can be use to analyze both mockup and hardware
-# traces
+# An abstraction layer that can be use to analyze hardware traces
+# NB: hpu_sim generated traces is 100% compliant with real one
 
 import sys
 import logging

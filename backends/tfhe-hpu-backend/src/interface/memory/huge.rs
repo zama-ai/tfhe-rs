@@ -133,7 +133,6 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         for bfr in cut[bid_start..=bid_stop].iter_mut() {
             let size_b = std::cmp::min(rmn_data, MEM_CHUNK_SIZE_B - bid_ofst);
             bfr.write_bytes(bid_ofst, &data_bytes[data_ofst..data_ofst + size_b]);
-            bfr.sync(ffi::SyncMode::Host2Device);
             data_ofst += size_b;
             rmn_data -= size_b;
             bid_ofst = 0;
@@ -169,7 +168,6 @@ impl<T: Sized + bytemuck::Pod> HugeMemory<T> {
         let data_bytes = bytemuck::cast_slice_mut::<T, u8>(data);
         for bfr in cut[bid_start..=bid_stop].iter_mut() {
             let size_b = std::cmp::min(rmn_data, MEM_CHUNK_SIZE_B - bid_ofst);
-            bfr.sync(ffi::SyncMode::Device2Host);
             bfr.read_bytes(bid_ofst, &mut data_bytes[data_ofst..data_ofst + size_b]);
             data_ofst += size_b;
             rmn_data -= size_b;

@@ -2,10 +2,10 @@
 
 from pandas import DataFrame
 from isctrace.analysis import Refilled, Retired, Trace
+import sys
 
 freq_mhz = 400
 
-iops = Trace.from_hw("data/trace.json")
 
 def analyze_iop(iop):
     retired = Retired(iop)
@@ -23,6 +23,12 @@ def analyze_iop(iop):
     print(f"Runtime: {runtime}us")
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python script.py trace.json")
+        sys.exit(1)
+
+    iops = Trace.from_hw(sys.argv[1])
+
     analyze_iop(iops[0])
 
 # vim: fdm=marker

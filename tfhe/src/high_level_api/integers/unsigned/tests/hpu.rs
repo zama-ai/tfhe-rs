@@ -4,7 +4,8 @@ use tfhe_hpu_backend::prelude::HpuDevice;
 use crate::{set_server_key, ClientKey, CompressedServerKey, Config};
 
 fn setup_hpu(hpu_device_cfg_path: &str) -> ClientKey {
-    let hpu_device = HpuDevice::from_config(hpu_device_cfg_path);
+    let hpu_device =
+        HpuDevice::from_config(hpu_device_cfg_path, false).expect("Hpu device init failed");
 
     let config = Config::from_hpu_device(&hpu_device);
 

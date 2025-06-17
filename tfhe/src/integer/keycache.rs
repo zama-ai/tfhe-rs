@@ -65,7 +65,8 @@ impl IntegerKeyCache {
                 let config_file = ShellString::new(
                     "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
                 );
-                HpuDevice::from_config(&config_file.expand())
+                HpuDevice::from_config(&config_file.expand(), false)
+                    .expect("HpuDevice failed to open with required configuration")
             };
             // Check compatibility with key
             let hpu_pbs_params =

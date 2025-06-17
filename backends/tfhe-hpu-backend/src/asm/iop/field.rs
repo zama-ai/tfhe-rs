@@ -1,7 +1,8 @@
 //! List of IOp field
 //! Mainly thin wrapper over basic type to enforce correct used of asm fields
 use super::*;
-use crate::asm::CtId;
+use crate::asm::dop::MAX_HPU_IN_CLUSTER;
+use crate::asm::{CtId, IOpId, PhysId, VirtId};
 
 use thiserror::Error;
 
@@ -21,7 +22,7 @@ pub enum HexParsingError {
 // Vectorized ciphertext operands
 // ------------------------------------------------------------------------------------------------
 /// Type of the operands
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum OperandKind {
     Src = 0x0,
     Dst = 0x1,
@@ -31,7 +32,7 @@ pub enum OperandKind {
 
 /// VectorSize
 /// => Number of operands defined in the operands block
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VectorSize(pub u8);
 impl VectorSize {
     /// Create vector size with the correct encoding
@@ -39,11 +40,18 @@ impl VectorSize {
         assert!(len != 0, "Empty vector couldn't be encoded");
         Self(len - 1)
     }
+
+    /// Getter for correct decoding
+    pub fn len(&self) -> u8 {
+        self.0 + 1
+    }
 }
 
 /// OperandSize
-/// => Number of valid digit in oach operand block
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+/// => Number of valid digit in each operand block
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub struct OperandBlock(pub u8);
 impl OperandBlock {
     /// Create vector size with the correct encoding
@@ -51,33 +59,63 @@ impl OperandBlock {
         assert!(width != 0, "Empty block couldn't be encoded");
         Self(width - 1)
     }
+
+    /// Getter for correct decoding
+    pub fn len(&self) -> u8 {
+        self.0 + 1
+    }
 }
 
 /// Ciphertext vectorized operands with extra parsing flags
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Operand {
-    pub base_cid: CtId,
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OperandProperties {
     pub block: OperandBlock,
     pub vec_size: VectorSize,
+    pub iid: IOpId,
+    pub pos: PhysId,
     pub is_last: bool,
     pub kind: OperandKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct OperandAddr {
+    pub base_cid: CtId,
+}
+
+/// Ciphertext vectorized operands with extra parsing flags
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Operand {
+    pub props: OperandProperties,
+    pub addr: OperandAddr,
+}
+
 impl Operand {
-    pub(crate) fn new(block: u8, base_cid: u16, vec_size: u8, kind: Option<OperandKind>) -> Self {
-        Self {
+    pub(crate) fn new(
+        block: u8,
+        base_cid: u16,
+        vec_size: u8,
+        pos: PhysId,
+        iid: IOpId,
+        kind: Option<OperandKind>,
+    ) -> Self {
+        let props = OperandProperties {
             kind: kind.unwrap_or(OperandKind::Unknown),
             is_last: false,
+            pos,
+            iid,
             vec_size: VectorSize::new(vec_size),
             block: OperandBlock::new(block),
+        };
+        let addr = OperandAddr {
             base_cid: CtId(base_cid),
-        }
+        };
+        Self { props, addr }
     }
 }
 
 /// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OperandBundle(Vec<Operand>);
 
 impl OperandBundle {
@@ -86,7 +124,7 @@ impl OperandBundle {
             kind != OperandKind::Imm,
             "OperandBundle couldn't be tagged as Imm"
         );
-        self.0.iter_mut().for_each(|op| op.kind = kind);
+        self.0.iter_mut().for_each(|op| op.props.kind = kind);
     }
 }
 
@@ -94,9 +132,9 @@ impl From<Vec<Operand>> for OperandBundle {
     fn from(inner: Vec<Operand>) -> Self {
         let mut inner = inner;
         // Enforce correct is_last handling
-        inner.iter_mut().for_each(|op| op.is_last = false);
+        inner.iter_mut().for_each(|op| op.props.is_last = false);
         if let Some(last) = inner.last_mut() {
-            last.is_last = true;
+            last.props.is_last = true;
         }
         Self(inner)
     }
@@ -118,14 +156,20 @@ impl OperandBundle {
 
         let mut op_list = Vec::new();
         loop {
-            let op = if let Some(op_word) = stream.get(peak_words) {
+            let props = if let Some(op_word) = stream.get(peak_words) {
                 peak_words += 1;
-                Operand::from(&fmt::OperandHex::from_bits(*op_word))
+                OperandProperties::from(&fmt::OperandPropertiesHex::from_bits(*op_word))
             } else {
                 return Err(HexParsingError::EmptyStream);
             };
-            op_list.push(op);
-            if op.is_last {
+            let addr = if let Some(op_word) = stream.get(peak_words) {
+                peak_words += 1;
+                OperandAddr::from(&fmt::OperandAddrHex::from_bits(*op_word))
+            } else {
+                return Err(HexParsingError::EmptyStream);
+            };
+            op_list.push(Operand { props, addr });
+            if props.is_last {
                 break;
             }
         }
@@ -133,10 +177,12 @@ impl OperandBundle {
     }
     #[tracing::instrument(level = "trace", ret)]
     pub fn to_words(&self) -> Vec<IOpWordRepr> {
-        self.0
-            .iter()
-            .map(|op| fmt::OperandHex::from(op).into_bits())
-            .collect::<Vec<_>>()
+        let mut words = Vec::with_capacity(2 * self.len());
+        for Operand { props, addr } in self.0.iter() {
+            words.push(fmt::OperandPropertiesHex::from(props).into_bits());
+            words.push(fmt::OperandAddrHex::from(addr).into_bits());
+        }
+        words
     }
 }
 
@@ -145,7 +191,7 @@ impl OperandBundle {
 /// Immediate Size
 /// => Number of valid digit in following immediate
 /// To obtain the number of valid bits, user should multiply by the msg_width
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ImmBlock(pub u16);
 
 /// Immediate header
@@ -159,7 +205,7 @@ pub struct ImmediateHeader {
 }
 
 /// Full Immediate representation (i.e. header + data)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Immediate {
     pub(super) kind: OperandKind,
     pub(super) is_last: bool,
@@ -304,7 +350,7 @@ impl Immediate {
 
 /// Create a dedicated type for a collection of Immediate
 /// This is to enable trait implementation on it (c.f arg)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImmBundle(Vec<Immediate>);
 
 impl ImmBundle {
@@ -363,14 +409,14 @@ impl std::ops::Deref for ImmBundle {
 pub struct IOpcode(pub u8);
 
 /// Type of the operands
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FwMode {
     Static = 0x0,
     Dynamic = 0x1,
 }
 
 /// IOpHeader
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IOpHeader {
     pub(super) src_align: OperandBlock,
     pub(super) dst_align: OperandBlock,
@@ -379,10 +425,71 @@ pub struct IOpHeader {
     pub(super) fw_mode: FwMode,
 }
 
+/// Define mapping between virtual/physical Hpu Id
+/// It contain an vector of physical Id
+/// I.e. if vec length = x, it mean that mapping used x virtual id.
+/// Each slot contains the physical associated Id
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct IOpMapping(Vec<PhysId>);
+
+impl IOpMapping {
+    pub fn new(map: &[PhysId]) -> Self {
+        Self(Vec::from(map))
+    }
+
+    pub fn phys_id(&self, virt_id: VirtId) -> Option<PhysId> {
+        self.0.get(virt_id.0 as usize).copied()
+    }
+
+    pub fn virt_id(&self, phys_id: PhysId) -> Option<VirtId> {
+        self.0
+            .iter()
+            .position(|&x| x == phys_id)
+            .map(|vid| VirtId(vid as u8))
+    }
+}
+
+impl std::ops::Deref for IOpMapping {
+    type Target = [PhysId];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+/// Construct IOpMapping from a vector of hpu_id
+impl From<Vec<u8>> for IOpMapping {
+    fn from(value: Vec<u8>) -> Self {
+        let pid = value.into_iter().map(PhysId).collect::<Vec<_>>();
+        if pid.len() > MAX_HPU_IN_CLUSTER {
+            Self::new(&pid[0..MAX_HPU_IN_CLUSTER])
+        } else {
+            Self::new(&pid)
+        }
+    }
+}
+
+/// Construct IOpMapping from a vector of hpu_id and IOp NodesMap definition
+impl From<(Vec<u8>, &NodesMap)> for IOpMapping {
+    fn from(value: (Vec<u8>, &NodesMap)) -> Self {
+        let (val, nodes_map) = value;
+        let mut raw = Self::from(val);
+        let used_nodes = nodes_map.get_nodes(raw.0.len() as u8);
+        assert!(
+            used_nodes <= (raw.0.len() as u8),
+            "Error: Required hpu_node {used_nodes} is higher that available one {}",
+            raw.0.len()
+        );
+        raw.0.resize(used_nodes as usize, PhysId(0xff));
+        raw
+    }
+}
+
 /// Gather all subparts together
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct IOp {
     pub(super) header: IOpHeader,
+    pub(super) map: IOpMapping,
     pub(super) dst: OperandBundle,
     pub(super) src: OperandBundle,
     pub(super) imm: ImmBundle,
@@ -392,9 +499,15 @@ use std::collections::VecDeque;
 /// Implement construction
 /// Used to construct IOp from Backend HpuVar
 impl IOp {
-    pub fn new(opcode: IOpcode, dst: Vec<Operand>, src: Vec<Operand>, imm: Vec<Immediate>) -> Self {
-        let dst_align = dst.iter().map(|x| x.block).max().unwrap();
-        let src_align = src.iter().map(|x| x.block).max().unwrap();
+    pub fn new(
+        opcode: IOpcode,
+        map: IOpMapping,
+        dst: Vec<Operand>,
+        src: Vec<Operand>,
+        imm: Vec<Immediate>,
+    ) -> Self {
+        let dst_align = dst.iter().map(|x| x.props.block).max().unwrap();
+        let src_align = src.iter().map(|x| x.props.block).max().unwrap();
         let has_imm = !imm.is_empty();
 
         let header = IOpHeader {
@@ -406,6 +519,7 @@ impl IOp {
         };
         Self {
             header,
+            map,
             dst: dst.into(),
             src: src.into(),
             imm: imm.into(),
@@ -419,15 +533,33 @@ impl IOp {
         self.header.opcode.into()
     }
 
-    // Compute associated fw block size
-    // Used to compute fw_entry offset and fw translation validity
+    pub fn mapping(&self) -> &IOpMapping {
+        &self.map
+    }
+
+    /// IOp doesn't store IOpId explicitly
+    /// This information is contained in the destination operands.
+    pub fn get_iid(&self) -> IOpId {
+        self.dst()
+            .first()
+            .expect("IOp must contains at least 1 destination operands")
+            .props
+            .iid
+    }
+
+    /// Compute associated fw block size
+    /// Used to compute fw_entry offset and fw translation validity
     pub fn fw_blk_width(&self) -> usize {
         std::cmp::max(self.header.dst_align.0, self.header.src_align.0) as usize
     }
 
-    // Compute fw table entry
-    pub fn fw_entry(&self) -> usize {
-        self.fw_blk_width() * 0x100 + self.header.opcode.0 as usize
+    /// Compute fw table entry for given IOp
+    pub fn fw_entry(&self, virt_id: VirtId) -> usize {
+        // Fw lookup is composed of an entry for each fw_blk_with.
+        // Each entries is composed of IOpWidth entries, itself composed of MAX_HPU_IN_CLUSTER slot
+        let integer_w_bucket = (0x100 * MAX_HPU_IN_CLUSTER) * self.fw_blk_width();
+        let iop_bucket = integer_w_bucket + self.header.opcode.0 as usize * MAX_HPU_IN_CLUSTER;
+        iop_bucket + (virt_id.0 as usize)
     }
     pub fn dst(&self) -> &OperandBundle {
         &self.dst
@@ -439,6 +571,7 @@ impl IOp {
         &self.imm
     }
 }
+
 /// Implement parsing logic from stream of word
 /// Only consume the VecDeque on Success
 impl IOp {
@@ -458,22 +591,30 @@ impl IOp {
             return Err(HexParsingError::EmptyStream);
         };
 
-        // 2. Parse Destination operands
+        // 2. Parse mapping
+        let map = if let Some(map_word) = stream.get(peak_words) {
+            peak_words += 1;
+            IOpMapping::from(&fmt::IOpMappingHex::from(*map_word))
+        } else {
+            return Err(HexParsingError::EmptyStream);
+        };
+
+        // 3. Parse Destination operands
         let dst = {
             let (dst, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
             for op in dst.iter() {
                 // Check flags
-                if op.kind != OperandKind::Dst {
+                if op.props.kind != OperandKind::Dst {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} instead of {:?}",
-                        op.kind,
+                        op.props.kind,
                         OperandKind::Dst
                     )));
                 }
-                if op.block > header.dst_align {
+                if op.props.block > header.dst_align {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} > {:?}",
-                        op.block, header.dst_align
+                        op.props.block, header.dst_align
                     )));
                 }
             }
@@ -481,22 +622,22 @@ impl IOp {
             dst
         };
 
-        // 3. Parse Source operands
+        // 4. Parse Source operands
         let src = {
             let (src, peaked) = OperandBundle::from_words(&stream.as_slices().0[peak_words..])?;
             for op in src.iter() {
                 // Check flags
-                if op.kind != OperandKind::Src {
+                if op.props.kind != OperandKind::Src {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} instead of {:?}",
-                        op.kind,
+                        op.props.kind,
                         OperandKind::Src
                     )));
                 }
-                if op.block > header.src_align {
+                if op.props.block > header.src_align {
                     return Err(HexParsingError::Kind(format!(
                         "Get {:?} > {:?}",
-                        op.block, header.src_align
+                        op.props.block, header.src_align
                     )));
                 }
             }
@@ -504,7 +645,7 @@ impl IOp {
             src
         };
 
-        // 4. Parse Immediate [Optional]
+        // 5. Parse Immediate [Optional]
         let (imm, peaked) = if header.has_imm {
             ImmBundle::from_words(&stream.as_slices().0[peak_words..])?
         } else {
@@ -518,6 +659,7 @@ impl IOp {
 
         Ok(Self {
             header,
+            map,
             dst,
             src,
             imm,
@@ -529,11 +671,13 @@ impl IOp {
         let mut words = Vec::new();
         // 1. Header
         words.push(fmt::IOpHeaderHex::from(&self.header).into_bits());
-        // 2. Destination
+        // 2. Mapping
+        words.push(fmt::IOpMappingHex::from(&self.map).into_bits());
+        // 3. Destination
         words.extend(self.dst.to_words());
-        // 3. Sources
+        // 4. Sources
         words.extend(self.src.to_words());
-        // 4. Immediate
+        // 5. Immediate
         words.extend(self.imm.to_words());
         words
     }

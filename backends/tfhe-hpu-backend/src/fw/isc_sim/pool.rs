@@ -420,7 +420,11 @@ impl ArgId {
                     id,
                 }
             }
-            asm::DOpArg::Imm(_) | asm::DOpArg::Pbs(_) | asm::DOpArg::Sync(_) => Self {
+            asm::DOpArg::Imm(_)
+            | asm::DOpArg::Pbs(_)
+            | asm::DOpArg::IOpId(_)
+            | asm::DOpArg::HpuId(_)
+            | asm::DOpArg::UcoreFlag(_) => Self {
                 mode: DOpMode::Unused,
                 id: 0,
             },

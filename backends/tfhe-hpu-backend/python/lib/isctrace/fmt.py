@@ -96,7 +96,7 @@ class SYNC(BaseInstruction):
         self.__dict__ = d
 
     def args(self):
-        return f"{self.sid}"
+        return f"{self.iid}"
 
 PBS_ML2   = PBS
 PBS_ML4   = PBS
