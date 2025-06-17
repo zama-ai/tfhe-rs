@@ -55,7 +55,9 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
 }
 
 impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
-    fn cleartext_space(&self) -> Scalar {
+    /// Return the cleatext space including the space for the padding bit if it is set to
+    /// [`PaddingBit::Yes`].
+    pub(crate) fn full_cleartext_space(&self) -> Scalar {
         let cleartext_modulus: Scalar = (self.message_modulus.0 * self.carry_modulus.0).cast_into();
 
         cleartext_modulus
@@ -82,7 +84,7 @@ impl<Scalar: UnsignedInteger + CastFrom<u64>> ShortintEncoding<Scalar> {
         let delta = self.delta();
 
         // Force the decoded value to be in the correct range
-        Cleartext(divide_round(value.0, delta) % self.cleartext_space())
+        Cleartext(divide_round(value.0, delta) % self.full_cleartext_space())
     }
 }
 
