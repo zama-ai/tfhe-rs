@@ -193,7 +193,7 @@ impl InnerBoolean {
             self.on_cpu()
         };
 
-        let hpu_ct = HpuRadixCiphertext::from_boolean_ciphertext(&cpu_radix, &device.device);
+        let hpu_ct = HpuRadixCiphertext::from_boolean_ciphertext(&cpu_radix, &device.device, None);
         MaybeCloned::Cloned(hpu_ct)
     }
 
@@ -297,7 +297,7 @@ impl InnerBoolean {
             #[cfg(feature = "hpu")]
             Device::Hpu => {
                 let hpu_ct = global_state::with_thread_local_hpu_device(|device| {
-                    HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &device.device)
+                    HpuRadixCiphertext::from_boolean_ciphertext(&cpu_ct, &device.device, None)
                 });
                 *self = Self::Hpu(hpu_ct);
             }

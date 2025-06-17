@@ -97,7 +97,7 @@ pub enum Section {
 struct CliArgs {
     // Fpga configuration -----------------------------------------------------
     #[arg(short, long, default_value_t = 0)]
-    fpga_id: u32,
+    fpga_id: u8,
     #[arg(
         short,
         long,
@@ -129,7 +129,8 @@ fn main() {
     let config = HpuConfig::from_toml(&args.config.expand());
 
     // Instantiate bare-minimum abstraction around XRT -----------------------
-    let mut hpu_hw = ffi::HpuHw::new_hpu_hw(
+    let mut hpu_hw = ffi::HpuHw::open_hpu_hw(
+        args.fpga_id,
         &config.fpga.ffi,
         std::time::Duration::from_micros(config.fpga.polling_us),
     );
@@ -258,8 +259,7 @@ fn main() {
                 mem_kind: ffi::MemKind::Hbm { pc },
                 size_b: size,
             };
-            let mut mz = hpu_hw.alloc(cut_props);
-            mz.sync(ffi::SyncMode::Device2Host);
+            let mz = hpu_hw.alloc(cut_props);
             mz.read(0, bfr.as_mut_slice());
             if let Ok(bfr_u64) = bytemuck::try_cast_slice::<_, u64>(bfr.as_slice()) {
                 println!("MemZone content [u64]: {bfr_u64:x?}");
@@ -279,7 +279,6 @@ fn main() {
             };
             let mut mz = hpu_hw.alloc(cut_props);
             mz.write(0, bfr.as_slice());
-            mz.sync(ffi::SyncMode::Host2Device);
         }
         Command::TraceDump { file: filename } => {
             let trace = TraceDump::new_from(&mut hpu_hw, &regmap, config.board.trace_depth);

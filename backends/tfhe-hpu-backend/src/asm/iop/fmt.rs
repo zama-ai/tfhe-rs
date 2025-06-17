@@ -2,9 +2,11 @@
 //! Define binary format encoding of IOp instructions
 //! Rely on `bitfield_struct` crate to define bit-accurate insn format
 //! and some manual From/To implementation to move to internal type
-use crate::asm::CtId;
+use crate::asm::dop::MAX_HPU_IN_CLUSTER;
+use crate::asm::{CtId, IOpId, NodeId, PhysId, VirtId};
 use bitfield_struct::bitfield;
 
+use super::field::{OperandAddr, OperandProperties};
 use super::*;
 
 // Define type alias for underlying native type.
@@ -13,21 +15,25 @@ pub type IOpWordRepr = u32;
 pub type IOpRepr = Vec<u32>;
 
 #[bitfield(u32)]
-pub struct OperandHex {
-    #[bits(16)]
-    base_cid: u16,
+pub struct OperandPropertiesHex {
+    #[bits(5)]
+    _pad: u16,
     #[bits(8)]
     block: u8,
     #[bits(5)]
     vec_size: u8,
+    #[bits(8)]
+    iid: u8,
+    #[bits(3)]
+    pos: u8,
     #[bits(1)]
     is_last: bool,
     #[bits(2)]
     kind: u8,
 }
 
-impl From<&OperandHex> for field::Operand {
-    fn from(value: &OperandHex) -> Self {
+impl From<&OperandPropertiesHex> for field::OperandProperties {
+    fn from(value: &OperandPropertiesHex) -> Self {
         let kind = if value.kind() == OperandKind::Src as u8 {
             OperandKind::Src
         } else if value.kind() == OperandKind::Dst as u8 {
@@ -39,23 +45,47 @@ impl From<&OperandHex> for field::Operand {
         };
 
         Self {
-            base_cid: CtId(value.base_cid()),
             block: field::OperandBlock(value.block()),
             vec_size: field::VectorSize(value.vec_size()),
             is_last: value.is_last(),
+            iid: IOpId(value.iid()),
+            pos: NodeId(value.pos()),
             kind,
         }
     }
 }
 
-impl From<&Operand> for OperandHex {
-    fn from(value: &Operand) -> Self {
+impl From<&OperandProperties> for OperandPropertiesHex {
+    fn from(value: &OperandProperties) -> Self {
         Self::new()
-            .with_base_cid(value.base_cid.0)
             .with_block(value.block.0)
             .with_vec_size(value.vec_size.0)
             .with_is_last(value.is_last)
+            .with_iid(value.iid.0)
+            .with_pos(value.pos.0)
             .with_kind(value.kind as u8)
+    }
+}
+
+#[bitfield(u32)]
+pub struct OperandAddrHex {
+    #[bits(16)]
+    base_cid: u16,
+    #[bits(16)]
+    _pad: u16,
+}
+
+impl From<&OperandAddrHex> for field::OperandAddr {
+    fn from(value: &OperandAddrHex) -> Self {
+        Self {
+            base_cid: CtId(value.base_cid()),
+        }
+    }
+}
+
+impl From<&OperandAddr> for OperandAddrHex {
+    fn from(value: &OperandAddr) -> Self {
+        Self::new().with_base_cid(value.base_cid.0)
     }
 }
 
@@ -150,5 +180,82 @@ impl From<&field::IOpHeader> for IOpHeaderHex {
             .with_opcode(value.opcode.0)
             .with_has_imm(value.has_imm)
             .with_fw_mode(fw_mode)
+    }
+}
+
+#[bitfield(u32)]
+pub struct IOpMappingHex {
+    #[bits(1)]
+    used_0: bool,
+    #[bits(3)]
+    phys_0: u8,
+    #[bits(1)]
+    used_1: bool,
+    #[bits(3)]
+    phys_1: u8,
+    #[bits(1)]
+    used_2: bool,
+    #[bits(3)]
+    phys_2: u8,
+    #[bits(1)]
+    used_3: bool,
+    #[bits(3)]
+    phys_3: u8,
+    #[bits(1)]
+    used_4: bool,
+    #[bits(3)]
+    phys_4: u8,
+    #[bits(1)]
+    used_5: bool,
+    #[bits(3)]
+    phys_5: u8,
+    #[bits(1)]
+    used_6: bool,
+    #[bits(3)]
+    phys_6: u8,
+    #[bits(1)]
+    used_7: bool,
+    #[bits(3)]
+    phys_7: u8,
+}
+
+impl From<&IOpMappingHex> for field::IOpMapping {
+    fn from(value: &IOpMappingHex) -> Self {
+        let raw_value = u32::from(*value);
+        let map = (0..MAX_HPU_IN_CLUSTER)
+            .filter_map(|i| {
+                let raw_pos = (raw_value >> (4 * i)) & 0xf;
+                if (raw_pos & 0x1) == 0x1 {
+                    Some(((raw_pos & 0xe) >> 1) as u8)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        Self::from(map)
+    }
+}
+
+impl From<&field::IOpMapping> for IOpMappingHex {
+    fn from(value: &field::IOpMapping) -> Self {
+        Self::new()
+            // Set used flags
+            .with_used_0(value.phys_id(VirtId(0)).is_some())
+            .with_used_1(value.phys_id(VirtId(1)).is_some())
+            .with_used_2(value.phys_id(VirtId(2)).is_some())
+            .with_used_3(value.phys_id(VirtId(3)).is_some())
+            .with_used_4(value.phys_id(VirtId(4)).is_some())
+            .with_used_5(value.phys_id(VirtId(5)).is_some())
+            .with_used_6(value.phys_id(VirtId(6)).is_some())
+            .with_used_7(value.phys_id(VirtId(7)).is_some())
+            // Set value or 0
+            .with_phys_0(value.phys_id(VirtId(0)).unwrap_or(PhysId(0)).0)
+            .with_phys_1(value.phys_id(VirtId(1)).unwrap_or(PhysId(0)).0)
+            .with_phys_2(value.phys_id(VirtId(2)).unwrap_or(PhysId(0)).0)
+            .with_phys_3(value.phys_id(VirtId(3)).unwrap_or(PhysId(0)).0)
+            .with_phys_4(value.phys_id(VirtId(4)).unwrap_or(PhysId(0)).0)
+            .with_phys_5(value.phys_id(VirtId(5)).unwrap_or(PhysId(0)).0)
+            .with_phys_6(value.phys_id(VirtId(6)).unwrap_or(PhysId(0)).0)
+            .with_phys_7(value.phys_id(VirtId(7)).unwrap_or(PhysId(0)).0)
     }
 }

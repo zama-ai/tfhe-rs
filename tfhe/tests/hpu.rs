@@ -63,6 +63,7 @@ mod hpu_test {
                 "${HPU_BACKEND_DIR}/config_store/${HPU_CONFIG}/hpu_config.toml".to_string(),
             );
             HpuDevice::from_config(&config_file.expand())
+                .expect("Impossible to create HpuDevice from current configuration")
         };
 
         // Check if user force a seed for the key generation

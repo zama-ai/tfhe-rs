@@ -19,8 +19,7 @@ use ami::AmiDriver;
 mod pdi;
 pub use pdi::HpuV80Pdi;
 
-mod mem_alloc;
-use mem_alloc::{MemAlloc, MemChunk};
+use super::{MemAlloc, MemChunk};
 
 mod qdma;
 use qdma::QdmaDriver;
@@ -34,96 +33,55 @@ pub struct HpuHw {
     allocator: Option<MemAlloc>,
 }
 
-#[derive(Debug)]
-pub struct ForceError {}
-impl Error for ForceError {}
-impl std::fmt::Display for ForceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Reload Forced")
-    }
-}
-
 impl HpuHw {
-    /// Handle ffi instantiation
-    /// Instantiate current HW and check uuid. If it match with targeted one continue,
-    /// otherwise reload Pdi
+    /// Check current Hw state and reload it if required
     #[inline(always)]
-    pub fn new_hpu_hw(
-        id: &str,
+    pub fn lazy_load(
+        pcie_id: &str,
         board_sn: &str,
         hpu_path: &str,
         ami_path: &str,
-        ami_retry: std::time::Duration,
-        h2c_path: &str,
-        c2h_path: &str,
-        force: &str,
-    ) -> HpuHw {
-        // Load Pdi archive
+        force_reload: bool,
+    ) -> bool {
+        // Open Pdi archive
         let hpu_pdi = HpuV80Pdi::from_bincode(hpu_path)
             .unwrap_or_else(|err| panic!("Invalid \'.hpu\' {hpu_path:?}: {err}"));
 
-        // Try current hw and fallback to a fresh reload
-        let force: Result<Option<bool>, Box<dyn Error>> = match force {
-            "true" => Err(Box::new(ForceError {})),
-            _ => Ok(None),
-        };
-        force
-            .and_then(|_| Self::try_current_hw(id, &hpu_pdi, ami_retry, h2c_path, c2h_path))
-            .unwrap_or_else(|err| {
-                tracing::warn!("Loading current HW failed with {err:?}. Will do a fresh reload");
-                Self::reload_hw(
-                    &id, &board_sn, &hpu_pdi, ami_path, ami_retry, h2c_path, c2h_path,
-                )
-            })
-    }
-
-    /// Load a Pdi in the FPGA
-    /// NB: This procedure required unload of Qdma/Ami driver and thus couldn't be directly
-    /// implemented     in the AMI
-    fn try_current_hw(
-        id: &str,
-        pdi: &HpuV80Pdi,
-        ami_retry: std::time::Duration,
-        h2c_path: &str,
-        c2h_path: &str,
-    ) -> Result<Self, Box<dyn Error>> {
-        let ami = AmiDriver::new(id, &pdi.metadata.amc.his_version, ami_retry)?;
-        let qdma = QdmaDriver::new(h2c_path, c2h_path)?;
-
-        let hw = Self {
-            ami,
-            qdma: Arc::new(Mutex::new(qdma)),
-            allocator: None,
-        };
-
-        let current_uuid = hw.ami.uuid().to_lowercase();
-        if pdi.metadata.bitstream.uuid.to_lowercase() == current_uuid {
-            let uuid = pdi::V80Uuid::from_str(&pdi.metadata.bitstream.uuid)
-                .expect("Invalid UUID format in pdi");
-            tracing::info!("Current pdi -> [\n{uuid}]");
-            Ok(hw)
+        if force_reload {
+            Self::reload_hw(pcie_id, board_sn, &hpu_pdi, ami_path);
+            true
         } else {
-            Err(format!(
-                "UUID mismatch loaded {:?} expected {:?}",
-                current_uuid,
-                pdi.metadata.bitstream.uuid.to_lowercase()
-            )
-            .into())
+            // Check state and version
+            match AmiDriver::new(pcie_id, &hpu_pdi.metadata.amc.his_version, None) {
+                Ok(ami) => {
+                    if hpu_pdi.metadata.bitstream.uuid == ami.uuid() {
+                        let uuid = pdi::V80Uuid::from_str(&hpu_pdi.metadata.bitstream.uuid)
+                            .expect("Invalid UUID format in pdi");
+                        tracing::info!("Current pdi -> [\n{uuid}]");
+                        false
+                    } else {
+                        tracing::warn!(
+                            "UUID mismatch loaded {:?} expected {:?}",
+                            ami.uuid(),
+                            hpu_pdi.metadata.bitstream.uuid
+                        );
+                        Self::reload_hw(pcie_id, board_sn, &hpu_pdi, ami_path);
+                        true
+                    }
+                }
+                Err(err) => {
+                    tracing::warn!("Ami loading error: {err:?}",);
+                    Self::reload_hw(pcie_id, board_sn, &hpu_pdi, ami_path);
+                    true
+                }
+            }
         }
     }
 
     /// Load a Pdi in the FPGA
     /// NB: This procedure required unload of Qdma/Ami driver and thus couldn't be directly
-    /// implemented     in the AMI
-    fn reload_hw(
-        id: &str,
-        board_sn: &str,
-        pdi: &HpuV80Pdi,
-        ami_path: &str,
-        ami_retry: std::time::Duration,
-        h2c_path: &str,
-        c2h_path: &str,
-    ) -> Self {
+    /// implemented in the AMI
+    fn reload_hw(pcie_id: &str, board_sn: &str, pdi: &HpuV80Pdi, ami_path: &str) {
         tracing::warn!("FPGA reload procedure. Following step require sudo rights to handle modules loading and pcie subsystem configuration.");
         let uuid = pdi::V80Uuid::from_str(&pdi.metadata.bitstream.uuid)
             .expect("Invalid UUID format in pdi");
@@ -189,12 +147,7 @@ impl HpuHw {
         tracing::debug!(" Updating Pcie physical functions status");
         let rm_pf0 = OpenOptions::new()
             .write(true)
-            .open(
-                ShellString::new(
-                    "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/remove".to_string(),
-                )
-                .expand(),
-            )
+            .open(format!("/sys/bus/pci/devices/0000:{pcie_id}:00.0/remove"))
             .ok();
         if let Some(mut pf0) = rm_pf0 {
             pf0.write_all(b"1\n")
@@ -205,12 +158,7 @@ impl HpuHw {
 
         OpenOptions::new()
             .write(true)
-            .open(
-                ShellString::new(
-                    "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.1/remove".to_string(),
-                )
-                .expand(),
-            )
+            .open(format!("/sys/bus/pci/devices/0000:{pcie_id}:00.1/remove"))
             .expect("Unable to open pci remove cmd file")
             .write_all(b"1\n")
             .expect("Unable to triggered a remove of pci pf1");
@@ -241,17 +189,14 @@ impl HpuHw {
         tracing::debug!("Initializing queues");
         OpenOptions::new()
             .write(true)
-            .open(
-                ShellString::new(
-                    "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.1/qdma/qmax".to_string(),
-                )
-                .expand(),
-            )
+            .open(format!(
+                "/sys/bus/pci/devices/0000:{pcie_id}:00.1/qdma/qmax"
+            ))
             .expect("Unable to open qdma qmax cmd file")
             .write_all(b"100\n")
             .expect("Unable to configure Qdma max queues");
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -261,7 +206,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue0");
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("start")
             .arg("idx")
@@ -289,7 +234,7 @@ impl HpuHw {
             .read(false)
             .write(true)
             .create(false)
-            .open(ShellString::new("/dev/qdma${V80_PCIE_DEV}001-MM-0".to_string()).expand())
+            .open(format!("/dev/qdma{pcie_id}001-MM-0"))
             .expect("Unable to open Qdma queue 0");
         let ret = nix::sys::uio::pwrite(&qdma_h2c, stg2_aligned, 0x000102100000_i64)
             .expect("Unable to write stage2 pdi");
@@ -300,12 +245,7 @@ impl HpuHw {
         tracing::debug!(" Updating Pcie physical functions 0 status");
         OpenOptions::new()
             .write(true)
-            .open(
-                ShellString::new(
-                    "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/remove".to_string(),
-                )
-                .expand(),
-            )
+            .open(format!("/sys/bus/pci/devices/0000:{pcie_id}:00.0/remove"))
             .expect("Unable to open pci remove cmd file")
             .write_all(b"1\n")
             .expect("Unable to triggered a remove of pci pf0");
@@ -316,9 +256,33 @@ impl HpuHw {
             .write_all(b"1\n")
             .expect("Unable to triggered a pci rescan");
 
-        // 3. Create user queues ----------------------------------------------
+        // 3. load ami kernel module ------------------------------------------
+        // Ami is to tight to amc version and thus bundle in .hpu_bin archive
+        tracing::debug!("Load ami kernel module");
+        Command::new("sudo")
+            .arg("insmod")
+            .arg(ami_path)
+            .status()
+            .expect("Unable to load ami.ko");
+    }
+
+    /// Create Dma queues
+    /// Since all node rely on same qdma driver, reload of a node break the dma interface
+    /// Thus dma_queues must be recreated for each node when any of the cluster node is reloaded -_-
+    pub fn cfg_dma_queues(pcie_id: &str) {
+        // Configure maximum Dma queues
+        OpenOptions::new()
+            .write(true)
+            .open(format!(
+                "/sys/bus/pci/devices/0000:{pcie_id}:00.1/qdma/qmax"
+            ))
+            .expect("Unable to open qdma qmax cmd file")
+            .write_all(b"100\n")
+        .unwrap_or_else(|_| tracing::debug!("Dma: Failed to configure qmax. Must have been already done in hw_reload for this board"));
+
+        // Create user queues ----------------------------------------------
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -328,7 +292,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue1");
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("start")
             .arg("idx")
@@ -339,7 +303,7 @@ impl HpuHw {
             .expect("Unable to start Qdma queue1");
 
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -349,7 +313,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue2");
         Command::new("dma-ctl")
-            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
+            .arg(format!("qdma{pcie_id}001"))
             .arg("q")
             .arg("start")
             .arg("idx")
@@ -358,25 +322,32 @@ impl HpuHw {
             .arg("c2h")
             .status()
             .expect("Unable to start Qdma queue2");
+    }
 
-        // 4. load ami kernel module ------------------------------------------
-        // Ami is to tight to amc version and thus bundle in .hpu_bin archive
-        tracing::debug!("Load ami kernel module");
-        Command::new("sudo")
-            .arg("insmod")
-            .arg(ami_path)
-            .status()
-            .expect("Unable to load ami.ko");
+    /// Open ffi interface
+    #[inline(always)]
+    pub fn open_hpu_hw(
+        pcie_id: &str,
+        hpu_path: &str,
+        ami_retry: std::time::Duration,
+    ) -> Result<HpuHw, Box<dyn Error>> {
+        // Load Pdi archive
+        let hpu_pdi = HpuV80Pdi::from_bincode(hpu_path)
+            .unwrap_or_else(|err| panic!("Invalid \'.hpu\' {hpu_path:?}: {err}"));
 
-        Self {
-            ami: AmiDriver::new(id, &pdi.metadata.amc.his_version, ami_retry)
-                .expect("Unable to create AmiDriver after a fresh pdi load on device {id}"),
-            qdma: Arc::new(Mutex::new(
-                QdmaDriver::new(h2c_path, c2h_path)
-                    .expect("Unable to create QdmaDriver after a fresh pdi load"),
-            )),
+        // Construct qdma path
+        let h2c_path = format!("/dev/qdma{pcie_id}001-MM-1");
+        let c2h_path = format!("/dev/qdma{pcie_id}001-MM-2");
+
+        // Open current Hw
+        let ami = AmiDriver::new(pcie_id, &hpu_pdi.metadata.amc.his_version, Some(ami_retry))?;
+        let qdma = QdmaDriver::new(&h2c_path, &c2h_path)?;
+
+        Ok(Self {
+            ami,
+            qdma: Arc::new(Mutex::new(qdma)),
             allocator: None,
-        }
+        })
     }
 
     pub fn init_mem(

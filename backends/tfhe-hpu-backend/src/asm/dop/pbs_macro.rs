@@ -100,13 +100,22 @@ macro_rules! pbs {
             impl std::str::FromStr for Pbs {
                 type Err = ParsingError;
 
-                fn from_str(name: &str) -> Result<Self, Self::Err> {
-                    if let Some(lut) = PBS_LUT.asm.get(name) {
-                        Ok(lut.clone())
-                    } else {
-                        Err(ParsingError::Unmatch(format!("Pbs{name} unknown")))
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    lazy_static! {
+                        static ref PBS_ARG_RE: regex::Regex =
+                            regex::Regex::new(r"^Pbs(?<name>(\S+))").expect("Invalid regex");
                     }
-
+                    if let Some(caps) = PBS_ARG_RE.captures(s) {
+                        if let Some(lut) = PBS_LUT.asm.get(&caps["name"]) {
+                            Ok(lut.clone())
+                        } else {
+                            Err(ParsingError::Unmatch(format!("Pbs{} unknown", &caps["name"])))
+                        }
+                    } else {
+                        Err(ParsingError::Unmatch(format!(
+                            "Invalid argument format for PbsGid {s}"
+                        )))
+                    }
                 }
             }
 

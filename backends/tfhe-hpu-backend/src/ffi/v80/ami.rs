@@ -15,7 +15,9 @@ const AMI_VERSION_PATTERN: &str = r"3\.1\.\d+-zama";
 const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
 const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)";
 
-const HIS_VERSION_FILE: &str = "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/amc_version";
+fn his_version_file(pcie_id: &str) -> String {
+    format!("/sys/bus/pci/devices/0000:{pcie_id}:00.0/amc_version")
+}
 const HIS_VERSION_PATTERN: &str = r".*- zama ucore (?<major>\d+).(?<minor>\d+)";
 
 use crate::ffi::v80::pdi::metadata::Version;
@@ -36,7 +38,7 @@ pub struct AmiInfo {
 /// Set of discovery function
 /// Enable to probe the device IDs and status
 impl AmiInfo {
-    pub fn new(ami_id: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn new(pcie_id: &str) -> Result<Self, Box<dyn Error>> {
         // First read content of AMI_DEVICES_MAP
         let devices_file = OpenOptions::new()
             .read(true)
@@ -47,10 +49,10 @@ impl AmiInfo {
         let line = devices_rd
             .lines()
             .find(|line_result| match line_result {
-                Ok(l) => l.starts_with(ami_id),
+                Ok(l) => l.starts_with(pcie_id),
                 Err(_) => false,
             })
-            .ok_or("Could not find line starting with {ami_id:?}.")??;
+            .ok_or("Could not find line starting with {pcie_id:?}.")??;
 
         // Extract AMI device path
         lazy_static! {
@@ -84,13 +86,13 @@ pub struct AmiDriver {
 
 impl AmiDriver {
     pub fn new(
-        ami_id: &str,
+        pcie_id: &str,
         amc_ver: &Version,
-        retry_rate: Duration,
+        retry_rate: Option<Duration>,
     ) -> Result<Self, Box<dyn Error>> {
-        Self::check_version(amc_ver)?;
+        Self::check_version(pcie_id, amc_ver)?;
         // Read Ami info
-        let ami_info = AmiInfo::new(ami_id)?;
+        let ami_info = AmiInfo::new(pcie_id)?;
         let ami_path = format!("/dev/ami{}", ami_info.devn);
 
         let ami_dev = OpenOptions::new()
@@ -102,7 +104,7 @@ impl AmiDriver {
         Ok(Self {
             ami_dev,
             ami_info,
-            retry_rate,
+            retry_rate: retry_rate.unwrap_or(std::time::Duration::from_micros(1)),
         })
     }
 
@@ -147,7 +149,7 @@ impl AmiDriver {
     ///
     /// For this purpose we use a regex.
     /// it's easy to expressed and understand breaking rules with it
-    pub fn check_version(amc_ver: &Version) -> Result<(), Box<dyn Error>> {
+    pub fn check_version(pcie_id: &str, amc_ver: &Version) -> Result<(), Box<dyn Error>> {
         // Check AMI version
         lazy_static! {
             static ref AMI_VERSION_RE: regex::Regex =
@@ -186,14 +188,13 @@ impl AmiDriver {
 
         // Read ami string-version
         // NB: Rely on shell interpretation to get PCI device
-        let his_version_file = crate::prelude::ShellString::new(HIS_VERSION_FILE.to_string());
         let mut his_ver_f = OpenOptions::new()
             .read(true)
             .write(false)
             .create(false)
-            .open(his_version_file.expand())
+            .open(his_version_file(pcie_id))
             .unwrap_or_else(|err| {
-                panic!("Opening file {} failed: {err:?}", his_version_file.expand())
+                panic!("Opening file {} failed: {err:?}", his_version_file(pcie_id))
             });
 
         let his_version = {

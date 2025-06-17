@@ -6,6 +6,8 @@
 //! Provide conversion implementation between raw bitfield and DOp types
 use bitfield_struct::bitfield;
 
+use crate::asm::IOpId;
+
 use super::*;
 
 // List of DOp format with there associated encoding
@@ -179,9 +181,36 @@ impl From<&PeMemHex> for PeMemInsn {
             panic!("Unsupported memory mode")
         };
 
+        let opcode = Opcode::from(value.opcode());
         Self {
             rid: RegId(value.rid()),
             slot,
+            opcode,
+        }
+    }
+}
+
+/// PeSync instructions
+#[bitfield(u32)]
+pub struct PeSyncHex {
+    #[bits(18)]
+    _pad: u32,
+    #[bits(8)]
+    iid: u8,
+    #[bits(6)]
+    opcode: u8,
+}
+impl From<&PeSyncInsn> for PeSyncHex {
+    fn from(value: &PeSyncInsn) -> Self {
+        Self::new()
+            .with_iid(value.iid.0)
+            .with_opcode(value.opcode.into())
+    }
+}
+impl From<&PeSyncHex> for PeSyncInsn {
+    fn from(value: &PeSyncHex) -> Self {
+        Self {
+            iid: IOpId(value.iid()),
             opcode: Opcode::from(value.opcode()),
         }
     }
@@ -220,26 +249,52 @@ impl From<&PePbsHex> for PePbsInsn {
     }
 }
 
-/// PeSync instructions
+/// PeUcore instructions
 #[bitfield(u32)]
-pub struct PeSyncHex {
-    #[bits(26)]
-    sid: u32,
+pub struct PeUcoreHex {
+    #[bits(16)]
+    slot: u16,
+    #[bits(1)]
+    mode: u8,
+    #[bits(6)]
+    flag: u8,
+    #[bits(3)]
+    hid: u8,
     #[bits(6)]
     opcode: u8,
 }
-impl From<&PeSyncInsn> for PeSyncHex {
-    fn from(value: &PeSyncInsn) -> Self {
+
+impl From<&PeUcoreInsn> for PeUcoreHex {
+    fn from(value: &PeUcoreInsn) -> Self {
+        let (mode, slot) = match value.slot {
+            MemId::Addr(ct_id) => (MEM_ADDR, ct_id.0),
+            MemId::Heap { bid } => (MEM_HEAP, bid),
+            _ => panic!("Templated Src/Dst must not be used in UcoreInsn"),
+        };
+
         Self::new()
-            .with_sid(value.sid.0)
             .with_opcode(value.opcode.into())
+            .with_hid(value.hid.0)
+            .with_flag(value.flag.0)
+            .with_mode(mode)
+            .with_slot(slot)
     }
 }
-impl From<&PeSyncHex> for PeSyncInsn {
-    fn from(value: &PeSyncHex) -> Self {
+impl From<&PeUcoreHex> for PeUcoreInsn {
+    fn from(value: &PeUcoreHex) -> Self {
+        let slot = if MEM_ADDR == value.mode() {
+            MemId::Addr(crate::asm::CtId(value.slot()))
+        } else if MEM_HEAP == value.mode() {
+            MemId::Heap { bid: value.slot() }
+        } else {
+            panic!("Unsupported Ucore memory mode")
+        };
+
         Self {
-            sid: SyncId(value.sid()),
+            hid: NodeId(value.hid()),
             opcode: Opcode::from(value.opcode()),
+            slot,
+            flag: UserFlag(value.flag()),
         }
     }
 }

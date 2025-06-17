@@ -3072,7 +3072,11 @@ mod hpu {
                                             !0_u128
                                         };
                                     let fhe = cks.encrypt_radix(clear, block);
-                                    HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
+                                    HpuRadixCiphertext::from_radix_ciphertext(
+                                        &fhe,
+                                        &hpu_device,
+                                        None,
+                                    )
                                 })
                                 .collect::<Vec<_>>();
 
@@ -3101,13 +3105,19 @@ mod hpu {
                     bench_group
                         .sample_size(10)
                         .measurement_time(std::time::Duration::from_secs(120));
-                    // Enforce that 64Iop are sent, except for div & modulus which
-                    // are triggering a criterion assertion
-                    let elements = if bench_name.contains("div") || bench_name.contains("mod") {
-                        10
-                    } else {
-                        64
+                    let hpu_config = {
+                        let hpu_device_mutex = KEY_CACHE.get_hpu_device(param);
+                        let hpu_device = hpu_device_mutex.lock().unwrap();
+                        hpu_device.config().clone()
                     };
+                    let hpu_node_nb = hpu_config.fpga.node_id.len();
+                    // Enforce that 64 Iop is sent over each HpuNode
+                    let elements = if bench_name.contains("div") || bench_name.contains("mod") {
+                        10 * hpu_node_nb as u64;
+                    } else {
+                        64 * hpu_node_nb as u64;
+                    };
+
                     bench_group.throughput(Throughput::Elements(elements));
                     bench_group.bench_function(&bench_id, |b| {
                         let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
@@ -3115,7 +3125,7 @@ mod hpu {
                         let hpu_device = hpu_device_mutex.lock().unwrap();
 
                         let inputs = (0..elements)
-                            .map(|_| {
+                            .map(|i| {
                                 let srcs = proto
                                     .src
                                     .iter()
@@ -3136,7 +3146,14 @@ mod hpu {
                                                 !0_u128
                                             };
                                         let fhe = cks.encrypt_radix(clear, block);
-                                        HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device)
+                                        let trgt_node = hpu_asm::NodeId(
+                                            hpu_config.fpga.node_id[(i as usize) % hpu_node_nb],
+                                        );
+                                        HpuRadixCiphertext::from_radix_ciphertext(
+                                            &fhe,
+                                            &hpu_device,
+                                            Some(trgt_node),
+                                        )
                                     })
                                     .collect::<Vec<_>>();
 
@@ -3150,7 +3167,7 @@ mod hpu {
                             .collect::<Vec<_>>();
 
                         b.iter(|| {
-                            let last_res = inputs
+                            let tmp = inputs
                                 .iter()
                                 .map(|input| {
                                     HpuRadixCiphertext::exec(
@@ -3160,6 +3177,8 @@ mod hpu {
                                         &input.1,
                                     )
                                 })
+                                .collect::<Vec<_>>();
+                            let last_res = tmp
                                 .last()
                                 .unwrap();
                             last_res.into_iter().for_each(|ct| {

@@ -1,112 +1,61 @@
 //!
 //! Abstraction over Hpu ciphertext data
 //! Handle lifetime management, deallocation and state inside HpuDevice.
+
 use super::*;
 use crate::asm::iop::VarMode;
+use crate::asm::{IOpId, NodeId, SW_IOP_ID};
 use crate::entities::{HpuLweCiphertextOwned, HpuParameters};
-use crate::ffi;
-use std::sync::{mpsc, Arc, Mutex};
-
-#[derive(Debug)]
-enum SyncState {
-    None,
-    CpuSync,
-    HpuSync,
-    BothSync,
-}
+use std::sync::{Arc, Mutex};
 
 pub(crate) struct HpuVar {
     bundle: memory::CiphertextBundle,
-    state: SyncState,
     pending: usize,
+    iid: IOpId,
 }
 
 impl std::fmt::Debug for HpuVar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "HpuVar<{{state: {:?}, bundle: {:?}}}",
-            self.state, self.bundle
+            "HpuVar<{{pending: {:?}, bundle: {:?}}}",
+            self.pending, self.bundle
         )
     }
 }
 
-/// Handle sync between Hpu and Cpu
 impl HpuVar {
-    pub fn try_cpu_sync(&mut self) -> Result<(), HpuInternalError> {
-        if self.pending > 0 {
-            Err(HpuInternalError::OperationPending)
-        } else {
-            match self.state {
-                SyncState::CpuSync | SyncState::BothSync => Ok(()),
-                SyncState::HpuSync => {
-                    for slot in self.bundle.iter_mut() {
-                        slot.mz
-                            .iter_mut()
-                            .for_each(|mz| mz.sync(ffi::SyncMode::Device2Host));
-                    }
-                    self.state = SyncState::BothSync;
-                    Ok(())
-                }
-                SyncState::None => Err(HpuInternalError::UninitData),
-            }
-        }
+    pub fn ready(&mut self) -> bool {
+        self.pending == 0
     }
 
-    pub(crate) fn try_hpu_sync(&mut self) -> Result<(), HpuInternalError> {
-        // Nb: synced on hpu could be achieved even with registered pending IOp
-        //    Indeed, this is used for assign IOp since dst == src.
-        match self.state {
-            SyncState::None => {
-                if self.pending > 0 {
-                    Ok(()) // Use of future result
-                } else {
-                    Err(HpuInternalError::UninitData)
-                }
-            }
-            SyncState::HpuSync | SyncState::BothSync => Ok(()),
-            SyncState::CpuSync => {
-                for slot in self.bundle.iter_mut() {
-                    slot.mz
-                        .iter_mut()
-                        .for_each(|mz| mz.sync(ffi::SyncMode::Host2Device));
-                }
-                self.state = if self.pending > 0 {
-                    SyncState::HpuSync
-                } else {
-                    SyncState::BothSync
-                };
-                Ok(())
-            }
-        }
-    }
-}
-
-impl HpuVar {
-    pub(crate) fn operation_pending(&mut self) {
+    pub(crate) fn operation_pending(&mut self, iid: IOpId) {
         self.pending += 1;
+        self.iid = iid;
     }
     pub(crate) fn operation_done(&mut self) {
         if self.pending > 0 {
             self.pending -= 1;
-            self.state = SyncState::HpuSync;
         } else {
             panic!("`operation_done` called on variable without pending operations");
         }
+    }
+    pub(crate) fn iid(&self) -> IOpId {
+        self.iid
     }
 }
 
 #[derive(Clone)]
 pub struct HpuVarWrapped {
     pub(crate) inner: Arc<Mutex<HpuVar>>,
+    // Properties that could be accessed without lock
     pub(crate) id: memory::ciphertext::SlotId,
-    /// Reference to associated ct pool
-    pub(crate) pool: memory::CiphertextMemory,
-    /// Way to push cmd inside the backend without need of locking
-    pub(crate) cmd_api: mpsc::Sender<cmd::HpuCmd>,
     pub(crate) params: Arc<HpuParameters>,
     pub(crate) width: usize,
     pub(crate) mode: VarMode,
+    /// Reference to associated cluster
+    pub(crate) hpu_id: NodeId,
+    pub(crate) parent: HpuClusterWrapped,
 }
 
 impl std::fmt::Debug for HpuVarWrapped {
@@ -117,41 +66,41 @@ impl std::fmt::Debug for HpuVarWrapped {
 
 /// Conversion function between inner type and HpuLweCiphertext
 impl HpuVarWrapped {
-    fn new_in(
-        pool: memory::CiphertextMemory,
-        cmd_api: mpsc::Sender<cmd::HpuCmd>,
+    fn new_on(
+        hpu_id: NodeId,
+        cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         width: usize,
         mode: VarMode,
     ) -> Self {
+        let pool = &cluster.get(&hpu_id.0).expect("Invalid Hpu Id").ct_mem;
         let bundle = pool.get_bundle(width);
 
         Self {
             id: *bundle.id(),
-            pool,
-            cmd_api,
             params,
             width,
             mode,
+            hpu_id,
+            parent: cluster,
             inner: Arc::new(Mutex::new(HpuVar {
                 bundle,
-                state: SyncState::None,
                 pending: 0,
+                iid: SW_IOP_ID,
             })),
         }
     }
 
     pub(crate) fn new_from(
-        pool: memory::CiphertextMemory,
-        cmd_api: mpsc::Sender<cmd::HpuCmd>,
+        hpu_id: NodeId,
+        cluster: HpuClusterWrapped,
         params: Arc<HpuParameters>,
         ct: Vec<HpuLweCiphertextOwned<u64>>,
         mode: VarMode,
     ) -> Self {
-        let var = Self::new_in(pool, cmd_api, params, ct.len(), mode);
+        let var = Self::new_on(hpu_id, cluster, params, ct.len(), mode);
 
         // Write cpu_ct with correct interleaving in host buffer
-        // TODO check perf of mmap vs write
         // Now value is considered CpuSync (i.e. data valid only on cpu-side)
         {
             let mut inner = var.inner.lock().unwrap();
@@ -170,20 +119,19 @@ impl HpuVarWrapped {
                     );
                 }
             }
-            inner.state = SyncState::CpuSync;
         }
         var
     }
 
     /// Create a new HpuVarWrapped with same properties
     /// Associated data is != only share properties
+    /// Always allocated on same node
     pub(crate) fn fork(&self, trgt_mode: VarMode) -> Self {
         let Self {
-            pool,
-            cmd_api,
             params,
             width,
             mode,
+            parent,
             ..
         } = self.clone();
 
@@ -195,23 +143,15 @@ impl HpuVarWrapped {
             (VarMode::Half, VarMode::Half) => width,
             _ => panic!("Unsupported mode, couldn't use a Boolean to build a bigger variable"),
         };
-        Self::new_in(pool, cmd_api, params, width, trgt_mode)
+        Self::new_on(self.hpu_id, parent, params, width, trgt_mode)
     }
 
     pub fn try_into(self) -> Result<Vec<HpuLweCiphertextOwned<u64>>, HpuError> {
         // Check if value is available
         let mut inner = self.inner.lock().unwrap();
-        match inner.try_cpu_sync() {
-            Ok(_) => {}
-            Err(err) => {
-                drop(inner);
-                match err {
-                    HpuInternalError::OperationPending => return Err(HpuError::SyncPending(self)),
-                    HpuInternalError::UninitData => {
-                        panic!("Encounter unrecoverable HpuInternalError: {err:?}")
-                    }
-                }
-            }
+        if !inner.ready() {
+            drop(inner);
+            return Err(HpuError::SyncPending(self));
         }
 
         let mut ct = Vec::new();
@@ -261,14 +201,8 @@ impl HpuVarWrapped {
     /// Blocking call that pool the Hpu Backend until variable is ready
     pub fn wait(&self) {
         loop {
-            match self.inner.lock().unwrap().try_cpu_sync() {
-                Ok(_) => break,
-                Err(err) => match err {
-                    HpuInternalError::OperationPending => {}
-                    HpuInternalError::UninitData => {
-                        panic!("Encounter unrecoverable HpuInternalError: {err:?}")
-                    }
-                },
+            if self.inner.lock().unwrap().ready() {
+                break;
             }
         }
     }

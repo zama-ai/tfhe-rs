@@ -11,7 +11,6 @@ readme = "README.md"
 keywords = ["encryption", "fhe", "cryptography", "hardware", "fpga"]
 
 [features]
-hw-xrt = []
 hw-v80 = ["bincode"]
 io-dump = ["num-traits"]
 rtl_graph = ["dot2"]
@@ -48,6 +47,7 @@ zhc = "0.7.0"
 
 # Dependencies used for Sim feature
 ipc-channel = "0.18.3"
+ra2m = {git = "ssh://git@github.com/zama-ai/ra2m.git", branch = "hpu_sim", features = []}
 
 # Dependencies used for debug feature
 num-traits = { version = "0.2", optional = true }

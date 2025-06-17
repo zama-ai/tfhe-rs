@@ -2,6 +2,8 @@
 //! Gather IOp argument in a common type
 //! Provides a FromStr implementation for parsing
 
+use crate::asm::{IOpId, NodeId};
+
 use super::*;
 use field::{
     FwMode, IOpHeader, IOpcode, ImmBundle, Immediate, Operand, OperandBlock, OperandBundle,
@@ -249,22 +251,60 @@ impl std::str::FromStr for Properties {
     }
 }
 
+impl std::fmt::Display for IOpMapping {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Display inner Vec as comma separated list of values
+        write!(
+            f,
+            "{}",
+            self.iter()
+                .map(|pid| format!("{}", pid.0))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+impl std::str::FromStr for IOpMapping {
+    type Err = ParsingError;
+
+    #[tracing::instrument(level = "trace", ret)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let specified_map = s
+            .split(',')
+            .map(|id| u8::from_str_radix(id.trim(), 10))
+            .collect::<Result<Vec<_>, std::num::ParseIntError>>()
+            .map_err(|x| ParsingError::InvalidArg(format!("{x:?}")))?;
+
+        Ok(IOpMapping::from(specified_map))
+    }
+}
+
 impl std::fmt::Display for Operand {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         // Block/vec_size are zeroed indexed value
         // -> Transform them in one indexed for human readability
-        let block = self.block.0 + 1;
-        let vec_size = self.vec_size.0 + 1;
+        let block = self.props.block.0 + 1;
+        let vec_size = self.props.vec_size.0 + 1;
         if vec_size != 1 {
             write!(
                 f,
-                "I{}[{}]@0x{:0>2x}",
+                "I{}[{}]@0x{:0>2x}{{Hpu{}@{}}}",
                 block * MSG_WIDTH,
                 vec_size,
-                self.base_cid.0,
+                self.addr.base_cid.0,
+                self.props.pos.0,
+                self.props.iid.0,
             )
         } else {
-            write!(f, "I{}@0x{:0>2x}", block * MSG_WIDTH, self.base_cid.0,)
+            write!(
+                f,
+                "I{}@0x{:0>2x}{{Hpu{}@{}}}",
+                block * MSG_WIDTH,
+                self.addr.base_cid.0,
+                self.props.pos.0,
+                self.props.iid.0
+            )
         }
     }
 }
@@ -290,7 +330,7 @@ impl std::str::FromStr for OperandBundle {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static! {
             static ref ADDR_ARG_RE: regex::Regex =
-                regex::Regex::new(r"I(?<width>\d+)((?<vec>\[\s*(?<vec_len>\d+)\s*\]@(0x(?<vec_hex_cid>[0-9a-fA-F]+)|(?<vec_cid>\d+))\s*)|(?<single>@(0x(?<hex_cid>[0-9a-fA-F]+)|(?<cid>\d+))\s*))")
+                regex::Regex::new(r"I(?<width>\d+)((?<vec>\[\s*(?<vec_len>\d+)\s*\]@(0x(?<vec_hex_cid>[0-9a-fA-F]+)|(?<vec_cid>\d+))\s*)|(?<single>@(0x(?<hex_cid>[0-9a-fA-F]+)|(?<cid>\d+))\s*))\{Hpu(?<pos>\d+)(@(?<iid>\d+))*\}")
                     .expect("Invalid regex");
         }
         let mut operands = ADDR_ARG_RE
@@ -300,6 +340,23 @@ impl std::str::FromStr for OperandBundle {
                     .parse::<u16>()
                     .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
                 let block = (width / MSG_WIDTH as u16) as u8;
+
+                let pos = NodeId(
+                    caps["pos"]
+                        .parse::<u8>()
+                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
+                );
+
+                let iid = if let Some(raw_iid) = caps.name("iid") {
+                    IOpId(
+                        raw_iid
+                            .as_str()
+                            .parse::<u8>()
+                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
+                    )
+                } else {
+                    IOpId(0)
+                };
 
                 if let Some(_vec) = caps.name("vec") {
                     let base_cid = if let Some(raw_cid) = caps.name("vec_cid") {
@@ -317,7 +374,7 @@ impl std::str::FromStr for OperandBundle {
                         .parse::<u8>()
                         .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
 
-                    Ok(Operand::new(block, base_cid, len, None))
+                    Ok(Operand::new(block, base_cid, len, pos, iid, None))
                 } else if let Some(_single) = caps.name("single") {
                     let base_cid = if let Some(raw_cid) = caps.name("cid") {
                         raw_cid
@@ -329,7 +386,7 @@ impl std::str::FromStr for OperandBundle {
                         u16::from_str_radix(&caps["hex_cid"], 16)
                             .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
                     };
-                    Ok(Operand::new(block, base_cid, 1, None))
+                    Ok(Operand::new(block, base_cid, 1, pos, iid, None))
                 } else {
                     Err(ParsingError::Unmatch(format!(
                         "Invalid argument format {s}"
@@ -345,7 +402,7 @@ impl std::str::FromStr for OperandBundle {
             )))
         } else {
             // Update is_last token
-            operands.last_mut().unwrap().is_last = true;
+            operands.last_mut().unwrap().props.is_last = true;
             Ok(operands.into())
         }
     }
@@ -465,9 +522,12 @@ impl std::fmt::Display for IOp {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let opcode = AsmIOpcode::from(self);
         write!(f, "{opcode}")?;
+        write!(f, "{{{}}}", self.get_iid())?;
 
         let props = Properties::from(&self.header);
         write!(f, " <{props}>")?;
+        // Mapping
+        write!(f, " <{}>", self.map)?;
 
         // Destination operands list
         write!(f, " <{}>", self.dst)?;
@@ -492,7 +552,7 @@ impl std::str::FromStr for IOp {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         lazy_static! {
             static ref IOP_RE: regex::Regex = regex::Regex::new(
-                r"^(?<opcode>\S+)\s*(?<props><.*?>)\s*(?<dst><.*?>)\s*(?<src><.*?>)\s*(?<imm><.*?>)?"
+                r"^(?<opcode>\S+)\s*(?<props><.*?>)\s*(?<map><.*?>)\s*(?<dst><.*?>)\s*(?<src><.*?>)\s*(?<imm><.*?>)?"
             )
             .expect("Invalid regex");
         }
@@ -500,6 +560,7 @@ impl std::str::FromStr for IOp {
         if let Some(caps) = IOP_RE.captures(s) {
             let opcode = AsmIOpcode::from_str(caps["opcode"].trim_matches(['<', '>', ' ']))?;
             let props = Properties::from_str(caps["props"].trim_matches(['<', '>', ' ']))?;
+            let map = IOpMapping::from_str(caps["map"].trim_matches(['<', '>', ' ']))?;
             let dst = {
                 let mut bundle =
                     OperandBundle::from_str(caps["dst"].trim_matches(['<', '>', ' ']))?;
@@ -532,6 +593,7 @@ impl std::str::FromStr for IOp {
 
             Ok(IOp {
                 header,
+                map,
                 dst,
                 src,
                 imm,

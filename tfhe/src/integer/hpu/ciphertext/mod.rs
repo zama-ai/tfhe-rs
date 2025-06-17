@@ -20,7 +20,11 @@ impl HpuRadixCiphertext {
     /// Create a Hpu Radix ciphertext based on a Cpu one.
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
-    pub fn from_radix_ciphertext(cpu_ct: &RadixCiphertext, device: &HpuDevice) -> Self {
+    pub fn from_radix_ciphertext(
+        cpu_ct: &RadixCiphertext,
+        device: &HpuDevice,
+        pos: Option<hpu_asm::NodeId>,
+    ) -> Self {
         let params = device.params().clone();
 
         let hpu_ct = cpu_ct
@@ -29,7 +33,7 @@ impl HpuRadixCiphertext {
             .map(|blk| HpuLweCiphertextOwned::create_from(blk.ct.as_view(), params.clone()))
             .collect::<Vec<_>>();
 
-        Self(device.new_var_from(hpu_ct, VarMode::Native))
+        Self(device.new_var_from(hpu_ct, VarMode::Native, pos))
     }
 
     /// Create a Cpu radix ciphertext copy from a Hpu one.
@@ -59,14 +63,18 @@ impl HpuRadixCiphertext {
     /// Create a Hpu boolean ciphertext based on a Cpu one.
     ///
     /// No transfer with FPGA will occur until an operation on the HpuRadixCiphertext is requested
-    pub fn from_boolean_ciphertext(cpu_ct: &BooleanBlock, device: &HpuDevice) -> Self {
+    pub fn from_boolean_ciphertext(
+        cpu_ct: &BooleanBlock,
+        device: &HpuDevice,
+        pos: Option<hpu_asm::NodeId>,
+    ) -> Self {
         let params = device.params().clone();
 
         let hpu_ct = vec![HpuLweCiphertextOwned::create_from(
             cpu_ct.0.ct.as_view(),
             params,
         )];
-        Self(device.new_var_from(hpu_ct, VarMode::Bool))
+        Self(device.new_var_from(hpu_ct, VarMode::Bool, pos))
     }
 
     /// Create a Cpu boolean block from a Hpu one

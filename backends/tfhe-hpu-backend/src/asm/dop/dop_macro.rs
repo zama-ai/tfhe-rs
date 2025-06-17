@@ -160,6 +160,7 @@ macro_rules! impl_dop {
                         rid,
                         })
                 }
+
                 /// Access inner rid
                 pub fn rid(&self) -> &RegId {
                     &self.0.rid
@@ -198,6 +199,7 @@ macro_rules! impl_dop {
                         rid,
                         })
                 }
+
                 /// Access inner rid
                 pub fn rid(&self) -> &RegId {
                     &self.0.rid
@@ -214,6 +216,32 @@ macro_rules! impl_dop {
 
             impl IsFlush for [<DOp $asm:camel>]{}
             impl_dop_parser!($asm, $opcode, PeMemInsn, PeMemHex);
+        }
+    };
+
+    // Sync operations ------------------------------------------------------------------------
+    (
+        $asm: literal,
+        $opcode: expr,
+        PeSyncInsn
+        $(,)?
+    ) => {
+        ::paste::paste! {
+            #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+            pub struct [<DOp $asm:camel>](pub PeSyncInsn);
+
+            impl [<DOp $asm:camel>] {
+                pub fn new(iid: IOpId) -> Self {
+                    Self(PeSyncInsn {
+                        opcode: $opcode,
+                        iid,
+                        })
+                }
+
+            }
+
+            impl IsFlush for [<DOp $asm:camel>]{}
+            impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
         }
     };
 
@@ -248,29 +276,31 @@ macro_rules! impl_dop {
         }
     };
 
-    // Sync operations ------------------------------------------------------------------------
+    // Ucore operations ------------------------------------------------------------------------
     (
         $asm: literal,
         $opcode: expr,
-        PeSyncInsn
+        PeUcoreInsn
         $(,)?
     ) => {
         ::paste::paste! {
             #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-            pub struct [<DOp $asm:camel>](pub PeSyncInsn);
+            pub struct [<DOp $asm:camel>](pub PeUcoreInsn);
 
             impl [<DOp $asm:camel>] {
-                pub fn new(sid: Option<SyncId>) -> Self {
-                    Self(PeSyncInsn {
+                pub fn new(hid: NodeId, flag: UserFlag, slot: MemId) -> Self {
+                    Self(PeUcoreInsn {
                         opcode: $opcode,
-                        sid: sid.unwrap_or(SyncId(0))
+                        hid,
+                        flag,
+                        slot
                         })
                 }
 
             }
 
             impl IsFlush for [<DOp $asm:camel>]{}
-            impl_dop_parser!($asm, $opcode, PeSyncInsn, PeSyncHex);
+            impl_dop_parser!($asm, $opcode, PeUcoreInsn, PeUcoreHex);
         }
     };
 }

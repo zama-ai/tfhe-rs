@@ -2,11 +2,8 @@
 //! Gather DOp argument in a common type
 //! Provides a FromStr implementation for parsing
 
-use crate::asm::CtId;
-
-use super::field::{ImmId, MemId, RegId, SyncId};
+use super::field::{ImmId, MemId, RegId, UserFlag};
 use super::*;
-use lazy_static::lazy_static;
 
 /// Minimum asm arg width to have aligned field
 pub const ARG_MIN_WIDTH: usize = 16;
@@ -20,7 +17,9 @@ pub enum Arg {
     Mem(MemId),
     Imm(ImmId),
     Pbs(Pbs),
-    Sync(SyncId),
+    IOpId(IOpId),
+    HpuId(NodeId),
+    UcoreFlag(UserFlag),
 }
 
 /// Use Display trait to convert into asm human readable file
@@ -28,11 +27,13 @@ pub enum Arg {
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Arg::Reg(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
-            Arg::Mem(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
-            Arg::Imm(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
-            Arg::Pbs(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
-            Arg::Sync(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::Reg(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::Mem(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::Imm(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::Pbs(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::IOpId(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::HpuId(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
+            Self::UcoreFlag(inner) => write!(f, "{inner: <ARG_MIN_WIDTH$}"),
         }
     }
 }
@@ -58,105 +59,20 @@ impl std::str::FromStr for Arg {
 
     #[tracing::instrument(level = "trace", ret)]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-                    static ref DOP_ARG_RE: regex::Regex = regex::Regex::new(
-        r"(?<register>^R(?<rid>[0-9]+))|(?<mem_addr>^@((?<hex_cid>0x[0-9a-fA-F]+)|(?<cid>[0-9]+)))|(?<mem_tmpl>^(?<mt_orig>TS|TD|TH)(\[(?<mt_id>\d+)\])*\.(?<mt_bid>\d+))|(?<imm_cst>^((?<hex_cst>0x[0-9a-fA-F]+)|(?<cst>[0-9]+)))|(?<imm_var>^TI\[(?<it_id>\d+)\]\.(?<it_bid>\d+))|(?<pbs>^Pbs(?<pbs_name>(\S+)))"
-                    )
-                    .expect("Invalid regex");
-                }
-
-        if let Some(caps) = DOP_ARG_RE.captures(s) {
-            if let Some(_register) = caps.name("register") {
-                let rid = caps["rid"]
-                    .parse::<u8>()
-                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-                Ok(Arg::Reg(RegId(rid)))
-            } else if let Some(_mem_addr) = caps.name("mem_addr") {
-                let cid = if let Some(raw_cid) = caps.name("cid") {
-                    raw_cid
-                        .as_str()
-                        .parse::<u16>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                } else {
-                    // One of them must match, otherwise error will be arose before
-                    let raw_hex_cid = caps.name("hex_cid").unwrap();
-                    u16::from_str_radix(&raw_hex_cid.as_str()[2..], 16)
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                };
-                Ok(Arg::Mem(MemId::Addr(CtId(cid))))
-            } else if let Some(_mem_tmpl) = caps.name("mem_tmpl") {
-                let tid = if let Some(raw_tid) = caps.name("mt_id") {
-                    Some(
-                        raw_tid
-                            .as_str()
-                            .parse::<u8>()
-                            .map_err(|err| ParsingError::InvalidArg(err.to_string()))?,
-                    )
-                } else {
-                    None
-                };
-                let bid = caps["mt_bid"]
-                    .parse::<u16>()
-                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-
-                match &caps["mt_orig"] {
-                    "TS" => {
-                        if tid.is_none() {
-                            return Err(ParsingError::InvalidArg(format!("Memory template Src must have following format `TS[tid].bid` (parsed {})",&caps["mem_tmpl"])));
-                        }
-                        Ok(Arg::Mem(MemId::Src {
-                            tid: tid.unwrap(),
-                            bid: bid as u8,
-                        }))
-                    }
-                    "TD" => {
-                        if tid.is_none() {
-                            return Err(ParsingError::InvalidArg(format!("Memory template Dst must have following format `TD[tid].bid` (parsed {})",&caps["mem_tmpl"])));
-                        }
-                        Ok(Arg::Mem(MemId::Dst {
-                            tid: tid.unwrap(),
-                            bid: bid as u8,
-                        }))
-                    }
-                    "TH" => {
-                        if tid.is_some() {
-                            return Err(ParsingError::InvalidArg(format!("Memory template Heap must have following format `TH.bid` (parsed {})",&caps["mem_tmpl"])));
-                        }
-                        Ok(Arg::Mem(MemId::Heap { bid }))
-                    }
-                    _ => Err(ParsingError::InvalidArg(format!(
-                        "Invalid memory template argument {}",
-                        &caps["mem_tmpl"]
-                    ))),
-                }
-            } else if let Some(_imm_cst) = caps.name("imm_cst") {
-                let cst = if let Some(raw_cst) = caps.name("cst") {
-                    raw_cst
-                        .as_str()
-                        .parse::<u16>()
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                } else {
-                    // One of them must match, otherwise error will be arose before
-                    let raw_hex_cst = caps.name("hex_cst").unwrap();
-                    u16::from_str_radix(&raw_hex_cst.as_str()[2..], 16)
-                        .map_err(|err| ParsingError::InvalidArg(err.to_string()))?
-                };
-                Ok(Arg::Imm(ImmId::Cst(cst)))
-            } else if let Some(_imm_var) = caps.name("imm_var") {
-                let tid = caps["it_id"]
-                    .parse::<u8>()
-                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-                let bid = caps["it_bid"]
-                    .parse::<u8>()
-                    .map_err(|err| ParsingError::InvalidArg(err.to_string()))?;
-                Ok(Arg::Imm(ImmId::Var { tid, bid }))
-            } else if let Some(_pbs) = caps.name("pbs") {
-                Ok(Arg::Pbs(Pbs::from_str(&caps["pbs_name"])?))
-            } else {
-                Err(ParsingError::Unmatch(format!(
-                    "Invalid argument format {s}"
-                )))
-            }
+        if let Ok(reg) = RegId::from_str(s) {
+            Ok(Self::Reg(reg))
+        } else if let Ok(mem) = MemId::from_str(s) {
+            Ok(Self::Mem(mem))
+        } else if let Ok(imm) = ImmId::from_str(s) {
+            Ok(Self::Imm(imm))
+        } else if let Ok(pbs) = Pbs::from_str(s) {
+            Ok(Self::Pbs(pbs))
+        } else if let Ok(iid) = IOpId::from_str(s) {
+            Ok(Self::IOpId(iid))
+        } else if let Ok(hid) = NodeId::from_str(s) {
+            Ok(Self::HpuId(hid))
+        } else if let Ok(flag) = UserFlag::from_str(s) {
+            Ok(Self::UcoreFlag(flag))
         } else {
             Err(ParsingError::Unmatch(format!(
                 "Invalid argument format {s}"
@@ -338,79 +254,114 @@ impl FromAsm for field::PeMemInsn {
             return Err(ParsingError::ArgNumber(2, args.len()));
         }
 
-        let (rid, mid) = match opcode {
-            _x if _x == u8::from(opcode::Opcode::LD()) => {
-                let rid = match args[0] {
-                    Arg::Reg(id) => id,
-                    _ => {
-                        return Err(ParsingError::ArgType(
-                            "Arg::Reg".to_string(),
-                            args[0].clone(),
-                        ))
-                    }
-                };
-                let slot = match args[1] {
-                    Arg::Mem(id) => id,
-                    _ => {
-                        return Err(ParsingError::ArgType(
-                            "Arg::Mem".to_string(),
-                            args[1].clone(),
-                        ))
-                    }
-                };
-                (rid, slot)
-            }
-            _x if _x == u8::from(opcode::Opcode::ST()) => {
-                let slot = match args[0] {
-                    Arg::Mem(id) => id,
-                    _ => {
-                        return Err(ParsingError::ArgType(
-                            "Arg::Mem".to_string(),
-                            args[0].clone(),
-                        ))
-                    }
-                };
+        let parsed_opcode = Opcode::from(opcode);
+        if parsed_opcode.is_ld_inst() {
+            let rid = match args[0] {
+                Arg::Reg(id) => id,
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::Reg".to_string(),
+                        args[0].clone(),
+                    ))
+                }
+            };
+            let slot = match args[1] {
+                Arg::Mem(id) => id,
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::Mem".to_string(),
+                        args[1].clone(),
+                    ))
+                }
+            };
+            Ok(Self {
+                rid,
+                slot,
+                opcode: parsed_opcode,
+            })
+        } else if parsed_opcode.is_st_inst() {
+            let slot = match args[0] {
+                Arg::Mem(id) => id,
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::Mem".to_string(),
+                        args[0].clone(),
+                    ))
+                }
+            };
 
-                let rid = match args[1] {
-                    Arg::Reg(id) => id,
-                    _ => {
-                        return Err(ParsingError::ArgType(
-                            "Arg::Reg".to_string(),
-                            args[1].clone(),
-                        ))
-                    }
-                };
-                (rid, slot)
-            }
+            let rid = match args[1] {
+                Arg::Reg(id) => id,
+                _ => {
+                    return Err(ParsingError::ArgType(
+                        "Arg::Reg".to_string(),
+                        args[1].clone(),
+                    ))
+                }
+            };
+            Ok(Self {
+                rid,
+                slot,
+                opcode: parsed_opcode,
+            })
+        } else {
+            Err(ParsingError::Unmatch(
+                "PeMemInsn expect LD/ST opcode".to_string(),
+            ))
+        }
+    }
+}
+
+impl ToAsm for PeMemInsn {
+    fn dst(&self) -> Vec<arg::Arg> {
+        if self.opcode.is_ld_inst() {
+            vec![Arg::Reg(self.rid)]
+        } else if self.opcode.is_st_inst() {
+            vec![Arg::Mem(self.slot)]
+        } else {
+            panic!("Unsupported opcode for PeMemInsn")
+        }
+    }
+    fn src(&self) -> Vec<arg::Arg> {
+        if self.opcode.is_ld_inst() {
+            vec![Arg::Mem(self.slot)]
+        } else if self.opcode.is_st_inst() {
+            vec![Arg::Reg(self.rid)]
+        } else {
+            panic!("Unsupported opcode for PeMemInsn")
+        }
+    }
+}
+
+impl FromAsm for field::PeSyncInsn {
+    fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
+        if args.len() != 1 {
+            return Err(ParsingError::ArgNumber(1, args.len()));
+        }
+
+        let iid = match args[0] {
+            Arg::IOpId(id) => id,
             _ => {
-                return Err(ParsingError::Unmatch(
-                    "PeMemInsn expect LD/ST opcode".to_string(),
+                return Err(ParsingError::ArgType(
+                    "Arg::IOpId".to_string(),
+                    args[1].clone(),
                 ))
             }
         };
 
         Ok(Self {
             opcode: Opcode::from(opcode),
-            slot: mid,
-            rid,
+            iid,
         })
     }
 }
 
-impl ToAsm for PeMemInsn {
+impl ToAsm for PeSyncInsn {
     fn dst(&self) -> Vec<arg::Arg> {
-        match self.opcode {
-            _x if _x == opcode::Opcode::LD() => vec![Arg::Reg(self.rid)],
-            _x if _x == opcode::Opcode::ST() => vec![Arg::Mem(self.slot)],
-            _ => panic!("Unsupported opcode for PeMemInsn"),
-        }
+        vec![]
     }
     fn src(&self) -> Vec<arg::Arg> {
-        match self.opcode {
-            _x if _x == opcode::Opcode::LD() => vec![Arg::Mem(self.slot)],
-            _x if _x == opcode::Opcode::ST() => vec![Arg::Reg(self.rid)],
-            _ => panic!("Unsupported opcode for PeMemInsn"),
-        }
+        vec![Arg::IOpId(self.iid)]
     }
 }
 
@@ -469,39 +420,59 @@ impl ToAsm for PePbsInsn {
     }
 }
 
-impl FromAsm for field::PeSyncInsn {
+impl FromAsm for field::PeUcoreInsn {
     fn from_args(opcode: u8, args: &[arg::Arg]) -> Result<Self, ParsingError> {
-        if (args.len() != 1) && (!args.is_empty()) {
-            return Err(ParsingError::ArgNumber(1, args.len()));
+        if args.len() != 3 {
+            return Err(ParsingError::ArgNumber(2, args.len()));
         }
 
-        let sid = if let Some(arg) = args.get(1) {
-            match arg {
-                Arg::Sync(id) => *id,
-                _ => {
-                    return Err(ParsingError::ArgType(
-                        "Arg::Sync".to_string(),
-                        args[1].clone(),
-                    ))
-                }
+        let hid = match args[0] {
+            Arg::HpuId(id) => id,
+            _ => {
+                return Err(ParsingError::ArgType(
+                    "Arg::HpuId".to_string(),
+                    args[0].clone(),
+                ))
             }
-        } else {
-            SyncId(0)
+        };
+        let flag = match args[1] {
+            Arg::UcoreFlag(flag) => flag,
+            _ => {
+                return Err(ParsingError::ArgType(
+                    "Arg::UcoreFlag".to_string(),
+                    args[1].clone(),
+                ))
+            }
+        };
+        let slot = match args[2] {
+            Arg::Mem(id) => id,
+            _ => {
+                return Err(ParsingError::ArgType(
+                    "Arg::Mem".to_string(),
+                    args[2].clone(),
+                ))
+            }
         };
 
         Ok(Self {
             opcode: Opcode::from(opcode),
-            sid,
+            hid,
+            flag,
+            slot,
         })
     }
 }
 
-impl ToAsm for PeSyncInsn {
+impl ToAsm for PeUcoreInsn {
     fn dst(&self) -> Vec<arg::Arg> {
         vec![]
     }
     fn src(&self) -> Vec<arg::Arg> {
-        vec![Arg::Sync(self.sid)]
+        vec![
+            Arg::HpuId(self.hid),
+            Arg::UcoreFlag(self.flag),
+            Arg::Mem(self.slot),
+        ]
     }
 }
 
@@ -513,7 +484,8 @@ impl ToFlush for field::PePbsInsn {
         }
     }
 }
-impl ToFlush for field::PeSyncInsn {}
 impl ToFlush for field::PeArithInsn {}
 impl ToFlush for field::PeArithMsgInsn {}
 impl ToFlush for field::PeMemInsn {}
+impl ToFlush for field::PeSyncInsn {}
+impl ToFlush for field::PeUcoreInsn {}

@@ -17,7 +17,7 @@ ST TH.60  R4
 ; Test Arith operation
 ADD R2 R1 R3
 SUB R2 R1 R3
-MUL R2 R1 R3
+; MUL R2 R1 R3 ; Must failed, MUL isn't supported on Digit
 MAC R2 R1 R3 4
 
 ; Test ArithMsg operation with various immediate template format
@@ -29,3 +29,10 @@ SUBS R2 R1 TI[4].0
 ; Test Pbs operation
 PBS R2 R1 PbsNone
 PBS_F R2 R1 PbsCarryInMsg
+
+; Test Ucore operation
+SYNC   N0 BH.0
+SYNC   N2 BH.1
+SYNC   N2 TS[0]
+WAIT   N0 BH.0
+LD_B2B N0 TS[0]

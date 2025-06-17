@@ -43,8 +43,7 @@ impl TraceDump {
             mem_kind: ffi::MemKind::Ddr { offset },
             size_b,
         };
-        let mut mz = hpu_hw.alloc(cut_props);
-        mz.sync(ffi::SyncMode::Device2Host);
+        let mz = hpu_hw.alloc(cut_props);
         mz.read(0, trace.as_mut_slice());
         TraceDump { trace }
     }

@@ -37,6 +37,9 @@ pub struct Args {
     )]
     pub config: ShellString,
 
+    #[arg(long)]
+    pub force_reload: bool,
+
     // Exec configuration ----------------------------------------------------
     /// Select integer width to bench
     /// If None default to All available one (c.f. Firmware configuration)
@@ -51,6 +54,12 @@ pub struct Args {
     /// Number of iteration for each IOp
     #[arg(long, default_value_t = 1)]
     pub iter: usize,
+
+    /// Throughput dedicated mode.
+    /// Operation are duplicated for each nodes to load HpuCluster.
+    /// WARN: Do not used with native `multi-hpu` IOp
+    #[arg(long)]
+    pub tput: bool,
 
     /// Force ct input values
     #[arg(long, value_parser = maybe_hex::<u128>)]
@@ -91,7 +100,21 @@ pub struct Args {
 }
 
 #[derive(Debug)]
-pub struct BenchReport(HashMap<String, Duration>);
+pub struct Throughput(f64);
+
+impl Throughput {
+    pub fn new(op: usize, dur: Duration) -> Self {
+        Self(op as f64 / dur.as_secs_f64())
+    }
+}
+impl std::fmt::Display for Throughput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} Op/s", self.0)
+    }
+}
+
+#[derive(Debug)]
+pub struct BenchReport(HashMap<String, (Duration, Throughput)>);
 
 impl Default for BenchReport {
     fn default() -> Self {
@@ -106,7 +129,7 @@ impl BenchReport {
 }
 
 impl std::ops::Deref for BenchReport {
-    type Target = HashMap<String, Duration>;
+    type Target = HashMap<String, (Duration, Throughput)>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -121,13 +144,13 @@ impl std::ops::DerefMut for BenchReport {
 impl std::fmt::Display for BenchReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for op in self.keys().sorted() {
-            writeln!(f, " {op} -> {:?}", self[op])?;
+            writeln!(f, " {op} -> Lat: {:?}, Tput: {}", self[op].0, self[op].1)?;
         }
         Ok(())
     }
 }
 
-pub fn main() {
+pub fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     println!("User Options: {args:?}");
 
@@ -164,7 +187,7 @@ pub fn main() {
     }
 
     // Instantiate HpuDevice --------------------------------------------------
-    let hpu_device = HpuDevice::new(hpu_config);
+    let hpu_device = HpuDevice::new(hpu_config, args.force_reload)?;
 
     // Force key seeder if seed specified by user
     if let Some(seed) = args.seed {
@@ -218,80 +241,122 @@ pub fn main() {
                 )
             };
 
-            let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
-                .src
+            let hpu_nodes = if args.tput {
+                &hpu_device.config().fpga.node_id
+            } else {
+                // Otherwise, create inputs on first node only
+                &hpu_device.config().fpga.node_id[0..=0]
+            };
+            let bench_inputs = hpu_nodes
                 .iter()
-                .enumerate()
-                .map(|(pos, mode)| {
-                    let (bw, block) = match mode {
-                        hpu_asm::iop::VarMode::Native => (*width, num_block),
-                        hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
-                        hpu_asm::iop::VarMode::Bool => (1, 1),
-                    };
-
-                    let clear = *args
+                .map(|node| {
+                    let (srcs_clear, srcs_enc): (Vec<_>, Vec<_>) = proto
                         .src
-                        .get(pos)
-                        .unwrap_or(&rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))));
-                    let fhe = if args.trivial {
-                        sks.create_trivial_radix(clear, block)
-                    } else {
-                        cks.encrypt_radix(clear, block)
-                    };
-                    let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(&fhe, &hpu_device);
-                    (clear, hpu_fhe)
-                })
-                .unzip();
+                        .iter()
+                        .enumerate()
+                        .map(|(pos, mode)| {
+                            let (bw, block) = match mode {
+                                hpu_asm::iop::VarMode::Native => (*width, num_block),
+                                hpu_asm::iop::VarMode::Half => (width / 2, num_block / 2),
+                                hpu_asm::iop::VarMode::Bool => (1, 1),
+                            };
 
-            let imms = (0..proto.imm)
-                .map(|pos| {
-                    *args
-                        .imm
-                        .get(pos)
-                        .unwrap_or(&rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))))
+                            let clear = *args.src.get(pos).unwrap_or(
+                                &rng.gen_range(0..=u128::MAX >> (u128::BITS - (bw as u32))),
+                            );
+                            let fhe = if args.trivial {
+                                sks.create_trivial_radix(clear, block)
+                            } else {
+                                cks.encrypt_radix(clear, block)
+                            };
+                            let hpu_fhe = HpuRadixCiphertext::from_radix_ciphertext(
+                                &fhe,
+                                &hpu_device,
+                                Some(hpu_asm::NodeId(*node)),
+                            );
+                            (clear, hpu_fhe)
+                        })
+                        .unzip();
+
+                    let imms = (0..proto.imm)
+                        .map(|pos| {
+                            *args.imm.get(pos).unwrap_or(
+                                &rng.gen_range(0..u128::MAX >> (u128::BITS - (*width as u32))),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    (srcs_clear, srcs_enc, imms)
                 })
                 .collect::<Vec<_>>();
 
-            println!(
-                "{}:: Start test loop for IOp {iop} ...",
-                stringify!($fhe_type)
-            );
+            println!("FheUint{width}:: Start test loop for IOp {iop} ...");
             let roi_start = Instant::now();
 
-            let res_hpu = (0..args.iter)
+            let bench_res_hpu = (0..args.iter)
                 .filter_map(|i| {
-                    let res = HpuRadixCiphertext::exec(&proto, iop.opcode(), &srcs_enc, &imms);
+                    let bench_res = bench_inputs
+                        .iter()
+                        .map(|(_, srcs_enc, imms)| {
+                            HpuRadixCiphertext::exec(&proto, iop.opcode(), srcs_enc, imms)
+                        })
+                        .collect::<Vec<_>>();
                     if i == (args.iter - 1) {
-                        Some(res)
+                        Some(bench_res)
                     } else {
                         None
                     }
                 })
                 .collect::<Vec<_>>();
 
-            let res_fhe = res_hpu
+            let bench_res_fhe = bench_res_hpu
+                .iter()
                 .last()
                 .expect("Iteration must be greater than 0")
                 .iter()
-                .map(|x| x.to_radix_ciphertext())
+                .map(|node_res| {
+                    node_res
+                        .iter()
+                        .map(|x| x.to_radix_ciphertext())
+                        .collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>();
+
             let roi_duration = roi_start.elapsed();
             let op_duration = roi_duration / (args.iter as u32);
-            let res = res_fhe
+            let op_tput = Throughput::new(args.iter * bench_res_fhe.len(), roi_duration);
+
+            let bench_res = bench_res_fhe
                 .iter()
-                .map(|x| cks.decrypt_radix(x))
-                .collect::<Vec<u128>>();
+                .map(|node_res| {
+                    node_res
+                        .iter()
+                        .map(|x| cks.decrypt_radix(x))
+                        .collect::<Vec<u128>>()
+                })
+                .collect::<Vec<_>>();
             println!("Integer_{width}b:: Execution report: {iop}");
-            println!(
-                "Behavior         : {res:?}  <- {iop} <{:?}> <{:?}> {{{}}}",
-                srcs_clear, imms, args.iter
-            );
-            println!(
-                "Behavior (in hex): {res:x?}  <- {iop} <{:x?}> <{:x?}> {{{}}}",
-                srcs_clear, imms, args.iter
-            );
-            println!("Performance: {iop} -> {op_duration:?} [{roi_duration:?}]");
-            width_report.insert(iop.to_string(), op_duration);
+            for (node, (res, inputs)) in
+                std::iter::zip(bench_res.iter(), bench_inputs.iter()).enumerate()
+            {
+                let (srcs_clear, _, imms) = inputs;
+                println!(
+                    "Node {node} ------------------------------------------------------------"
+                );
+                println!(
+                    "Behavior         : {res:?}  <- {iop} <{:?}> <{:?}> {{{}}}",
+                    srcs_clear, imms, args.iter
+                );
+                println!(
+                    "Behavior (in hex): {res:x?}  <- {iop} <{:x?}> <{:x?}> {{{}}}",
+                    srcs_clear, imms, args.iter
+                );
+            }
+            println!("-------------------------------------------------------------------");
+            println!("Performance {iop}: [{roi_duration:?}]");
+            println!(" -> Latency    {op_duration:?}");
+            println!(" -> Throughput {op_tput}");
+            println!("-------------------------------------------------------------------");
+            width_report.insert(iop.to_string(), (op_duration, op_tput));
         }
         report.push((format!("Integer_{width}"), width_report));
 
@@ -314,4 +379,6 @@ pub fn main() {
     } else {
         println!("No stimulus generated. C.f. `--iop-dump` for more information");
     }
+
+    Ok(())
 }

@@ -8,16 +8,20 @@ pub mod pbs_macro;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
+pub use super::{IOpId, NodeId};
 use crate::{dop, impl_dop, impl_dop_parser};
 pub use arg::{FromAsm, IsFlush, ParsingError, ToAsm, ToFlush};
 pub use field::{
     ImmId, MemId, MulFactor, PbsGid, PeArithInsn, PeArithMsgInsn, PeMemInsn, PePbsInsn, PeSyncInsn,
-    RegId, SyncId,
+    PeUcoreInsn, RegId, UcoreFlag, UcorePayload, UcorePayloadMode, UserFlag,
 };
 pub use fmt::{
-    DOpRawHex, DOpRepr, PeArithHex, PeArithMsgHex, PeMemHex, PePbsHex, PeSyncHex, ToHex,
+    DOpRawHex, DOpRepr, PeArithHex, PeArithMsgHex, PeMemHex, PePbsHex, PeSyncHex, PeUcoreHex, ToHex,
 };
 pub use opcode::{DOpType, Opcode};
+
+// Maximum number of HPU in a cluster
+pub const MAX_HPU_IN_CLUSTER: usize = 8;
 
 dop!(
     // Arith operation
@@ -34,6 +38,7 @@ dop!(
     // Ld/st operation
     ["LD", opcode::Opcode::LD(), PeMemInsn{ld}],
     ["ST", opcode::Opcode::ST(), PeMemInsn{st}]
+    ["SYNC", opcode::Opcode::SYNC(), PeSyncInsn],
 
     // Pbs operation
     ["PBS", opcode::Opcode::PBS(1), PePbsInsn, "_F"],
@@ -47,8 +52,11 @@ dop!(
     ["PBS_ML4_F", opcode::Opcode::PBS_F(4), PePbsInsn],
     ["PBS_ML8_F", opcode::Opcode::PBS_F(8), PePbsInsn],
 
-    // Sync operation
-    ["SYNC", opcode::Opcode::SYNC(), PeSyncInsn],
+    // Ucore operation
+    // Those operation are directly handle by Ucore and never reach HpuCore
+    ["NOTIFY", opcode::Opcode::NOTIFY(), PeUcoreInsn],
+    ["WAIT", opcode::Opcode::WAIT(), PeUcoreInsn],
+    ["LD_B2B", opcode::Opcode::LD_B2B(), PeUcoreInsn],
 );
 
 #[derive(Debug, Clone, Copy)]

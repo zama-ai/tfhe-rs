@@ -51,7 +51,6 @@ pub struct CiphertextMemoryProperties {
     pub mem_cut: Vec<ffi::MemKind>,
     pub cut_size_b: usize,
     pub slot_nb: usize,
-    pub used_as_heap: usize,
     pub retry_rate_us: u64,
 }
 
@@ -161,12 +160,9 @@ impl CiphertextMemory {
         }
 
         // Store slot in ArrayQueue for MpMc access
-        let array_queue = ArrayQueue::new(props.slot_nb - props.used_as_heap);
-        for (idx, slot) in pool.into_iter().enumerate() {
-            if idx < (props.slot_nb - props.used_as_heap) {
-                array_queue.push(slot).expect("Check ArrayQueue allocation");
-            }
-            // else slot is used by heap and shouldn't be handled by the ct pool
+        let array_queue = ArrayQueue::new(props.slot_nb);
+        for slot in pool.into_iter() {
+            array_queue.push(slot).expect("Check ArrayQueue allocation");
         }
         Self {
             pool: std::sync::Arc::new(array_queue),
