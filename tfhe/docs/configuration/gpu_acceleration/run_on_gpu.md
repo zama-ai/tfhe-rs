@@ -2,23 +2,25 @@
 
 **TFHE-rs** has a CUDA GPU backend  that enables faster integer arithmetic operations on encrypted data, when compared to the default CPU backend. This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU. 
 
+**Table of contents:**  
+
 1. [GPU FHE Performance Summary](#performance)
 2. [GPU TFHE-rs features](#gpu-tfhe-rs-features)
 3. [GPU Programming Model](#gpu-programming-model)
 4. [Project Configuration](#gpu-programming-quick-start)
 
-For a simple code example, go to:
+To explore a simple code example, go to:
 {% content-ref url="./simple_example.md" %} A simple TFHE-rs GPU example {% endcontent-ref %}
 
 ## FHE Performance on GPU
 
-The GPU backend is, on average, **between 1.6x and 4.2x faster** than the CPU one, depending on the type of integer operation. For a comparison, see the following page.    
+The GPU backend is, **up to 4.2x faster** than the CPU one. For a comparison between CPU and GPU latencies, see the following page.    
 {% content-ref url="../../getting_started/benchmarks/README.md" %} GPU vs CPU benchmarks {% endcontent-ref %}
 
-Please refer to the [detailed GPU benchmarks of FHE operations](../../getting_started/benchmarks/gpu/README.md) for detailed performance figures.
+Different integer operations obtain different speedups. Please refer to the [detailed GPU benchmarks of FHE operations](../../getting_started/benchmarks/gpu/README.md) for detailed figures.
 
 {% hint style="warning" %}
-When measuring GPU times on your own on Linux, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
+To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md). To obtain the best performance when running benchmarks, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
 {% endhint %}
 
 ## GPU TFHE-rs features
@@ -29,12 +31,15 @@ The GPU backend is designed to speed up server-side FHE operations and supports 
 - [Ciphertext compression](./compressing_ciphertexts.md)
 - [Ciphertext arrays](array_type.md)
 - [ZK-POK expansion](./zk-pok.md)
+- [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
 - [Multi-GPU for throughput optimization](./multi_gpu.md) 
 
 The following features are not supported:
 
+- Key generation
 - Encryption/decryption
 - ZK-POK generation and verification
+- Encrypted strings and operations on encrypted strings
 
 ## GPU Programming model
 

@@ -12,17 +12,13 @@ You can enable this feature using the flag: `--features=zk-pok,gpu` when buildin
 
 ## API elements discussed in this document
 
-- [`tfhe::ProvenCompactCiphertextList`]()
-- [`tfhe::ProvenCompactCiphertextList::verify_and_expand`]()
-- [`tfhe::CompactPublicKey`]()
-- [`tfhe::ConfigBuilder::use_dedicated_compact_public_key_parameters`]()
-- [`tfhe::CompactCiphertextListBuilder::build_with_proof_packed`]()
+- [`tfhe::ProvenCompactCiphertextList`](https://docs.rs/tfhe/latest/tfhe/struct.ProvenCompactCiphertextList.html): a list of ciphertexts with accompanying ZK-proofs. The ciphertexts are stored in a compact form and must be expanded for computation.
+- [`tfhe::ProvenCompactCiphertextList::verify_and_expand`](https://docs.rs/tfhe/latest/tfhe/struct.ProvenCompactCiphertextList.html#method.verify_and_expand): verify the proofs for this ciphertext list and expand each ciphertext into a form that is supported for computation.
 
 ## Proven compact ciphertext list
 
 A proven compact list of ciphertexts can be seen as a compacted collection of ciphertexts for which encryption can be verified.
-This verification is currently only supported on the CPU, but the expansion can be accelerated using the GPU.
-This way, verification and expansion can be performed in parallel, efficiently using all the available computational resources.
+This verification is currently only supported on the CPU, but the expansion can be sped up using the GPU. However, verification and expansion can be performed in parallel, efficiently using all the available computational resources.
 
 ## Supported types
 Encrypted messages can be integers (like FheUint64) or booleans. The GPU backend does not currently support encrypted strings.

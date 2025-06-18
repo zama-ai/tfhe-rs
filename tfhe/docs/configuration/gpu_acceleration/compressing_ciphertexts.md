@@ -4,13 +4,13 @@ This document explains how to compress ciphertexts using the GPU - even after ho
 
 ## API elements discussed in this document
 
-- [tfhe::shortint::parameters]()
-- [tfhe::ConfigBuilder::with_custom_parameters]()
-- [tfhe::ConfigBuilder::enable_compression]()
+- [tfhe::shortint::parameters](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/index.html): this module provides the structure containing the cryptographic parameters required for the homomorphic evaluation of integer circuits as well as a list of secure cryptographic parameter sets.
+- [tfhe::ConfigBuilder::with_custom_parameters](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.with_custom_parameters): initializes a configuration builder with a user-specified parameter set
+- [tfhe::ConfigBuilder::enable_compression](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.enable_compression): enables the compression feature in the configuration builder 
 
 ## Crypto-system parameter setting
 
-When using compression, the [`ConfigBuilder`] class must be initialized with the `enable_compression` calls. This requires that the caller sets both the crypto-system PBS parameters and the compression crypto-system parameters.
+When using compression, the [`ConfigBuilder`](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html) class must be initialized with the `enable_compression` calls. This requires that the caller sets both the crypto-system PBS parameters and the compression crypto-system parameters.
 
 The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter sets corresponds to the default PBS parameters set using `ConfigBuilder::default()`, when the `"gpu"` feature enabled. The [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression crypto-system parameters.
 
