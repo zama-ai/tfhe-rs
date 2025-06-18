@@ -176,7 +176,7 @@ __host__ uint64_t scratch_packing_keyswitch_lwe_list_to_glwe(
                              ? glwe_accumulator_size
                              : lwe_dimension * 2;
 
-  uint64_t size_tracker;
+  uint64_t size_tracker = 0;
   uint64_t buffer_size = 2 * num_lwes * memory_unit * sizeof(Torus);
   *fp_ks_buffer = (int8_t *)cuda_malloc_with_size_tracking_async(
       buffer_size, stream, gpu_index, &size_tracker, allocate_gpu_memory);
