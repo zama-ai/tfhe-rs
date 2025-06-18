@@ -1,10 +1,124 @@
+use std::iter::successors;
+
+use serde::{Deserialize, Serialize};
+use tfhe_versionable::Versionize;
+
 /// Scalar generation using the hash random oracle
 use crate::{
+    backward_compatibility::pke_v2::PkeV2HashModeVersions,
     curve_api::{Curve, FieldOps},
     proofs::pke_v2::{compute_crs_params, inf_norm_bound_to_euclidean_squared},
 };
 
 use super::{PKEv2DomainSeparators, PublicCommit, PublicParams};
+
+/// Generates the vector `[1, y, y^2, y^3, ...]` from y
+fn generate_powers<Zp: FieldOps>(scalar: Zp, out: &mut [Zp]) {
+    let powers_iterator = successors(Some(scalar), move |prev| Some(*prev * scalar));
+
+    if let Some(val0) = out.get_mut(0) {
+        *val0 = Zp::ONE;
+    }
+
+    for (val, power) in out[1..].iter_mut().zip(powers_iterator) {
+        *val = power;
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
+#[versionize(PkeV2HashModeVersions)]
+/// Defines how the hash functions will be used to generate values
+pub(crate) enum PkeV2HashMode {
+    /// Compatibility with proofs generated with tfhe-zk-pok 0.6.0 and earlier
+    BackwardCompat,
+    /// The basic PkeV2 scheme without the hashes optimizations
+    Classical,
+    /// Reduce the number of hashed bytes with various optimizations:
+    /// - generates only y1 as a hash and derives y = [1, y1, y1^2,...]
+    /// - only hash R in phi
+    /// - use a more compact representation for R
+    Compact,
+}
+
+impl PkeV2HashMode {
+    /// Generate a list of scalars using the hash random oracle. The generated hashes are written to
+    /// the `output` slice and a byte representation is returned
+    fn gen_scalars_with_hash<Zp: FieldOps>(
+        self,
+        mut output: &mut [Zp],
+        inputs: &[&[u8]],
+        hash_fn: impl FnOnce(&mut [Zp], &[&[u8]]),
+    ) -> Box<[u8]> {
+        let mut scalar1 = Zp::ZERO;
+
+        let scalars_gen = match self {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => &mut output,
+            PkeV2HashMode::Compact => core::slice::from_mut(&mut scalar1),
+        };
+
+        hash_fn(scalars_gen, inputs);
+
+        match self {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => output
+                .iter()
+                .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
+                .collect::<Box<[_]>>(),
+            PkeV2HashMode::Compact => {
+                generate_powers(scalar1, output);
+                // since the content of the list is entirely defined by scalar1, it is not necessary
+                // to hash the full list in the following steps
+                Box::from(scalar1.to_le_bytes().as_ref())
+            }
+        }
+    }
+
+    fn gen_scalars<Zp: FieldOps>(self, output: &mut [Zp], inputs: &[&[u8]]) -> Box<[u8]> {
+        self.gen_scalars_with_hash(output, inputs, Zp::hash)
+    }
+
+    /// Generates if possible 128bits scalars that reduce the cost of multi exponentiations. This is
+    /// not compatible with compact hashes since the scalars need to be independent, so a classical
+    /// hash function will be used.
+    fn gen_short_scalars<Zp: FieldOps>(self, output: &mut [Zp], inputs: &[&[u8]]) -> Box<[u8]> {
+        let hash_fn = match self {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => Zp::hash_128bit,
+            PkeV2HashMode::Compact => Zp::hash,
+        };
+        self.gen_scalars_with_hash(output, inputs, hash_fn)
+    }
+
+    /// Encode the R matrix (defined as a matrix of -1, 0, 1) as bytes
+    fn encode_R(self, R: &[i8]) -> Box<[u8]> {
+        match self {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => {
+                let R_coeffs = |i: usize, j: usize| R[i + j * 128];
+                let columns = R.len() / 128;
+
+                (0..128)
+                    .flat_map(|i| (0..columns).map(move |j| R_coeffs(i, j) as u8))
+                    .collect()
+            }
+            PkeV2HashMode::Compact => {
+                // Since the R matrix is only composed of ternary values, we can pack them by group
+                // of five instead of using a full u8 for each value
+                R.chunks(5)
+                    .map(|chunk| {
+                        let mut packed: u8 = 0;
+                        let mut power_of_3: u8 = 1;
+
+                        // Cannot overflow since the max value is 3**5 = 243, which fits in a byte
+                        for &byte in chunk {
+                            let mapped = (byte + 1) as u8;
+                            packed += mapped * power_of_3;
+                            power_of_3 *= 3;
+                        }
+                        packed
+                    })
+                    .collect()
+            }
+        }
+    }
+}
 
 // The scalar used for the proof are generated using sha3 as a random oracle. The inputs of the hash
 // that generates a given scalar are reused for the subsequent hashes. We use the typestate pattern
@@ -23,6 +137,7 @@ struct RInputs<'a> {
     n: usize,
     k: usize,
     d: usize,
+    mode: PkeV2HashMode,
 }
 
 pub(super) struct RHash<'a> {
@@ -37,6 +152,7 @@ impl<'a> RHash<'a> {
         C_hat_e_bytes: &'a [u8],
         C_e_bytes: &'a [u8],
         C_r_tilde_bytes: &'a [u8],
+        mode: PkeV2HashMode,
     ) -> (Box<[i8]>, Self) {
         let (
             &PublicParams {
@@ -129,10 +245,7 @@ impl<'a> RHash<'a> {
             })
             .collect::<Box<[i8]>>();
 
-        let R_coeffs = |i: usize, j: usize| R[i + j * 128];
-        let R_bytes = (0..128)
-            .flat_map(|i| (0..(2 * (d + k) + 4)).map(move |j| R_coeffs(i, j) as u8))
-            .collect();
+        let R_bytes = mode.encode_R(&R);
 
         (
             R,
@@ -150,6 +263,7 @@ impl<'a> RHash<'a> {
                     n,
                     k,
                     d,
+                    mode,
                 },
 
                 R_bytes,
@@ -157,35 +271,36 @@ impl<'a> RHash<'a> {
         )
     }
 
-    pub(super) fn gen_phi<Zp: FieldOps>(self, C_R_bytes: &'a [u8]) -> ([Zp; 128], PhiHash<'a>) {
+    fn phi_hash_inputs(&self, phi_inputs: &PhiInputs<'a>) -> [&[u8]; 9] {
         let Self { R_inputs, R_bytes } = self;
 
+        [
+            R_inputs.ds.hash_phi(),
+            &R_inputs.sid_bytes,
+            R_inputs.metadata,
+            &R_inputs.x_bytes,
+            R_bytes,
+            R_inputs.C_hat_e_bytes,
+            R_inputs.C_e_bytes,
+            phi_inputs.C_R_bytes,
+            R_inputs.C_r_tilde_bytes,
+        ]
+    }
+
+    pub(super) fn gen_phi<Zp: FieldOps>(self, C_R_bytes: &'a [u8]) -> ([Zp; 128], PhiHash<'a>) {
+        let mode = self.R_inputs.mode;
+        let phi_inputs = PhiInputs { C_R_bytes };
+
         let mut phi = [Zp::ZERO; 128];
-        Zp::hash(
-            &mut phi,
-            &[
-                R_inputs.ds.hash_phi(),
-                &R_inputs.sid_bytes,
-                R_inputs.metadata,
-                &R_inputs.x_bytes,
-                &R_bytes,
-                R_inputs.C_hat_e_bytes,
-                R_inputs.C_e_bytes,
-                C_R_bytes,
-                R_inputs.C_r_tilde_bytes,
-            ],
-        );
-        let phi_bytes = phi
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+
+        let phi_bytes = mode.gen_scalars(&mut phi, &self.phi_hash_inputs(&phi_inputs));
 
         (
             phi,
             PhiHash {
-                R_inputs,
-                phi_inputs: PhiInputs { C_R_bytes },
-                R_bytes,
+                R_inputs: self.R_inputs,
+                phi_inputs,
+                R_bytes: self.R_bytes,
                 phi_bytes,
             },
         )
@@ -204,7 +319,7 @@ pub(super) struct PhiHash<'a> {
 }
 
 impl<'a> PhiHash<'a> {
-    pub(super) fn gen_xi<Zp: FieldOps>(self, C_hat_bin_bytes: &'a [u8]) -> ([Zp; 128], XiHash<'a>) {
+    fn xi_hash_inputs(&self, xi_inputs: &XiInputs<'a>) -> [&[u8]; 11] {
         let Self {
             R_inputs,
             R_bytes,
@@ -212,37 +327,52 @@ impl<'a> PhiHash<'a> {
             phi_bytes,
         } = self;
 
-        let mut xi = [Zp::ZERO; 128];
-        Zp::hash(
-            &mut xi,
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_xi(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
-                &phi_bytes,
+                R_bytes,
+                phi_bytes,
                 phi_inputs.C_R_bytes,
-                C_hat_bin_bytes,
+                xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
             ],
-        );
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_xi(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_bytes,
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+            ],
+        }
+    }
 
-        let xi_bytes = xi
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+    pub(super) fn gen_xi<Zp: FieldOps>(self, C_hat_bin_bytes: &'a [u8]) -> ([Zp; 128], XiHash<'a>) {
+        let mode = self.R_inputs.mode;
+        let xi_inputs = XiInputs { C_hat_bin_bytes };
+
+        let mut xi = [Zp::ZERO; 128];
+
+        let xi_bytes = mode.gen_scalars(&mut xi, &self.xi_hash_inputs(&xi_inputs));
 
         (
             xi,
             XiHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs: XiInputs { C_hat_bin_bytes },
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs,
                 xi_bytes,
             },
         )
@@ -263,7 +393,7 @@ pub(super) struct XiHash<'a> {
 }
 
 impl<'a> XiHash<'a> {
-    pub(super) fn gen_y<Zp: FieldOps>(self) -> (Vec<Zp>, YHash<'a>) {
+    fn y_hash_inputs(&self) -> [&[u8]; 12] {
         let Self {
             R_inputs,
             R_bytes,
@@ -273,38 +403,53 @@ impl<'a> XiHash<'a> {
             xi_bytes,
         } = self;
 
-        let mut y = vec![Zp::ZERO; R_inputs.D + 128 * R_inputs.m];
-        Zp::hash(
-            &mut y,
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &R_bytes,
-                &phi_bytes,
-                &xi_bytes,
+                R_bytes,
+                phi_bytes,
+                xi_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
             ],
-        );
-        let y_bytes = y
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_bytes,
+                xi_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_y<Zp: FieldOps>(self) -> (Vec<Zp>, YHash<'a>) {
+        let mode = self.R_inputs.mode;
+
+        let mut y = vec![Zp::ZERO; self.R_inputs.D + 128 * self.R_inputs.m];
+        let y_bytes = mode.gen_scalars(&mut y, &self.y_hash_inputs());
 
         (
             y,
             YHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
                 y_bytes,
             },
         )
@@ -322,7 +467,7 @@ pub(super) struct YHash<'a> {
 }
 
 impl<'a> YHash<'a> {
-    pub(super) fn gen_t<Zp: FieldOps>(self, C_y_bytes: &'a [u8]) -> (Vec<Zp>, THash<'a>) {
+    fn t_hash_input(&self, t_inputs: &TInputs<'a>) -> [&[u8]; 14] {
         let Self {
             R_inputs,
             R_bytes,
@@ -333,42 +478,60 @@ impl<'a> YHash<'a> {
             y_bytes,
         } = self;
 
-        let mut t = vec![Zp::ZERO; R_inputs.n];
-        Zp::hash_128bit(
-            &mut t,
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_t(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &phi_bytes,
-                &xi_bytes,
+                y_bytes,
+                phi_bytes,
+                xi_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
-                C_y_bytes,
+                t_inputs.C_y_bytes,
             ],
-        );
-        let t_bytes = t
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_t(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                phi_bytes,
+                xi_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_t<Zp: FieldOps>(self, C_y_bytes: &'a [u8]) -> (Vec<Zp>, THash<'a>) {
+        let mode = self.R_inputs.mode;
+        let t_inputs = TInputs { C_y_bytes };
+
+        let mut t = vec![Zp::ZERO; self.R_inputs.n];
+        let t_bytes = mode.gen_short_scalars(&mut t, &self.t_hash_input(&t_inputs));
 
         (
             t,
             THash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
-                y_bytes,
-                t_inputs: TInputs { C_y_bytes },
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
+                y_bytes: self.y_bytes,
+                t_inputs,
                 t_bytes,
             },
         )
@@ -392,7 +555,7 @@ pub(super) struct THash<'a> {
 }
 
 impl<'a> THash<'a> {
-    pub(super) fn gen_theta<Zp: FieldOps>(self) -> (Vec<Zp>, ThetaHash<'a>) {
+    fn theta_hash_input(&self) -> [&[u8]; 15] {
         let Self {
             R_inputs,
             phi_inputs,
@@ -405,44 +568,62 @@ impl<'a> THash<'a> {
             y_bytes,
         } = self;
 
-        let mut theta = vec![Zp::ZERO; R_inputs.d + R_inputs.k];
-        Zp::hash(
-            &mut theta,
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_lmap(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &t_bytes,
-                &phi_bytes,
-                &xi_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
                 t_inputs.C_y_bytes,
             ],
-        );
-        let theta_bytes = theta
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_lmap(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_theta<Zp: FieldOps>(self) -> (Vec<Zp>, ThetaHash<'a>) {
+        let mode = self.R_inputs.mode;
+
+        let mut theta = vec![Zp::ZERO; self.R_inputs.d + self.R_inputs.k];
+        let theta_bytes = mode.gen_scalars(&mut theta, &self.theta_hash_input());
 
         (
             theta,
             ThetaHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
-                y_bytes,
-                t_inputs,
-                t_bytes,
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
+                y_bytes: self.y_bytes,
+                t_inputs: self.t_inputs,
+                t_bytes: self.t_bytes,
                 theta_bytes,
             },
         )
@@ -463,7 +644,7 @@ pub(super) struct ThetaHash<'a> {
 }
 
 impl<'a> ThetaHash<'a> {
-    pub(super) fn gen_omega<Zp: FieldOps>(self) -> (Vec<Zp>, OmegaHash<'a>) {
+    fn omega_hash_input(&self) -> [&[u8]; 16] {
         let Self {
             R_inputs,
             R_bytes,
@@ -477,46 +658,65 @@ impl<'a> ThetaHash<'a> {
             theta_bytes,
         } = self;
 
-        let mut omega = vec![Zp::ZERO; R_inputs.n];
-        Zp::hash_128bit(
-            &mut omega,
-            &[
+        match self.R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_w(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &t_bytes,
-                &phi_bytes,
-                &xi_bytes,
-                &theta_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
                 t_inputs.C_y_bytes,
             ],
-        );
-        let omega_bytes = omega
-            .iter()
-            .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
-            .collect::<Box<[_]>>();
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_w(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_omega<Zp: FieldOps>(self) -> (Vec<Zp>, OmegaHash<'a>) {
+        let mode = self.R_inputs.mode;
+
+        let mut omega = vec![Zp::ZERO; self.R_inputs.n];
+        let omega_bytes = mode.gen_short_scalars(&mut omega, &self.omega_hash_input());
 
         (
             omega,
             OmegaHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
-                y_bytes,
-                t_inputs,
-                t_bytes,
-                theta_bytes,
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
+                y_bytes: self.y_bytes,
+                t_inputs: self.t_inputs,
+                t_bytes: self.t_bytes,
+                theta_bytes: self.theta_bytes,
                 omega_bytes,
             },
         )
@@ -538,7 +738,7 @@ pub(super) struct OmegaHash<'a> {
 }
 
 impl<'a> OmegaHash<'a> {
-    pub(super) fn gen_delta<Zp: FieldOps>(self) -> ([Zp; 7], DeltaHash<'a>) {
+    fn delta_hash_input(&self) -> [&[u8]; 17] {
         let Self {
             R_inputs,
             R_bytes,
@@ -553,29 +753,53 @@ impl<'a> OmegaHash<'a> {
             omega_bytes,
         } = self;
 
-        let mut delta = [Zp::ZERO; 7];
-        Zp::hash(
-            &mut delta,
-            &[
+        match self.R_inputs.mode {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_agg(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &t_bytes,
-                &phi_bytes,
-                &xi_bytes,
-                &theta_bytes,
-                &omega_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
                 t_inputs.C_y_bytes,
             ],
-        );
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_agg(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_delta<Zp: FieldOps>(self) -> ([Zp; 7], DeltaHash<'a>) {
+        let mut delta = [Zp::ZERO; 7];
+
+        // Delta does not use the compact hash optimization
+        Zp::hash(&mut delta, &self.delta_hash_input());
         let delta_bytes = delta
             .iter()
             .flat_map(|x| x.to_le_bytes().as_ref().to_vec())
@@ -584,16 +808,17 @@ impl<'a> OmegaHash<'a> {
         (
             delta,
             DeltaHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
-                y_bytes,
-                t_inputs,
-                t_bytes,
-                theta_bytes,
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
+                y_bytes: self.y_bytes,
+                t_inputs: self.t_inputs,
+                t_bytes: self.t_bytes,
+                theta_bytes: self.theta_bytes,
+                omega_bytes: self.omega_bytes,
                 delta_bytes,
             },
         )
@@ -611,18 +836,12 @@ pub(super) struct DeltaHash<'a> {
     t_inputs: TInputs<'a>,
     t_bytes: Box<[u8]>,
     theta_bytes: Box<[u8]>,
+    omega_bytes: Box<[u8]>,
     delta_bytes: Box<[u8]>,
 }
 
 impl<'a> DeltaHash<'a> {
-    pub(super) fn gen_z<Zp: FieldOps>(
-        self,
-        C_h1_bytes: &'a [u8],
-        C_h2_bytes: &'a [u8],
-        C_hat_t_bytes: &'a [u8],
-        C_hat_h3_bytes: &'a [u8],
-        C_hat_omega_bytes: &'a [u8],
-    ) -> (Zp, ZHash<'a>) {
+    fn z_hash_input(&self, z_inputs: &ZInputs<'a>) -> [&[u8]; 23] {
         let Self {
             R_inputs,
             R_bytes,
@@ -634,59 +853,126 @@ impl<'a> DeltaHash<'a> {
             t_inputs,
             t_bytes,
             theta_bytes,
+            omega_bytes,
             delta_bytes,
         } = self;
 
-        let mut z = Zp::ZERO;
-        Zp::hash(
-            core::slice::from_mut(&mut z),
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat => {
+                [
+                    R_inputs.ds.hash_z(),
+                    &R_inputs.sid_bytes,
+                    R_inputs.metadata,
+                    &R_inputs.x_bytes,
+                    y_bytes,
+                    t_bytes,
+                    phi_bytes,
+                    &R_inputs.x_bytes, // x is duplicated but we keep it for backward compat
+                    theta_bytes,
+                    &[], // Omega is not included for backward compat
+                    delta_bytes,
+                    R_inputs.C_hat_e_bytes,
+                    R_inputs.C_e_bytes,
+                    R_bytes,
+                    phi_inputs.C_R_bytes,
+                    xi_inputs.C_hat_bin_bytes,
+                    R_inputs.C_r_tilde_bytes,
+                    t_inputs.C_y_bytes,
+                    z_inputs.C_h1_bytes,
+                    z_inputs.C_h2_bytes,
+                    z_inputs.C_hat_t_bytes,
+                    z_inputs.C_hat_h3_bytes,
+                    z_inputs.C_hat_omega_bytes,
+                ]
+            }
+            PkeV2HashMode::Classical => [
                 R_inputs.ds.hash_z(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &t_bytes,
-                &phi_bytes,
-                &R_inputs.x_bytes, // x is duplicated but we have to keep it for backward compat
-                &theta_bytes,
-                &delta_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
+                delta_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
                 t_inputs.C_y_bytes,
-                C_h1_bytes,
-                C_h2_bytes,
-                C_hat_t_bytes,
-                C_hat_h3_bytes,
-                C_hat_omega_bytes,
+                z_inputs.C_h1_bytes,
+                z_inputs.C_h2_bytes,
+                z_inputs.C_hat_t_bytes,
+                z_inputs.C_hat_h3_bytes,
+                z_inputs.C_hat_omega_bytes,
             ],
-        );
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_z(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
+                delta_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+                z_inputs.C_h1_bytes,
+                z_inputs.C_h2_bytes,
+                z_inputs.C_hat_t_bytes,
+                z_inputs.C_hat_h3_bytes,
+                z_inputs.C_hat_omega_bytes,
+            ],
+        }
+    }
+
+    pub(super) fn gen_z<Zp: FieldOps>(
+        self,
+        C_h1_bytes: &'a [u8],
+        C_h2_bytes: &'a [u8],
+        C_hat_t_bytes: &'a [u8],
+        C_hat_h3_bytes: &'a [u8],
+        C_hat_omega_bytes: &'a [u8],
+    ) -> (Zp, ZHash<'a>) {
+        let z_inputs = ZInputs {
+            C_h1_bytes,
+            C_h2_bytes,
+            C_hat_t_bytes,
+            C_hat_h3_bytes,
+            C_hat_omega_bytes,
+        };
+
+        let mut z = Zp::ZERO;
+        Zp::hash(core::slice::from_mut(&mut z), &self.z_hash_input(&z_inputs));
 
         (
             z,
             ZHash {
-                R_inputs,
-                R_bytes,
-                phi_inputs,
-                phi_bytes,
-                xi_inputs,
-                xi_bytes,
-                y_bytes,
-                t_inputs,
-                t_bytes,
-                theta_bytes,
-                delta_bytes,
-                z_inputs: ZInputs {
-                    C_h1_bytes,
-                    C_h2_bytes,
-                    C_hat_t_bytes,
-                    C_hat_h3_bytes,
-                    C_hat_omega_bytes,
-                },
+                R_inputs: self.R_inputs,
+                R_bytes: self.R_bytes,
+                phi_inputs: self.phi_inputs,
+                phi_bytes: self.phi_bytes,
+                xi_inputs: self.xi_inputs,
+                xi_bytes: self.xi_bytes,
+                y_bytes: self.y_bytes,
+                t_inputs: self.t_inputs,
+                t_bytes: self.t_bytes,
+                theta_bytes: self.theta_bytes,
+                omega_bytes: self.omega_bytes,
+                delta_bytes: self.delta_bytes,
+                z_inputs,
                 z_bytes: Box::from(z.to_le_bytes().as_ref()),
             },
         )
@@ -712,13 +998,21 @@ pub(super) struct ZHash<'a> {
     t_inputs: TInputs<'a>,
     t_bytes: Box<[u8]>,
     theta_bytes: Box<[u8]>,
+    omega_bytes: Box<[u8]>,
     delta_bytes: Box<[u8]>,
     z_inputs: ZInputs<'a>,
     z_bytes: Box<[u8]>,
 }
 
 impl<'a> ZHash<'a> {
-    pub(super) fn gen_chi<Zp: FieldOps>(self, p_h1: Zp, p_h2: Zp, p_t: Zp) -> Zp {
+    fn chi_hash_input<'b>(
+        &'b self,
+        p_h1: &'b [u8],
+        p_h2: &'b [u8],
+        p_t: &'b [u8],
+        p_h3: &'b [u8],
+        p_omega: &'b [u8],
+    ) -> [&'b [u8]; 29] {
         let Self {
             R_inputs,
             R_bytes,
@@ -730,28 +1024,28 @@ impl<'a> ZHash<'a> {
             t_inputs,
             t_bytes,
             theta_bytes,
+            omega_bytes,
             delta_bytes,
             z_inputs,
             z_bytes,
         } = self;
 
-        let mut chi = Zp::ZERO;
-        Zp::hash(
-            core::slice::from_mut(&mut chi),
-            &[
+        match R_inputs.mode {
+            PkeV2HashMode::BackwardCompat => [
                 R_inputs.ds.hash_chi(),
                 &R_inputs.sid_bytes,
                 R_inputs.metadata,
                 &R_inputs.x_bytes,
-                &y_bytes,
-                &t_bytes,
-                &phi_bytes,
-                &xi_bytes,
-                &theta_bytes,
-                &delta_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                &[], // Omega is not included for backward compat
+                delta_bytes,
                 R_inputs.C_hat_e_bytes,
                 R_inputs.C_e_bytes,
-                &R_bytes,
+                R_bytes,
                 phi_inputs.C_R_bytes,
                 xi_inputs.C_hat_bin_bytes,
                 R_inputs.C_r_tilde_bytes,
@@ -761,11 +1055,103 @@ impl<'a> ZHash<'a> {
                 z_inputs.C_hat_t_bytes,
                 z_inputs.C_hat_h3_bytes,
                 z_inputs.C_hat_omega_bytes,
-                &z_bytes,
+                z_bytes,
+                p_h1,
+                p_h2,
+                p_t,
+                // p_h3 and p_omega are not hashed for backward compatibility reasons
+                &[],
+                &[],
+            ],
+            PkeV2HashMode::Classical => [
+                R_inputs.ds.hash_chi(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
+                delta_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                R_bytes,
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+                z_inputs.C_h1_bytes,
+                z_inputs.C_h2_bytes,
+                z_inputs.C_hat_t_bytes,
+                z_inputs.C_hat_h3_bytes,
+                z_inputs.C_hat_omega_bytes,
+                z_bytes,
+                p_h1,
+                p_h2,
+                p_t,
+                p_h3,
+                p_omega,
+            ],
+            PkeV2HashMode::Compact => [
+                R_inputs.ds.hash_chi(),
+                &R_inputs.sid_bytes,
+                R_inputs.metadata,
+                &R_inputs.x_bytes,
+                y_bytes,
+                t_bytes,
+                phi_bytes,
+                xi_bytes,
+                theta_bytes,
+                omega_bytes,
+                delta_bytes,
+                R_inputs.C_hat_e_bytes,
+                R_inputs.C_e_bytes,
+                &[], // R is only hashed in phi in compact mode
+                phi_inputs.C_R_bytes,
+                xi_inputs.C_hat_bin_bytes,
+                R_inputs.C_r_tilde_bytes,
+                t_inputs.C_y_bytes,
+                z_inputs.C_h1_bytes,
+                z_inputs.C_h2_bytes,
+                z_inputs.C_hat_t_bytes,
+                z_inputs.C_hat_h3_bytes,
+                z_inputs.C_hat_omega_bytes,
+                z_bytes,
+                p_h1,
+                p_h2,
+                p_t,
+                p_h3,
+                p_omega,
+            ],
+        }
+    }
+
+    pub(super) fn gen_chi<Zp: FieldOps>(
+        self,
+        p_h1: Zp,
+        p_h2: Zp,
+        p_t: Zp,
+        p_h3_opt: Option<Zp>,
+        p_omega_opt: Option<Zp>,
+    ) -> Zp {
+        let mut chi = Zp::ZERO;
+
+        let p_h3 = p_h3_opt.map_or(Box::from([]), |p_h3| Box::from(p_h3.to_le_bytes().as_ref()));
+        let p_omega = p_omega_opt.map_or(Box::from([]), |p_omega| {
+            Box::from(p_omega.to_le_bytes().as_ref())
+        });
+
+        Zp::hash(
+            core::slice::from_mut(&mut chi),
+            &self.chi_hash_input(
                 p_h1.to_le_bytes().as_ref(),
                 p_h2.to_le_bytes().as_ref(),
                 p_t.to_le_bytes().as_ref(),
-            ],
+                &p_h3,
+                &p_omega,
+            ),
         );
 
         chi
