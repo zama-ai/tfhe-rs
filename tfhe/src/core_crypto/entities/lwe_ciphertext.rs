@@ -688,6 +688,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweCiphertext<C> {
         self.data
     }
 
+    pub fn container_ref(&self) -> &C {
+        &self.data
+    }
+
     /// Return the [`CiphertextModulus`] of the [`LweCiphertext`].
     ///
     /// See [`LweCiphertext::from_container`] for usage.
