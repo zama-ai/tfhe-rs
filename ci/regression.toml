@@ -21,6 +21,7 @@ target.integer = ["mul", "div"]
 target.dex = ["dex_swap"]
 slab.backend = "hyperstack"
 slab.profile = "single-h100"
+env.fast_bench = "TRUE"
 
 [gpu.multi-h100]
 target.integer = ["mul", "div"]

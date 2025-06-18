@@ -50,7 +50,6 @@ USER_TO_TFHE_TARGETS = {
     "pbs128": "pbs128-bench",
 }
 
-
 def check_targets_consistency(bench_targets: list[dict]):
     missing_targets = {}
 
@@ -63,16 +62,18 @@ def check_targets_consistency(bench_targets: list[dict]):
     if missing_targets:
         print("Inconsistent targets:")
         for key, missing_name in missing_targets.items():
-            print(f"tfhe-benchmark target `{missing_name}` not found in {BENCH_TARGETS_PATH} (user target associated: `{key}`)")
+            print(
+                f"tfhe-benchmark target `{missing_name}` not found in {BENCH_TARGETS_PATH} (user target associated: `{key}`)"
+            )
         raise KeyError("tfhe-benchmark targets inconsistent")
+
 
 class ProfileOption(enum.Enum):
     Backend = 1
     RegressionProfile = 2
     Slab = 3
     BenchmarkTarget = 4
-    # TODO Add fast_bench/parameters_set/... handling
-    #  How to deal with these env vars ?? since they are not part of the cargo command
+    EnvironmentVariable = 5
 
     @staticmethod
     def from_str(label):
@@ -85,8 +86,11 @@ class ProfileOption(enum.Enum):
                 return ProfileOption.Slab
             case "target":
                 return ProfileOption.BenchmarkTarget
+            case "env":
+                return ProfileOption.EnvironmentVariable
             case _:
                 raise NotImplementedError
+
 
 class TfheBackend(enum.StrEnum):
     Cpu = "cpu"
@@ -105,6 +109,9 @@ class TfheBackend(enum.StrEnum):
             case _:
                 raise NotImplementedError
 
+
+# TODO Replace integer enum with StrEnum do avoid having a mapping for targets as constant
+#  + implement consistency checking
 class TargetOption(enum.Enum):
     Boolean = 1
     Shortint = 2
@@ -177,6 +184,30 @@ class SlabOption(enum.Enum):
                 raise NotImplementedError
 
 
+class EnvOption(enum.StrEnum):
+    FastBench = "__TFHE_RS_FAST_BENCH"
+    BenchOpFlavor = "__TFHE_RS_BENCH_OP_FLAVOR"
+    BenchType = "__TFHE_RS_BENCH_TYPE"
+    BenchParamType = "__TFHE_RS_PARAM_TYPE"
+    BenchParamsSet = "__TFHE_RS_PARAMS_SET"
+
+    @staticmethod
+    def from_str(label):
+        match label.lower():
+            case "fast_bench":
+                return EnvOption.FastBench
+            case "bench_op_flavor":
+                return EnvOption.BenchOpFlavor
+            case "bench_type":
+                return EnvOption.BenchType
+            case "bench_param_type":
+                return EnvOption.BenchParamType
+            case "bench_params_set":
+                return EnvOption.BenchParamsSet
+            case _:
+                raise NotImplementedError
+
+
 def _parse_option_content(content):
     key, _, value = content.partition("=")
     return key, value
@@ -194,12 +225,14 @@ class ProfileDefinition:
         self.slab_backend = None
         self.slab_profile = None
 
+        self.env_vars = {}
+
         check_targets_consistency(tfhe_rs_targets)
         self.tfhe_rs_targets = self._build_tfhe_rs_targets(tfhe_rs_targets)
         # print("TARGETS:", self.tfhe_rs_targets)  # DEBUG
 
     def __str__(self):
-        return f"ProfileDefinition(backend={self.backend}, regression_profile={self.regression_profile}, targets={self.targets}, slab_backend={self.slab_backend}, slab_profile={self.slab_profile})"
+        return f"ProfileDefinition(backend={self.backend}, regression_profile={self.regression_profile}, targets={self.targets}, slab_backend={self.slab_backend}, slab_profile={self.slab_profile}, env_vars={self.env_vars})"
 
     def set_field_from_option(self, option: ProfileOption, value: str):
         """
@@ -226,6 +259,9 @@ class ProfileDefinition:
                     self.slab_backend = value
                 elif key == "profile":
                     self.slab_profile = value
+            case ProfileOption.EnvironmentVariable:
+                key, value = _parse_option_content(value)
+                self.env_vars[EnvOption.from_str(key)] = value
             case _:
                 raise NotImplementedError
 
@@ -279,6 +315,9 @@ class ProfileDefinition:
                             self.slab_backend = val
                         elif slab_key == "profile":
                             self.slab_profile = val
+                case ProfileOption.EnvironmentVariable:
+                    for env_key, val in value.items():
+                        self.env_vars[EnvOption.from_str(env_key)] = val
                 case _:
                     continue
 
@@ -319,12 +358,18 @@ class ProfileDefinition:
         """
         commands = []
         for key, ops in self.targets.items():
-            print(ops)
+            print(ops)  # DEBUG
             features = self._build_features(key)
-            ops_filter = [f"::{op}::" for op in ops]  # FIXME ce filtre grossier ne fonctionne pas (voir comment on gère le truc avec les scripts pour nextest)
-            commands.append(f"--bench {self.tfhe_rs_targets[key]["target"]} --features={','.join(features)} -- '{"|".join(ops_filter)}'")
+            ops_filter = [f"::{op}::" for op in ops]
+            commands.append(
+                f"--bench {self.tfhe_rs_targets[key]["target"]} --features={','.join(features)} -- '{"|".join(ops_filter)}'"
+            )
 
         return commands
+
+    def generate_custom_env_file(self):
+        pass
+
 
 def parse_issue_comment(comment):
     """
@@ -385,6 +430,7 @@ def build_definition(profile_args_pairs, profile_defintions):
 
     return definition
 
+
 def write_commands_to_file(commands):
     """
     Write commands to a file.
@@ -395,14 +441,19 @@ def write_commands_to_file(commands):
     with GENERATED_COMMANDS_PATH.open("w") as f:
         f.write("[")
         for command in commands[:-1]:
-            f.write(f"\"{command}\", ")
-        f.write(f"\"{commands[-1]}\"]")
+            f.write(f'"{command}", ')
+        f.write(f'"{commands[-1]}"]')
 
-# Doit être capable de parser un commentaire d'issue
-# puis de sortir les commandes cargo à exécuter
 
-# Doit être capable de faire les calculs de régression si on lui donne une série de données
-# est-ce qu'il doit récupérer les données lui même ?
+def write_env_to_file(env_vars: dict[EnvOption, str]):
+    with CUSTOM_ENV_PATH.open("w") as f:
+        f.write("#!/usr/bin/env bash\n\n{\n")
+        for key, v in env_vars.items():
+            f.write(f'\techo "{key.value}={v}";\n')
+        f.write('} >> "$GITHUB_ENV"\n')
+
+
+# TODO Perform regression computing by providing a file containing results from database that would be parsed
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -421,5 +472,8 @@ if __name__ == "__main__":
 
         definition = build_definition(profile_args_pairs, profile_definitions)
         commands = definition.generate_cargo_commands()
+        print(definition)
+
         print(commands)  # DEBUG
         write_commands_to_file(commands)
+        write_env_to_file(definition.env_vars)
