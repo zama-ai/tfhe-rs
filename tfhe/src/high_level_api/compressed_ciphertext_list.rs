@@ -1062,9 +1062,19 @@ mod tests {
             let mut compressed_list_builder = CompressedCiphertextListBuilder::new();
             let compressed_list_init = compressed_list_builder.push(ct1).push(ct2);
             let compression_size_on_gpu = compressed_list_init.get_size_on_gpu().unwrap();
-            while !check_valid_cuda_malloc(compression_size_on_gpu, GpuIndex::new(0)) {
+            const N_ATTEMPTS: usize = 10usize;
+            for i in 0..N_ATTEMPTS {
+                if check_valid_cuda_malloc(compression_size_on_gpu, GpuIndex::new(0)) {
+                    break;
+                }
                 std::thread::sleep(std::time::Duration::from_millis(10));
+                assert!(
+                    (i != N_ATTEMPTS - 1),
+                    "test_compression_decompression_size_on_gpu:
+                         could not allocate enough memory for compression on GPU"
+                );
             }
+
             let compressed_list = compressed_list_init.build().unwrap();
             let decompress_ct1_size_on_gpu = compressed_list
                 .get_decompression_size_on_gpu(0)
