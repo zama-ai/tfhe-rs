@@ -46,7 +46,7 @@ use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
 use crate::core_crypto::prelude::misc::torus_modular_diff;
 use crate::core_crypto::prelude::test::{round_decode, TestResources};
 use crate::integer::tests::create_parameterized_test;
-use crate::shortint::atomic_pattern::AtomicPatternServerKey;
+use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternServerKey};
 use crate::shortint::ciphertext::NoiseLevel;
 
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
@@ -84,7 +84,7 @@ use crate::shortint::server_key::tests::noise_distribution::{
     scalar_multiplication_variance, should_run_long_pfail_tests, should_use_one_key_per_sample,
 };
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
-use crate::shortint::{CarryModulus, ClientKey, MessageModulus, PBSParameters};
+use crate::shortint::{AtomicPatternKind, CarryModulus, ClientKey, MessageModulus, PBSParameters};
 
 use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
@@ -1512,15 +1512,22 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
             data_info,
             local_streams,
         );
-    let mut gpu_expanded_ct: CudaUnsignedRadixCiphertext =
-        sks.create_trivial_zero_radix(num_ct_blocks, local_streams);
 
+    let core_ksk = &ksk.key_switching_key_material.lwe_keyswitch_key;
+
+    let expanded_ct = LweCiphertext::new(
+        0u64,
+        shortint_compact_ct_list.ct_list.lwe_size(),
+        shortint_compact_ct_list.ct_list.ciphertext_modulus(),
+    );
+    let mut gpu_expanded_ct =
+        CudaLweCiphertextList::from_lwe_ciphertext(&expanded_ct, local_streams);
     //we need to call directly to the expand function in the backend for the non-casting case
     unsafe {
         cuda_lwe_expand_64(
             local_streams.ptr[0],
             0u32,
-            gpu_expanded_ct.ciphertext.d_blocks.0.d_vec.as_mut_c_ptr(0),
+            gpu_expanded_ct.0.d_vec.as_mut_c_ptr(0),
             gpu_flatten_compact_ct_list.d_flattened_vec.as_c_ptr(0),
             gpu_flatten_compact_ct_list.lwe_dimension.0 as u32,
             gpu_flatten_compact_ct_list.lwe_ciphertext_count.0 as u32,
@@ -1529,9 +1536,6 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
         );
     }
     local_streams.synchronize();
-    let gpu_expanded_info = gpu_expanded_ct.ciphertext.info.blocks[0];
-
-    let core_ksk = &ksk.key_switching_key_material.lwe_keyswitch_key;
 
     let after_ks_lwe_ct = LweCiphertext::new(
         0u64,
@@ -1544,7 +1548,7 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
 
     cuda_keyswitch_lwe_ciphertext(
         &core_ksk,
-        &gpu_expanded_ct.ciphertext.d_blocks,
+        &gpu_expanded_ct,
         &mut d_after_ks_lwe_ct,
         &d_input_indexes,
         &d_output_indexes,
@@ -1557,16 +1561,16 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
                 let before_ms_list = d_after_ks_lwe_ct.to_lwe_ciphertext_list(local_streams);
                 let before_ms_ct = LweCiphertext::from_container(
                     before_ms_list.into_container(),
-                    sks.key_switching_key.ciphertext_modulus(),
+                    core_ksk.ciphertext_modulus(),
                 );
 
                 let shortint_ct_after_pke_ks2: Ciphertext = Ciphertext::new(
                     before_ms_ct,
-                    gpu_expanded_info.degree,
-                    gpu_expanded_info.noise_level,
-                    gpu_expanded_info.message_modulus,
-                    gpu_expanded_info.carry_modulus,
-                    gpu_expanded_info.atomic_pattern,
+                    gpu_flatten_compact_ct_list.degree,
+                    NoiseLevel::NOMINAL,
+                    gpu_flatten_compact_ct_list.message_modulus,
+                    gpu_flatten_compact_ct_list.carry_modulus,
+                    AtomicPatternKind::Standard(ksk.dest_server_key.pbs_order),
                 );
 
                 let mut shortint_ct_after_pke_ks = CudaRadixCiphertext::from_cpu_blocks(
@@ -1645,7 +1649,7 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
     let mut before_ms = match &sks.bootstrapping_key {
         CudaBootstrappingKey::Classic(d_bsk) => {
             let d_before_drift_as_input = d_before_drift.clone();
-            let input_lwe_dimension = d_bsk.input_lwe_dimension;
+            let input_lwe_dimension = d_before_drift.lwe_dimension();
             let ct_modulus = d_before_drift.ciphertext_modulus().raw_modulus_float();
             cuda_improve_noise_modulus_switch_ciphertext(
                 &mut d_before_drift.0.d_vec,
@@ -1706,7 +1710,7 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
     let after_ms_lwe_list = before_ms.to_lwe_ciphertext_list(local_streams);
     let mut after_ms_lwe = LweCiphertext::from_container(
         after_ms_lwe_list.into_container(),
-        block_params.ciphertext_modulus(),
+        before_ms.ciphertext_modulus(),
     );
 
     let decryption_noise_after_ms = match &sks.bootstrapping_key {
@@ -1726,7 +1730,9 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
             for val in mod_switched_array.iter_mut() {
                 *val <<= shift_to_map_to_native;
             }
-            let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
+            //let output_ks_lwe_dimension = sks.key_switching_key.output_key_lwe_dimension();
+            let output_lwe_dimension = after_ms_lwe.lwe_size().to_lwe_dimension();
+            
             DecryptionAndNoiseResult::new_multi_bit(
                 &after_ms_lwe,
                 &small_lwe_secret_key,
@@ -1734,7 +1740,7 @@ fn pke_encrypt_ks_to_compute_inner_helper_gpu(
                 delta,
                 cleartext_modulus,
                 d_multibit_bsk.grouping_factor,
-                output_ks_lwe_dimension,
+                output_lwe_dimension,
                 &mod_switched_array,
             )
         }
@@ -2296,7 +2302,8 @@ fn noise_check_shortint_pke_encrypt_ks_to_compute_params_pfail_gpu<P>(
     let d_ksk_material = CudaKeySwitchingKeyMaterial::from_key_switching_key(&ksk, &streams);
     let d_ksk =
         CudaKeySwitchingKey::from_cuda_key_switching_key_material(&d_ksk_material, &gpu_sks);
-    let pool_count = 4usize; rayon::current_num_threads();
+    let pool_count = 4usize;
+    rayon::current_num_threads();
 
     let vec_local_streams = (0..pool_count)
         .map(|_| CudaStreams::new_single_gpu(GpuIndex::new(gpu_index)))
