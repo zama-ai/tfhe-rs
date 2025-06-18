@@ -3,8 +3,8 @@ use crate::shortint::backward_compatibility::parameters::ClassicPBSParametersVer
 use crate::shortint::parameters::{
     AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
     DecompositionBaseLog, DecompositionLevelCount, Degree, DynamicDistribution,
-    EncryptionKeyChoice, GlweDimension, LweDimension, MaxNoiseLevel, MessageModulus,
-    ModulusSwitchNoiseReductionParams, NoiseLevel, PBSOrder, PolynomialSize,
+    EncryptionKeyChoice, GlweDimension, LweDimension, MaxNoiseLevel, MessageModulus, ModSwitchType,
+    NoiseLevel, PBSOrder, PolynomialSize,
 };
 
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,7 @@ pub struct ClassicPBSParameters {
     pub log2_p_fail: f64,
     pub ciphertext_modulus: CiphertextModulus,
     pub encryption_key_choice: EncryptionKeyChoice,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: ModSwitchType,
 }
 
 impl ClassicPBSParameters {
@@ -74,7 +74,7 @@ impl ClassicPBSParameters {
         log2_p_fail: f64,
         ciphertext_modulus: CiphertextModulus,
         encryption_key_choice: EncryptionKeyChoice,
-        modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+        modulus_switch_noise_reduction_params: ModSwitchType,
     ) -> Self {
         Self {
             lwe_dimension,

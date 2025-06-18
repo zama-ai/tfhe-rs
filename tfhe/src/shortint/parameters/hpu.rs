@@ -48,7 +48,7 @@ impl From<&HpuParameters> for KeySwitch32PBSParameters {
                 value.pbs_params.ciphertext_width,
             )
             .unwrap(),
-            modulus_switch_noise_reduction_params: None,
+            modulus_switch_noise_reduction_params: ModSwitchType::Plain,
         }
     }
 }

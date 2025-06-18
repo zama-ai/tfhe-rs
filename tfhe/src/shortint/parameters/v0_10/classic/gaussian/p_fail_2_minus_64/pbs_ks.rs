@@ -1,7 +1,7 @@
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
-    MaxNoiseLevel, MessageModulus, PolynomialSize, StandardDev,
+    MaxNoiseLevel, MessageModulus, ModSwitchType, PolynomialSize, StandardDev,
 };
 
 // p-fail = 2^-64.05, algorithmic cost ~ 67, 2-norm = 3
@@ -26,7 +26,7 @@ pub const V0_10_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         log2_p_fail: -64.05,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModSwitchType::Plain,
     };
 // p-fail = 2^-64.107, algorithmic cost ~ 124, 2-norm = 5
 pub const V0_10_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
@@ -50,7 +50,7 @@ pub const V0_10_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         log2_p_fail: -64.107,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModSwitchType::Plain,
     };
 // p-fail = 2^-64.007, algorithmic cost ~ 1066, 2-norm = 9
 pub const V0_10_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
@@ -74,7 +74,7 @@ pub const V0_10_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         log2_p_fail: -64.007,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModSwitchType::Plain,
     };
 // p-fail = 2^-64.507, algorithmic cost ~ 13479, 2-norm = 17
 pub const V0_10_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64: ClassicPBSParameters =
@@ -98,7 +98,7 @@ pub const V0_10_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M64: ClassicPBSParamete
         log2_p_fail: -64.507,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModSwitchType::Plain,
     };
 pub const V0_10_WITH_CARRY_PARAMETERS_VEC_PBS_KS: [ClassicPBSParameters; 4] = [
     V0_10_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M64,

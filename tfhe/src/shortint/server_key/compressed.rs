@@ -1,10 +1,6 @@
 //! Module with the definition of the CompressedServerKey.
 
-use super::{
-    CompressedModulusSwitchNoiseReductionKey, MaxDegree,
-    ModulusSwitchNoiseReductionKeyConformanceParams, PBSConformanceParams,
-    PbsTypeConformanceParams,
-};
+use super::{MaxDegree, PBSConformanceParams, PbsTypeConformanceParams};
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
@@ -17,9 +13,12 @@ use crate::shortint::backward_compatibility::server_key::{
 use crate::shortint::ciphertext::MaxNoiseLevel;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
-    AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus,
+    AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, ModSwitchType,
 };
-use crate::shortint::server_key::ShortintBootstrappingKey;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams,
+    ShortintBootstrappingKey,
+};
 use crate::shortint::{ClientKey, ServerKey};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -32,8 +31,7 @@ where
 {
     Classic {
         bsk: SeededLweBootstrapKeyOwned<u64>,
-        modulus_switch_noise_reduction_key:
-            Option<CompressedModulusSwitchNoiseReductionKey<InputScalar>>,
+        modulus_switch_noise_reduction_key: CompressedModulusSwitchConfiguration<InputScalar>,
     },
     MultiBit {
         seeded_bsk: SeededLweMultiBitBootstrapKeyOwned<u64>,
@@ -155,13 +153,7 @@ impl<InputScalar: UnsignedTorus> ShortintCompressedBootstrappingKey<InputScalar>
 
                         fourier_bsk
                     },
-                    || {
-                        modulus_switch_noise_reduction_key.as_ref().map(
-                            |modulus_switch_noise_reduction_key| {
-                                modulus_switch_noise_reduction_key.decompress()
-                            },
-                        )
-                    },
+                    || modulus_switch_noise_reduction_key.decompress(),
                 );
 
                 ShortintBootstrappingKey::Classic {
@@ -400,14 +392,30 @@ where
                     bsk,
                     modulus_switch_noise_reduction_key,
                 },
-                PbsTypeConformanceParams::Classic { .. },
+                PbsTypeConformanceParams::Classic {
+                    modulus_switch_noise_reduction: modulus_switch_noise_reduction2,
+                },
             ) => {
                 let modulus_switch_noise_reduction_key_conformant = match (
                     modulus_switch_noise_reduction_key,
-                    ModulusSwitchNoiseReductionKeyConformanceParams::try_from(parameter_set),
+                    modulus_switch_noise_reduction2,
                 ) {
-                    (None, Err(())) => true,
-                    (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
+                    (CompressedModulusSwitchConfiguration::Plain, ModSwitchType::Plain) => true,
+
+                    (CompressedModulusSwitchConfiguration::Centered, ModSwitchType::Centered) => {
+                        true
+                    }
+                    (
+                        CompressedModulusSwitchConfiguration::PlainAddZero(
+                            modulus_switch_noise_reduction_key,
+                        ),
+                        ModSwitchType::PlainAddZero(modulus_switch_noise_reduction_params),
+                    ) => {
+                        let param = ModulusSwitchNoiseReductionKeyConformanceParams {
+                            modulus_switch_noise_reduction_params,
+                            lwe_dimension: parameter_set.in_lwe_dimension,
+                        };
+
                         modulus_switch_noise_reduction_key.is_conformant(&param)
                     }
                     _ => false,

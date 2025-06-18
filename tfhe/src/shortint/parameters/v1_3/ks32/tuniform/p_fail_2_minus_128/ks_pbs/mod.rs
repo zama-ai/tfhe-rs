@@ -1,13 +1,12 @@
 use crate::core_crypto::prelude::DynamicDistribution;
 use crate::shortint::parameters::{
-    CiphertextModulus32, KeySwitch32PBSParameters, LweCiphertextCount,
+    CiphertextModulus32, KeySwitch32PBSParameters, LweCiphertextCount, ModSwitchType,
     ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound, RSigmaFactor, Variance,
 };
 use crate::shortint::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
 use crate::shortint::{CarryModulus, CiphertextModulus, MaxNoiseLevel, MessageModulus};
-
 // p-fail = 2^-129.358, algorithmic cost ~ 113, 2-norm = 5
 // Average number of encryptions of 0s ~ 17, peak noise ~ Variance(0.00000140546154228955)
 pub const V1_3_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSParameters =
@@ -27,10 +26,12 @@ pub const V1_3_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128: KeySwitch32PBSPa
         log2_p_fail: -129.358380844,
         post_keyswitch_ciphertext_modulus: CiphertextModulus32::new_native(),
         ciphertext_modulus: CiphertextModulus::new_native(),
-        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1449),
-            ms_bound: NoiseEstimationMeasureBound(67108864f64),
-            ms_r_sigma_factor: RSigmaFactor(13.179851302864899f64),
-            ms_input_variance: Variance(2.63039392929833E-7f64),
-        }),
+        modulus_switch_noise_reduction_params: ModSwitchType::PlainAddZero(
+            ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: LweCiphertextCount(1449),
+                ms_bound: NoiseEstimationMeasureBound(67108864f64),
+                ms_r_sigma_factor: RSigmaFactor(13.179851302864899f64),
+                ms_input_variance: Variance(2.63039392929833E-7f64),
+            },
+        ),
     };

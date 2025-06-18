@@ -138,7 +138,7 @@ pub struct NoiseSquashingTestParams<Scalar: UnsignedInteger> {
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: ModSwitchType,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 

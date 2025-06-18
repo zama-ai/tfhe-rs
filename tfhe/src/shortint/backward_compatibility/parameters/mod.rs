@@ -65,7 +65,7 @@ impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV0 {
             log2_p_fail: self.log2_p_fail,
             ciphertext_modulus: self.ciphertext_modulus,
             encryption_key_choice: self.encryption_key_choice,
-            modulus_switch_noise_reduction_params: None,
+            modulus_switch_noise_reduction_params: ModSwitchType::Plain,
         })
     }
 }

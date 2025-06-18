@@ -9,7 +9,7 @@ use crate::shortint::client_key::atomic_pattern::{
     AtomicPatternClientKey, EncryptionAtomicPattern, StandardAtomicPatternClientKey,
 };
 use crate::shortint::client_key::GenericClientKey;
-use crate::shortint::parameters::{CarryModulus, MessageModulus};
+use crate::shortint::parameters::{CarryModulus, MessageModulus, ModSwitchType};
 use crate::shortint::{
     Ciphertext, ClassicPBSParameters, ClientKey, CompressedCiphertext, MaxNoiseLevel, PaddingBit,
     ShortintEncoding, ShortintParameterSet,
@@ -48,7 +48,7 @@ impl ShortintEngine {
                     log2_p_fail: 1.0,
                     ciphertext_modulus: wopbs_params.ciphertext_modulus,
                     encryption_key_choice: wopbs_params.encryption_key_choice,
-                    modulus_switch_noise_reduction_params: None,
+                    modulus_switch_noise_reduction_params: ModSwitchType::Plain,
                 }
                 .into()
             });

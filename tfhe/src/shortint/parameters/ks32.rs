@@ -10,11 +10,11 @@ use crate::core_crypto::prelude::{
     LweCiphertextConformanceParams, LweKeyswitchKeyConformanceParams, MsDecompressionType,
 };
 use crate::shortint::backward_compatibility::parameters::KeySwitch32PBSParametersVersions;
+use crate::shortint::parameters::ModSwitchType;
 
 use super::{
     AtomicPatternKind, CarryModulus, CiphertextConformanceParams, CiphertextModulus,
-    CiphertextModulus32, Degree, MaxNoiseLevel, MessageModulus, ModulusSwitchNoiseReductionParams,
-    NoiseLevel,
+    CiphertextModulus32, Degree, MaxNoiseLevel, MessageModulus, NoiseLevel,
 };
 
 /// A set of cryptographic parameters used with the atomic pattern
@@ -37,7 +37,7 @@ pub struct KeySwitch32PBSParameters {
     pub log2_p_fail: f64,
     pub post_keyswitch_ciphertext_modulus: CiphertextModulus32,
     pub ciphertext_modulus: CiphertextModulus,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: ModSwitchType,
 }
 
 #[allow(clippy::fallible_impl_from)]

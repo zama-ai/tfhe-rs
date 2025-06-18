@@ -1,7 +1,7 @@
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
-    MaxNoiseLevel, MessageModulus, PolynomialSize,
+    MaxNoiseLevel, MessageModulus, ModSwitchType, PolynomialSize,
 };
 
 // security = 132 bits, p-fail = 2^-64.138, algorithmic cost ~ 113, 2-norm = 5
@@ -22,5 +22,5 @@ pub const V0_10_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64: ClassicPBSParamete
         log2_p_fail: -64.138,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModSwitchType::Plain,
     };

@@ -38,7 +38,7 @@ where
         Ok(match self {
             Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic {
                 bsk,
-                modulus_switch_noise_reduction_key: None,
+                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Plain,
             },
             Self::MultiBit {
                 fourier_bsk,
@@ -156,7 +156,7 @@ impl<InputScalar: UnsignedInteger> Upgrade<ShortintCompressedBootstrappingKey<In
             Self::Classic(seeded_lwe_bootstrap_key) => {
                 ShortintCompressedBootstrappingKey::Classic {
                     bsk: seeded_lwe_bootstrap_key,
-                    modulus_switch_noise_reduction_key: None,
+                    modulus_switch_noise_reduction_key: CompressedModulusSwitchConfiguration::Plain,
                 }
             }
             Self::MultiBit {
