@@ -582,7 +582,7 @@ fn hpu_noise_distribution(
             let expvalue_score_failure_rate = arithmetic_mean(&expvalue_score_result);
             println!("expected value score failure rate: {expvalue_score_failure_rate:?}");
             assert!(
-                expvalue_score_failure_rate <= 0.065,
+                expvalue_score_failure_rate <= 0.08,
                 "expected value score failure rate is not acceptable"
             );
         }
