@@ -1,9 +1,22 @@
 # Zero-knowledge proofs
 
-Zero-knowledge proofs (ZK) are a powerful tool to assert that the encryption of a message is correct, as discussed in [advanced features](../../fhe-computation/advanced-features/zk-pok.md).
-However, computation is not possible on the type of ciphertexts it produces (i.e. `ProvenCompactCiphertextList`). This document explains how to use the GPU to accelerate the
-preprocessing step needed to convert ciphertexts formatted for ZK to ciphertexts in the right format for computation purposes on GPU. This 
-operation is called "expansion".
+Zero-knowledge proofs (ZK) are a powerful tool to assert that the encryption of a message is correctly formed with secure crypto-system parameters and helps thwart chosen ciphertext attacks (CCA) such as replay attacks. 
+
+The CPU implementation is discussed in [advanced features](../../fhe-computation/advanced-features/zk-pok.md). During encryption, ZK proofs can be generated for a single ciphertext or for a list of ciphertexts. To use ciphertexts with proofs for computation, additional conversion steps are needed: proof expansion and proof verification. While both steps are necessary to use ciphertexts with proofs for computation, only proof expansion is sped up on GPU, while verification is performed by the CPU.
+
+## Configuration
+
+{% hint style="info" %}
+You can enable this feature using the flag: `--features=zk-pok,gpu` when building **TFHE-rs**.
+{% endhint %}
+
+## API elements discussed in this document
+
+- [`tfhe::ProvenCompactCiphertextList`]()
+- [`tfhe::ProvenCompactCiphertextList::verify_and_expand`]()
+- [`tfhe::CompactPublicKey`]()
+- [`tfhe::ConfigBuilder::use_dedicated_compact_public_key_parameters`]()
+- [`tfhe::CompactCiphertextListBuilder::build_with_proof_packed`]()
 
 ## Proven compact ciphertext list
 
@@ -13,11 +26,6 @@ This way, verification and expansion can be performed in parallel, efficiently u
 
 ## Supported types
 Encrypted messages can be integers (like FheUint64) or booleans. The GPU backend does not currently support encrypted strings.
-
-{% hint style="info" %}
-You can enable this feature using the flag: `--features=zk-pok,gpu` when building **TFHE-rs**.
-{% endhint %}
-
 
 ## Example
 

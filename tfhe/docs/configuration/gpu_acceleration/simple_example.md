@@ -1,12 +1,23 @@
-# Simple single GPU TFHE-rs program
+# Simple TFHE-rs program
 
-The example shown in this section computes the sum of two integers using the GPU. It  contains code that can be split into a client-side and a server-side part, but for simplicity it is shown as a single snippet. Only the server-side benefits from GPU acceleration. 
+The example shown in this section computes the sum of two integers using the GPU. It  contains code that can be split into a client-side and a server-side part, but for simplicity it is shown as a single snippet. Only the server-side benefits from GPU acceleration.  
 
 This example shows how to use a single GPU to improve operation latency. It has the following structure:
 
 1. _Client-side_: Generate client keys and GPU server keys. Encrypt two numbers 
 2. _Server-side_: Move server keys to GPU and perform the addition
 3. _Client-side_: Decrypt the result 
+
+This example only performs an addition, but most FHE operations are supported on GPU. For a list see:
+
+{% content-ref url="./gpu_operations.md" %} List of FHE operations on GPU {% endcontent-ref %}
+
+## API elements discussed in this document
+
+- [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default): Instantiates the default crypto-system parameters. When the `"gpu"` feature is activated, the default parameters are GPU specific
+- [`tfhe::ServerKey::decompress_to_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_gpu):  decompresses a compressed `ServerKey` and copies it to the first available GPU 
+
+## A simple TFHE-rs program 
 
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, FheUint8, ClientKey, CompressedServerKey};
