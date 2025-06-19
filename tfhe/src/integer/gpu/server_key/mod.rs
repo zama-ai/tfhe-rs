@@ -14,8 +14,12 @@ use crate::shortint::atomic_pattern::compressed::CompressedAtomicPatternServerKe
 use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
+use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::server_key::{
+    CompressedModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey,
+};
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
+
 mod radix;
 
 pub enum CudaBootstrappingKey {
@@ -103,17 +107,21 @@ impl CudaServerKey {
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
-                let modulus_switch_noise_reduction_key = pbs_params
-                    .modulus_switch_noise_reduction_params
-                    .map(|modulus_switch_noise_reduction_params| {
-                        ModulusSwitchNoiseReductionKey::new(
+                let modulus_switch_noise_reduction_key =
+                    match pbs_params.modulus_switch_noise_reduction_params {
+                        ModulusSwitchType::Standard => None,
+                        ModulusSwitchType::DriftTechniqueNoiseReduction(
+                            modulus_switch_noise_reduction_params,
+                        ) => Some(ModulusSwitchNoiseReductionKey::new(
                             modulus_switch_noise_reduction_params,
                             &std_cks.lwe_secret_key,
                             &mut engine,
                             pbs_params.ciphertext_modulus,
                             pbs_params.lwe_noise_distribution,
-                        )
-                    });
+                        )),
+                        ModulusSwitchType::CenteredMeanNoiseReduction => panic!("Centered MS not supportred on GPU"),
+                    };
+
                 let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &h_bootstrap_key,
                     modulus_switch_noise_reduction_key.as_ref(),
@@ -238,7 +246,12 @@ impl CudaServerKey {
         let bootstrapping_key = match bootstrapping_key {
             crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key, } => {
 
-                let  ms_noise_reduction_key = modulus_switch_noise_reduction_key.map(|msnr| msnr.decompress());
+                let  ms_noise_reduction_key = match modulus_switch_noise_reduction_key {
+                    CompressedModulusSwitchConfiguration::Standard => None,
+                    CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_key) => Some(modulus_switch_noise_reduction_key.decompress()),
+                    CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!("Centered MS not supportred on GPU"),
+                };
+
                 let standard_bootstrapping_key = h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
 
                 let d_bootstrap_key =
