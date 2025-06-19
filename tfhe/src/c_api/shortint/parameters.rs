@@ -7,8 +7,11 @@ use crate::shortint::parameters::v1_0::*;
 use crate::shortint::parameters::v1_1::*;
 use crate::shortint::parameters::v1_2::*;
 use crate::shortint::parameters::v1_3::*;
-use crate::shortint::parameters::ModulusSwitchNoiseReductionParams as RustModulusSwitchNoiseReductionParams;
 pub use crate::shortint::parameters::*;
+use crate::shortint::parameters::{
+    ModulusSwitchNoiseReductionParams as RustModulusSwitchNoiseReductionParams,
+    ModulusSwitchType as RustModulusSwitchType,
+};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -56,25 +59,25 @@ pub struct ModulusSwitchNoiseReductionParams {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct ModulusSwitchNoiseReductionParamsOption {
+pub struct ModulusSwitchType {
     pub tag: u64,
     pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
 }
 
-impl ModulusSwitchNoiseReductionParamsOption {
-    pub const fn new_none() -> Self {
+impl ModulusSwitchType {
+    pub const fn new_plain() -> Self {
         Self {
             tag: 0,
             modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams {
                 modulus_switch_zeros_count: 0,
-                ms_bound: 0.0,
-                ms_r_sigma_factor: 0.0,
-                ms_input_variance: 0.0,
+                ms_bound: 0.,
+                ms_r_sigma_factor: 0.,
+                ms_input_variance: 0.,
             },
         }
     }
 
-    pub const fn new_some(
+    pub const fn new_plain_add_zero(
         modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
     ) -> Self {
         Self {
@@ -82,19 +85,30 @@ impl ModulusSwitchNoiseReductionParamsOption {
             modulus_switch_noise_reduction_params,
         }
     }
+
+    pub const fn new_centered_binary() -> Self {
+        Self {
+            tag: 2,
+            modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: 0,
+                ms_bound: 0.,
+                ms_r_sigma_factor: 0.,
+                ms_input_variance: 0.,
+            },
+        }
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_none(
-) -> ModulusSwitchNoiseReductionParamsOption {
-    ModulusSwitchNoiseReductionParamsOption::new_none()
+pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_none() -> ModulusSwitchType {
+    ModulusSwitchType::new_plain()
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn modulus_switch_noise_reduction_params_option_some(
     modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParams,
-) -> ModulusSwitchNoiseReductionParamsOption {
-    ModulusSwitchNoiseReductionParamsOption::new_some(modulus_switch_noise_reduction_params)
+) -> ModulusSwitchType {
+    ModulusSwitchType::new_plain_add_zero(modulus_switch_noise_reduction_params)
 }
 
 impl From<ModulusSwitchNoiseReductionParams> for RustModulusSwitchNoiseReductionParams {
@@ -114,17 +128,46 @@ impl From<ModulusSwitchNoiseReductionParams> for RustModulusSwitchNoiseReduction
     }
 }
 
-impl TryFrom<ModulusSwitchNoiseReductionParamsOption>
-    for Option<RustModulusSwitchNoiseReductionParams>
-{
+impl TryFrom<ModulusSwitchType> for RustModulusSwitchType {
     type Error = &'static str;
 
-    fn try_from(value: ModulusSwitchNoiseReductionParamsOption) -> Result<Self, Self::Error> {
-        let tag: OptionTag = value.tag.try_into()?;
+    fn try_from(value: ModulusSwitchType) -> Result<Self, Self::Error> {
+        match value.tag {
+            0 => Ok(Self::Standard),
+            1 => Ok(Self::DriftTechniqueNoiseReduction(
+                value.modulus_switch_noise_reduction_params.into(),
+            )),
+            2 => Ok(Self::CenteredMeanNoiseReduction),
+            _ => Err("Invalid value for ModulusSwitchType tag"),
+        }
+    }
+}
 
-        match tag {
-            OptionTag::None => Ok(None),
-            OptionTag::Some => Ok(Some(value.modulus_switch_noise_reduction_params.into())),
+impl RustModulusSwitchType {
+    const fn convert_to_c(&self) -> ModulusSwitchType {
+        let modulus_switch_noise_reduction_params_default = ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: 0,
+            ms_bound: 0.,
+            ms_r_sigma_factor: 0.,
+            ms_input_variance: 0.,
+        };
+
+        match self {
+            Self::Standard => ModulusSwitchType {
+                tag: 0,
+                modulus_switch_noise_reduction_params:
+                    modulus_switch_noise_reduction_params_default,
+            },
+            Self::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_params) => ModulusSwitchType {
+                tag: 1,
+                modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params
+                    .convert_to_c(),
+            },
+            Self::CenteredMeanNoiseReduction => ModulusSwitchType {
+                tag: 2,
+                modulus_switch_noise_reduction_params:
+                    modulus_switch_noise_reduction_params_default,
+            },
         }
     }
 }
@@ -158,7 +201,7 @@ pub struct ShortintPBSParameters {
     pub log2_p_fail: f64,
     pub modulus_power_of_2_exponent: usize,
     pub encryption_key_choice: ShortintEncryptionKeyChoice,
-    pub modulus_switch_noise_reduction_params: ModulusSwitchNoiseReductionParamsOption,
+    pub modulus_switch_noise_reduction_params: ModulusSwitchType,
 }
 
 impl TryFrom<ShortintPBSParameters> for crate::shortint::ClassicPBSParameters {
@@ -240,15 +283,6 @@ impl ShortintPBSParameters {
             modulus_switch_noise_reduction_params,
         } = rust_params;
 
-        let modulus_switch_noise_reduction_params = match modulus_switch_noise_reduction_params {
-            Some(modulus_switch_noise_reduction_params) => {
-                ModulusSwitchNoiseReductionParamsOption::new_some(
-                    modulus_switch_noise_reduction_params.convert_to_c(),
-                )
-            }
-            None => ModulusSwitchNoiseReductionParamsOption::new_none(),
-        };
-
         Self {
             lwe_dimension: lwe_dimension.0,
             glwe_dimension: glwe_dimension.0,
@@ -265,7 +299,8 @@ impl ShortintPBSParameters {
             log2_p_fail,
             modulus_power_of_2_exponent: convert_modulus(ciphertext_modulus),
             encryption_key_choice: ShortintEncryptionKeyChoice::convert(encryption_key_choice),
-            modulus_switch_noise_reduction_params,
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params
+                .convert_to_c(),
         }
     }
 }
