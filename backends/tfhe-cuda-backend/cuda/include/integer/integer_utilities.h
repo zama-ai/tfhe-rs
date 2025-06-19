@@ -10,6 +10,7 @@
 #include "utils/helper_multi_gpu.cuh"
 #include <cmath>
 #include <functional>
+#include <queue>
 
 class NoiseLevel {
 public:
@@ -81,6 +82,165 @@ void generate_many_lut_device_accumulator(
     uint64_t *max_degree, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t message_modulus, uint32_t carry_modulus,
     std::vector<std::function<Torus(Torus)>> &f, bool gpu_memory_allocated);
+
+template <typename Torus> struct radix_columns {
+  std::vector<std::vector<Torus>> columns;
+  std::vector<size_t> columns_counter;
+  std::vector<std::vector<Torus>> new_columns;
+  std::vector<size_t> new_columns_counter;
+
+  uint32_t num_blocks;
+  uint32_t num_radix_in_vec;
+  uint32_t chunk_size;
+  radix_columns(const uint64_t *const input_degrees, uint32_t num_blocks,
+                uint32_t num_radix_in_vec, uint32_t chunk_size,
+                bool &needs_processing)
+      : num_blocks(num_blocks), num_radix_in_vec(num_radix_in_vec),
+        chunk_size(chunk_size) {
+    needs_processing = false;
+    columns.resize(num_blocks);
+    columns_counter.resize(num_blocks, 0);
+    new_columns.resize(num_blocks);
+    new_columns_counter.resize(num_blocks, 0);
+    for (uint32_t i = 0; i < num_blocks; ++i) {
+      new_columns[i].resize(num_radix_in_vec);
+    }
+    for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
+      for (uint32_t j = 0; j < num_blocks; ++j) {
+        if (input_degrees[i * num_blocks + j]) {
+          columns[j].push_back(i * num_blocks + j);
+          columns_counter[j]++;
+        }
+      }
+    }
+    for (uint32_t i = 0; i < num_blocks; ++i) {
+      if (columns_counter[i] > chunk_size) {
+        needs_processing = true;
+        break;
+      }
+    }
+  }
+
+  void next_accumulation(Torus *h_indexes_in, Torus *h_indexes_out,
+                         Torus *h_lut_indexes, uint32_t &total_ciphertexts,
+                         uint32_t &message_ciphertexts,
+                         bool &needs_processing) {
+    message_ciphertexts = 0;
+    total_ciphertexts = 0;
+    needs_processing = false;
+
+    uint32_t pbs_count = 0;
+    for (uint32_t c_id = 0; c_id < num_blocks; ++c_id) {
+      const uint32_t column_len = columns_counter[c_id];
+      new_columns_counter[c_id] = 0;
+      uint32_t ct_count = 0;
+      // add message cts into new columns
+      for (uint32_t i = 0; i + chunk_size <= column_len; i += chunk_size) {
+        const Torus in_index = columns[c_id][i];
+        new_columns[c_id][ct_count] = in_index;
+        if (h_indexes_in != nullptr)
+          h_indexes_in[pbs_count] = in_index;
+        if (h_indexes_out != nullptr)
+          h_indexes_out[pbs_count] = in_index;
+        if (h_lut_indexes != nullptr)
+          h_lut_indexes[pbs_count] = 0;
+        ++pbs_count;
+        ++ct_count;
+        ++message_ciphertexts;
+      }
+      new_columns_counter[c_id] = ct_count;
+    }
+
+    for (uint32_t c_id = 0; c_id < num_blocks; ++c_id) {
+      const uint32_t column_len = columns_counter[c_id];
+      uint32_t ct_count = new_columns_counter[c_id];
+      // add carry cts into new columns
+      if (c_id > 0) {
+        const uint32_t prev_c_id = c_id - 1;
+        const uint32_t prev_column_len = columns_counter[prev_c_id];
+        for (uint32_t i = 0; i + chunk_size <= prev_column_len;
+             i += chunk_size) {
+          const Torus in_index = columns[prev_c_id][i];
+          const Torus out_index = columns[prev_c_id][i + 1];
+          new_columns[c_id][ct_count] = out_index;
+          if (h_indexes_in != nullptr)
+            h_indexes_in[pbs_count] = in_index;
+          if (h_indexes_out != nullptr)
+            h_indexes_out[pbs_count] = out_index;
+          if (h_lut_indexes != nullptr)
+            h_lut_indexes[pbs_count] = 1;
+          ++pbs_count;
+          ++ct_count;
+        }
+      }
+      // add remaining cts into new columns
+      const uint32_t start_index = column_len - column_len % chunk_size;
+      for (uint32_t i = start_index; i < column_len; ++i) {
+        new_columns[c_id][ct_count] = columns[c_id][i];
+        ++ct_count;
+      }
+      new_columns_counter[c_id] = ct_count;
+      if (ct_count > chunk_size) {
+        needs_processing = true;
+      }
+    }
+    total_ciphertexts = pbs_count;
+    swap(columns, new_columns);
+    swap(columns_counter, new_columns_counter);
+  }
+
+  void final_calculation(Torus *h_indexes_in, Torus *h_indexes_out,
+                         Torus *h_lut_indexes) {
+    for (uint32_t idx = 0; idx < 2 * num_blocks; ++idx) {
+      if (h_indexes_in != nullptr)
+        h_indexes_in[idx] = idx % num_blocks;
+      if (h_indexes_out != nullptr)
+        h_indexes_out[idx] = idx + idx / num_blocks;
+      if (h_lut_indexes != nullptr)
+        h_lut_indexes[idx] = idx / num_blocks;
+    }
+  }
+};
+
+inline void calculate_final_degrees(uint64_t *const out_degrees,
+                                    const uint64_t *const input_degrees,
+                                    uint32_t num_blocks,
+                                    uint32_t num_radix_in_vec,
+                                    uint32_t chunk_size,
+                                    uint64_t message_modulus) {
+
+  auto get_degree = [message_modulus](uint64_t degree) -> uint64_t {
+    return std::min(message_modulus - 1, degree);
+  };
+  std::vector<std::queue<uint64_t>> columns(num_blocks);
+  for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
+    for (uint32_t j = 0; j < num_blocks; ++j) {
+      if (input_degrees[i * num_blocks + j])
+        columns[j].push(input_degrees[i * num_blocks + j]);
+    }
+  }
+
+  for (uint32_t i = 0; i < num_blocks; ++i) {
+    auto &col = columns[i];
+    while (col.size() > 1) {
+      uint32_t cur_degree = 0;
+      uint32_t mn = std::min(chunk_size, (uint32_t)col.size());
+      for (int j = 0; j < mn; ++j) {
+        cur_degree += col.front();
+        col.pop();
+      }
+      const uint64_t new_degree = get_degree(cur_degree);
+      col.push(new_degree);
+      if ((i + 1) < num_blocks) {
+        columns[i + 1].push(new_degree);
+      }
+    }
+  }
+
+  for (int i = 0; i < num_blocks; i++) {
+    out_degrees[i] = (columns[i].empty()) ? 0 : columns[i].front();
+  }
+}
 
 struct int_radix_params {
   PBS_TYPE pbs_type;
@@ -1325,8 +1485,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   uint32_t num_blocks_in_radix;
   uint32_t max_num_radix_in_vec;
   uint32_t chunk_size;
-  uint64_t *size_tracker;
   bool gpu_memory_allocated;
+  bool reduce_degrees_for_single_carry_propagation;
 
   // temporary buffers
   CudaRadixCiphertextFFI *current_blocks;
@@ -1349,7 +1509,8 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   bool allocated_luts_message_carry;
 
   void setup_index_buffers(cudaStream_t const *streams,
-                           uint32_t const *gpu_indexes) {
+                           uint32_t const *gpu_indexes,
+                           uint64_t *size_tracker) {
 
     d_degrees = (uint64_t *)cuda_malloc_with_size_tracking_async(
         max_total_blocks_in_vec * sizeof(uint64_t), streams[0], gpu_indexes[0],
@@ -1394,18 +1555,29 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
   }
 
   void setup_lookup_tables(cudaStream_t const *streams,
-                           uint32_t const *gpu_indexes, uint32_t gpu_count) {
+                           uint32_t const *gpu_indexes, uint32_t gpu_count,
+                           uint32_t num_radix_in_vec,
+                           const uint64_t *const degrees) {
     uint32_t message_modulus = params.message_modulus;
+    bool _needs_processing = false;
+    radix_columns<Torus> current_columns(degrees, num_blocks_in_radix,
+                                         num_radix_in_vec, chunk_size,
+                                         _needs_processing);
+    uint32_t total_ciphertexts = 0;
+    uint32_t total_messages = 0;
+    current_columns.next_accumulation(nullptr, nullptr, nullptr,
+                                      total_ciphertexts, total_messages,
+                                      _needs_processing);
 
     if (!mem_reuse) {
-      uint32_t pbs_count = std::max(2 * (max_total_blocks_in_vec / chunk_size),
-                                    2 * num_blocks_in_radix);
-      if (max_total_blocks_in_vec > 0) {
-        luts_message_carry = new int_radix_lut<Torus>(
-            streams, gpu_indexes, gpu_count, params, 2, pbs_count,
-            gpu_memory_allocated, size_tracker);
-      } else {
-        allocated_luts_message_carry = false;
+      uint32_t pbs_count = std::max(total_ciphertexts, 2 * num_blocks_in_radix);
+      if (total_ciphertexts > 0 ||
+          reduce_degrees_for_single_carry_propagation) {
+        uint64_t size_tracker = 0;
+        luts_message_carry =
+            new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                     pbs_count, true, &size_tracker);
+        allocated_luts_message_carry = true;
       }
     }
     if (allocated_luts_message_carry) {
@@ -1436,25 +1608,35 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
     }
   }
-  int_sum_ciphertexts_vec_memory(cudaStream_t const *streams,
-                                 uint32_t const *gpu_indexes,
-                                 uint32_t gpu_count, int_radix_params params,
-                                 uint32_t num_blocks_in_radix,
-                                 uint32_t max_num_radix_in_vec,
-                                 bool allocate_gpu_memory,
-                                 uint64_t *size_tracker) {
+  int_sum_ciphertexts_vec_memory(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, int_radix_params params, uint32_t num_blocks_in_radix,
+      uint32_t max_num_radix_in_vec,
+      bool reduce_degrees_for_single_carry_propagation,
+      bool allocate_gpu_memory, uint64_t *size_tracker) {
     this->params = params;
     this->mem_reuse = false;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
-    this->size_tracker = size_tracker;
     this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
                        (params.message_modulus - 1);
-    this->allocated_luts_message_carry = true;
-    setup_index_buffers(streams, gpu_indexes);
-    setup_lookup_tables(streams, gpu_indexes, gpu_count);
+    this->allocated_luts_message_carry = false;
+    this->reduce_degrees_for_single_carry_propagation =
+        reduce_degrees_for_single_carry_propagation;
+    setup_index_buffers(streams, gpu_indexes, size_tracker);
+    // because we setup_lut in host function for sum_ciphertexts to save memory
+    // the size_tracker is topped up here to have a max bound on the used memory
+    uint32_t max_pbs_count = std::max(
+        2 * (max_total_blocks_in_vec / chunk_size), 2 * num_blocks_in_radix);
+    if (max_pbs_count > 0) {
+      int_radix_lut<Torus> *luts_message_carry_dry_run =
+          new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
+                                   max_pbs_count, false, size_tracker);
+      luts_message_carry_dry_run->release(streams, gpu_indexes, gpu_count);
+      delete luts_message_carry_dry_run;
+    }
 
     // create and allocate intermediate buffers
     current_blocks = new CudaRadixCiphertextFFI;
@@ -1472,23 +1654,25 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       uint32_t gpu_count, int_radix_params params, uint32_t num_blocks_in_radix,
       uint32_t max_num_radix_in_vec, CudaRadixCiphertextFFI *current_blocks,
       CudaRadixCiphertextFFI *small_lwe_vector,
-      int_radix_lut<Torus> *reused_lut, bool allocate_gpu_memory,
-      uint64_t *size_tracker) {
+      int_radix_lut<Torus> *reused_lut,
+      bool reduce_degrees_for_single_carry_propagation,
+      bool allocate_gpu_memory, uint64_t *size_tracker) {
     this->mem_reuse = true;
     this->params = params;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
     this->num_blocks_in_radix = num_blocks_in_radix;
     this->max_num_radix_in_vec = max_num_radix_in_vec;
     this->gpu_memory_allocated = allocate_gpu_memory;
-    this->size_tracker = size_tracker;
     this->chunk_size = (params.message_modulus * params.carry_modulus - 1) /
                        (params.message_modulus - 1);
     this->allocated_luts_message_carry = true;
+    this->reduce_degrees_for_single_carry_propagation =
+        reduce_degrees_for_single_carry_propagation;
 
     this->current_blocks = current_blocks;
     this->small_lwe_vector = small_lwe_vector;
     this->luts_message_carry = reused_lut;
-    setup_index_buffers(streams, gpu_indexes);
+    setup_index_buffers(streams, gpu_indexes, size_tracker);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1518,7 +1702,6 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         luts_message_carry->release(streams, gpu_indexes, gpu_count);
         delete luts_message_carry;
       }
-
       delete current_blocks;
       delete small_lwe_vector;
     }
@@ -2898,7 +3081,7 @@ template <typename Torus> struct int_mul_memory {
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
         2 * num_radix_blocks, vector_result_sb, small_lwe_vector, luts_array,
-        allocate_gpu_memory, size_tracker);
+        true, allocate_gpu_memory, size_tracker);
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
@@ -4694,10 +4877,11 @@ template <typename Torus> struct int_scalar_mul_buffer {
     //// The idea is that with these we can create all other shift that are
     /// in / range (0..total_bits) for free (block rotation)
     preshifted_buffer = new CudaRadixCiphertextFFI;
+    uint64_t anticipated_drop_mem = 0;
     create_zero_radix_ciphertext_async<Torus>(
         streams[0], gpu_indexes[0], preshifted_buffer,
-        msg_bits * num_radix_blocks, params.big_lwe_dimension, size_tracker,
-        allocate_gpu_memory);
+        msg_bits * num_radix_blocks, params.big_lwe_dimension,
+        &anticipated_drop_mem, allocate_gpu_memory);
 
     all_shifted_buffer = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -4708,22 +4892,28 @@ template <typename Torus> struct int_scalar_mul_buffer {
     if (num_ciphertext_bits * num_radix_blocks >= num_radix_blocks + 2)
       logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(
           streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
-          allocate_gpu_memory, all_shifted_buffer, size_tracker);
+          allocate_gpu_memory, all_shifted_buffer, &anticipated_drop_mem);
     else
       logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(
           streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
-          allocate_gpu_memory, size_tracker);
+          allocate_gpu_memory, &anticipated_drop_mem);
 
+    uint64_t last_step_mem = 0;
     if (num_ciphertext_bits > 0) {
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          num_ciphertext_bits, allocate_gpu_memory, size_tracker);
+          num_ciphertext_bits, true, allocate_gpu_memory, &last_step_mem);
     }
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag, uses_carry, allocate_gpu_memory, size_tracker);
+        requested_flag, uses_carry, allocate_gpu_memory, &last_step_mem);
+    if (anticipated_buffer_drop) {
+      *size_tracker += std::max(anticipated_drop_mem, last_step_mem);
+    } else {
+      *size_tracker += anticipated_drop_mem + last_step_mem;
+    }
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
