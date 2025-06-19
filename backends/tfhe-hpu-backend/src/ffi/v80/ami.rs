@@ -13,7 +13,7 @@ const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
 const AMI_VERSION_PATTERN: &str = r"3\.0\.\d+-zama";
 
 const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
-const AMI_ID_PATTERN: &str = r"(?<pci>\d{2}:\d{2}\.\d)\s(?<dev_id>\d+)\s\d+";
+const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)";
 
 const HIS_VERSION_FILE: &str = "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/amc_version";
 const HIS_VERSION_PATTERN: &str = r".*- zama ucore (?<major>\d+).(?<minor>\d+)";
@@ -22,8 +22,6 @@ use crate::ffi::v80::pdi::metadata::Version;
 use crate::ffi::v80::pdi::uuid::AMI_UUID_WORDS;
 
 const AMI_UUID_BAR_OFFSET: u64 = 0x1001000;
-
-const AMI_DEVICES_MAP: &str = "/sys/bus/pci/drivers/ami/devices";
 
 // NB: Some field available in the driver file were never used
 #[allow(dead_code)]
@@ -38,26 +36,26 @@ pub struct AmiInfo {
 /// Set of discovery function
 /// Enable to probe the device IDs and status
 impl AmiInfo {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
+    pub fn new(ami_id: u32) -> Result<Self, Box<dyn Error>> {
         // First read content of AMI_DEVICES_MAP
         let devices_file = OpenOptions::new()
             .read(true)
             .create(false)
-            .open(AMI_DEVICES_MAP)?;
+            .open(AMI_ID_FILE)?;
 
         let devices_rd = BufReader::new(devices_file);
-        // TODO handle multi-devices cases
-        let line = devices_rd.lines().nth(1).ok_or("No device found")??;
+        let line = devices_rd
+            .lines()
+            .nth(1 + ami_id as usize)
+            .ok_or("No device found")??;
 
-        // Second extract formatted information from string
+        // Extract AMI device path
         lazy_static! {
-            static ref AMI_DEVICES_RE: regex::Regex = regex::Regex::new(
-                r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)"
-            )
-            .expect("Invalid regex");
-        }
+            static ref AMI_ID_RE: regex::Regex =
+                regex::Regex::new(AMI_ID_PATTERN).expect("Invalid regex");
+        };
 
-        let caps = AMI_DEVICES_RE
+        let caps = AMI_ID_RE
             .captures(&line)
             .ok_or("Invalid AMI_DEVICES_MAP format")?;
         let bus_id = usize::from_str_radix(&caps["bus"], 16)?;
@@ -88,34 +86,8 @@ impl AmiDriver {
     ) -> Result<Self, Box<dyn Error>> {
         Self::check_version(amc_ver)?;
         // Read Ami info
-        let ami_info = AmiInfo::new()?;
-
-        // Read ami_id_file to get ami device
-        let ami_path = {
-            // Extract AMI device path
-            lazy_static! {
-                static ref AMI_ID_RE: regex::Regex =
-                    regex::Regex::new(AMI_ID_PATTERN).expect("Invalid regex");
-            };
-
-            // Read ami string-id
-            let ami_id_f = std::fs::read_to_string(AMI_ID_FILE).expect("Invalid ami_id filepath");
-            let id_line = ami_id_f
-                .lines()
-                .nth(ami_info.devn)
-                .unwrap_or_else(|| panic!("Invalid ami id {ami_id}."));
-
-            let id_str = AMI_ID_RE
-                .captures(id_line)
-                .expect("Invalid AMI_ID_FILE content")
-                .name("dev_id")
-                .unwrap();
-            let dev_id = id_str
-                .as_str()
-                .parse::<usize>()
-                .expect("Invalid AMI_DEV_ID encoding");
-            format!("/dev/ami{dev_id}")
-        };
+        let ami_info = AmiInfo::new(ami_id)?;
+        let ami_path = format!("/dev/ami{}", ami_info.devn);
 
         let ami_dev = OpenOptions::new()
             .read(true)

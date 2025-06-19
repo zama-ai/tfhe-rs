@@ -25,10 +25,10 @@ else
 fi
 
 # V80 bitstream refresh rely on XilinxVivado tools
-XILINX_VIVADO=${XILINX_VIVADO:-"/opt/xilinx/Vivado/2024.2"}
+XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
 
 # V80 bitstream refresh require insmod of ami.ko module
-AMI_PATH=${AMI_PATH:-"/opt/ami_drv/7423535"}
+AMI_PATH=${AMI_PATH:-"/opt/v80/ami/1e6a8da"}
 
 # Parse user CLI ##############################################################
 opt_short="hc:l:p:"

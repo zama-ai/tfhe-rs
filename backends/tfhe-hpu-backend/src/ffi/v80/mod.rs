@@ -112,10 +112,12 @@ impl HpuHw {
         // NB: Separate the call to match sudoers rules
         let _ = Command::new("sudo")
             .arg("/usr/sbin/rmmod")
+            .arg("--syslog") // Output to syslog instead of stderr
             .arg("ami")
             .status();
         let _ = Command::new("sudo")
             .arg("/usr/sbin/rmmod")
+            .arg("--syslog") // Output to syslog instead of stderr
             .arg("qdma_pf")
             .status();
 
@@ -149,7 +151,8 @@ impl HpuHw {
                 )
                 .arg("-tclargs")
                 .arg(format!("{}/{}", tmp_dir_str, &pdi_stg1_tmp))
-                .output();
+                .output()
+                .expect("Stage1 loading encounters error");
         tracing::debug!("Stage1 loaded: {hw_monitor:?}");
 
         // Update right on V80 pcie subsystem
@@ -223,7 +226,7 @@ impl HpuHw {
             .write_all(b"100\n")
             .expect("Unable to configure Qdma max queues");
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -233,7 +236,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue0");
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("start")
             .arg("idx")
@@ -261,7 +264,7 @@ impl HpuHw {
             .read(false)
             .write(true)
             .create(false)
-            .open("/dev/qdma01001-MM-0")
+            .open(ShellString::new("/dev/qdma${V80_PCIE_DEV}001-MM-0".to_string()).expand())
             .expect("Unable to open Qdma queue 0");
         let ret = nix::sys::uio::pwrite(&qdma_h2c, stg2_aligned, 0x000102100000_i64)
             .expect("Unable to write stage2 pdi");
@@ -272,7 +275,12 @@ impl HpuHw {
         tracing::debug!(" Updating Pcie physical functions 0 status");
         OpenOptions::new()
             .write(true)
-            .open("/sys/bus/pci/devices/0000:01:00.0/remove")
+            .open(
+                ShellString::new(
+                    "/sys/bus/pci/devices/0000:${V80_PCIE_DEV}:00.0/remove".to_string(),
+                )
+                .expand(),
+            )
             .expect("Unable to open pci remove cmd file")
             .write_all(b"1\n")
             .expect("Unable to triggered a remove of pci pf0");
@@ -285,7 +293,7 @@ impl HpuHw {
 
         // 3. Create user queues ----------------------------------------------
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -295,7 +303,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue1");
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("start")
             .arg("idx")
@@ -306,7 +314,7 @@ impl HpuHw {
             .expect("Unable to start Qdma queue1");
 
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("add")
             .arg("idx")
@@ -316,7 +324,7 @@ impl HpuHw {
             .status()
             .expect("Unable to create Qdma queue2");
         Command::new("dma-ctl")
-            .arg("qdma01001")
+            .arg(ShellString::new("qdma${V80_PCIE_DEV}001".to_string()).expand())
             .arg("q")
             .arg("start")
             .arg("idx")
