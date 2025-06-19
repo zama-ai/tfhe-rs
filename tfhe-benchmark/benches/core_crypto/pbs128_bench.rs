@@ -127,7 +127,7 @@ fn pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut output_cts = (0..nb_pbs)
+                        let output_cts = (0..nb_pbs)
                             .map(|_| {
                                 LweCiphertext::new(
                                     OutputScalar::ZERO,
@@ -137,7 +137,7 @@ fn pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut buffers = (0..nb_pbs)
+                        let buffers = (0..nb_pbs)
                             .map(|_| {
                                 vec![
                                     0u8;
@@ -222,7 +222,7 @@ fn pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut output_cts = (0..elements)
+                        let output_cts = (0..elements)
                             .map(|_| {
                                 (0..nb_pbs)
                                     .map(|_| {
@@ -236,7 +236,7 @@ fn pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut buffers = (0..elements)
+                        let buffers = (0..elements)
                             .map(|_| {
                                 (0..nb_pbs)
                                     .map(|_| {
@@ -271,29 +271,27 @@ fn pbs_128(c: &mut Criterion) {
                                 .zip(output_cts_batch.par_iter_mut())
                                 .zip(accumulators_batch.par_iter())
                                 .zip(buffers_batch.par_iter_mut())
-                                .for_each(
-                                    |(((input_cts, mut output_cts), accumulators), mut buffers)| {
-                                        input_cts
-                                            .par_iter()
-                                            .zip(output_cts.par_iter_mut())
-                                            .zip(accumulators.par_iter())
-                                            .zip(buffers.par_iter_mut())
-                                            .for_each(
-                                                |(
-                                                    ((input_ct, mut output_ct), accumulator),
-                                                    mut buffer,
-                                                )| {
-                                                    fourier_bsk.bootstrap(
-                                                        &mut output_ct,
-                                                        &input_ct,
-                                                        &accumulator,
-                                                        fft,
-                                                        PodStack::new(&mut buffer),
-                                                    );
-                                                },
-                                            );
-                                    },
-                                );
+                                .for_each(|(((input_cts, output_cts), accumulators), buffers)| {
+                                    input_cts
+                                        .par_iter()
+                                        .zip(output_cts.par_iter_mut())
+                                        .zip(accumulators.par_iter())
+                                        .zip(buffers.par_iter_mut())
+                                        .for_each(
+                                            |(
+                                                ((input_ct, mut output_ct), accumulator),
+                                                mut buffer,
+                                            )| {
+                                                fourier_bsk.bootstrap(
+                                                    &mut output_ct,
+                                                    &input_ct,
+                                                    &accumulator,
+                                                    fft,
+                                                    PodStack::new(&mut buffer),
+                                                );
+                                            },
+                                        );
+                                });
                         },
                         criterion::BatchSize::SmallInput,
                     );
@@ -422,9 +420,6 @@ fn multi_bit_pbs_128(c: &mut Criterion) {
 
     let plaintext = Plaintext(input_message * delta);
 
-    let fft = Fft128::new(polynomial_size);
-    let fft = fft.as_view();
-
     for nb_pbs in [1, 16] {
         let bench_id;
 
@@ -457,7 +452,7 @@ fn multi_bit_pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut output_cts = (0..nb_pbs)
+                        let output_cts = (0..nb_pbs)
                             .map(|_| {
                                 LweCiphertext::new(
                                     OutputScalar::ZERO,
@@ -467,44 +462,26 @@ fn multi_bit_pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut buffers = (0..nb_pbs)
-                            .map(|_| {
-                                vec![
-                                    0u8;
-                                    bootstrap_scratch::<OutputScalar>(
-                                        fourier_bsk.glwe_size(),
-                                        fourier_bsk.polynomial_size(),
-                                        fft
-                                    )
-                                    .unwrap()
-                                    .unaligned_bytes_required()
-                                ]
-                            })
-                            .collect::<Vec<_>>();
-
-                        (input_cts, output_cts, accumulators, buffers)
+                        (input_cts, output_cts, accumulators)
                     };
 
                     b.iter_batched(
                         setup_encrypted_values,
-                        |(input_cts, mut output_cts, accumulators, mut buffers)| {
+                        |(input_cts, mut output_cts, accumulators)| {
                             input_cts
                                 .par_iter()
                                 .zip(output_cts.par_iter_mut())
                                 .zip(accumulators.par_iter())
-                                .zip(buffers.par_iter_mut())
-                                .for_each(
-                                    |(((input_ct, mut output_ct), accumulator), mut buffer)| {
-                                        multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
-                                            &input_ct,
-                                            &mut output_ct,
-                                            &accumulator,
-                                            &fourier_bsk,
-                                            ThreadCount(thread_count),
-                                            true,
-                                        );
-                                    },
-                                );
+                                .for_each(|((input_ct, mut output_ct), accumulator)| {
+                                    multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+                                        &input_ct,
+                                        &mut output_ct,
+                                        &accumulator,
+                                        &fourier_bsk,
+                                        ThreadCount(thread_count),
+                                        true,
+                                    );
+                                });
                         },
                         criterion::BatchSize::SmallInput,
                     );
@@ -553,7 +530,7 @@ fn multi_bit_pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut output_cts = (0..elements)
+                        let output_cts = (0..elements)
                             .map(|_| {
                                 (0..nb_pbs)
                                     .map(|_| {
@@ -567,65 +544,32 @@ fn multi_bit_pbs_128(c: &mut Criterion) {
                             })
                             .collect::<Vec<_>>();
 
-                        let mut buffers = (0..elements)
-                            .map(|_| {
-                                (0..nb_pbs)
-                                    .map(|_| {
-                                        vec![
-                                            0u8;
-                                            bootstrap_scratch::<OutputScalar>(
-                                                fourier_bsk.glwe_size(),
-                                                fourier_bsk.polynomial_size(),
-                                                fft
-                                            )
-                                                .unwrap()
-                                                .unaligned_bytes_required()
-                                        ]
-                                    })
-                                    .collect::<Vec<_>>()
-                            })
-                            .collect::<Vec<_>>();
-
-                        (input_cts, output_cts, accumulators, buffers)
+                        (input_cts, output_cts, accumulators)
                     };
 
                     b.iter_batched(
                         setup_encrypted_values,
-                        |(
-                             input_cts_batch,
-                             mut output_cts_batch,
-                             accumulators_batch,
-                             mut buffers_batch,
-                         )| {
+                        |(input_cts_batch, mut output_cts_batch, accumulators_batch)| {
                             input_cts_batch
                                 .par_iter()
                                 .zip(output_cts_batch.par_iter_mut())
                                 .zip(accumulators_batch.par_iter())
-                                .zip(buffers_batch.par_iter_mut())
-                                .for_each(
-                                    |(((input_cts, mut output_cts), accumulators), mut buffers)| {
-                                        input_cts
-                                            .par_iter()
-                                            .zip(output_cts.par_iter_mut())
-                                            .zip(accumulators.par_iter())
-                                            .zip(buffers.par_iter_mut())
-                                            .for_each(
-                                                |(
-                                                     ((input_ct, mut output_ct), accumulator),
-                                                     mut buffer,
-                                                 )| {
-                                                    multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
-                                                        &input_ct,
-                                                        &mut output_ct,
-                                                        &accumulator,
-                                                        &fourier_bsk,
-                                                        ThreadCount(thread_count),
-                                                        true,
-                                                    );
-                                                },
+                                .for_each(|((input_cts, output_cts), accumulators)| {
+                                    input_cts
+                                        .par_iter()
+                                        .zip(output_cts.par_iter_mut())
+                                        .zip(accumulators.par_iter())
+                                        .for_each(|((input_ct, mut output_ct), accumulator)| {
+                                            multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+                                                &input_ct,
+                                                &mut output_ct,
+                                                &accumulator,
+                                                &fourier_bsk,
+                                                ThreadCount(thread_count),
+                                                true,
                                             );
-                                    },
-                                );
+                                        });
+                                });
                         },
                         criterion::BatchSize::SmallInput,
                     );
