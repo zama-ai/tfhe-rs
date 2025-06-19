@@ -46,11 +46,11 @@ pub struct ClassicPBSParametersV0 {
     pub encryption_key_choice: EncryptionKeyChoice,
 }
 
-impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV0 {
+impl Upgrade<ClassicPBSParametersV1> for ClassicPBSParametersV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<ClassicPBSParameters, Self::Error> {
-        Ok(ClassicPBSParameters {
+    fn upgrade(self) -> Result<ClassicPBSParametersV1, Self::Error> {
+        Ok(ClassicPBSParametersV1 {
             lwe_dimension: self.lwe_dimension,
             glwe_dimension: self.glwe_dimension,
             polynomial_size: self.polynomial_size,
@@ -71,10 +71,82 @@ impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV0 {
     }
 }
 
+#[derive(Version)]
+pub struct ClassicPBSParametersV1 {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
+    pub log2_p_fail: f64,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+}
+
+impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ClassicPBSParameters, Self::Error> {
+        let Self {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            ciphertext_modulus,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params,
+        } = self;
+
+        Ok(ClassicPBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            ciphertext_modulus,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.map_or(
+                ModulusSwitchType::Standard,
+                |modulus_switch_noise_reduction_params| {
+                    ModulusSwitchType::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_params,
+                    )
+                },
+            ),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum ClassicPBSParametersVersions {
     V0(ClassicPBSParametersV0),
-    V1(ClassicPBSParameters),
+    V1(ClassicPBSParametersV1),
+    V2(ClassicPBSParameters),
 }
 
 #[derive(VersionsDispatch)]
@@ -108,9 +180,81 @@ pub enum SupportedCompactPkeZkSchemeVersions {
     V0(SupportedCompactPkeZkScheme),
 }
 
+#[derive(Version)]
+pub struct KeySwitch32PBSParametersV0 {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u32>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
+    pub log2_p_fail: f64,
+    pub post_keyswitch_ciphertext_modulus: CiphertextModulus32,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+}
+
+impl Upgrade<KeySwitch32PBSParameters> for KeySwitch32PBSParametersV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<KeySwitch32PBSParameters, Self::Error> {
+        let Self {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            post_keyswitch_ciphertext_modulus,
+            ciphertext_modulus,
+            modulus_switch_noise_reduction_params,
+        } = self;
+
+        Ok(KeySwitch32PBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            post_keyswitch_ciphertext_modulus,
+            ciphertext_modulus,
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.map_or(
+                ModulusSwitchType::Standard,
+                |modulus_switch_noise_reduction_params| {
+                    ModulusSwitchType::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_params,
+                    )
+                },
+            ),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum KeySwitch32PBSParametersVersions {
-    V0(KeySwitch32PBSParameters),
+    V0(KeySwitch32PBSParametersV0),
+    V1(KeySwitch32PBSParameters),
 }
 
 #[derive(VersionsDispatch)]
