@@ -63,6 +63,7 @@
   * [Operations](configuration/gpu_acceleration/gpu_operations.md)
   * [Compressing ciphertexts](configuration/gpu_acceleration/compressing_ciphertexts.md)
   * [Array types](configuration/gpu_acceleration/array_type.md)
+  * [ZK-POKs](configuration/gpu_acceleration/zk-pok.md)
   * [Multi-GPU support](configuration/gpu_acceleration/multi_gpu.md)
 * [HPU acceleration](configuration/hpu_acceleration/run_on_hpu.md)
   * [Benchmark](configuration/hpu_acceleration/benchmark.md)
