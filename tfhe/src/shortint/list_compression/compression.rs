@@ -7,7 +7,8 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_standard_blind_rotate, generate_lookup_table_with_output_encoding,
-    unchecked_scalar_mul_assign, LookupTableSize, ShortintBootstrappingKey,
+    unchecked_scalar_mul_assign, LookupTableSize, ModulusSwitchConfiguration,
+    ShortintBootstrappingKey,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -226,7 +227,10 @@ impl DecompressionKey {
                 modulus_switch_noise_reduction_key,
             } => {
                 assert!(
-                    modulus_switch_noise_reduction_key.is_none(),
+                    matches!(
+                        modulus_switch_noise_reduction_key,
+                        ModulusSwitchConfiguration::Plain
+                    ),
                     "Decompression key should not do modulus switch noise reduction"
                 );
 

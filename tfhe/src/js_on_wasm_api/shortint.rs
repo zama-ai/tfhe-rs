@@ -554,7 +554,7 @@ impl Shortint {
             )
             .unwrap(),
             encryption_key_choice: encryption_key_choice.into(),
-            modulus_switch_noise_reduction_params: None,
+            modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
         })
     }
 

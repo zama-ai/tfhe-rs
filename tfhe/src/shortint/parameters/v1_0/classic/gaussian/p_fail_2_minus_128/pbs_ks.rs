@@ -2,8 +2,8 @@ use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
     LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
-    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound, PolynomialSize, RSigmaFactor,
-    StandardDev, Variance,
+    ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseEstimationMeasureBound,
+    PolynomialSize, RSigmaFactor, StandardDev, Variance,
 };
 
 // p-fail = 2^-128.181, algorithmic cost ~ 70, 2-norm = 3
@@ -29,12 +29,14 @@ pub const V1_0_PARAM_MESSAGE_1_CARRY_1_PBS_KS_GAUSSIAN_2M128: ClassicPBSParamete
         log2_p_fail: -128.181,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1450),
-            ms_bound: NoiseEstimationMeasureBound(1152921504606846976f64),
-            ms_r_sigma_factor: RSigmaFactor(13.118142614422709f64),
-            ms_input_variance: Variance(0.00000450016534247506f64),
-        }),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::PlainAddZero(
+            ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: LweCiphertextCount(1450),
+                ms_bound: NoiseEstimationMeasureBound(1152921504606846976f64),
+                ms_r_sigma_factor: RSigmaFactor(13.118142614422709f64),
+                ms_input_variance: Variance(0.00000450016534247506f64),
+            },
+        ),
     };
 // p-fail = 2^-128.163, algorithmic cost ~ 128, 2-norm = 5
 // Average number of encryptions of 0s ~ 17, peak noise ~ Variance(0.00000141892645707080)
@@ -59,12 +61,14 @@ pub const V1_0_PARAM_MESSAGE_2_CARRY_2_PBS_KS_GAUSSIAN_2M128: ClassicPBSParamete
         log2_p_fail: -128.163,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(1454),
-            ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
-            ms_r_sigma_factor: RSigmaFactor(13.11716805632582f64),
-            ms_input_variance: Variance(2.00756529473751E-7f64),
-        }),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::PlainAddZero(
+            ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: LweCiphertextCount(1454),
+                ms_bound: NoiseEstimationMeasureBound(288230376151711744f64),
+                ms_r_sigma_factor: RSigmaFactor(13.11716805632582f64),
+                ms_input_variance: Variance(2.00756529473751E-7f64),
+            },
+        ),
     };
 // p-fail = 2^-128.674, algorithmic cost ~ 2030, 2-norm = 9
 // Average number of encryptions of 0s ~ 34, peak noise ~ Variance(8.83211431719384E-8)
@@ -89,12 +93,14 @@ pub const V1_0_PARAM_MESSAGE_3_CARRY_3_PBS_KS_GAUSSIAN_2M128: ClassicPBSParamete
         log2_p_fail: -128.674,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(2962),
-            ms_bound: NoiseEstimationMeasureBound(72057594037927936f64),
-            ms_r_sigma_factor: RSigmaFactor(13.1440043411319f64),
-            ms_input_variance: Variance(6.68231137412311E-8f64),
-        }),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::PlainAddZero(
+            ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: LweCiphertextCount(2962),
+                ms_bound: NoiseEstimationMeasureBound(72057594037927936f64),
+                ms_r_sigma_factor: RSigmaFactor(13.1440043411319f64),
+                ms_input_variance: Variance(6.68231137412311E-8f64),
+            },
+        ),
     };
 // p-fail = 2^-129.799, algorithmic cost ~ 13785, 2-norm = 17
 // Average number of encryptions of 0s ~ 34, peak noise ~ Variance(5.47094548750703E-9)
@@ -119,10 +125,12 @@ pub const V1_0_PARAM_MESSAGE_4_CARRY_4_PBS_KS_GAUSSIAN_2M128: ClassicPBSParamete
         log2_p_fail: -129.799,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: Some(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(2977),
-            ms_bound: NoiseEstimationMeasureBound(18014398509481984f64),
-            ms_r_sigma_factor: RSigmaFactor(13.20288527712688f64),
-            ms_input_variance: Variance(3.93208045210723E-9f64),
-        }),
+        modulus_switch_noise_reduction_params: ModulusSwitchType::PlainAddZero(
+            ModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: LweCiphertextCount(2977),
+                ms_bound: NoiseEstimationMeasureBound(18014398509481984f64),
+                ms_r_sigma_factor: RSigmaFactor(13.20288527712688f64),
+                ms_input_variance: Variance(3.93208045210723E-9f64),
+            },
+        ),
     };

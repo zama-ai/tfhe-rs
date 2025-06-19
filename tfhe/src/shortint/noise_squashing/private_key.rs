@@ -7,6 +7,7 @@ use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
+use crate::shortint::parameters::ModulusSwitchType;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -96,7 +97,8 @@ impl<'a> From<&'a NoiseSquashingCompressionPrivateKey> for NoiseSquashingPrivate
                 glwe_noise_distribution: value.params.packing_ks_key_noise_distribution,
                 decomp_base_log: value.params.packing_ks_base_log,
                 decomp_level_count: value.params.packing_ks_level,
-                modulus_switch_noise_reduction_params: None,
+                // Dummy value
+                modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
                 message_modulus: value.params.message_modulus,
                 carry_modulus: value.params.carry_modulus,
                 ciphertext_modulus: value.params.ciphertext_modulus,

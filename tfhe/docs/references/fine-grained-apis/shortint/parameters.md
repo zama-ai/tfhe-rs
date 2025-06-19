@@ -52,7 +52,7 @@ For instance:
 
 ```rust
 use tfhe::shortint::prelude::*;
-use tfhe::shortint::parameters::DynamicDistribution;
+use tfhe::shortint::parameters::{DynamicDistribution, ModulusSwitchType};
 
 fn main() {
     // WARNING: might be insecure and/or incorrect
@@ -73,7 +73,7 @@ fn main() {
         log2_p_fail: -71.625,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
     };
 }
 ```

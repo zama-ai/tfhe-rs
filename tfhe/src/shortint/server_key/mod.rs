@@ -51,7 +51,7 @@ use crate::shortint::engine::{
     ShortintEngine,
 };
 use crate::shortint::parameters::{
-    CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
+    CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus, ModulusSwitchType,
 };
 use crate::shortint::{PaddingBit, ShortintEncoding};
 use aligned_vec::ABox;
@@ -85,7 +85,7 @@ use super::backward_compatibility::server_key::{
     SerializableShortintBootstrappingKeyVersions, ServerKeyVersions,
 };
 use super::ciphertext::unchecked_create_trivial_with_lwe_size;
-use super::parameters::{KeySwitch32PBSParameters, ModulusSwitchNoiseReductionParams};
+use super::parameters::KeySwitch32PBSParameters;
 use super::PBSParameters;
 
 /// Error returned when the carry buffer is full.
@@ -152,7 +152,7 @@ where
 {
     Classic {
         bsk: FourierLweBootstrapKeyOwned,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<InputScalar>>,
+        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<InputScalar>,
     },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKeyOwned,
@@ -170,7 +170,7 @@ where
 {
     Classic {
         bsk: FourierLweBootstrapKey<C>,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<InputScalar>>,
+        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<InputScalar>,
     },
     MultiBit {
         fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
@@ -1405,23 +1405,8 @@ pub(crate) fn apply_ms_blind_rotate<InputScalar, InputCont, OutputScalar, Output
             bsk: fourier_bsk,
             modulus_switch_noise_reduction_key,
         } => {
-            let improved;
-
-            // false positive because of `improved`
-            #[allow(clippy::option_if_let_else)]
-            let msed: LazyStandardModulusSwitchedLweCiphertext<
-                InputScalar,
-                usize,
-                &[InputScalar],
-            > = match modulus_switch_noise_reduction_key {
-                Some(modulus_switch_noise_reduction_key) => {
-                    improved = modulus_switch_noise_reduction_key
-                        .improve_noise_and_modulus_switch::<_, usize>(lwe_in, log_modulus);
-
-                    improved.as_view()
-                }
-                None => lwe_ciphertext_modulus_switch(lwe_in.as_view(), log_modulus),
-            };
+            let msed = modulus_switch_noise_reduction_key
+                .lwe_ciphertext_modulus_switch(lwe_in, log_modulus);
 
             apply_standard_blind_rotate(fourier_bsk, &msed, acc, buffers);
         }
@@ -1628,7 +1613,7 @@ pub struct PBSConformanceParams {
 #[derive(Copy, Clone)]
 pub enum PbsTypeConformanceParams {
     Classic {
-        modulus_switch_noise_reduction: Option<ModulusSwitchNoiseReductionParams>,
+        modulus_switch_noise_reduction: ModulusSwitchType,
     },
     MultiBit {
         lwe_bsk_grouping_factor: LweBskGroupingFactor,
@@ -1688,14 +1673,28 @@ where
                     bsk,
                     modulus_switch_noise_reduction_key,
                 },
-                PbsTypeConformanceParams::Classic { .. },
+                PbsTypeConformanceParams::Classic {
+                    modulus_switch_noise_reduction,
+                },
             ) => {
                 let modulus_switch_noise_reduction_key_conformant = match (
                     modulus_switch_noise_reduction_key,
-                    ModulusSwitchNoiseReductionKeyConformanceParams::try_from(parameter_set),
+                    modulus_switch_noise_reduction,
                 ) {
-                    (None, Err(())) => true,
-                    (Some(modulus_switch_noise_reduction_key), Ok(param)) => {
+                    (ModulusSwitchConfiguration::Plain, ModulusSwitchType::Plain) => true,
+                    (ModulusSwitchConfiguration::Centered, ModulusSwitchType::Centered) => true,
+                    (
+                        ModulusSwitchConfiguration::PlainAddZero(
+                            modulus_switch_noise_reduction_key,
+                        ),
+                        ModulusSwitchType::PlainAddZero(modulus_switch_noise_reduction_params),
+                    ) => {
+                        let param = ModulusSwitchNoiseReductionKeyConformanceParams {
+                            modulus_switch_noise_reduction_params:
+                                *modulus_switch_noise_reduction_params,
+                            lwe_dimension: parameter_set.in_lwe_dimension,
+                        };
+
                         modulus_switch_noise_reduction_key.is_conformant(&param)
                     }
                     _ => false,
