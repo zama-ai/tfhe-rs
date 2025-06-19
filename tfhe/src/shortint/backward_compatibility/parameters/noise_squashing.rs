@@ -1,11 +1,56 @@
+use crate::core_crypto::prelude::*;
 use crate::shortint::parameters::noise_squashing::{
     NoiseSquashingCompressionParameters, NoiseSquashingParameters,
 };
-use tfhe_versionable::VersionsDispatch;
+use crate::shortint::parameters::{
+    CoreCiphertextModulus, ModulusSwitchNoiseReductionParams, ModulusSwitchType,
+};
+use crate::shortint::{CarryModulus, MessageModulus};
+use std::convert::Infallible;
+use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
+
+#[derive(Version)]
+pub struct NoiseSquashingParametersV0 {
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub glwe_noise_distribution: DynamicDistribution<u128>,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub ciphertext_modulus: CoreCiphertextModulus<u128>,
+}
+
+impl Upgrade<NoiseSquashingParameters> for NoiseSquashingParametersV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<NoiseSquashingParameters, Self::Error> {
+        Ok(NoiseSquashingParameters {
+            glwe_dimension: self.glwe_dimension,
+            polynomial_size: self.polynomial_size,
+            glwe_noise_distribution: self.glwe_noise_distribution,
+            decomp_base_log: self.decomp_base_log,
+            decomp_level_count: self.decomp_level_count,
+            modulus_switch_noise_reduction_params: self
+                .modulus_switch_noise_reduction_params
+                .map_or(
+                    ModulusSwitchType::Plain,
+                    |modulus_switch_noise_reduction_params| {
+                        ModulusSwitchType::PlainAddZero(modulus_switch_noise_reduction_params)
+                    },
+                ),
+            message_modulus: self.message_modulus,
+            carry_modulus: self.carry_modulus,
+            ciphertext_modulus: self.ciphertext_modulus,
+        })
+    }
+}
 
 #[derive(VersionsDispatch)]
 pub enum NoiseSquashingParametersVersions {
-    V0(NoiseSquashingParameters),
+    V0(NoiseSquashingParametersV0),
+    V1(NoiseSquashingParameters),
 }
 
 #[derive(VersionsDispatch)]
