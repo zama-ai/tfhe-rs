@@ -8,6 +8,7 @@ use dyn_stack::PodStack;
 use tfhe::core_crypto::fft_impl::fft128::crypto::bootstrap::bootstrap_scratch;
 use tfhe::core_crypto::prelude::*;
 use tfhe::keycache::NamedParam;
+use tfhe::shortint::parameters::ModulusSwitchType;
 
 fn pbs_128(c: &mut Criterion) {
     let bench_name = "core_crypto::pbs128";
@@ -231,17 +232,23 @@ mod cuda {
 
         let mut engine = ShortintEngine::new();
 
-        let modulus_switch_noise_reduction_key = squash_params
-            .modulus_switch_noise_reduction_params
-            .map(|modulus_switch_noise_reduction_params| {
-                ModulusSwitchNoiseReductionKey::new(
+        let modulus_switch_noise_reduction_key =
+            match squash_params.modulus_switch_noise_reduction_params {
+                ModulusSwitchType::Standard => None,
+                ModulusSwitchType::DriftTechniqueNoiseReduction(
+                    modulus_switch_noise_reduction_params,
+                ) => Some(ModulusSwitchNoiseReductionKey::new(
                     modulus_switch_noise_reduction_params,
                     &input_lwe_secret_key,
                     &mut engine,
                     input_params.ciphertext_modulus,
                     input_params.lwe_noise_distribution,
-                )
-            });
+                )),
+                ModulusSwitchType::CenteredMeanNoiseReduction => {
+                    panic!("Centered MS not supportred on GPU")
+                }
+            };
+
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
         let message_modulus: u64 = 1 << 4;
