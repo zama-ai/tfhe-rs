@@ -57,7 +57,7 @@
   * [Generic trait bounds](fhe-computation/tooling/trait_bounds.md)
   * [Debugging](fhe-computation/tooling/debug.md)
 
-## Faster backends
+## Hardware acceleration
 * [GPU acceleration](configuration/gpu_acceleration/run_on_gpu.md)
   * [A simple example](configuration/gpu_acceleration/simple_example.md) 
   * [Operations](configuration/gpu_acceleration/gpu_operations.md)

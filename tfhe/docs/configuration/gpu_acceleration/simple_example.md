@@ -14,8 +14,9 @@ This example only performs an addition, but most FHE operations are supported on
 
 ## API elements discussed in this document
 
-- [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default): Instantiates the default crypto-system parameters. When the `"gpu"` feature is activated, the default parameters are GPU specific
-- [`tfhe::ServerKey::decompress_to_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_gpu):  decompresses a compressed `ServerKey` and copies it to the first available GPU 
+- [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default): Instantiates the default cryptographic parameters. When the `"gpu"` feature is activated, the default parameters are GPU specific, which achieves optimal performance on GPU
+- [`tfhe::ServerKey::decompress_to_gpu`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html#method.decompress_to_gpu):  decompresses a compressed ServerKey and copies it to all available GPUs
+- [`tfhe::set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html): sets the current server key. When this is a GPU key, this function activates execution of integer operations on all GPUs assigned to this key.  
 
 ## A simple TFHE-rs program 
 
@@ -52,21 +53,21 @@ fn main() {
 }
 ```
 
-When the `"gpu"` feature is activated, when calling: `let config = ConfigBuilder::default().build();`, the crypto-system parameters differ from the CPU ones, used when the GPU feature is not activated. TFHE-rs uses dedicated parameters for the GPU in order to achieve better performance, and the CPU and GPU parameters are incompatible.
+When the `"gpu"` feature is activated, when calling: `let config = ConfigBuilder::default().build();`, the cryptographic parameters differ from the CPU ones, used when the GPU feature is not activated. TFHE-rs uses dedicated parameters for the GPU in order to achieve optimal performance, and the CPU and GPU parameters cannot be mixed to perform computation and compression for security reasons.
 
 ## Breakdown of the GPU TFHE-rs program
 
 ### Key generation
 
 Comparing to the [CPU example](../../getting_started/quick_start.md), in the code snippet above,
-the server-side must run this function: `decompress_to_gpu()` to enable GPU-execution for the ensuing operations on ciphertexts. 
+the server-side must run this function: `decompress_to_gpu()` to enable GPU-execution for the ensuing operations on ciphertexts. This function assigns all available GPUs to the server key. 
 ```rust
     let gpu_key = compressed_server_key.decompress_to_gpu();
 ```
 Once the key is decompressed to GPU and set with `set_server_key`, operations on ciphertexts execute on the GPU. In the example above:
-- `compressed_server_key` is a [`CompressedServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html), stored on CPU, generated with GPU crypto-system parameters. These parameters are activated by default by the `"gpu"` Cargo feature. 
-- `gpu_key` is the [`CudaServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CudaServerKey.html) corresponding to `compressed_server_key`, stored on the GPU 
-- [`set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html) sets either a CPU or GPU key. In this example, `compressed_server_key` and `gpu_key` have GPU crypto-system parameters
+- `compressed_server_key` is a [`CompressedServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html), stored on CPU, generated with GPU cryptographic parameters. These parameters are activated by default by the `"gpu"` Cargo feature. 
+- `gpu_key` is the [`CudaServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CudaServerKey.html) corresponding to `compressed_server_key`, stored on the GPU.
+- [`set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html) sets either a CPU or GPU key. In this example, `compressed_server_key` and `gpu_key` have GPU cryptographic parameters. A GPU server key may enable execution on multiple GPUs.
 
 ### Encryption
 

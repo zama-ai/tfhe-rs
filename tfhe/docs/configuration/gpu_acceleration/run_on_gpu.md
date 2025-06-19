@@ -20,17 +20,22 @@ The GPU backend is, **up to 4.2x faster** than the CPU one. For a comparison bet
 Different integer operations obtain different speedups. Please refer to the [detailed GPU benchmarks of FHE operations](../../getting_started/benchmarks/gpu/README.md) for detailed figures.
 
 {% hint style="warning" %}
-To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md). To obtain the best performance when running benchmarks, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution.
+To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md). To obtain the best performance when running benchmarks, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution. Bear in mind that GPU warmup is necessary before doing performance measurements.
 {% endhint %}
 
 ## GPU TFHE-rs features
+
+By default, the GPU backend uses specific cryptographic parameters. When calling the [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default) function, the cryptographic for PBS will be:
+- PBS parameters: `PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
+These PBS parameters are accompanied by the following compression parameters: 
+- Compression parameters: [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
 
 The GPU backend is designed to speed up server-side FHE operations and supports the following TFHE-rs features:
 
 - [FHE ciphertext operations](./gpu_operations.md)
 - [Ciphertext compression](./compressing_ciphertexts.md)
 - [Ciphertext arrays](array_type.md)
-- [ZK-POK expansion](./zk-pok.md)
+- [ZK-POK expansion](zk-pok.md)
 - [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
 - [Multi-GPU for throughput optimization](./multi_gpu.md) 
 
@@ -38,7 +43,7 @@ The following features are not supported:
 
 - Key generation
 - Encryption/decryption
-- ZK-POK generation and verification
+- ZK-POK proof generation and verification
 - Encrypted strings and operations on encrypted strings
 
 ## GPU Programming model
@@ -46,13 +51,13 @@ The following features are not supported:
 The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer datatypes and operations syntax are the same. All the while, some GPU program design principles must be considered:
 1. Key generation, encryption, and decryption are performed on the CPU. When used in operations, ciphertexts are automatically copied to or from the first GPU that the user configures for TFHE-rs.
 2. GPU syntax for integer FHE operations, key generation, and serialization is identical with equivalent CPU code.
-3. When configured to compile for the GPU, TFHE-rs uses specific crypto-system parameters. Ciphertexts that are encrypted with CPU parameters cannot be processed with GPU server keys. Server keys generated with the CPU backend are not compatible with the GPU backend.  
-4. Each server key instance is assigned to a single GPU while the backend can use multiple GPUs in parallel. To set the current GPU assigned to a CPU thread, activate the server key assigned to the GPU you want to use.
+3. When configured to compile for the GPU, TFHE-rs uses GPU specific cryptographic parameters that give high performance on the GPU. Ciphertexts and server-keys that are generated with CPU parameters can be processed with GPU-enabled TFHE-rs but performance is considerably degraded.
+4. Each server key instance is assigned to a set of GPUs: the backend can use multiple GPUs in parallel. To set the active GPUs for a CPU thread, activate the server key assigned to the GPUs you want to use.
 5. GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.  
 
 The key differences between the CPU API and the GPU API are:
 1. The GPU backend only supports compressed server keys that must be decompressed on a GPU selected by the user.
-2. For ciphertext compression the crypto-system parameters must be chosen by the user from the GPU parameter set.
+2. For ciphertext compression the cryptographic parameters must be chosen by the user from the GPU parameter set.
 3. For ciphertext arrays, GPU-specific ciphertext array types must be used instead of CPU ones. 
 
 ## Project configuration
