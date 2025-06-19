@@ -2,13 +2,14 @@ use std::path::Path;
 use tfhe::core_crypto::prelude::{
     LweCiphertextCount, NoiseEstimationMeasureBound, RSigmaFactor, TUniform, Variance,
 };
-use tfhe::shortint::parameters::ModulusSwitchNoiseReductionParams;
+use tfhe::shortint::parameters::{ModulusSwitchNoiseReductionParams, ModulusSwitchType};
 use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
     ShortintCiphertextTest, ShortintClientKeyTest, TestDistribution, TestMetadata,
-    TestModulusSwitchNoiseReductionParams, TestParameterSet, TestType, Testcase,
+    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestParameterSet, TestType,
+    Testcase,
 };
 
 use tfhe::shortint::parameters::{
@@ -45,21 +46,25 @@ pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
         modulus_switch_noise_reduction_params,
     } = test_params;
 
-    let modulus_switch_noise_reduction_params = modulus_switch_noise_reduction_params.as_ref().map(
-        |TestModulusSwitchNoiseReductionParams {
-             modulus_switch_zeros_count,
-             ms_bound,
-             ms_r_sigma_factor,
-             ms_input_variance,
-         }| {
-            ModulusSwitchNoiseReductionParams {
-                modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
-                ms_bound: NoiseEstimationMeasureBound(*ms_bound),
-                ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
-                ms_input_variance: Variance(*ms_input_variance),
-            }
-        },
-    );
+    let modulus_switch_noise_reduction_params = match modulus_switch_noise_reduction_params {
+        TestModulusSwitchType::Standard => ModulusSwitchType::Standard,
+        TestModulusSwitchType::DriftTechniqueNoiseReduction(
+            TestModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count,
+                ms_bound,
+                ms_r_sigma_factor,
+                ms_input_variance,
+            },
+        ) => ModulusSwitchType::DriftTechniqueNoiseReduction(ModulusSwitchNoiseReductionParams {
+            modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
+            ms_bound: NoiseEstimationMeasureBound(*ms_bound),
+            ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
+            ms_input_variance: Variance(*ms_input_variance),
+        }),
+        TestModulusSwitchType::CenteredMeanNoiseReduction => {
+            ModulusSwitchType::CenteredMeanNoiseReduction
+        }
+    };
 
     ClassicPBSParameters {
         lwe_dimension: LweDimension(*lwe_dimension),
