@@ -1,5 +1,7 @@
 use crate::core_crypto::prelude::DynamicDistribution;
-use crate::shortint::parameters::{CiphertextModulus32, KeySwitch32PBSParameters, StandardDev};
+use crate::shortint::parameters::{
+    CiphertextModulus32, KeySwitch32PBSParameters, ModulusSwitchType, StandardDev,
+};
 use crate::shortint::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
 };
@@ -27,7 +29,7 @@ pub const V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64: KeySwitch32PB
         log2_p_fail: -64.0,
         post_keyswitch_ciphertext_modulus: CiphertextModulus32::new(1 << 21),
         ciphertext_modulus: CiphertextModulus::new_native(),
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
     };
 
 // TUniform parameters set
@@ -48,5 +50,5 @@ pub const V1_2_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64: KeySwitch32PB
         log2_p_fail: -64.0,
         post_keyswitch_ciphertext_modulus: CiphertextModulus32::new(1 << 21),
         ciphertext_modulus: CiphertextModulus::new_native(),
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
     };
