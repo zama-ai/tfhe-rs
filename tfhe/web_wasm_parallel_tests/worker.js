@@ -665,7 +665,7 @@ async function compactPublicKeyZeroKnowledgeBench() {
         ShortintParametersName.PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
       ),
       casting_params: new ShortintCompactPublicKeyEncryptionParameters(
-        ShortintCompactPublicKeyEncryptionParametersName.PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
+        ShortintCompactPublicKeyEncryptionParametersName.V1_3_PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
       ),
     },
   ];
