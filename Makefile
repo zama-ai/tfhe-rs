@@ -768,7 +768,7 @@ test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --release --bin hpu_mockup; \
-    coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
+	coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
 	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
 	kill %1
@@ -777,7 +777,7 @@ test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextest
 	source ./setup_hpu.sh --config sim ; \
 	cargo build --profile devo --bin hpu_mockup; \
-    coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
+	coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
 	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
 	kill %1
