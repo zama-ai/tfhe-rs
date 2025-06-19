@@ -249,11 +249,8 @@ template <typename Torus> struct int_radix_lut {
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
-    cudaMallocHost((void **)&h_lwe_indexes_in,
-                   num_radix_blocks * sizeof(Torus));
-    cudaMallocHost((void **)&h_lwe_indexes_out,
-                   num_radix_blocks * sizeof(Torus));
-
+    h_lwe_indexes_in = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+    h_lwe_indexes_out = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
 
@@ -372,10 +369,8 @@ template <typename Torus> struct int_radix_lut {
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
-    cudaMallocHost((void **)&h_lwe_indexes_in,
-                   num_radix_blocks * sizeof(Torus));
-    cudaMallocHost((void **)&h_lwe_indexes_out,
-                   num_radix_blocks * sizeof(Torus));
+    h_lwe_indexes_in = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+    h_lwe_indexes_out = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
@@ -470,10 +465,8 @@ template <typename Torus> struct int_radix_lut {
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
 
-    cudaMallocHost((void **)&h_lwe_indexes_in,
-                   num_radix_blocks * sizeof(Torus));
-    cudaMallocHost((void **)&h_lwe_indexes_out,
-                   num_radix_blocks * sizeof(Torus));
+    h_lwe_indexes_in = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
+    h_lwe_indexes_out = (Torus *)malloc(num_radix_blocks * sizeof(Torus));
 
     for (int i = 0; i < num_radix_blocks; i++)
       h_lwe_indexes_in[i] = i;
@@ -611,8 +604,8 @@ template <typename Torus> struct int_radix_lut {
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     lut_vec.clear();
     lut_indexes_vec.clear();
-    cudaFreeHost(h_lwe_indexes_in);
-    cudaFreeHost(h_lwe_indexes_out);
+    free(h_lwe_indexes_in);
+    free(h_lwe_indexes_out);
 
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
