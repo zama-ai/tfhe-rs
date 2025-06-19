@@ -19,7 +19,8 @@ use crate::core_crypto::prelude::{
 };
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{
-    NoiseSquashingParameters, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    ModulusSwitchType, NoiseSquashingParameters,
+    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
@@ -110,17 +111,21 @@ pub fn execute_bootstrap_u128(
 
     let mut engine = ShortintEngine::new();
 
-    let modulus_switch_noise_reduction_key = squash_params
-        .modulus_switch_noise_reduction_params
-        .map(|modulus_switch_noise_reduction_params| {
-            ModulusSwitchNoiseReductionKey::new(
-                modulus_switch_noise_reduction_params,
-                &input_lwe_secret_key,
-                &mut engine,
-                input_params.ciphertext_modulus,
-                input_params.lwe_noise_distribution,
-            )
-        });
+    let modulus_switch_noise_reduction_key =
+        match squash_params.modulus_switch_noise_reduction_params {
+            ModulusSwitchType::Plain => None,
+            ModulusSwitchType::PlainAddZero(modulus_switch_noise_reduction_params) => {
+                Some(ModulusSwitchNoiseReductionKey::new(
+                    modulus_switch_noise_reduction_params,
+                    &input_lwe_secret_key,
+                    &mut engine,
+                    input_params.ciphertext_modulus,
+                    input_params.lwe_noise_distribution,
+                ))
+            }
+            ModulusSwitchType::Centered => panic!("Centered MS not supportred on GPU"),
+        };
+
     let gpu_index = 0;
     let stream = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
     let d_bsk = CudaLweBootstrapKey::from_lwe_bootstrap_key(
