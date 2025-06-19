@@ -3,14 +3,15 @@ name: Check commit and PR compliance
 on:
   pull_request:
 
-permissions:
-  contents: read
-  pull-requests: read # Permission needed to scan commits in a pull-request
+permissions: {}
 
 jobs:
   check-commit-pr:
     name: Check commit and PR
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # Permission needed to scan commits in a pull-request and write issue comment
     steps:
       - name: Check first line
         uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
