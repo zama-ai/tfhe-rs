@@ -19,7 +19,9 @@ use crate::shortint::backward_compatibility::list_compression::{
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::{PBSConformanceParams, ShortintBootstrappingKey};
+use crate::shortint::server_key::{
+    ModulusSwitchConfiguration, PBSConformanceParams, ShortintBootstrappingKey,
+};
 use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -76,7 +78,7 @@ impl CompressedDecompressionKey {
         DecompressionKey {
             blind_rotate_key: ShortintBootstrappingKey::Classic {
                 bsk: fourier_bsk,
-                modulus_switch_noise_reduction_key: None,
+                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Plain,
             },
             lwe_per_glwe: self.lwe_per_glwe,
         }

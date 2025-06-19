@@ -71,6 +71,75 @@ impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV0 {
     }
 }
 
+#[derive(Version)]
+pub struct ClassicPBSParametersV1 {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<u64>,
+    pub glwe_noise_distribution: DynamicDistribution<u64>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub ks_base_log: DecompositionBaseLog,
+    pub ks_level: DecompositionLevelCount,
+    pub message_modulus: MessageModulus,
+    pub carry_modulus: CarryModulus,
+    pub max_noise_level: MaxNoiseLevel,
+    pub log2_p_fail: f64,
+    pub ciphertext_modulus: CiphertextModulus,
+    pub encryption_key_choice: EncryptionKeyChoice,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+}
+
+impl Upgrade<ClassicPBSParameters> for ClassicPBSParametersV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ClassicPBSParameters, Self::Error> {
+        let Self {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            ciphertext_modulus,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params,
+        } = self;
+
+        Ok(ClassicPBSParameters {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            ciphertext_modulus,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params: modulus_switch_noise_reduction_params.map_or(
+                ModulusSwitchType::Plain,
+                |modulus_switch_noise_reduction_params| {
+                    ModulusSwitchType::PlainAddZero(modulus_switch_noise_reduction_params)
+                },
+            ),
+        })
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum ClassicPBSParametersVersions {
     V0(ClassicPBSParametersV0),

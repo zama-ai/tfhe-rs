@@ -1,7 +1,7 @@
 use crate::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
-    MaxNoiseLevel, MessageModulus, PolynomialSize,
+    MaxNoiseLevel, MessageModulus, ModulusSwitchType, PolynomialSize,
 };
 
 /// p-fail = 2^-40.525, algorithmic cost ~ 49, 2-norm = 3
@@ -22,7 +22,7 @@ pub const V1_1_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M40: ClassicPBSParameter
         log2_p_fail: -40.525,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
     };
 
 /// p-fail = 2^-57.015, algorithmic cost ~ 107, 2-norm = 5
@@ -43,7 +43,7 @@ pub const V1_1_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M40: ClassicPBSParameter
         log2_p_fail: -57.015,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
     };
 
 /// p-fail = 2^-50.002, algorithmic cost ~ 816, 2-norm = 9
@@ -64,7 +64,7 @@ pub const V1_1_PARAM_MESSAGE_3_CARRY_3_KS_PBS_TUNIFORM_2M40: ClassicPBSParameter
         log2_p_fail: -50.002,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
     };
 
 /// p-fail = 2^-41.009, algorithmic cost ~ 4165, 2-norm = 17
@@ -85,5 +85,5 @@ pub const V1_1_PARAM_MESSAGE_4_CARRY_4_KS_PBS_TUNIFORM_2M40: ClassicPBSParameter
         log2_p_fail: -41.009,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Plain,
     };
