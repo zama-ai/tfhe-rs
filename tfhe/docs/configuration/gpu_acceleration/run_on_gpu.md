@@ -26,16 +26,19 @@ To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting_sta
 ## GPU TFHE-rs features
 
 By default, the GPU backend uses specific cryptographic parameters. When calling the [`tfhe::ConfigBuilder::default()`](https://doc.rust-lang.org/nightly/core/default/trait.Default.html#tymethod.default) function, the cryptographic for PBS will be:
-- PBS parameters: `PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
+- PBS parameters: [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
+
 These PBS parameters are accompanied by the following compression parameters: 
 - Compression parameters: [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html)
+
+TFHE-rs uses dedicated parameters for the GPU in order to achieve optimal performance, and the CPU and GPU parameters cannot be mixed to perform computation and compression for security reasons.
 
 The GPU backend is designed to speed up server-side FHE operations and supports the following TFHE-rs features:
 
 - [FHE ciphertext operations](./gpu_operations.md)
 - [Ciphertext compression](./compressing_ciphertexts.md)
 - [Ciphertext arrays](array_type.md)
-- [ZK-POK expansion](zk-pok.md)
+- [ZK-POK proof expansion](zk-pok.md)
 - [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
 - [Multi-GPU for throughput optimization](./multi_gpu.md) 
 
@@ -52,7 +55,7 @@ The GPU TFHE-rs integer API is mostly identical to the CPU API: both integer dat
 1. Key generation, encryption, and decryption are performed on the CPU. When used in operations, ciphertexts are automatically copied to or from the first GPU that the user configures for TFHE-rs.
 2. GPU syntax for integer FHE operations, key generation, and serialization is identical with equivalent CPU code.
 3. When configured to compile for the GPU, TFHE-rs uses GPU specific cryptographic parameters that give high performance on the GPU. Ciphertexts and server-keys that are generated with CPU parameters can be processed with GPU-enabled TFHE-rs but performance is considerably degraded.
-4. Each server key instance is assigned to a set of GPUs: the backend can use multiple GPUs in parallel. To set the active GPUs for a CPU thread, activate the server key assigned to the GPUs you want to use.
+4. Each server key instance is assigned to a set of GPUs, which are automatically used in parallel. To set the active GPUs for a CPU thread, activate the server key assigned to the GPUs you want to use.
 5. GPU integer operations are synchronous to the calling thread. To execute in parallel on several GPUs, use Rust parallel constructs such as `par_iter`.  
 
 The key differences between the CPU API and the GPU API are:

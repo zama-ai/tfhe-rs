@@ -1,6 +1,6 @@
 # Compressing ciphertexts on the GPU
 
-This document explains how to compress ciphertexts using the GPU - even after homomorphic computations. The syntax for ciphertext compression is identical to the one for the [CPU backend](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation), but cryptographic parameters specific to the GPU must be configured for compression.
+This document explains how to compress ciphertexts using the GPU. Compression can be applied on freshly encrypted ciphertexts or on ciphertexts that are the result of FHE integer operations. The syntax for ciphertext compression is identical to the one for the [CPU backend](../../fhe-computation/data-handling/compress.md#compression-ciphertexts-after-some-homomorphic-computation), but cryptographic parameters specific to the GPU must be configured for compression.
 
 ## API elements discussed in this document
 
@@ -12,7 +12,7 @@ This document explains how to compress ciphertexts using the GPU - even after ho
 
 When using compression, the [`ConfigBuilder`](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html) class must be initialized with the `enable_compression` calls. This requires that the caller sets both the cryptographic PBS parameters and the compression cryptographic parameters.
 
-The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter sets corresponds to the default PBS parameters set using `ConfigBuilder::default()`, when the `"gpu"` feature enabled. The [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression cryptographic parameters.
+The [`PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameter set corresponds to the default PBS parameter set instantiated by `ConfigBuilder::default()` when the `"gpu"` feature enabled. The [`COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS`](https://docs.rs/tfhe/latest/tfhe/shortint/parameters/aliases/constant.COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS.html) parameters are the corresponding compression cryptographic parameters.
 
 ```
     let config =

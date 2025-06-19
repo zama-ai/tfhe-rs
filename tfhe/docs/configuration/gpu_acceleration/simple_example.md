@@ -53,21 +53,21 @@ fn main() {
 }
 ```
 
-When the `"gpu"` feature is activated, when calling: `let config = ConfigBuilder::default().build();`, the cryptographic parameters differ from the CPU ones, used when the GPU feature is not activated. TFHE-rs uses dedicated parameters for the GPU in order to achieve optimal performance, and the CPU and GPU parameters cannot be mixed to perform computation and compression for security reasons.
+When the `"gpu"` feature is activated, calling: `let config = ConfigBuilder::default().build();` instantiates [cryptographic parameters that are different from the CPU ones](run_on_gpu.md#gpu-tfhe-rs-features). 
 
 ## Breakdown of the GPU TFHE-rs program
 
 ### Key generation
 
 Comparing to the [CPU example](../../getting_started/quick_start.md), in the code snippet above,
-the server-side must run this function: `decompress_to_gpu()` to enable GPU-execution for the ensuing operations on ciphertexts. This function assigns all available GPUs to the server key. 
+the server-side must call `decompress_to_gpu` to enable GPU-execution for the ensuing operations on ciphertexts. This function assigns all available GPUs to the server key. 
 ```rust
     let gpu_key = compressed_server_key.decompress_to_gpu();
 ```
 Once the key is decompressed to GPU and set with `set_server_key`, operations on ciphertexts execute on the GPU. In the example above:
-- `compressed_server_key` is a [`CompressedServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html), stored on CPU, generated with GPU cryptographic parameters. These parameters are activated by default by the `"gpu"` Cargo feature. 
-- `gpu_key` is the [`CudaServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CudaServerKey.html) corresponding to `compressed_server_key`, stored on the GPU.
-- [`set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html) sets either a CPU or GPU key. In this example, `compressed_server_key` and `gpu_key` have GPU cryptographic parameters. A GPU server key may enable execution on multiple GPUs.
+- `compressed_server_key` is a [`CompressedServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CompressedServerKey.html), stored on CPU. The client-side should ensure this key is generated with [GPU cryptographic parameters](run_on_gpu.md#gpu-tfhe-rs-features).
+- `gpu_key` is the [`CudaServerKey`](https://docs.rs/tfhe/latest/tfhe/struct.CudaServerKey.html) corresponding to `compressed_server_key` and is stored on the GPU assigned to it.
+- [`set_server_key`](https://docs.rs/tfhe/latest/tfhe/fn.set_server_key.html) sets either a CPU or GPU key. In this example, `compressed_server_key` and `gpu_key` have GPU cryptographic parameters. A GPU server key can enable automatic parallelization on multiple GPUs.
 
 ### Encryption
 
@@ -108,6 +108,6 @@ Finally, the client decrypts the results using:
 
 ## Optimizing for throughput
 
-In order to improve operation throughput, you can use multiple GPUs as detailed on the following page:
+In order to improve operation throughput, you can use multiple GPUs with fine-grained GPU scheduling, as detailed on the following page:
 
 {% content-ref url="./multi_gpu.md" %} Multi-GPU usage {% endcontent-ref %}
