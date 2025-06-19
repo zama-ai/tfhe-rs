@@ -8,7 +8,7 @@ This document explains how to compress ciphertexts using the GPU. Compression ca
 - [tfhe::ConfigBuilder::with_custom_parameters](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.with_custom_parameters): initializes a configuration builder with a user-specified parameter set
 - [tfhe::ConfigBuilder::enable_compression](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html#method.enable_compression): enables the compression feature in the configuration builder 
 
-## cryptographic parameter setting
+## Cryptographic parameter setting
 
 When using compression, the [`ConfigBuilder`](https://docs.rs/tfhe/latest/tfhe/struct.ConfigBuilder.html) class must be initialized with the `enable_compression` calls. This requires that the caller sets both the cryptographic PBS parameters and the compression cryptographic parameters.
 
