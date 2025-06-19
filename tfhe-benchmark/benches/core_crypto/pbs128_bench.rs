@@ -1,5 +1,8 @@
+use benchmark::params::multi_bit_num_threads;
 use benchmark::params_aliases::{
+    BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use benchmark::utilities::{
@@ -286,6 +289,338 @@ fn pbs_128(c: &mut Criterion) {
                                                         &accumulator,
                                                         fft,
                                                         PodStack::new(&mut buffer),
+                                                    );
+                                                },
+                                            );
+                                    },
+                                );
+                        },
+                        criterion::BatchSize::SmallInput,
+                    );
+                });
+            }
+        };
+
+        let params_record = CryptoParametersRecord {
+            lwe_dimension: Some(lwe_dimension),
+            glwe_dimension: Some(glwe_dimension),
+            polynomial_size: Some(polynomial_size),
+            lwe_noise_distribution: Some(lwe_noise_distribution),
+            glwe_noise_distribution: Some(base_params.glwe_noise_distribution),
+            pbs_base_log: Some(pbs_base_log),
+            pbs_level: Some(pbs_level),
+            ciphertext_modulus: Some(input_ciphertext_modulus),
+            ..Default::default()
+        };
+
+        let bit_size = (message_modulus as u32).ilog2();
+        write_to_json(
+            &bench_id,
+            params_record,
+            noise_params.name(),
+            "pbs",
+            &OperatorType::Atomic,
+            bit_size,
+            vec![bit_size],
+        );
+    }
+}
+
+fn multi_bit_pbs_128(c: &mut Criterion) {
+    let bench_name = "core_crypto::multi_bit_pbs128";
+    let mut bench_group = c.benchmark_group(bench_name);
+    bench_group
+        .sample_size(10)
+        .measurement_time(std::time::Duration::from_secs(30));
+
+    type InputScalar = u64;
+    type OutputScalar = u128;
+
+    let noise_params =
+        BENCH_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    let base_params = BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+    let lwe_dimension = base_params.lwe_dimension; // From PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+    let glwe_dimension = noise_params.glwe_dimension;
+    let polynomial_size = noise_params.polynomial_size;
+    let lwe_noise_distribution = base_params.lwe_noise_distribution;
+    let glwe_noise_distribution = noise_params.glwe_noise_distribution;
+    let pbs_base_log = noise_params.decomp_base_log;
+    let pbs_level = noise_params.decomp_level_count;
+    let input_ciphertext_modulus = base_params.ciphertext_modulus;
+    let output_ciphertext_modulus = noise_params.ciphertext_modulus;
+    let grouping_factor = base_params.grouping_factor;
+
+    let thread_count = multi_bit_num_threads(
+        base_params.message_modulus.0,
+        base_params.carry_modulus.0,
+        grouping_factor.0,
+    )
+    .unwrap() as usize;
+
+    let mut boxed_seeder = new_seeder();
+    let seeder = boxed_seeder.as_mut();
+
+    let mut secret_generator = SecretRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed());
+
+    let mut encryption_generator =
+        EncryptionRandomGenerator::<DefaultRandomGenerator>::new(seeder.seed(), seeder);
+
+    let input_lwe_secret_key: LweSecretKeyOwned<InputScalar> =
+        LweSecretKey::generate_new_binary(lwe_dimension, &mut secret_generator);
+
+    let input_lwe_secret_key_as_u128 = LweSecretKeyOwned::from_container(
+        input_lwe_secret_key
+            .as_ref()
+            .iter()
+            .copied()
+            .map(|k| k as u128)
+            .collect(),
+    );
+
+    let output_glwe_secret_key = GlweSecretKey::<Vec<OutputScalar>>::generate_new_binary(
+        glwe_dimension,
+        polynomial_size,
+        &mut secret_generator,
+    );
+
+    let output_lwe_secret_key = output_glwe_secret_key.clone().into_lwe_secret_key();
+
+    let mut bsk = LweMultiBitBootstrapKey::new(
+        OutputScalar::ZERO,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        pbs_base_log,
+        pbs_level,
+        lwe_dimension,
+        grouping_factor,
+        output_ciphertext_modulus,
+    );
+    par_generate_lwe_multi_bit_bootstrap_key(
+        &input_lwe_secret_key_as_u128,
+        &output_glwe_secret_key,
+        &mut bsk,
+        glwe_noise_distribution,
+        &mut encryption_generator,
+    );
+
+    let mut fourier_bsk = Fourier128LweMultiBitBootstrapKey::new(
+        lwe_dimension,
+        glwe_dimension.to_glwe_size(),
+        polynomial_size,
+        pbs_base_log,
+        pbs_level,
+        grouping_factor,
+    );
+    par_convert_standard_lwe_multi_bit_bootstrap_key_to_fourier_128(&bsk, &mut fourier_bsk);
+
+    let message_modulus: InputScalar = 1 << 4;
+
+    let input_message: InputScalar = 3;
+
+    let delta: InputScalar = (1 << (InputScalar::BITS - 1)) / message_modulus;
+
+    let plaintext = Plaintext(input_message * delta);
+
+    let fft = Fft128::new(polynomial_size);
+    let fft = fft.as_view();
+
+    for nb_pbs in [1, 16] {
+        let bench_id;
+
+        match get_bench_type() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{}::{}_PBS", noise_params.name(), nb_pbs);
+
+                bench_group.bench_function(&bench_id, |b| {
+                    let setup_encrypted_values = || {
+                        let input_cts = (0..nb_pbs)
+                            .map(|_| {
+                                allocate_and_encrypt_new_lwe_ciphertext(
+                                    &input_lwe_secret_key,
+                                    plaintext,
+                                    lwe_noise_distribution,
+                                    input_ciphertext_modulus,
+                                    &mut encryption_generator,
+                                )
+                            })
+                            .collect::<Vec<LweCiphertextOwned<InputScalar>>>();
+
+                        let accumulators = (0..nb_pbs)
+                            .map(|_| {
+                                GlweCiphertextOwned::new(
+                                    OutputScalar::ONE,
+                                    glwe_dimension.to_glwe_size(),
+                                    polynomial_size,
+                                    output_ciphertext_modulus,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        let mut output_cts = (0..nb_pbs)
+                            .map(|_| {
+                                LweCiphertext::new(
+                                    OutputScalar::ZERO,
+                                    output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                    output_ciphertext_modulus,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+
+                        let mut buffers = (0..nb_pbs)
+                            .map(|_| {
+                                vec![
+                                    0u8;
+                                    bootstrap_scratch::<OutputScalar>(
+                                        fourier_bsk.glwe_size(),
+                                        fourier_bsk.polynomial_size(),
+                                        fft
+                                    )
+                                    .unwrap()
+                                    .unaligned_bytes_required()
+                                ]
+                            })
+                            .collect::<Vec<_>>();
+
+                        (input_cts, output_cts, accumulators, buffers)
+                    };
+
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(input_cts, mut output_cts, accumulators, mut buffers)| {
+                            input_cts
+                                .par_iter()
+                                .zip(output_cts.par_iter_mut())
+                                .zip(accumulators.par_iter())
+                                .zip(buffers.par_iter_mut())
+                                .for_each(
+                                    |(((input_ct, mut output_ct), accumulator), mut buffer)| {
+                                        multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+                                            &input_ct,
+                                            &mut output_ct,
+                                            &accumulator,
+                                            &fourier_bsk,
+                                            ThreadCount(thread_count),
+                                            true,
+                                        );
+                                    },
+                                );
+                        },
+                        criterion::BatchSize::SmallInput,
+                    );
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!(
+                    "{bench_name}::throughput::{}::{}_PBS",
+                    noise_params.name(),
+                    nb_pbs
+                );
+
+                let blocks: usize = 1;
+                let elements = throughput_num_threads(blocks, nb_pbs);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let setup_encrypted_values = || {
+                        let input_cts = (0..elements)
+                            .map(|_| {
+                                (0..nb_pbs)
+                                    .map(|_| {
+                                        allocate_and_encrypt_new_lwe_ciphertext(
+                                            &input_lwe_secret_key,
+                                            plaintext,
+                                            lwe_noise_distribution,
+                                            input_ciphertext_modulus,
+                                            &mut encryption_generator,
+                                        )
+                                    })
+                                    .collect::<Vec<LweCiphertextOwned<InputScalar>>>()
+                            })
+                            .collect::<Vec<_>>();
+
+                        let accumulators = (0..elements)
+                            .map(|_| {
+                                (0..nb_pbs)
+                                    .map(|_| {
+                                        GlweCiphertextOwned::new(
+                                            OutputScalar::ONE,
+                                            glwe_dimension.to_glwe_size(),
+                                            polynomial_size,
+                                            output_ciphertext_modulus,
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+
+                        let mut output_cts = (0..elements)
+                            .map(|_| {
+                                (0..nb_pbs)
+                                    .map(|_| {
+                                        LweCiphertext::new(
+                                            OutputScalar::ZERO,
+                                            output_lwe_secret_key.lwe_dimension().to_lwe_size(),
+                                            output_ciphertext_modulus,
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+
+                        let mut buffers = (0..elements)
+                            .map(|_| {
+                                (0..nb_pbs)
+                                    .map(|_| {
+                                        vec![
+                                            0u8;
+                                            bootstrap_scratch::<OutputScalar>(
+                                                fourier_bsk.glwe_size(),
+                                                fourier_bsk.polynomial_size(),
+                                                fft
+                                            )
+                                                .unwrap()
+                                                .unaligned_bytes_required()
+                                        ]
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+
+                        (input_cts, output_cts, accumulators, buffers)
+                    };
+
+                    b.iter_batched(
+                        setup_encrypted_values,
+                        |(
+                             input_cts_batch,
+                             mut output_cts_batch,
+                             accumulators_batch,
+                             mut buffers_batch,
+                         )| {
+                            input_cts_batch
+                                .par_iter()
+                                .zip(output_cts_batch.par_iter_mut())
+                                .zip(accumulators_batch.par_iter())
+                                .zip(buffers_batch.par_iter_mut())
+                                .for_each(
+                                    |(((input_cts, mut output_cts), accumulators), mut buffers)| {
+                                        input_cts
+                                            .par_iter()
+                                            .zip(output_cts.par_iter_mut())
+                                            .zip(accumulators.par_iter())
+                                            .zip(buffers.par_iter_mut())
+                                            .for_each(
+                                                |(
+                                                     ((input_ct, mut output_ct), accumulator),
+                                                     mut buffer,
+                                                 )| {
+                                                    multi_bit_programmable_bootstrap_f128_lwe_ciphertext(
+                                                        &input_ct,
+                                                        &mut output_ct,
+                                                        &accumulator,
+                                                        &fourier_bsk,
+                                                        ThreadCount(thread_count),
+                                                        true,
                                                     );
                                                 },
                                             );
@@ -878,6 +1213,7 @@ use cuda::{cuda_multi_bit_pbs128_group, cuda_pbs128_group};
 pub fn pbs128_group() {
     let mut criterion: Criterion<_> = Criterion::default().configure_from_args();
     pbs_128(&mut criterion);
+    multi_bit_pbs_128(&mut criterion);
 }
 
 #[cfg(feature = "gpu")]
