@@ -11,7 +11,7 @@ pub use super::parameters::current_params::V1_3_PARAM_KEYSWITCH_1_1_KS_PBS_TO_2_
 pub use super::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
     DecompositionLevelCount, EncryptionKeyChoice, GlweDimension, LweDimension, MaxNoiseLevel,
-    MessageModulus, PolynomialSize, StandardDev, PARAM_MESSAGE_2_CARRY_2,
+    MessageModulus, ModulusSwitchType, PolynomialSize, StandardDev, PARAM_MESSAGE_2_CARRY_2,
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
 };
 pub use super::public_key::{CompactPublicKey, PublicKey};
