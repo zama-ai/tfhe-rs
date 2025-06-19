@@ -79,6 +79,7 @@ pub mod hpu;
 #[cfg(feature = "zk-pok")]
 pub use ciphertext::ProvenCompactCiphertextList;
 
+use crate::shortint::parameters::ModulusSwitchType;
 pub use bigint::i256::I256;
 pub use bigint::i512::I512;
 pub use bigint::u256::U256;
@@ -144,7 +145,7 @@ where
             log2_p_fail: 1.0,
             ciphertext_modulus: wopbs_params.ciphertext_modulus,
             encryption_key_choice: wopbs_params.encryption_key_choice,
-            modulus_switch_noise_reduction_params: None,
+            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
         };
 
         crate::shortint::parameters::ShortintParameterSet::try_new_pbs_and_wopbs_param_set((
