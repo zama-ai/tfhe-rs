@@ -4,9 +4,9 @@ use super::{
 };
 use crate::core_crypto::commons::parameters::MonomialDegree;
 use crate::core_crypto::prelude::{
-    lwe_ciphertext_modulus_switch, CastFrom, CastInto,
-    CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers, LweCiphertextMutView,
-    LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext, UnsignedInteger, UnsignedTorus,
+    CastFrom, CastInto, CompressedModulusSwitchedMultiBitLweCiphertext, ComputationBuffers,
+    LweCiphertextMutView, LweCiphertextView, ToCompressedModulusSwitchedLweCiphertext,
+    UnsignedInteger, UnsignedTorus,
 };
 use crate::shortint::atomic_pattern::AtomicPattern;
 use crate::shortint::ciphertext::{
@@ -31,21 +31,8 @@ where
         } => {
             let log_modulus = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
 
-            let improved;
-
-            // false positive because of `improved`
-            #[allow(clippy::option_if_let_else)]
-            let msed = match modulus_switch_noise_reduction_key.as_ref() {
-                Some(modulus_switch_noise_reduction_key) => {
-                    improved = modulus_switch_noise_reduction_key
-                        .improve_noise_and_modulus_switch::<_, u64>(&ciphertext, log_modulus);
-
-                    improved.as_view()
-                }
-                None => {
-                    lwe_ciphertext_modulus_switch::<_, u64, _>(ciphertext.as_view(), log_modulus)
-                }
-            };
+            let msed = modulus_switch_noise_reduction_key
+                .lwe_ciphertext_modulus_switch::<u64, _>(&ciphertext, log_modulus);
 
             let compressed = msed.compress::<u64>();
 

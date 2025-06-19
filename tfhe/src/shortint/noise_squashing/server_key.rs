@@ -11,7 +11,6 @@ use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::{
 use crate::core_crypto::entities::{Fourier128LweBootstrapKeyOwned, LweCiphertext};
 use crate::core_crypto::fft_impl::fft128::math::fft::Fft128;
 use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
-use crate::core_crypto::prelude::lwe_ciphertext_modulus_switch;
 use crate::shortint::atomic_pattern::{AtomicPattern, AtomicPatternParameters};
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingKeyVersions;
 use crate::shortint::ciphertext::{Ciphertext, SquashedNoiseCiphertext};
@@ -21,11 +20,10 @@ use crate::shortint::encoding::{compute_delta, PaddingBit};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
 use crate::shortint::parameters::{
-    CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchNoiseReductionParams,
-    PBSOrder, PBSParameters,
+    CarryModulus, CoreCiphertextModulus, MessageModulus, ModulusSwitchType, PBSOrder, PBSParameters,
 };
 use crate::shortint::server_key::{
-    ModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
+    ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKeyConformanceParams, ServerKey,
     StandardServerKeyView,
 };
 use serde::{Deserialize, Serialize};
@@ -34,11 +32,11 @@ use tfhe_versionable::Versionize;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingKeyVersions)]
 pub struct NoiseSquashingKey {
-    pub(super) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-    pub(super) modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
-    pub(super) message_modulus: MessageModulus,
-    pub(super) carry_modulus: CarryModulus,
-    pub(super) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
+    pub(crate) bootstrapping_key: Fourier128LweBootstrapKeyOwned,
+    pub(crate) modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<u64>,
+    pub(crate) message_modulus: MessageModulus,
+    pub(crate) carry_modulus: CarryModulus,
+    pub(crate) output_ciphertext_modulus: CoreCiphertextModulus<u128>,
 }
 
 impl ClientKey {
@@ -101,15 +99,12 @@ impl ClientKey {
 
                 let modulus_switch_noise_reduction_key = noise_squashing_parameters
                     .modulus_switch_noise_reduction_params
-                    .map(|p| {
-                        ModulusSwitchNoiseReductionKey::new(
-                            p,
-                            &std_cks.lwe_secret_key,
-                            engine,
-                            pbs_parameters.ciphertext_modulus(),
-                            pbs_parameters.lwe_noise_distribution(),
-                        )
-                    });
+                    .to_modulus_switch_configuration(
+                        &std_cks.lwe_secret_key,
+                        pbs_parameters.ciphertext_modulus(),
+                        pbs_parameters.lwe_noise_distribution(),
+                        engine,
+                    );
 
                 (fbsk, modulus_switch_noise_reduction_key)
             });
@@ -134,7 +129,7 @@ impl NoiseSquashingKey {
 
     pub fn from_raw_parts(
         bootstrapping_key: Fourier128LweBootstrapKeyOwned,
-        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<u64>>,
+        modulus_switch_noise_reduction_key: ModulusSwitchConfiguration<u64>,
         message_modulus: MessageModulus,
         carry_modulus: CarryModulus,
         output_ciphertext_modulus: CoreCiphertextModulus<u128>,
@@ -152,7 +147,7 @@ impl NoiseSquashingKey {
         self,
     ) -> (
         Fourier128LweBootstrapKeyOwned,
-        Option<ModulusSwitchNoiseReductionKey<u64>>,
+        ModulusSwitchConfiguration<u64>,
         MessageModulus,
         CarryModulus,
         CoreCiphertextModulus<u128>,
@@ -266,13 +261,9 @@ impl NoiseSquashingKey {
             .polynomial_size()
             .to_blind_rotation_input_modulus_log();
 
-        let lwe_ciphertext_to_squash_noise = match &self.modulus_switch_noise_reduction_key {
-            Some(key) => key.improve_noise_and_modulus_switch(
-                &lwe_before_noise_squashing.as_view(),
-                br_input_modulus_log,
-            ),
-            None => lwe_ciphertext_modulus_switch(lwe_before_noise_squashing, br_input_modulus_log),
-        };
+        let lwe_ciphertext_to_squash_noise = self
+            .modulus_switch_noise_reduction_key
+            .lwe_ciphertext_modulus_switch(&lwe_before_noise_squashing, br_input_modulus_log);
 
         let output_lwe_size = self.bootstrapping_key.output_lwe_dimension().to_lwe_size();
         let output_message_modulus = self.message_modulus;
@@ -356,7 +347,7 @@ impl NoiseSquashingKey {
 #[derive(Clone, Copy)]
 pub struct NoiseSquashingKeyConformanceParams {
     pub bootstrapping_key_params: LweBootstrapKeyConformanceParams<u128>,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: ModulusSwitchType,
     pub message_modulus: MessageModulus,
     pub carry_modulus: CarryModulus,
 }
@@ -440,10 +431,15 @@ impl ParameterSetConformant for NoiseSquashingKey {
             modulus_switch_noise_reduction_key,
             expected_modulus_switch_noise_reduction_params,
         ) {
-            (None, None) => true,
-            (None, Some(_)) => false,
-            (Some(_), None) => false,
-            (Some(key), Some(params)) => {
+            (ModulusSwitchConfiguration::Standard, ModulusSwitchType::Standard) => true,
+            (
+                ModulusSwitchConfiguration::CenteredMeanNoiseReduction,
+                ModulusSwitchType::CenteredMeanNoiseReduction,
+            ) => true,
+            (
+                ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(key),
+                ModulusSwitchType::DriftTechniqueNoiseReduction(params),
+            ) => {
                 let mod_switch_conformance_params =
                     ModulusSwitchNoiseReductionKeyConformanceParams {
                         modulus_switch_noise_reduction_params: *params,
@@ -452,6 +448,7 @@ impl ParameterSetConformant for NoiseSquashingKey {
 
                 key.is_conformant(&mod_switch_conformance_params)
             }
+            (_, _) => false,
         };
 
         modulus_switch_key_ok
