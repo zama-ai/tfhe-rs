@@ -1,6 +1,5 @@
 use super::ShortintEngine;
 use crate::core_crypto::algorithms::*;
-use crate::core_crypto::commons::math::random::CompressionSeed;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
     LweBskGroupingFactor, LweDimension, PolynomialSize, ThreadCount,
@@ -13,14 +12,10 @@ use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::secret_encryption_key::SecretEncryptionKeyView;
 use crate::shortint::client_key::StandardClientKeyView;
 use crate::shortint::parameters::{KeySwitch32PBSParameters, ShortintKeySwitchingParameters};
-use crate::shortint::server_key::{
-    CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
-    ShortintBootstrappingKey, ShortintCompressedBootstrappingKey,
-};
+use crate::shortint::server_key::{ShortintBootstrappingKey, ShortintCompressedBootstrappingKey};
 use crate::shortint::{
     CiphertextModulus, ClientKey, CompressedServerKey, PBSParameters, ServerKey,
 };
-use tfhe_csprng::seeders::Seeder;
 
 impl ShortintEngine {
     pub(crate) fn new_server_key(&mut self, cks: &ClientKey) -> ServerKey {
@@ -103,15 +98,12 @@ impl ShortintEngine {
         );
         let modulus_switch_noise_reduction_key = pbs_params
             .modulus_switch_noise_reduction_params
-            .map(|modulus_switch_noise_reduction_params| {
-                ModulusSwitchNoiseReductionKey::new(
-                    modulus_switch_noise_reduction_params,
-                    in_key,
-                    self,
-                    pbs_params.post_keyswitch_ciphertext_modulus,
-                    pbs_params.lwe_noise_distribution,
-                )
-            });
+            .to_modulus_switch_configuration(
+                in_key,
+                pbs_params.post_keyswitch_ciphertext_modulus,
+                pbs_params.lwe_noise_distribution,
+                self,
+            );
 
         ShortintBootstrappingKey::Classic {
             bsk,
@@ -138,17 +130,15 @@ impl ShortintEngine {
                     pbs_params.pbs_level,
                     pbs_params.ciphertext_modulus,
                 );
+
                 let modulus_switch_noise_reduction_key = pbs_params
                     .modulus_switch_noise_reduction_params
-                    .map(|modulus_switch_noise_reduction_params| {
-                        ModulusSwitchNoiseReductionKey::new(
-                            modulus_switch_noise_reduction_params,
-                            in_key,
-                            self,
-                            pbs_params.ciphertext_modulus,
-                            pbs_params.lwe_noise_distribution,
-                        )
-                    });
+                    .to_modulus_switch_configuration(
+                        in_key,
+                        pbs_params.ciphertext_modulus,
+                        pbs_params.lwe_noise_distribution,
+                        self,
+                    );
 
                 ShortintBootstrappingKey::Classic {
                     bsk,
@@ -359,18 +349,12 @@ impl ShortintEngine {
         );
         let modulus_switch_noise_reduction_key = pbs_params
             .modulus_switch_noise_reduction_params
-            .map(|modulus_switch_noise_reduction_params| {
-                let seed = self.seeder.seed();
-
-                CompressedModulusSwitchNoiseReductionKey::new(
-                    modulus_switch_noise_reduction_params,
-                    in_key,
-                    self,
-                    pbs_params.post_keyswitch_ciphertext_modulus,
-                    pbs_params.lwe_noise_distribution,
-                    CompressionSeed { seed },
-                )
-            });
+            .to_compressed_modulus_switch_configuration(
+                in_key,
+                pbs_params.post_keyswitch_ciphertext_modulus,
+                pbs_params.lwe_noise_distribution,
+                self,
+            );
 
         ShortintCompressedBootstrappingKey::Classic {
             bsk,
@@ -400,18 +384,12 @@ impl ShortintEngine {
 
                 let modulus_switch_noise_reduction_key = pbs_params
                     .modulus_switch_noise_reduction_params
-                    .map(|modulus_switch_noise_reduction_params| {
-                        let seed = self.seeder.seed();
-
-                        CompressedModulusSwitchNoiseReductionKey::new(
-                            modulus_switch_noise_reduction_params,
-                            in_key,
-                            self,
-                            pbs_params.ciphertext_modulus,
-                            pbs_params.lwe_noise_distribution,
-                            CompressionSeed { seed },
-                        )
-                    });
+                    .to_compressed_modulus_switch_configuration(
+                        in_key,
+                        pbs_params.ciphertext_modulus,
+                        pbs_params.lwe_noise_distribution,
+                        self,
+                    );
 
                 ShortintCompressedBootstrappingKey::Classic {
                     bsk: bootstrapping_key,
