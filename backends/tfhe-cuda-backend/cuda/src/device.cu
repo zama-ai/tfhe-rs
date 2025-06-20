@@ -2,6 +2,11 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
+#ifndef NDEBUG
+#include <cstdio>
+bool g_debug_warning_printed = false;
+#endif
+
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
 }
@@ -35,6 +40,12 @@ cudaStream_t cuda_create_stream(uint32_t gpu_index) {
   cuda_set_device(gpu_index);
   cudaStream_t stream;
   check_cuda_error(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+#ifndef NDEBUG
+  if (!g_debug_warning_printed)
+    printf("WARNING: CUDA backend was built in DEBUG mode, performance is "
+           "suboptimal\n");
+  g_debug_warning_printed = true;
+#endif
   return stream;
 }
 
