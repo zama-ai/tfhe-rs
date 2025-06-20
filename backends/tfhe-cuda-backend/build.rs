@@ -53,6 +53,11 @@ fn main() {
             cmake_config.define("USE_NVTOOLS", "OFF");
         }
 
+        if cfg!(feature = "debug") {
+            cmake_config.define("CMAKE_BUILD_TYPE", "DEBUG");
+            cmake_config.define("CMAKE_CXX_FLAGS", "-Wuninitialized -O0");
+        }
+
         // Build the CMake project
         let dest = cmake_config.build();
         println!("cargo:rustc-link-search=native={}", dest.display());

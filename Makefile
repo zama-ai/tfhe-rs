@@ -658,6 +658,14 @@ test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
 		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
+.PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
+test_integer_gpu_debug: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile release_lto_off \
+		--features=integer,gpu-debug -vv -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=1 --nocapture
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile release_lto_off \
+		--features=integer,gpu-debug -p $(TFHE_SPEC) -- integer::gpu::server_key::
+
+
 .PHONY: test_integer_long_run_gpu # Run the long run integer tests on the gpu backend
 test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \

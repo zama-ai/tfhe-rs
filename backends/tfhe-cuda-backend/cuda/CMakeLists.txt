@@ -52,6 +52,8 @@ endif()
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
+else()
+  message("Building CUDA backend in ${CMAKE_BUILD_TYPE}")
 endif()
 
 # Add OpenMP support
