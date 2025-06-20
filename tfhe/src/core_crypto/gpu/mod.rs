@@ -1124,6 +1124,24 @@ pub fn synchronize_devices(gpu_count: u32) {
 pub fn check_valid_cuda_malloc(size: u64, gpu_index: GpuIndex) -> bool {
     unsafe { cuda_check_valid_malloc(size, gpu_index.get()) }
 }
+
+/// Check if a memory allocation fits in GPU memory. If it doesn't fit, panic with
+/// a helpful message.
+pub fn check_valid_cuda_malloc_assert_oom(size: u64, gpu_index: GpuIndex) {
+    if !check_valid_cuda_malloc(size, gpu_index) {
+        let total_memory;
+        unsafe {
+            total_memory = cuda_device_total_memory(gpu_index.get());
+        }
+        panic!(
+            "Not enough memory on GPU {}. Allocating {} bytes exceeds total memory: {} bytes",
+            gpu_index.get(),
+            size,
+            total_memory
+        );
+    }
+}
+
 // Determine if a cuda device is available, at runtime
 pub fn is_cuda_available() -> bool {
     let result = unsafe { cuda_is_available() };

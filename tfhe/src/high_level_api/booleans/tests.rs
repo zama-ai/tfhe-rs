@@ -1034,50 +1034,26 @@ mod gpu {
         let ttrue = FheBool::encrypt(true, &keys);
         let ffalse = FheBool::encrypt(false, &keys);
         let bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(&ffalse);
-        assert!(check_valid_cuda_malloc(
-            bitand_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(bitand_size_on_gpu, GpuIndex::new(0));
         let scalar_bitand_size_on_gpu = ttrue.get_bitand_size_on_gpu(false);
-        assert!(check_valid_cuda_malloc(
-            scalar_bitand_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(scalar_bitand_size_on_gpu, GpuIndex::new(0));
         let bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(&ffalse);
-        assert!(check_valid_cuda_malloc(
-            bitxor_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(bitxor_size_on_gpu, GpuIndex::new(0));
         let scalar_bitxor_size_on_gpu = ttrue.get_bitxor_size_on_gpu(false);
-        assert!(check_valid_cuda_malloc(
-            scalar_bitxor_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(scalar_bitxor_size_on_gpu, GpuIndex::new(0));
         let bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(&ffalse);
-        assert!(check_valid_cuda_malloc(bitor_size_on_gpu, GpuIndex::new(0)));
+        check_valid_cuda_malloc_assert_oom(bitor_size_on_gpu, GpuIndex::new(0));
         let scalar_bitor_size_on_gpu = ttrue.get_bitor_size_on_gpu(false);
-        assert!(check_valid_cuda_malloc(
-            scalar_bitor_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(scalar_bitor_size_on_gpu, GpuIndex::new(0));
         let bitnot_size_on_gpu = ttrue.get_bitnot_size_on_gpu();
-        assert!(check_valid_cuda_malloc(
-            bitnot_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(bitnot_size_on_gpu, GpuIndex::new(0));
         let eq_size_on_gpu = ttrue.get_eq_size_on_gpu(&ffalse);
-        assert!(check_valid_cuda_malloc(eq_size_on_gpu, GpuIndex::new(0)));
+        check_valid_cuda_malloc_assert_oom(eq_size_on_gpu, GpuIndex::new(0));
         let scalar_eq_size_on_gpu = ttrue.get_eq_size_on_gpu(false);
-        assert!(check_valid_cuda_malloc(
-            scalar_eq_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(scalar_eq_size_on_gpu, GpuIndex::new(0));
         let ne_size_on_gpu = ttrue.get_ne_size_on_gpu(&ffalse);
-        assert!(check_valid_cuda_malloc(ne_size_on_gpu, GpuIndex::new(0)));
+        check_valid_cuda_malloc_assert_oom(ne_size_on_gpu, GpuIndex::new(0));
         let scalar_ne_size_on_gpu = ttrue.get_ne_size_on_gpu(false);
-        assert!(check_valid_cuda_malloc(
-            scalar_ne_size_on_gpu,
-            GpuIndex::new(0)
-        ));
+        check_valid_cuda_malloc_assert_oom(scalar_ne_size_on_gpu, GpuIndex::new(0));
     }
 }
