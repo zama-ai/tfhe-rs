@@ -76,8 +76,15 @@ impl PkeV2HashMode {
         self.gen_scalars_with_hash(output, inputs, Zp::hash)
     }
 
-    fn gen_scalars_128bit<Zp: FieldOps>(self, output: &mut [Zp], inputs: &[&[u8]]) -> Box<[u8]> {
-        self.gen_scalars_with_hash(output, inputs, Zp::hash_128bit)
+    /// Generates if possible 128bits scalars that reduce the cost of multi exponentiations. This is
+    /// not compatible with compact hashes since the scalars need to be independant, so a classical
+    /// hash function will be used.
+    fn gen_short_scalars<Zp: FieldOps>(self, output: &mut [Zp], inputs: &[&[u8]]) -> Box<[u8]> {
+        let hash_fn = match self {
+            PkeV2HashMode::BackwardCompat | PkeV2HashMode::Classical => Zp::hash_128bit,
+            PkeV2HashMode::Compact => Zp::hash,
+        };
+        self.gen_scalars_with_hash(output, inputs, hash_fn)
     }
 
     /// Encode the R matrix (defined as a matrix of -1, 0, 1) as bytes
@@ -512,7 +519,7 @@ impl<'a> YHash<'a> {
         let t_inputs = TInputs { C_y_bytes };
 
         let mut t = vec![Zp::ZERO; self.R_inputs.n];
-        let t_bytes = mode.gen_scalars_128bit(&mut t, &self.t_hash_input(&t_inputs));
+        let t_bytes = mode.gen_short_scalars(&mut t, &self.t_hash_input(&t_inputs));
 
         (
             t,
@@ -695,7 +702,7 @@ impl<'a> ThetaHash<'a> {
         let mode = self.R_inputs.mode;
 
         let mut omega = vec![Zp::ZERO; self.R_inputs.n];
-        let omega_bytes = mode.gen_scalars_128bit(&mut omega, &self.omega_hash_input());
+        let omega_bytes = mode.gen_short_scalars(&mut omega, &self.omega_hash_input());
 
         (
             omega,
