@@ -55,7 +55,7 @@ impl PrfMultiBitSeededModulusSwitched {
 
 impl MultiBitModulusSwitchedLweCiphertext for PrfMultiBitSeededModulusSwitched {
     fn lwe_dimension(&self) -> LweDimension {
-        LweSize(self.seeded_modulus_switched.mask.len()).to_lwe_dimension()
+        LweDimension(self.seeded_modulus_switched.mask.len())
     }
 
     fn grouping_factor(&self) -> LweBskGroupingFactor {
@@ -445,10 +445,16 @@ pub(crate) mod test {
         let p_value_limit: f64 = 0.000_01;
 
         use crate::shortint::gen_keys;
-        use crate::shortint::parameters::test_params::TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128;
+        use crate::shortint::parameters::test_params::{
+            TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+            TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+        };
         use crate::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
         for params in [
+            ShortintParameterSet::from(
+                TEST_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
+            ),
             ShortintParameterSet::from(PARAM_MESSAGE_2_CARRY_2_KS_PBS),
             ShortintParameterSet::from(TEST_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128),
         ] {
