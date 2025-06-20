@@ -432,7 +432,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug)]
 pub struct PublicCommit<G: Curve> {
     a: Vec<i64>,
     b: Vec<i64>,
