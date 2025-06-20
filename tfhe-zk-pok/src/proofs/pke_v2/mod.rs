@@ -575,7 +575,7 @@ where
 }
 
 /// This is the public part of the commitment.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug)]
 pub struct PublicCommit<G: Curve> {
     /// Mask of the public key
     a: Vec<i64>,
