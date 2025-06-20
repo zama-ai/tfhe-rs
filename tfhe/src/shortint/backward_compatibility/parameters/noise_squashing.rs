@@ -1,5 +1,5 @@
 use crate::shortint::parameters::noise_squashing::{
-    NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    NoiseSquashingCompressionParameters, NoiseSquashingMultiBitParameters, NoiseSquashingParameters,
 };
 use tfhe_versionable::VersionsDispatch;
 
@@ -11,4 +11,9 @@ pub enum NoiseSquashingParametersVersions {
 #[derive(VersionsDispatch)]
 pub enum NoiseSquashingCompressionParametersVersions {
     V0(NoiseSquashingCompressionParameters),
+}
+
+#[derive(VersionsDispatch)]
+pub enum NoiseSquashingMultiBitParametersVersions {
+    V0(NoiseSquashingMultiBitParameters),
 }
