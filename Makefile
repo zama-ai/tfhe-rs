@@ -514,6 +514,9 @@ check_rust_bindings_did_not_change:
 tfhe_lints: install_cargo_dylint
 	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe --no-deps -- \
 		--features=boolean,shortint,integer,strings,zk-pok
+	RUSTFLAGS="$(RUSTFLAGS)" cargo dylint --all -p tfhe-zk-pok --no-deps -- \
+		--features=experimental
+
 
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
