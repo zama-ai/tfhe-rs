@@ -1,5 +1,7 @@
 //! Module with traits pertaining to container manipulation.
 
+use std::borrow::Cow;
+
 /// A trait to manipulate various immutable container types transparently.
 pub trait Container: AsRef<[Self::Element]> {
     type Element;
@@ -13,6 +15,10 @@ pub trait Container: AsRef<[Self::Element]> {
 pub trait ContainerMut: Container + AsMut<[<Self as Container>::Element]> {}
 
 impl<T> Container for [T] {
+    type Element = T;
+}
+
+impl<T: Clone> Container for Cow<'_, [T]> {
     type Element = T;
 }
 

@@ -27,8 +27,50 @@ pub enum SerializableShortintBootstrappingKeyV0<C: Container<Element = tfhe_fft:
 }
 
 impl<InputScalar, C: Container<Element = tfhe_fft::c64>>
-    Upgrade<SerializableShortintBootstrappingKey<InputScalar, C>>
+    Upgrade<SerializableShortintBootstrappingKeyV1<InputScalar, C>>
     for SerializableShortintBootstrappingKeyV0<C>
+where
+    InputScalar: UnsignedInteger,
+{
+    type Error = Infallible;
+
+    fn upgrade(
+        self,
+    ) -> Result<SerializableShortintBootstrappingKeyV1<InputScalar, C>, Self::Error> {
+        Ok(match self {
+            Self::Classic(bsk) => SerializableShortintBootstrappingKeyV1::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: None,
+            },
+            Self::MultiBit {
+                fourier_bsk,
+                deterministic_execution,
+            } => SerializableShortintBootstrappingKeyV1::MultiBit {
+                fourier_bsk,
+                deterministic_execution,
+            },
+        })
+    }
+}
+
+#[derive(Version)]
+pub enum SerializableShortintBootstrappingKeyV1<InputScalar, C: Container<Element = tfhe_fft::c64>>
+where
+    InputScalar: UnsignedInteger,
+{
+    Classic {
+        bsk: FourierLweBootstrapKey<C>,
+        modulus_switch_noise_reduction_key: Option<ModulusSwitchNoiseReductionKey<InputScalar>>,
+    },
+    MultiBit {
+        fourier_bsk: FourierLweMultiBitBootstrapKey<C>,
+        deterministic_execution: bool,
+    },
+}
+
+impl<InputScalar, C: Container<Element = tfhe_fft::c64>>
+    Upgrade<SerializableShortintBootstrappingKey<InputScalar, C>>
+    for SerializableShortintBootstrappingKeyV1<InputScalar, C>
 where
     InputScalar: UnsignedInteger,
 {
@@ -36,9 +78,19 @@ where
 
     fn upgrade(self) -> Result<SerializableShortintBootstrappingKey<InputScalar, C>, Self::Error> {
         Ok(match self {
-            Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic {
+            Self::Classic {
                 bsk,
-                modulus_switch_noise_reduction_key: None,
+                modulus_switch_noise_reduction_key,
+            } => SerializableShortintBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: modulus_switch_noise_reduction_key.map_or(
+                    ModulusSwitchConfiguration::Standard,
+                    |modulus_switch_noise_reduction_key| {
+                        ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                            modulus_switch_noise_reduction_key,
+                        )
+                    },
+                ),
             },
             Self::MultiBit {
                 fourier_bsk,
@@ -62,7 +114,8 @@ pub enum SerializableShortintBootstrappingKeyVersions<
     // Here a generic `InputScalar` has been added but it does not requires a new version since it
     // is only added through the `ModulusSwitchNoiseReductionKey`, which handles the
     // upgrade itself.
-    V1(SerializableShortintBootstrappingKey<InputScalar, C>),
+    V1(SerializableShortintBootstrappingKeyV1<InputScalar, C>),
+    V2(SerializableShortintBootstrappingKey<InputScalar, C>),
 }
 
 impl Deprecable for ServerKey {
@@ -146,19 +199,65 @@ pub enum ShortintCompressedBootstrappingKeyV1 {
     },
 }
 
-impl<InputScalar: UnsignedInteger> Upgrade<ShortintCompressedBootstrappingKey<InputScalar>>
+impl<InputScalar: UnsignedInteger> Upgrade<ShortintCompressedBootstrappingKeyV2<InputScalar>>
     for ShortintCompressedBootstrappingKeyV1
+{
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ShortintCompressedBootstrappingKeyV2<InputScalar>, Self::Error> {
+        Ok(match self {
+            Self::Classic(bsk) => ShortintCompressedBootstrappingKeyV2::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: None,
+            },
+            Self::MultiBit {
+                seeded_bsk,
+                deterministic_execution,
+            } => ShortintCompressedBootstrappingKeyV2::MultiBit {
+                seeded_bsk,
+                deterministic_execution,
+            },
+        })
+    }
+}
+
+#[derive(Version)]
+pub enum ShortintCompressedBootstrappingKeyV2<InputScalar>
+where
+    InputScalar: UnsignedInteger,
+{
+    Classic {
+        bsk: SeededLweBootstrapKeyOwned<u64>,
+        modulus_switch_noise_reduction_key:
+            Option<CompressedModulusSwitchNoiseReductionKey<InputScalar>>,
+    },
+    MultiBit {
+        seeded_bsk: SeededLweMultiBitBootstrapKeyOwned<u64>,
+        deterministic_execution: bool,
+    },
+}
+
+impl<InputScalar: UnsignedInteger> Upgrade<ShortintCompressedBootstrappingKey<InputScalar>>
+    for ShortintCompressedBootstrappingKeyV2<InputScalar>
 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<ShortintCompressedBootstrappingKey<InputScalar>, Self::Error> {
         Ok(match self {
-            Self::Classic(seeded_lwe_bootstrap_key) => {
-                ShortintCompressedBootstrappingKey::Classic {
-                    bsk: seeded_lwe_bootstrap_key,
-                    modulus_switch_noise_reduction_key: None,
-                }
-            }
+            Self::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key,
+            } => ShortintCompressedBootstrappingKey::Classic {
+                bsk,
+                modulus_switch_noise_reduction_key: modulus_switch_noise_reduction_key.map_or(
+                    CompressedModulusSwitchConfiguration::Standard,
+                    |modulus_switch_noise_reduction_key| {
+                        CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                            modulus_switch_noise_reduction_key,
+                        )
+                    },
+                ),
+            },
             Self::MultiBit {
                 seeded_bsk,
                 deterministic_execution,
@@ -180,7 +279,8 @@ where
     // Here a generic `InputScalar` has been added but it does not requires a new version since it
     // is only added through the `CompressedModulusSwitchNoiseReductionKey`, which handles the
     // upgrade itself.
-    V2(ShortintCompressedBootstrappingKey<InputScalar>),
+    V2(ShortintCompressedBootstrappingKeyV2<InputScalar>),
+    V3(ShortintCompressedBootstrappingKey<InputScalar>),
 }
 
 impl Deprecable for CompressedServerKey {

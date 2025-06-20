@@ -6,7 +6,7 @@ use crate::shortint::ciphertext::{MaxDegree, MaxNoiseLevel};
 use crate::shortint::client_key::StandardClientKeyView;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::server_key::{
-    ShortintBootstrappingKey, StandardServerKey, StandardServerKeyView,
+    ModulusSwitchConfiguration, ShortintBootstrappingKey, StandardServerKey, StandardServerKeyView,
 };
 use crate::shortint::wopbs::{WopbsKey, WopbsKeyCreationError};
 use crate::shortint::WopbsParameters;
@@ -150,7 +150,7 @@ impl ShortintEngine {
             key_switching_key: ksk_wopbs_large_to_wopbs_small,
             bootstrapping_key: ShortintBootstrappingKey::Classic {
                 bsk: small_bsk,
-                modulus_switch_noise_reduction_key: None,
+                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
             },
             pbs_order: cks.parameters().encryption_key_choice().into(),
         };

@@ -11,11 +11,12 @@ use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
 use crate::shortint::parameters::{
-    CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
-    PolynomialSize,
+    CompressionParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, PolynomialSize,
 };
 use crate::shortint::server_key::{
-    PBSConformanceParams, PbsTypeConformanceParams, ShortintBootstrappingKey,
+    ModulusSwitchConfiguration, PBSConformanceParams, PbsTypeConformanceParams,
+    ShortintBootstrappingKey,
 };
 use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
@@ -105,7 +106,7 @@ impl ClientKey {
                     compression_params.br_level,
                     pbs_params.ciphertext_modulus(),
                 ),
-                modulus_switch_noise_reduction_key: None,
+                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
             });
 
         let glwe_decompression_key = DecompressionKey {
@@ -205,7 +206,7 @@ impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
             level: value.br_level,
             ciphertext_modulus: value.cipherext_modulus,
             pbs_type: PbsTypeConformanceParams::Classic {
-                modulus_switch_noise_reduction: None,
+                modulus_switch_noise_reduction: ModulusSwitchType::Standard,
             },
         }
     }
