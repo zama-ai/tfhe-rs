@@ -60,7 +60,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
     /// use tfhe::prelude::FheDecrypt;
     /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
     ///
@@ -73,7 +73,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let size = FheUint8::get_generate_oblivious_pseudo_random_size_on_gpu();
     ///
-    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
     pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
@@ -146,7 +146,7 @@ impl<Id: FheUintId> FheUint<Id> {
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
     /// use tfhe::prelude::FheDecrypt;
     /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
     ///
@@ -159,7 +159,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// let size = FheUint8::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
     ///
-    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
     pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
@@ -235,7 +235,7 @@ impl<Id: FheIntId> FheInt<Id> {
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
     /// use tfhe::prelude::FheDecrypt;
     /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
     ///
@@ -248,7 +248,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// let size = FheInt8::get_generate_oblivious_pseudo_random_size_on_gpu();
     ///
-    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
     pub fn get_generate_oblivious_pseudo_random_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
@@ -322,7 +322,7 @@ impl<Id: FheIntId> FheInt<Id> {
     /// Returns the amount of memory required to execute generate_oblivious_pseudo_random_bounded
     ///
     /// ```rust
-    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc;
+    /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
     /// use tfhe::prelude::FheDecrypt;
     /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
     ///
@@ -335,7 +335,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// let size = FheInt8::get_generate_oblivious_pseudo_random_bounded_size_on_gpu();
     ///
-    /// assert!(check_valid_cuda_malloc(size, GpuIndex::new(0)));
+    /// check_valid_cuda_malloc_assert_oom(size, GpuIndex::new(0));
     /// ```
     pub fn get_generate_oblivious_pseudo_random_bounded_size_on_gpu() -> u64 {
         global_state::with_internal_keys(|key| {
