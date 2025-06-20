@@ -19,3 +19,4 @@ bindgen = "0.71"
 [features]
 experimental-multi-arch = []
 profile = []
+debug = []
