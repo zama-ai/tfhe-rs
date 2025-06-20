@@ -55,6 +55,7 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);
 
 bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index);
+uint64_t cuda_device_total_memory(uint32_t gpu_index);
 
 void cuda_memcpy_with_size_tracking_async_to_gpu(void *dest, const void *src,
                                                  uint64_t size,

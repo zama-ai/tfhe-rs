@@ -122,6 +122,13 @@ bool cuda_check_valid_malloc(uint64_t size, uint32_t gpu_index) {
   }
 }
 
+uint64_t cuda_device_total_memory(uint32_t gpu_index) {
+  cuda_set_device(gpu_index);
+  size_t total_mem = 0, free_mem = 0;
+  check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
+  return total_mem;
+}
+
 /// Returns
 ///  false if Cooperative Groups is not supported.
 ///  true otherwise

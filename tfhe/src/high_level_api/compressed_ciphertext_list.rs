@@ -1094,18 +1094,12 @@ mod tests {
                 .get_decompression_size_on_gpu(0)
                 .unwrap()
                 .unwrap();
-            assert!(check_valid_cuda_malloc(
-                decompress_ct1_size_on_gpu,
-                GpuIndex::new(0)
-            ));
+            check_valid_cuda_malloc_assert_oom(decompress_ct1_size_on_gpu, GpuIndex::new(0));
             let decompress_ct2_size_on_gpu = compressed_list
                 .get_decompression_size_on_gpu(1)
                 .unwrap()
                 .unwrap();
-            assert!(check_valid_cuda_malloc(
-                decompress_ct2_size_on_gpu,
-                GpuIndex::new(0)
-            ));
+            check_valid_cuda_malloc_assert_oom(decompress_ct2_size_on_gpu, GpuIndex::new(0));
         }
     }
 }
