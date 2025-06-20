@@ -395,14 +395,14 @@ uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool reduce_degrees_for_single_carry_propagation, bool allocate_gpu_memory,
+    bool allocate_ms_array);
 
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *radix_lwe_out,
-    CudaRadixCiphertextFFI *radix_lwe_vec,
-    bool reduce_degrees_for_single_carry_propagation, int8_t *mem_ptr,
-    void *const *bsks, void *const *ksks,
+    CudaRadixCiphertextFFI *radix_lwe_vec, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key);
 
 void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
