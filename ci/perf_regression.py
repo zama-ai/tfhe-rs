@@ -2,7 +2,18 @@
 perf_regression
 ---------------
 
-TODO add documentation
+This script allows zama-ai developers to run performance regression benchmarks.
+It is capable of launching any performance benchmarks available in `tfhe-benchmark` crate.
+Used in a GitHub action workflow, it can parse an issue comment and generate arguments to be fed
+to a `cargo bench` command.
+
+To defined what to run and where, a TOML file is used to define targets, check `ci/regression.toml` to have an
+explanation of all possible fields.
+One can also provide a fully custom profile via the issue comment string see
+:func:`parse_issue_comment` for details.
+
+This script is also capable check for performances regression based on previous benchmarks results.
+It works by provide a results file containing the baseline values and the results of the last run.
 """
 
 import argparse
@@ -30,42 +41,6 @@ BENCH_TARGETS_PATH = pathlib.Path("tfhe-benchmark/Cargo.toml")
 FILE_PREFIX = "perf_regression_"
 GENERATED_COMMANDS_PATH = pathlib.Path(f"ci/{FILE_PREFIX}generated_commands.json")
 CUSTOM_ENV_PATH = pathlib.Path(f"ci/{FILE_PREFIX}custom_env.sh")
-
-USER_TO_TFHE_TARGETS = {
-    "boolean": "boolean-bench",
-    "shortint": "shortint-bench",
-    "oprf": "oprf-shortint-bench",
-    "comp-shortint": "glwe_packing_compression-shortint-bench",
-    "comp-integer": "glwe_packing_compression-integer-bench",
-    "hlapi": "hlapi",
-    "erc20": "hlapi-erc20",
-    "dex": "hlapi-dex",
-    "integer": "integer-bench",
-    "integer-signed": "integer-signed-bench",
-    "zk": "zk-pke-bench",
-    "ks": "ks-bench",
-    "pbs": "pbs-bench",
-    "ks-pbs": "ks-pbs-bench",
-    "ms-noise-reduc": "modulus_switch_noise_reduction",
-    "pbs128": "pbs128-bench",
-}
-
-def check_targets_consistency(bench_targets: list[dict]):
-    missing_targets = {}
-
-    print("Checking targets consistency...")
-    tfhe_rs_target_names = [item["name"] for item in bench_targets]
-    for key, target_name in USER_TO_TFHE_TARGETS.items():
-        if target_name not in tfhe_rs_target_names:
-            missing_targets[key] = target_name
-
-    if missing_targets:
-        print("Inconsistent targets:")
-        for key, missing_name in missing_targets.items():
-            print(
-                f"tfhe-benchmark target `{missing_name}` not found in {BENCH_TARGETS_PATH} (user target associated: `{key}`)"
-            )
-        raise KeyError("tfhe-benchmark targets inconsistent")
 
 
 class ProfileOption(enum.Enum):
@@ -110,25 +85,23 @@ class TfheBackend(enum.StrEnum):
                 raise NotImplementedError
 
 
-# TODO Replace integer enum with StrEnum do avoid having a mapping for targets as constant
-#  + implement consistency checking
-class TargetOption(enum.Enum):
-    Boolean = 1
-    Shortint = 2
-    Oprf = 3
-    CompShortint = 4
-    CompInteger = 5
-    HLApi = 6
-    Erc20 = 7
-    Dex = 8
-    Integer = 9
-    IntegerSigned = 10
-    ZK = 11
-    KS = 12
-    PBS = 13
-    KSPBS = 14
-    MsNoiseReduction = 15
-    Pbs128 = 16
+class TargetOption(enum.StrEnum):
+    Boolean = "boolean-bench"
+    Shortint = "shortint-bench"
+    Oprf = "oprf-shortint-bench"
+    CompShortint = "glwe_packing_compression-shortint-bench"
+    CompInteger = "glwe_packing_compression-integer-bench"
+    HLApi = "hlapi"
+    Erc20 = "hlapi-erc20"
+    Dex = "hlapi-dex"
+    Integer = "integer-bench"
+    IntegerSigned = "integer-signed-bench"
+    ZK = "zk-pke-bench"
+    KS = "ks-bench"
+    PBS = "pbs-bench"
+    KSPBS = "ks-pbs-bench"
+    MsNoiseReduction = "modulus_switch_noise_reduction"
+    Pbs128 = "pbs128-bench"
 
     @staticmethod
     def from_str(label):
@@ -168,6 +141,24 @@ class TargetOption(enum.Enum):
             case _:
                 raise NotImplementedError
 
+    @staticmethod
+    def check_targets_consistency(bench_targets: list[dict]):
+        missing_targets = []
+
+        print("Checking targets consistency...")
+        tfhe_rs_target_names = [item["name"] for item in bench_targets]
+        for trgt in TargetOption:
+            target_value = trgt.value
+            if target_value not in tfhe_rs_target_names:
+                missing_targets.append(target_value)
+
+        if missing_targets:
+            print("Inconsistent targets:")
+            for missing_target in missing_targets:
+                print(
+                    f"tfhe-benchmark target `{missing_target}` not found in {BENCH_TARGETS_PATH}"
+                )
+            raise KeyError("tfhe-benchmark targets inconsistent")
 
 class SlabOption(enum.Enum):
     Backend = 1
@@ -227,9 +218,9 @@ class ProfileDefinition:
 
         self.env_vars = {}
 
-        check_targets_consistency(tfhe_rs_targets)
+        TargetOption.check_targets_consistency(tfhe_rs_targets)
+
         self.tfhe_rs_targets = self._build_tfhe_rs_targets(tfhe_rs_targets)
-        # print("TARGETS:", self.tfhe_rs_targets)  # DEBUG
 
     def __str__(self):
         return f"ProfileDefinition(backend={self.backend}, regression_profile={self.regression_profile}, targets={self.targets}, slab_backend={self.slab_backend}, slab_profile={self.slab_profile}, env_vars={self.env_vars})"
@@ -248,11 +239,12 @@ class ProfileDefinition:
                 self.regression_profile = value
             case ProfileOption.BenchmarkTarget:
                 key, value = _parse_option_content(value)
+                trgt = TargetOption.from_str(key)
                 operations = value.replace(" ", "").split(",")
                 try:
-                    self.targets[key].extend(operations)
+                    self.targets[trgt].extend(operations)
                 except KeyError:
-                    self.targets[key] = operations
+                    self.targets[trgt] = operations
             case ProfileOption.Slab:
                 key, value = _parse_option_content(value)
                 if key == "backend":
@@ -307,8 +299,9 @@ class ProfileDefinition:
             match option:
                 case ProfileOption.BenchmarkTarget:
                     for target_key, ops in value.items():
-                        if target_key not in self.targets:
-                            self.targets[target_key] = ops
+                        trgt = TargetOption.from_str(target_key)
+                        if trgt not in self.targets:
+                            self.targets[trgt] = ops
                 case ProfileOption.Slab:
                     for slab_key, val in value.items():
                         if slab_key == "backend":
@@ -323,14 +316,14 @@ class ProfileDefinition:
 
     def _build_tfhe_rs_targets(self, tfhe_rs_targets: list[dict]):
         targets = {}
-        for key, value in USER_TO_TFHE_TARGETS.items():
+        for key in TargetOption:
             required_features = []
             for item in tfhe_rs_targets:
-                if item["name"] == value:
+                if item["name"] == key.value:
                     required_features = item["required-features"]
                     break
 
-            targets[key] = {"target": value, "required_features": required_features}
+            targets[key] = {"target": key.value, "required_features": required_features}
 
         return targets
 
@@ -357,6 +350,8 @@ class ProfileDefinition:
         :return:
         """
         commands = []
+        print("TARGEEEEEEEEEEEEEEEEEEEEEET:::::::::")
+        print(self.targets)
         for key, ops in self.targets.items():
             print(ops)  # DEBUG
             features = self._build_features(key)

@@ -1,20 +1,58 @@
 # Benchmark regression profile structure is defined as:
 #
 # [<tfhe-rs_backend>.<regression_profile_name>]
-# integer-ops = ["<operation_name>", ]
-# hl-ops = ["<operation_name>", ]
-# slab-instance-provider = "<provider_name>"
-# slab-profile = "<slab_profile_name>"
+# target.<target_name> = ["<operation_name>", ]
+# env.<variable_name> = "<variable_value>"
+# slab.backend = "<provider_name>"
+# slab.profile = "<slab_profile_name>"
 #
 # Details:
 # --------
-# tfhe-rs_backend: cpu|gpu|hpu
-# regression_profile_name: any string (containing only dash or underscore as special chars)
-# <layer>-ops: list of operations to benchmark on the given tfhe-rs layer
-# operation_name: name of the operation to run (name must match one declared in benchmark file)
-# slab-instance-provider: aws|hyperstack
-# slab-profile: last part of a section defined in ci/slab.toml
 #
+# > tfhe-rs_backend: name of the backend to use to run the benchmarks
+#   Possible values are:
+#       * cpu
+#       * gpu
+#       * hpu
+#
+# > regression_profile_name: any string (containing only dash or underscore as special chars)
+#   Each tfhe-rs backend should have a default profile.
+#
+# > target.<target_name>: list of operations to benchmark on the given tfhe-rs benchmark target
+#   A profile can have multiple targets.
+#   Possible values for target_name are:
+#       * boolean
+#       * shortint
+#       * oprf
+#       * comp-shortint
+#       * comp-integer
+#       * hlapi
+#       * erc20
+#       * dex
+#       * integer
+#       * integer-signed
+#       * zk
+#       * ks
+#       * pbs
+#       * ks-pbs
+#       * ms-noise-reduc
+#       * pbs128
+#
+# > env.<variable_name>: environment variable that will be used to alter benchmark execution enviroment
+#   Possible values for variable_name are (case-insensitive):
+#       * FAST_BENCH
+#       * BENCH_OP_FLAVOR
+#       * BENCH_TYPE
+#       * BENCH_PARAM_TYPE
+#       * BENCH_PARAMS_SET
+#
+# > slab.backend: name of on-demand instance provider 
+#   Possible values are:
+#       * aws
+#       * hyperstack
+#
+# > slab.profile: on-demand instance profile to use for the benchmark
+#   See ci/slab.toml file to have the list of all supported profiles.
 
 [gpu.default]
 target.integer = ["mul", "div"]
