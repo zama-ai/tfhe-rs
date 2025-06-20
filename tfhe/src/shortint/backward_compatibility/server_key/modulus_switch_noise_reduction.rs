@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::convert::Infallible;
 
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::shortint::parameters::{NoiseEstimationMeasureBound, RSigmaFactor, Variance};
@@ -91,6 +92,16 @@ where
             ms_r_sigma_factor: self.ms_r_sigma_factor,
             ms_input_variance: self.ms_input_variance,
         })
+    }
+}
+
+impl<Scalar: UnsignedInteger> Upgrade<ModulusSwitchConfiguration<Scalar>>
+    for Option<ModulusSwitchNoiseReductionKey<Scalar>>
+{
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<ModulusSwitchConfiguration<Scalar>, Self::Error> {
+        todo!()
     }
 }
 
