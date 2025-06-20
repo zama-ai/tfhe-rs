@@ -9,6 +9,7 @@ use crate::shortint::backward_compatibility::list_compression::{
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
+use crate::shortint::list_compression::CompressedNoiseSquashingCompressionKey;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
 use crate::shortint::parameters::{
     CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
@@ -241,6 +242,31 @@ impl NoiseSquashingPrivateKey {
         });
 
         NoiseSquashingCompressionKey {
+            packing_key_switching_key,
+            lwe_per_glwe: params.lwe_per_glwe,
+        }
+    }
+
+    pub fn new_compressed_noise_squashing_compression_key(
+        &self,
+        private_compression_key: &NoiseSquashingCompressionPrivateKey,
+    ) -> CompressedNoiseSquashingCompressionKey {
+        let params = &private_compression_key.params;
+
+        let packing_key_switching_key =
+            crate::shortint::engine::ShortintEngine::with_thread_local_mut(|engine| {
+                allocate_and_generate_new_seeded_lwe_packing_keyswitch_key(
+                    &self.post_noise_squashing_secret_key().as_lwe_secret_key(),
+                    &private_compression_key.post_packing_ks_key,
+                    params.packing_ks_base_log,
+                    params.packing_ks_level,
+                    params.packing_ks_key_noise_distribution,
+                    params.ciphertext_modulus,
+                    &mut engine.seeder,
+                )
+            });
+
+        CompressedNoiseSquashingCompressionKey {
             packing_key_switching_key,
             lwe_per_glwe: params.lwe_per_glwe,
         }
