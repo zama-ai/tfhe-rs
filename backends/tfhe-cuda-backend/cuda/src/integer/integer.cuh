@@ -1935,15 +1935,26 @@ void host_add_and_propagate_single_carry(
   PUSH_RANGE("add & propagate sc")
   if (lhs_array->num_radix_blocks != rhs_array->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
-  if (lhs_array->lwe_dimension != rhs_array->lwe_dimension ||
-      lhs_array->lwe_dimension != input_carries->lwe_dimension ||
-      lhs_array->lwe_dimension != carry_out->lwe_dimension)
-    PANIC("Cuda error: input and output lwe dimension must be the same")
+
+  // Check input carries if used
+  if (uses_carry == 1) {
+    if (input_carries == nullptr)
+      PANIC("Cuda error: if uses_carry is enabled, input_carries cannot be a "
+            "null pointer");
+    if (lhs_array->lwe_dimension != input_carries->lwe_dimension)
+      PANIC(
+          "Cuda error: input and input_carries lwe dimension must be the same");
+  }
+
+  // Allow nullptr for carry_out if FLAG_NONE is requested
   if ((requested_flag == outputFlag::FLAG_OVERFLOW ||
-       requested_flag == outputFlag::FLAG_CARRY) &&
-      carry_out == nullptr)
-    PANIC("Cuda error: when requesting FLAG_CARRY, carry_out must be a valid "
-          "pointer")
+       requested_flag == outputFlag::FLAG_CARRY)) {
+    if (carry_out == nullptr)
+      PANIC("Cuda error: when requesting FLAG_CARRY or FLAG_OVERFLOW, "
+            "carry_out must be a valid pointer")
+    if (lhs_array->lwe_dimension != carry_out->lwe_dimension)
+      PANIC("Cuda error: input and carry_out lwe dimension must be the same")
+  }
 
   auto num_radix_blocks = lhs_array->num_radix_blocks;
   auto params = mem->params;
@@ -2047,6 +2058,7 @@ void host_add_and_propagate_single_carry(
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], lhs_array, 0, num_radix_blocks,
         mem->output_flag, 0, num_radix_blocks);
+
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], carry_out, 0, 1, mem->output_flag,
         num_radix_blocks, num_radix_blocks + 1);

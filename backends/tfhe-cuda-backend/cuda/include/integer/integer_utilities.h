@@ -5153,6 +5153,109 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
   }
 };
 
+template <typename Torus> struct int_unsigned_scalar_div_mem {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  CudaRadixCiphertextFFI *tmp_ffi;
+
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
+  int_scalar_mul_high<Torus> *scalar_mul_high_mem;
+  int_sc_prop_memory<Torus> *scp_mem;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+
+  int_unsigned_scalar_div_mem(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+      bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
+      bool multiplier_exceeds_threshold, uint32_t ilog2_divisor,
+      uint32_t num_scalar_bits, uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->tmp_ffi = nullptr;
+
+    this->logical_scalar_shift_mem = nullptr;
+    this->scalar_mul_high_mem = nullptr;
+    this->scp_mem = nullptr;
+    this->sub_and_propagate_mem = nullptr;
+
+    if (ilog2_divisor != (uint32_t)0) {
+      if (is_divisor_power_of_two) {
+
+        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+            streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
+            num_radix_blocks, allocate_gpu_memory, size_tracker);
+
+      } else if (log2_divisor_exceeds_threshold) {
+
+        tmp_ffi = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
+            params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+      } else if (multiplier_exceeds_threshold) {
+
+        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+            streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
+            num_radix_blocks, allocate_gpu_memory, size_tracker);
+        scalar_mul_high_mem = new int_scalar_mul_high<Torus>(
+            streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+            allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
+            size_tracker);
+        scp_mem = new int_sc_prop_memory<Torus>(
+            streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+            FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
+        sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+            streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+            FLAG_NONE, allocate_gpu_memory, size_tracker);
+        tmp_ffi = new CudaRadixCiphertextFFI;
+        create_zero_radix_ciphertext_async<Torus>(
+            streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
+            params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+      } else {
+
+        logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
+            streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
+            num_radix_blocks, allocate_gpu_memory, size_tracker);
+        scalar_mul_high_mem = new int_scalar_mul_high<Torus>(
+            streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+            allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
+            size_tracker);
+      }
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    if (logical_scalar_shift_mem != nullptr) {
+      logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
+      delete logical_scalar_shift_mem;
+    }
+    if (scalar_mul_high_mem != nullptr) {
+      scalar_mul_high_mem->release(streams, gpu_indexes, gpu_count);
+      delete scalar_mul_high_mem;
+    }
+    if (scp_mem != nullptr) {
+      scp_mem->release(streams, gpu_indexes, gpu_count);
+      delete scp_mem;
+    }
+    if (sub_and_propagate_mem != nullptr) {
+      sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
+      delete sub_and_propagate_mem;
+    }
+    if (tmp_ffi != nullptr) {
+      release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp_ffi,
+                                     allocate_gpu_memory);
+      delete tmp_ffi;
+    }
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
