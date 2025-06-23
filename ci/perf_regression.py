@@ -160,6 +160,7 @@ class TargetOption(enum.StrEnum):
                 )
             raise KeyError("tfhe-benchmark targets inconsistent")
 
+
 class SlabOption(enum.Enum):
     Backend = 1
     Profile = 2
@@ -207,8 +208,10 @@ def _parse_option_content(content):
 class ProfileDefinition:
     def __init__(self, tfhe_rs_targets: list[dict]):
         """
+        Regression profile definition builder capable of generating Cargo commands and custom environment variables for
+        benchmarks to run.
 
-        :param tfhe_rs_targets:
+        :param tfhe_rs_targets: parsed TOML from tfhe-benchmark crate containing cargo targets definition
         """
         self.backend = None
         self.regression_profile = "default"
@@ -227,10 +230,10 @@ class ProfileDefinition:
 
     def set_field_from_option(self, option: ProfileOption, value: str):
         """
+        Set a profile definition field based on a user input value.
 
-        :param option:
-        :param value:
-        :return:
+        :param option: profile option field
+        :param value: profile option value
         """
         match option:
             case ProfileOption.Backend:
@@ -259,33 +262,28 @@ class ProfileDefinition:
 
     def set_defaults_from_definitions_file(self, definitions: dict):
         """
+        Set profile definition fields based on definitions file.
 
-        :param definitions:
-        :return:
+        :param definitions: definitions parsed form file.
         """
         base_error_msg = "failed to set regression profile values"
 
         if not self.backend:
-            print(f"{base_error_msg}: no backend specified")
-            sys.exit(
-                3
-            )  # TODO raise error instead of quitting program, let __main__ handle the errors
+            raise ValueError(f"{base_error_msg}: no backend specified")
 
         try:
             backend_defs = definitions[self.backend]
         except KeyError:
-            print(
+            raise KeyError(
                 f"{base_error_msg}: no definitions found for `{self.backend}` backend"
             )
-            sys.exit(3)
 
         try:
             profile_def = backend_defs[self.regression_profile]
         except KeyError:
-            print(
+            raise KeyError(
                 f"{base_error_msg}: no definition found for `{self.backend}.{self.regression_profile}` profile"
             )
-            sys.exit(3)
 
         for key, value in profile_def.items():
             try:
@@ -338,11 +336,7 @@ class ProfileDefinition:
             case TfheBackend.Hpu:
                 features.extend(["hpu", "hpu-v80"])
 
-        print("features:", features)
         return features
-
-    def _build_operation_filter(self, ops):
-        pass
 
     def generate_cargo_commands(self):
         """
@@ -350,10 +344,7 @@ class ProfileDefinition:
         :return:
         """
         commands = []
-        print("TARGEEEEEEEEEEEEEEEEEEEEEET:::::::::")
-        print(self.targets)
         for key, ops in self.targets.items():
-            print(ops)  # DEBUG
             features = self._build_features(key)
             ops_filter = [f"::{op}::" for op in ops]
             commands.append(
@@ -362,23 +353,24 @@ class ProfileDefinition:
 
         return commands
 
-    def generate_custom_env_file(self):
-        pass
-
 
 def parse_issue_comment(comment):
     """
+    Parse GitHub issue comment string. To be parsable, the string must be formatted as:
+    `/bench <benchmark_args>`.
 
-    :param comment:
-    :return:
+    Note that multiline command and group of commands are not supported.
+
+    :param comment: :class:`str`
+
+    :return: :class:`list` of (:class:`ProfileOption`, :class:`str`)
     """
     identifier, profile_arguments = comment.split(" ", maxsplit=1)
 
     if identifier != COMMENT_IDENTIFIER:
-        print(
+        raise ValueError(
             f"unknown issue comment identifier (expected: `{COMMENT_IDENTIFIER}`, got `{identifier}`)"
         )
-        sys.exit(2)
 
     arguments_pairs = []
     for raw_pair in profile_arguments.split("--")[1:]:
@@ -386,8 +378,7 @@ def parse_issue_comment(comment):
         try:
             profile_option = ProfileOption.from_str(name)
         except NotImplementedError:
-            print(f"unknown profile option `{name}`")
-            sys.exit(2)
+            raise ValueError(f"unknown profile option `{name}`")
         else:
             arguments_pairs.append((profile_option, value.strip()))
 
@@ -404,16 +395,17 @@ def parse_toml_file(path):
     try:
         return tomllib.loads(pathlib.Path(path).read_text())
     except tomllib.TOMLDecodeError as err:
-        print(f"failed to parse definition file (error: {err})")
-        sys.exit(3)
+        raise RuntimeError(f"failed to parse definition file (error: {err})")
 
 
 def build_definition(profile_args_pairs, profile_defintions):
     """
+    Build regression profile definition form user inputs and definitions file.
 
-    :param profile_args_pairs:
-    :param profile_defintions:
-    :return:
+    :param profile_args_pairs: pairs of profile options and their value parsed from a string
+    :param profile_defintions: parsed profile definitions file
+
+    :return: :class:`ProfileDefinition`
     """
     bench_targets = parse_toml_file(BENCH_TARGETS_PATH)["bench"]
     definition = ProfileDefinition(bench_targets)
@@ -441,6 +433,13 @@ def write_commands_to_file(commands):
 
 
 def write_env_to_file(env_vars: dict[EnvOption, str]):
+    """
+    Write environment variables to a file.
+    This file is meant to executed in GitHub actions function. The variable contained in it, would be sent to
+    GITHUB_ENV file thus the following workflow steps would be able to use these variables.
+
+    :param env_vars: dict of environment variables to write
+    """
     with CUSTOM_ENV_PATH.open("w") as f:
         f.write("#!/usr/bin/env bash\n\n{\n")
         for key, v in env_vars.items():
@@ -461,14 +460,22 @@ if __name__ == "__main__":
             )
             sys.exit(1)
 
-        profile_args_pairs = parse_issue_comment(comment)
-        profile_definitions = parse_toml_file(PROFILE_DEFINITION_PATH)
-        print(profile_definitions)  # DEBUG
+        try:
+            profile_args_pairs = parse_issue_comment(comment)
+            profile_definitions = parse_toml_file(PROFILE_DEFINITION_PATH)
+            print(profile_definitions)  # DEBUG
 
-        definition = build_definition(profile_args_pairs, profile_definitions)
-        commands = definition.generate_cargo_commands()
-        print(definition)
+            definition = build_definition(profile_args_pairs, profile_definitions)
+            commands = definition.generate_cargo_commands()
+            print(definition)
+        except Exception as err:
+            print(f"failed to generate commands (error:{err}")
+            sys.exit(2)
 
-        print(commands)  # DEBUG
-        write_commands_to_file(commands)
-        write_env_to_file(definition.env_vars)
+        try:
+            print(commands)  # DEBUG
+            write_commands_to_file(commands)
+            write_env_to_file(definition.env_vars)
+        except Exception as err:
+            print(f"failed to write commands/env to file (error:{err})")
+            sys.exit(3)
