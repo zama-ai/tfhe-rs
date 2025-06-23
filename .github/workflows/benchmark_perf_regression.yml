@@ -28,8 +28,9 @@ jobs:
     if: github.event_name != 'schedule' ||
       (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
     outputs:
-      op_flavor: ${{ steps.set_op_flavor.outputs.op_flavor }}
-      bench_type: ${{ steps.set_bench_type.outputs.bench_type }}
+      commands: ${{ steps.set_commands.outputs.commands }}
+      slab-backend: ${{ steps.set_slab_details.outputs.backend }}
+      slab-profile: ${{ steps.set_slab_details.outputs.profile }}
     steps:
       # TODO:
       # * mettre le commentaire d'issue dans un fichier
@@ -37,45 +38,37 @@ jobs:
       # * récupérer et parser les commandes cargo avec toJSON() et placer en output du job
       # * récupérer et mettre en env global le custom environment généré
       # * récupérer le backend et le profil slab et les mettre en output du job (fichier à parser ?)
-      - name: Weekly benchmarks
-        if: github.event.schedule == '0 1 * * 6'
-        run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
 
-      - name: Quarterly benchmarks
-        if: github.event.schedule == '0 4 25 MAR,JUN,SEP,DEC *'
-        run: |
-          echo "OP_FLAVOR=[\"default\", \"smart\", \"unchecked\", \"misc\"]" >> "${GITHUB_ENV}"
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Set benchmark types
-        if: github.event_name == 'workflow_dispatch'
+      - name: Dump issue comment into file # To avoid possible code-injection
         run: |
-          echo "OP_FLAVOR=[\"default\"]" >> "${GITHUB_ENV}"
-          if [[ "${INPUTS_BENCH_TYPE}" == "both" ]]; then
-            echo "BENCH_TYPE=[\"latency\", \"throughput\"]" >> "${GITHUB_ENV}"
-          else
-            echo "BENCH_TYPE=[\"${INPUTS_BENCH_TYPE}\"]" >> "${GITHUB_ENV}"
-          fi
-        env:
-          INPUTS_BENCH_TYPE: ${{ inputs.bench_type }}
+          # ------- Comment à récupérer ----------------
+          echo "${{ github.comment}}" >> dumped_comment.txt
 
-      - name: Default benchmark type
-        if: github.event_name != 'workflow_dispatch'
+      - name: Generate cargo commands and env
         run: |
-          echo "BENCH_TYPE=[\"latency\"]" >> "${GITHUB_ENV}"
+          python3 ci/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+          source ci/perf_regression_custom_env.sh
 
-      - name: Set operation flavor output
-        id: set_op_flavor
+      - name: Set commands output
+        id: set_commands
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "op_flavor=${{ toJSON(env.OP_FLAVOR) }}" >> "${GITHUB_OUTPUT}"
+          echo "commands=${{ toJSON(env.COMMANDS) }}" >> "${GITHUB_OUTPUT}"
 
-      - name: Set benchmark types output
-        id: set_bench_type
+      - name: Set Slab details outputs
+        id: set_slab_details
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "bench_type=${{ toJSON(env.BENCH_TYPE) }}" >> "${GITHUB_OUTPUT}"
+          echo "backend=${{ backend }}" >> "${GITHUB_OUTPUT}"
+          echo "profile=${{ profile }}" >> "${GITHUB_OUTPUT}"
 
   setup-instance:
-    name: Setup instance (integer-benchmarks)
+    name: Setup instance (regression-benchmarks)
     needs: prepare-benchmarks
     runs-on: ubuntu-latest
     outputs:
@@ -89,11 +82,36 @@ jobs:
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
           slab-url: ${{ secrets.SLAB_BASE_URL }}
           job-secret: ${{ secrets.JOB_SECRET }}
-          backend: aws
-          profile: bench
+          backend: ${{ needs.prepare-benchmarks.outputs.slab-backend }}
+          profile: ${{ needs.prepare-benchmarks.outputs.slab-profile }}
 
-  integer-benchmarks:
-    name: Execute integer benchmarks for all operations flavor
+  install-cuda-dependencies:
+    name: Install dependencies
+    needs: [ prepare-benchmarks, setup-instance ]
+    if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+    runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    strategy:
+      matrix:
+        # explicit include-based build matrix, of known valid options
+        include:
+          - cuda: "12.2"
+            gcc: 11
+    steps:
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Setup Hyperstack dependencies
+        uses: ./.github/actions/gpu_setup
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          gcc-version: ${{ matrix.gcc }}
+
+  regression-benchmarks:
+    name: Execute performance regression benchmarks
     needs: [ prepare-benchmarks, setup-instance ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     concurrency:
@@ -103,9 +121,7 @@ jobs:
     strategy:
       max-parallel: 1
       matrix:
-        command: [ integer, integer_multi_bit]
-        op_flavor: ${{ fromJson(needs.prepare-benchmarks.outputs.op_flavor) }}
-        bench_type: ${{ fromJSON(needs.prepare-benchmarks.outputs.bench_type) }}
+        command: ${{ fromJson(needs.prepare-benchmarks.outputs.commands) }}
     steps:
       - name: Checkout tfhe-rs repo with tags
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -125,6 +141,31 @@ jobs:
         env:
           SHA: ${{ github.sha }}
 
+      # Re-export environment variables as dependencies setup perform this task in the previous job.
+      # Local env variables are cleaned at the end of each job.
+      - name: Export CUDA variables
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+        shell: bash
+        run: |
+          echo "CUDA_PATH=$CUDA_PATH" >> "${GITHUB_ENV}"
+          echo "PATH=$PATH:$CUDA_PATH/bin" >> "${GITHUB_PATH}"
+          echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH" >> "${GITHUB_ENV}"
+          echo "CUDA_MODULE_LOADER=EAGER" >> "${GITHUB_ENV}"
+        env:
+          CUDA_PATH: /usr/local/cuda-12.2
+
+      - name: Export gcc and g++ variables
+        if: needs.prepare-benchmarks.outputs.slab-backend == 'hyperstack'
+        shell: bash
+        run: |
+          {
+          echo "CC=/usr/bin/gcc-${GCC_VERSION}";
+          echo "CXX=/usr/bin/g++-${GCC_VERSION}";
+          echo "CUDAHOSTCXX=/usr/bin/g++-${GCC_VERSION}";
+          } >> "${GITHUB_ENV}"
+        env:
+          GCC_VERSION: 11
+
       - name: Install rust
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
@@ -138,27 +179,14 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
 
-      - name: Should run benchmarks with all precisions
-        if: inputs.all_precisions
+      - name: Run regression benchmarks
         run: |
-          echo "FAST_BENCH=FALSE" >> "${GITHUB_ENV}"
-
-      - name: Run benchmarks with AVX512
-        run: |
-          make BENCH_OP_FLAVOR="${OP_FLAVOR}" BENCH_TYPE="${BENCH_TYPE}" bench_"${BENCH_COMMAND}"
+          make  BENCH_CUSTOM_COMMAND="${BENCH_COMMAND}" bench_custom
         env:
-          OP_FLAVOR: ${{ matrix.op_flavor }}
-          BENCH_TYPE: ${{ matrix.bench_type }}
           BENCH_COMMAND: ${{ matrix.command }}
 
-      # Run these benchmarks only once per benchmark type
-      - name: Run compression benchmarks with AVX512
-        if: matrix.op_flavor == 'default' && matrix.command == 'integer'
-        run: |
-          make BENCH_TYPE="${BENCH_TYPE}" bench_integer_compression
-        env:
-          BENCH_TYPE: ${{ matrix.bench_type }}
-
+      # TODO: récupérer le hardware (utiliser l'ENV et le fichier de définition Slab.toml?)
+      # TODO: récupérer le bench type via l'ENV (=> mettre la valeur par défaut à "latency")
       - name: Parse results
         run: |
           python3 ./ci/benchmark_parser.py target/criterion "${RESULTS_FILENAME}" \
@@ -169,7 +197,7 @@ jobs:
           --commit-date "${COMMIT_DATE}" \
           --bench-date "${BENCH_DATE}" \
           --walk-subdirs \
-          --name-suffix avx512 \
+          --name-suffix regression \
           --bench-type "${BENCH_TYPE}"
         env:
           REF_NAME: ${{ github.ref_name }}
@@ -178,7 +206,7 @@ jobs:
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: ${{ github.sha }}_${{ matrix.command }}_${{ matrix.op_flavor }}_${{ matrix.bench_type }}
+          name: ${{ github.sha }}_regression
           path: ${{ env.RESULTS_FILENAME }}
 
       - name: Send data to Slab
@@ -196,12 +224,14 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Integer full benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Performance regression benchmarks finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+
+# TODO Add job for regression calculation
 
   teardown-instance:
-    name: Teardown instance (integer-benchmarks)
+    name: Teardown instance (regression-benchmarks)
     if: ${{ always() && needs.setup-instance.result == 'success' }}
-    needs: [ setup-instance, integer-benchmarks ]
+    needs: [ setup-instance, regression-benchmarks ]
     runs-on: ubuntu-latest
     steps:
       - name: Stop instance
@@ -220,4 +250,4 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ job.status }}
-          SLACK_MESSAGE: "Instance teardown (integer-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
+          SLACK_MESSAGE: "Instance teardown (regression-benchmarks) finished with status: ${{ job.status }}. (${{ env.ACTION_RUN_URL }})"
