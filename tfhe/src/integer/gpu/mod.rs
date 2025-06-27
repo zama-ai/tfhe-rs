@@ -4728,6 +4728,7 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        reduce_degrees_for_single_carry_propagation,
         true,
         allocate_ms_noise_array,
     );
@@ -4737,7 +4738,6 @@ pub unsafe fn unchecked_partial_sum_ciphertexts_integer_radix_kb_assign_async<
         streams.len() as u32,
         &raw mut cuda_ffi_result,
         &raw mut cuda_ffi_radix_list,
-        reduce_degrees_for_single_carry_propagation,
         mem_ptr,
         bootstrapping_key.ptr.as_ptr(),
         keyswitch_key.ptr.as_ptr(),
