@@ -2,9 +2,10 @@ use serde::{Deserialize, Serialize};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
 use crate::high_level_api::booleans::{
-    InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool,
+    InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool, InnerSquashedNoiseBoolean,
     InnerSquashedNoiseBooleanVersionOwned, SquashedNoiseFheBool,
 };
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::{CompressedFheBool, FheBool, Tag};
 use std::convert::Infallible;
 
@@ -72,8 +73,27 @@ pub(crate) enum InnerSquashedNoiseBooleanVersionedOwned {
     V0(InnerSquashedNoiseBooleanVersionOwned),
 }
 
+#[derive(Version)]
+pub struct SquashedNoiseFheBoolV0 {
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseBoolean,
+    pub(in crate::high_level_api) tag: Tag,
+}
+
+impl Upgrade<SquashedNoiseFheBool> for SquashedNoiseFheBoolV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SquashedNoiseFheBool, Self::Error> {
+        Ok(SquashedNoiseFheBool::new(
+            self.inner,
+            SquashedNoiseCiphertextState::Normal,
+            self.tag,
+        ))
+    }
+}
+
 // Squashed Noise
 #[derive(VersionsDispatch)]
 pub enum SquashedNoiseFheBoolVersions {
-    V0(SquashedNoiseFheBool),
+    V0(SquashedNoiseFheBoolV0),
+    V1(SquashedNoiseFheBool),
 }

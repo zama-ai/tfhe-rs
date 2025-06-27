@@ -2,6 +2,9 @@ use crate::high_level_api::keys::*;
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
+use crate::integer::noise_squashing::{
+    CompressedNoiseSquashingKey, NoiseSquashingKey, NoiseSquashingPrivateKey,
+};
 use crate::Tag;
 use std::convert::Infallible;
 use tfhe_versionable::deprecation::{Deprecable, Deprecated};
@@ -182,23 +185,31 @@ pub(crate) struct IntegerClientKeyV3 {
     pub(crate) compression_key: Option<crate::integer::compression_keys::CompressionPrivateKeys>,
 }
 
-impl Upgrade<IntegerClientKey> for IntegerClientKeyV3 {
+impl Upgrade<IntegerClientKeyV4> for IntegerClientKeyV3 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
+    fn upgrade(self) -> Result<IntegerClientKeyV4, Self::Error> {
         let Self {
             key,
             dedicated_compact_private_key,
             compression_key,
         } = self;
 
-        Ok(IntegerClientKey {
+        Ok(IntegerClientKeyV4 {
             key,
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key: None,
         })
     }
+}
+
+#[derive(Version)]
+pub(crate) struct IntegerClientKeyV4 {
+    pub(crate) key: crate::integer::ClientKey,
+    pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
+    pub(crate) compression_key: Option<crate::integer::compression_keys::CompressionPrivateKeys>,
+    pub(crate) noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
 }
 
 #[derive(VersionsDispatch)]
@@ -208,7 +219,29 @@ pub(crate) enum IntegerClientKeyVersions {
     V1(Deprecated<IntegerClientKey>),
     V2(IntegerClientKeyV2),
     V3(IntegerClientKeyV3),
-    V4(IntegerClientKey),
+    V4(IntegerClientKeyV4),
+    V5(IntegerClientKey),
+}
+
+impl Upgrade<IntegerClientKey> for IntegerClientKeyV4 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerClientKey, Self::Error> {
+        let Self {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key,
+        } = self;
+
+        Ok(IntegerClientKey {
+            key,
+            dedicated_compact_private_key,
+            compression_key,
+            noise_squashing_private_key,
+            noise_squashing_compression_private_key: None,
+        })
+    }
 }
 
 impl Deprecable for IntegerServerKey {
@@ -225,7 +258,38 @@ pub struct IntegerServerKeyV4 {
     pub(crate) decompression_key: Option<DecompressionKey>,
 }
 
-impl Upgrade<IntegerServerKey> for IntegerServerKeyV4 {
+impl Upgrade<IntegerServerKeyV5> for IntegerServerKeyV4 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerServerKeyV5, Self::Error> {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+        } = self;
+
+        Ok(IntegerServerKeyV5 {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key: None,
+        })
+    }
+}
+
+#[derive(Version)]
+pub struct IntegerServerKeyV5 {
+    pub(crate) key: crate::integer::ServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::KeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressionKey>,
+    pub(crate) decompression_key: Option<DecompressionKey>,
+    pub(crate) noise_squashing_key: Option<NoiseSquashingKey>,
+}
+
+impl Upgrade<IntegerServerKey> for IntegerServerKeyV5 {
     type Error = Infallible;
 
     fn upgrade(self) -> Result<IntegerServerKey, Self::Error> {
@@ -234,6 +298,7 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV4 {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
+            noise_squashing_key,
         } = self;
 
         Ok(IntegerServerKey {
@@ -241,7 +306,8 @@ impl Upgrade<IntegerServerKey> for IntegerServerKeyV4 {
             cpk_key_switching_key_material,
             compression_key,
             decompression_key,
-            noise_squashing_key: None,
+            noise_squashing_key,
+            noise_squashing_compression_key: None,
         })
     }
 }
@@ -253,7 +319,8 @@ pub enum IntegerServerKeyVersions {
     V2(Deprecated<IntegerServerKey>),
     V3(Deprecated<IntegerServerKey>),
     V4(IntegerServerKeyV4),
-    V5(IntegerServerKey),
+    V5(IntegerServerKeyV5),
+    V6(IntegerServerKey),
 }
 
 impl Deprecable for IntegerCompressedServerKey {
@@ -270,10 +337,10 @@ pub struct IntegerCompressedServerKeyV2 {
     pub(crate) decompression_key: Option<CompressedDecompressionKey>,
 }
 
-impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV2 {
+impl Upgrade<IntegerCompressedServerKeyV3> for IntegerCompressedServerKeyV2 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
+    fn upgrade(self) -> Result<IntegerCompressedServerKeyV3, Self::Error> {
         let Self {
             key,
             cpk_key_switching_key_material,
@@ -281,7 +348,7 @@ impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV2 {
             decompression_key,
         } = self;
 
-        Ok(IntegerCompressedServerKey {
+        Ok(IntegerCompressedServerKeyV3 {
             key,
             cpk_key_switching_key_material,
             compression_key,
@@ -291,12 +358,46 @@ impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV2 {
     }
 }
 
+#[derive(Version)]
+pub struct IntegerCompressedServerKeyV3 {
+    pub(crate) key: crate::integer::CompressedServerKey,
+    pub(crate) cpk_key_switching_key_material:
+        Option<crate::integer::key_switching_key::CompressedKeySwitchingKeyMaterial>,
+    pub(crate) compression_key: Option<CompressedCompressionKey>,
+    pub(crate) decompression_key: Option<CompressedDecompressionKey>,
+    pub(crate) noise_squashing_key: Option<CompressedNoiseSquashingKey>,
+}
+
 #[derive(VersionsDispatch)]
 pub enum IntegerCompressedServerKeyVersions {
     V0(Deprecated<IntegerCompressedServerKey>),
     V1(Deprecated<IntegerCompressedServerKey>),
     V2(IntegerCompressedServerKeyV2),
-    V3(IntegerCompressedServerKey),
+    V3(IntegerCompressedServerKeyV3),
+    V4(IntegerCompressedServerKey),
+}
+
+impl Upgrade<IntegerCompressedServerKey> for IntegerCompressedServerKeyV3 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<IntegerCompressedServerKey, Self::Error> {
+        let Self {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key,
+        } = self;
+
+        Ok(IntegerCompressedServerKey {
+            key,
+            cpk_key_switching_key_material,
+            compression_key,
+            decompression_key,
+            noise_squashing_key,
+            noise_squashing_compression_key: None,
+        })
+    }
 }
 
 #[derive(VersionsDispatch)]

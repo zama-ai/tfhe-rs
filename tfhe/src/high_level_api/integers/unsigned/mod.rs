@@ -22,7 +22,9 @@ pub use squashed_noise::SquashedNoiseFheUint;
 
 pub(in crate::high_level_api) use compressed::CompressedRadixCiphertext;
 pub(in crate::high_level_api) use inner::{RadixCiphertext, RadixCiphertextVersionOwned};
-pub(in crate::high_level_api) use squashed_noise::InnerSquashedNoiseRadixCiphertextVersionOwned;
+pub(in crate::high_level_api) use squashed_noise::{
+    InnerSquashedNoiseRadixCiphertext, InnerSquashedNoiseRadixCiphertextVersionOwned,
+};
 
 mod base;
 mod compressed;

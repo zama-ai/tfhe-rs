@@ -7,8 +7,10 @@ use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
 use crate::high_level_api::keys::InternalServerKey;
 use crate::high_level_api::traits::{FheDecrypt, SquashNoise};
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::block_decomposition::{RecomposableFrom, SignExtendable};
 use crate::named::Named;
+use crate::prelude::Tagged;
 use crate::{ClientKey, Device, Tag};
 use serde::{Deserializer, Serializer};
 use tfhe_versionable::{Unversionize, UnversionizeError, Versionize, VersionizeOwned};
@@ -129,7 +131,8 @@ impl InnerSquashedNoiseSignedRadixCiphertext {
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(SquashedNoiseFheIntVersions)]
 pub struct SquashedNoiseFheInt {
-    inner: InnerSquashedNoiseSignedRadixCiphertext,
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseSignedRadixCiphertext,
+    pub(in crate::high_level_api) state: SquashedNoiseCiphertextState,
     tag: Tag,
 }
 
@@ -138,6 +141,14 @@ impl Named for SquashedNoiseFheInt {
 }
 
 impl SquashedNoiseFheInt {
+    pub(in crate::high_level_api) fn new(
+        inner: InnerSquashedNoiseSignedRadixCiphertext,
+        state: SquashedNoiseCiphertextState,
+        tag: Tag,
+    ) -> Self {
+        Self { inner, state, tag }
+    }
+
     pub fn underlying_squashed_noise_ciphertext(
         &self,
     ) -> MaybeCloned<'_, crate::integer::ciphertext::SquashedNoiseSignedRadixCiphertext> {
@@ -158,17 +169,21 @@ where
     Clear: RecomposableFrom<u128> + SignExtendable,
 {
     fn decrypt(&self, key: &ClientKey) -> Clear {
-        key.key
-            .noise_squashing_private_key
-            .as_ref()
-            .map(|noise_squashing_private_key| {
-                noise_squashing_private_key.decrypt_signed_radix(&self.inner.on_cpu())
-            })
-            .expect(
-                "No noise squashing private key in your ClientKey, cannot decrypt. \
-                Did you call `enable_noise_squashing` when creating your Config?",
-            )
+        let noise_squashing_private_key = key.private_noise_squashing_decryption_key(self.state);
+
+        noise_squashing_private_key
+            .decrypt_signed_radix(&self.inner.on_cpu())
             .unwrap()
+    }
+}
+
+impl Tagged for SquashedNoiseFheInt {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -191,6 +206,7 @@ impl<Id: FheIntId> SquashNoise for FheInt<Id> {
                             &self.ciphertext.on_cpu(),
                         )?,
                     ),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: server_key.tag.clone(),
                 })
             }
@@ -213,6 +229,7 @@ impl<Id: FheIntId> SquashNoise for FheInt<Id> {
                     cuda_squashed_ct.to_squashed_noise_signed_radix_ciphertext(streams);
                 Ok(SquashedNoiseFheInt {
                     inner: InnerSquashedNoiseSignedRadixCiphertext::Cpu(cpu_squashed_ct),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: cuda_key.tag.clone(),
                 })
             }

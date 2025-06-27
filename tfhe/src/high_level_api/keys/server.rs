@@ -1,9 +1,3 @@
-#[cfg(feature = "hpu")]
-pub(in crate::high_level_api) use hpu::HpuTaggedDevice;
-#[cfg(feature = "hpu")]
-use tfhe_hpu_backend::prelude::HpuDevice;
-use tfhe_versionable::Versionize;
-
 use super::ClientKey;
 use crate::backward_compatibility::keys::{CompressedServerKeyVersions, ServerKeyVersions};
 use crate::conformance::ParameterSetConformant;
@@ -14,6 +8,9 @@ use crate::core_crypto::gpu::{synchronize_devices, CudaStreams};
 #[cfg(feature = "gpu")]
 use crate::high_level_api::keys::inner::IntegerCudaServerKey;
 use crate::high_level_api::keys::{IntegerCompressedServerKey, IntegerServerKey};
+use crate::integer::ciphertext::{
+    CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
+};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, DecompressionKey,
 };
@@ -25,7 +22,12 @@ use crate::shortint::MessageModulus;
 #[cfg(feature = "gpu")]
 use crate::GpuIndex;
 use crate::{Device, Tag};
+#[cfg(feature = "hpu")]
+pub(in crate::high_level_api) use hpu::HpuTaggedDevice;
 use std::sync::Arc;
+#[cfg(feature = "hpu")]
+use tfhe_hpu_backend::prelude::HpuDevice;
+use tfhe_versionable::Versionize;
 
 /// Key of the server
 ///
@@ -53,6 +55,7 @@ impl ServerKey {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn into_raw_parts(
         self,
     ) -> (
@@ -61,6 +64,7 @@ impl ServerKey {
         Option<CompressionKey>,
         Option<DecompressionKey>,
         Option<NoiseSquashingKey>,
+        Option<NoiseSquashingCompressionKey>,
         Tag,
     ) {
         let IntegerServerKey {
@@ -69,6 +73,7 @@ impl ServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         } = (*self.key).clone();
 
         (
@@ -77,6 +82,7 @@ impl ServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
             self.tag,
         )
     }
@@ -89,6 +95,7 @@ impl ServerKey {
         compression_key: Option<CompressionKey>,
         decompression_key: Option<DecompressionKey>,
         noise_squashing_key: Option<NoiseSquashingKey>,
+        noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -98,6 +105,7 @@ impl ServerKey {
                 compression_key,
                 decompression_key,
                 noise_squashing_key,
+                noise_squashing_compression_key,
             }),
             tag,
         }
@@ -258,6 +266,7 @@ impl CompressedServerKey {
         compression_key: Option<CompressedCompressionKey>,
         decompression_key: Option<CompressedDecompressionKey>,
         noise_squashing_key: Option<CompressedNoiseSquashingKey>,
+        noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -267,6 +276,7 @@ impl CompressedServerKey {
                 compression_key,
                 decompression_key,
                 noise_squashing_key,
+                noise_squashing_compression_key,
             ),
             tag,
         }
@@ -676,6 +686,7 @@ mod test {
                     cpk_param: None,
                     compression_param: None,
                     noise_squashing_param: None,
+                    noise_squashing_compression_param: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -704,6 +715,7 @@ mod test {
                 cpk_param: Some((cpk_params, casting_params)),
                 compression_param: None,
                 noise_squashing_param: None,
+                noise_squashing_compression_param: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
@@ -831,6 +843,7 @@ mod test {
                     cpk_param: None,
                     compression_param: None,
                     noise_squashing_param: None,
+                    noise_squashing_compression_param: None,
                 };
 
                 assert!(!sk.is_conformant(&conformance_params));
@@ -859,6 +872,7 @@ mod test {
                 cpk_param: Some((cpk_params, casting_params)),
                 compression_param: None,
                 noise_squashing_param: None,
+                noise_squashing_compression_param: None,
             };
 
             assert!(!sk.is_conformant(&conformance_params));
