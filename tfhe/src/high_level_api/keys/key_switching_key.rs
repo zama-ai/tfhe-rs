@@ -65,6 +65,14 @@ impl KeySwitchingKey {
             tag_out: key_pair_to.0.tag.clone(),
         }
     }
+
+    pub fn tag_in(&self) -> &Tag {
+        &self.tag_in
+    }
+
+    pub fn tag_out(&self) -> &Tag {
+        &self.tag_out
+    }
 }
 
 impl<Id> FheKeyswitch<FheUint<Id>> for KeySwitchingKey
