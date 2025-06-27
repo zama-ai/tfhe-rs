@@ -425,7 +425,7 @@ template <typename Torus> struct int_radix_lut {
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
           allocate_gpu_memory, params.allocate_ms_array, &size);
       if (i == 0) {
-        *size_tracker = size;
+        *size_tracker += size;
       }
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);

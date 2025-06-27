@@ -20,7 +20,7 @@ void multi_gpu_alloc_array_async(cudaStream_t const *streams,
         &size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
     if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 = size_tracker_on_gpu_i;
+      *size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
     }
   }
 }
@@ -57,7 +57,7 @@ void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
         &size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
     if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 = size_tracker_on_gpu_i;
+      *size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
     }
   }
 }
@@ -86,7 +86,7 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
         gpu_indexes[i], &size_tracker, allocate_gpu_memory);
     dest[i] = d_array;
     if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 = size_tracker;
+      *size_tracker_on_gpu_0 += size_tracker;
     }
   }
 }
