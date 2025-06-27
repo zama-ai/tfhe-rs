@@ -27,6 +27,7 @@ fast_tests_argument=
 long_tests_argument=
 nightly_tests_argument=
 no_big_params_argument=
+no_big_params_gpu_argument=
 cargo_profile="release"
 backend="cpu"
 gpu_feature=""
@@ -107,6 +108,10 @@ if [[ "${NO_BIG_PARAMS}" == TRUE ]]; then
     no_big_params_argument=--no-big-params
 fi
 
+if [[ "${NO_BIG_PARAMS_GPU}" == TRUE ]]; then
+    no_big_params_argument_gpu=--no-big-params-gpu
+fi
+
 if [[ "${backend}" == "gpu" ]]; then
     gpu_feature="gpu"
 fi
@@ -145,7 +150,7 @@ if [[ "${backend}" == "gpu" ]]; then
     fi
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${long_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument:+$fast_tests_argument} ${long_tests_argument:+$long_tests_argument} ${nightly_tests_argument:+$nightly_tests_argument} ${no_big_params_argument_gpu:+$no_big_params_argument_gpu} ${multi_bit_argument:+$multi_bit_argument} ${sign_argument:+$sign_argument} ${no_big_params_argument:+$no_big_params_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
