@@ -68,6 +68,12 @@ parser.add_argument(
     action="store_true",
     help="Do not run tests with big parameters set (e.g. 4bits message with 4 bits carry)",
 )
+parser.add_argument(
+    "--no-big-params-gpu",
+    dest="no_big_params_gpu",
+    action="store_true",
+    help="Do not run tests with big parameters set (e.g. 3bits message with 3 bits carry) for GPU",
+)
 
 # block PBS are too slow for high params
 # mul_crt_4_4 is extremely flaky (~80% failure)
@@ -101,6 +107,10 @@ EXCLUDED_BIG_PARAMETERS = [
     "/.*_param_message_4_carry_4_ks_pbs_gaussian_2m64$/",
 ]
 
+EXCLUDED_BIG_PARAMETERS_GPU = [
+    "/.*_message_3_carry_3.*$/",
+    "/.*_group_3_message_2_carry_2.*$/",
+]
 
 def filter_integer_tests(input_args):
     (multi_bit_filter, group_filter) = (
@@ -128,6 +138,10 @@ def filter_integer_tests(input_args):
 
         if input_args.no_big_params:
             for pattern in EXCLUDED_BIG_PARAMETERS:
+                filter_expression.append(f"not test({pattern})")
+
+        if input_args.no_big_params_gpu:
+            for pattern in EXCLUDED_BIG_PARAMETERS_GPU:
                 filter_expression.append(f"not test({pattern})")
 
         if input_args.fast_tests and input_args.nightly_tests:
