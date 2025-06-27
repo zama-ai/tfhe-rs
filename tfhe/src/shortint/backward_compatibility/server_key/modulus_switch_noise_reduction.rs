@@ -3,7 +3,8 @@ use std::any::Any;
 use crate::core_crypto::prelude::UnsignedInteger;
 use crate::shortint::parameters::{NoiseEstimationMeasureBound, RSigmaFactor, Variance};
 use crate::shortint::server_key::{
-    CompressedModulusSwitchNoiseReductionKey, ModulusSwitchNoiseReductionKey,
+    CompressedModulusSwitchConfiguration, CompressedModulusSwitchNoiseReductionKey,
+    ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey,
 };
 use crate::Error;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
@@ -100,4 +101,14 @@ where
 {
     V0(CompressedModulusSwitchNoiseReductionKeyV0),
     V1(CompressedModulusSwitchNoiseReductionKey<InputScalar>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedModulusSwitchConfigurationVersions<Scalar: UnsignedInteger> {
+    V0(CompressedModulusSwitchConfiguration<Scalar>),
+}
+
+#[derive(VersionsDispatch)]
+pub enum ModulusSwitchConfigurationVersions<Scalar: UnsignedInteger> {
+    V0(ModulusSwitchConfiguration<Scalar>),
 }

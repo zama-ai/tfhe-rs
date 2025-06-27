@@ -12,6 +12,7 @@ use tfhe::shortint::{
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::CompactPkeCrs;
+#[cfg(feature = "zk-pok")]
 use tfhe::zk::CompactPkeCrsConformanceParams;
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,

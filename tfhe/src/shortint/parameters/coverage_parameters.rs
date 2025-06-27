@@ -5,7 +5,7 @@
 //! These parameters are *NOT safe*.
 use crate::shortint::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, GlweDimension,
-    LweBskGroupingFactor, LweDimension, PolynomialSize, StandardDev,
+    LweBskGroupingFactor, LweDimension, ModulusSwitchType, PolynomialSize, StandardDev,
 };
 use crate::shortint::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MaxNoiseLevel,
@@ -32,7 +32,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS: ClassicPBSParameters = Classi
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    modulus_switch_noise_reduction_params: None,
+    modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
 };
 
 pub const COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
@@ -55,7 +55,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_3_KS_PBS: ClassicPBSParameters = Classi
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    modulus_switch_noise_reduction_params: None,
+    modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
 };
 
 pub const COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters = ClassicPBSParameters {
@@ -78,7 +78,7 @@ pub const COVERAGE_PARAM_MESSAGE_5_CARRY_1_KS_PBS: ClassicPBSParameters = Classi
     log2_p_fail: -40.,
     ciphertext_modulus: CiphertextModulus::new_native(),
     encryption_key_choice: EncryptionKeyChoice::Big,
-    modulus_switch_noise_reduction_params: None,
+    modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
 };
 
 pub const COVERAGE_PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS: MultiBitPBSParameters =
@@ -127,7 +127,7 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_PBS_KS_GAUSSIAN_2M64: Clas
         log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Small,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
     };
 
 pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64: ClassicPBSParameters =
@@ -151,5 +151,5 @@ pub const COVERAGE_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64: Clas
         log2_p_fail: -40.,
         ciphertext_modulus: CiphertextModulus::new_native(),
         encryption_key_choice: EncryptionKeyChoice::Big,
-        modulus_switch_noise_reduction_params: None,
+        modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
     };

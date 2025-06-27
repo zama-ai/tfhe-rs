@@ -81,6 +81,14 @@ where
     SwitchedScalar: UnsignedInteger,
     C: Container<Element = Scalar>,
 {
+    pub fn into_raw_parts(self) -> (LweCiphertext<C>, Scalar, CiphertextModulusLog) {
+        (
+            self.lwe_in,
+            self.body_correction_to_add_before_switching,
+            self.log_modulus,
+        )
+    }
+
     #[track_caller]
     pub fn from_raw_parts(
         lwe_in: LweCiphertext<C>,

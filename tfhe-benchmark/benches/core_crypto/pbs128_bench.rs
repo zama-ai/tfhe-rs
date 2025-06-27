@@ -178,7 +178,7 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::engine::ShortintEngine;
     use tfhe::shortint::parameters::{
-        NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ModulusSwitchType, NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use tfhe::shortint::server_key::ModulusSwitchNoiseReductionKey;
@@ -231,17 +231,23 @@ mod cuda {
 
         let mut engine = ShortintEngine::new();
 
-        let modulus_switch_noise_reduction_key = squash_params
-            .modulus_switch_noise_reduction_params
-            .map(|modulus_switch_noise_reduction_params| {
-                ModulusSwitchNoiseReductionKey::new(
+        let modulus_switch_noise_reduction_key =
+            match squash_params.modulus_switch_noise_reduction_params {
+                ModulusSwitchType::Standard => None,
+                ModulusSwitchType::DriftTechniqueNoiseReduction(
+                    modulus_switch_noise_reduction_params,
+                ) => Some(ModulusSwitchNoiseReductionKey::new(
                     modulus_switch_noise_reduction_params,
                     &input_lwe_secret_key,
                     &mut engine,
                     input_params.ciphertext_modulus,
                     input_params.lwe_noise_distribution,
-                )
-            });
+                )),
+                ModulusSwitchType::CenteredMeanNoiseReduction => {
+                    panic!("Centered MS not supportred on GPU")
+                }
+            };
+
         let cpu_keys: CpuKeys<_> = CpuKeysBuilder::new().bootstrap_key(bsk).build();
 
         let message_modulus: u64 = 1 << 4;

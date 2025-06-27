@@ -3,7 +3,7 @@ use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{CastFrom, CastInto, UnsignedInteger};
 use crate::keycache::NamedParam;
 #[cfg(feature = "gpu")]
-use crate::shortint::parameters::ModulusSwitchNoiseReductionParams;
+use crate::shortint::parameters::ModulusSwitchType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -138,7 +138,7 @@ pub struct NoiseSquashingTestParams<Scalar: UnsignedInteger> {
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
-    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub modulus_switch_noise_reduction_params: ModulusSwitchType,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
