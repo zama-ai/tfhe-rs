@@ -2,6 +2,10 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::generators::DeterministicSeeder;
 use crate::core_crypto::prelude::{DefaultRandomGenerator, LweKeyswitchKeyConformanceParams};
 use crate::high_level_api::backward_compatibility::keys::*;
+use crate::integer::ciphertext::{
+    CompressedNoiseSquashingCompressionKey, NoiseSquashingCompressionKey,
+    NoiseSquashingCompressionPrivateKey,
+};
 use crate::integer::compression_keys::{
     CompressedCompressionKey, CompressedDecompressionKey, CompressionKey, CompressionPrivateKeys,
     DecompressionKey,
@@ -15,7 +19,8 @@ use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::key_switching_key::KeySwitchingKeyConformanceParams;
 use crate::shortint::parameters::list_compression::CompressionParameters;
 use crate::shortint::parameters::{
-    CompactPublicKeyEncryptionParameters, NoiseSquashingParameters, ShortintKeySwitchingParameters,
+    CompactPublicKeyEncryptionParameters, NoiseSquashingCompressionParameters,
+    NoiseSquashingParameters, ShortintKeySwitchingParameters,
 };
 use crate::shortint::{EncryptionKeyChoice, MessageModulus};
 use crate::{Config, Error};
@@ -33,6 +38,7 @@ pub(crate) struct IntegerConfig {
     )>,
     pub(crate) compression_parameters: Option<CompressionParameters>,
     pub(crate) noise_squashing_parameters: Option<NoiseSquashingParameters>,
+    pub(crate) noise_squashing_compression_parameters: Option<NoiseSquashingCompressionParameters>,
 }
 
 impl IntegerConfig {
@@ -44,6 +50,7 @@ impl IntegerConfig {
             dedicated_compact_public_key_parameters: None,
             compression_parameters: None,
             noise_squashing_parameters: None,
+            noise_squashing_compression_parameters: None,
         }
     }
 
@@ -56,6 +63,17 @@ impl IntegerConfig {
         compression_parameters: NoiseSquashingParameters,
     ) {
         self.noise_squashing_parameters = Some(compression_parameters);
+    }
+
+    pub(crate) fn enable_noise_squashing_compression(
+        &mut self,
+        compression_parameters: NoiseSquashingCompressionParameters,
+    ) {
+        assert_ne!(
+            self.noise_squashing_parameters, None,
+            "Noise squashing must be enabled first"
+        );
+        self.noise_squashing_compression_parameters = Some(compression_parameters);
     }
 
     pub(crate) fn public_key_encryption_parameters(
@@ -84,6 +102,7 @@ impl Default for IntegerConfig {
             dedicated_compact_public_key_parameters: None,
             compression_parameters: None,
             noise_squashing_parameters: None,
+            noise_squashing_compression_parameters: None,
         }
     }
 }
@@ -100,6 +119,7 @@ pub(crate) struct IntegerClientKey {
     pub(crate) dedicated_compact_private_key: Option<CompactPrivateKey>,
     pub(crate) compression_key: Option<CompressionPrivateKeys>,
     pub(crate) noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
+    pub(crate) noise_squashing_compression_private_key: Option<NoiseSquashingCompressionPrivateKey>,
 }
 
 impl IntegerClientKey {
@@ -126,11 +146,16 @@ impl IntegerClientKey {
             .noise_squashing_parameters
             .map(NoiseSquashingPrivateKey::new);
 
+        let noise_squashing_compression_private_key = config
+            .noise_squashing_compression_parameters
+            .map(NoiseSquashingCompressionPrivateKey::new);
+
         Self {
             key,
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key,
+            noise_squashing_compression_private_key,
         }
     }
 
@@ -142,18 +167,21 @@ impl IntegerClientKey {
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
         Option<NoiseSquashingPrivateKey>,
+        Option<NoiseSquashingCompressionPrivateKey>,
     ) {
         let Self {
             key,
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key,
+            noise_squashing_compression_private_key,
         } = self;
         (
             key,
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key,
+            noise_squashing_compression_private_key,
         )
     }
 
@@ -167,6 +195,7 @@ impl IntegerClientKey {
         dedicated_compact_private_key: Option<CompactPrivateKey>,
         compression_key: Option<CompressionPrivateKeys>,
         noise_squashing_private_key: Option<NoiseSquashingPrivateKey>,
+        noise_squashing_compression_private_key: Option<NoiseSquashingCompressionPrivateKey>,
     ) -> Self {
         let shortint_cks: &crate::shortint::ClientKey = key.as_ref();
 
@@ -194,6 +223,7 @@ impl IntegerClientKey {
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key,
+            noise_squashing_compression_private_key,
         }
     }
 
@@ -223,11 +253,16 @@ impl From<IntegerConfig> for IntegerClientKey {
             .noise_squashing_parameters
             .map(NoiseSquashingPrivateKey::new);
 
+        let noise_squashing_compression_private_key = config
+            .noise_squashing_compression_parameters
+            .map(NoiseSquashingCompressionPrivateKey::new);
+
         Self {
             key,
             dedicated_compact_private_key,
             compression_key,
             noise_squashing_private_key,
+            noise_squashing_compression_private_key,
         }
     }
 }
@@ -245,6 +280,7 @@ pub struct IntegerServerKey {
     pub(crate) compression_key: Option<CompressionKey>,
     pub(crate) decompression_key: Option<DecompressionKey>,
     pub(crate) noise_squashing_key: Option<NoiseSquashingKey>,
+    pub(crate) noise_squashing_compression_key: Option<NoiseSquashingCompressionKey>,
 }
 
 impl IntegerServerKey {
@@ -277,10 +313,22 @@ impl IntegerServerKey {
                     build_helper.into()
                 });
 
-        let noise_squashing_key = client_key
-            .noise_squashing_private_key
-            .as_ref()
-            .map(|key| NoiseSquashingKey::new(cks, key));
+        let (noise_squashing_key, noise_squashing_compression_key) =
+            client_key.noise_squashing_private_key.as_ref().map_or_else(
+                || (None, None),
+                |noise_squashing_private_key| {
+                    let noise_squashing_key =
+                        NoiseSquashingKey::new(cks, noise_squashing_private_key);
+                    let noise_squashing_compression_key = client_key
+                        .noise_squashing_compression_private_key
+                        .as_ref()
+                        .map(|comp_private_key| {
+                            noise_squashing_private_key
+                                .new_noise_squashing_compression_key(comp_private_key)
+                        });
+                    (Some(noise_squashing_key), noise_squashing_compression_key)
+                },
+            );
 
         Self {
             key: base_integer_key,
@@ -288,6 +336,7 @@ impl IntegerServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         }
     }
 
@@ -335,6 +384,7 @@ pub struct IntegerCompressedServerKey {
     pub(crate) compression_key: Option<CompressedCompressionKey>,
     pub(crate) decompression_key: Option<CompressedDecompressionKey>,
     pub(crate) noise_squashing_key: Option<CompressedNoiseSquashingKey>,
+    pub(crate) noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
 }
 
 impl IntegerCompressedServerKey {
@@ -370,13 +420,22 @@ impl IntegerCompressedServerKey {
                     (Some(compression_keys), Some(decompression_keys))
                 });
 
-        let noise_squashing_key =
-            client_key
-                .noise_squashing_private_key
-                .as_ref()
-                .map(|noise_squashing_private_key| {
-                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key)
-                });
+        let (noise_squashing_key, noise_squashing_compression_key) = client_key
+            .noise_squashing_private_key
+            .as_ref()
+            .map_or((None, None), |noise_squashing_private_key| {
+                let noise_squashing_key =
+                    noise_squashing_private_key.new_compressed_noise_squashing_key(&client_key.key);
+
+                let noise_squashing_compression_key = client_key
+                    .noise_squashing_compression_private_key
+                    .as_ref()
+                    .map(|comp_private_key| {
+                        noise_squashing_private_key
+                            .new_compressed_noise_squashing_compression_key(comp_private_key)
+                    });
+                (Some(noise_squashing_key), noise_squashing_compression_key)
+            });
 
         Self {
             key,
@@ -384,6 +443,7 @@ impl IntegerCompressedServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         }
     }
 
@@ -411,6 +471,7 @@ impl IntegerCompressedServerKey {
         compression_key: Option<CompressedCompressionKey>,
         decompression_key: Option<CompressedDecompressionKey>,
         noise_squashing_key: Option<CompressedNoiseSquashingKey>,
+        noise_squashing_compression_key: Option<CompressedNoiseSquashingCompressionKey>,
     ) -> Self {
         Self {
             key,
@@ -418,6 +479,7 @@ impl IntegerCompressedServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         }
     }
 
@@ -437,6 +499,11 @@ impl IntegerCompressedServerKey {
             .as_ref()
             .map(CompressedNoiseSquashingKey::decompress);
 
+        let noise_squashing_compression_key = self
+            .noise_squashing_compression_key
+            .as_ref()
+            .map(CompressedNoiseSquashingCompressionKey::decompress);
+
         IntegerServerKey {
             key: self.key.decompress(),
             cpk_key_switching_key_material: self.cpk_key_switching_key_material.as_ref().map(
@@ -445,6 +512,7 @@ impl IntegerCompressedServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         }
     }
 }
@@ -533,6 +601,7 @@ pub struct IntegerServerKeyConformanceParams {
     )>,
     pub compression_param: Option<CompressionParameters>,
     pub noise_squashing_param: Option<NoiseSquashingParameters>,
+    pub noise_squashing_compression_param: Option<NoiseSquashingCompressionParameters>,
 }
 
 impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
@@ -543,6 +612,7 @@ impl<C: Into<Config>> From<C> for IntegerServerKeyConformanceParams {
             cpk_param: config.inner.dedicated_compact_public_key_parameters,
             compression_param: config.inner.compression_parameters,
             noise_squashing_param: config.inner.noise_squashing_parameters,
+            noise_squashing_compression_param: config.inner.noise_squashing_compression_parameters,
         }
     }
 }
@@ -602,6 +672,7 @@ impl ParameterSetConformant for IntegerServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -652,10 +723,32 @@ impl ParameterSetConformant for IntegerServerKey {
             _ => return false,
         };
 
+        let noise_squashing_compression_key_is_ok = match (
+            parameter_set.noise_squashing_param.as_ref(),
+            parameter_set.noise_squashing_compression_param.as_ref(),
+            noise_squashing_compression_key.as_ref(),
+        ) {
+            (None, None, None) | (Some(_), None, None) => true,
+            (
+                Some(noise_squashing_parameters),
+                Some(noise_squashing_compression_param),
+                Some(noise_squashing_compression_key),
+            ) => {
+                let noise_squashing_compression_param = (
+                    *noise_squashing_parameters,
+                    *noise_squashing_compression_param,
+                )
+                    .into();
+                noise_squashing_compression_key.is_conformant(&noise_squashing_compression_param)
+            }
+            _ => return false,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
             && noise_squashing_key_is_ok
+            && noise_squashing_compression_key_is_ok
     }
 }
 
@@ -669,6 +762,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             compression_key,
             decompression_key,
             noise_squashing_key,
+            noise_squashing_compression_key,
         } = self;
 
         let cpk_key_switching_key_material_is_ok = match (
@@ -719,10 +813,32 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             _ => return false,
         };
 
+        let noise_squashing_compression_key_is_ok = match (
+            parameter_set.noise_squashing_param.as_ref(),
+            parameter_set.noise_squashing_compression_param.as_ref(),
+            noise_squashing_compression_key.as_ref(),
+        ) {
+            (None, None, None) | (Some(_), None, None) => true,
+            (
+                Some(noise_squashing_parameters),
+                Some(noise_squashing_compression_param),
+                Some(noise_squashing_compression_key),
+            ) => {
+                let noise_squashing_compression_param = (
+                    *noise_squashing_parameters,
+                    *noise_squashing_compression_param,
+                )
+                    .into();
+                noise_squashing_compression_key.is_conformant(&noise_squashing_compression_param)
+            }
+            _ => return false,
+        };
+
         key.is_conformant(&parameter_set.sk_param)
             && cpk_key_switching_key_material_is_ok
             && compression_is_ok
             && noise_squashing_key_is_ok
+            && noise_squashing_compression_key_is_ok
     }
 }
 

@@ -2,6 +2,7 @@ use super::{
     DataKind, SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext,
     SquashedNoiseSignedRadixCiphertext,
 };
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
 use crate::integer::backward_compatibility::list_compression::{
     CompressedNoiseSquashingCompressionKeyVersions, CompressedSquashedNoiseCiphertextListVersions,
@@ -16,6 +17,7 @@ use crate::shortint::ciphertext::{
 use crate::shortint::list_compression::{
     CompressedNoiseSquashingCompressionKey as ShortintCompressedNoiseSquashingCompressionKey,
     NoiseSquashingCompressionKey as ShortintNoiseSquashingCompressionKey,
+    NoiseSquashingCompressionKeyConformanceParams,
     NoiseSquashingCompressionPrivateKey as ShortintNoiseSquashingCompressionPrivateKey,
 };
 use crate::shortint::parameters::NoiseSquashingCompressionParameters;
@@ -53,6 +55,15 @@ pub struct CompressedNoiseSquashingCompressionKey {
     pub(crate) key: ShortintCompressedNoiseSquashingCompressionKey,
 }
 
+impl ParameterSetConformant for CompressedNoiseSquashingCompressionKey {
+    type ParameterSet = NoiseSquashingCompressionKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+        key.is_conformant(parameter_set)
+    }
+}
+
 impl CompressedNoiseSquashingCompressionKey {
     pub fn decompress(&self) -> NoiseSquashingCompressionKey {
         let key = self.key.decompress();
@@ -72,6 +83,15 @@ pub struct NoiseSquashingCompressionKey {
 
 impl Named for NoiseSquashingCompressionKey {
     const NAME: &'static str = "integer::NoiseSquashingCompressionKey";
+}
+
+impl ParameterSetConformant for NoiseSquashingCompressionKey {
+    type ParameterSet = NoiseSquashingCompressionKeyConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self { key } = self;
+        key.is_conformant(parameter_set)
+    }
 }
 
 impl NoiseSquashingPrivateKey {
@@ -102,8 +122,8 @@ impl NoiseSquashingPrivateKey {
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(CompressedSquashedNoiseCiphertextListVersions)]
 pub struct CompressedSquashedNoiseCiphertextList {
-    list: ShortintCompressedSquashedNoiseCiphertextList,
-    info: Vec<DataKind>,
+    pub(crate) list: ShortintCompressedSquashedNoiseCiphertextList,
+    pub(crate) info: Vec<DataKind>,
 }
 
 impl Named for CompressedSquashedNoiseCiphertextList {
@@ -175,6 +195,10 @@ mod sealed {
     impl Sealed for SquashedNoiseRadixCiphertext {}
     impl Sealed for SquashedNoiseSignedRadixCiphertext {}
     impl Sealed for SquashedNoiseBooleanBlock {}
+
+    impl Sealed for crate::SquashedNoiseFheBool {}
+    impl Sealed for crate::SquashedNoiseFheUint {}
+    impl Sealed for crate::SquashedNoiseFheInt {}
 }
 
 pub trait SquashedNoiseCompressible: sealed::Sealed {

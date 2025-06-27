@@ -6,7 +6,8 @@ use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheDecrypt, SquashNoise};
+use crate::high_level_api::traits::{FheDecrypt, SquashNoise, Tagged};
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::ciphertext::SquashedNoiseBooleanBlock;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
@@ -125,8 +126,19 @@ impl InnerSquashedNoiseBoolean {
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(SquashedNoiseFheBoolVersions)]
 pub struct SquashedNoiseFheBool {
-    inner: InnerSquashedNoiseBoolean,
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseBoolean,
+    pub(in crate::high_level_api) state: SquashedNoiseCiphertextState,
     tag: Tag,
+}
+
+impl SquashedNoiseFheBool {
+    pub(in crate::high_level_api) fn new(
+        inner: InnerSquashedNoiseBoolean,
+        state: SquashedNoiseCiphertextState,
+        tag: Tag,
+    ) -> Self {
+        Self { inner, state, tag }
+    }
 }
 
 impl Named for SquashedNoiseFheBool {
@@ -143,17 +155,20 @@ impl SquashedNoiseFheBool {
 
 impl FheDecrypt<bool> for SquashedNoiseFheBool {
     fn decrypt(&self, key: &ClientKey) -> bool {
-        key.key
-            .noise_squashing_private_key
-            .as_ref()
-            .map(|noise_squashing_private_key| {
-                noise_squashing_private_key.decrypt_bool(&self.inner.on_cpu())
-            })
-            .expect(
-                "No noise squashing private key in your ClientKey, cannot decrypt. \
-                Did you call `enable_noise_squashing` when creating your Config?",
-            )
+        let noise_squashing_private_key = key.private_noise_squashing_decryption_key(self.state);
+        noise_squashing_private_key
+            .decrypt_bool(&self.inner.on_cpu())
             .unwrap()
+    }
+}
+
+impl Tagged for SquashedNoiseFheBool {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -176,6 +191,7 @@ impl SquashNoise for FheBool {
                             &self.ciphertext.on_cpu(),
                         )?,
                     ),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: server_key.tag.clone(),
                 })
             }
@@ -211,6 +227,7 @@ impl SquashNoise for FheBool {
 
                 Ok(SquashedNoiseFheBool {
                     inner: InnerSquashedNoiseBoolean::Cpu(cpu_squashed_block),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: cuda_key.tag.clone(),
                 })
             }

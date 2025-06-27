@@ -7,7 +7,8 @@ use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedNoiseSquashing;
 use crate::high_level_api::global_state::{self, with_internal_keys};
 use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheDecrypt, SquashNoise};
+use crate::high_level_api::traits::{FheDecrypt, SquashNoise, Tagged};
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::block_decomposition::RecomposableFrom;
 use crate::named::Named;
 use crate::{ClientKey, Device, Tag};
@@ -124,7 +125,8 @@ impl InnerSquashedNoiseRadixCiphertext {
 #[derive(Clone, serde::Deserialize, serde::Serialize, Versionize)]
 #[versionize(SquashedNoiseFheUintVersions)]
 pub struct SquashedNoiseFheUint {
-    inner: InnerSquashedNoiseRadixCiphertext,
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseRadixCiphertext,
+    pub(in crate::high_level_api) state: SquashedNoiseCiphertextState,
     tag: Tag,
 }
 
@@ -133,6 +135,14 @@ impl Named for SquashedNoiseFheUint {
 }
 
 impl SquashedNoiseFheUint {
+    pub(in crate::high_level_api) fn new(
+        inner: InnerSquashedNoiseRadixCiphertext,
+        state: SquashedNoiseCiphertextState,
+        tag: Tag,
+    ) -> Self {
+        Self { inner, state, tag }
+    }
+
     pub fn underlying_squashed_noise_ciphertext(
         &self,
     ) -> MaybeCloned<'_, crate::integer::ciphertext::SquashedNoiseRadixCiphertext> {
@@ -153,17 +163,20 @@ where
     Clear: RecomposableFrom<u128> + UnsignedNumeric,
 {
     fn decrypt(&self, key: &ClientKey) -> Clear {
-        key.key
-            .noise_squashing_private_key
-            .as_ref()
-            .map(|noise_squashing_private_key| {
-                noise_squashing_private_key.decrypt_radix(&self.inner.on_cpu())
-            })
-            .expect(
-                "No noise squashing private key in your ClientKey, cannot decrypt. \
-                Did you call `enable_noise_squashing` when creating your Config?",
-            )
+        let noise_squashing_private_key = key.private_noise_squashing_decryption_key(self.state);
+        noise_squashing_private_key
+            .decrypt_radix(&self.inner.on_cpu())
             .unwrap()
+    }
+}
+
+impl Tagged for SquashedNoiseFheUint {
+    fn tag(&self) -> &Tag {
+        &self.tag
+    }
+
+    fn tag_mut(&mut self) -> &mut Tag {
+        &mut self.tag
     }
 }
 
@@ -186,6 +199,7 @@ impl<Id: FheUintId> SquashNoise for FheUint<Id> {
                             &self.ciphertext.on_cpu(),
                         )?,
                     ),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: server_key.tag.clone(),
                 })
             }
@@ -207,6 +221,7 @@ impl<Id: FheUintId> SquashNoise for FheUint<Id> {
                 let squashed_ct = cuda_squashed_ct.to_squashed_noise_radix_ciphertext(streams);
                 Ok(SquashedNoiseFheUint {
                     inner: InnerSquashedNoiseRadixCiphertext::Cpu(squashed_ct),
+                    state: SquashedNoiseCiphertextState::Normal,
                     tag: cuda_key.tag.clone(),
                 })
             }
