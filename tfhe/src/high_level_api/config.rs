@@ -3,7 +3,7 @@ use tfhe_versionable::Versionize;
 use crate::backward_compatibility::config::ConfigVersions;
 use crate::high_level_api::keys::IntegerConfig;
 use crate::shortint::parameters::list_compression::CompressionParameters;
-use crate::shortint::parameters::NoiseSquashingParameters;
+use crate::shortint::parameters::{NoiseSquashingCompressionParameters, NoiseSquashingParameters};
 
 /// The config type
 #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, Versionize)]
@@ -64,6 +64,20 @@ impl ConfigBuilder {
             .inner
             .enable_noise_squashing(noise_squashing_parameters);
 
+        self
+    }
+
+    pub fn enable_noise_squashing_compression(
+        mut self,
+        compression_parameters: NoiseSquashingCompressionParameters,
+    ) -> Self {
+        assert_ne!(
+            self.config.inner.noise_squashing_parameters, None,
+            "Noise squashing must be enabled first"
+        );
+        self.config
+            .inner
+            .enable_noise_squashing_compression(compression_parameters);
         self
     }
 

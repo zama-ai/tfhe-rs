@@ -3,8 +3,13 @@ use std::convert::Infallible;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
+use self::signed::SignedRadixCiphertext;
+use self::unsigned::RadixCiphertext as UnsignedRadixCiphertext;
 use crate::high_level_api::global_state::with_cpu_internal_keys;
+use crate::high_level_api::integers::signed::InnerSquashedNoiseSignedRadixCiphertext;
+use crate::high_level_api::integers::unsigned::InnerSquashedNoiseRadixCiphertext;
 use crate::high_level_api::integers::*;
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::integer::backward_compatibility::ciphertext::{
     CompressedModulusSwitchedRadixCiphertextTFHE06,
     CompressedModulusSwitchedSignedRadixCiphertextTFHE06,
@@ -18,9 +23,6 @@ use crate::shortint::ciphertext::CompressedModulusSwitchedCiphertext;
 use crate::shortint::{Ciphertext, ServerKey};
 use crate::Tag;
 use serde::{Deserialize, Serialize};
-
-use self::signed::SignedRadixCiphertext;
-use self::unsigned::RadixCiphertext as UnsignedRadixCiphertext;
 
 // Manual impl
 #[derive(Serialize, Deserialize)]
@@ -228,9 +230,28 @@ pub(crate) enum InnerSquashedNoiseRadixCiphertextVersionedOwned {
     V0(InnerSquashedNoiseRadixCiphertextVersionOwned),
 }
 
+#[derive(Version)]
+pub struct SquashedNoiseFheUintV0 {
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseRadixCiphertext,
+    pub(in crate::high_level_api) tag: Tag,
+}
+
+impl Upgrade<SquashedNoiseFheUint> for SquashedNoiseFheUintV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SquashedNoiseFheUint, Self::Error> {
+        Ok(SquashedNoiseFheUint::new(
+            self.inner,
+            SquashedNoiseCiphertextState::Normal,
+            self.tag,
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum SquashedNoiseFheUintVersions {
-    V0(SquashedNoiseFheUint),
+    V0(SquashedNoiseFheUintV0),
+    V1(SquashedNoiseFheUint),
 }
 
 // Manual impl
@@ -239,7 +260,26 @@ pub(crate) enum InnerSquashedNoiseSignedRadixCiphertextVersionedOwned {
     V0(InnerSquashedNoiseSignedRadixCiphertextVersionOwned),
 }
 
+#[derive(Version)]
+pub struct SquashedNoiseFheIntV0 {
+    pub(in crate::high_level_api) inner: InnerSquashedNoiseSignedRadixCiphertext,
+    pub(in crate::high_level_api) tag: Tag,
+}
+
+impl Upgrade<SquashedNoiseFheInt> for SquashedNoiseFheIntV0 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<SquashedNoiseFheInt, Self::Error> {
+        Ok(SquashedNoiseFheInt::new(
+            self.inner,
+            SquashedNoiseCiphertextState::Normal,
+            self.tag,
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum SquashedNoiseFheIntVersions {
-    V0(SquashedNoiseFheInt),
+    V0(SquashedNoiseFheIntV0),
+    V1(SquashedNoiseFheInt),
 }

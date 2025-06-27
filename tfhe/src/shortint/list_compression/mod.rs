@@ -9,5 +9,6 @@ pub use compressed_server_keys::{
 };
 pub use private_key::{CompressionPrivateKeys, NoiseSquashingCompressionPrivateKey};
 pub use server_keys::{
-    CompressionKey, CompressionKeyConformanceParams, DecompressionKey, NoiseSquashingCompressionKey,
+    CompressionKey, CompressionKeyConformanceParams, DecompressionKey,
+    NoiseSquashingCompressionKey, NoiseSquashingCompressionKeyConformanceParams,
 };

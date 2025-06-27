@@ -1,7 +1,14 @@
+use crate::high_level_api::SquashedNoiseCiphertextState;
 use std::convert::Infallible;
 use tfhe_versionable::{Upgrade, Version, VersionsDispatch};
 
-use crate::{CompressedCiphertextList, Tag};
+use crate::{CompressedCiphertextList, CompressedSquashedNoiseCiphertextList, Tag};
+
+#[derive(VersionsDispatch)]
+#[allow(unused)]
+pub(crate) enum SquashedNoiseCiphertextStateVersions {
+    V0(SquashedNoiseCiphertextState),
+}
 
 #[derive(Version)]
 pub struct CompressedCiphertextListV0(crate::integer::ciphertext::CompressedCiphertextList);
@@ -39,4 +46,9 @@ pub enum CompressedCiphertextListVersions {
     V0(CompressedCiphertextListV0),
     V1(CompressedCiphertextListV1),
     V2(CompressedCiphertextList),
+}
+
+#[derive(VersionsDispatch)]
+pub enum CompressedSquashedNoiseCiphertextListVersions {
+    V0(CompressedSquashedNoiseCiphertextList),
 }

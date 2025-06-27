@@ -828,8 +828,8 @@ mod tests {
                 // We need the private compression key to be common between GPU and CPU
                 // for the rest of the test to work. This is the only way to do it
                 // until a more convenient API is added
-                let (cks, pk, _, cnsk, tag) = ck.into_raw_parts();
-                let ck = ClientKey::from_raw_parts(cks, pk, common_cck, cnsk, tag);
+                let (cks, pk, _, nsk, cnsk, tag) = ck.into_raw_parts();
+                let ck = ClientKey::from_raw_parts(cks, pk, common_cck, nsk, cnsk, tag);
 
                 let sk = CompressedServerKey::new(&ck);
                 assert_eq!(sk.tag().as_u64(), 0);

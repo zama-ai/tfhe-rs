@@ -48,7 +48,8 @@ macro_rules! export_concrete_array_types {
 
 pub use crate::core_crypto::commons::math::random::Seed;
 pub use crate::integer::server_key::MatchValues;
-use crate::{error, Error};
+use crate::{error, Error, Versionize};
+use backward_compatibility::compressed_ciphertext_list::SquashedNoiseCiphertextStateVersions;
 pub use config::{Config, ConfigBuilder};
 #[cfg(feature = "gpu")]
 pub use global_state::CudaGpuChoice;
@@ -124,6 +125,10 @@ pub use compact_list::{
 pub use compressed_ciphertext_list::{
     CompressedCiphertextList, CompressedCiphertextListBuilder, HlCompressible, HlExpandable,
 };
+pub use compressed_noise_squashed_ciphertext_list::{
+    CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
+    HlSquashedNoiseCompressible, HlSquashedNoiseExpandable,
+};
 #[cfg(feature = "strings")]
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
 pub use tag::Tag;
@@ -152,6 +157,7 @@ mod tag;
 #[cfg(feature = "gpu")]
 pub use crate::core_crypto::gpu::vec::GpuIndex;
 
+mod compressed_noise_squashed_ciphertext_list;
 pub(in crate::high_level_api) mod details;
 /// The tfhe prelude.
 pub mod prelude;
@@ -270,4 +276,11 @@ impl TryFrom<i32> for FheTypes {
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         Self::from_repr(value).ok_or_else(|| error!("Invalid value for FheTypes: {}", value))
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Versionize)]
+#[versionize(SquashedNoiseCiphertextStateVersions)]
+pub(crate) enum SquashedNoiseCiphertextState {
+    Normal,
+    PostDecompression,
 }

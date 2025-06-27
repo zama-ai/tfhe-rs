@@ -6,8 +6,10 @@ use super::{CompressedServerKey, ServerKey};
 use crate::high_level_api::backward_compatibility::keys::ClientKeyVersions;
 use crate::high_level_api::config::Config;
 use crate::high_level_api::keys::{CompactPrivateKey, IntegerClientKey};
+use crate::high_level_api::SquashedNoiseCiphertextState;
+use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
 use crate::integer::compression_keys::CompressionPrivateKeys;
-use crate::integer::noise_squashing::NoiseSquashingPrivateKey;
+use crate::integer::noise_squashing::{NoiseSquashingPrivateKey, NoiseSquashingPrivateKeyView};
 use crate::named::Named;
 use crate::prelude::Tagged;
 use crate::shortint::MessageModulus;
@@ -82,10 +84,11 @@ impl ClientKey {
         Option<CompactPrivateKey>,
         Option<CompressionPrivateKeys>,
         Option<NoiseSquashingPrivateKey>,
+        Option<NoiseSquashingCompressionPrivateKey>,
         Tag,
     ) {
-        let (cks, cpk, cppk, nsk) = self.key.into_raw_parts();
-        (cks, cpk, cppk, nsk, self.tag)
+        let (cks, cpk, cppk, nsk, nscpk) = self.key.into_raw_parts();
+        (cks, cpk, cppk, nsk, nscpk, self.tag)
     }
 
     pub fn from_raw_parts(
@@ -96,6 +99,7 @@ impl ClientKey {
         )>,
         compression_key: Option<CompressionPrivateKeys>,
         noise_squashing_key: Option<NoiseSquashingPrivateKey>,
+        noise_squashing_compression_key: Option<NoiseSquashingCompressionPrivateKey>,
         tag: Tag,
     ) -> Self {
         Self {
@@ -104,6 +108,7 @@ impl ClientKey {
                 dedicated_compact_private_key,
                 compression_key,
                 noise_squashing_key,
+                noise_squashing_compression_key,
             ),
             tag,
         }
@@ -124,6 +129,38 @@ impl ClientKey {
 
     pub(crate) fn message_modulus(&self) -> MessageModulus {
         self.key.block_parameters().message_modulus()
+    }
+
+    /// Returns a view of the private key to be used to decrypt a squashed noise
+    /// ciphertext depending on its state
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key supposed to be used for the given state cannot be found
+    pub(crate) fn private_noise_squashing_decryption_key(
+        &self,
+        state: SquashedNoiseCiphertextState,
+    ) -> NoiseSquashingPrivateKeyView<'_> {
+        match state {
+            SquashedNoiseCiphertextState::Normal => self
+                .key
+                .noise_squashing_private_key
+                .as_ref()
+                .map(|key| key.as_view())
+                .expect(
+                    "No noise squashing private key in your ClientKey, cannot decrypt. \
+                    Did you call `enable_noise_squashing` when creating your Config?",
+                ),
+            SquashedNoiseCiphertextState::PostDecompression => self
+                .key
+                .noise_squashing_compression_private_key
+                .as_ref()
+                .map(|key| key.private_key_view())
+                .expect(
+                    "No noise squashing private key in your ClientKey, cannot decrypt. \
+                    Did you call `enable_noise_squashing_compression` when creating your Config?",
+                ),
+        }
     }
 }
 
