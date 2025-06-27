@@ -2860,7 +2860,7 @@ template <typename Torus> struct int_mul_memory {
     // create int_radix_lut objects for lsb, msb, message, carry
     // luts_array -> lut = {lsb_acc, msb_acc}
     luts_array = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
-                                          params, 2, 2 * total_block_count,
+                                          params, 2, total_block_count,
                                           allocate_gpu_memory, size_tracker);
     auto lsb_acc = luts_array->get_lut(0, 0);
     auto msb_acc = luts_array->get_lut(0, 1);
