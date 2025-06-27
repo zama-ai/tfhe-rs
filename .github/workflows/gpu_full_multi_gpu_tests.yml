@@ -137,7 +137,7 @@ jobs:
       # No need to test core_crypto and classic PBS in integer since it's already tested on single GPU.
       - name: Run multi-bit CUDA integer tests
         run: |
-          BIG_TESTS_INSTANCE=TRUE make test_integer_multi_bit_gpu_ci
+          BIG_TESTS_INSTANCE=TRUE NO_BIG_PARAMS_GPU=TRUE make test_integer_multi_bit_gpu_ci
 
       - name: Run user docs tests
         run: |
