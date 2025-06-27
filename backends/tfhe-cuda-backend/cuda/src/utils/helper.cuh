@@ -5,21 +5,30 @@
 #include <stdio.h>
 #include <type_traits>
 
-template <typename T> inline __device__ const char *get_format();
+template <typename T> __device__ inline const char *get_format();
 
-template <> inline __device__ const char *get_format<int>() { return "%d, "; }
+template <> __device__ inline const char *get_format<int>() { return "%d, "; }
 
-template <> inline __device__ const char *get_format<unsigned int>() {
+template <> __device__ inline const char *get_format<unsigned int>() {
   return "%u, ";
 }
 
-template <> inline __device__ const char *get_format<uint64_t>() {
+template <> __device__ inline const char *get_format<uint64_t>() {
   return "%lu, ";
 }
 
 template <typename T> __global__ void print_debug_kernel(const T *src, int N) {
   for (int i = 0; i < N; i++) {
     printf(get_format<T>(), src[i]);
+  }
+}
+
+template <>
+__global__ inline void print_debug_kernel(const __uint128_t *src, int N) {
+  for (int i = 0; i < N; i++) {
+    uint64_t low = static_cast<uint64_t>(src[i]);
+    uint64_t high = static_cast<uint64_t>(src[i] >> 64);
+    printf("(%llu, %llu), ", high, low);
   }
 }
 

@@ -521,7 +521,7 @@ mod cuda_utils {
         pub ksk: Option<CudaLweKeyswitchKey<T>>,
         pub pksk: Option<CudaLwePackingKeyswitchKey<T>>,
         pub bsk: Option<CudaLweBootstrapKey>,
-        pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey>,
+        pub multi_bit_bsk: Option<CudaLweMultiBitBootstrapKey<T>>,
     }
 
     #[allow(dead_code)]

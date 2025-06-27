@@ -35,6 +35,20 @@ void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_64(
                            static_cast<cudaStream_t>(stream), gpu_index);
 }
 
+void cuda_convert_lwe_multi_bit_programmable_bootstrap_key_128(
+    void *stream, uint32_t gpu_index, void *dest, void const *src,
+    uint32_t input_lwe_dim, uint32_t glwe_dim, uint32_t level_count,
+    uint32_t polynomial_size, uint32_t grouping_factor) {
+  uint32_t total_polynomials = input_lwe_dim * (glwe_dim + 1) * (glwe_dim + 1) *
+                               level_count * (1 << grouping_factor) /
+                               grouping_factor;
+  size_t buffer_size =
+      total_polynomials * polynomial_size * sizeof(__uint128_t);
+
+  cuda_memcpy_async_to_gpu((__uint128_t *)dest, (__uint128_t *)src, buffer_size,
+                           static_cast<cudaStream_t>(stream), gpu_index);
+}
+
 // We need these lines so the compiler knows how to specialize these functions
 template __device__ const uint64_t *
 get_ith_mask_kth_block(const uint64_t *ptr, int i, int k, int level,
@@ -79,6 +93,14 @@ template __device__ double2 *get_ith_body_kth_block(double2 *ptr, int i, int k,
                                                     uint32_t polynomial_size,
                                                     int glwe_dimension,
                                                     uint32_t level_count);
+
+template __device__ const __uint128_t *
+get_multi_bit_ith_lwe_gth_group_kth_block(const __uint128_t *ptr, int g, int i,
+                                          int k, int level,
+                                          uint32_t grouping_factor,
+                                          uint32_t polynomial_size,
+                                          uint32_t glwe_dimension,
+                                          uint32_t level_count);
 
 template __device__ const uint64_t *get_multi_bit_ith_lwe_gth_group_kth_block(
     const uint64_t *ptr, int g, int i, int k, int level,

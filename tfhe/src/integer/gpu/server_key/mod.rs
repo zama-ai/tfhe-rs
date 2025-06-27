@@ -18,9 +18,9 @@ use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
 use crate::shortint::{CarryModulus, CiphertextModulus, MessageModulus, PBSOrder};
 mod radix;
 
-pub enum CudaBootstrappingKey {
+pub enum CudaBootstrappingKey<Scalar: UnsignedInteger> {
     Classic(CudaLweBootstrapKey),
-    MultiBit(CudaLweMultiBitBootstrapKey),
+    MultiBit(CudaLweMultiBitBootstrapKey<Scalar>),
 }
 
 /// A structure containing the server public key.
@@ -30,7 +30,7 @@ pub enum CudaBootstrappingKey {
 // #[derive(PartialEq, Serialize, Deserialize)]
 pub struct CudaServerKey {
     pub key_switching_key: CudaLweKeyswitchKey<u64>,
-    pub bootstrapping_key: CudaBootstrappingKey,
+    pub bootstrapping_key: CudaBootstrappingKey<u64>,
     // Size of the message buffer
     pub message_modulus: MessageModulus,
     // Size of the carry buffer

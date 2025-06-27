@@ -22,6 +22,13 @@ pub struct MultiBitBootstrapKeys<Scalar: UnsignedInteger> {
     pub fbsk: FourierLweMultiBitBootstrapKeyOwned,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MultiBitStdBootstrapKeys<Scalar: UnsignedInteger> {
+    pub small_lwe_sk: LweSecretKey<Vec<Scalar>>,
+    pub big_lwe_sk: LweSecretKey<Vec<Scalar>>,
+    pub bsk: LweMultiBitBootstrapKeyOwned<Scalar>,
+}
+
 // Fourier key is generated afterward in order to use generic test function
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FftBootstrapKeys<Scalar: UnsignedInteger> {
@@ -81,6 +88,18 @@ pub struct MultiBitTestParams<Scalar: UnsignedInteger> {
     pub thread_count: ThreadCount,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct NoiseSquashingMultiBitTestParameters<Scalar: UnsignedInteger> {
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
+    pub decomp_base_log: DecompositionBaseLog,
+    pub decomp_level_count: DecompositionLevelCount,
+    pub grouping_factor: LweBskGroupingFactor,
+    pub message_modulus_log: MessageModulusLog,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
 // PartialEq is implemented manually because thread_count doesn't affect key generation and we want
 // to change its value in test without the need of regenerating keys in the key cache.
 impl<Scalar: UnsignedInteger> PartialEq for MultiBitTestParams<Scalar> {
@@ -138,6 +157,21 @@ pub struct NoiseSquashingTestParams<Scalar: UnsignedInteger> {
     pub glwe_noise_distribution: DynamicDistribution<Scalar>,
     pub pbs_base_log: DecompositionBaseLog,
     pub pbs_level: DecompositionLevelCount,
+    pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+// Parameters to test NoiseSquashing implementation
+#[cfg(feature = "gpu")]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct NoiseSquashingMultiBitTestParams<Scalar: UnsignedInteger> {
+    pub lwe_dimension: LweDimension,
+    pub glwe_dimension: GlweDimension,
+    pub polynomial_size: PolynomialSize,
+    pub lwe_noise_distribution: DynamicDistribution<Scalar>,
+    pub glwe_noise_distribution: DynamicDistribution<Scalar>,
+    pub pbs_base_log: DecompositionBaseLog,
+    pub pbs_level: DecompositionLevelCount,
+    pub grouping_factor: LweBskGroupingFactor,
     pub modulus_switch_noise_reduction_params: Option<ModulusSwitchNoiseReductionParams>,
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
