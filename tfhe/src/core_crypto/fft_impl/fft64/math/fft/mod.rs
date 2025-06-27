@@ -135,7 +135,7 @@ fn id_mut<From: 'static, To: 'static>(slice: &mut [From]) -> &mut [To] {
 /// Panics if `From` and `To` are not the same type
 #[inline]
 #[allow(dead_code)]
-fn id<From: 'static, To: 'static>(slice: &[From]) -> &[To] {
+pub(crate) fn id<From: 'static, To: 'static>(slice: &[From]) -> &[To] {
     assert_eq!(size_of::<From>(), size_of::<To>());
     assert_eq!(align_of::<From>(), align_of::<To>());
     assert_eq!(TypeId::of::<From>(), TypeId::of::<To>());

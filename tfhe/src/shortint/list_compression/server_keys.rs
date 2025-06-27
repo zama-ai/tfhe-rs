@@ -64,19 +64,33 @@ impl ClientKey {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
+        // let compression_params = private_compression_key.params;
+
+        // let mut engine = ShortintEngine::new();
+
+        // let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
+        //     &self.large_lwe_secret_key(),
+        //     &private_compression_key.post_packing_ks_key,
+        //     compression_params.packing_ks_base_log,
+        //     compression_params.packing_ks_level,
+        //     compression_params.packing_ks_key_noise_distribution,
+        //     self.parameters.ciphertext_modulus(),
+        //     &mut engine.encryption_generator,
+        // );
+
+        let mut engine = ShortintEngine::new();
+
         let compression_params = &private_compression_key.params;
 
-        let packing_key_switching_key = ShortintEngine::with_thread_local_mut(|engine| {
-            allocate_and_generate_new_lwe_packing_keyswitch_key(
-                &std_cks.large_lwe_secret_key(),
-                &private_compression_key.post_packing_ks_key,
-                compression_params.packing_ks_base_log,
-                compression_params.packing_ks_level,
-                compression_params.packing_ks_key_noise_distribution,
-                pbs_params.ciphertext_modulus(),
-                &mut engine.encryption_generator,
-            )
-        });
+        let packing_key_switching_key = allocate_and_generate_new_lwe_packing_keyswitch_key(
+            &std_cks.large_lwe_secret_key(),
+            &private_compression_key.post_packing_ks_key,
+            compression_params.packing_ks_base_log,
+            compression_params.packing_ks_level,
+            compression_params.packing_ks_key_noise_distribution,
+            pbs_params.ciphertext_modulus(),
+            &mut engine.encryption_generator,
+        );
 
         assert!(
             compression_params.storage_log_modulus.0
@@ -93,20 +107,33 @@ impl ClientKey {
             storage_log_modulus: compression_params.storage_log_modulus,
         };
 
-        let blind_rotate_key =
-            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
-                bsk: engine.new_classic_bootstrapping_key(
-                    &private_compression_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key(),
-                    &std_cks.glwe_secret_key,
-                    pbs_params.glwe_noise_distribution(),
-                    compression_params.br_base_log,
-                    compression_params.br_level,
-                    pbs_params.ciphertext_modulus(),
-                ),
-                modulus_switch_noise_reduction_key: None,
-            });
+        // let blind_rotate_key = ShortintBootstrappingKey::Classic {
+        //     bsk: engine.new_classic_bootstrapping_key(
+        //         &private_compression_key
+        //             .post_packing_ks_key
+        //             .as_lwe_secret_key(),
+        //         &self.glwe_secret_key,
+        //         self.parameters.glwe_noise_distribution(),
+        //         private_compression_key.params.br_base_log,
+        //         private_compression_key.params.br_level,
+        //         self.parameters.ciphertext_modulus(),
+        //     ),
+        //     modulus_switch_noise_reduction_key: None,
+        // };
+
+        let blind_rotate_key = ShortintBootstrappingKey::Classic {
+            bsk: engine.new_classic_bootstrapping_key(
+                &private_compression_key
+                    .post_packing_ks_key
+                    .as_lwe_secret_key(),
+                &std_cks.glwe_secret_key,
+                pbs_params.glwe_noise_distribution(),
+                compression_params.br_base_log,
+                compression_params.br_level,
+                pbs_params.ciphertext_modulus(),
+            ),
+            modulus_switch_noise_reduction_key: None,
+        };
 
         let glwe_decompression_key = DecompressionKey {
             blind_rotate_key,
