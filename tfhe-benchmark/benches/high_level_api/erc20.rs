@@ -395,8 +395,12 @@ fn cuda_bench_transfer_throughput<FheType, F>(
                                 .zip(amount_gpu_i.par_chunks(stream_chunk_size))
                                 .for_each(
                                     |((from_amount_chunk, to_amount_chunk), amount_chunk)| {
-                                        // Set the server key for the current GPU
-                                        set_server_key(sks_vec[i].clone());
+                                        
+                                        let thread_id = rayon::current_thread_index().unwrap() as usize;
+                                        let bind_id = thread_id % num_gpus as usize; 
+                                        // Set the server key for the binded GPU
+                                        set_server_key(sks_vec[bind_id].clone());
+                                        
                                         // Parallel iteration over the chunks of data
                                         from_amount_chunk
                                             .iter()
