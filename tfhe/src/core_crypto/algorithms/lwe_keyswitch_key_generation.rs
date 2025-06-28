@@ -13,6 +13,7 @@ use crate::core_crypto::commons::math::random::{
 use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
+use tfhe_csprng::seeders::Seed;
 
 /// Fill an [`LWE keyswitch key`](`LweKeyswitchKey`) with an actual keyswitching key constructed
 /// from an input and an output key [`LWE secret key`](`LweSecretKey`).
@@ -408,6 +409,43 @@ pub fn generate_seeded_lwe_keyswitch_key<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        lwe_keyswitch_key.compression_seed().seed,
+        noise_seeder,
+    );
+
+    generate_seeded_lwe_keyswitch_key_with_existing_generator(
+        input_lwe_sk,
+        output_lwe_sk,
+        lwe_keyswitch_key,
+        noise_distribution,
+        &mut generator,
+    )
+}
+
+pub fn generate_seeded_lwe_keyswitch_key_with_existing_generator<
+    InputScalar,
+    OutputScalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    KSKeyCont,
+    ByteGen,
+>(
+    input_lwe_sk: &LweSecretKey<InputKeyCont>,
+    output_lwe_sk: &LweSecretKey<OutputKeyCont>,
+    lwe_keyswitch_key: &mut SeededLweKeyswitchKey<KSKeyCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<ByteGen>,
+) where
+    InputScalar: UnsignedInteger + CastInto<OutputScalar>,
+    OutputScalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    InputKeyCont: Container<Element = InputScalar>,
+    OutputKeyCont: Container<Element = OutputScalar>,
+    KSKeyCont: ContainerMut<Element = OutputScalar>,
+    ByteGen: ByteRandomGenerator,
+{
     assert!(
         lwe_keyswitch_key.input_key_lwe_dimension() == input_lwe_sk.lwe_dimension(),
         "The destination SeededLweKeyswitchKey input LweDimension is not equal \
@@ -439,11 +477,6 @@ pub fn generate_seeded_lwe_keyswitch_key<
     let mut decomposition_plaintexts_buffer =
         PlaintextListOwned::new(OutputScalar::ZERO, PlaintextCount(decomp_level_count.0));
 
-    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        lwe_keyswitch_key.compression_seed().seed,
-        noise_seeder,
-    );
-
     // Iterate over the input key elements and the destination lwe_keyswitch_key memory
     for (input_key_element, mut keyswitch_key_block) in input_lwe_sk
         .as_ref()
@@ -473,7 +506,7 @@ pub fn generate_seeded_lwe_keyswitch_key<
             &mut keyswitch_key_block,
             &decomposition_plaintexts_buffer,
             noise_distribution,
-            &mut generator,
+            generator,
         );
     }
 }
@@ -525,6 +558,44 @@ where
     );
 
     new_lwe_keyswitch_key
+}
+
+pub fn allocate_and_generate_lwe_key_switching_key_with_pre_seeded_generator<
+    InputLweCont,
+    OutputLweCont,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputLweCont>,
+    output_lwe_secret_key: &LweSecretKey<OutputLweCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_distribution: DynamicDistribution<InputLweCont::Element>,
+    ciphertext_modulus: CiphertextModulus<InputLweCont::Element>,
+    noise_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+) -> SeededLweKeyswitchKeyOwned<InputLweCont::Element>
+where
+    InputLweCont: Container,
+    InputLweCont::Element:
+        UnsignedInteger + Encryptable<Uniform, DynamicDistribution<InputLweCont::Element>>,
+    OutputLweCont: Container<Element = InputLweCont::Element>,
+{
+    let mut key_switching_key = SeededLweKeyswitchKeyOwned::new(
+        InputLweCont::Element::ZERO,
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+        output_lwe_secret_key.lwe_dimension(),
+        CompressionSeed::from(Seed(0)),
+        ciphertext_modulus,
+    );
+    generate_seeded_lwe_keyswitch_key_with_existing_generator(
+        input_lwe_secret_key,
+        output_lwe_secret_key,
+        &mut key_switching_key,
+        noise_distribution,
+        noise_generator,
+    );
+
+    key_switching_key
 }
 
 /// A generator for producing chunks of an LWE keyswitch key.
