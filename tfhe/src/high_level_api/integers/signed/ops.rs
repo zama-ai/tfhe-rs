@@ -168,6 +168,19 @@ where
     }
 }
 
+impl<Id> FheMax<Self> for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = Self;
+
+    fn max(&self, _rhs: Self) -> Self::Output {
+        compile_error!(
+            "Cannot call .max() with an FheInt by value. Use a reference instead: .max(&rhs)"
+        );
+    }
+}
+
 impl<Id> FheMin<&Self> for FheInt<Id>
 where
     Id: FheIntId,
@@ -216,6 +229,19 @@ where
                 panic!("Hpu does not support this operation yet.")
             }
         })
+    }
+}
+
+impl<Id> FheMin<Self> for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = Self;
+
+    fn min(&self, _rhs: Self) -> Self::Output {
+        compile_error!(
+            "Cannot call .min() with an FheInt by value. Use a reference instead: .min(&rhs)"
+        );
     }
 }
 

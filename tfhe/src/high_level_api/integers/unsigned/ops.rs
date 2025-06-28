@@ -277,6 +277,19 @@ where
     }
 }
 
+impl<Id> FheMax<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    fn max(&self, _rhs: Self) -> Self::Output {
+        compile_error!(
+            "Cannot call .max() with an FheUint by value. Use a reference instead: .max(&rhs)"
+        );
+    }
+}
+
 impl<Id> FheMin<&Self> for FheUint<Id>
 where
     Id: FheUintId,
@@ -327,6 +340,19 @@ where
                 min_cmp.if_then_else(self, rhs)
             }
         })
+    }
+}
+
+impl<Id> FheMin<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+
+    fn min(&self, _rhs: Self) -> Self::Output {
+        compile_error!(
+            "Cannot call .min() with an FheUint by value. Use a reference instead: .min(&rhs)"
+        );
     }
 }
 
