@@ -715,3 +715,28 @@ fn test_case_is_even_is_odd(cks: &ClientKey) {
         );
     }
 }
+
+fn test_case_min_max(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let a_val: u8 = rng.gen();
+    let b_val: u8 = rng.gen();
+
+    let a = FheUint8::encrypt(a_val, cks);
+    let b = FheUint8::encrypt(b_val, cks);
+
+    // Test by-reference operations
+    let encrypted_min = a.min(&b);
+    let encrypted_max = a.max(&b);
+    let decrypted_min: u8 = encrypted_min.decrypt(cks);
+    let decrypted_max: u8 = encrypted_max.decrypt(cks);
+    assert_eq!(decrypted_min, a_val.min(b_val));
+    assert_eq!(decrypted_max, a_val.max(b_val));
+
+    // Test by-value operations
+    let encrypted_min = a.min(b.clone());
+    let encrypted_max = a.max(b);
+    let decrypted_min: u8 = encrypted_min.decrypt(cks);
+    let decrypted_max: u8 = encrypted_max.decrypt(cks);
+    assert_eq!(decrypted_min, a_val.min(b_val));
+    assert_eq!(decrypted_max, a_val.max(b_val));
+}
