@@ -170,6 +170,12 @@ fn test_ilog2_multibit() {
 }
 
 #[test]
+fn test_min_max() {
+    let client_key = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
+    super::test_case_min_max(&client_key);
+}
+
+#[test]
 fn test_gpu_get_add_and_sub_size_on_gpu() {
     let cks = setup_gpu(Some(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS));
     let mut rng = rand::thread_rng();
