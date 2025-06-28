@@ -277,6 +277,16 @@ where
     }
 }
 
+impl<Id> FheMax<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+    fn max(&self, rhs: Self) -> Self::Output {
+        self.max(&rhs)
+    }
+}
+
 impl<Id> FheMin<&Self> for FheUint<Id>
 where
     Id: FheUintId,
@@ -327,6 +337,16 @@ where
                 min_cmp.if_then_else(self, rhs)
             }
         })
+    }
+}
+
+impl<Id> FheMin<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+    fn min(&self, rhs: Self) -> Self::Output {
+        self.min(&rhs)
     }
 }
 

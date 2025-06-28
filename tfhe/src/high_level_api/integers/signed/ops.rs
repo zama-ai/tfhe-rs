@@ -168,6 +168,16 @@ where
     }
 }
 
+impl<Id> FheMax<Self> for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = Self;
+    fn max(&self, rhs: Self) -> Self::Output {
+        self.max(&rhs)
+    }
+}
+
 impl<Id> FheMin<&Self> for FheInt<Id>
 where
     Id: FheIntId,
@@ -216,6 +226,16 @@ where
                 panic!("Hpu does not support this operation yet.")
             }
         })
+    }
+}
+
+impl<Id> FheMin<Self> for FheInt<Id>
+where
+    Id: FheIntId,
+{
+    type Output = Self;
+    fn min(&self, rhs: Self) -> Self::Output {
+        self.min(&rhs)
     }
 }
 
