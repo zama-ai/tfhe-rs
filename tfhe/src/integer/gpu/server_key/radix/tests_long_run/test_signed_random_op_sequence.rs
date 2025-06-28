@@ -103,15 +103,19 @@ where
     // Unary Ops Executors
     let neg_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::neg);
     let bitnot_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::bitnot);
+    let abs_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::abs);
     //let reverse_bits_executor =
     // GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::reverse_bits); Unary Ops Clear
     // functions
     let clear_neg = |x: i64| x.wrapping_neg();
+    let clear_abs = |x: i64| x.wrapping_abs();
+
     let clear_bitnot = |x: i64| !x;
     //let clear_reverse_bits = |x: i64| x.reverse_bits();
     #[allow(clippy::type_complexity)]
     let mut unary_ops: Vec<(SignedUnaryOpExecutor, &dyn Fn(i64) -> i64, String)> = vec![
         (Box::new(neg_executor), &clear_neg, "neg".to_string()),
+        (Box::new(abs_executor), &clear_abs, "abs".to_string()),
         (
             Box::new(bitnot_executor),
             &clear_bitnot,
