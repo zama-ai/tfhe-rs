@@ -79,6 +79,6 @@ The `Type::unversionize()` function takes a versioned value, upgrades it to the 
 
 # Breaking changes
 
-When possible, data will be upgraded automatically without any kind of interraction. However, some changes might need information that are only known by the user of the library. These are called data breaking changes. In these occasions, **TFHE-rs** provides a way to upgrade these types manually.
+When possible, data will be upgraded automatically without any kind of interaction. However, some changes might need information that are only known by the user of the library. These are called data breaking changes. In these occasions, **TFHE-rs** provides a way to upgrade these types manually.
 
 You will find below a list of breaking changes and how to upgrade them.
