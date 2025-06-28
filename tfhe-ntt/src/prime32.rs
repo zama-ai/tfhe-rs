@@ -401,9 +401,16 @@ fn mul_assign_normalize_scalar(
         let prod = (d as u32).wrapping_sub(p.wrapping_mul(c3));
 
         let shoup_q = (((prod as u64) * (n_inv_mod_p_shoup as u64)) >> 32) as u32;
-        let t = u32::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
+        let mut t = u32::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
 
-        *lhs_ = t.min(t.wrapping_sub(p));
+        // Perform up to two conditional subtractions
+        if t >= p {
+            t = t.wrapping_sub(p);
+            if t >= p {
+                t = t.wrapping_sub(p);
+            }
+        }
+        *lhs_ = t;
     }
 }
 
@@ -590,10 +597,22 @@ fn mul_accumulate_scalar(
         let c1 = (d >> big_q_m1) as u32;
         let c3 = ((c1 as u64 * p_barrett as u64) >> 32) as u32;
         let prod = (d as u32).wrapping_sub(p.wrapping_mul(c3));
-        let prod = prod.min(prod.wrapping_sub(p));
+        let mut prod = prod;
+        if prod >= p {
+            prod = prod.wrapping_sub(p);
+            if prod >= p {
+                prod = prod.wrapping_sub(p);
+            }
+        }
 
-        let acc_ = prod + *acc;
-        *acc = acc_.min(acc_.wrapping_sub(p));
+        let mut acc_ = prod + *acc;
+        if acc_ >= p {
+            acc_ = acc_.wrapping_sub(p);
+            if acc_ >= p {
+                acc_ = acc_.wrapping_sub(p);
+            }
+        }
+        *acc = acc_;
     }
 }
 
