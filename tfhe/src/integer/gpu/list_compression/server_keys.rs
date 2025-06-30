@@ -15,7 +15,7 @@ use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphe
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async_64,
+    compress_integer_radix_async, cuda_ext_memcpy_async_gpu_to_gpu, decompress_integer_radix_async_64,
     get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
 use crate::prelude::CastInto;
@@ -248,7 +248,7 @@ impl CudaCompressionKey {
                 .as_mut_c_ptr(0)
                 .add(offset * std::mem::size_of::<u64>());
             let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
-            cuda_memcpy_async_gpu_to_gpu(
+            cuda_ext_memcpy_async_gpu_to_gpu(
                 dest_ptr,
                 ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
                 size as u64,
@@ -577,7 +577,7 @@ impl CudaNoiseSquashingCompressionKey {
                 .as_mut_c_ptr(0)
                 .add(offset * std::mem::size_of::<u128>());
             let size = ciphertext.packed_d_blocks.0.d_vec.len * std::mem::size_of::<u128>();
-            cuda_memcpy_async_gpu_to_gpu(
+            cuda_ext_memcpy_async_gpu_to_gpu(
                 dest_ptr,
                 ciphertext.packed_d_blocks.0.d_vec.as_c_ptr(0),
                 size as u64,

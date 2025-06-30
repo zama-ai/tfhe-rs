@@ -3,7 +3,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::Numeric;
 use std::ffi::c_void;
 use std::marker::PhantomData;
-use tfhe_cuda_backend::cuda_bind::{cuda_memcpy_async_gpu_to_gpu, cuda_memcpy_async_to_cpu};
+use tfhe_cuda_backend::cuda_bind::{
+    cuda_ext_memcpy_async_gpu_to_gpu, cuda_ext_memcpy_async_to_cpu,
+};
 
 #[derive(Debug, Clone)]
 pub struct CudaSlice<'a, T: Numeric> {
@@ -98,7 +100,7 @@ where
         let size = src.len(index) * std::mem::size_of::<T>();
         // We check that src is not empty to avoid invalid pointers
         if size > 0 {
-            cuda_memcpy_async_gpu_to_gpu(
+            cuda_ext_memcpy_async_gpu_to_gpu(
                 self.as_mut_c_ptr(index),
                 src.as_c_ptr(index),
                 size as u64,
@@ -123,7 +125,7 @@ where
         let size = self.len(index) * std::mem::size_of::<T>();
         // We check that src is not empty to avoid invalid pointers
         if size > 0 {
-            cuda_memcpy_async_to_cpu(
+            cuda_ext_memcpy_async_to_cpu(
                 dest.as_mut_ptr().cast::<c_void>(),
                 self.as_c_ptr(index),
                 size as u64,
