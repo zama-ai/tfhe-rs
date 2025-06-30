@@ -1,5 +1,5 @@
-//! Tests breaking change in serialized data by trying to load historical data stored in https://github.com/zama-ai/tfhe-backward-compat-data.
-//! For each tfhe-rs module, there is a folder with some serialized messages and a [ron](https://github.com/ron-rs/ron)
+//! Tests breaking change in serialized data by trying to load historical data stored with git LFS
+//! inside `utils/tfhe-backward-compat-data`. For each tfhe-rs module, there is a folder with some serialized messages and a [ron](https://github.com/ron-rs/ron)
 //! file. The ron file stores some metadata that are parsed in this test. These metadata tell us
 //! what to test for each message.
 
@@ -22,11 +22,13 @@ fn test_data_dir() -> PathBuf {
     } else {
         PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
             .unwrap()
+            .join("..")
+            .join("utils")
             .join("tfhe-backward-compat-data")
     };
 
     if !root_dir.exists() {
-        panic!("Missing backward compatibility test data. Clone them using `make clone_backward_compat_data`")
+        panic!("Wrong backward compat data folder: {}", root_dir.display())
     }
 
     data_dir(root_dir)
@@ -102,6 +104,13 @@ fn run_all_tests<M: TestedModule>(base_dir: &Path) -> Vec<TestResult> {
     println!("Executed {} tests", results.len());
     // If we ran 0 test, it is likely that something wrong happened
     assert!(!results.is_empty());
+
+    if results.iter().all(|res| res.is_failure()) {
+        println!(
+            "\nAll tests failed. Maybe the backward compatibility data files are missing. \
+Pull them using `make pull_backward_compat_data`"
+        )
+    }
 
     results
 }

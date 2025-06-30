@@ -203,7 +203,7 @@ In order to run those applications on hardware, user must build from the project
 > NB: Running examples required to have correctly pulled the `.hpu` files. Those files, due to their size, are backed by git-lfs and disabled by default.
 > In order to retrieve them, use the following command:
 > ```bash
-> git lfs pull --include="*" --exclude=""
+> git lfs pull --include="*.hpu" --exclude=""
 > ```
 
 ``` bash
@@ -217,7 +217,7 @@ source setup_hpu.sh --config v80
 > NB: Error that occurred when ".hpu" files weren't correctly fetch could be a bit enigmatic: `memory allocation of ... bytes failed`
 > If you encountered this issue, you should run the following command:
 > ```bash
-> git lfs pull --include="*" --exclude=""
+> git lfs pull --include="*.hpu" --exclude=""
 > ```
 
 
