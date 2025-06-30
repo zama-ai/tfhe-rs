@@ -23,9 +23,20 @@ BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
-BACKWARD_COMPAT_DATA_BRANCH?=$(shell ./scripts/backward_compat_data_version.py)
+BACKWARD_COMPAT_DATA_DEFAULT_BRANCH:=$(shell ./scripts/backward_compat_data_version.py)
+BACKWARD_COMPAT_DATA_BRANCH?=$(BACKWARD_COMPAT_DATA_DEFAULT_BRANCH)
 BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
 BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
+ifeq ($(BACKWARD_COMPAT_DATA_DEFAULT_BRANCH), $(BACKWARD_COMPAT_DATA_BRANCH))
+	BACKWARD_COMPAT_CLIPPY_PATCH=
+else
+# We need to override the url for cargo patch accept it, see: https://github.com/rust-lang/cargo/issues/5478
+	BACKWARD_COMPAT_PATCHED_URL=https://www.github.com/zama-ai/tfhe-backward-compat-data.git
+	BACKWARD_COMPAT_CLIPPY_PATCH=\
+		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).branch=\"$(BACKWARD_COMPAT_DATA_BRANCH)\"" \
+		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).git=\"$(BACKWARD_COMPAT_PATCHED_URL)\""
+endif
+
 TFHE_SPEC:=tfhe
 WASM_PACK_VERSION="0.13.1"
 # We are kind of hacking the cut here, the version cannot contain a quote '"'
@@ -442,6 +453,7 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_ws_tests # Run clippy on the workspace level tests
 clippy_ws_tests: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --tests \
+		$(BACKWARD_COMPAT_CLIPPY_PATCH) \
 		-p tests --features=shortint,integer,zk-pok -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
