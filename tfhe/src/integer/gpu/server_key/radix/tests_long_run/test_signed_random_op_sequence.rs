@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_long_run::test_signed_rand
     SignedScalarOverflowingOpExecutor, SignedScalarShiftRotateExecutor, SignedSelectOpExecutor,
     SignedShiftRotateExecutor, SignedUnaryOpExecutor,
 };
+use crate::integer::server_key::radix_parallel::tests_long_run::NB_TESTS_LONG_RUN;
 use crate::shortint::parameters::*;
 use std::cmp::{max, min};
 
@@ -15,6 +16,13 @@ create_gpu_parameterized_test!(signed_random_op_sequence {
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 fn signed_random_op_sequence<P>(param: P)
+where
+    P: Into<TestParameters> + Clone,
+{
+    signed_random_op_sequence_generic(param, NB_TESTS_LONG_RUN);
+}
+
+pub(crate) fn signed_random_op_sequence_generic<P>(param: P, num_iterations: usize)
 where
     P: Into<TestParameters> + Clone,
 {
@@ -416,6 +424,7 @@ where
 
     signed_random_op_sequence_test(
         param,
+        num_iterations,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,

@@ -64,6 +64,9 @@ mod tests_signed;
 #[cfg(test)]
 mod tests_unsigned;
 
+#[cfg(test)]
+mod tests_short_run;
+
 impl CudaServerKey {
     /// Create a trivial ciphertext filled with zeros on the GPU.
     ///

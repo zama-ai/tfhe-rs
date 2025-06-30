@@ -666,6 +666,15 @@ test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
 		--tfhe-package "$(TFHE_SPEC)" --backend "gpu"
 
+.PHONY: test_integer_short_op_sequence_gpu # Run the long run integer tests on the gpu backend
+test_integer_short_op_sequence_gpu: install_rs_check_toolchain install_cargo_nextest
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	SHORT_TESTS=TRUE \
+		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
+		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
+		--tfhe-package "$(TFHE_SPEC)" --backend "gpu"
+
+
 .PHONY: test_integer_compression
 test_integer_compression: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \

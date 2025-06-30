@@ -24,7 +24,7 @@ RUST_TOOLCHAIN="+stable"
 multi_bit_argument=
 sign_argument=
 fast_tests_argument=
-long_tests_argument=
+op_sequence_tests_argument=
 nightly_tests_argument=
 no_big_params_argument=
 cargo_profile="release"
@@ -96,7 +96,11 @@ if [[ "${FAST_TESTS}" == TRUE ]]; then
 fi
 
 if [[ "${LONG_TESTS}" == TRUE ]]; then
-    long_tests_argument=--long-tests
+    op_sequence_tests_argument=--long-tests
+fi
+
+if [[ "${SHORT_TESTS}" == TRUE ]]; then
+    op_sequence_tests_argument=--short-tests
 fi
 
 if [[ "${NIGHTLY_TESTS}" == TRUE ]]; then
@@ -145,7 +149,7 @@ if [[ "${backend}" == "gpu" ]]; then
     fi
 fi
 
-filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${long_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
+filter_expression=$(/usr/bin/python3 scripts/test_filtering.py --layer integer --backend "${backend}" ${fast_tests_argument} ${op_sequence_tests_argument} ${nightly_tests_argument} ${multi_bit_argument} ${sign_argument} ${no_big_params_argument})
 
 if [[ "${FAST_TESTS}" == "TRUE" ]]; then
     echo "Running 'fast' test set"
@@ -155,6 +159,10 @@ fi
 
 if [[ "${LONG_TESTS}" == "TRUE" ]]; then
     echo "Running 'long run' test set"
+fi
+
+if [[ "${SHORT_TESTS}" == "TRUE" ]]; then
+    echo "Running 'short op-sequence' test set"
 fi
 
 if [[ "${NIGHTLY_TESTS}" == "TRUE" ]]; then
@@ -172,7 +180,7 @@ cargo "${RUST_TOOLCHAIN}" nextest run \
     --test-threads "${test_threads}" \
     -E "$filter_expression"
 
-if [[ -z ${multi_bit_argument} && -z ${long_tests_argument} ]]; then
+if [[ -z ${multi_bit_argument} && -z ${op_sequence_tests_argument} ]]; then
     cargo "${RUST_TOOLCHAIN}" test \
         --profile "${cargo_profile}" \
         --package "${tfhe_package}" \

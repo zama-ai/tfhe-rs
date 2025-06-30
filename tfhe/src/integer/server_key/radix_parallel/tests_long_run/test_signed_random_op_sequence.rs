@@ -479,6 +479,7 @@ where
 
     signed_random_op_sequence_test(
         param,
+        NB_TESTS_LONG_RUN,
         &mut binary_ops,
         &mut unary_ops,
         &mut scalar_binary_ops,
@@ -498,6 +499,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn signed_random_op_sequence_test<P>(
     param: P,
+    num_iterations: usize,
     binary_ops: &mut [(SignedBinaryOpExecutor, impl Fn(i64, i64) -> i64, String)],
     unary_ops: &mut [(SignedUnaryOpExecutor, impl Fn(i64) -> i64, String)],
     scalar_binary_ops: &mut [(
@@ -646,7 +648,7 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         .iter()
         .map(|&m| cks.encrypt_signed(m)) // Generate random i64 values
         .collect();
-    for fn_index in 0..NB_TESTS_LONG_RUN {
+    for fn_index in 0..num_iterations {
         let i = rng.gen_range(0..total_num_ops);
         let j = rng.gen_range(0..total_num_ops);
 

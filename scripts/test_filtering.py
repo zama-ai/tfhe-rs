@@ -33,6 +33,12 @@ parser.add_argument(
     help="Run only the long tests suite",
 )
 parser.add_argument(
+    "--short-tests",
+    dest="short_tests",
+    action="store_true",
+    help="Run only the short tests suite",
+)
+parser.add_argument(
     "--nightly-tests",
     dest="nightly_tests",
     action="store_true",
@@ -107,7 +113,10 @@ def filter_integer_tests(input_args):
         ("_multi_bit", "_group_[0-9]") if input_args.multi_bit else ("", "")
     )
     backend_filter = ""
-    if not input_args.long_tests:
+    # Regular tests are mostly unit-tests
+    regular_test_suite = not input_args.long_tests and not input_args.short_tests
+    filter_expression = []
+    if regular_test_suite:
         if input_args.backend == "gpu":
             backend_filter = "gpu::"
             if multi_bit_filter:
@@ -153,7 +162,10 @@ def filter_integer_tests(input_args):
         for pattern in excluded_tests:
             filter_expression.append(f"not test({pattern})")
 
-    else:
+    # Long and short op-sequence tests are more complex
+    # tests that run random operations in sequence
+    elif input_args.long_tests :
+        # Long tests run many operations (e.g. 20 000)
         if input_args.backend == "gpu":
             filter_expression = [
                 "test(/^integer::gpu::server_key::radix::tests_long_run.*/)"
@@ -162,6 +174,19 @@ def filter_integer_tests(input_args):
             filter_expression = [
                 "test(/^integer::server_key::radix_parallel::tests_long_run.*/)"
             ]
+    elif input_args.short_tests:
+        # Short op-sequence tests run few iterations (tens or hundreds)
+        if input_args.backend == "gpu":
+            filter_expression = [
+                "test(/^integer::gpu::server_key::radix::tests_short_run.*/)"
+            ]
+        elif input_args.backend == "cpu":
+            filter_expression = [
+                "test(/^integer::server_key::radix_parallel::tests_short_run/)"
+            ]
+            assert False, "Short tests not yet implemented for cpu backend"
+    else:
+        assert False, "Invalid test suite selection"
 
     return " and ".join(filter_expression)
 
