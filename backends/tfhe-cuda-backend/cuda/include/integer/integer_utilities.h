@@ -113,26 +113,40 @@ void generate_many_lut_device_accumulator(
     uint32_t message_modulus, uint32_t carry_modulus,
     std::vector<std::function<Torus(Torus)>> &f, bool gpu_memory_allocated);
 
-struct radix_columns {
-  std::vector<uint32_t> columns_counter;
-  uint32_t num_blocks;
-  uint32_t num_radix_in_vec;
-  uint32_t chunk_size;
-  radix_columns(const uint64_t *const input_degrees, uint32_t num_blocks,
-                uint32_t num_radix_in_vec, uint32_t chunk_size,
+template <typename Torus> struct radix_columns {
+  std::vector<std::vector<Torus>> columns;
+  std::vector<size_t> columns_counter;
+  std::vector<std::vector<Torus>> new_columns;
+  std::vector<size_t> new_columns_counter;
+
+  size_t num_blocks;
+  size_t num_radix_in_vec;
+  size_t chunk_size;
+  radix_columns(const uint64_t *const input_degrees, size_t num_blocks,
+                size_t num_radix_in_vec, size_t chunk_size,
                 bool &needs_processing)
       : num_blocks(num_blocks), num_radix_in_vec(num_radix_in_vec),
         chunk_size(chunk_size) {
     needs_processing = false;
+    columns.resize(num_blocks);
     columns_counter.resize(num_blocks, 0);
-    for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
-      for (uint32_t j = 0; j < num_blocks; ++j) {
-        if (input_degrees[i * num_blocks + j])
-          columns_counter[j] += 1;
+    new_columns.resize(num_blocks);
+    new_columns_counter.resize(num_blocks, 0);
+    for (size_t i = 0; i < num_blocks; ++i) {
+      columns[i].resize(num_radix_in_vec);
+      new_columns[i].resize(num_radix_in_vec);
+    }
+    for (size_t i = 0; i < num_radix_in_vec; ++i) {
+      uint32_t cnt = 0;
+      for (size_t j = 0; j < num_blocks; ++j) {
+        if (input_degrees[i * num_blocks + j]) {
+          columns[j][cnt] = i * num_blocks + j;
+          columns_counter[j]++;
+          cnt++;
+        }
       }
     }
-
-    for (uint32_t i = 0; i < num_blocks; ++i) {
+    for (size_t i = 0; i < num_blocks; ++i) {
       if (columns_counter[i] > chunk_size) {
         needs_processing = true;
         break;
@@ -140,70 +154,104 @@ struct radix_columns {
     }
   }
 
-  void next_accumulation(uint32_t &total_ciphertexts,
-                         uint32_t &message_ciphertexts,
-                         bool &needs_processing) {
+  void next_accumulation(Torus *h_indexes_in, Torus *h_indexes_out,
+                         Torus *h_lut_indexes, size_t &total_ciphertexts,
+                         size_t &message_ciphertexts, bool &needs_processing) {
     message_ciphertexts = 0;
     total_ciphertexts = 0;
     needs_processing = false;
-    for (int i = num_blocks - 1; i > 0; --i) {
-      uint32_t cur_count = columns_counter[i];
-      uint32_t prev_count = columns_counter[i - 1];
-      uint32_t new_count = 0;
 
-      // accumulated_blocks from current columns
-      new_count += cur_count / chunk_size;
-      // all accumulated message blocks needs pbs
-      message_ciphertexts += new_count;
-      // carry blocks from previous columns
-      new_count += prev_count / chunk_size;
-      // both carry and message blocks that needs pbs
-      total_ciphertexts += new_count;
-      // now add remaining non accumulated blocks that does not require pbs
-      new_count += cur_count % chunk_size;
-
-      columns_counter[i] = new_count;
-
-      if (new_count > chunk_size)
-        needs_processing = true;
+    size_t pbs_count = 0;
+    for (size_t c_id = 0; c_id < num_blocks; ++c_id) {
+      const size_t column_len = columns_counter[c_id];
+      new_columns_counter[c_id] = 0;
+      size_t ct_count = 0;
+      // add message cts into new columns
+      for (size_t i = 0; i + chunk_size <= column_len; i += chunk_size) {
+        const Torus in_index = columns[c_id][i];
+        new_columns[c_id][ct_count] = in_index;
+        if (h_indexes_in != nullptr)
+          h_indexes_in[pbs_count] = in_index;
+        if (h_indexes_out != nullptr)
+          h_indexes_out[pbs_count] = in_index;
+        if (h_lut_indexes != nullptr)
+          h_lut_indexes[pbs_count] = 0;
+        ++pbs_count;
+        ++ct_count;
+        ++message_ciphertexts;
+      }
+      new_columns_counter[c_id] = ct_count;
     }
 
-    // now do it for 0th block
-    uint32_t new_count = columns_counter[0] / chunk_size;
-    message_ciphertexts += new_count;
-    total_ciphertexts += new_count;
-    new_count += columns_counter[0] % chunk_size;
-    columns_counter[0] = new_count;
+    for (size_t c_id = 0; c_id < num_blocks; ++c_id) {
+      const size_t column_len = columns_counter[c_id];
+      size_t ct_count = new_columns_counter[c_id];
+      // add carry cts into new columns
+      if (c_id > 0) {
+        const size_t prev_c_id = c_id - 1;
+        const size_t prev_column_len = columns_counter[prev_c_id];
+        for (size_t i = 0; i + chunk_size <= prev_column_len; i += chunk_size) {
+          const Torus in_index = columns[prev_c_id][i];
+          const Torus out_index = columns[prev_c_id][i + 1];
+          new_columns[c_id][ct_count] = out_index;
+          if (h_indexes_in != nullptr)
+            h_indexes_in[pbs_count] = in_index;
+          if (h_indexes_out != nullptr)
+            h_indexes_out[pbs_count] = out_index;
+          if (h_lut_indexes != nullptr)
+            h_lut_indexes[pbs_count] = 1;
+          ++pbs_count;
+          ++ct_count;
+        }
+      }
+      // add remaining cts into new columns
+      const size_t start_index = column_len - column_len % chunk_size;
+      for (size_t i = start_index; i < column_len; ++i) {
+        new_columns[c_id][ct_count] = columns[c_id][i];
+        ++ct_count;
+      }
+      new_columns_counter[c_id] = ct_count;
+      if (ct_count > chunk_size) {
+        needs_processing = true;
+      }
+    }
+    total_ciphertexts = pbs_count;
+    swap(columns, new_columns);
+    swap(columns_counter, new_columns_counter);
+  }
 
-    if (new_count > chunk_size) {
-      needs_processing = true;
+  void final_calculation(Torus *h_indexes_in, Torus *h_indexes_out,
+                         Torus *h_lut_indexes) {
+    for (size_t idx = 0; idx < 2 * num_blocks; ++idx) {
+      h_indexes_in[idx] = idx % num_blocks;
+      h_indexes_out[idx] = idx + idx / num_blocks;
+      h_lut_indexes[idx] = idx / num_blocks;
     }
   }
 };
 
 inline void calculate_final_degrees(uint64_t *const out_degrees,
                                     const uint64_t *const input_degrees,
-                                    uint32_t num_blocks,
-                                    uint32_t num_radix_in_vec,
-                                    uint32_t chunk_size,
+                                    size_t num_blocks, size_t num_radix_in_vec,
+                                    size_t chunk_size,
                                     uint64_t message_modulus) {
 
   auto get_degree = [message_modulus](uint64_t degree) -> uint64_t {
     return std::min(message_modulus - 1, degree);
   };
   std::vector<std::queue<uint64_t>> columns(num_blocks);
-  for (uint32_t i = 0; i < num_radix_in_vec; ++i) {
-    for (uint32_t j = 0; j < num_blocks; ++j) {
+  for (size_t i = 0; i < num_radix_in_vec; ++i) {
+    for (size_t j = 0; j < num_blocks; ++j) {
       if (input_degrees[i * num_blocks + j])
         columns[j].push(input_degrees[i * num_blocks + j]);
     }
   }
 
-  for (uint32_t i = 0; i < num_blocks; ++i) {
+  for (size_t i = 0; i < num_blocks; ++i) {
     auto &col = columns[i];
     while (col.size() > 1) {
       uint32_t cur_degree = 0;
-      uint32_t mn = std::min(chunk_size, (uint32_t)col.size());
+      size_t mn = std::min(chunk_size, col.size());
       for (int j = 0; j < mn; ++j) {
         cur_degree += col.front();
         col.pop();
@@ -1542,12 +1590,13 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
                            const uint64_t *const degrees) {
     uint32_t message_modulus = params.message_modulus;
     bool _needs_processing = false;
-    radix_columns current_columns(degrees, num_blocks_in_radix,
-                                  num_radix_in_vec, chunk_size,
-                                  _needs_processing);
+    radix_columns<Torus> current_columns(degrees, num_blocks_in_radix,
+                                         num_radix_in_vec, chunk_size,
+                                         _needs_processing);
     uint32_t total_ciphertexts = 0;
     uint32_t total_messages = 0;
-    current_columns.next_accumulation(total_ciphertexts, total_messages,
+    current_columns.next_accumulation(nullptr, nullptr, nullptr,
+                                      total_ciphertexts, total_messages,
                                       _needs_processing);
 
     if (!mem_reuse) {
