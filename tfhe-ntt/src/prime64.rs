@@ -76,6 +76,22 @@ impl crate::V3 {
             self.wrapping_sub_u64x4(x, modulus),
         )
     }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x4(self, modulus: u64x4, x: u64x4) -> u64x4 {
+        // First conditional subtraction
+        let t1 = self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, x),
+            x,
+            self.wrapping_sub_u64x4(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x4(t1, modulus),
+        )
+    }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -152,6 +168,22 @@ impl crate::V4 {
             self.cmp_gt_u64x8(modulus, x),
             x,
             self.wrapping_sub_u64x8(x, modulus),
+        )
+    }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x8(self, modulus: u64x8, x: u64x8) -> u64x8 {
+        // First conditional subtraction
+        let t1 = self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, x),
+            x,
+            self.wrapping_sub_u64x8(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x8(t1, modulus),
         )
     }
 }
@@ -316,7 +348,7 @@ fn mul_assign_normalize_ifma(
                     simd.wrapping_mul_add_u52x8(prod, n_inv_mod_p, zero),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -359,9 +391,9 @@ fn mul_accumulate_ifma(
                 let c3 = simd.widening_mul_u52x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_mul_add_u52x8(neg_p, c3, lo);
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -412,7 +444,7 @@ fn mul_assign_normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -454,9 +486,9 @@ fn mul_accumulate_avx512(
                 let c3 = simd.widening_mul_u64x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x8(lo, simd.wrapping_mul_u64x8(p, c3));
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -505,7 +537,7 @@ fn mul_assign_normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x4(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
@@ -546,9 +578,9 @@ fn mul_accumulate_avx2(
                 let c3 = simd.widening_mul_u64x4(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x4(lo, simd.widening_mul_u64x4(p, c3).0);
-                let prod = simd.small_mod_u64x4(p, prod);
+                let prod = simd.small_mod_double_sub_u64x4(p, prod);
 
-                *acc = cast(simd.small_mod_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
             }
         },
     )
@@ -656,7 +688,7 @@ fn normalize_ifma(
                     simd.wrapping_mul_add_u52x8(val, n_inv_mod_p, zero),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -690,7 +722,7 @@ fn normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -723,7 +755,7 @@ fn normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *val_ = cast(simd.small_mod_u64x4(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
