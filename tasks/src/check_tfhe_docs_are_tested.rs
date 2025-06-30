@@ -3,14 +3,9 @@ use std::collections::HashSet;
 use std::io::{Error, ErrorKind};
 
 // TODO use .gitignore or git to resolve ignored files
-const DIR_TO_IGNORE: [&str; 3] = [
-    ".git",
-    "target",
-    // If the data repo has been cloned, we ignore its README
-    "tests/tfhe-backward-compat-data",
-];
+const DIR_TO_IGNORE: [&str; 2] = [".git", "target"];
 
-const FILES_TO_IGNORE: [&str; 8] = [
+const FILES_TO_IGNORE: [&str; 9] = [
     // This contains fragments of code that are unrelated to TFHE-rs
     "tfhe/docs/tutorials/sha256-bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
@@ -24,6 +19,7 @@ const FILES_TO_IGNORE: [&str; 8] = [
     "utils/tfhe-lints/README.md",
     "CONTRIBUTING.md",
     "backends/tfhe-hpu-backend/README.md",
+    "utils/tfhe-backward-compat-data/README.md",
 ];
 
 pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
