@@ -8,6 +8,7 @@ use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionEx
 use crate::integer::{
     BooleanBlock, RadixCiphertext, RadixClientKey, ServerKey, SignedRadixCiphertext, U256,
 };
+use rand::seq::SliceRandom;
 use rand::Rng;
 use std::sync::Arc;
 
@@ -32,9 +33,19 @@ impl<F> GpuMultiDeviceFunctionExecutor<F> {
 
 impl<F> GpuMultiDeviceFunctionExecutor<F> {
     pub(crate) fn setup_from_keys(&mut self, cks: &RadixClientKey, _sks: &Arc<ServerKey>) {
+        // Sample a random subset of 1-N gpus, where N is the number of available GPUs
+        // A GPU index should not appear twice in the subset
         let num_gpus = get_number_of_gpus();
-        let gpu_index = GpuIndex::new(rand::thread_rng().gen_range(0..num_gpus));
-        let streams = CudaStreams::new_single_gpu(gpu_index);
+        let mut rng = rand::thread_rng();
+        let num_gpus_to_use = rng.gen_range(1..=num_gpus as usize);
+        let mut all_gpu_indexes: Vec<u32> = (0..num_gpus).collect();
+        all_gpu_indexes.shuffle(&mut rng);
+        let gpu_indexes: Vec<GpuIndex> = all_gpu_indexes[..num_gpus_to_use]
+            .iter()
+            .map(|idx| GpuIndex::new(*idx))
+            .collect();
+
+        let streams = CudaStreams::new_multi_gpu_with_indexes(&gpu_indexes);
 
         let sks = CudaServerKey::new(cks.as_ref(), &streams);
         streams.synchronize();

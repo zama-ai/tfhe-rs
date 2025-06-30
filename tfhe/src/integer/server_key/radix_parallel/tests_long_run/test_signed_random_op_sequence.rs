@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    NB_CTXT_LONG_RUN, NB_TESTS_LONG_RUN,
+    get_long_test_iterations, NB_CTXT_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -646,7 +646,8 @@ pub(crate) fn signed_random_op_sequence_test<P>(
         .iter()
         .map(|&m| cks.encrypt_signed(m)) // Generate random i64 values
         .collect();
-    for fn_index in 0..NB_TESTS_LONG_RUN {
+
+    for fn_index in 0..get_long_test_iterations() {
         let i = rng.gen_range(0..total_num_ops);
         let j = rng.gen_range(0..total_num_ops);
 
