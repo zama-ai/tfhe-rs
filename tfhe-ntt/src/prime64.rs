@@ -1501,6 +1501,26 @@ pub mod tests {
             assert_eq!(val, val_target);
         }
     }
+
+    #[test]
+    fn test_barrett_reduction_large_prime_regression() {
+        // Use a valid large 64-bit prime that works with NTT
+        let p = largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 63, u64::MAX).unwrap();
+        let polynomial_size = 1024;
+        let plan = super::Plan::try_new(polynomial_size, p).unwrap();
+
+        // Use a value that could trigger the Barrett reduction bug
+        let value = 0x6e63_593a_1234_5678;
+        let mut acc = [0u64; 8];
+        let input = [value, 0, 0, 0, 0, 0, 0, 0];
+
+        plan.mul_accumulate(&mut acc, &input, &input);
+
+        // Reference: compute using u128, then reduce mod p, then cast to u64
+        let expected = ((value as u128 * value as u128) % p as u128) as u64;
+        println!("acc[0] = {} (expected = {})", acc[0], expected);
+        assert_eq!(acc[0], expected, "Barrett reduction failed for large 64-bit prime");
+    }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
