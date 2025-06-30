@@ -38,6 +38,16 @@ __device__ Torus *get_ith_block(Torus *ksk, int i, int level,
 // Each thread in x are used to calculate one output.
 // threads in y are used to paralelize the lwe_dimension_in loop.
 // shared memory is used to store intermediate results of the reduction.
+// Note: To reduce register pressure we have slightly changed the algorithm,
+// the idea consists in calculating the negate value of the output. So, instead
+// of accumulating subtractions using -=, we accumulate additions using += in
+// the local_lwe_out. This seems to work better cause profits madd ops and save
+// some regs. For this to work, we need to negate the input
+// lwe_array_in[lwe_dimension_in], and negate back the output at the end to get
+// the correct results. Additionally, we split the calculation of the ksk offset
+// in two parts, a constant part is calculated before the loop, and a variable
+// part is calculated inside the loop. This seems to help with the register
+// pressure as well.
 template <typename Torus>
 __global__ void
 keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
@@ -60,7 +70,7 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
         lwe_array_in, lwe_input_indexes[blockIdx.x], lwe_dimension_in + 1);
 
     if (tid == lwe_dimension_out && threadIdx.y == 0) {
-      local_lwe_out = block_lwe_array_in[lwe_dimension_in];
+      local_lwe_out = -block_lwe_array_in[lwe_dimension_in];
     }
     const Torus mask_mod_b = (1ll << base_log) - 1ll;
 
@@ -73,12 +83,12 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
     for (int i = start_i; i < end_i; i++) {
       Torus state =
           init_decomposer_state(block_lwe_array_in[i], base_log, level_count);
-
+      uint32_t offset = i * level_count * (lwe_dimension_out + 1);
       for (int j = 0; j < level_count; j++) {
-        auto ksk_block =
-            get_ith_block(ksk, i, j, lwe_dimension_out, level_count);
+
         Torus decomposed = decompose_one<Torus>(state, mask_mod_b, base_log);
-        local_lwe_out -= (Torus)ksk_block[tid] * decomposed;
+        local_lwe_out +=
+            (Torus)ksk[tid + j * (lwe_dimension_out + 1) + offset] * decomposed;
       }
     }
 
@@ -93,7 +103,7 @@ keyswitch(Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
           lwe_acc_out[shmem_index + offset * blockDim.x];
     }
     if (threadIdx.y == 0)
-      block_lwe_array_out[tid] = lwe_acc_out[shmem_index];
+      block_lwe_array_out[tid] = -lwe_acc_out[shmem_index];
   }
 }
 
