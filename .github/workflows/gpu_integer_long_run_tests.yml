@@ -11,6 +11,7 @@ env:
   SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
+  IS_PR: ${{ github.event_name == 'pull_request' }}
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
@@ -18,6 +19,8 @@ on:
   schedule:
     # Nightly tests will be triggered each evening 8p.m.
     - cron: "0 20 * * *"
+  pull_request:
+
 
 permissions:
   contents: read
@@ -78,7 +81,11 @@ jobs:
 
       - name: Run tests
         run: |
-          make test_integer_long_run_gpu
+          if [[ "${IS_PR}" == "true" ]]; then
+            make test_integer_short_run_gpu
+          else
+            make test_integer_long_run_gpu
+          fi
 
   slack-notify:
     name: Slack Notification

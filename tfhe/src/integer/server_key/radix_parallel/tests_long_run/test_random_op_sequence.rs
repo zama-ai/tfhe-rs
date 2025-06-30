@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    NB_CTXT_LONG_RUN, NB_TESTS_LONG_RUN,
+    get_long_test_iterations, NB_CTXT_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -475,6 +475,8 @@ pub(crate) fn random_op_sequence_test<P>(
 
     let mut rng = rand::thread_rng();
 
+    println!("Setting up operations");
+
     for x in binary_ops.iter_mut() {
         x.0.setup(&cks, sks.clone());
     }
@@ -554,14 +556,13 @@ pub(crate) fn random_op_sequence_test<P>(
         .iter()
         .map(|&m| cks.encrypt(m)) // Generate random u64 values
         .collect();
-    for fn_index in 0..NB_TESTS_LONG_RUN {
+    for fn_index in 0..get_long_test_iterations() {
         let i = rng.gen_range(0..total_num_ops);
         let j = rng.gen_range(0..total_num_ops);
 
         if binary_ops_range.contains(&i) {
             let index = i - binary_ops_range.start;
             let (binary_op_executor, clear_fn, fn_name) = &mut binary_ops[index];
-            println!("Execute {fn_name}");
 
             let clear_left = clear_left_vec[i];
             let clear_right = clear_right_vec[i];
@@ -590,6 +591,7 @@ pub(crate) fn random_op_sequence_test<P>(
                 right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
+            println!("Execute {fn_name}: lhs degrees {input_degrees_left:?}, rhs degrees {input_degrees_right:?}, result {decrypted_res}, expected {expected_res}");
 
             if i % 2 == 0 {
                 left_vec[j] = res.clone();
