@@ -1,6 +1,6 @@
 pub mod backward_compatibility;
 
-use crate::conformance::ParameterSetConformant;
+use crate::conformance::{EnumSet, ParameterSetConformant};
 use crate::core_crypto::commons::math::random::{
     BoundedDistribution, ByteRandomGenerator, RandomGenerator,
 };
@@ -22,10 +22,11 @@ use tfhe_zk_pok::proofs::pke::{
 };
 use tfhe_zk_pok::proofs::pke_v2::{
     commit as commit_v2, crs_gen as crs_gen_v2, prove as prove_v2, verify as verify_v2,
-    Proof as ProofV2, PublicCommit as PublicCommitV2,
+    PkeV2HashMode, Proof as ProofV2, PublicCommit as PublicCommitV2,
 };
 
 pub use tfhe_zk_pok::curve_api::Compressible;
+pub use tfhe_zk_pok::proofs::pke_v2::PkeV2HashMode as ZkPkeV2HashMode;
 pub use tfhe_zk_pok::proofs::ComputeLoad as ZkComputeLoad;
 type Curve = tfhe_zk_pok::curve_api::Bls12_446;
 
@@ -41,16 +42,180 @@ impl Named for CompactPkeProof {
     const NAME: &'static str = "zk::CompactPkeProof";
 }
 
+impl CastInto<usize> for ZkComputeLoad {
+    fn cast_into(self) -> usize {
+        self as usize
+    }
+}
+
+impl CastInto<usize> for PkeV2HashMode {
+    fn cast_into(self) -> usize {
+        self as usize
+    }
+}
+
+#[derive(Copy, Clone)]
+/// Used to explicitly reject [`ProofV1`] proofs that come with specific config
+pub struct CompactPkeV1ProofConformanceParams {
+    accepted_compute_load: EnumSet<ZkComputeLoad>,
+}
+
+impl Default for CompactPkeV1ProofConformanceParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompactPkeV1ProofConformanceParams {
+    /// Create new params that accept all proof configurations
+    pub fn new() -> Self {
+        let mut accepted_compute_load = EnumSet::new();
+        accepted_compute_load.insert(ZkComputeLoad::Proof);
+        accepted_compute_load.insert(ZkComputeLoad::Verify);
+
+        Self {
+            accepted_compute_load,
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
+        let mut accepted_compute_load = self.accepted_compute_load;
+        accepted_compute_load.remove(forbidden_compute_load);
+
+        Self {
+            accepted_compute_load,
+        }
+    }
+}
+
+impl ParameterSetConformant for ProofV1<Curve> {
+    type ParameterSet = CompactPkeV1ProofConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        parameter_set
+            .accepted_compute_load
+            .contains(self.compute_load())
+            && self.is_usable()
+    }
+}
+
+#[derive(Copy, Clone)]
+/// Used to explicitly reject [`ProofV2`] proofs that come with specific config
+pub struct CompactPkeV2ProofConformanceParams {
+    accepted_compute_load: EnumSet<ZkComputeLoad>,
+    accepted_hash_mode: EnumSet<PkeV2HashMode>,
+}
+
+impl Default for CompactPkeV2ProofConformanceParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CompactPkeV2ProofConformanceParams {
+    /// Create new params that accept all proof configurations
+    pub fn new() -> Self {
+        let mut accepted_compute_load = EnumSet::new();
+        accepted_compute_load.insert(ZkComputeLoad::Proof);
+        accepted_compute_load.insert(ZkComputeLoad::Verify);
+
+        let mut accepted_hash_mode = EnumSet::new();
+        accepted_hash_mode.insert(PkeV2HashMode::BackwardCompat);
+        accepted_hash_mode.insert(PkeV2HashMode::Classical);
+        accepted_hash_mode.insert(PkeV2HashMode::Compact);
+
+        Self {
+            accepted_compute_load,
+            accepted_hash_mode,
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
+        let mut accepted_compute_load = self.accepted_compute_load;
+        accepted_compute_load.remove(forbidden_compute_load);
+
+        Self {
+            accepted_compute_load,
+            accepted_hash_mode: self.accepted_hash_mode,
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]
+    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+        let mut accepted_hash_mode = self.accepted_hash_mode;
+        accepted_hash_mode.remove(forbidden_hash_mode);
+
+        Self {
+            accepted_compute_load: self.accepted_compute_load,
+            accepted_hash_mode,
+        }
+    }
+}
+
+impl ParameterSetConformant for ProofV2<Curve> {
+    type ParameterSet = CompactPkeV2ProofConformanceParams;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        parameter_set
+            .accepted_compute_load
+            .contains(self.compute_load())
+            && parameter_set.accepted_hash_mode.contains(self.hash_mode())
+            && self.is_usable()
+    }
+}
+
+#[derive(Copy, Clone)]
+/// Used to specify the kind of proofs that are allowed to be checked by the verifier.
+///
+/// As this happens during conformance checks, proofs that do not match the correct config will be
+/// rejected before zk verification
+pub enum CompactPkeProofConformanceParams {
+    PkeV1(CompactPkeV1ProofConformanceParams),
+    PkeV2(CompactPkeV2ProofConformanceParams),
+}
+
+impl CompactPkeProofConformanceParams {
+    pub fn new(zk_scheme: CompactPkeZkScheme) -> Self {
+        match zk_scheme {
+            CompactPkeZkScheme::V1 => Self::PkeV1(CompactPkeV1ProofConformanceParams::new()),
+            CompactPkeZkScheme::V2 => Self::PkeV2(CompactPkeV2ProofConformanceParams::new()),
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
+        match self {
+            Self::PkeV1(params) => Self::PkeV1(params.forbid_compute_load(forbidden_compute_load)),
+            Self::PkeV2(params) => Self::PkeV2(params.forbid_compute_load(forbidden_compute_load)),
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
+    /// proofs
+    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+        match self {
+            // There is no hash mode to configure in PkeV1
+            Self::PkeV1(params) => Self::PkeV1(params),
+            Self::PkeV2(params) => Self::PkeV2(params.forbid_hash_mode(forbidden_hash_mode)),
+        }
+    }
+}
+
 impl ParameterSetConformant for CompactPkeProof {
-    type ParameterSet = CompactPkeZkScheme;
+    type ParameterSet = CompactPkeProofConformanceParams;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         match (self, parameter_set) {
-            (Self::PkeV1(proof), CompactPkeZkScheme::V1) => proof.is_usable(),
-            (Self::PkeV2(proof), CompactPkeZkScheme::V2) => proof.is_usable(),
-            (Self::PkeV1(_), CompactPkeZkScheme::V2) | (Self::PkeV2(_), CompactPkeZkScheme::V1) => {
-                false
+            (Self::PkeV1(proof), CompactPkeProofConformanceParams::PkeV1(params)) => {
+                proof.is_conformant(params)
             }
+            (Self::PkeV2(proof), CompactPkeProofConformanceParams::PkeV2(params)) => {
+                proof.is_conformant(params)
+            }
+            (Self::PkeV1(_), CompactPkeProofConformanceParams::PkeV2(_))
+            | (Self::PkeV2(_), CompactPkeProofConformanceParams::PkeV1(_)) => false,
         }
     }
 }

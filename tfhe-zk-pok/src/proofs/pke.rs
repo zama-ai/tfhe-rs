@@ -314,6 +314,13 @@ impl<G: Curve> Proof<G> {
                 },
             )
     }
+
+    pub fn compute_load(&self) -> ComputeLoad {
+        match self.compute_load_proof_fields {
+            Some(_) => ComputeLoad::Proof,
+            None => ComputeLoad::Verify,
+        }
+    }
 }
 
 /// These fields can be pre-computed on the prover side in the faster Verifier scheme. If that's the

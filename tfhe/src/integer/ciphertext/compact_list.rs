@@ -23,7 +23,10 @@ use crate::shortint::parameters::{
 use crate::shortint::server_key::LookupTableOwned;
 use crate::shortint::{CarryModulus, Ciphertext, MessageModulus};
 #[cfg(feature = "zk-pok")]
-use crate::zk::{CompactPkeCrs, CompactPkeZkScheme, ZkComputeLoad, ZkVerificationOutcome};
+use crate::zk::{
+    CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2HashMode,
+    ZkVerificationOutcome,
+};
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -1077,7 +1080,7 @@ pub struct IntegerProvenCompactCiphertextListConformanceParams {
     pub ciphertext_modulus: CiphertextModulus,
     pub expansion_kind: CompactCiphertextListExpansionKind,
     pub max_elements_per_compact_list: usize,
-    pub zk_scheme: CompactPkeZkScheme,
+    pub zk_conformance_params: CompactPkeProofConformanceParams,
 }
 
 #[cfg(feature = "zk-pok")]
@@ -1100,7 +1103,28 @@ impl IntegerProvenCompactCiphertextListConformanceParams {
             ciphertext_modulus: value.ciphertext_modulus,
             expansion_kind: value.expansion_kind,
             max_elements_per_compact_list: crs.max_num_messages().0,
-            zk_scheme: crs.scheme_version(),
+            zk_conformance_params: CompactPkeProofConformanceParams::new(crs.scheme_version()),
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_compute_load(forbidden_compute_load),
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
+    /// proofs
+    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_hash_mode(forbidden_hash_mode),
+            ..self
         }
     }
 }
@@ -1126,7 +1150,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             max_lwe_count_per_compact_list: parameter_set.max_elements_per_compact_list,
             // packing by 2
             total_expected_lwe_count: total_expected_num_blocks.div_ceil(2),
-            zk_scheme: parameter_set.zk_scheme,
+            zk_conformance_params: parameter_set.zk_conformance_params,
         };
 
         ct_list.is_conformant(&a)

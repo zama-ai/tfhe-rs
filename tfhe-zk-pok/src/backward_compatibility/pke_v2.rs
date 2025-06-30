@@ -292,7 +292,7 @@ where
 }
 
 #[derive(VersionsDispatch)]
-pub(crate) enum PkeV2HashModeVersions {
+pub enum PkeV2HashModeVersions {
     #[allow(dead_code)]
     V0(PkeV2HashMode),
 }

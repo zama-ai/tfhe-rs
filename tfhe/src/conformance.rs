@@ -1,3 +1,7 @@
+use crate::core_crypto::commons::numeric::CastInto;
+
+use std::marker::PhantomData;
+
 /// A trait for objects which can be checked to be conformant with a parameter set
 pub trait ParameterSetConformant {
     type ParameterSet;
@@ -66,6 +70,74 @@ impl ListSizeConstraint {
             size % self.group_size == 0
                 && size >= self.min_inclusive_group_count * self.group_size
                 && size <= self.max_inclusive_group_count * self.group_size
+        }
+    }
+}
+
+/// A set of C-style enum values. This can be seen as a lightweight HashSet that derives Copy.
+///
+/// This can be used in conformance to let applications chose to accept previous config values
+/// during a transition period and then remove support for outdated values later.
+///
+/// # Warning
+/// As this is backed by a u128, it only supports enum of up to 128 elements
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct EnumSet<T> {
+    mask: u128,
+    _phantom: PhantomData<T>,
+}
+
+impl<T> Default for EnumSet<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> EnumSet<T> {
+    pub const fn new() -> Self {
+        Self {
+            mask: 0,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> EnumSet<T>
+where
+    T: CastInto<usize> + Copy,
+{
+    /// Checks if a given value is present in the set.
+    pub fn contains(&self, value: T) -> bool
+    where
+        T: std::fmt::Debug,
+    {
+        let index = value.cast_into();
+
+        if index < 128 {
+            (self.mask & (1 << index)) != 0
+        } else {
+            false
+        }
+    }
+
+    /// Adds a value to the set.
+    ///
+    /// # Panic
+    /// Panics if the usize representation of `value` is >= 128
+    pub fn insert(&mut self, value: T) {
+        let index = value.cast_into();
+
+        assert!(index < 128, "Config index too large for u128");
+
+        self.mask |= 1 << index;
+    }
+
+    /// Removes a value from the set.
+    pub fn remove(&mut self, value: T) {
+        let index = value.cast_into();
+
+        if index < 128 {
+            self.mask &= !(1 << index);
         }
     }
 }
