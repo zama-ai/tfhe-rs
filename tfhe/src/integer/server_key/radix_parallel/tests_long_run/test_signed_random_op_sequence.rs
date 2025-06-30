@@ -1,7 +1,8 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    NB_CTXT_LONG_RUN, NB_TESTS_LONG_RUN,
+    get_long_test_iterations, sanity_check_op_sequence_result_bool,
+    sanity_check_op_sequence_result_i64, sanity_check_op_sequence_result_u64, NB_CTXT_LONG_RUN,
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -632,686 +633,453 @@ pub(crate) fn signed_random_op_sequence_test<P>(
     let rotate_shift_ops_range = log2_ops_range.end..log2_ops_range.end + rotate_shift_ops.len();
     let scalar_rotate_shift_ops_range =
         rotate_shift_ops_range.end..rotate_shift_ops_range.end + scalar_rotate_shift_ops.len();
-    let mut clear_left_vec: Vec<i64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random i64 values
-        .collect();
-    let mut clear_right_vec: Vec<i64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random i64 values
-        .collect();
-    let mut left_vec: Vec<SignedRadixCiphertext> = clear_left_vec
-        .iter()
-        .map(|&m| cks.encrypt_signed(m)) // Generate random i64 values
-        .collect();
-    let mut right_vec: Vec<SignedRadixCiphertext> = clear_right_vec
-        .iter()
-        .map(|&m| cks.encrypt_signed(m)) // Generate random i64 values
-        .collect();
-    for fn_index in 0..NB_TESTS_LONG_RUN {
-        let i = rng.gen_range(0..total_num_ops);
-        let j = rng.gen_range(0..total_num_ops);
+
+    let mut datagen =
+        crate::integer::server_key::radix_parallel::tests_long_run::RandomOpSequenceDataGenerator::<
+            i64,
+            SignedRadixCiphertext,
+        >::new(total_num_ops, &cks);
+    println!(
+        "signed_random_op_sequence_test::seed = {}",
+        datagen.get_seed().0
+    );
+
+    for fn_index in 0..get_long_test_iterations() {
+        let (i, idx) = datagen.gen_op_index();
 
         if binary_ops_range.contains(&i) {
             let index = i - binary_ops_range.start;
             let (binary_op_executor, clear_fn, fn_name) = &mut binary_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let res = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
-            // Check carries are empty and noise level is nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}"
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let res = binary_op_executor.execute((&lhs.c, &rhs.c));
+
             // Determinism check
-            let res_1 = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let res_1 = binary_op_executor.execute((&lhs.c, &rhs.c));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res: i64 = clear_fn(clear_left, clear_right);
+            let expected_res: i64 = clear_fn(lhs.p, rhs.p);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
         } else if unary_ops_range.contains(&i) {
             let index = i - unary_ops_range.start;
             let (unary_op_executor, clear_fn, fn_name) = &mut unary_ops[index];
-            println!("Execute {fn_name}");
 
-            let input = if i % 2 == 0 {
-                &left_vec[i]
-            } else {
-                &right_vec[i]
-            };
-            let clear_input = if i % 2 == 0 {
-                clear_left_vec[i]
-            } else {
-                clear_right_vec[i]
-            };
+            let operand = datagen.gen_op_single_operand(idx, fn_name);
 
-            let res = unary_op_executor.execute(input);
-            // Check carries are empty and noise level is nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let res = unary_op_executor.execute(&operand.c);
             // Determinism check
-            let res_1 = unary_op_executor.execute(input);
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on unary op {fn_name} with clear input {clear_input}.",
-            );
-            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
-            let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res: i64 = clear_fn(clear_input);
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            let res_1 = unary_op_executor.execute(&operand.c);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on unary op {fn_name} with clear input {clear_input} at iteration {fn_index} with input degrees {input_degrees:?}.",
+            let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
+            let expected_res: i64 = clear_fn(operand.p);
+
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                operand.p,
+                operand.p,
             );
         } else if scalar_binary_ops_range.contains(&i) {
             let index = i - scalar_binary_ops_range.start;
             let (scalar_binary_op_executor, clear_fn, fn_name) = &mut scalar_binary_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let res = scalar_binary_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let res = scalar_binary_op_executor.execute((&lhs.c, rhs.p));
             // Determinism check
-            let res_1 = scalar_binary_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let res_1 = scalar_binary_op_executor.execute((&lhs.c, rhs.p));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res: i64 = clear_fn(clear_left, clear_right);
+            let expected_res: i64 = clear_fn(lhs.p, rhs.p);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
         } else if overflowing_ops_range.contains(&i) {
             let index = i - overflowing_ops_range.start;
             let (overflowing_op_executor, clear_fn, fn_name) = &mut overflowing_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let (res, overflow) = overflowing_op_executor.execute((&left_vec[i], &right_vec[i]));
-            // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
-            assert!(
-                overflow.0.noise_level() <= NoiseLevel::NOMINAL,
-                "Noise level greater than nominal value on overflow for op {fn_name}",
-            );
+            let (res, overflow) = overflowing_op_executor.execute((&lhs.c, &rhs.c));
             // Determinism check
-            let (res_1, overflow_1) =
-                overflowing_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            assert_eq!(
-                overflow, overflow_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} on the overflow.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let (res_1, overflow_1) = overflowing_op_executor.execute((&lhs.c, &rhs.c));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let decrypt_signed_overflow = cks.decrypt_bool(&overflow);
-            let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
+            let (expected_res, expected_overflow) = clear_fn(lhs.p, rhs.p);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
-            assert_eq!(
-                decrypt_signed_overflow, expected_overflow,
-                "Invalid overflow on op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+
+            sanity_check_op_sequence_result_bool(
+                idx,
+                fn_name,
+                fn_index,
+                &overflow,
+                &overflow_1,
+                decrypt_signed_overflow,
+                expected_overflow,
+                lhs.p,
+                rhs.p,
             );
         } else if scalar_overflowing_ops_range.contains(&i) {
             let index = i - scalar_overflowing_ops_range.start;
             let (scalar_overflowing_op_executor, clear_fn, fn_name) =
                 &mut scalar_overflowing_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let (res, overflow) =
-                scalar_overflowing_op_executor.execute((&left_vec[i], clear_right_vec[i]));
+            let (res, overflow) = scalar_overflowing_op_executor.execute((&lhs.c, rhs.p));
             // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
-            assert!(
-                overflow.0.noise_level() <= NoiseLevel::NOMINAL,
-                "Noise level greater than nominal value on overflow for op {fn_name}",
-            );
-            // Determinism check
-            let (res_1, overflow_1) =
-                scalar_overflowing_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            assert_eq!(
-                overflow, overflow_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right} on the overflow.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let (res_1, overflow_1) = scalar_overflowing_op_executor.execute((&lhs.c, rhs.p));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
             let decrypt_signed_overflow = cks.decrypt_bool(&overflow);
-            let (expected_res, expected_overflow) = clear_fn(clear_left, clear_right);
+            let (expected_res, expected_overflow) = clear_fn(lhs.p, rhs.p);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
-            assert_eq!(
-                decrypt_signed_overflow, expected_overflow,
-                "Invalid overflow on op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+
+            sanity_check_op_sequence_result_bool(
+                idx,
+                fn_name,
+                fn_index,
+                &overflow,
+                &overflow_1,
+                decrypt_signed_overflow,
+                expected_overflow,
+                lhs.p,
+                rhs.p,
             );
         } else if comparison_ops_range.contains(&i) {
             let index = i - comparison_ops_range.start;
             let (comparison_op_executor, clear_fn, fn_name) = &mut comparison_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let res = comparison_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert!(
-                res.0.noise_level() <= NoiseLevel::NOMINAL,
-                "Noise level greater than nominal value on op {fn_name}",
-            );
+            let res = comparison_op_executor.execute((&lhs.c, &rhs.c));
             // Determinism check
-            let res_1 = comparison_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let res_1 = comparison_op_executor.execute((&lhs.c, &rhs.c));
+
             let decrypt_signed_res = cks.decrypt_bool(&res);
-            let expected_res = clear_fn(clear_left, clear_right);
+            let expected_res = clear_fn(lhs.p, rhs.p);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            let res_ct: SignedRadixCiphertext = sks.cast_to_signed(
+                res.clone().into_radix::<SignedRadixCiphertext>(1, &sks),
+                NB_CTXT_LONG_RUN,
             );
 
-            let res_ct: SignedRadixCiphertext = res.into_radix(1, &sks);
-            if i % 2 == 0 {
-                left_vec[j] = sks.cast_to_signed(res_ct, NB_CTXT_LONG_RUN);
-                clear_left_vec[j] = expected_res as i64;
-            } else {
-                right_vec[j] = sks.cast_to_signed(res_ct, NB_CTXT_LONG_RUN);
-                clear_right_vec[j] = expected_res as i64;
-            }
+            datagen.put_op_result_random_side(expected_res as i64, &res_ct, fn_name, idx);
+
+            sanity_check_op_sequence_result_bool(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
+            );
         } else if scalar_comparison_ops_range.contains(&i) {
             let index = i - scalar_comparison_ops_range.start;
             let (scalar_comparison_op_executor, clear_fn, fn_name) =
                 &mut scalar_comparison_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let res = scalar_comparison_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            assert!(
-                res.0.noise_level() <= NoiseLevel::NOMINAL,
-                "Noise level greater than nominal value on op {fn_name}",
-            );
+            let res = scalar_comparison_op_executor.execute((&lhs.c, rhs.p));
             // Determinism check
-            let res_1 = scalar_comparison_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let decrypt_signed_res = cks.decrypt_bool(&res);
-            let expected_res = clear_fn(clear_left, clear_right);
+            let res_1 = scalar_comparison_op_executor.execute((&lhs.c, rhs.p));
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+            let decrypt_signed_res = cks.decrypt_bool(&res);
+            let expected_res = clear_fn(lhs.p, rhs.p);
+
+            let res_ct: SignedRadixCiphertext = sks.cast_to_signed(
+                res.clone().into_radix::<SignedRadixCiphertext>(1, &sks),
+                NB_CTXT_LONG_RUN,
             );
-            let res_ct: SignedRadixCiphertext = res.into_radix(1, &sks);
-            if i % 2 == 0 {
-                left_vec[j] = sks.cast_to_signed(res_ct, NB_CTXT_LONG_RUN);
-                clear_left_vec[j] = expected_res as i64;
-            } else {
-                right_vec[j] = sks.cast_to_signed(res_ct, NB_CTXT_LONG_RUN);
-                clear_right_vec[j] = expected_res as i64;
-            }
+
+            //sks.cast_to_signed(res_ct, NB_CTXT_LONG_RUN);
+            datagen.put_op_result_random_side(expected_res as i64, &res_ct, fn_name, idx);
+
+            sanity_check_op_sequence_result_bool(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
+            );
         } else if select_op_range.contains(&i) {
             let index = i - select_op_range.start;
             let (select_op_executor, clear_fn, fn_name) = &mut select_op[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
+
             let clear_bool: bool = rng.gen_bool(0.5);
             let bool_input = cks.encrypt_bool(clear_bool);
 
-            let res = select_op_executor.execute((&bool_input, &left_vec[i], &right_vec[i]));
-            // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
-            // Determinism check
-            let res_1 = select_op_executor.execute((&bool_input, &left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res = clear_fn(clear_bool, clear_left, clear_right);
+            let res = select_op_executor.execute((&bool_input, &lhs.c, &rhs.c));
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} and {clear_bool} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            // Determinism check
+            let res_1 = select_op_executor.execute((&bool_input, &lhs.c, &rhs.c));
+
+            let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
+            let expected_res = clear_fn(clear_bool, lhs.p, rhs.p);
+
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
         } else if div_rem_op_range.contains(&i) {
             let index = i - div_rem_op_range.start;
             let (div_rem_op_executor, clear_fn, fn_name) = &mut div_rem_op[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
-            if clear_right == 0 {
+            let (mut lhs, mut rhs) = datagen.gen_op_operands(idx, fn_name);
+
+            let mut iters = 0;
+            while rhs.p == 0 && iters < 10 {
+                (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
+                iters += 1;
+            }
+
+            if rhs.p == 0 {
+                println!("{idx}: {fn_name} execution skipped because rhs is 0.");
                 continue;
             }
-            let (res_q, res_r) = div_rem_op_executor.execute((&left_vec[i], &right_vec[i]));
+
+            let (res_q, res_r) = div_rem_op_executor.execute((&lhs.c, &rhs.c));
             // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res_q.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            assert!(
-                res_r.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res_q.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
-            res_r.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+
             // Determinism check
-            let (res_q1, res_r1) = div_rem_op_executor.execute((&left_vec[i], &right_vec[i]));
-            assert_eq!(
-                res_q, res_q1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            assert_eq!(
-                res_r, res_r1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let (res_q1, res_r1) = div_rem_op_executor.execute((&lhs.c, &rhs.c));
+
             let decrypt_signed_res_q: i64 = cks.decrypt_signed(&res_q);
             let decrypt_signed_res_r: i64 = cks.decrypt_signed(&res_r);
-            let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
+            let (expected_res_q, expected_res_r) = clear_fn(lhs.p, rhs.p);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            datagen.put_op_result_random_side(expected_res_q, &res_q, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res_q,
+                &res_q1,
+                expected_res_q,
+                decrypt_signed_res_q,
+                lhs.p,
+                rhs.p,
             );
-            assert_eq!(
-                decrypt_signed_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res_r,
+                &res_r1,
+                expected_res_r,
+                decrypt_signed_res_r,
+                lhs.p,
+                rhs.p,
             );
-            if i % 2 == 0 {
-                left_vec[j] = res_q.clone();
-                clear_left_vec[j] = expected_res_q;
-            } else {
-                right_vec[j] = res_q.clone();
-                clear_right_vec[j] = expected_res_q;
-            }
         } else if scalar_div_rem_op_range.contains(&i) {
             let index = i - scalar_div_rem_op_range.start;
             let (scalar_div_rem_op_executor, clear_fn, fn_name) = &mut scalar_div_rem_op[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
-            if clear_right == 0 {
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
+
+            if rhs.p == 0 {
                 continue;
             }
-            let (res_q, res_r) =
-                scalar_div_rem_op_executor.execute((&left_vec[i], clear_right_vec[i]));
+            let (res_q, res_r) = scalar_div_rem_op_executor.execute((&lhs.c, rhs.p));
             // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res_q.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            assert!(
-                res_r.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res_q.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
-            res_r.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
             // Determinism check
-            let (res_q1, res_r1) =
-                scalar_div_rem_op_executor.execute((&left_vec[i], clear_right_vec[i]));
-            assert_eq!(
-                res_q, res_q1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            assert_eq!(
-                res_r, res_r1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let (res_q1, res_r1) = scalar_div_rem_op_executor.execute((&lhs.c, rhs.p));
+
             let decrypt_signed_res_q: i64 = cks.decrypt_signed(&res_q);
             let decrypt_signed_res_r: i64 = cks.decrypt_signed(&res_r);
-            let (expected_res_q, expected_res_r) = clear_fn(clear_left, clear_right);
+            let (expected_res_q, expected_res_r) = clear_fn(lhs.p, rhs.p);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res_q, expected_res_q,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+            datagen.put_op_result_random_side(expected_res_r, &res_r, fn_name, idx);
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res_q,
+                &res_q1,
+                decrypt_signed_res_q,
+                expected_res_q,
+                lhs.p,
+                rhs.p,
             );
-            assert_eq!(
-                decrypt_signed_res_r, expected_res_r,
-                "Invalid result on op {fn_name} with clear inputs {clear_left}, {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res_r,
+                &res_r1,
+                decrypt_signed_res_r,
+                expected_res_r,
+                lhs.p,
+                rhs.p,
             );
-            if i % 2 == 0 {
-                left_vec[j] = res_r.clone();
-                clear_left_vec[j] = expected_res_r;
-            } else {
-                right_vec[j] = res_r.clone();
-                clear_right_vec[j] = expected_res_r;
-            }
         } else if log2_ops_range.contains(&i) {
             let index = i - log2_ops_range.start;
             let (log2_executor, clear_fn, fn_name) = &mut log2_ops[index];
-            println!("Execute {fn_name}");
 
-            let input = if i % 2 == 0 {
-                left_vec[i].clone()
-            } else {
-                right_vec[i].clone()
-            };
-            let clear_input = if i % 2 == 0 {
-                clear_left_vec[i]
-            } else {
-                clear_right_vec[i]
-            };
-            if clear_input <= 0 {
+            let input = datagen.gen_op_single_operand(idx, fn_name);
+
+            if input.p <= 0 {
+                println!("{idx}: {fn_name} execution skipped because input is <=0.");
                 continue;
             }
 
-            let res = log2_executor.execute(&input);
-            // Check carries are empty and noise level is lower or equal to nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}",
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let res = log2_executor.execute(&input.c);
             // Determinism check
-            let res_1 = log2_executor.execute(&input);
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on op {fn_name} with clear input {clear_input}.",
-            );
-            let input_degrees: Vec<u64> = input.blocks.iter().map(|b| b.degree.0).collect();
-            let cast_res = sks.cast_to_signed(res, NB_CTXT_LONG_RUN);
-            let decrypt_signed_res: i64 = cks.decrypt_signed(&cast_res);
-            let expected_res = clear_fn(clear_input) as i64;
+            let res_1 = log2_executor.execute(&input.c);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on op {fn_name} with clear input {clear_input} at iteration {fn_index} with input degrees {input_degrees:?}.",
+            let cast_res = sks.cast_to_signed(res.clone(), NB_CTXT_LONG_RUN);
+            let decrypt_signed_res: i64 = cks.decrypt_signed(&cast_res);
+            let expected_res = clear_fn(input.p) as i64;
+
+            datagen.put_op_result_random_side(expected_res, &cast_res, fn_name, idx);
+
+            sanity_check_op_sequence_result_u64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res as u64,
+                expected_res as u64,
+                input.p as u64,
+                input.p as u64,
             );
-            if i % 2 == 0 {
-                left_vec[j] = cast_res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = cast_res.clone();
-                clear_right_vec[j] = expected_res;
-            }
         } else if rotate_shift_ops_range.contains(&i) {
             let index = i - rotate_shift_ops_range.start;
             let (rotate_shift_op_executor, clear_fn, fn_name) = &mut rotate_shift_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let unsigned_right = sks.cast_to_unsigned(right_vec[i].clone(), NB_CTXT_LONG_RUN);
-            let res = rotate_shift_op_executor.execute((&left_vec[i], &unsigned_right));
-            // Check carries are empty and noise level is nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}"
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let unsigned_right = sks.cast_to_unsigned(rhs.c.clone(), NB_CTXT_LONG_RUN);
+            let res = rotate_shift_op_executor.execute((&lhs.c, &unsigned_right));
+
             // Determinism check
-            let res_1 = rotate_shift_op_executor.execute((&left_vec[i], &unsigned_right));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                unsigned_right.blocks.iter().map(|b| b.degree.0).collect();
+            let res_1 = rotate_shift_op_executor.execute((&lhs.c, &unsigned_right));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res: i64 = clear_fn(clear_left, clear_right as u64);
+            let expected_res: i64 = clear_fn(lhs.p, rhs.p as u64);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?} and {input_degrees_right:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
         } else if scalar_rotate_shift_ops_range.contains(&i) {
             let index = i - scalar_rotate_shift_ops_range.start;
             let (scalar_rotate_shift_op_executor, clear_fn, fn_name) =
                 &mut scalar_rotate_shift_ops[index];
-            println!("Execute {fn_name}");
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let (lhs, rhs) = datagen.gen_op_operands(idx, fn_name);
 
-            let res = scalar_rotate_shift_op_executor.execute((&left_vec[i], clear_right as u64));
-            // Check carries are empty and noise level is nominal
-            assert!(
-                res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}"
-            );
-            res.blocks.iter().enumerate().for_each(|(k, b)| {
-                assert!(
-                    b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
-                )
-            });
+            let res = scalar_rotate_shift_op_executor.execute((&lhs.c, rhs.p as u64));
             // Determinism check
-            let res_1 = scalar_rotate_shift_op_executor.execute((&left_vec[i], clear_right as u64));
-            assert_eq!(
-                res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
-            );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
+            let res_1 = scalar_rotate_shift_op_executor.execute((&lhs.c, rhs.p as u64));
+
             let decrypt_signed_res: i64 = cks.decrypt_signed(&res);
-            let expected_res: i64 = clear_fn(clear_left, clear_right as u64);
+            let expected_res: i64 = clear_fn(lhs.p, rhs.p as u64);
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            datagen.put_op_result_random_side(expected_res, &res, fn_name, idx);
 
-            // Correctness check
-            assert_eq!(
-                decrypt_signed_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index} with input degrees {input_degrees_left:?}.",
+            sanity_check_op_sequence_result_i64(
+                idx,
+                fn_name,
+                fn_index,
+                &res,
+                &res_1,
+                decrypt_signed_res,
+                expected_res,
+                lhs.p,
+                rhs.p,
             );
         }
     }
