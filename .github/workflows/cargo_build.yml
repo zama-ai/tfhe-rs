@@ -49,6 +49,14 @@ jobs:
           mv linelint-linux-amd64 /usr/local/bin/linelint
           make check_newline
 
+      # This is needed for the ws tests clippy checks
+      - name: Use specific data branch
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
+        env:
+          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          echo "BACKWARD_COMPAT_DATA_BRANCH=${PR_BRANCH}" >> "${GITHUB_ENV}"
+
       - name: Run pcc checks
         if: ${{ contains(matrix.os, 'ubuntu') }}
         run: |
