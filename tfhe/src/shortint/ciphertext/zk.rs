@@ -11,8 +11,8 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::{Ciphertext, CompactPublicKey};
 use crate::zk::{
-    CompactPkeCrs, CompactPkeProof, CompactPkeZkScheme, ZkMSBZeroPaddingBitCount,
-    ZkVerificationOutcome,
+    CompactPkeCrs, CompactPkeProof, CompactPkeProofConformanceParams, ZkComputeLoad,
+    ZkMSBZeroPaddingBitCount, ZkPkeV2HashMode, ZkVerificationOutcome,
 };
 
 use rayon::prelude::*;
@@ -23,7 +23,8 @@ impl CompactPkeCrs {
     /// Construct the CRS that corresponds to the given parameters
     ///
     /// max_num_message is how many message a single proof can prove.
-    /// The version of the zk scheme is based on the [`CompactPkeZkScheme`] value in the params.
+    /// The version of the zk scheme is based on the
+    /// [`CompactPkeZkScheme`](crate::zk::CompactPkeZkScheme) value in the params.
     pub fn from_shortint_params<P, E>(
         params: P,
         max_num_message: LweCiphertextCount,
@@ -225,7 +226,30 @@ pub struct ProvenCompactCiphertextListConformanceParams {
     pub expansion_kind: CompactCiphertextListExpansionKind,
     pub max_lwe_count_per_compact_list: usize,
     pub total_expected_lwe_count: usize,
-    pub zk_scheme: CompactPkeZkScheme,
+    pub zk_conformance_params: CompactPkeProofConformanceParams,
+}
+
+impl ProvenCompactCiphertextListConformanceParams {
+    /// Forbid proofs coming with the provided [`ZkComputeLoad`]
+    pub fn forbid_compute_load(self, forbidden_compute_load: ZkComputeLoad) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_compute_load(forbidden_compute_load),
+            ..self
+        }
+    }
+
+    /// Forbid proofs coming with the provided [`ZkPkeV2HashMode`]. This has no effect on PkeV1
+    /// proofs
+    pub fn forbid_hash_mode(self, forbidden_hash_mode: ZkPkeV2HashMode) -> Self {
+        Self {
+            zk_conformance_params: self
+                .zk_conformance_params
+                .forbid_hash_mode(forbidden_hash_mode),
+            ..self
+        }
+    }
 }
 
 impl ParameterSetConformant for ProvenCompactCiphertextList {
@@ -242,7 +266,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
-            zk_scheme,
+            zk_conformance_params,
         } = parameter_set;
 
         let max_elements_per_compact_list = *max_lwe_count_per_compact_list;
@@ -250,7 +274,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
         let mut remaining_len = *total_expected_lwe_count;
 
         for (compact_ct_list, proof) in proved_lists {
-            if !proof.is_conformant(zk_scheme) {
+            if !proof.is_conformant(zk_conformance_params) {
                 return false;
             }
 
@@ -296,12 +320,16 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
 
 #[cfg(test)]
 mod tests {
+    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::LweCiphertextCount;
+    use crate::shortint::ciphertext::ProvenCompactCiphertextListConformanceParams;
     use crate::shortint::parameters::*;
     use crate::shortint::{
         ClientKey, CompactPrivateKey, CompactPublicKey, KeySwitchingKey, ServerKey,
     };
-    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+    use crate::zk::{
+        CompactPkeCrs, CompactPkeProofConformanceParams, ZkComputeLoad, ZkPkeV2HashMode,
+    };
     use rand::random;
 
     #[test]
@@ -417,5 +445,63 @@ mod tests {
             .map(|ciphertext| ck.decrypt(ciphertext))
             .collect::<Vec<_>>();
         assert_eq!(msgs, decrypted);
+    }
+
+    #[test]
+    fn test_zk_proof_conformance_ci_run_filter() {
+        let params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let max_lwe_count_per_compact_list = LweCiphertextCount(320);
+        let total_lwe_count = 512;
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, max_lwe_count_per_compact_list)
+            .unwrap();
+        let priv_key = CompactPrivateKey::new(pke_params);
+        let pub_key = CompactPublicKey::new(&priv_key);
+
+        let metadata = [b's', b'h', b'o', b'r', b't', b'i', b'n', b't'];
+
+        let msgs = (0..total_lwe_count)
+            .map(|_| random::<u64>() % params.message_modulus.0)
+            .collect::<Vec<_>>();
+
+        let proven_ct = pub_key
+            .encrypt_and_prove_slice(
+                &msgs,
+                &crs,
+                &metadata,
+                ZkComputeLoad::Verify,
+                params.message_modulus.0 * params.carry_modulus.0,
+            )
+            .unwrap();
+        assert!(proven_ct.verify(&crs, &pub_key, &metadata).is_valid());
+
+        let zk_conformance_params = CompactPkeProofConformanceParams::new(crs.scheme_version());
+
+        let conformance_params = ProvenCompactCiphertextListConformanceParams {
+            encryption_lwe_dimension: pke_params.encryption_lwe_dimension,
+            message_modulus: pke_params.message_modulus,
+            carry_modulus: pke_params.carry_modulus,
+            ciphertext_modulus: pke_params.ciphertext_modulus,
+            expansion_kind: pke_params.expansion_kind,
+            max_lwe_count_per_compact_list: max_lwe_count_per_compact_list.0,
+            total_expected_lwe_count: total_lwe_count,
+            zk_conformance_params,
+        };
+
+        assert!(proven_ct.is_conformant(&conformance_params));
+
+        // Check that we can reject specific proof types at the conformance level
+        let no_cl_verif_conformance_params =
+            conformance_params.forbid_compute_load(ZkComputeLoad::Verify);
+
+        assert!(!proven_ct.is_conformant(&no_cl_verif_conformance_params));
+
+        // By default, zk proofs use compact hash mode.
+        let no_compact_hash_conformance_params =
+            conformance_params.forbid_hash_mode(ZkPkeV2HashMode::Compact);
+
+        assert!(!proven_ct.is_conformant(&no_compact_hash_conformance_params));
     }
 }

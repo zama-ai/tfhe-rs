@@ -28,15 +28,15 @@ fn generate_powers<Zp: FieldOps>(scalar: Zp, out: &mut [Zp]) {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Versionize)]
 #[versionize(PkeV2HashModeVersions)]
 /// Defines how the hash functions will be used to generate values
-pub(crate) enum PkeV2HashMode {
+pub enum PkeV2HashMode {
     /// Compatibility with proofs generated with tfhe-zk-pok 0.6.0 and earlier
-    BackwardCompat,
+    BackwardCompat = 0,
     /// The basic PkeV2 scheme without the hashes optimizations
-    Classical,
+    Classical = 1,
     /// Reduce the number of hashed bytes with various optimizations:
     /// - generates only y1 as a hash and derives y = [1, y1, y1^2,...]
     /// - only hash R in phi
-    Compact,
+    Compact = 2,
 }
 
 impl PkeV2HashMode {

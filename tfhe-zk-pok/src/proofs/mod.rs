@@ -21,8 +21,8 @@ pub(crate) struct OneBased<T: ?Sized>(T);
 /// that puts more load on the verifier
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ComputeLoad {
-    Proof,
-    Verify,
+    Proof = 0,
+    Verify = 1,
 }
 
 impl Display for ComputeLoad {

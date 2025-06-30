@@ -20,7 +20,7 @@ mod hashes;
 
 use hashes::RHash;
 
-pub(crate) use hashes::PkeV2HashMode;
+pub use hashes::PkeV2HashMode;
 
 fn bit_iter(x: u64, nbits: u32) -> impl Iterator<Item = bool> {
     (0..nbits).map(move |idx| ((x >> idx) & 1) != 0)
@@ -412,6 +412,17 @@ impl<G: Curve> Proof<G> {
                     C_hat_h3.validate_projective() && C_hat_w.validate_projective()
                 },
             )
+    }
+
+    pub fn compute_load(&self) -> ComputeLoad {
+        match self.compute_load_proof_fields {
+            Some(_) => ComputeLoad::Proof,
+            None => ComputeLoad::Verify,
+        }
+    }
+
+    pub fn hash_mode(&self) -> PkeV2HashMode {
+        self.hash_mode
     }
 }
 
