@@ -196,6 +196,9 @@ def filter_shortint_tests(input_args):
         for msg, carry in msg_carry_pairs
     ]
     filter_expression.append("test(/^shortint::.*_ci_run_filter/)")
+    # Do not run noise check tests by default as they can be very slow
+    # they will be run e.g. nightly or on demand
+    filter_expression.append("not test(~noise_check)")
 
     return " or ".join(filter_expression)
 
