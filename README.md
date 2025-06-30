@@ -18,6 +18,7 @@
   <a href="https://github.com/zama-ai/tfhe-rs/releases"><img src="https://img.shields.io/github/v/release/zama-ai/tfhe-rs?style=flat-square"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-BSD--3--Clause--Clear-%23ffb243?style=flat-square"></a>
   <a href="https://github.com/zama-ai/bounty-program"><img src="https://img.shields.io/badge/Contribute-Zama%20Bounty%20Program-%23ffd208?style=flat-square"></a>
+  <a href="https://slsa.dev"><img alt="SLSA 3" src="https://slsa.dev/images/gh-badge-level3.svg" /></a>
 </p>
 
 ## About
