@@ -490,7 +490,6 @@ fn hpu_bench_transfer_throughput<FheType, F>(
 
 #[cfg(not(any(feature = "gpu", feature = "hpu")))]
 fn main() {
-    use crate::pbs_stats::print_transfer_pbs_counts;
     let params = benchmark::params_aliases::BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
@@ -511,6 +510,7 @@ fn main() {
     // PBS count is always the same
     #[cfg(feature = "pbs-stats")]
     {
+        use crate::pbs_stats::print_transfer_pbs_counts;
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
@@ -610,7 +610,6 @@ fn main() {
 
 #[cfg(feature = "gpu")]
 fn main() {
-    use crate::pbs_stats::print_transfer_pbs_counts;
     let params = benchmark::params_aliases::BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let config = tfhe::ConfigBuilder::with_custom_parameters(params).build();
@@ -625,6 +624,7 @@ fn main() {
     // PBS count is always the same
     #[cfg(feature = "pbs-stats")]
     {
+        use crate::pbs_stats::print_transfer_pbs_counts;
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
