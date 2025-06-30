@@ -16,6 +16,8 @@ fn random_op_sequence<P>(param: P)
 where
     P: Into<TestParameters> + Clone,
 {
+    println!("Running random op sequence test");
+
     // Binary Ops Executors
     let add_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::add);
     let sub_executor = GpuMultiDeviceFunctionExecutor::new(&CudaServerKey::sub);
