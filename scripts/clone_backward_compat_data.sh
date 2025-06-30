@@ -2,9 +2,9 @@
 
 set -e
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 1 ]; then
 		echo "invalid arguments, usage:\n"
-		echo "$0 git_url branch dest_path"
+		echo "$0 dest_path"
 		exit 1
 fi
 
@@ -13,9 +13,4 @@ if ! git lfs env 2>/dev/null >/dev/null; then
 		exit 1
 fi
 
-if [ -d $3 ]; then
-		cd $3 && git remote set-branches origin '*' && git fetch --depth 1 && git reset --hard origin/$2 && git clean -dfx
-
-else
-		git clone $1 -b $2 --depth 1 $3
-fi
+git lfs pull --include="$1/*" --exclude="*.hpu"
