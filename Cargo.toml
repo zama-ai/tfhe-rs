@@ -18,7 +18,7 @@ members = [
 ]
 
 exclude = [
-    "tests/backward_compatibility_tests",
+    "utils/tfhe-backward-compat-data",
     "utils/tfhe-lints",
     "apps/trivium",
 ]

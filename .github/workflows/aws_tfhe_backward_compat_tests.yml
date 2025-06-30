@@ -71,45 +71,26 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Use specific data branch
-        if: ${{ contains(github.event.pull_request.labels.*.name, 'data_PR') }}
-        env:
-          PR_BRANCH: ${{ github.head_ref || github.ref_name }}
+      # Cache key is an aggregated hash of lfs files hashes
+      - name: Get LFS data sha
+        id: hash-lfs-data
         run: |
-          echo "BACKWARD_COMPAT_DATA_BRANCH=${PR_BRANCH}" >> "${GITHUB_ENV}"
-
-      - name: Get backward compat branch
-        id: backward_compat_branch
-        run: |
-          BRANCH="$(make backward_compat_branch)"
-          echo "branch=${BRANCH}" >> "${GITHUB_OUTPUT}"
-
-      - name: Get backward compat branch head SHA
-        id: backward_compat_sha
-        run: |
-          SHA=$(git ls-remote "${REPO_URL}" refs/heads/"${BACKWARD_COMPAT_BRANCH}" | awk '{print $1}')
+          SHA=$(git lfs ls-files -l -I utils/tfhe-backward-compat-data | sha256sum | cut -d' ' -f1)
           echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
-        env:
-          REPO_URL: "https://github.com/zama-ai/tfhe-backward-compat-data"
-          BACKWARD_COMPAT_BRANCH: ${{ steps.backward_compat_branch.outputs.branch }}
 
       - name: Retrieve data from cache
         id: retrieve-data-cache
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 #v4.2.3
         with:
-          path: tests/tfhe-backward-compat-data
-          key: ${{ steps.backward_compat_branch.outputs.branch }}_${{ steps.backward_compat_sha.outputs.sha }}
+          path: |
+            utils/tfhe-backward-compat-data/**/*.cbor
+            utils/tfhe-backward-compat-data/**/*.bcode
+          key: ${{ steps.hash-lfs-data.outputs.sha }}
 
       - name: Clone test data
         if: steps.retrieve-data-cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-          repository: zama-ai/tfhe-backward-compat-data
-          path: tests/tfhe-backward-compat-data
-          lfs: 'true'
-          ref: ${{ steps.backward_compat_branch.outputs.branch }}
+        run: |
+          make clone_backward_compat_data
 
       - name: Run backward compatibility tests
         run: |
@@ -120,8 +101,10 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 #v4.2.3
         with:
-          path: tests/tfhe-backward-compat-data
-          key: ${{ steps.backward_compat_branch.outputs.branch }}_${{ steps.backward_compat_sha.outputs.sha }}
+          path: |
+            utils/tfhe-backward-compat-data/**/*.cbor
+            utils/tfhe-backward-compat-data/**/*.bcode
+          key: ${{ steps.hash-lfs-data.outputs.sha }}
 
       - name: Set pull-request URL
         if: ${{ failure() && github.event_name == 'pull_request' }}

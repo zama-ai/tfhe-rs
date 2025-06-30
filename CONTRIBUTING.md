@@ -170,6 +170,8 @@ On the contrary, these changes are *not* data breaking:
  * Renaming a type (unless it implements the `Named` trait).
  * Adding a variant to the end of an enum.
 
+Historical data from previous TFHE-rs versions are stored inside `utils/tfhe-backward-compat-data`. They are used to check on every PR that backward compatibility has been preserved.
+
 ## Example: adding a field
 
 Suppose you want to add an i32 field to a type named `MyType`. The original type is defined as:
