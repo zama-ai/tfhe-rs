@@ -22,21 +22,7 @@ BENCH_TYPE?=latency
 BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 NODE_VERSION=22.6
-BACKWARD_COMPAT_DATA_URL=https://github.com/zama-ai/tfhe-backward-compat-data.git
-BACKWARD_COMPAT_DATA_DEFAULT_BRANCH:=$(shell ./scripts/backward_compat_data_version.py)
-BACKWARD_COMPAT_DATA_BRANCH?=$(BACKWARD_COMPAT_DATA_DEFAULT_BRANCH)
-BACKWARD_COMPAT_DATA_PROJECT=tfhe-backward-compat-data
-BACKWARD_COMPAT_DATA_DIR=$(BACKWARD_COMPAT_DATA_PROJECT)
-ifeq ($(BACKWARD_COMPAT_DATA_DEFAULT_BRANCH), $(BACKWARD_COMPAT_DATA_BRANCH))
-	BACKWARD_COMPAT_CLIPPY_PATCH=
-else
-# We need to override the url for cargo patch accept it, see: https://github.com/rust-lang/cargo/issues/5478
-	BACKWARD_COMPAT_PATCHED_URL=https://www.github.com/zama-ai/tfhe-backward-compat-data.git
-	BACKWARD_COMPAT_CLIPPY_PATCH=\
-		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).branch=\"$(BACKWARD_COMPAT_DATA_BRANCH)\"" \
-		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).git=\"$(BACKWARD_COMPAT_PATCHED_URL)\""
-endif
-
+BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
 TFHE_SPEC:=tfhe
 WASM_PACK_VERSION="0.13.1"
 # We are kind of hacking the cut here, the version cannot contain a quote '"'
@@ -263,6 +249,9 @@ install_mlc: install_rs_build_toolchain
 .PHONY: fmt # Format rust code
 fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR) fmt
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt
 
 .PHONY: fmt_js # Format javascript code
 fmt_js: check_nvm_installed
@@ -284,6 +273,9 @@ fmt_c_tests:
 .PHONY: check_fmt # Check rust code format
 check_fmt: install_rs_check_toolchain
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" fmt --check
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C $(BACKWARD_COMPAT_DATA_DIR) fmt --check
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C utils/tfhe-lints fmt --check
+	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options -C apps/trivium fmt --check
 
 .PHONY: check_fmt_c_tests  # Check C tests format
 check_fmt_c_tests:
@@ -453,7 +445,6 @@ clippy_trivium: install_rs_check_toolchain
 .PHONY: clippy_ws_tests # Run clippy on the workspace level tests
 clippy_ws_tests: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --tests \
-		$(BACKWARD_COMPAT_CLIPPY_PATCH) \
 		-p tests --features=shortint,integer,zk-pok -- --no-deps -D warnings
 
 .PHONY: clippy_all_targets # Run clippy lints on all targets (benches, examples, etc.)
@@ -495,10 +486,17 @@ clippy_param_dedup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p param_dedup -- --no-deps -D warnings
 
+.PHONY: clippy_backward_compat_data # Run clippy lints on tfhe-backward-compat-data
+clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
+		-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all-targets \
+		-- --no-deps -D warnings
+
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
 clippy_c_api clippy_js_wasm_api clippy_tasks clippy_core clippy_tfhe_csprng clippy_zk_pok clippy_trivium \
-clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup
+clippy_versionable clippy_tfhe_lints clippy_ws_tests clippy_bench clippy_param_dedup \
+clippy_backward_compat_data
 
 .PHONY: clippy_fast # Run main clippy targets
 clippy_fast: clippy_rustdoc clippy clippy_all_targets clippy_c_api clippy_js_wasm_api clippy_tasks \
@@ -1085,16 +1083,11 @@ test_tfhe_lints: install_cargo_dylint
 # Here we use the "patch" functionality of Cargo to make sure the repo used for the data is the same as the one used for the code.
 .PHONY: test_backward_compatibility_ci
 test_backward_compatibility_ci: install_rs_build_toolchain
-	TFHE_BACKWARD_COMPAT_DATA_DIR="$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--config "patch.'$(BACKWARD_COMPAT_DATA_URL)'.$(BACKWARD_COMPAT_DATA_PROJECT).path=\"tests/$(BACKWARD_COMPAT_DATA_DIR)\"" \
+	TFHE_BACKWARD_COMPAT_DATA_DIR="../$(BACKWARD_COMPAT_DATA_DIR)" RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=shortint,integer,zk-pok -p tests test_backward_compatibility -- --nocapture
 
 .PHONY: test_backward_compatibility # Same as test_backward_compatibility_ci but tries to clone the data repo first if needed
-test_backward_compatibility: tests/$(BACKWARD_COMPAT_DATA_DIR) test_backward_compatibility_ci
-
-.PHONY: backward_compat_branch # Prints the required backward compatibility branch
-backward_compat_branch:
-	@echo "$(BACKWARD_COMPAT_DATA_BRANCH)"
+test_backward_compatibility: pull_backward_compat_data test_backward_compatibility_ci
 
 .PHONY: doc # Build rust doc
 doc: install_rs_check_toolchain
@@ -1557,11 +1550,9 @@ write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
 	--example write_params_to_file --features=boolean,shortint,hpu,internal-keycache
 
-.PHONY: clone_backward_compat_data # Clone the data repo needed for backward compatibility tests
-clone_backward_compat_data:
-	./scripts/clone_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_URL) $(BACKWARD_COMPAT_DATA_BRANCH) tests/$(BACKWARD_COMPAT_DATA_DIR)
-
-tests/$(BACKWARD_COMPAT_DATA_DIR): clone_backward_compat_data
+.PHONY: pull_backward_compat_data # Clone the data repo needed for backward compatibility tests
+pull_backward_compat_data:
+	./scripts/pull_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_DIR)
 
 #
 # Real use case examples
