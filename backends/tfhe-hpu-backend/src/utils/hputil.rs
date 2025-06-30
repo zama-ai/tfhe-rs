@@ -79,6 +79,9 @@ pub enum Command {
         #[arg(short, long, default_value_t = String::from("trace.json"))]
         file: String,
     },
+
+    #[clap(about = "Resets all HPU processing logic")]
+    SoftReset {},
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -285,6 +288,27 @@ fn main() {
             let file = File::create(filename).expect("Failed to create or open trace dump file");
             serde_json::to_writer_pretty(file.make_writer(), &parsed)
                 .expect("Could not write trace dump");
+        }
+        Command::SoftReset {} => {
+            let soft_reset = regmap
+                .register()
+                .get("hpu_reset::trigger")
+                .expect("The current HPU does not support soft reset.");
+            let soft_reset_addr = *soft_reset.offset() as u64;
+
+            for reset in [true, false].into_iter() {
+                hpu_hw.write_reg(soft_reset_addr, reset as u32);
+                loop {
+                    let done = {
+                        let val = hpu_hw.read_reg(soft_reset_addr);
+                        let fields = soft_reset.as_field(val);
+                        *fields.get("done").expect("Unknown field") != 0
+                    };
+                    if done == reset {
+                        break;
+                    }
+                }
+            }
         }
     }
 }
