@@ -577,6 +577,52 @@ __host__ void execute_compute_keybundle(
             d_mem, 0);
   check_cuda_error(cudaGetLastError());
 }
+template <typename Torus, class params>
+__host__ void execute_compute_keybundle_with_streams(
+    cudaStream_t stream, uint32_t gpu_index, Torus const *lwe_array_in,
+    Torus const *lwe_input_indexes, Torus const *bootstrapping_key,
+    pbs_buffer<Torus, MULTI_BIT> *buffer, uint32_t num_samples,
+    uint32_t lwe_dimension, uint32_t glwe_dimension, uint32_t polynomial_size,
+    uint32_t grouping_factor, uint32_t level_count, uint32_t lwe_offset, uint32_t accumulator_id) {
+  cuda_set_device(gpu_index);
+
+  auto lwe_chunk_size = buffer->lwe_chunk_size;
+  uint32_t chunk_size =
+      std::min(lwe_chunk_size, (lwe_dimension / grouping_factor) - lwe_offset);
+
+  uint32_t keybundle_size_per_input =
+      lwe_chunk_size * level_count * (glwe_dimension + 1) *
+      (glwe_dimension + 1) * (polynomial_size / 2);
+
+  uint64_t full_sm_keybundle =
+      get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
+          polynomial_size);
+  auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
+
+  auto d_mem = buffer->d_mem_keybundle;
+  auto keybundle_fft = accumulator_id ? buffer->keybundle_fft : buffer->keybundle_fft2;
+
+  // Compute a keybundle
+  dim3 grid_keybundle(num_samples * chunk_size,
+                      (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
+  dim3 thds(polynomial_size / params::opt, 1, 1);
+
+  if (max_shared_memory < full_sm_keybundle)
+    device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>
+        <<<grid_keybundle, thds, 0, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, full_sm_keybundle);
+  else
+    device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
+        <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+            d_mem, 0);
+  check_cuda_error(cudaGetLastError());
+}
 
 template <typename Torus, class params, bool is_first_iter>
 __host__ void execute_step_one(

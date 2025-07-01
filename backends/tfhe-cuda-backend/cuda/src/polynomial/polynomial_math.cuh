@@ -30,6 +30,7 @@ template <class params, typename T>
 __device__ void polynomial_product_in_fourier_domain(T *result, T *first,
                                                      T *second) {
   int tid = threadIdx.x;
+  #pragma unroll(1)
   for (int i = 0; i < params::opt / 2; i++) {
     result[tid] = first[tid] * second[tid];
     tid += params::degree / params::opt;
@@ -46,7 +47,7 @@ __device__ void polynomial_product_in_fourier_domain(T *result, T *first,
 // that with the outcome of first * second
 template <class params, typename T>
 __device__ void polynomial_product_accumulate_in_fourier_domain(
-    T *result, T *first, const T *second, bool init_accumulator = false) {
+    T* __restrict__ result, T* __restrict__ first, const T* __restrict__ second, bool init_accumulator = false) {
   int tid = threadIdx.x;
   if (init_accumulator) {
     for (int i = 0; i < params::opt / 2; i++) {
@@ -56,6 +57,28 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
   } else {
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] += first[tid] * second[tid];
+      tid += params::degree / params::opt;
+    }
+  }
+}
+
+// Computes result += first * second
+// If init_accumulator is set, assumes that result was not initialized and does
+// that with the outcome of first * second
+template <class params, typename T, bool init_accumulator>
+__device__ void polynomial_product_accumulate_in_fourier_domain_in_regs(
+    T* __restrict__ result, T* __restrict__ first, const T* __restrict__ second) {
+  int tid = threadIdx.x;
+  if constexpr (init_accumulator) {
+    #pragma unroll(1)
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[i] = first[tid] * second[tid];
+      tid += params::degree / params::opt;
+    }
+  } else {
+    #pragma unroll(1)
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[i] += first[tid] * second[tid];
       tid += params::degree / params::opt;
     }
   }
@@ -124,15 +147,17 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_128(
 // that with the outcome of first * second
 template <class params>
 __device__ void
-polynomial_accumulate_in_fourier_domain(double2 *result, double2 *x,
+polynomial_accumulate_in_fourier_domain(double2* __restrict__ result, double2* __restrict__ x,
                                         bool init_accumulator = false) {
   auto tid = threadIdx.x;
   if (init_accumulator) {
+    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] = x[tid];
       tid += params::degree / params::opt;
     }
   } else {
+    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] += x[tid];
       tid += params::degree / params::opt;

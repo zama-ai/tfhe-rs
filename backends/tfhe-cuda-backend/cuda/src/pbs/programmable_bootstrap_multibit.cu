@@ -456,7 +456,7 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
 template <typename Torus, class params>
 uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
                             uint32_t polynomial_size) {
-
+  return 16;
   uint64_t full_sm_keybundle =
       get_buffer_size_full_sm_multibit_programmable_bootstrap_keybundle<Torus>(
           polynomial_size);

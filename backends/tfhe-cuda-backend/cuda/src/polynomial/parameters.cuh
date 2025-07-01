@@ -24,7 +24,7 @@ constexpr int choose_opt_amortized(int degree) {
   if (degree <= 1024)
     return 4;
   else if (degree == 2048)
-    return 8;
+    return 4;
   else if (degree == 4096)
     return 16;
   else if (degree == 8192)

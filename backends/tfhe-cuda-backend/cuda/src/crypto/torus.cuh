@@ -75,7 +75,7 @@ __device__ inline T init_decomposer_state(T input, uint32_t base_log,
   T rounding_bit = res & (T)(1);
   res++;
   res >>= 1;
-  T torus_max = scalar_max<T>();
+  constexpr T torus_max = scalar_max<T>();
   T mod_mask = torus_max >> non_rep_bit_count;
   res &= mod_mask;
   T shifted_random = rounding_bit << (rep_bit_count - 1);

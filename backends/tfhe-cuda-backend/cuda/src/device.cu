@@ -381,3 +381,18 @@ uint32_t cuda_get_max_shared_memory(uint32_t gpu_index) {
 #endif
   return (uint32_t)(max_shared_memory);
 }
+
+__global__ void warmup_kernel() {
+  if (threadIdx.x == 0) {
+      asm volatile("");  // Prevent optimization out
+  }
+}
+
+void cuda_warmup_stream(cudaStream_t stream, uint32_t gpu_index) {
+  cuda_set_device(gpu_index);
+  // Launch a kernel to warm up the GPU
+  warmup_kernel<<<1, 1, 0, stream>>>();
+  check_cuda_error(cudaGetLastError());
+  // Synchronize the stream to ensure the kernel has completed
+  check_cuda_error(cudaStreamSynchronize(stream));
+}

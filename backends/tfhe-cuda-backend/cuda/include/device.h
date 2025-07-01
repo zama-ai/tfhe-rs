@@ -109,4 +109,6 @@ bool cuda_check_support_thread_block_clusters();
 template <typename Torus>
 void cuda_set_value_async(cudaStream_t stream, uint32_t gpu_index,
                           Torus *d_array, Torus value, Torus n);
+
+void cuda_warmup_stream(cudaStream_t stream, uint32_t gpu_index);                          
 #endif

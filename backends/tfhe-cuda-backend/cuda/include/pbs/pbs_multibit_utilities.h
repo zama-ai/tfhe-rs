@@ -105,9 +105,19 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
   int8_t *d_mem_acc_tbc = NULL;
   uint32_t lwe_chunk_size;
   double2 *keybundle_fft;
+  double2 *keybundle_fft2;
   Torus *global_accumulator;
   double2 *global_join_buffer;
+  cudaStream_t sub_streams_1;
+  cudaStream_t sub_streams_2;
 
+
+  cudaEvent_t *events_stream1;
+  cudaEvent_t *events_stream2;
+  cudaEvent_t event_main_stream;
+  cudaEvent_t output_event;
+  
+  uint32_t num_chunks;
   PBS_VARIANT pbs_variant;
   bool gpu_memory_allocated;
 
@@ -118,7 +128,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
              uint64_t *size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
-
+  
     this->pbs_variant = pbs_variant;
     this->lwe_chunk_size = lwe_chunk_size;
     auto max_shared_memory = cuda_get_max_shared_memory(gpu_index);
@@ -232,6 +242,9 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
     keybundle_fft = (double2 *)cuda_malloc_with_size_tracking_async(
         num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2), stream,
         gpu_index, size_tracker, allocate_gpu_memory);
+    keybundle_fft2 = (double2 *)cuda_malloc_with_size_tracking_async(
+    num_blocks_keybundle * (polynomial_size / 2) * sizeof(double2), stream,
+    gpu_index, size_tracker, allocate_gpu_memory);
     global_accumulator = (Torus *)cuda_malloc_with_size_tracking_async(
         input_lwe_ciphertext_count * (glwe_dimension + 1) * polynomial_size *
             sizeof(Torus),
@@ -240,10 +253,32 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
         level_count * (glwe_dimension + 1) * input_lwe_ciphertext_count *
             (polynomial_size / 2) * sizeof(double2),
         stream, gpu_index, size_tracker, allocate_gpu_memory);
+
+
+    sub_streams_1 = cuda_create_stream(gpu_index);
+    sub_streams_2 = cuda_create_stream(gpu_index);
+    cuda_warmup_stream(sub_streams_1, gpu_index);
+    cuda_warmup_stream(sub_streams_2, gpu_index);
+    
+    uint32_t lwe_dim_after_gf = 230;
+    num_chunks = (lwe_dim_after_gf + lwe_chunk_size - 1) /
+                          lwe_chunk_size;
+    events_stream1 =
+        (cudaEvent_t *)malloc(num_chunks * sizeof(cudaEvent_t));
+    events_stream2 =
+        (cudaEvent_t *)malloc(num_chunks * sizeof(cudaEvent_t));
+    for (uint j = 0; j < num_chunks; j++) {
+      events_stream1[j] = cuda_create_event(gpu_index);
+      events_stream2[j] = cuda_create_event(gpu_index);
+    }
+    event_main_stream = cuda_create_event(gpu_index);
+    output_event = cuda_create_event(gpu_index);
+    
   }
 
   void release(cudaStream_t stream, uint32_t gpu_index) {
-
+    cuda_synchronize_stream(sub_streams_1, gpu_index);
+    cuda_synchronize_stream(sub_streams_2, gpu_index);
     if (d_mem_keybundle)
       cuda_drop_with_size_tracking_async(d_mem_keybundle, stream, gpu_index,
                                          gpu_memory_allocated);
@@ -274,10 +309,24 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::MULTI_BIT> {
 
     cuda_drop_with_size_tracking_async(keybundle_fft, stream, gpu_index,
                                        gpu_memory_allocated);
+    cuda_drop_with_size_tracking_async(keybundle_fft2, stream, gpu_index,
+                                    gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_accumulator, stream, gpu_index,
                                        gpu_memory_allocated);
     cuda_drop_with_size_tracking_async(global_join_buffer, stream, gpu_index,
                                        gpu_memory_allocated);
+
+    cuda_destroy_stream(sub_streams_1, gpu_index);
+    cuda_destroy_stream(sub_streams_2, gpu_index);
+    for (uint j = 0; j < num_chunks; j++) {
+      cuda_event_destroy(events_stream1[j], gpu_index);
+      cuda_event_destroy(events_stream2[j], gpu_index);
+    }
+    cuda_event_destroy(event_main_stream, gpu_index);
+    cuda_event_destroy(output_event, gpu_index);
+
+    free(events_stream1);
+    free(events_stream2);
   }
 };
 
