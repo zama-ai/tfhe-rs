@@ -728,7 +728,7 @@ impl ParameterSetConformant for IntegerServerKey {
             parameter_set.noise_squashing_compression_param.as_ref(),
             noise_squashing_compression_key.as_ref(),
         ) {
-            (None, None, None) | (Some(_), None, None) => true,
+            (None | Some(_), None, None) => true,
             (
                 Some(noise_squashing_parameters),
                 Some(noise_squashing_compression_param),
@@ -818,7 +818,7 @@ impl ParameterSetConformant for IntegerCompressedServerKey {
             parameter_set.noise_squashing_compression_param.as_ref(),
             noise_squashing_compression_key.as_ref(),
         ) {
-            (None, None, None) | (Some(_), None, None) => true,
+            (None | Some(_), None, None) => true,
             (
                 Some(noise_squashing_parameters),
                 Some(noise_squashing_compression_param),

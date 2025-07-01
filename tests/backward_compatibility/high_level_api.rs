@@ -1,24 +1,25 @@
 use super::shortint::load_params;
 use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
+#[cfg(feature = "zk-pok")]
 use tfhe::integer::parameters::DynamicDistribution;
 use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant};
+#[cfg(feature = "zk-pok")]
 use tfhe::shortint::parameters::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
 };
+#[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
 use tfhe::shortint::{
     AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, PBSParameters,
 };
 #[cfg(feature = "zk-pok")]
-use tfhe::zk::CompactPkeCrs;
-#[cfg(feature = "zk-pok")]
-use tfhe::zk::CompactPkeCrsConformanceParams;
+use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::{
     set_server_key, ClientKey, CompactCiphertextList, CompressedCiphertextList,
     CompressedCompactPublicKey, CompressedFheBool, CompressedFheInt8, CompressedFheUint8,
-    CompressedPublicKey, CompressedServerKey, FheBool, FheInt8, FheUint8, SquashedNoiseFheBool,
-    SquashedNoiseFheInt, SquashedNoiseFheUint,
+    CompressedPublicKey, CompressedServerKey, CompressedSquashedNoiseCiphertextList, FheBool,
+    FheInt8, FheUint8, SquashedNoiseFheBool, SquashedNoiseFheInt, SquashedNoiseFheUint,
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::{CompactPublicKey, ProvenCompactCiphertextList};
@@ -27,10 +28,10 @@ use tfhe_backward_compat_data::load::{
 };
 use tfhe_backward_compat_data::{
     DataKind, HlBoolCiphertextTest, HlCiphertextTest, HlClientKeyTest,
-    HlHeterogeneousCiphertextListTest, HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest,
-    HlSquashedNoiseBoolCiphertextTest, HlSquashedNoiseSignedCiphertextTest,
-    HlSquashedNoiseUnsignedCiphertextTest, TestMetadata, TestParameterSet, TestType, Testcase,
-    ZkPkePublicParamsTest,
+    HlCompressedSquashedNoiseCiphertextListTest, HlHeterogeneousCiphertextListTest,
+    HlPublicKeyTest, HlServerKeyTest, HlSignedCiphertextTest, HlSquashedNoiseBoolCiphertextTest,
+    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestMetadata,
+    TestParameterSet, TestType, Testcase, ZkPkePublicParamsTest,
 };
 use tfhe_versionable::Unversionize;
 
@@ -495,6 +496,67 @@ pub fn test_hl_squashed_noise_bool_ciphertext(
     }
 }
 
+/// Test HL compressed squashed noise ciphertext list:
+/// loads the ciphertext list and compare the decrypted value to the one in the
+/// metadata.
+pub fn test_hl_compressed_squashed_noise_ciphertext_list(
+    dir: &Path,
+    test: &HlCompressedSquashedNoiseCiphertextListTest,
+    format: DataFormat,
+) -> Result<TestSuccess, TestFailure> {
+    let key_file = dir.join(&*test.key_filename);
+    let key = ClientKey::unversionize(
+        load_versioned_auxiliary(key_file).map_err(|e| test.failure(e, format))?,
+    )
+    .map_err(|e| test.failure(format!("Failed to load key file: {e}"), format))?;
+
+    let list: CompressedSquashedNoiseCiphertextList = load_and_unversionize(dir, test, format)
+        .map_err(|e| test.failure(format!("Failed to load list file: {e}"), format))?;
+
+    if list.len() != test.clear_values.len() || list.len() != test.data_kinds.len() {
+        return Err(test.failure(
+            format!(
+                "Invalid len for the compressed list, expected {} elements, got {}",
+                test.clear_values.len(),
+                list.len()
+            ),
+            format,
+        ));
+    }
+
+    for i in 0..list.len() {
+        let decrypted = match test.data_kinds[i] {
+            DataKind::Unsigned => {
+                let ct: SquashedNoiseFheUint = list.get(i).unwrap().unwrap();
+                let clear: u64 = ct.decrypt(&key);
+                clear
+            }
+            DataKind::Signed => {
+                let ct: SquashedNoiseFheInt = list.get(i).unwrap().unwrap();
+                let clear: i64 = ct.decrypt(&key);
+                clear as u64
+            }
+            DataKind::Bool => {
+                let ct: SquashedNoiseFheBool = list.get(i).unwrap().unwrap();
+                let clear: bool = ct.decrypt(&key);
+                clear as u64
+            }
+        };
+
+        let expected = test.clear_values[i];
+        if decrypted != expected {
+            return Err(test.failure(
+                format!(
+                    "Invalid decryption at index {i}:\n Expected :{expected:?} Got: {decrypted:?}",
+                ),
+                format,
+            ));
+        }
+    }
+
+    Ok(test.success(format))
+}
+
 pub struct Hl;
 
 impl TestedModule for Hl {
@@ -539,6 +601,10 @@ impl TestedModule for Hl {
             }
             TestMetadata::HlSquashedNoiseBoolCiphertext(test) => {
                 test_hl_squashed_noise_bool_ciphertext(test_dir.as_ref(), test, format).into()
+            }
+            TestMetadata::HlCompressedSquashedNoiseCiphertextList(test) => {
+                test_hl_compressed_squashed_noise_ciphertext_list(test_dir.as_ref(), test, format)
+                    .into()
             }
             _ => {
                 println!("WARNING: missing test: {:?}", testcase.metadata);
