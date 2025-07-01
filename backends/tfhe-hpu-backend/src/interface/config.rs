@@ -77,8 +77,6 @@ pub struct RtlConfig {
     pub bpip_use_opportunism: bool,
     /// Timeout value to start Bpip even if batch isn't full
     pub bpip_timeout: u32,
-    /// Use modulus switch mean compensation
-    pub mod_switch_mean_comp: bool,
 }
 
 /// On-board memory configuration

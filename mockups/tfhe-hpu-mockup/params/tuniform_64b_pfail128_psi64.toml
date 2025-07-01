@@ -12,6 +12,8 @@
     carry_width= 2
     ciphertext_width= 64
     opportunistic=true
+    log2_p_fail=-128
+    modulus_switch_type= "CenteredMeanNoiseReduction"
 
 [ntt_params]
     core_arch= {GF64=[5,6]}

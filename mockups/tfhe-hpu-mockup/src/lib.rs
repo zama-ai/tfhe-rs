@@ -713,16 +713,23 @@ impl HpuSim {
             }
         } else {
             let mut tfhe_lut = tfhe_lut;
+            let modulus_switch_type = self.params.rtl_params.pbs_params.modulus_switch_type;
             // Get keys and computation buffer
             let (ksk, ref mut bfr_after_ks, bsk) = self.get_server_key();
-
-            // TODO add a check on trivialness for fast simulation ?
-            keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
-
             let log_modulus = bsk.polynomial_size().to_blind_rotation_input_modulus_log();
 
-            let bfr_after_ms = lwe_ciphertext_modulus_switch(bfr_after_ks.as_view(), log_modulus);
-
+            keyswitch_lwe_ciphertext_with_scalar_change(ksk, &cpu_reg, bfr_after_ks);
+            let bfr_after_ms = match modulus_switch_type {
+                HpuModulusSwitchType::Standard => {
+                    lwe_ciphertext_modulus_switch(bfr_after_ks.as_view(), log_modulus)
+                }
+                HpuModulusSwitchType::CenteredMeanNoiseReduction => {
+                    lwe_ciphertext_centered_binary_modulus_switch(
+                        bfr_after_ks.as_view(),
+                        log_modulus,
+                    )
+                }
+            };
             blind_rotate_ntt64_bnf_assign(&bfr_after_ms, &mut tfhe_lut, bsk);
 
             assert_eq!(

@@ -11,6 +11,8 @@
     message_width=2
     carry_width=2
     ciphertext_width=64
+    log2_p_fail=-64 
+    modulus_switch_type= "Standard"
 
 [ntt_params]
     core_arch= {GF64=[5,5]}

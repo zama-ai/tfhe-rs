@@ -6,6 +6,15 @@ use crate::shortint::parameters::{
 };
 use crate::shortint::prelude::*;
 
+impl From<&HpuModulusSwitchType> for ModulusSwitchType {
+    fn from(value: &HpuModulusSwitchType) -> Self {
+        match value {
+            HpuModulusSwitchType::Standard => Self::Standard,
+            HpuModulusSwitchType::CenteredMeanNoiseReduction => Self::CenteredMeanNoiseReduction,
+        }
+    }
+}
+
 #[allow(clippy::fallible_impl_from)]
 impl From<&HpuParameters> for KeySwitch32PBSParameters {
     fn from(value: &HpuParameters) -> Self {
@@ -39,7 +48,7 @@ impl From<&HpuParameters> for KeySwitch32PBSParameters {
             message_modulus: MessageModulus(1 << value.pbs_params.message_width),
             carry_modulus: CarryModulus(1 << value.pbs_params.carry_width),
             max_noise_level: MaxNoiseLevel::new(5),
-            log2_p_fail: -64.0, // TODO fixme
+            log2_p_fail: value.pbs_params.log2_p_fail,
             post_keyswitch_ciphertext_modulus: CiphertextModulus32::try_new_power_of_2(
                 value.ks_params.width,
             )
@@ -48,7 +57,9 @@ impl From<&HpuParameters> for KeySwitch32PBSParameters {
                 value.pbs_params.ciphertext_width,
             )
             .unwrap(),
-            modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
+            modulus_switch_noise_reduction_params: ModulusSwitchType::from(
+                &value.pbs_params.modulus_switch_type,
+            ),
         }
     }
 }
