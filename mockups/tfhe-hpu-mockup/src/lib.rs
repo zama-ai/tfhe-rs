@@ -257,7 +257,7 @@ impl HpuSim {
                     let asm_p = format!("{dump_path}/iop/iop_{}.asm", self.iop_nb);
                     let hex_p = format!("{dump_path}/iop/iop_{}.hex", self.iop_nb);
                     let mut iop_prog = hpu_asm::Program::default();
-                    iop_prog.push_comment(format!("{}", iop));
+                    iop_prog.push_comment(format!("{iop}"));
                     iop_prog.push_stmt(iop.clone());
                     iop_prog.write_asm(&asm_p).unwrap();
                     iop_prog.write_hex(&hex_p).unwrap();
@@ -389,7 +389,7 @@ impl HpuSim {
                 tracing::info!("{pe_rpt}");
 
                 if let Some(mut rpt_file) = self.options.report_file((&iop).into()) {
-                    writeln!(rpt_file, "Report for IOp: {}", iop).unwrap();
+                    writeln!(rpt_file, "Report for IOp: {iop}").unwrap();
                     writeln!(rpt_file, "{time_rpt:?}").unwrap();
                     writeln!(rpt_file, "{dop_rpt}").unwrap();
                     writeln!(rpt_file, "{pe_rpt}").unwrap();
@@ -400,7 +400,7 @@ impl HpuSim {
                 if let Some(mut trace_file) = self.options.report_trace((&iop).into()) {
                     let json_string =
                         serde_json::to_string(&trace).expect("Could not serialize trace");
-                    writeln!(trace_file, "{}", json_string).unwrap();
+                    writeln!(trace_file, "{json_string}").unwrap();
                 }
             }
             hpu_asm::DOp::LD(op_impl) => {
@@ -909,10 +909,10 @@ impl HpuSim {
             .enumerate()
             .for_each(|(i, slice)| {
                 // Create file-path
-                let file_path = format!("{base_path}_{:0>1x}.hex", i);
+                let file_path = format!("{base_path}_{i:0>1x}.hex");
                 let mut wr_f = MockupOptions::open_wr_file(&file_path);
 
-                writeln!(&mut wr_f, "# LweCiphertext slice #{}", i).unwrap();
+                writeln!(&mut wr_f, "# LweCiphertext slice #{i}").unwrap();
                 // Compact Blwe on 32b if possible
                 if self.params.rtl_params.ntt_params.ct_width <= u32::BITS {
                     let slice_32b = slice.iter().map(|x| *x as u32).collect::<Vec<u32>>();
