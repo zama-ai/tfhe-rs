@@ -10,7 +10,6 @@ tfhe-versionable = { path = "../utils/tfhe-versionable" }
 tfhe-backward-compat-data = { git = "https://github.com/zama-ai/tfhe-backward-compat-data.git", branch = "v0.8", default-features = false, features = [
     "load",
 ] }
-ron = "0.8"
 cargo_toml = "0.22"
 
 
