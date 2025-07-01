@@ -72,7 +72,7 @@ Collaborate with us to advance the FHE spaces and drive innovation together.
 ***
 
 {% hint style="success" %}
-**Zama 5-Question Developer Survey**
+**Share your feedback with the Zama community**
 
-We want to hear from you! Take 1 minute to share your thoughts and helping us enhance our documentation and libraries. **👉** [**Click here**](https://www.zama.ai/developer-survey) to participate.
+We want to hear from you! Join our community to share your thoughts and help us enhance our documentation and libraries. **👉** [**Community forum**](https://community.zama.ai/) or [**Discord channel**](https://discord.com/invite/zama)
 {% endhint %}
