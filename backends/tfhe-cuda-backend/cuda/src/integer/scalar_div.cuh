@@ -2,6 +2,7 @@
 #define SCALAR_DIV_CUH
 
 #include "integer/integer_utilities.h"
+#include "integer/scalar_bitops.cuh"
 #include "integer/scalar_mul.cuh"
 #include "integer/scalar_shifts.cuh"
 #include "integer/subtraction.cuh"
@@ -275,6 +276,115 @@ __host__ void host_integer_signed_scalar_div_radix_kb(
   } else {
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], numerator_ct,
                                        tmp);
+  }
+}
+
+template <typename Torus>
+__host__ uint64_t scratch_integer_unsigned_scalar_div_rem_radix(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, const int_radix_params params,
+    unsigned_scalar_div_rem_buffer<Torus> **mem_ptr, uint32_t num_radix_blocks,
+    const bool allocate_gpu_memory, bool is_divisor_power_of_two,
+    bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
+    uint32_t num_scalar_bits, uint32_t ilog2_divisor) {
+
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new unsigned_scalar_div_rem_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+      allocate_gpu_memory, true, num_scalar_bits, is_divisor_power_of_two,
+      log2_divisor_exceeds_threshold, multiplier_exceeds_threshold,
+      ilog2_divisor, &size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_integer_unsigned_scalar_div_rem_radix(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *quotient_ct,
+    CudaRadixCiphertextFFI *remainder_ct,
+    unsigned_scalar_div_rem_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    void *const *bsks, uint32_t num_scalars, bool multiplier_exceeds_threshold,
+    bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
+    uint32_t ilog2_divisor, uint64_t shift_pre, uint32_t shift_post,
+    uint64_t rhs, Torus const *clear_blocks, Torus const *h_clear_blocks,
+    uint32_t num_clear_blocks) {
+
+  auto numerator_ct = mem_ptr->numerator_ct;
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], numerator_ct,
+                                     quotient_ct);
+
+  host_integer_unsigned_scalar_div_radix(
+      streams, gpu_indexes, gpu_count, quotient_ct, mem_ptr->unsigned_mem, ksks,
+      decomposed_scalar, has_at_least_one_set, ms_noise_reduction_key, bsks,
+      num_scalars, multiplier_exceeds_threshold, is_divisor_power_of_two,
+      log2_divisor_exceeds_threshold, ilog2_divisor, shift_pre, shift_post,
+      rhs);
+
+  if (is_divisor_power_of_two) {
+
+    host_integer_radix_scalar_bitop_kb(
+        streams, gpu_indexes, gpu_count, remainder_ct, numerator_ct,
+        clear_blocks, h_clear_blocks, num_clear_blocks, mem_ptr->bitop_mem,
+        bsks, ksks, ms_noise_reduction_key);
+
+  } else {
+
+    switch (mem_ptr->params.polynomial_size) {
+    case 512:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<512>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    case 1024:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<1024>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    case 2048:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<2048>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    case 4096:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<4096>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    case 8192:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<8192>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    case 16384:
+      host_integer_scalar_mul_radix<Torus, AmortizedDegree<16384>>(
+          streams, gpu_indexes, gpu_count, remainder_ct, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
+      break;
+    default:
+      PANIC("Cuda error (scalar multiplication): unsupported polynomial size. "
+            "Only N = 512, 1024, 2048, 4096, 8192, 16384 are supported.")
+    }
+
+    host_sub_and_propagate_single_carry(
+        streams, gpu_indexes, gpu_count, remainder_ct, numerator_ct, nullptr,
+        nullptr, mem_ptr->sub_and_propagate_mem, bsks, ksks,
+        ms_noise_reduction_key, FLAG_NONE, (uint32_t)0);
   }
 }
 

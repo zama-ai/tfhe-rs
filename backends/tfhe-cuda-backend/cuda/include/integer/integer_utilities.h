@@ -5438,6 +5438,88 @@ template <typename Torus> struct int_signed_scalar_div_mem {
   }
 };
 
+template <typename Torus> struct unsigned_scalar_div_rem_buffer {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  CudaRadixCiphertextFFI *numerator_ct;
+
+  int_unsigned_scalar_div_mem<Torus> *unsigned_mem;
+  int_bitop_buffer<Torus> *bitop_mem;
+  int_scalar_mul_buffer<Torus> *scalar_mul_mem;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+
+  unsigned_scalar_div_rem_buffer(
+      cudaStream_t const *streams, uint32_t const *gpu_indexes,
+      uint32_t gpu_count, const int_radix_params params,
+      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+      const bool anticipated_buffer_drop, uint32_t num_scalar_bits,
+      bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
+      bool multiplier_exceeds_threshold, uint32_t ilog2_divisor,
+      uint64_t *size_tracker) {
+
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->bitop_mem = nullptr;
+    this->scalar_mul_mem = nullptr;
+    this->sub_and_propagate_mem = nullptr;
+
+    this->numerator_ct = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], numerator_ct, num_radix_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    this->unsigned_mem = new int_unsigned_scalar_div_mem<Torus>(
+        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+        allocate_gpu_memory, is_divisor_power_of_two,
+        log2_divisor_exceeds_threshold, multiplier_exceeds_threshold,
+        ilog2_divisor, num_scalar_bits, size_tracker);
+
+    if (is_divisor_power_of_two) {
+
+      this->bitop_mem = new int_bitop_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, BITAND, params, num_radix_blocks,
+          allocate_gpu_memory, size_tracker);
+
+    } else {
+
+      this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+          num_scalar_bits, allocate_gpu_memory, anticipated_buffer_drop,
+          size_tracker);
+
+      this->sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
+          streams, gpu_indexes, gpu_count, params, num_radix_blocks, FLAG_NONE,
+          allocate_gpu_memory, size_tracker);
+    }
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0], numerator_ct,
+                                   allocate_gpu_memory);
+    delete numerator_ct;
+
+    unsigned_mem->release(streams, gpu_indexes, gpu_count);
+    delete unsigned_mem;
+
+    if (bitop_mem != nullptr) {
+      bitop_mem->release(streams, gpu_indexes, gpu_count);
+      delete bitop_mem;
+    }
+    if (scalar_mul_mem != nullptr) {
+      scalar_mul_mem->release(streams, gpu_indexes, gpu_count);
+      delete scalar_mul_mem;
+    }
+    if (sub_and_propagate_mem != nullptr) {
+      sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
+      delete sub_and_propagate_mem;
+    }
+  }
+};
+
 void update_degrees_after_bitand(uint64_t *output_degrees,
                                  uint64_t *lwe_array_1_degrees,
                                  uint64_t *lwe_array_2_degrees,
