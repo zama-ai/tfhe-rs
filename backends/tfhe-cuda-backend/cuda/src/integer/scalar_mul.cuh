@@ -42,7 +42,7 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
   return size_tracker;
 }
 
-template <typename T, class params>
+template <typename T>
 __host__ void host_integer_scalar_mul_radix(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *lwe_array,
@@ -80,7 +80,7 @@ __host__ void host_integer_scalar_mul_radix(
     }
   }
   size_t j = 0;
-  for (size_t i = 0; i < min(num_scalars, num_ciphertext_bits); i++) {
+  for (size_t i = 0; i < std::min(num_scalars, num_ciphertext_bits); i++) {
     if (decomposed_scalar[i] == 1) {
       // Perform a block shift
       CudaRadixCiphertextFFI preshifted_radix_ct;
@@ -116,7 +116,7 @@ __host__ void host_integer_scalar_mul_radix(
     set_zero_radix_ciphertext_slice_async<T>(streams[0], gpu_indexes[0],
                                              lwe_array, 0, num_radix_blocks);
   } else {
-    host_integer_partial_sum_ciphertexts_vec_kb<T, params>(
+    host_integer_partial_sum_ciphertexts_vec_kb<T>(
         streams, gpu_indexes, gpu_count, lwe_array, all_shifted_buffer, bsks,
         ksks, ms_noise_reduction_key, mem->sum_ciphertexts_vec_mem,
         num_radix_blocks, j);
@@ -202,55 +202,11 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
           ms_noise_reduction_key, tmp_ffi->num_radix_blocks);
 
     } else {
-
-      switch (mem_ptr->params.polynomial_size) {
-      case 512:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<512>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 1024:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<1024>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 2048:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<2048>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 4096:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<4096>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 8192:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<8192>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 16384:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<16384>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      default:
-        PANIC(
-            "Cuda error (scalar multiplication): unsupported polynomial size. "
-            "Only N = 512, 1024, 2048, 4096, 8192, 16384 are supported.")
-      }
+      host_integer_scalar_mul_radix<Torus>(
+          streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
     }
   }
 
@@ -291,54 +247,11 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
 
     } else {
 
-      switch (mem_ptr->params.polynomial_size) {
-      case 512:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<512>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 1024:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<1024>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 2048:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<2048>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 4096:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<4096>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 8192:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<8192>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      case 16384:
-        host_integer_scalar_mul_radix<Torus, AmortizedDegree<16384>>(
-            streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-            has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-            (uint64_t **)ksks, ms_noise_reduction_key,
-            mem_ptr->params.message_modulus, num_scalars);
-        break;
-      default:
-        PANIC(
-            "Cuda error (scalar multiplication): unsupported polynomial size. "
-            "Only N = 512, 1024, 2048, 4096, 8192, 16384 are supported.")
-      }
+      host_integer_scalar_mul_radix<Torus>(
+          streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
+          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
+          (uint64_t **)ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars);
     }
   }
 

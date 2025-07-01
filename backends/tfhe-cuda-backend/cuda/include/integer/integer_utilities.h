@@ -2472,6 +2472,8 @@ template <typename Torus> struct int_sc_prop_memory {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], output_flag,
                                    gpu_memory_allocated);
     lut_message_extract->release(streams, gpu_indexes, gpu_count);
+    delete shifted_blocks_state_mem;
+    delete prop_simu_group_carries_mem;
     delete output_flag;
     delete lut_message_extract;
 

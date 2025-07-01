@@ -288,7 +288,7 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
   return size_tracker;
 }
 
-template <typename Torus, class params>
+template <typename Torus>
 __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *radix_lwe_out,
@@ -367,7 +367,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
   bool needs_processing = false;
   radix_columns current_columns(current_blocks->degrees, num_radix_blocks,
                                 num_radix_in_vec, chunk_size, needs_processing);
-  int number_of_threads = std::min(256, params::degree);
+  int number_of_threads = std::min(256, (int)mem_ptr->params.polynomial_size);
   int part_count = (big_lwe_size + number_of_threads - 1) / number_of_threads;
   const dim3 number_of_blocks_2d(num_radix_blocks, part_count, 1);
 
@@ -666,7 +666,7 @@ __host__ void host_integer_mult_radix_kb(
     size_t b_id = i % num_blocks;
     terms_degree_msb[i] = (b_id > r_id) ? message_modulus - 2 : 0;
   }
-  host_integer_partial_sum_ciphertexts_vec_kb<Torus, params>(
+  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
       streams, gpu_indexes, gpu_count, radix_lwe_out, vector_result_sb, bsks,
       ksks, ms_noise_reduction_key, mem_ptr->sum_ciphertexts_mem, num_blocks,
       2 * num_blocks);
