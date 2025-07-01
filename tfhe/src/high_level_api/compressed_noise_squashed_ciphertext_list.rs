@@ -118,6 +118,19 @@ impl InnerCompressedSquashedNoiseCiphertextList {
     }
 }
 
+/// Compressed ciphertext list for squashed noise ciphertext
+///
+/// This list supports
+///
+/// * [SquashedNoiseFheUint]
+/// * [SquashedNoiseFheInt]
+/// * [SquashedNoiseFheBool]
+///
+/// Use the [CompressedSquashedNoiseCiphertextListBuilder] struct to
+/// build a list.
+///
+/// This requires the server key to have noise-squashing compression keys,
+/// which is enabled by calling [crate::ConfigBuilder::enable_noise_squashing_compression]
 #[derive(Serialize, Deserialize, Versionize)]
 #[versionize(CompressedSquashedNoiseCiphertextListVersions)]
 pub struct CompressedSquashedNoiseCiphertextList {
@@ -290,6 +303,10 @@ impl HlSquashedNoiseCompressible for SquashedNoiseFheInt {
     }
 }
 
+/// Builder to create [CompressedSquashedNoiseCiphertextList]
+///
+/// Use [push](Self::push) to add squashed noise ciphertext to the list,
+/// then call [build](Self::build) to build the list.
 pub struct CompressedSquashedNoiseCiphertextListBuilder {
     inner: Vec<(private::SquashedNoiseToBeCompressed, DataKind)>,
 }

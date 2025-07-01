@@ -67,6 +67,11 @@ impl ConfigBuilder {
         self
     }
 
+    /// Enable the generation of keys needed for [crate::CompressedSquashedNoiseCiphertextList]
+    ///
+    /// # Note
+    ///
+    /// This requires nose squashing to be enabled first via [Self::enable_noise_squashing]
     pub fn enable_noise_squashing_compression(
         mut self,
         compression_parameters: NoiseSquashingCompressionParameters,
