@@ -41,8 +41,7 @@ where
     assert!(log_modulus.0 <= Scalar::BITS);
     assert!(log_modulus.0 <= SwitchedScalar::BITS);
 
-    let body_correction_to_add =
-        centered_binary_ms_body_correction_to_add(&lwe_in, log_modulus, true);
+    let body_correction_to_add = centered_binary_ms_body_correction_to_add(&lwe_in, log_modulus);
 
     LazyStandardModulusSwitchedLweCiphertext::from_raw_parts(
         lwe_in,
@@ -51,12 +50,9 @@ where
     )
 }
 
-// TODO: potentially remove the flag to choose whether to apply the half case correction
-// This was added to have matching algorithms for the HPU implementation
-pub(crate) fn centered_binary_ms_body_correction_to_add<Scalar, Cont>(
+fn centered_binary_ms_body_correction_to_add<Scalar, Cont>(
     lwe_in: &LweCiphertext<Cont>,
     log_modulus: CiphertextModulusLog,
-    do_half_case_correction: bool,
 ) -> Scalar
 where
     Scalar: UnsignedInteger,
@@ -93,11 +89,7 @@ where
     // sum(half_error_theoretical) = sum(half_error) - sum(halving_error_doubled)/2
     let sum_half_mask_round_errors = sum_half_mask_round_errors.wrapping_sub(sum_halving_errors);
 
-    let half_case = if do_half_case_correction {
-        Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1)
-    } else {
-        Scalar::ZERO
-    };
+    let half_case = Scalar::ONE << (Scalar::BITS - log_modulus.0 - 1);
 
     // E(e_MMS) = - sum(mask_round_error / 2)
     // body_centered = body_input - E(e_MMS) - half_case
@@ -324,7 +316,7 @@ mod tests {
                     }),
                     {
                         let centered_binary_ms_body_correction_to_add =
-                            centered_binary_ms_body_correction_to_add(&lwe, log_modulus, true);
+                            centered_binary_ms_body_correction_to_add(&lwe, log_modulus);
 
                         measure_noise_added_by_message_preserving_operation(&sk, lwe, |ct| {
                             *ct.get_mut_body().data = ct
