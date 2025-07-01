@@ -426,9 +426,13 @@ mod integer_params {
                 {
                     #[cfg(feature = "gpu")]
                     let params = vec![
-                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                        BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64
                             .into(),
                     ];
+                    // let params = vec![
+                    //     BENCH_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+                    //         .into(),
+                    // ];
                     #[cfg(not(feature = "gpu"))]
                     let params = vec![
                         BENCH_PARAM_MULTI_BIT_GROUP_3_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128
