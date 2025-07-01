@@ -491,6 +491,41 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    generate_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        output,
+        noise_distribution,
+        &mut generator,
+    );
+}
+
+pub fn generate_seeded_lwe_multi_bit_bootstrap_key_with_existing_generator<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    ByteGen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut SeededLweMultiBitBootstrapKey<OutputCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<ByteGen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution> + CastFrom<usize>,
+    NoiseDistribution: Distribution,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: Container<Element = Scalar>,
+    OutputCont: ContainerMut<Element = Scalar>,
+    ByteGen: ByteRandomGenerator,
+{
     assert!(
         output.input_lwe_dimension() == input_lwe_secret_key.lwe_dimension(),
         "Mismatched LweDimension between input LWE secret key and LWE bootstrap key. \
@@ -513,11 +548,6 @@ pub fn generate_seeded_lwe_multi_bit_bootstrap_key<
         Output GLWE secret key PolynomialSize: {:?}, LWE bootstrap key PolynomialSize {:?}.",
         output_glwe_secret_key.polynomial_size(),
         output.polynomial_size()
-    );
-
-    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
-        noise_seeder,
     );
 
     assert!(
