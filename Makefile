@@ -514,6 +514,12 @@ clippy_hpu_backend: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		-p tfhe-hpu-backend -- --no-deps -D warnings
 
+.PHONY: clippy_hpu_mockup # Run clippy lints on tfhe-hpu-mockup
+clippy_hpu: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
+		--all-targets \
+		-p tfhe-hpu-backend -- --no-deps -D warnings
+
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
 check_rust_bindings_did_not_change:
 	cargo build -p tfhe-cuda-backend && "$(MAKE)" fmt_gpu && \
@@ -1554,7 +1560,7 @@ pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
 clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
 
 .PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
-pcc_hpu: clippy_hpu clippy_hpu_backend test_integer_hpu_mockup_ci_fast
+pcc_hpu: clippy_hpu clippy_hpu_backend clippy_hpu_mockup test_integer_hpu_mockup_ci_fast
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
