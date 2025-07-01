@@ -236,58 +236,11 @@ void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
   if (radix_lwe_vec->num_radix_blocks % radix_lwe_out->num_radix_blocks != 0)
     PANIC("Cuda error: input vector length should be a multiple of the "
           "output's number of radix blocks")
-  switch (mem->params.polynomial_size) {
-  case 512:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t, AmortizedDegree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  case 1024:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
-                                                AmortizedDegree<1024>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  case 2048:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
-                                                AmortizedDegree<2048>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  case 4096:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
-                                                AmortizedDegree<4096>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  case 8192:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
-                                                AmortizedDegree<8192>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  case 16384:
-    host_integer_partial_sum_ciphertexts_vec_kb<uint64_t,
-                                                AmortizedDegree<16384>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
-        radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
-        radix_lwe_out->num_radix_blocks,
-        radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
-    break;
-  default:
-    PANIC("Cuda error (integer multiplication): unsupported polynomial size. "
-          "Supported N's are powers of two in the interval [256..16384].")
-  }
+  host_integer_partial_sum_ciphertexts_vec_kb<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, radix_lwe_out,
+      radix_lwe_vec, bsks, (uint64_t **)(ksks), ms_noise_reduction_key, mem,
+      radix_lwe_out->num_radix_blocks,
+      radix_lwe_vec->num_radix_blocks / radix_lwe_out->num_radix_blocks);
 }
 
 void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(

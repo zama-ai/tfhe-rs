@@ -29,59 +29,12 @@ void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
     uint32_t polynomial_size, uint32_t message_modulus, uint32_t num_scalars) {
 
-  switch (polynomial_size) {
-  case 512:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<512>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  case 1024:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<1024>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  case 2048:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<2048>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  case 4096:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<4096>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  case 8192:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<8192>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  case 16384:
-    host_integer_scalar_mul_radix<uint64_t, AmortizedDegree<16384>>(
-        (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
-        decomposed_scalar, has_at_least_one_set,
-        reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
-        (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
-        num_scalars);
-    break;
-  default:
-    PANIC("Cuda error (scalar multiplication): unsupported polynomial size. "
-          "Only N = 512, 1024, 2048, 4096, 8192, 16384 are supported.")
-  }
+  host_integer_scalar_mul_radix<uint64_t>(
+      (cudaStream_t *)(streams), gpu_indexes, gpu_count, lwe_array,
+      decomposed_scalar, has_at_least_one_set,
+      reinterpret_cast<int_scalar_mul_buffer<uint64_t> *>(mem), bsks,
+      (uint64_t **)(ksks), ms_noise_reduction_key, message_modulus,
+      num_scalars);
 }
 
 void cleanup_cuda_integer_radix_scalar_mul(void *const *streams,

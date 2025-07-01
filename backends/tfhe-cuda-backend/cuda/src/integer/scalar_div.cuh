@@ -74,27 +74,27 @@ __host__ void host_integer_unsigned_scalar_div_radix(
     copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0],
                                        numerator_cpy, numerator_ct);
 
-    host_integer_radix_scalar_mul_high_kb(
+    host_integer_radix_scalar_mul_high_kb<Torus>(
         streams, gpu_indexes, gpu_count, numerator_cpy,
         mem_ptr->scalar_mul_high_mem, ksks, rhs, decomposed_scalar,
         has_at_least_one_set, ms_noise_reduction_key, bsks, num_scalars);
 
-    host_sub_and_propagate_single_carry(
+    host_sub_and_propagate_single_carry<Torus>(
         streams, gpu_indexes, gpu_count, numerator_ct, numerator_cpy, nullptr,
         nullptr, mem_ptr->sub_and_propagate_mem, bsks, ksks,
         ms_noise_reduction_key, FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace(
+    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
         streams, gpu_indexes, gpu_count, numerator_ct, (uint32_t)1,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key,
         numerator_ct->num_radix_blocks);
 
-    host_add_and_propagate_single_carry(
+    host_add_and_propagate_single_carry<Torus>(
         streams, gpu_indexes, gpu_count, numerator_ct, numerator_cpy, nullptr,
         nullptr, mem_ptr->scp_mem, bsks, ksks, ms_noise_reduction_key,
         FLAG_NONE, (uint32_t)0);
 
-    host_integer_radix_logical_scalar_shift_kb_inplace(
+    host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
         streams, gpu_indexes, gpu_count, numerator_ct, shift_post - (uint32_t)1,
         mem_ptr->logical_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key,
         numerator_ct->num_radix_blocks);
@@ -102,17 +102,17 @@ __host__ void host_integer_unsigned_scalar_div_radix(
     return;
   }
 
-  host_integer_radix_logical_scalar_shift_kb_inplace(
+  host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
       streams, gpu_indexes, gpu_count, numerator_ct, shift_pre,
       mem_ptr->logical_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key,
       numerator_ct->num_radix_blocks);
 
-  host_integer_radix_scalar_mul_high_kb(
+  host_integer_radix_scalar_mul_high_kb<Torus>(
       streams, gpu_indexes, gpu_count, numerator_ct,
       mem_ptr->scalar_mul_high_mem, ksks, rhs, decomposed_scalar,
       has_at_least_one_set, ms_noise_reduction_key, bsks, num_scalars);
 
-  host_integer_radix_logical_scalar_shift_kb_inplace(
+  host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
       streams, gpu_indexes, gpu_count, numerator_ct, shift_post,
       mem_ptr->logical_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key,
       numerator_ct->num_radix_blocks);
