@@ -74,8 +74,8 @@ jobs:
 
       - name: Run benchmarks with AVX512
         run: |
-          make bench_ks_pbs
-          make bench_pbs
+          make BENCH_PARAM_TYPE=multi_bit bench_ks_pbs
+          make BENCH_PARAM_TYPE=multi_bit bench_pbs
 #          make bench_pbs128
 #          make bench_ks
 
