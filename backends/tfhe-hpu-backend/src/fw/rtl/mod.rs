@@ -1224,7 +1224,7 @@ impl std::ops::ShlAssign<&VarCell> for VarCell {
 
 // I was expecting more events to be waited for...
 bitflags! {
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     struct WaitEvents: u8 {
         const RdUnlock = 0x1;
     }
@@ -1253,6 +1253,7 @@ struct Arch {
 // could be re-used in other contexts outside our HPU firmware generation
 impl Arch {
     // interface
+    #[instrument(level = "trace", skip(self, op))]
     pub fn try_dispatch(&mut self, op: BinaryHeap<OperationCell>) -> BinaryHeap<OperationCell> {
         // Postpone scheduling high latency operations until there's no other
         // option to keep everything going. This is very heuristic, so this
@@ -1338,8 +1339,14 @@ impl Arch {
             .max()
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub fn done(&mut self) -> Option<OperationCell> {
-        assert!(!self.events.is_empty());
+        if self.events.is_empty() {
+            // It can happen that for lack of registers, the PE cannot be
+            // filled. In that case, try a forced flush
+            self.probe_for_exec(Some(PeFlush::Force));
+            assert!(!self.events.is_empty());
+        }
 
         let waiting_for = self.waiting_for.clone();
         let mut waiting = (true, None);
@@ -1350,6 +1357,7 @@ impl Arch {
             trace!("rd_pdg: {:?}", self.rd_pdg);
             trace!("queued: {:?}", self.queued);
             trace!("wr_pdg: {:?}", self.wr_pdg);
+            trace!("waiting: {:?}", self.waiting_for);
             trace!("---------------------------------------");
 
             let event = {
@@ -1576,7 +1584,6 @@ impl Rtl {
 
             if let Some(op) = arch.done() {
                 trace!("Removing {:?}", &op);
-                // Done is consumed here
                 let new = op.remove();
                 trace!("new ready op {:?}", &new);
                 todo.extend(new.into_iter());
