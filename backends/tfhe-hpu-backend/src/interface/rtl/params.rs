@@ -286,6 +286,8 @@ pub const CONCRETE_BOOLEAN: HpuPBSParameters = HpuPBSParameters {
     message_width: 1,
     carry_width: 0,
     ciphertext_width: 32,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
@@ -301,6 +303,8 @@ pub const MSG2_CARRY2: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: u64::BITS as usize,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
@@ -316,6 +320,8 @@ pub const MSG2_CARRY2_64B: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: u64::BITS as usize,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
@@ -333,6 +339,8 @@ pub const MSG2_CARRY2_44B: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 44,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
@@ -350,6 +358,8 @@ pub const MSG2_CARRY2_64B_FAKE: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_GAUSSIAN: HpuPBSParameters = HpuPBSParameters {
@@ -367,6 +377,8 @@ pub const MSG2_CARRY2_GAUSSIAN: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_TUNIFORM: HpuPBSParameters = HpuPBSParameters {
@@ -384,6 +396,8 @@ pub const MSG2_CARRY2_TUNIFORM: HpuPBSParameters = HpuPBSParameters {
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA: HpuPBSParameters = HpuPBSParameters {
@@ -399,6 +413,8 @@ pub const MSG2_CARRY2_PFAIL64_132B_GAUSSIAN_1F72DBA: HpuPBSParameters = HpuPBSPa
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_PFAIL64_132B_TUNIFORM_7E47D8C: HpuPBSParameters = HpuPBSParameters {
@@ -414,6 +430,8 @@ pub const MSG2_CARRY2_PFAIL64_132B_TUNIFORM_7E47D8C: HpuPBSParameters = HpuPBSPa
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -64.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::Standard,
 };
 
 pub const MSG2_CARRY2_PFAIL128_132B_TUNIFORM_144A47: HpuPBSParameters = HpuPBSParameters {
@@ -429,6 +447,8 @@ pub const MSG2_CARRY2_PFAIL128_132B_TUNIFORM_144A47: HpuPBSParameters = HpuPBSPa
     message_width: 2,
     carry_width: 2,
     ciphertext_width: 64,
+    log2_p_fail: -128.0,
+    modulus_switch_type: parameters::HpuModulusSwitchType::CenteredMeanNoiseReduction,
 };
 
 impl FromRtl for HpuPBSParameters {

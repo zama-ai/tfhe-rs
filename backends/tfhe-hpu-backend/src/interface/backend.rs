@@ -165,26 +165,7 @@ impl HpuBackend {
             config.rtl.bpip_timeout,
         );
 
-        let ks_config_reg = regmap
-            .register()
-            .get("keyswitch::config")
-            .expect("Unknown register, check regmap definition");
-        hpu_hw.write_reg(
-            *ks_config_reg.offset() as u64,
-            ks_config_reg.from_field(
-                [(
-                    "mod_switch_mean_comp",
-                    config.rtl.mod_switch_mean_comp as u32,
-                )]
-                .into(),
-            ),
-        );
-
         info!("{params:?}");
-        debug!(
-            "Keyswitch registers {:?}",
-            rtl::runtime::InfoKeyswitch::from_rtl(&mut hpu_hw, &regmap)
-        );
         debug!(
             "Isc registers {:?}",
             rtl::runtime::InfoIsc::from_rtl(&mut hpu_hw, &regmap)

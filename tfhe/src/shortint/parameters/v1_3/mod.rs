@@ -1712,7 +1712,7 @@ pub const VEC_ALL_KS32_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 1] = [(
 pub mod hpu;
 
 #[cfg(feature = "hpu")]
-pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 2] = [
+pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 3] = [
     (
         &V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64,
         "V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_GAUSSIAN_2M64",
@@ -1720,5 +1720,9 @@ pub const VEC_ALL_HPU_PARAMETERS: [(&KeySwitch32PBSParameters, &str); 2] = [
     (
         &V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64,
         "V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M64",
+    ),
+    (
+        &V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128,
+        "V1_3_HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M128",
     ),
 ];

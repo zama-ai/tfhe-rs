@@ -2,8 +2,9 @@ pub(crate) mod traits;
 
 pub mod parameters;
 pub use parameters::{
-    HpuIscParameters, HpuKeyswitchParameters, HpuNoiseDistributionInput, HpuNttCoreArch,
-    HpuNttParameters, HpuPBSParameters, HpuParameters, HpuPcParameters, HpuRegfileParameters,
+    HpuIscParameters, HpuKeyswitchParameters, HpuModulusSwitchType, HpuNoiseDistributionInput,
+    HpuNttCoreArch, HpuNttParameters, HpuPBSParameters, HpuParameters, HpuPcParameters,
+    HpuRegfileParameters,
 };
 
 pub mod glwe_ciphertext;

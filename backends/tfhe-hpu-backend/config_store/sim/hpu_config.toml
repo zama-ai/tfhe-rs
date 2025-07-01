@@ -13,7 +13,6 @@
   bpip_use = true
   bpip_use_opportunism = true
   bpip_timeout = 100_000
-  mod_switch_mean_comp = true
 
 [board]
   ct_mem = 32768

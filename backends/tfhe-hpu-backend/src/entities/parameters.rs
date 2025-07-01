@@ -8,6 +8,12 @@ pub enum HpuNoiseDistributionInput {
     TUniformBound(u32),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum HpuModulusSwitchType {
+    Standard,
+    CenteredMeanNoiseReduction,
+}
+
 /// Parameters related to Tfhe scheme computation
 /// Couldn't rely on ClassicPBSParameters to prevent dependency loop
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -24,7 +30,10 @@ pub struct HpuPBSParameters {
     pub message_width: usize,
     pub carry_width: usize,
     pub ciphertext_width: usize,
+    pub log2_p_fail: f64,
+    pub modulus_switch_type: HpuModulusSwitchType,
 }
+
 // Manual implementation of Eq trait
 // Indeed, we can handle strict comparison of f64
 impl std::cmp::Eq for HpuPBSParameters {}
