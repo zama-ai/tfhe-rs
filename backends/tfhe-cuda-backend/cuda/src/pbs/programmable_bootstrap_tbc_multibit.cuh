@@ -536,7 +536,7 @@ __host__ void execute_tbc_external_product_loop_with_streams(
 }
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap(
+__host__ void host_tbc_multi_bit_programmable_bootstrap_with_streams_events(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,
@@ -728,7 +728,7 @@ __host__ void host_tbc_multi_bit_programmable_bootstrap_new(
 
 
 template <typename Torus, class params>
-__host__ void host_tbc_multi_bit_programmable_bootstrap_backup(
+__host__ void host_tbc_multi_bit_programmable_bootstrap(
     cudaStream_t stream, uint32_t gpu_index, Torus *lwe_array_out,
     Torus const *lwe_output_indexes, Torus const *lut_vector,
     Torus const *lut_vector_indexes, Torus const *lwe_array_in,

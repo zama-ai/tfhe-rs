@@ -177,7 +177,6 @@ mul_ggsw_glwe_in_fourier_domain3(double2 *fft, double2 *join_buffer,
   //       buffer_regs, fft, bsk_poly);
   //  group.sync();
 
-  #pragma unroll(1)
   for (int j = 0; j < glwe_dimension + 1; j++) {
     int idx = (j + this_block_rank) % (glwe_dimension + 1);
     auto bsk_slice = get_ith_mask_kth_block(

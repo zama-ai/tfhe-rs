@@ -70,13 +70,11 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_in_regs(
     T* __restrict__ result, T* __restrict__ first, const T* __restrict__ second) {
   int tid = threadIdx.x;
   if constexpr (init_accumulator) {
-    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[i] = first[tid] * second[tid];
       tid += params::degree / params::opt;
     }
   } else {
-    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[i] += first[tid] * second[tid];
       tid += params::degree / params::opt;
@@ -151,13 +149,11 @@ polynomial_accumulate_in_fourier_domain(double2* __restrict__ result, double2* _
                                         bool init_accumulator = false) {
   auto tid = threadIdx.x;
   if (init_accumulator) {
-    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] = x[tid];
       tid += params::degree / params::opt;
     }
   } else {
-    #pragma unroll(1)
     for (int i = 0; i < params::opt / 2; i++) {
       result[tid] += x[tid];
       tid += params::degree / params::opt;
