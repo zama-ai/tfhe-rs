@@ -180,12 +180,10 @@ pub fn execute_bootstrap_u128(
 
     let d_accumulator = CudaGlweCiphertextList::from_glwe_ciphertext(&accumulator, &stream);
 
-    let num_blocks = d_lwe_ciphertext_in.0.lwe_ciphertext_count.0;
     cuda_programmable_bootstrap_128_lwe_ciphertext(
         &d_lwe_ciphertext_in,
         &mut d_out_pbs_ct,
         &d_accumulator,
-        LweCiphertextCount(num_blocks),
         &d_bsk,
         &stream,
     );

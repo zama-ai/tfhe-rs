@@ -5,7 +5,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::{
     programmable_bootstrap_128_async, programmable_bootstrap_async, CudaStreams,
 };
-use crate::core_crypto::prelude::{CastInto, LweCiphertextCount, UnsignedTorus};
+use crate::core_crypto::prelude::{CastInto, UnsignedTorus};
 
 /// # Safety
 ///
@@ -19,7 +19,6 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
     lut_indexes: &CudaVec<Scalar>,
     output_indexes: &CudaVec<Scalar>,
     input_indexes: &CudaVec<Scalar>,
-    num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
     streams: &CudaStreams,
 ) where
@@ -129,7 +128,7 @@ pub unsafe fn cuda_programmable_bootstrap_lwe_ciphertext_async<Scalar>(
 
     let lwe_dimension = input.lwe_dimension();
     let ct_modulus = input.ciphertext_modulus().raw_modulus_float();
-
+    let num_samples = input.lwe_ciphertext_count();
     programmable_bootstrap_async(
         streams,
         &mut output.0.d_vec,
@@ -159,7 +158,6 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
     input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
-    num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
     streams: &CudaStreams,
 ) where
@@ -255,6 +253,7 @@ pub unsafe fn cuda_programmable_bootstrap_128_lwe_ciphertext_async<Scalar>(
     );
     let lwe_dimension = input.lwe_dimension();
     let ct_modulus = input.ciphertext_modulus().raw_modulus_float();
+    let num_samples = input.lwe_ciphertext_count();
     programmable_bootstrap_128_async(
         streams,
         &mut output.0.d_vec,
@@ -280,7 +279,6 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
     lut_indexes: &CudaVec<Scalar>,
     output_indexes: &CudaVec<Scalar>,
     input_indexes: &CudaVec<Scalar>,
-    num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
     streams: &CudaStreams,
 ) where
@@ -294,7 +292,6 @@ pub fn cuda_programmable_bootstrap_lwe_ciphertext<Scalar>(
             lut_indexes,
             output_indexes,
             input_indexes,
-            num_samples,
             bsk,
             streams,
         );
@@ -318,7 +315,6 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
     input: &CudaLweCiphertextList<u64>,
     output: &mut CudaLweCiphertextList<Scalar>,
     accumulator: &CudaGlweCiphertextList<Scalar>,
-    num_samples: LweCiphertextCount,
     bsk: &CudaLweBootstrapKey,
     streams: &CudaStreams,
 ) where
@@ -329,7 +325,6 @@ pub fn cuda_programmable_bootstrap_128_lwe_ciphertext<Scalar>(
             input,
             output,
             accumulator,
-            num_samples,
             bsk,
             streams,
         );

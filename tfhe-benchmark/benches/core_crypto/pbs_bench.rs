@@ -1031,7 +1031,6 @@ mod cuda {
                                     &cuda_indexes.d_lut,
                                     &cuda_indexes.d_output,
                                     &cuda_indexes.d_input,
-                                    LweCiphertextCount(1),
                                     gpu_keys.bsk.as_ref().unwrap(),
                                     &streams,
                                 );
@@ -1113,7 +1112,7 @@ mod cuda {
                                 })
                                 .collect::<Vec<_>>();
 
-                            let h_indexes = (0..(elements / gpu_count as u64))
+                            let h_indexes = (0..elements_per_stream as u64)
                                 .map(CastFrom::cast_from)
                                 .collect::<Vec<_>>();
                             let cuda_indexes_vec = (0..gpu_count)
@@ -1157,7 +1156,6 @@ mod cuda {
                                                 &cuda_indexes_vec[i].d_lut,
                                                 &cuda_indexes_vec[i].d_output,
                                                 &cuda_indexes_vec[i].d_input,
-                                                LweCiphertextCount(1),
                                                 gpu_keys_vec[i].bsk.as_ref().unwrap(),
                                                 local_stream,
                                             );
