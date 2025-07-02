@@ -71,13 +71,13 @@ pub(crate) fn fwd_butterfly_avx2(
     two_p: u32x8,
 ) -> (u32x8, u32x8) {
     let _ = two_p;
-    let z0 = simd.small_mod_u32x8(p, z0);
+    let z0 = simd.small_mod_double_sub_u32x8(p, z0);
     let shoup_q = simd.widening_mul_u32x8(z1, w_shoup).1;
     let t = simd.wrapping_add_u32x8(
         simd.wrapping_mul_u32x8(z1, w),
         simd.wrapping_mul_u32x8(shoup_q, neg_p),
     );
-    let t = simd.small_mod_u32x8(p, t);
+    let t = simd.small_mod_double_sub_u32x8(p, t);
     (
         simd.wrapping_add_u32x8(z0, t),
         simd.wrapping_add_u32x8(simd.wrapping_sub_u32x8(z0, t), p),
@@ -97,16 +97,16 @@ pub(crate) fn fwd_last_butterfly_avx2(
     two_p: u32x8,
 ) -> (u32x8, u32x8) {
     let _ = two_p;
-    let z0 = simd.small_mod_u32x8(p, z0);
+    let z0 = simd.small_mod_double_sub_u32x8(p, z0);
     let shoup_q = simd.widening_mul_u32x8(z1, w_shoup).1;
     let t = simd.wrapping_add_u32x8(
         simd.wrapping_mul_u32x8(z1, w),
         simd.wrapping_mul_u32x8(shoup_q, neg_p),
     );
-    let t = simd.small_mod_u32x8(p, t);
+    let t = simd.small_mod_double_sub_u32x8(p, t);
     (
-        simd.small_mod_u32x8(p, simd.wrapping_add_u32x8(z0, t)),
-        simd.small_mod_u32x8(
+        simd.small_mod_double_sub_u32x8(p, simd.wrapping_add_u32x8(z0, t)),
+        simd.small_mod_double_sub_u32x8(
             p,
             simd.wrapping_add_u32x8(simd.wrapping_sub_u32x8(z0, t), p),
         ),
