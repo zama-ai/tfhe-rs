@@ -181,7 +181,6 @@ where
                     &d_test_vector_indexes,
                     &d_output_indexes,
                     &d_input_indexes,
-                    LweCiphertextCount(num_blocks),
                     &d_bsk,
                     &stream,
                 );

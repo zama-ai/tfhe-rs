@@ -25,7 +25,7 @@ use crate::core_crypto::commons::numeric::Numeric;
 use crate::core_crypto::gpu::add_lwe_ciphertext_vector_plaintext_scalar_async;
 use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
 use crate::core_crypto::prelude::CastInto;
-use crate::integer::gpu::server_key::radix::{CudaLweCiphertextList, LweCiphertextCount};
+use crate::integer::gpu::server_key::radix::CudaLweCiphertextList;
 use crate::integer::gpu::CudaVec;
 use itertools::Itertools;
 
@@ -574,7 +574,6 @@ impl CudaServerKey {
                     &d_lut_vector_indexes,
                     &d_output_indexes,
                     &d_input_indexes,
-                    LweCiphertextCount(num_ct_blocks),
                     d_bsk,
                     streams,
                 );

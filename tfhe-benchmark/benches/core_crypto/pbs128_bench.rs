@@ -302,7 +302,6 @@ mod cuda {
                                 &lwe_ciphertext_in_gpu,
                                 &mut out_pbs_ct_gpu,
                                 &accumulator_gpu,
-                                LweCiphertextCount(1),
                                 gpu_keys.bsk.as_ref().unwrap(),
                                 &streams,
                             );
@@ -398,12 +397,14 @@ mod cuda {
                                 .zip(accumulators.par_iter())
                                 .zip(local_streams.par_iter())
                                 .for_each(
-                                    |((((i, input_ct), output_ct), accumulator), local_stream)| {
+                                    |(
+                                        (((i, input_batch), output_batch), accumulator),
+                                        local_stream,
+                                    )| {
                                         cuda_programmable_bootstrap_128_lwe_ciphertext(
-                                            input_ct,
-                                            output_ct,
+                                            input_batch,
+                                            output_batch,
                                             accumulator,
-                                            LweCiphertextCount(1),
                                             gpu_keys_vec[i].bsk.as_ref().unwrap(),
                                             local_stream,
                                         );
