@@ -121,7 +121,7 @@ __host__ uint64_t scratch_cuda_integer_overflowing_sub_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_overflowing_sub_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks, allocate_gpu_memory,
-      allocate_ms_array, &size_tracker);
+      allocate_ms_array, size_tracker);
   POP_RANGE()
   return size_tracker;
 }

@@ -20,7 +20,7 @@ template <typename Torus> struct int_compression {
                   uint32_t gpu_count, int_radix_params compression_params,
                   uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
                   uint32_t storage_log_modulus, bool allocate_gpu_memory,
-                  uint64_t *size_tracker) {
+                  uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->compression_params = compression_params;
     this->lwe_per_glwe = lwe_per_glwe;
@@ -38,7 +38,7 @@ template <typename Torus> struct int_compression {
         lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
         gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
-    *size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe_64(
+    size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe_64(
         streams[0], gpu_indexes[0], &fp_ks_buffer,
         compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
@@ -76,7 +76,7 @@ template <typename Torus> struct int_decompression {
                     int_radix_params compression_params,
                     uint32_t num_radix_blocks, uint32_t body_count,
                     uint32_t storage_log_modulus, bool allocate_gpu_memory,
-                    uint64_t *size_tracker) {
+                    uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->encryption_params = encryption_params;
     this->compression_params = compression_params;

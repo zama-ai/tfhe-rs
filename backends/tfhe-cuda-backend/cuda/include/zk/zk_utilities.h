@@ -27,7 +27,7 @@ template <typename Torus> struct zk_expand_mem {
                 int_radix_params casting_params, KS_TYPE casting_key_type,
                 const uint32_t *num_lwes_per_compact_list,
                 const bool *is_boolean_array, uint32_t num_compact_lists,
-                bool allocate_gpu_memory, uint64_t *size_tracker)
+                bool allocate_gpu_memory, uint64_t &size_tracker)
       : computing_params(computing_params), casting_params(casting_params),
         num_compact_lists(num_compact_lists),
         casting_key_type(casting_key_type) {

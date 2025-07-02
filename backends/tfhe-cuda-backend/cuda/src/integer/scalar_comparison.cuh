@@ -277,8 +277,9 @@ __host__ void integer_radix_unsigned_scalar_difference_check_kb(
         auto overflowed = x_0 < x_1;
         return (Torus)(invert_flags.second ^ overflowed);
       };
+      uint64_t size = 0;
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, true, nullptr);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true, size);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),
@@ -578,8 +579,9 @@ __host__ void integer_radix_signed_scalar_difference_check_kb(
                is_x_less_than_y_given_input_borrow<Torus>(x_0, x_1, 0,
                                                           message_modulus);
       };
+      uint64_t size = 0;
       int_radix_lut<Torus> *one_block_lut = new int_radix_lut<Torus>(
-          streams, gpu_indexes, gpu_count, params, 1, 1, true, nullptr);
+          streams, gpu_indexes, gpu_count, params, 1, 1, true, size);
 
       generate_device_accumulator<Torus>(
           streams[0], gpu_indexes[0], one_block_lut->get_lut(0, 0),

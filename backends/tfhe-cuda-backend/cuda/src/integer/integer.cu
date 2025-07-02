@@ -398,7 +398,7 @@ uint64_t scratch_cuda_apply_noise_squashing_mem(
   *mem_ptr = new int_noise_squashing_lut<uint64_t>(
       (cudaStream_t *)streams, gpu_indexes, gpu_count, params, glwe_dimension,
       polynomial_size, num_radix_blocks, original_num_blocks,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

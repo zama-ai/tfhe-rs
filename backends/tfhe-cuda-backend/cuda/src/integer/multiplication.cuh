@@ -284,7 +284,7 @@ __host__ uint64_t scratch_cuda_integer_partial_sum_ciphertexts_vec_kb(
   *mem_ptr = new int_sum_ciphertexts_vec_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_blocks_in_radix,
       max_num_radix_in_vec, reduce_degrees_for_single_carry_propagation,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -690,7 +690,7 @@ __host__ uint64_t scratch_cuda_integer_mult_radix_ciphertext_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_mul_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, is_boolean_left,
-      is_boolean_right, num_radix_blocks, allocate_gpu_memory, &size_tracker);
+      is_boolean_right, num_radix_blocks, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

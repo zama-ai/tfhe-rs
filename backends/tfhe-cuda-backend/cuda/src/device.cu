@@ -74,10 +74,9 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
 /// asynchronously.
 void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
                                            uint32_t gpu_index,
-                                           uint64_t *size_tracker,
+                                           uint64_t &size_tracker,
                                            bool allocate_gpu_memory) {
-  if (size_tracker != nullptr)
-    *size_tracker += size;
+  size_tracker += size;
   void *ptr = nullptr;
   if (!allocate_gpu_memory)
     return ptr;
@@ -106,8 +105,9 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
 /// asynchronously.
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
                         uint32_t gpu_index) {
-  return cuda_malloc_with_size_tracking_async(size, stream, gpu_index, nullptr,
-                                              true);
+  uint64_t size_tracker = 0;
+  return cuda_malloc_with_size_tracking_async(size, stream, gpu_index,
+                                              size_tracker, true);
 }
 
 /// Check that allocation is valid

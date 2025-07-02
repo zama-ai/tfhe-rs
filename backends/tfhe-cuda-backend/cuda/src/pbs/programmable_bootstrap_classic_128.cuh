@@ -425,7 +425,7 @@ __host__ uint64_t scratch_programmable_bootstrap_cg_128(
   *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::CG,
-      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+      allocate_gpu_memory, allocate_ms_array, size_tracker);
   return size_tracker;
 }
 
@@ -532,7 +532,7 @@ __host__ uint64_t scratch_programmable_bootstrap_128(
   *buffer = new pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+      allocate_gpu_memory, allocate_ms_array, size_tracker);
   return size_tracker;
 }
 

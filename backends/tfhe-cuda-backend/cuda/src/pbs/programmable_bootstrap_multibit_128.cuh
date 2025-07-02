@@ -1009,7 +1009,7 @@ __host__ uint64_t scratch_multi_bit_programmable_bootstrap_128(
   *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::DEFAULT,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -1094,7 +1094,7 @@ __host__ uint64_t scratch_cg_multi_bit_programmable_bootstrap_128(
   *buffer = new pbs_buffer_128<InputTorus, MULTI_BIT>(
       stream, gpu_index, glwe_dimension, polynomial_size, level_count,
       input_lwe_ciphertext_count, lwe_chunk_size, PBS_VARIANT::CG,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

@@ -21,7 +21,7 @@ __host__ uint64_t scratch_integer_unsigned_scalar_div_radix(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
       allocate_gpu_memory, is_divisor_power_of_two,
       log2_divisor_exceeds_threshold, multiplier_exceeds_threshold,
-      ilog2_divisor, num_scalar_bits, &size_tracker);
+      ilog2_divisor, num_scalar_bits, size_tracker);
 
   return size_tracker;
 }
@@ -133,7 +133,7 @@ __host__ uint64_t scratch_integer_signed_scalar_div_radix_kb(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
       num_scalar_bits, allocate_gpu_memory, is_absolute_divisor_one,
       is_divisor_negative, l_exceed_threshold, is_power_of_two,
-      multiplier_is_small, &size_tracker);
+      multiplier_is_small, size_tracker);
 
   return size_tracker;
 }

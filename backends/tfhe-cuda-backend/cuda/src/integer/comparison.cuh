@@ -684,7 +684,7 @@ __host__ uint64_t scratch_cuda_integer_radix_comparison_check_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_comparison_buffer<Torus>(
       streams, gpu_indexes, gpu_count, op, params, num_radix_blocks, is_signed,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

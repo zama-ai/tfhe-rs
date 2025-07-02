@@ -90,7 +90,7 @@ template <typename Torus> struct pbs_buffer<Torus, PBS_TYPE::CLASSICAL> {
              uint32_t glwe_dimension, uint32_t polynomial_size,
              uint32_t level_count, uint32_t input_lwe_ciphertext_count,
              PBS_VARIANT pbs_variant, bool allocate_gpu_memory,
-             bool allocate_ms_array, uint64_t *size_tracker) {
+             bool allocate_ms_array, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->uses_noise_reduction = allocate_ms_array;
@@ -260,7 +260,7 @@ struct pbs_buffer_128<InputTorus, PBS_TYPE::CLASSICAL> {
                  uint32_t polynomial_size, uint32_t level_count,
                  uint32_t input_lwe_ciphertext_count, PBS_VARIANT pbs_variant,
                  bool allocate_gpu_memory, bool allocate_ms_array,
-                 uint64_t *size_tracker) {
+                 uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     cuda_set_device(gpu_index);
     this->pbs_variant = pbs_variant;

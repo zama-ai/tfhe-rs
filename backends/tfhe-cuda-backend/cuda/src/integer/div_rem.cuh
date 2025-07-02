@@ -28,7 +28,7 @@ __host__ uint64_t scratch_cuda_integer_div_rem_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_div_rem_memory<Torus>(streams, gpu_indexes, gpu_count,
                                            params, is_signed, num_blocks,
-                                           allocate_gpu_memory, &size_tracker);
+                                           allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

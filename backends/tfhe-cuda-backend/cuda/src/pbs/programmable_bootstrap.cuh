@@ -279,7 +279,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          uint32_t level_count, uint32_t grouping_factor,
                          uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
                          bool allocate_gpu_memory, bool allocate_ms_array,
-                         uint64_t *size_tracker) {
+                         uint64_t &size_tracker) {
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
     // 32 bits
@@ -287,7 +287,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     case MULTI_BIT:
       PANIC("Error: 32-bit multibit PBS is not supported.\n")
     case CLASSICAL:
-      *size_tracker = scratch_cuda_programmable_bootstrap_32(
+      size_tracker = scratch_cuda_programmable_bootstrap_32(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
           allocate_gpu_memory, allocate_ms_array);
@@ -302,12 +302,12 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
     case MULTI_BIT:
       if (grouping_factor == 0)
         PANIC("Multi-bit PBS error: grouping factor should be > 0.")
-      *size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_64(
+      size_tracker = scratch_cuda_multi_bit_programmable_bootstrap_64(
           stream, gpu_index, pbs_buffer, glwe_dimension, polynomial_size,
           level_count, input_lwe_ciphertext_count, allocate_gpu_memory);
       break;
     case CLASSICAL:
-      *size_tracker = scratch_cuda_programmable_bootstrap_64(
+      size_tracker = scratch_cuda_programmable_bootstrap_64(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
           allocate_gpu_memory, allocate_ms_array);
