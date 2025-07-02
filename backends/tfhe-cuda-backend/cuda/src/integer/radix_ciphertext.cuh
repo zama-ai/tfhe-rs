@@ -13,7 +13,7 @@ void create_zero_radix_ciphertext_async(cudaStream_t const stream,
                                         CudaRadixCiphertextFFI *radix,
                                         const uint32_t num_radix_blocks,
                                         const uint32_t lwe_dimension,
-                                        uint64_t *size_tracker,
+                                        uint64_t &size_tracker,
                                         bool allocate_gpu_memory) {
   PUSH_RANGE("create zero radix ct");
   radix->lwe_dimension = lwe_dimension;

@@ -94,7 +94,7 @@ __host__ uint64_t scratch_cuda_expand_without_verification(
   *mem_ptr = new zk_expand_mem<Torus>(
       streams, gpu_indexes, gpu_count, computing_params, casting_params,
       casting_key_type, num_lwes_per_compact_list, is_boolean_array,
-      num_compact_lists, allocate_gpu_memory, &size_tracker);
+      num_compact_lists, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

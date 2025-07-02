@@ -100,7 +100,7 @@ __host__ uint64_t scratch_cuda_integer_radix_cmux_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_cmux_buffer<Torus>(
       streams, gpu_indexes, gpu_count, predicate_lut_f, params,
-      num_radix_blocks, allocate_gpu_memory, &size_tracker);
+      num_radix_blocks, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 #endif

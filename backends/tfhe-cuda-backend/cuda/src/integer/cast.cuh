@@ -44,7 +44,7 @@ __host__ uint64_t scratch_extend_radix_with_sign_msb(
 
   *mem_ptr = new int_extend_radix_with_sign_msb_buffer<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      num_additional_blocks, allocate_gpu_memory, &size_tracker);
+      num_additional_blocks, allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }

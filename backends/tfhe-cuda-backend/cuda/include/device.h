@@ -49,7 +49,7 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index);
 
 void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
                                            uint32_t gpu_index,
-                                           uint64_t *size_tracker,
+                                           uint64_t &size_tracker,
                                            bool allocate_gpu_memory);
 
 void *cuda_malloc_async(uint64_t size, cudaStream_t stream, uint32_t gpu_index);

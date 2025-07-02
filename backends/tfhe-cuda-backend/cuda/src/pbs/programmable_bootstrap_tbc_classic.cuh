@@ -253,7 +253,7 @@ __host__ uint64_t scratch_programmable_bootstrap_tbc(
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::TBC,
-      allocate_gpu_memory, allocate_ms_array, &size_tracker);
+      allocate_gpu_memory, allocate_ms_array, size_tracker);
   return size_tracker;
 }
 

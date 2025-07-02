@@ -9,7 +9,7 @@ void multi_gpu_alloc_array_async(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
                                  uint32_t elements_per_gpu,
-                                 uint64_t *size_tracker_on_gpu_0,
+                                 uint64_t &size_tracker_on_gpu_0,
                                  bool allocate_gpu_memory) {
 
   dest.resize(gpu_count);
@@ -17,10 +17,10 @@ void multi_gpu_alloc_array_async(cudaStream_t const *streams,
     uint64_t size_tracker_on_gpu_i = 0;
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         elements_per_gpu * sizeof(Torus), streams[i], gpu_indexes[i],
-        &size_tracker_on_gpu_i, allocate_gpu_memory);
+        size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
+    if (i == 0) {
+      size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
     }
   }
 }
@@ -46,7 +46,7 @@ void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
                                uint32_t const *gpu_indexes, uint32_t gpu_count,
                                std::vector<Torus *> &dest, uint32_t num_inputs,
                                uint32_t lwe_size,
-                               uint64_t *size_tracker_on_gpu_0,
+                               uint64_t &size_tracker_on_gpu_0,
                                bool allocate_gpu_memory) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
@@ -54,10 +54,10 @@ void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         inputs_on_gpu * lwe_size * sizeof(Torus), streams[i], gpu_indexes[i],
-        &size_tracker_on_gpu_i, allocate_gpu_memory);
+        size_tracker_on_gpu_i, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
+    if (i == 0) {
+      size_tracker_on_gpu_0 += size_tracker_on_gpu_i;
     }
   }
 }
@@ -65,7 +65,7 @@ void multi_gpu_alloc_lwe_async(cudaStream_t const *streams,
 template void multi_gpu_alloc_lwe_async<__uint128_t>(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, std::vector<__uint128_t *> &dest, uint32_t num_inputs,
-    uint32_t lwe_size, uint64_t *size_tracker_on_gpu_0,
+    uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0,
     bool allocate_gpu_memory);
 
 /// Allocates the input/output vector for all devices
@@ -75,7 +75,7 @@ template <typename Torus>
 void multi_gpu_alloc_lwe_many_lut_output_async(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, std::vector<Torus *> &dest, uint32_t num_inputs,
-    uint32_t num_many_lut, uint32_t lwe_size, uint64_t *size_tracker_on_gpu_0,
+    uint32_t num_many_lut, uint32_t lwe_size, uint64_t &size_tracker_on_gpu_0,
     bool allocate_gpu_memory) {
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
@@ -83,10 +83,10 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
     auto inputs_on_gpu = get_num_inputs_on_gpu(num_inputs, i, gpu_count);
     Torus *d_array = (Torus *)cuda_malloc_with_size_tracking_async(
         num_many_lut * inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
-        gpu_indexes[i], &size_tracker, allocate_gpu_memory);
+        gpu_indexes[i], size_tracker, allocate_gpu_memory);
     dest[i] = d_array;
-    if (i == 0 && size_tracker_on_gpu_0 != nullptr) {
-      *size_tracker_on_gpu_0 += size_tracker;
+    if (i == 0) {
+      size_tracker_on_gpu_0 += size_tracker;
     }
   }
 }

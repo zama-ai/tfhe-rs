@@ -26,7 +26,7 @@ __host__ uint64_t scratch_cuda_integer_abs_kb(
   if (is_signed) {
     *mem_ptr = new int_abs_buffer<Torus>(streams, gpu_indexes, gpu_count,
                                          params, num_blocks,
-                                         allocate_gpu_memory, &size_tracker);
+                                         allocate_gpu_memory, size_tracker);
   }
   return size_tracker;
 }

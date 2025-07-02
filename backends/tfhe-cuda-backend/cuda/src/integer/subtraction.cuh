@@ -23,7 +23,7 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry(
 
   *mem_ptr = new int_sub_and_propagate<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
 
   return size_tracker;
 }

@@ -370,7 +370,7 @@ __host__ uint64_t scratch_cuda_compress_integer_radix_ciphertext(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_compression<Torus>(
       streams, gpu_indexes, gpu_count, compression_params, num_radix_blocks,
-      lwe_per_glwe, storage_log_modulus, allocate_gpu_memory, &size_tracker);
+      lwe_per_glwe, storage_log_modulus, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -386,7 +386,7 @@ __host__ uint64_t scratch_cuda_integer_decompress_radix_ciphertext(
   *mem_ptr = new int_decompression<Torus>(
       streams, gpu_indexes, gpu_count, encryption_params, compression_params,
       num_radix_blocks, body_count, storage_log_modulus, allocate_gpu_memory,
-      &size_tracker);
+      size_tracker);
   return size_tracker;
 }
 #endif

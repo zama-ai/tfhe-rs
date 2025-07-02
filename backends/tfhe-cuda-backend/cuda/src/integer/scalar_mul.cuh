@@ -38,7 +38,7 @@ __host__ uint64_t scratch_cuda_integer_radix_scalar_mul_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_scalar_mul_buffer<T>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      num_scalar_bits, allocate_gpu_memory, true, &size_tracker);
+      num_scalar_bits, allocate_gpu_memory, true, size_tracker);
   return size_tracker;
 }
 

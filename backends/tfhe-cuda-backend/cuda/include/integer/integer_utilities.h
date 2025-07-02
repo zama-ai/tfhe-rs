@@ -289,7 +289,7 @@ template <typename Torus> struct int_radix_lut {
   int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                uint64_t *size_tracker) {
+                uint64_t &size_tracker) {
 
     this->params = params;
     this->num_blocks = num_radix_blocks;
@@ -316,9 +316,9 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.allocate_ms_array, &size);
-      if (i == 0 && size_tracker != nullptr) {
-        *size_tracker += size;
+          allocate_gpu_memory, params.allocate_ms_array, size);
+      if (i == 0) {
+        size_tracker += size;
       }
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
@@ -412,7 +412,7 @@ template <typename Torus> struct int_radix_lut {
   int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, int_radix_lut *base_lut_object,
-                bool allocate_gpu_memory, uint64_t *size_tracker) {
+                bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     this->params = params;
     this->num_blocks = num_radix_blocks;
@@ -504,7 +504,7 @@ template <typename Torus> struct int_radix_lut {
   int_radix_lut(cudaStream_t const *streams, uint32_t const *input_gpu_indexes,
                 uint32_t gpu_count, int_radix_params params, uint32_t num_luts,
                 uint32_t num_radix_blocks, uint32_t num_many_lut,
-                bool allocate_gpu_memory, uint64_t *size_tracker) {
+                bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     this->num_many_lut = num_many_lut;
     this->params = params;
@@ -532,9 +532,9 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.allocate_ms_array, &size);
+          allocate_gpu_memory, params.allocate_ms_array, size);
       if (i == 0) {
-        *size_tracker += size;
+        size_tracker += size;
       }
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       buffer.push_back(gpu_pbs_buffer);
@@ -808,7 +808,7 @@ template <typename InputTorus> struct int_noise_squashing_lut {
                           uint32_t input_polynomial_size,
                           uint32_t num_radix_blocks,
                           uint32_t original_num_blocks,
-                          bool allocate_gpu_memory, uint64_t *size_tracker) {
+                          bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     this->num_blocks = num_radix_blocks;
     gpu_memory_allocated = allocate_gpu_memory;
@@ -838,10 +838,10 @@ template <typename InputTorus> struct int_noise_squashing_lut {
                               params.small_lwe_dimension, params.glwe_dimension,
                               params.polynomial_size, params.pbs_level,
                               num_radix_blocks_on_gpu, allocate_gpu_memory,
-                              params.allocate_ms_array, &size);
+                              params.allocate_ms_array, size);
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
-      if (i == 0 && size_tracker != nullptr) {
-        *size_tracker += size;
+      if (i == 0) {
+        size_tracker += size;
       }
       pbs_buffer.push_back(gpu_pbs_buffer);
     }
@@ -968,7 +968,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                               int_radix_params params, uint32_t bits_per_block,
                               uint32_t final_offset, uint32_t num_radix_blocks,
                               bool allocate_gpu_memory,
-                              uint64_t *size_tracker) {
+                              uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
 
@@ -1040,7 +1040,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
                               uint32_t const *gpu_indexes, uint32_t gpu_count,
                               int_radix_params params, uint32_t bits_per_block,
                               uint32_t num_radix_blocks,
-                              bool allocate_gpu_memory, uint64_t *size_tracker)
+                              bool allocate_gpu_memory, uint64_t &size_tracker)
       : int_bit_extract_luts_buffer(streams, gpu_indexes, gpu_count, params,
                                     bits_per_block, 0, num_radix_blocks,
                                     allocate_gpu_memory, size_tracker) {}
@@ -1078,7 +1078,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
                               int_radix_params params,
                               uint32_t num_radix_blocks,
                               bool allocate_gpu_memory,
-                              uint64_t *size_tracker) {
+                              uint64_t &size_tracker) {
     this->shift_type = shift_type;
     this->is_signed = is_signed;
     this->params = params;
@@ -1227,7 +1227,7 @@ template <typename Torus> struct int_fullprop_buffer {
 
   int_fullprop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                       uint32_t gpu_count, int_radix_params params,
-                      bool allocate_gpu_memory, uint64_t *size_tracker) {
+                      bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
     lut = new int_radix_lut<Torus>(streams, gpu_indexes, 1, params, 2, 2,
@@ -1312,7 +1312,7 @@ template <typename Torus> struct int_overflowing_sub_memory {
   int_overflowing_sub_memory(cudaStream_t const *streams,
                              uint32_t const *gpu_indexes, uint32_t gpu_count,
                              int_radix_params params, uint32_t num_radix_blocks,
-                             bool allocate_gpu_memory, uint64_t *size_tracker) {
+                             bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -1459,7 +1459,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
 
   void setup_index_buffers(cudaStream_t const *streams,
                            uint32_t const *gpu_indexes,
-                           uint64_t *size_tracker) {
+                           uint64_t &size_tracker) {
 
     d_degrees = (uint64_t *)cuda_malloc_with_size_tracking_async(
         max_total_blocks_in_vec * sizeof(uint64_t), streams[0], gpu_indexes[0],
@@ -1470,7 +1470,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     auto setup_columns =
         [num_blocks_in_radix, max_num_radix_in_vec, streams,
          gpu_indexes](uint32_t **&columns, uint32_t *&columns_data,
-                      uint32_t *&columns_counter, uint64_t *size_tracker,
+                      uint32_t *&columns_counter, uint64_t &size_tracker,
                       bool gpu_memory_allocated) {
           columns_data = (uint32_t *)cuda_malloc_with_size_tracking_async(
               num_blocks_in_radix * max_num_radix_in_vec * sizeof(uint32_t),
@@ -1524,7 +1524,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
         uint64_t size_tracker = 0;
         luts_message_carry =
             new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params, 2,
-                                     pbs_count, true, &size_tracker);
+                                     pbs_count, true, size_tracker);
         allocated_luts_message_carry = true;
       }
     }
@@ -1561,7 +1561,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       uint32_t gpu_count, int_radix_params params, uint32_t num_blocks_in_radix,
       uint32_t max_num_radix_in_vec,
       bool reduce_degrees_for_single_carry_propagation,
-      bool allocate_gpu_memory, uint64_t *size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->params = params;
     this->mem_reuse = false;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
@@ -1604,7 +1604,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
       CudaRadixCiphertextFFI *small_lwe_vector,
       int_radix_lut<Torus> *reused_lut,
       bool reduce_degrees_for_single_carry_propagation,
-      bool allocate_gpu_memory, uint64_t *size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
     this->mem_reuse = true;
     this->params = params;
     this->max_total_blocks_in_vec = num_blocks_in_radix * max_num_radix_in_vec;
@@ -1668,7 +1668,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
                             uint32_t const *gpu_indexes, uint32_t gpu_count,
                             int_radix_params params, uint32_t group_size,
                             uint32_t big_lwe_size_bytes,
-                            bool allocate_gpu_memory, uint64_t *size_tracker) {
+                            bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1728,7 +1728,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
                            uint32_t const *gpu_indexes, uint32_t gpu_count,
                            int_radix_params params, uint32_t num_groups,
                            uint32_t big_lwe_size_bytes,
-                           bool allocate_gpu_memory, uint64_t *size_tracker) {
+                           bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
     auto polynomial_size = params.polynomial_size;
@@ -1783,7 +1783,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
       uint32_t num_many_lut, uint32_t grouping_size, bool allocate_gpu_memory,
-      uint64_t *size_tracker) {
+      uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -1982,7 +1982,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
       uint32_t grouping_size, uint32_t num_groups, bool allocate_gpu_memory,
-      uint64_t *size_tracker) {
+      uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -2288,7 +2288,7 @@ template <typename Torus> struct int_sc_prop_memory {
                      uint32_t gpu_count, int_radix_params params,
                      uint32_t num_radix_blocks, uint32_t requested_flag_in,
                      uint32_t uses_carry, bool allocate_gpu_memory,
-                     uint64_t *size_tracker) {
+                     uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -2502,7 +2502,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, int_radix_params params, uint32_t num_radix_blocks,
       uint32_t num_many_lut, uint32_t grouping_size, bool allocate_gpu_memory,
-      uint64_t *size_tracker) {
+      uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     auto glwe_dimension = params.glwe_dimension;
@@ -2720,7 +2720,7 @@ template <typename Torus> struct int_borrow_prop_memory {
                          uint32_t const *gpu_indexes, uint32_t gpu_count,
                          int_radix_params params, uint32_t num_radix_blocks,
                          uint32_t compute_overflow_in, bool allocate_gpu_memory,
-                         uint64_t *size_tracker) {
+                         uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     auto glwe_dimension = params.glwe_dimension;
@@ -2876,7 +2876,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
   int_zero_out_if_buffer(cudaStream_t const *streams,
                          uint32_t const *gpu_indexes, uint32_t gpu_count,
                          int_radix_params params, uint32_t num_radix_blocks,
-                         bool allocate_gpu_memory, uint64_t *size_tracker) {
+                         bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
@@ -2930,7 +2930,7 @@ template <typename Torus> struct int_mul_memory {
                  uint32_t gpu_count, int_radix_params params,
                  bool const is_boolean_left, bool const is_boolean_right,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                 uint64_t *size_tracker) {
+                 uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->boolean_mul = is_boolean_left || is_boolean_right;
     this->params = params;
@@ -3085,7 +3085,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, SHIFT_OR_ROTATE_TYPE shift_type,
       int_radix_params params, uint32_t num_radix_blocks,
-      bool allocate_gpu_memory, uint64_t *size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->shift_type = shift_type;
     this->params = params;
@@ -3169,7 +3169,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
       uint32_t gpu_count, SHIFT_OR_ROTATE_TYPE shift_type,
       int_radix_params params, uint32_t num_radix_blocks,
       bool allocate_gpu_memory, CudaRadixCiphertextFFI *pre_allocated_buffer,
-      uint64_t *size_tracker) {
+      uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->shift_type = shift_type;
     this->params = params;
@@ -3282,7 +3282,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, SHIFT_OR_ROTATE_TYPE shift_type,
       int_radix_params params, uint32_t num_radix_blocks,
-      bool allocate_gpu_memory, uint64_t *size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     active_gpu_count = get_active_gpu_count(1, gpu_count);
     // In the arithmetic shift, a PBS has to be applied to the last rotated
@@ -3456,7 +3456,7 @@ template <typename Torus> struct int_cmux_buffer {
                   uint32_t gpu_count,
                   std::function<Torus(Torus)> predicate_lut_f,
                   int_radix_params params, uint32_t num_radix_blocks,
-                  bool allocate_gpu_memory, uint64_t *size_tracker) {
+                  bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
 
     this->params = params;
@@ -3567,7 +3567,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
                                 COMPARISON_TYPE op, int_radix_params params,
                                 uint32_t num_radix_blocks,
                                 bool allocate_gpu_memory,
-                                uint64_t *size_tracker) {
+                                uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -3629,7 +3629,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
                            uint32_t const *gpu_indexes, uint32_t gpu_count,
                            COMPARISON_TYPE op, int_radix_params params,
                            uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                           uint64_t *size_tracker) {
+                           uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -3730,7 +3730,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, std::function<Torus(Torus)> operator_f,
       int_radix_params params, uint32_t num_radix_blocks,
-      bool allocate_gpu_memory, uint64_t *size_tracker) {
+      bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
 
@@ -3810,7 +3810,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
                              uint32_t const *gpu_indexes, uint32_t gpu_count,
                              COMPARISON_TYPE op, int_radix_params params,
                              uint32_t num_radix_blocks,
-                             bool allocate_gpu_memory, uint64_t *size_tracker) {
+                             bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -3913,7 +3913,7 @@ template <typename Torus> struct int_comparison_buffer {
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
                         COMPARISON_TYPE op, int_radix_params params,
                         uint32_t num_radix_blocks, bool is_signed,
-                        bool allocate_gpu_memory, uint64_t *size_tracker) {
+                        bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->op = op;
@@ -4173,7 +4173,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   void init_temporary_buffers(cudaStream_t const *streams,
                               uint32_t const *gpu_indexes, uint32_t gpu_count,
                               uint32_t num_blocks, bool allocate_gpu_memory,
-                              uint64_t *size_tracker) {
+                              uint64_t &size_tracker) {
 
     // non boolean temporary arrays, with `num_blocks` blocks
     remainder1 = new CudaRadixCiphertextFFI;
@@ -4255,7 +4255,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
   void init_lookup_tables(cudaStream_t const *streams,
                           uint32_t const *gpu_indexes, uint32_t gpu_count,
                           uint32_t num_blocks, bool allocate_gpu_memory,
-                          uint64_t *size_tracker) {
+                          uint64_t &size_tracker) {
     uint32_t num_bits_in_message = 31 - __builtin_clz(params.message_modulus);
 
     // create and generate masking_luts_1[] and masking_lut_2[]
@@ -4422,7 +4422,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                               uint32_t const *gpu_indexes, uint32_t gpu_count,
                               int_radix_params params, uint32_t num_blocks,
                               bool allocate_gpu_memory,
-                              uint64_t *size_tracker) {
+                              uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
 
@@ -4475,7 +4475,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                                        uint32_t const *gpu_indexes,
                                        uint32_t num_blocks, uint32_t group_size,
                                        bool use_seq, bool allocate_gpu_memory,
-                                       uint64_t *size_tracker) {
+                                       uint64_t &size_tracker) {
     max_indexes_to_erase = num_blocks;
 
     first_indexes_for_overflow_sub =
@@ -4727,7 +4727,7 @@ template <typename Torus> struct int_bitop_buffer {
   int_bitop_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    uint32_t gpu_count, BITOP_TYPE op, int_radix_params params,
                    uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                   uint64_t *size_tracker) {
+                   uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->op = op;
     this->params = params;
@@ -4815,7 +4815,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
                         int_radix_params params, uint32_t num_radix_blocks,
                         uint32_t num_scalar_bits, bool allocate_gpu_memory,
-                        bool anticipated_buffer_drop, uint64_t *size_tracker) {
+                        bool anticipated_buffer_drop, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     this->anticipated_buffers_drop = anticipated_buffer_drop;
@@ -4831,7 +4831,7 @@ template <typename Torus> struct int_scalar_mul_buffer {
     create_zero_radix_ciphertext_async<Torus>(
         streams[0], gpu_indexes[0], preshifted_buffer,
         msg_bits * num_radix_blocks, params.big_lwe_dimension,
-        &anticipated_drop_mem, allocate_gpu_memory);
+        anticipated_drop_mem, allocate_gpu_memory);
 
     all_shifted_buffer = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -4842,27 +4842,27 @@ template <typename Torus> struct int_scalar_mul_buffer {
     if (num_ciphertext_bits * num_radix_blocks >= num_radix_blocks + 2)
       logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(
           streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
-          allocate_gpu_memory, all_shifted_buffer, &anticipated_drop_mem);
+          allocate_gpu_memory, all_shifted_buffer, anticipated_drop_mem);
     else
       logical_scalar_shift_buffer = new int_logical_scalar_shift_buffer<Torus>(
           streams, gpu_indexes, gpu_count, LEFT_SHIFT, params, num_radix_blocks,
-          allocate_gpu_memory, &anticipated_drop_mem);
+          allocate_gpu_memory, anticipated_drop_mem);
 
     uint64_t last_step_mem = 0;
     if (num_ciphertext_bits > 0) {
       sum_ciphertexts_vec_mem = new int_sum_ciphertexts_vec_memory<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          num_ciphertext_bits, true, allocate_gpu_memory, &last_step_mem);
+          num_ciphertext_bits, true, allocate_gpu_memory, last_step_mem);
     }
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        requested_flag, uses_carry, allocate_gpu_memory, &last_step_mem);
+        requested_flag, uses_carry, allocate_gpu_memory, last_step_mem);
     if (anticipated_buffer_drop) {
-      *size_tracker += std::max(anticipated_drop_mem, last_step_mem);
+      size_tracker += std::max(anticipated_drop_mem, last_step_mem);
     } else {
-      *size_tracker += anticipated_drop_mem + last_step_mem;
+      size_tracker += anticipated_drop_mem + last_step_mem;
     }
   }
 
@@ -4900,7 +4900,7 @@ template <typename Torus> struct int_abs_buffer {
   int_abs_buffer(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                  uint32_t gpu_count, int_radix_params params,
                  uint32_t num_radix_blocks, bool allocate_gpu_memory,
-                 uint64_t *size_tracker) {
+                 uint64_t &size_tracker) {
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
     arithmetic_scalar_shift_mem = new int_arithmetic_scalar_shift_buffer<Torus>(
@@ -4970,7 +4970,7 @@ template <typename Torus> struct int_div_rem_memory {
   int_div_rem_memory(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                      uint32_t gpu_count, int_radix_params params,
                      bool is_signed, uint32_t num_blocks,
-                     bool allocate_gpu_memory, uint64_t *size_tracker) {
+                     bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
     this->active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
@@ -5144,7 +5144,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
       uint32_t gpu_count, const int_radix_params params,
       uint32_t num_radix_blocks, const bool allocate_gpu_memory,
       SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
-      bool anticipated_buffer_drop, uint64_t *size_tracker) {
+      bool anticipated_buffer_drop, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5191,7 +5191,7 @@ template <typename Torus> struct int_sub_and_propagate {
                         uint32_t const *gpu_indexes, uint32_t gpu_count,
                         const int_radix_params params,
                         uint32_t num_radix_blocks, uint32_t requested_flag_in,
-                        bool allocate_gpu_memory, uint64_t *size_tracker) {
+                        bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5232,7 +5232,7 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, const int_radix_params params,
       uint32_t num_radix_blocks, uint32_t num_additional_blocks,
-      const bool allocate_gpu_memory, uint64_t *size_tracker) {
+      const bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5311,7 +5311,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
       uint32_t num_radix_blocks, const bool allocate_gpu_memory,
       bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
       bool multiplier_exceeds_threshold, uint32_t ilog2_divisor,
-      uint32_t num_scalar_bits, uint64_t *size_tracker) {
+      uint32_t num_scalar_bits, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5412,7 +5412,7 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
       uint32_t gpu_count, const int_radix_params params,
       uint32_t num_radix_blocks, const bool allocate_gpu_memory,
       SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
-      uint64_t *size_tracker) {
+      uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5474,7 +5474,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
                             bool is_absolute_divisor_one,
                             bool is_divisor_negative, bool l_exceed_threshold,
                             bool is_power_of_two, bool multiplier_is_small,
-                            uint64_t *size_tracker) {
+                            uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;

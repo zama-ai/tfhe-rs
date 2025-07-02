@@ -1472,7 +1472,7 @@ uint64_t scratch_cuda_full_propagation(cudaStream_t const *streams,
   uint64_t size_tracker = 0;
   *mem_ptr =
       new int_fullprop_buffer<Torus>(streams, gpu_indexes, gpu_count, params,
-                                     allocate_gpu_memory, &size_tracker);
+                                     allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -1707,7 +1707,7 @@ uint64_t scratch_cuda_apply_univariate_lut_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, allocate_gpu_memory,
-                                      &size_tracker);
+                                      size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -1743,7 +1743,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, num_many_lut,
-                                      allocate_gpu_memory, &size_tracker);
+                                      allocate_gpu_memory, size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -1779,7 +1779,7 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count, params,
                                       1, num_radix_blocks, allocate_gpu_memory,
-                                      &size_tracker);
+                                      size_tracker);
   // It is safe to do this copy on GPU 0, because all LUTs always reside on GPU
   // 0
   cuda_memcpy_with_size_tracking_async_to_gpu(
@@ -1817,7 +1817,7 @@ uint64_t scratch_cuda_propagate_single_carry_kb_inplace(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_sc_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks, requested_flag,
-      uses_carry, allocate_gpu_memory, &size_tracker);
+      uses_carry, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 // This function perform the three steps of Thomas' new carry propagation
@@ -2080,7 +2080,7 @@ uint64_t scratch_cuda_integer_overflowing_sub(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_borrow_prop_memory<Torus>(
       streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-      compute_overflow, allocate_gpu_memory, &size_tracker);
+      compute_overflow, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

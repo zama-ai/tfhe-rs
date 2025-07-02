@@ -21,7 +21,7 @@ __host__ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_logical_scalar_shift_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
@@ -133,7 +133,7 @@ __host__ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_arithmetic_scalar_shift_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, params, num_radix_blocks,
-      allocate_gpu_memory, &size_tracker);
+      allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 

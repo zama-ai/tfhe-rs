@@ -21,7 +21,7 @@ __host__ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb(
   uint64_t size_tracker = 0;
   *mem_ptr = new int_shift_and_rotate_buffer<Torus>(
       streams, gpu_indexes, gpu_count, shift_type, is_signed, params,
-      num_radix_blocks, allocate_gpu_memory, &size_tracker);
+      num_radix_blocks, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
