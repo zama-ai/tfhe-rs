@@ -515,10 +515,10 @@ clippy_hpu_backend: install_rs_check_toolchain
 		-p tfhe-hpu-backend -- --no-deps -D warnings
 
 .PHONY: clippy_hpu_mockup # Run clippy lints on tfhe-hpu-mockup
-clippy_hpu: install_rs_check_toolchain
+clippy_hpu_mockup: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--all-targets \
-		-p tfhe-hpu-backend -- --no-deps -D warnings
+		-p tfhe-hpu-mockup -- --no-deps -D warnings
 
 .PHONY: check_rust_bindings_did_not_change # Check rust bindings are up to date for tfhe-cuda-backend
 check_rust_bindings_did_not_change:
