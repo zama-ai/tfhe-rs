@@ -3629,6 +3629,9 @@ fn go_through_hpu_bench_groups(val: &str) {
             hpu::default_hpu_bitwise();
             hpu::default_hpu_cmp();
             hpu::default_hpu_select();
+            hpu::default_hpu_shiftrot();
+            hpu::default_hpu_shiftrot_scalar();
+            hpu::default_hpu_bitcnt();
         }
         "fast_default" => {
             hpu::default_hpu_ops();

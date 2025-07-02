@@ -29,6 +29,7 @@ fn bench_fhe_type<FheType>(
         + RotateRight<&'a FheType, Output = FheType>
         + OverflowingAdd<&'a FheType, Output = FheType>
         + OverflowingSub<&'a FheType, Output = FheType>,
+    for<'a> FheType: FheMin<&'a FheType, Output = FheType> + FheMax<&'a FheType, Output = FheType>,
 {
     let mut bench_group = c.benchmark_group(type_name);
     let bench_prefix = "hlapi::ops";
@@ -66,31 +67,25 @@ fn bench_fhe_type<FheType>(
     });
     write_record(bench_id, "add");
 
-    #[cfg(not(feature = "hpu"))]
-    {
-        bench_id = format!("{bench_prefix}::overflowing_add::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let (res, flag) = lhs.overflowing_add(&rhs);
-                res.wait();
-                black_box((res, flag))
-            })
-        });
-        write_record(bench_id, "overflowing_add");
-    }
+    bench_id = format!("{bench_prefix}::overflowing_add::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let (res, flag) = lhs.overflowing_add(&rhs);
+            res.wait();
+            black_box((res, flag))
+        })
+    });
+    write_record(bench_id, "overflowing_add");
 
-    #[cfg(not(feature = "hpu"))]
-    {
-        bench_id = format!("{bench_prefix}::overflowing_sub::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let (res, flag) = lhs.overflowing_sub(&rhs);
-                res.wait();
-                black_box((res, flag))
-            })
-        });
-        write_record(bench_id, "overflowing_sub");
-    }
+    bench_id = format!("{bench_prefix}::overflowing_sub::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let (res, flag) = lhs.overflowing_sub(&rhs);
+            res.wait();
+            black_box((res, flag))
+        })
+    });
+    write_record(bench_id, "overflowing_sub");
 
     bench_id = format!("{bench_prefix}::sub::{param_name}::{bit_size}_bits");
     bench_group.bench_function(&bench_id, |b| {
@@ -142,48 +137,65 @@ fn bench_fhe_type<FheType>(
     });
     write_record(bench_id, "bitxor");
 
-    #[cfg(not(feature = "hpu"))]
-    {
-        bench_id = format!("{bench_prefix}::left_shift::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let res = &lhs << &rhs;
-                res.wait();
-                black_box(res)
-            })
-        });
-        write_record(bench_id, "left_shift");
+    bench_id = format!("{bench_prefix}::left_shift::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = &lhs << &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "left_shift");
 
-        bench_id = format!("{bench_prefix}::right_shift::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let res = &lhs >> &rhs;
-                res.wait();
-                black_box(res)
-            })
-        });
-        write_record(bench_id, "right_shift");
+    bench_id = format!("{bench_prefix}::right_shift::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = &lhs >> &rhs;
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "right_shift");
 
-        bench_id = format!("{bench_prefix}::left_rotate::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let res = (&lhs).rotate_left(&rhs);
-                res.wait();
-                black_box(res)
-            })
-        });
-        write_record(bench_id, "left_rotate");
+    bench_id = format!("{bench_prefix}::left_rotate::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = (&lhs).rotate_left(&rhs);
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "left_rotate");
 
-        bench_id = format!("{bench_prefix}::right_rotate::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            b.iter(|| {
-                let res = (&lhs).rotate_right(&rhs);
-                res.wait();
-                black_box(res)
-            })
-        });
-        write_record(bench_id, "right_rotate");
-    }
+    bench_id = format!("{bench_prefix}::right_rotate::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = (&lhs).rotate_right(&rhs);
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "right_rotate");
+
+    bench_id = format!("{bench_prefix}::min::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = lhs.min(&rhs);
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "min");
+
+    bench_id = format!("{bench_prefix}::max::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
+        b.iter(|| {
+            let res = lhs.max(&rhs);
+            res.wait();
+            black_box(res)
+        })
+    });
+    write_record(bench_id, "max");
 }
 
 macro_rules! bench_type {
