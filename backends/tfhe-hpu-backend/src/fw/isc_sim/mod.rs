@@ -39,7 +39,7 @@ impl Event {
     }
 }
 
-/// Event are stored in a BinaryHeap and we want to pop the smallest one firs
+/// Event are stored in a BinaryHeap and we want to pop the smallest one first
 /// Thuse Ord trait is implemented in a "reverse".
 impl Ord for Event {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
