@@ -1004,11 +1004,11 @@ where
                    expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
-                   decrypted_overflowed,
-                   expected_overflowed,
-                   "Invalid overflow flag result for overflowing_mul, for ({clear_lhs} -{clear_rhs}) % {modulus}
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_mul, for ({clear_lhs} -{clear_rhs}) % {modulus}
                     expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-                );
+            );
             assert_eq!(result_overflowed.0.degree.get(), 1);
             assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
         }
@@ -1708,11 +1708,11 @@ where
              expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
              expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
+            );
             assert_eq!(result_overflowed.0.degree.get(), 1);
             assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
 
@@ -1739,11 +1739,11 @@ where
                 expected {expected_result}, got {decrypted_result}"
                 );
                 assert_eq!(
-                decrypted_overflowed,
-                expected_overflowed,
-                "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
+                    decrypted_overflowed,
+                    expected_overflowed,
+                    "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-            );
+                );
                 assert_eq!(result_overflowed.0.degree.get(), 1);
                 assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
             }
@@ -1769,11 +1769,11 @@ where
                 expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
+            );
             assert_eq!(encrypted_overflow.0.degree.get(), 1);
             assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
         }
@@ -1798,11 +1798,11 @@ where
                 expected {expected_result}, got {decrypted_result}"
             );
             assert_eq!(
-            decrypted_overflowed,
-            expected_overflowed,
-            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
                 expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
-        );
+            );
             assert!(decrypted_overflowed); // Actually we know its an overflow case
             assert_eq!(encrypted_overflow.0.degree.get(), 1);
             assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
@@ -2598,5 +2598,89 @@ where
         assert_eq!(ct.blocks[1].noise_degree(), clean_noise_degree);
         assert_eq!(ct.blocks[2].noise_degree(), clean_noise_degree);
         assert_eq!(ct.blocks[3].noise_degree(), clean_noise_degree);
+    }
+
+    {
+        // Test corner case where all blocks (except first) have degree 0, but non-nominal noise
+        // to make sure they are still cleaned up
+        let mut ct = RadixCiphertext::from(vec![
+            cks.encrypt_one_block(block_msg_mod - 1),
+            cks.encrypt_one_block(0),
+            cks.encrypt_one_block(0),
+            cks.encrypt_one_block(0),
+        ]);
+
+        // Add to have non-nominal noise level
+        let ct_cloned = ct.clone();
+        sks.unchecked_add_assign(&mut ct, &ct_cloned);
+
+        // Set degree to 0 for all blocks (except first)
+        for block in &mut ct.blocks[1..] {
+            block.degree = Degree::new(0);
+        }
+
+        // Check we crafted what we want
+        assert_eq!(
+            ct.blocks[0].noise_degree(),
+            CiphertextNoiseDegree::new(
+                NoiseLevel::NOMINAL * 2,
+                Degree::new((block_msg_mod - 1) * 2)
+            )
+        );
+        for block in &mut ct.blocks[1..] {
+            assert_eq!(
+                block.noise_degree(),
+                CiphertextNoiseDegree::new(NoiseLevel::NOMINAL * 2, Degree::new(0))
+            );
+        }
+
+        executor.execute(&mut ct);
+
+        let clean_degree = Degree::new(block_msg_mod - 1);
+        for block in &mut ct.blocks {
+            assert_eq!(block.noise_level(), NoiseLevel::NOMINAL);
+            assert!(block.degree <= clean_degree);
+        }
+
+        let decrypted: u64 = cks.decrypt(&ct);
+        assert_eq!(decrypted, (block_msg_mod - 1) * 2);
+    }
+
+    // Here we want to test that propagating a radix which has trivial zeros in its MSB
+    // yields correct results. We do this test as our implementation skips the propagation
+    // on the MSB when they are trivial zeros
+    {
+        let nb_blocks = 4;
+        let num_bits_in_msg = sks.message_modulus().0.ilog2();
+
+        // The maximum encryptable value, i.e. all bits set to 1
+        let clear_a = (1u32 << num_bits_in_msg) - 1;
+        // The most significant block is full of 1, the least significant bit is 1
+        // all other bits are 0
+        let clear_b = ((1 << num_bits_in_msg) - 1) << (num_bits_in_msg * (nb_blocks - 1)) | 1u32;
+
+        let a = cks.as_ref().encrypt_radix(clear_a, nb_blocks as usize);
+        let b = cks.as_ref().encrypt_radix(clear_b, nb_blocks as usize);
+
+        // Cast to double precision, making the top nb_blocks be trivial zeros
+        let mut a = sks.cast_to_unsigned(a, 2 * nb_blocks as usize);
+        let b = sks.cast_to_unsigned(b, 2 * nb_blocks as usize);
+
+        sks.unchecked_add_assign(&mut a, &b);
+        executor.execute(&mut a);
+
+        assert!(a.block_carries_are_empty());
+        assert!(a
+            .blocks
+            .iter()
+            .all(|b| b.noise_level() <= NoiseLevel::NOMINAL));
+
+        let result: u32 = cks.as_ref().decrypt_radix(&a);
+        let expected = clear_a + clear_b;
+        assert_eq!(
+            result,
+            clear_a + clear_b,
+            "Invalid full propagation result for {clear_a} + {clear_b}, expected {expected}, got {result}"
+        );
     }
 }
