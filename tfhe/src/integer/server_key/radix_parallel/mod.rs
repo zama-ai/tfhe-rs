@@ -227,13 +227,36 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let num_blocks = ctxt.blocks().len();
+
+        // Start the propagation on the first block that has carries
         let start_index = ctxt
             .blocks()
             .iter()
             .position(|block| !block.carry_is_empty())
             .unwrap_or(num_blocks);
 
-        let (to_be_cleaned, to_be_propagated) = ctxt.blocks_mut().split_at_mut(start_index);
+        // End the propagation 2 blocks after the last non-trivial zero block.
+        // We end it 2 blocks after because, in the worst case:
+        // 1) the last block (block `n`) 'immediate' carry will be the block n+1
+        // 2) a carry may be propagated from a block `< n` to block `n + 2` because block n is full
+        //
+        // e.g., 2 blocks, 2_2, notation: 0bcarry|msg, block in little endian order
+        // input: [0b11|11, 0b11|11, 0b00|00, 0b00|00, 0b00|00] = (5 * 15) % (1024)
+        // msg  : [0b00|11, 0b00|11, 0b00|00, 0b00|00, 0b00|00] = 15
+        // carry: [0b00|00, 0b00|11, 0b00|11, 0b00|00, 0b00|00] = 60
+        // msg + carry = [0b00|11, 0b00|11+11, 0b00|11, 0b00|00, 0b00|00]
+        // msg + carry = [0b00|00, 0b00|10, 0b00|11+1, 0b00|00, 0b00|00]
+        // msg + carry = [0b00|00, 0b00|10, 0b00|00, 0b0|01, 0b00|00] = 75 = 5 * 15
+        // As we can see, the result is on n+2 = 4 block
+        // there is no need to consider the last block
+        let end_index = ctxt
+            .blocks()
+            .iter()
+            .rposition(|block| block.degree.get() != 0)
+            .map_or(num_blocks, |pos| (pos + 2).min(num_blocks));
+
+        let blocks = &mut ctxt.blocks_mut()[..end_index];
+        let (to_be_cleaned, to_be_propagated) = blocks.split_at_mut(start_index);
 
         rayon::scope(|s| {
             if !to_be_propagated.is_empty() {
