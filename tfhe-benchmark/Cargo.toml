@@ -29,6 +29,7 @@ rand = { workspace = true }
 rayon = { workspace = true }
 tfhe = { path = "../tfhe" }
 tfhe-csprng = { path = "../tfhe-csprng" }
+diol = "0.13.1"
 
 [features]
 boolean = ["tfhe/boolean"]
@@ -157,3 +158,9 @@ required-features = ["integer", "internal-keycache"]
 name = "wasm_benchmarks_parser"
 path = "src/bin/wasm_benchmarks_parser.rs"
 required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
+name = "integer-bench2"
+path = "benches/integer/bench2.rs"
+harness = false
+required-features = ["integer", "pbs-stats", "internal-keycache"]

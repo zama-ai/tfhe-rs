@@ -133,13 +133,9 @@ fn bench_server_key_binary_function_clean_inputs<F>(
                         (ct_0, ct_1)
                     };
 
-                    b.iter_batched(
-                        encrypt_two_values,
-                        |(mut ct_0, mut ct_1)| {
-                            binary_op(&sks, &mut ct_0, &mut ct_1);
-                        },
-                        criterion::BatchSize::SmallInput,
-                    )
+                    b.iter(|(mut ct_0, mut ct_1)| {
+                        binary_op(&sks, &mut ct_0, &mut ct_1);
+                    })
                 });
             }
             BenchmarkType::Throughput => {
