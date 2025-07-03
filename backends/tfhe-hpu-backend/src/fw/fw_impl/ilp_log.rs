@@ -482,6 +482,7 @@ pub fn iop_propagate_msb_to_lsb_blockv(
     // (op_nb_bool**k)*proc_nb
     //assert_eq!(g_a.len(),props.blk_w());
     let grp_nb = g_a.len().div_ceil(proc_nb);
+    let mut level_nb = 0;
     let mut stride_size: usize = 1; // in group unit
     while stride_size < grp_nb {
         for chk in g_a.chunks_mut(op_nb_bool * stride_size * proc_nb) {
@@ -499,31 +500,69 @@ pub fn iop_propagate_msb_to_lsb_blockv(
         }
 
         stride_size *= op_nb_bool;
+        level_nb += 1;
     }
+
+    // This code was written for a limited size, due the following
+    // leveled additions.
+    assert!(level_nb < op_nb_bool);
 
     // Third step
     // Apply
-    g_a.chunks_mut(proc_nb).rev().fold(None, |acc, chk| {
-        if let Some(x) = acc {
+    let mut neigh_a: Vec<metavar::MetaVarCell> = Vec::new();
+    for _i in 1..level_nb {
+        neigh_a.push(prog.new_cst(0));
+    }
+
+    let mut neigh = prog.new_cst(0);
+    let mut prev = None;
+    g_a.chunks_mut(proc_nb)
+        .enumerate()
+        .rev()
+        .for_each(|(chk_idx, chk)| {
+            let keep_v0 = chk[0].clone();
+
+            let all_neigh = if let Some(x) = &prev {
+                &neigh + x
+            } else {
+                neigh.clone()
+            };
+
             for (idx, v) in chk.iter_mut().enumerate() {
                 if idx == 0 {
-                    // [0] is already complete.
-                    // Need to inverse it for 0 if needed
-                    if inverse_output.unwrap_or(false) {
-                        *v = v.pbs(&pbs_is_null, false);
-                    }
+                    // [0] is already complete with prev.
+                    // do not need to add prev
+                    *v = &*v + &neigh;
                 } else {
-                    *v = &*v + x;
-                    if inverse_output.unwrap_or(false) {
-                        *v = v.pbs(&pbs_is_null, false);
-                    } else {
-                        *v = v.pbs(&pbs_not_null, false);
-                    }
+                    *v = &*v + &all_neigh;
+                }
+                // Need to inverse it for 0 if needed
+                if inverse_output.unwrap_or(false) {
+                    *v = v.pbs(&pbs_is_null, false);
+                } else {
+                    *v = v.pbs(&pbs_not_null, false);
                 }
             }
-        }
-        Some(&chk[0])
-    });
+
+            // For next chunk
+            prev = Some(keep_v0.clone());
+
+            // Update neighbors for next iteration
+            let mut do_update_neigh = false;
+            for i in 1..(level_nb as u32) {
+                if (chk_idx % op_nb_bool.pow(i)) == 0 {
+                    // Update the corresponding neigh value
+                    neigh_a[(i - 1) as usize] = keep_v0.clone();
+                    do_update_neigh = true;
+                }
+            }
+            if do_update_neigh {
+                neigh = neigh_a[0].clone();
+                for n in neigh_a.iter().skip(1) {
+                    neigh = &neigh + n;
+                }
+            }
+        });
 
     if inverse_direction.unwrap_or(false) {
         g_a.reverse();
