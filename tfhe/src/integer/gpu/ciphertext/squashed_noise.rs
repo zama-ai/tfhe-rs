@@ -2,9 +2,12 @@ use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{LweCiphertextCount, LweCiphertextOwned, LweSize};
 use crate::integer::ciphertext::{
-    SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext, SquashedNoiseSignedRadixCiphertext,
+    DataKind, SquashedNoiseBooleanBlock, SquashedNoiseRadixCiphertext,
+    SquashedNoiseSignedRadixCiphertext,
 };
+use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressible;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
+use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::shortint::ciphertext::{Degree, NoiseLevel, SquashedNoiseCiphertext};
 use crate::shortint::parameters::CoreCiphertextModulus;
 use crate::shortint::{AtomicPatternKind, CarryModulus, MessageModulus, PBSOrder};
@@ -62,6 +65,14 @@ impl CudaSquashedNoiseRadixCiphertext {
         }
     }
 
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            packed_d_blocks: self.packed_d_blocks.duplicate(streams),
+            info: self.info.duplicate(),
+            original_block_count: self.original_block_count,
+        }
+    }
+
     pub(crate) fn to_squashed_noise_radix_ciphertext(
         &self,
         streams: &CudaStreams,
@@ -106,6 +117,15 @@ impl CudaSquashedNoiseSignedRadixCiphertext {
             original_block_count: self.ciphertext.original_block_count,
         }
     }
+
+    pub(crate) fn duplicate(
+        &self,
+        streams: &CudaStreams,
+    ) -> CudaSquashedNoiseSignedRadixCiphertext {
+        Self {
+            ciphertext: self.ciphertext.duplicate(streams),
+        }
+    }
 }
 
 impl CudaSquashedNoiseBooleanBlock {
@@ -119,6 +139,12 @@ impl CudaSquashedNoiseBooleanBlock {
                 .to_squashed_noise_radix_ciphertext(streams)
                 .packed_blocks[0]
                 .clone(),
+        }
+    }
+
+    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> CudaSquashedNoiseBooleanBlock {
+        Self {
+            ciphertext: self.ciphertext.duplicate(streams),
         }
     }
 }

@@ -4,6 +4,7 @@ use super::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::list_compression::{
     CompressedNoiseSquashingCompressionKeyVersions, CompressedSquashedNoiseCiphertextListVersions,
     NoiseSquashingCompressionPrivateKeyVersions,
@@ -24,6 +25,10 @@ use crate::shortint::parameters::NoiseSquashingCompressionParameters;
 use crate::Versionize;
 
 use crate::integer::backward_compatibility::list_compression::NoiseSquashingCompressionKeyVersions;
+use crate::integer::gpu::ciphertext::{
+    CudaCompressedSquashedNoiseCiphertextList, SquashedCudaCompressible,
+};
+use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingCompressionPrivateKeyVersions)]
@@ -345,89 +350,5 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
             list,
             info: self.info.clone(),
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::integer::noise_squashing::NoiseSquashingKey;
-    use crate::shortint::parameters::test_params::{
-        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-    };
-    use rand::Rng;
-
-    #[test]
-    fn test_compressed_noise_squashed_ciphertext_list() {
-        let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-        let noise_squashing_parameters =
-            TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
-
-        // The goal is to test that encrypting a value stored in a type
-        // for which the bit count does not match the target block count of the encrypted
-        // radix properly applies upcasting/downcasting
-        let (cks, sks) = crate::integer::keycache::KEY_CACHE
-            .get_from_params(param, crate::integer::IntegerKeyKind::Radix);
-        let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
-        let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
-
-        let noise_squashing_compression_private_key = NoiseSquashingCompressionPrivateKey::new(
-            TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-        );
-        let compression_key = noise_squashing_private_key
-            .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
-
-        let mut rng = rand::thread_rng();
-
-        const NUM_BLOCKS: usize = 16;
-
-        let clear_a = rng.gen_range(0..=i32::MAX);
-        let clear_b = rng.gen_range(i32::MIN..=-1);
-        let clear_c = rng.gen::<u32>();
-        let clear_d = rng.gen::<bool>();
-
-        let ct_a = cks.encrypt_signed_radix(clear_a, NUM_BLOCKS);
-        let ct_b = cks.encrypt_signed_radix(clear_b, NUM_BLOCKS);
-        let ct_c = cks.encrypt_radix(clear_c, NUM_BLOCKS);
-        let ct_d = cks.encrypt_bool(clear_d);
-
-        let ns_ct_a = noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&sks, &ct_a)
-            .unwrap();
-        let ns_ct_b = noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&sks, &ct_b)
-            .unwrap();
-        let ns_ct_c = noise_squashing_key
-            .squash_radix_ciphertext_noise(&sks, &ct_c)
-            .unwrap();
-        let ns_ct_d = noise_squashing_key
-            .squash_boolean_block_noise(&sks, &ct_d)
-            .unwrap();
-
-        let list = CompressedSquashedNoiseCiphertextList::builder()
-            .push(ns_ct_a)
-            .push(ns_ct_b)
-            .push(ns_ct_c)
-            .push(ns_ct_d)
-            .build(&compression_key);
-
-        let ns_ct_a: SquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
-        let ns_ct_b: SquashedNoiseSignedRadixCiphertext = list.get(1).unwrap().unwrap();
-        let ns_ct_c: SquashedNoiseRadixCiphertext = list.get(2).unwrap().unwrap();
-        let ns_ct_d: SquashedNoiseBooleanBlock = list.get(3).unwrap().unwrap();
-
-        let decryption_key = noise_squashing_compression_private_key.private_key_view();
-
-        let d_clear_a: i32 = decryption_key.decrypt_signed_radix(&ns_ct_a).unwrap();
-        let d_clear_b: i32 = decryption_key.decrypt_signed_radix(&ns_ct_b).unwrap();
-        let d_clear_c: u32 = decryption_key.decrypt_radix(&ns_ct_c).unwrap();
-        let d_clear_d = decryption_key.decrypt_bool(&ns_ct_d).unwrap();
-
-        assert_eq!(clear_a, d_clear_a);
-        assert_eq!(clear_b, d_clear_b);
-        assert_eq!(clear_c, d_clear_c);
-        assert_eq!(clear_d, d_clear_d);
     }
 }

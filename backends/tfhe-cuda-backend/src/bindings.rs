@@ -189,6 +189,90 @@ unsafe extern "C" {
         mem_ptr_void: *mut *mut i8,
     );
 }
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_compress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        num_radix_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        lwe_per_glwe: u32,
+        storage_log_modulus: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_decompress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        encryption_glwe_dimension: u32,
+        encryption_polynomial_size: u32,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        num_radix_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        storage_log_modulus: u32,
+        body_count: u32,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_compress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        glwe_array_out: *mut ffi::c_void,
+        lwe_array_in: *const ffi::c_void,
+        fp_ksk: *const *mut ffi::c_void,
+        num_nths: u32,
+        mem_ptr: *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_decompress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut ffi::c_void,
+        glwe_in: *const ffi::c_void,
+        indexes_array: *const u32,
+        indexes_array_size: u32,
+        bsks: *const *mut ffi::c_void,
+        mem_ptr: *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_compress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_decompress_radix_ciphertext_128(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
 pub const SHIFT_OR_ROTATE_TYPE_RIGHT_SHIFT: SHIFT_OR_ROTATE_TYPE = 1;
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_ROTATE: SHIFT_OR_ROTATE_TYPE = 2;

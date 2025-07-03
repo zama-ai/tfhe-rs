@@ -209,6 +209,12 @@ impl<T: UnsignedInteger> CudaLweCiphertextList<T> {
         LweCiphertext::from_container(container, self.ciphertext_modulus())
     }
 
+    pub fn duplicate(&self, streams: &CudaStreams) -> Self {
+        Self {
+            0: self.0.duplicate(streams),
+        }
+    }
+
     pub(crate) fn lwe_dimension(&self) -> LweDimension {
         self.0.lwe_dimension
     }
