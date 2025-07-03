@@ -308,7 +308,7 @@ __host__ void host_integer_decompress(
   auto lut = h_mem_ptr->decompression_rescale_lut;
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
   if (active_gpu_count == 1) {
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, d_lwe_array_out,
         lut->lwe_indexes_out, lut->lut_vec, lut->lut_indexes_vec, extracted_lwe,
         lut->lwe_indexes_in, d_bsks, nullptr, lut->buffer,
@@ -335,7 +335,7 @@ __host__ void host_integer_decompress(
         compression_params.small_lwe_dimension + 1);
 
     /// Apply PBS
-    execute_pbs_async<Torus>(
+    execute_pbs_async<Torus, Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_after_pbs_vec,
         lwe_trivial_indexes_vec, lut->lut_vec, lut->lut_indexes_vec,
         lwe_array_in_vec, lwe_trivial_indexes_vec, d_bsks, nullptr, lut->buffer,
@@ -356,6 +356,72 @@ __host__ void host_integer_decompress(
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
     }
+  }
+}
+
+template <>
+__host__ void host_integer_decompress<__uint128_t>(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, __uint128_t *d_lwe_array_out, __uint128_t const *d_packed_glwe_in,
+    uint32_t const *h_indexes_array, uint32_t indexes_array_size,
+    void *const *d_bsks, int_decompression<__uint128_t> *h_mem_ptr) {
+
+  auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
+  cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
+                           indexes_array_size * sizeof(uint32_t), streams[0],
+                           gpu_indexes[0]);
+
+  auto compression_params = h_mem_ptr->compression_params;
+  auto lwe_per_glwe = compression_params.polynomial_size;
+
+  auto num_radix_blocks = h_mem_ptr->num_radix_blocks;
+  if (num_radix_blocks != indexes_array_size)
+    PANIC("Cuda error: wrong number of LWEs in decompress: the number of LWEs "
+          "should be the same as indexes_array_size.")
+
+  // the first element is the number of LWEs that lies in the related GLWE
+  std::vector<std::pair<int, __uint128_t *>> glwe_vec;
+
+  // Extract all GLWEs
+  uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
+                                compression_params.polynomial_size;
+
+  auto current_glwe_index = h_indexes_array[0] / lwe_per_glwe;
+  auto extracted_glwe = h_mem_ptr->tmp_extracted_glwe;
+  host_extract<__uint128_t>(streams[0], gpu_indexes[0], extracted_glwe,
+                      d_packed_glwe_in, current_glwe_index, h_mem_ptr);
+  glwe_vec.push_back(std::make_pair(1, extracted_glwe));
+  for (int i = 1; i < indexes_array_size; i++) {
+    auto glwe_index = h_indexes_array[i] / lwe_per_glwe;
+    if (glwe_index != current_glwe_index) {
+      extracted_glwe += glwe_accumulator_size;
+      current_glwe_index = glwe_index;
+      // Extracts a new GLWE
+      host_extract<__uint128_t>(streams[0], gpu_indexes[0], extracted_glwe,
+                          d_packed_glwe_in, glwe_index, h_mem_ptr);
+      glwe_vec.push_back(std::make_pair(1, extracted_glwe));
+    } else {
+      // Updates the quantity
+      ++glwe_vec.back().first;
+    }
+  }
+  // Sample extract all LWEs
+  uint32_t lwe_accumulator_size = compression_params.small_lwe_dimension + 1;
+
+  auto extracted_lwe = d_lwe_array_out;
+  uint32_t current_idx = 0;
+  auto d_indexes_array_chunk = d_indexes_array;
+  for (const auto &max_idx_and_glwe : glwe_vec) {
+    const auto num_lwes = max_idx_and_glwe.first;
+    extracted_glwe = max_idx_and_glwe.second;
+
+    cuda_glwe_sample_extract_64(
+        streams[0], gpu_indexes[0], extracted_lwe, extracted_glwe,
+        d_indexes_array_chunk, num_lwes, compression_params.polynomial_size,
+        compression_params.glwe_dimension, compression_params.polynomial_size);
+    d_indexes_array_chunk += num_lwes;
+    extracted_lwe += num_lwes * lwe_accumulator_size;
+    current_idx += num_lwes;
   }
 }
 

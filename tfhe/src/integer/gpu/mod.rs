@@ -7,6 +7,7 @@ pub mod server_key;
 #[cfg(feature = "zk-pok")]
 pub mod zk;
 
+use std::any::TypeId;
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
     prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
 };
@@ -636,11 +637,11 @@ where
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
+pub unsafe fn compress_integer_radix_async<InputTorus: UnsignedInteger, OutputTorus: UnsignedInteger>(
     streams: &CudaStreams,
-    glwe_array_out: &mut CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
-    fp_keyswitch_key: &CudaVec<u64>,
+    glwe_array_out: &mut CudaVec<OutputTorus>,
+    lwe_array_in: &CudaVec<InputTorus>,
+    fp_keyswitch_key: &CudaVec<OutputTorus>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     compression_glwe_dimension: GlweDimension,
@@ -674,42 +675,83 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
         fp_keyswitch_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        compression_glwe_dimension.0 as u32,
-        compression_polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        ks_level.0 as u32,
-        ks_base_log.0 as u32,
-        num_blocks,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        PBSType::Classical as u32,
-        lwe_per_glwe,
-        storage_log_modulus,
-        true,
-    );
+    if TypeId::of::<OutputTorus>() == TypeId::of::<u64>() {
+        // 64 bits
+        scratch_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            lwe_per_glwe,
+            storage_log_modulus,
+            true,
+        );
 
-    cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        glwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
-        fp_keyswitch_key.ptr.as_ptr(),
-        num_blocks,
-        mem_ptr,
-    );
+        cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            glwe_array_out.as_mut_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            fp_keyswitch_key.ptr.as_ptr(),
+            num_blocks,
+            mem_ptr,
+        );
 
-    cleanup_cuda_integer_compress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+        cleanup_cuda_integer_compress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    } else if TypeId::of::<OutputTorus>() == TypeId::of::<u128>() {
+        // 128 bits
+        scratch_cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            lwe_per_glwe,
+            storage_log_modulus,
+            true,
+        );
+
+        cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            glwe_array_out.as_mut_c_ptr(0),
+            lwe_array_in.as_c_ptr(0),
+            fp_keyswitch_key.ptr.as_ptr(),
+            num_blocks,
+            mem_ptr,
+        );
+
+        cleanup_cuda_integer_compress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -805,46 +847,91 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         bootstrapping_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-    scratch_cuda_integer_decompress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-        encryption_glwe_dimension.0 as u32,
-        encryption_polynomial_size.0 as u32,
-        compression_glwe_dimension.0 as u32,
-        compression_polynomial_size.0 as u32,
-        lwe_dimension.0 as u32,
-        pbs_level.0 as u32,
-        pbs_base_log.0 as u32,
-        num_lwes,
-        message_modulus.0 as u32,
-        carry_modulus.0 as u32,
-        PBSType::Classical as u32,
-        storage_log_modulus,
-        bodies_count,
-        true,
-        false,
-    );
+    if TypeId::of::<T>() == TypeId::of::<u64>() {
+        // 64 bits
+        scratch_cuda_integer_decompress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            encryption_glwe_dimension.0 as u32,
+            encryption_polynomial_size.0 as u32,
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            num_lwes,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            storage_log_modulus,
+            bodies_count,
+            true,
+            false,
+        );
 
-    cuda_integer_decompress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        lwe_array_out.as_mut_c_ptr(0),
-        glwe_in.as_c_ptr(0),
-        vec_indexes.as_ptr(),
-        vec_indexes.len() as u32,
-        bootstrapping_key.ptr.as_ptr(),
-        mem_ptr,
-    );
+        cuda_integer_decompress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            lwe_array_out.as_mut_c_ptr(0),
+            glwe_in.as_c_ptr(0),
+            vec_indexes.as_ptr(),
+            vec_indexes.len() as u32,
+            bootstrapping_key.ptr.as_ptr(),
+            mem_ptr,
+        );
 
-    cleanup_cuda_integer_decompress_radix_ciphertext_64(
-        streams.ptr.as_ptr(),
-        streams.gpu_indexes_ptr(),
-        streams.len() as u32,
-        std::ptr::addr_of_mut!(mem_ptr),
-    );
+        cleanup_cuda_integer_decompress_radix_ciphertext_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    } else if TypeId::of::<T>() == TypeId::of::<u128>() {
+        // 128 bits
+        scratch_cuda_integer_decompress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            encryption_glwe_dimension.0 as u32,
+            encryption_polynomial_size.0 as u32,
+            compression_glwe_dimension.0 as u32,
+            compression_polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            num_lwes,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            PBSType::Classical as u32,
+            storage_log_modulus,
+            bodies_count,
+            true,
+            false,
+        );
+
+        cuda_integer_decompress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            lwe_array_out.as_mut_c_ptr(0),
+            glwe_in.as_c_ptr(0),
+            vec_indexes.as_ptr(),
+            vec_indexes.len() as u32,
+            bootstrapping_key.ptr.as_ptr(),
+            mem_ptr,
+        );
+
+        cleanup_cuda_integer_decompress_radix_ciphertext_128(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

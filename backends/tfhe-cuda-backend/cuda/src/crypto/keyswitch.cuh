@@ -155,12 +155,12 @@ void execute_keyswitch_async(cudaStream_t const *streams,
   for (uint i = 0; i < gpu_count; i++) {
     int num_samples_on_gpu = get_num_inputs_on_gpu(num_samples, i, gpu_count);
 
-    Torus *current_lwe_array_out = GET_VARIANT_ELEMENT(lwe_array_out, i);
-    Torus *current_lwe_output_indexes =
-        GET_VARIANT_ELEMENT(lwe_output_indexes, i);
-    Torus *current_lwe_array_in = GET_VARIANT_ELEMENT(lwe_array_in, i);
-    Torus *current_lwe_input_indexes =
-        GET_VARIANT_ELEMENT(lwe_input_indexes, i);
+    auto current_lwe_array_out = get_variant_element(lwe_array_out, i);
+    auto current_lwe_output_indexes =
+        get_variant_element(lwe_output_indexes, i);
+    auto current_lwe_array_in = get_variant_element(lwe_array_in, i);
+    auto current_lwe_input_indexes =
+        get_variant_element(lwe_input_indexes, i);
 
     // Compute Keyswitch
     host_keyswitch_lwe_ciphertext_vector<Torus>(
