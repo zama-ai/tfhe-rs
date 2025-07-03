@@ -23,6 +23,10 @@ mod test_cpu_doc {
         advanced_features_encrypted_prf
     );
     doctest!(
+        "../docs/fhe-computation/advanced-features/noise-squashing.md",
+        advanced_features_noise_squashing
+    );
+    doctest!(
         "../docs/fhe-computation/advanced-features/overflow_operations.md",
         advanced_features_overflow_operations
     );
