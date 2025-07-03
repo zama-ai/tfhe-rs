@@ -70,9 +70,3 @@ Collaborate with us to advance the FHE spaces and drive innovation together.
 * [Report a bug](https://github.com/zama-ai/tfhe-rs/issues/new?assignees=\&labels=triage_required\&projects=\&template=bug_report.md\&title=)
 
 ***
-
-{% hint style="success" %}
-**Zama 5-Question Developer Survey**
-
-We want to hear from you! Take 1 minute to share your thoughts and helping us enhance our documentation and libraries. **👉** [**Click here**](https://www.zama.ai/developer-survey) to participate.
-{% endhint %}
