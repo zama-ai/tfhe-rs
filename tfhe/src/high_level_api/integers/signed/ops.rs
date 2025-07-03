@@ -173,11 +173,8 @@ where
     Id: FheIntId,
 {
     type Output = Self;
-
-    fn max(&self, _rhs: Self) -> Self::Output {
-        compile_error!(
-            "Cannot call .max() with an FheInt by value. Use a reference instead: .max(&rhs)"
-        );
+    fn max(&self, rhs: Self) -> Self::Output {
+        self.max(&rhs)
     }
 }
 
@@ -237,11 +234,8 @@ where
     Id: FheIntId,
 {
     type Output = Self;
-
-    fn min(&self, _rhs: Self) -> Self::Output {
-        compile_error!(
-            "Cannot call .min() with an FheInt by value. Use a reference instead: .min(&rhs)"
-        );
+    fn min(&self, rhs: Self) -> Self::Output {
+        self.min(&rhs)
     }
 }
 

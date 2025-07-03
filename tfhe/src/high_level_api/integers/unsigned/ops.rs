@@ -282,11 +282,8 @@ where
     Id: FheUintId,
 {
     type Output = Self;
-
-    fn max(&self, _rhs: Self) -> Self::Output {
-        compile_error!(
-            "Cannot call .max() with an FheUint by value. Use a reference instead: .max(&rhs)"
-        );
+    fn max(&self, rhs: Self) -> Self::Output {
+        self.max(&rhs)
     }
 }
 
@@ -348,11 +345,8 @@ where
     Id: FheUintId,
 {
     type Output = Self;
-
-    fn min(&self, _rhs: Self) -> Self::Output {
-        compile_error!(
-            "Cannot call .min() with an FheUint by value. Use a reference instead: .min(&rhs)"
-        );
+    fn min(&self, rhs: Self) -> Self::Output {
+        self.min(&rhs)
     }
 }
 
@@ -1225,12 +1219,15 @@ generic_integer_impl_operation!(
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
-    /// let a = FheUint16::encrypt(37849u16, &client_key);
+    /// let a = FheUint16::encrypt(23u16, &client_key);
     /// let b = FheUint16::encrypt(3u16, &client_key);
     ///
-    /// let result = &a / &b;
-    /// let result: u16 = result.decrypt(&client_key);
-    /// assert_eq!(result, 37849u16 / 3u16);
+    /// let (quotient, remainder) = (&a).div_rem(&b);
+    ///
+    /// let quotient: u16 = quotient.decrypt(&client_key);
+    /// assert_eq!(quotient, 23u16 / 3u16);
+    /// let remainder: u16 = remainder.decrypt(&client_key);
+    /// assert_eq!(remainder, 23u16 % 3u16);
     /// ```
     rust_trait: Div(div),
     implem: {
