@@ -157,9 +157,9 @@ impl ServerKey {
             let maybe_highest_degree =
                 // We do not care about degree of 'first' block as it won't receive any carries
                 blocks[1..]
-                .iter()
-                .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
-                .map(|block| block.degree.get());
+                    .iter()
+                    .max_by(|block_a, block_b| block_a.degree.get().cmp(&block_b.degree.get()))
+                    .map(|block| block.degree.get());
 
             let mut start_index = 0;
             if maybe_highest_degree.is_some_and(|degree| degree > self.key.max_degree.get())
@@ -168,7 +168,7 @@ impl ServerKey {
                     // We need to be able to add a carry, which is a fresh ciphertext
                     .any(|b| b.noise_level().get() >= self.key.max_noise_level.get() - 1)
             {
-                // At least one of the blocks than can receive a carry, won't be able too
+                // At least one of the blocks than can receive a carry, won't be able to,
                 // so we need to do a first 'partial' round
                 let (mut message_blocks, carry_blocks) = extract_message_and_carry_blocks(blocks);
                 blocks[0..].swap_with_slice(&mut message_blocks);
@@ -227,13 +227,48 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         let num_blocks = ctxt.blocks().len();
-        let start_index = ctxt
+
+        // Start the propagation on the first block that has carries
+        let Some(start_index) = ctxt
             .blocks()
             .iter()
             .position(|block| !block.carry_is_empty())
-            .unwrap_or(num_blocks);
+        else {
+            // No block has any carries. However, we still need to clean the noise
+            ctxt.blocks_mut()
+                .par_iter_mut()
+                .filter(|block| block.noise_level() > NoiseLevel::NOMINAL)
+                .for_each(|block| self.key.message_extract_assign(block));
+            return;
+        };
 
-        let (to_be_cleaned, to_be_propagated) = ctxt.blocks_mut().split_at_mut(start_index);
+        // End the propagation 2 blocks after the last non-trivial zero block.
+        // We end it 2 blocks after because, in the worst case:
+        // 1) the last block (block `n`) 'immediate' carry will be the block n+1
+        // 2) a carry may be propagated from a block `< n` to block `n + 2` because block n is full
+        //
+        // e.g., 2 blocks, 2_2, notation: 0bcarry|msg, block in little endian order
+        // input: [0b11|11, 0b11|11, 0b00|00, 0b00|00, 0b00|00] = (5 * 15) % (1024)
+        // msg  : [0b00|11, 0b00|11, 0b00|00, 0b00|00, 0b00|00] = 15
+        // carry: [0b00|00, 0b00|11, 0b00|11, 0b00|00, 0b00|00] = 60
+        // msg + carry = [0b00|11, 0b00|11+11, 0b00|11, 0b00|00, 0b00|00]
+        // msg + carry = [0b00|00, 0b00|10, 0b00|11+1, 0b00|00, 0b00|00]
+        // msg + carry = [0b00|00, 0b00|10, 0b00|00, 0b0|01, 0b00|00] = 75 = 5 * 15
+        // As we can see, the result is on n+2 = 4 block
+        // there is no need to consider the last block
+        let end_index = ctxt
+            .blocks()
+            .iter()
+            .rposition(|block| block.degree.get() != 0)
+            .map(|pos| (pos + 2).min(num_blocks - 1))
+            // This can't fail, has if start_index is Some(_)
+            // => there is a block with carries
+            // => there is a block non-zero degree
+            .unwrap();
+
+        let blocks = &mut ctxt.blocks_mut()[..=end_index];
+        let n = blocks.len();
+        let (to_be_cleaned, to_be_propagated) = blocks.split_at_mut(start_index.min(n));
 
         rayon::scope(|s| {
             if !to_be_propagated.is_empty() {
