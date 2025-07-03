@@ -62,16 +62,16 @@ where
     let num_samples = NB_TESTS * <Scalar as CastInto<usize>>::cast_into(msg);
     let mut noise_samples = Vec::with_capacity(num_samples);
 
-    let input_lwe_secret_key = allocate_and_generate_new_binary_lwe_secret_key(
-        input_lwe_dimension,
-        &mut rsc.secret_random_generator,
-    );
+    let input_lwe_secret_key =
+        test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight(
+            input_lwe_dimension,
+        );
 
-    let output_glwe_secret_key = allocate_and_generate_new_binary_glwe_secret_key(
-        glwe_dimension,
-        polynomial_size,
-        &mut rsc.secret_random_generator,
-    );
+    let output_glwe_secret_key =
+        test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight(
+            glwe_dimension,
+            polynomial_size,
+        );
 
     let output_lwe_secret_key = output_glwe_secret_key.as_lwe_secret_key();
     let output_lwe_dimension = output_lwe_secret_key.lwe_dimension();

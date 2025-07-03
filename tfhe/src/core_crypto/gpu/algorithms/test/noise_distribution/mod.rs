@@ -1,4 +1,8 @@
 use super::*;
+use crate::core_crypto::algorithms::test::noise_distribution::{
+    test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight,
+    test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight,
+};
 
 mod lwe_multi_bit_programmable_bootstrapping_noise;
 mod lwe_programmable_bootstrapping_noise;

@@ -100,3 +100,40 @@ pub const NOISE_TEST_PARAMS_MULTI_BIT_GROUP_3_6_BITS_NATIVE_U64_132_BITS_GAUSSIA
     grouping_factor: LweBskGroupingFactor(3),
     thread_count: ThreadCount(12),
 };
+
+/// Use ONLY for noise distribution tests, this allows to have less variability and match exactly
+/// what noise formulas expect for uniform binary secret keys
+///
+/// Exactly half of the coefficients of the key are set to 1
+pub(crate) fn test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight<
+    Scalar: UnsignedInteger,
+>(
+    lwe_dimension: LweDimension,
+) -> LweSecretKeyOwned<Scalar> {
+    let mut res = LweSecretKeyOwned::new_empty_key(Scalar::ZERO, lwe_dimension);
+    res.as_mut()
+        .iter_mut()
+        .step_by(2)
+        .for_each(|x| *x = Scalar::ONE);
+
+    res
+}
+
+/// Use ONLY for noise distribution tests, this allows to have less variability and match exactly
+/// what noise formulas expect for uniform binary secret keys
+///
+/// Exactly half of the coefficients of the key are set to 1
+pub(crate) fn test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight<
+    Scalar: UnsignedInteger,
+>(
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+) -> GlweSecretKeyOwned<Scalar> {
+    let mut res = GlweSecretKeyOwned::new_empty_key(Scalar::ZERO, glwe_dimension, polynomial_size);
+    res.as_mut()
+        .iter_mut()
+        .step_by(2)
+        .for_each(|x| *x = Scalar::ONE);
+
+    res
+}

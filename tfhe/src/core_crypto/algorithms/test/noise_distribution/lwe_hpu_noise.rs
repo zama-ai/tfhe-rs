@@ -222,11 +222,15 @@ fn hpu_noise_distribution(params: HpuTestParams) {
         ciphertext_modulus
     ));
 
-    let mut lwe_sk = LweSecretKeyOwned::new_empty_key(0, lwe_dimension);
+    let lwe_sk =
+        test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight(lwe_dimension);
 
-    let mut glwe_sk = GlweSecretKeyOwned::new_empty_key(0, glwe_dimension, polynomial_size);
+    let glwe_sk = test_allocate_and_generate_binary_glwe_secret_key_with_half_hamming_weight(
+        glwe_dimension,
+        polynomial_size,
+    );
 
-    let mut blwe_sk = glwe_sk.clone().into_lwe_secret_key();
+    let blwe_sk = glwe_sk.as_lwe_secret_key();
     let mut ksk_in_kskmod = LweKeyswitchKeyOwned::new(
         0,
         ks_decomp_base_log,
@@ -345,11 +349,6 @@ fn hpu_noise_distribution(params: HpuTestParams) {
     while msg != 0 {
         msg = msg.wrapping_sub(1);
         for i in 0..NB_HPU_TESTS {
-            // re-generate keys
-            generate_binary_lwe_secret_key(&mut lwe_sk, &mut rsc.secret_random_generator);
-            generate_binary_glwe_secret_key(&mut glwe_sk, &mut rsc.secret_random_generator);
-            blwe_sk = glwe_sk.clone().into_lwe_secret_key();
-
             // re-generate KSK
             generate_lwe_keyswitch_key(
                 &blwe_sk,
