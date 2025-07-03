@@ -137,9 +137,8 @@ fn lwe_compact_public_encrypt_noise_distribution_custom_mod<
     while msg != Scalar::ZERO {
         msg = msg.wrapping_sub(Scalar::ONE);
         for _ in 0..NB_TESTS {
-            let lwe_sk = allocate_and_generate_new_binary_lwe_secret_key(
+            let lwe_sk = test_allocate_and_generate_binary_lwe_secret_key_with_half_hamming_weight(
                 lwe_dimension,
-                &mut rsc.secret_random_generator,
             );
 
             let pk = allocate_and_generate_new_lwe_compact_public_key(
