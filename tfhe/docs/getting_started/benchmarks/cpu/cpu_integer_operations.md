@@ -10,16 +10,6 @@ All CPU benchmarks were launched on an `AWS hpc7a.96xlarge` instance equipped wi
 
 The following tables benchmark the execution time of some operation sets using `FheUint` (unsigned integers). The `FheInt` (signed integers) performs similarly.
 
-## Pfail: $$2^{-64}$$
-
-The next table shows the operation timings on CPU when all inputs are encrypted:
-
-![](../../../_static/cpu_integer_benchmark_tuniform_2m64_ciphertext.svg)
-
-The next table shows the operation timings on CPU when the left input is encrypted and the right is a clear scalar of the same size:
-
-![](../../../_static/cpu_integer_benchmark_tuniform_2m64_plaintext.svg)
-
 ## Pfail: $$2^{-128}$$
 
 The next table shows the operation timings on CPU when all inputs are encrypted:
