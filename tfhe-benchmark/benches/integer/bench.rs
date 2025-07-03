@@ -3032,7 +3032,7 @@ mod hpu {
         fn [< default_hpu_ $iop:lower >](c: &mut Criterion) {
             bench_hpu_iop_clean_inputs(
                 c,
-                concat!("integer::hpu::scalar::", stringify!($iop)),
+                concat!("integer::hpu::scalar_", stringify!($iop)),
                 stringify!($name),
                 &hpu_asm::iop::[< IOP_ $iop:upper >],
             )
