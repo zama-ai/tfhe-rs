@@ -11,6 +11,8 @@ Here are a series of articles that guide you to go deeper into the understanding
 * [TFHE Deep Dive - Part III - Key switching and leveled multiplications](https://www.zama.ai/post/tfhe-deep-dive-part-3)
 * [TFHE Deep Dive - Part IV - Programmable Bootstrapping](https://www.zama.ai/post/tfhe-deep-dive-part-4)
 
+The **TFHE-rs** handbook makes an [in-depth description of TFHE](https://github.com/zama-ai/tfhe-rs-handbook).
+
 The article [Guide to Fully Homomorphic Encryption over the Discretized Torus](https://eprint.iacr.org/2021/1402.pdf) gives more mathematical details about the TFHE scheme.
 
 You can also watch the video record of the original talk by Ilaria Chillotti for FHE.org:
