@@ -2,6 +2,8 @@
 
 This document introduces the cryptographic concepts of the scheme of Fully Homomorphic Encryption over the Torus (TFHE)  and the security considerations of **TFHE-rs.**
 
+For an in-depth description of TFHE you can [read the TFHE-rs handbook](https://github.com/zama-ai/tfhe-rs-handbook).
+
 ## TFHE
 
 **TFHE-rs** is a cryptographic library that implements Fully Homomorphic Encryption using the TFHE scheme. You should understand the basics of TFHE to consider its limitations, such as:
