@@ -71,8 +71,31 @@ where
 
 /// This one also uses a comparison, but it leverages the 'boolean' multiplication
 /// instead of cmuxes, so it is faster
-#[cfg(not(feature = "hpu"))]
+#[cfg(all(feature = "gpu", not(feature = "hpu")))]
 fn transfer_no_cmux<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: Add<Output = FheType> + CastFrom<FheBool> + for<'a> FheOrd<&'a FheType> + Send + Sync,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType:
+        Add<Output = FheType> + Sub<Output = FheType> + Mul<FheType, Output = FheType>,
+{
+    let has_enough_funds = (from_amount).ge(amount);
+
+    let amount = amount * FheType::cast_from(has_enough_funds);
+
+    let new_to_amount = to_amount + &amount;
+    let new_from_amount = from_amount - &amount;
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_no_cmux`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_no_cmux<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -95,8 +118,32 @@ where
 
 /// This one uses overflowing sub to remove the need for comparison
 /// it also uses the 'boolean' multiplication
-#[cfg(not(feature = "hpu"))]
+#[cfg(all(feature = "gpu", not(feature = "hpu")))]
 fn transfer_overflow<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: CastFrom<FheBool> + for<'a> FheOrd<&'a FheType> + Send + Sync,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType: Add<FheType, Output = FheType>
+        + OverflowingSub<&'a FheType, Output = FheType>
+        + Mul<FheType, Output = FheType>,
+{
+    let (new_from, did_not_have_enough) = (from_amount).overflowing_sub(amount);
+
+    let new_from_amount = did_not_have_enough.if_then_else(from_amount, &new_from);
+
+    let had_enough_funds = !did_not_have_enough;
+    let new_to_amount = to_amount + (amount * FheType::cast_from(had_enough_funds));
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_overflow`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_overflow<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -122,8 +169,32 @@ where
 
 /// This ones uses both overflowing_add/sub to check that both
 /// the sender has enough funds, and the receiver will not overflow its balance
-#[cfg(not(feature = "hpu"))]
+#[cfg(all(feature = "gpu", not(feature = "hpu")))]
 fn transfer_safe<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: Send + Sync,
+    for<'a> &'a FheType: OverflowingSub<&'a FheType, Output = FheType>
+        + OverflowingAdd<&'a FheType, Output = FheType>,
+    FheBool: IfThenElse<FheType>,
+{
+    let (new_from, did_not_have_enough_funds) = (from_amount).overflowing_sub(amount);
+    let (new_to, did_not_have_enough_space) = (to_amount).overflowing_add(amount);
+
+    let something_not_ok = did_not_have_enough_funds | did_not_have_enough_space;
+
+    let new_from_amount = something_not_ok.if_then_else(from_amount, &new_from);
+    let new_to_amount = something_not_ok.if_then_else(to_amount, &new_to);
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_safe`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_safe<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -358,71 +429,69 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
         .collect::<Vec<_>>();
 
-    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
-        group.throughput(Throughput::Elements(num_elems));
-        let bench_id =
-            format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
-        group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
-            let from_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
-                .collect::<Vec<_>>();
-            let to_amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
-                .collect::<Vec<_>>();
-            let amounts = (0..num_elems)
-                .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
-                .collect::<Vec<_>>();
+    // 200 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
+    let num_elems = 200 * num_gpus;
 
-            let num_streams_per_gpu = 8; // Hard coded stream value for FheUint64
-            let chunk_size = (num_elems / num_gpus) as usize;
+    group.throughput(Throughput::Elements(num_elems));
+    let bench_id = format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
+    group.bench_with_input(&bench_id, &num_elems, |b, &num_elems| {
+        let from_amounts = (0..num_elems)
+            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .collect::<Vec<_>>();
+        let to_amounts = (0..num_elems)
+            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .collect::<Vec<_>>();
+        let amounts = (0..num_elems)
+            .map(|_| FheType::encrypt(rng.gen::<u64>(), client_key))
+            .collect::<Vec<_>>();
 
-            b.iter(|| {
-                from_amounts
-                    .par_chunks(chunk_size) // Split into chunks of num_gpus
-                    .zip(
-                        to_amounts
-                            .par_chunks(chunk_size)
-                            .zip(amounts.par_chunks(chunk_size)),
-                    ) // Zip with the other data
-                    .enumerate() // Get the index for GPU
-                    .for_each(
-                        |(i, (from_amount_gpu_i, (to_amount_gpu_i, amount_gpu_i)))| {
-                            // Process chunks within each GPU
-                            let stream_chunk_size = from_amount_gpu_i.len() / num_streams_per_gpu;
-                            from_amount_gpu_i
-                                .par_chunks(stream_chunk_size)
-                                .zip(to_amount_gpu_i.par_chunks(stream_chunk_size))
-                                .zip(amount_gpu_i.par_chunks(stream_chunk_size))
-                                .for_each(
-                                    |((from_amount_chunk, to_amount_chunk), amount_chunk)| {
-                                        // Set the server key for the current GPU
-                                        set_server_key(sks_vec[i].clone());
-                                        // Parallel iteration over the chunks of data
-                                        from_amount_chunk
-                                            .iter()
-                                            .zip(to_amount_chunk.iter().zip(amount_chunk.iter()))
-                                            .for_each(|(from_amount, (to_amount, amount))| {
-                                                transfer_func(from_amount, to_amount, amount);
-                                            });
-                                    },
-                                );
-                        },
-                    );
-            });
+        let num_streams_per_gpu = 8; // Hard coded stream value for FheUint64
+        let chunk_size = (num_elems / num_gpus) as usize;
+
+        b.iter(|| {
+            from_amounts
+                .par_chunks(chunk_size) // Split into chunks of num_gpus
+                .zip(
+                    to_amounts
+                        .par_chunks(chunk_size)
+                        .zip(amounts.par_chunks(chunk_size)),
+                ) // Zip with the other data
+                .enumerate() // Get the index for GPU
+                .for_each(
+                    |(i, (from_amount_gpu_i, (to_amount_gpu_i, amount_gpu_i)))| {
+                        // Process chunks within each GPU
+                        let stream_chunk_size = from_amount_gpu_i.len() / num_streams_per_gpu;
+                        from_amount_gpu_i
+                            .par_chunks(stream_chunk_size)
+                            .zip(to_amount_gpu_i.par_chunks(stream_chunk_size))
+                            .zip(amount_gpu_i.par_chunks(stream_chunk_size))
+                            .for_each(|((from_amount_chunk, to_amount_chunk), amount_chunk)| {
+                                // Set the server key for the current GPU
+                                set_server_key(sks_vec[i].clone());
+                                // Parallel iteration over the chunks of data
+                                from_amount_chunk
+                                    .iter()
+                                    .zip(to_amount_chunk.iter().zip(amount_chunk.iter()))
+                                    .for_each(|(from_amount, (to_amount, amount))| {
+                                        transfer_func(from_amount, to_amount, amount);
+                                    });
+                            });
+                    },
+                );
         });
+    });
 
-        let params = client_key.computation_parameters();
+    let params = client_key.computation_parameters();
 
-        write_to_json::<u64, _>(
-            &bench_id,
-            params,
-            params.name(),
-            "erc20-transfer",
-            &OperatorType::Atomic,
-            64,
-            vec![],
-        );
-    }
+    write_to_json::<u64, _>(
+        &bench_id,
+        params,
+        params.name(),
+        "erc20-transfer",
+        &OperatorType::Atomic,
+        64,
+        vec![],
+    );
 }
 
 #[cfg(feature = "hpu")]
@@ -517,14 +586,19 @@ fn main() {
             "transfer::whitepaper",
             par_transfer_whitepaper::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "no_cmux",
+            par_transfer_no_cmux::<FheUint64>,
+        );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
@@ -544,7 +618,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -552,7 +626,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -560,7 +634,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -583,7 +657,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_throughput(
             &mut group,
@@ -591,7 +665,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_throughput(
             &mut group,
@@ -599,7 +673,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -631,14 +705,19 @@ fn main() {
             "transfer::whitepaper",
             par_transfer_whitepaper::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "no_cmux",
+            par_transfer_no_cmux::<FheUint64>,
+        );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
@@ -658,7 +737,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -666,7 +745,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -674,7 +753,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -689,7 +768,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            par_transfer_whitepaper::<FheUint64>,
+            transfer_whitepaper::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
             &mut group,
