@@ -18,17 +18,13 @@ use crate::core_crypto::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweBskGroupingFactor,
     LweDimension, Numeric, PolynomialSize, UnsignedInteger,
 };
-use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, KsType};
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::server_key::ScalarMultiplier;
 use crate::integer::{ClientKey, RadixClientKey};
-use crate::prelude::CastInto;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::{CarryModulus, MessageModulus};
-use itertools::Itertools;
 pub use server_key::CudaServerKey;
 use std::cmp::min;
 use tfhe_cuda_backend::bindings::*;
@@ -70,6 +66,38 @@ pub enum ComparisonType {
     LE = 5,
     MAX = 6,
     MIN = 7,
+}
+
+pub fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
+    CudaScalarDivisorFFI {
+        // Divisor-related
+        decomposed_divisor: std::ptr::null(),
+        divisor_has_at_least_one_set: std::ptr::null(),
+        num_scalars_divisor: 0,
+        active_bits_divisor: 0,
+        ilog2_divisor: 0,
+        is_divisor_zero: false,
+        is_abs_divisor_one: false,
+        is_divisor_negative: false,
+        is_divisor_pow2: false,
+        is_divisor_wider_than_numerator: false,
+
+        // Multiplier-related
+        decomposed_multiplier: std::ptr::null(),
+        multiplier_has_at_least_one_set: std::ptr::null(),
+        num_scalars_multiplier: 0,
+        active_bits_multiplier: 0,
+        ilog2_multiplier: 0,
+        shift_pre: 0,
+        shift_post: 0,
+        multiplier_length: 0,
+        is_multiplier_zero: false,
+        is_abs_multiplier_one: false,
+        is_multiplier_negative: false,
+        is_multiplier_pow2: false,
+        is_multiplier_wider_than_numerator: false,
+        is_multiplier_geq_numerator_magnitude: false,
+    }
 }
 
 // If we build the Vec<u64> inside prepare_cuda_radix_ffi
@@ -476,43 +504,25 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn get_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
+pub fn get_scalar_div_integer_radix_kb_size_on_gpu(
     streams: &CudaStreams,
-    rhs: Scalar,
+    scalar_properties: &CudaScalarDivisorFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
     lwe_dimension: LweDimension,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
     ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    multiplier_exceeds_threshold: bool,
-    ilog2_divisor: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) -> u64
-where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+) -> u64 {
+    let allocate_ms_array = noise_reduction_key.is_some();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    let msg_bits = message_modulus.0.ilog2() as usize;
-    let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     let size_tracker = unsafe {
         scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -532,13 +542,9 @@ where
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             pbs_type as u32,
+            scalar_properties,
             false,
-            is_divisor_power_of_two,
-            log2_divisor_exceeds_threshold,
-            multiplier_exceeds_threshold,
-            num_scalar_bits,
-            ilog2_divisor,
-            allocate_ms_noise_array,
+            allocate_ms_array,
         )
     };
     unsafe {
@@ -553,10 +559,8 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
-pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
+pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu(
     streams: &CudaStreams,
-    rhs: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -569,29 +573,11 @@ pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_power_of_two: bool,
-    multiplier_is_small: bool,
+    scalar_properties: &CudaScalarDivisorFFI,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) -> u64
-where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
+) -> u64 {
     let allocate_ms_noise_array = noise_reduction_key.is_some();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-    let msg_bits = message_modulus.0.ilog2() as usize;
-    let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     let size_tracker = unsafe {
         scratch_cuda_integer_signed_scalar_div_radix_kb_64(
@@ -608,16 +594,11 @@ where
             pbs_base_log.0 as u32,
             grouping_factor.0 as u32,
             num_blocks,
-            num_scalar_bits,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             pbs_type as u32,
+            scalar_properties,
             false,
-            is_absolute_divisor_one,
-            is_divisor_negative,
-            l_exceed_threshold,
-            is_power_of_two,
-            multiplier_is_small,
             allocate_ms_noise_array,
         )
     };
@@ -2723,14 +2704,11 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
-    Scalar,
 >(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
-    rhs: Scalar,
-    divisor: Scalar,
-    msg_bits: usize,
+    scalar_properties: &CudaScalarDivisorFFI,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -2744,26 +2722,11 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
-    shift_pre: u64,
-    shift_post: u32,
     h_clear_blocks: &[T],
     clear_blocks: &CudaVec<T>,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
-    assert_eq!(
-        streams.gpu_indexes[0],
-        quotient.d_blocks.0.d_vec.gpu_index(0)
-    );
-    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
-
+) {
     let ct_modulus = quotient.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
         prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
@@ -2778,51 +2741,10 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-
     let mut cuda_ffi_quotient =
         prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
     let mut cuda_ffi_remainder =
         prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
-
-    let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_div[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_div = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_div = decomposed_scalar_for_div
-        .iter()
-        .take(num_ciphertext_bits_for_div)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_mul[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_mul = msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_mul = decomposed_scalar_for_mul
-        .iter()
-        .take(num_ciphertext_bits_for_mul)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
         streams.ptr.as_ptr(),
@@ -2841,14 +2763,8 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         true,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        ilog2_divisor,
-        divisor.cast_into(),
         allocate_ms_array,
     );
 
@@ -2859,26 +2775,13 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
-        decomposed_scalar_for_div.as_ptr(),
-        decomposed_scalar_for_mul.as_ptr(),
-        has_at_least_one_set_for_div.as_ptr(),
-        has_at_least_one_set_for_mul.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        decomposed_scalar_for_div.len() as u32,
-        decomposed_scalar_for_mul.len() as u32,
-        multiplier_exceeds_threshold,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        ilog2_divisor,
-        divisor.cast_into(),
-        shift_pre,
-        shift_post,
-        rhs.cast_into(),
+        scalar_properties,
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
-        min(clear_blocks.len() as u32, num_blocks),
+        std::cmp::min(clear_blocks.len() as u32, num_blocks),
     );
 
     cleanup_cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -2893,7 +2796,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -2905,6 +2807,7 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
+    scalar_properties: &CudaScalarDivisorFFI,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -2918,29 +2821,8 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
-    shift_post: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_absolute_divisor_power_of_two: bool,
-    is_divisor_zero: bool,
-    multiplier_is_small: bool,
-    l: u32,
-    is_rhs_power_of_two: bool,
-    is_rhs_zero: bool,
-    is_rhs_one: bool,
-    rhs_shift: u32,
-    divisor_shift: u32,
     numerator_bits: u32,
-    num_scalar_bits_for_div: u32,
-    num_scalar_bits_for_mul: u32,
-    num_scalars_for_div: u32,
-    num_scalars_for_mul: u32,
-    decomposed_scalar_for_div: *const u64,
-    decomposed_scalar_for_mul: *const u64,
-    has_at_least_one_set_for_div: *const u64,
-    has_at_least_one_set_for_mul: *const u64,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) {
     assert_eq!(
@@ -2987,15 +2869,8 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         true,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        is_divisor_zero,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3006,29 +2881,11 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        is_divisor_zero,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        multiplier_is_small,
-        l,
-        shift_post,
-        is_rhs_power_of_two,
-        is_rhs_zero,
-        is_rhs_one,
-        rhs_shift,
-        divisor_shift,
+        scalar_properties,
         numerator_bits,
-        num_scalars_for_div,
-        num_scalars_for_mul,
-        decomposed_scalar_for_div,
-        decomposed_scalar_for_mul,
-        has_at_least_one_set_for_div,
-        has_at_least_one_set_for_mul,
     );
 
     cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
@@ -3047,11 +2904,9 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn get_scalar_div_rem_size_on_gpu<Scalar>(
+pub unsafe fn get_scalar_div_rem_integer_radix_kb_size_on_gpu(
     streams: &CudaStreams,
-    rhs: Scalar,
-    divisor: Scalar,
-    msg_bits: usize,
+    scalar_properties: &CudaScalarDivisorFFI,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3063,59 +2918,11 @@ pub unsafe fn get_scalar_div_rem_size_on_gpu<Scalar>(
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) -> u64
-where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
+) -> u64 {
     let allocate_ms_array = noise_reduction_key.is_some();
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_div[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_div = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_div = decomposed_scalar_for_div
-        .iter()
-        .take(num_ciphertext_bits_for_div)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_mul[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_mul = msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_mul = decomposed_scalar_for_mul
-        .iter()
-        .take(num_ciphertext_bits_for_mul)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     let size_tracker = scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
         streams.ptr.as_ptr(),
@@ -3134,14 +2941,8 @@ where
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         false,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        ilog2_divisor,
-        divisor.cast_into(),
         allocate_ms_array,
     );
 
@@ -3156,7 +2957,6 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -3175,14 +2975,7 @@ pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_absolute_divisor_power_of_two: bool,
-    is_divisor_zero: bool,
-    multiplier_is_small: bool,
-    num_scalar_bits_for_div: u32,
-    num_scalar_bits_for_mul: u32,
+    scalar_properties: &CudaScalarDivisorFFI,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) -> u64 {
     let allocate_ms_array = noise_reduction_key.is_some();
@@ -3205,15 +2998,8 @@ pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         false,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        is_divisor_zero,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3235,12 +3021,10 @@ pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
 pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
-    Scalar,
 >(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
-    rhs: Scalar,
-    msg_bits: usize,
+    scalar_properties: &CudaScalarDivisorFFI,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -3254,17 +3038,9 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
-    shift_pre: u64,
-    shift_post: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
+) {
     assert_eq!(
         streams.gpu_indexes[0],
         numerator.d_blocks.0.d_vec.gpu_index(0)
@@ -3291,26 +3067,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_degrees,
         &mut numerator_noise_levels,
     );
-
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
         streams.ptr.as_ptr(),
@@ -3329,12 +3085,8 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         true,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits,
-        ilog2_divisor,
         allocate_ms_array,
     );
 
@@ -3344,19 +3096,10 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         streams.len() as u32,
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        ksks.ptr.as_ptr(),
-        decomposed_scalar.as_ptr(),
-        has_at_least_one_set.as_ptr(),
-        &raw const ms_noise_reduction_key_ffi,
         bsks.ptr.as_ptr(),
-        decomposed_scalar.len() as u32,
-        multiplier_exceeds_threshold,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        ilog2_divisor,
-        shift_pre,
-        shift_post,
-        rhs.cast_into(),
+        ksks.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        scalar_properties,
     );
 
     cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -3370,7 +3113,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -3378,14 +3120,12 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
 pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
-    Scalar,
 >(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
+    scalar_properties: &CudaScalarDivisorFFI,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
-    rhs: Scalar,
-    msg_bits: usize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3399,17 +3139,8 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
     num_blocks: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_power_of_two: bool,
-    multiplier_is_small: bool,
-    l: u32,
-    shift_post: u32,
     numerator_bits: u32,
-) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-{
+) {
     assert_eq!(
         streams.gpu_indexes[0],
         numerator.d_blocks.0.d_vec.gpu_index(0)
@@ -3437,36 +3168,6 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_noise_levels,
     );
 
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits = msg_bits * 2 * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .as_slice()
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let is_rhs_power_of_two = rhs.is_power_of_two();
-    let is_rhs_zero = rhs == Scalar::ZERO;
-    let is_rhs_one = rhs == Scalar::ONE;
-    let rhs_shift = if is_rhs_power_of_two && !is_rhs_one {
-        rhs.ilog2()
-    } else {
-        0u32
-    };
-
     scratch_cuda_integer_signed_scalar_div_radix_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3481,16 +3182,11 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
         num_blocks,
-        num_scalar_bits,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        scalar_properties,
         true,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_power_of_two,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3500,24 +3196,11 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         streams.len() as u32,
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_power_of_two,
-        multiplier_is_small,
-        l,
-        shift_post,
-        is_rhs_power_of_two,
-        is_rhs_zero,
-        is_rhs_one,
-        rhs_shift,
+        scalar_properties,
         numerator_bits,
-        decomposed_scalar.len() as u32,
-        decomposed_scalar.as_slice().as_ptr().cast::<u64>(),
-        has_at_least_one_set.as_slice().as_ptr().cast::<u64>(),
     );
 
     cleanup_cuda_integer_signed_scalar_div_radix_kb_64(

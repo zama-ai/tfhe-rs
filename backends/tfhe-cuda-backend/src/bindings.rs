@@ -238,6 +238,91 @@ const _: () = {
     ["Offset of field: CudaRadixCiphertextFFI::lwe_dimension"]
         [::std::mem::offset_of!(CudaRadixCiphertextFFI, lwe_dimension) - 32usize];
 };
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaScalarDivisorFFI {
+    pub divisor_has_at_least_one_set: *const u64,
+    pub decomposed_divisor: *const u64,
+    pub num_scalars_divisor: u32,
+    pub active_bits_divisor: u32,
+    pub ilog2_divisor: u32,
+    pub is_divisor_zero: bool,
+    pub is_abs_divisor_one: bool,
+    pub is_divisor_negative: bool,
+    pub is_divisor_pow2: bool,
+    pub is_divisor_wider_than_numerator: bool,
+    pub multiplier_has_at_least_one_set: *const u64,
+    pub decomposed_multiplier: *const u64,
+    pub num_scalars_multiplier: u32,
+    pub active_bits_multiplier: u32,
+    pub ilog2_multiplier: u32,
+    pub shift_pre: u64,
+    pub shift_post: u32,
+    pub multiplier_length: u32,
+    pub is_multiplier_zero: bool,
+    pub is_abs_multiplier_one: bool,
+    pub is_multiplier_negative: bool,
+    pub is_multiplier_pow2: bool,
+    pub is_multiplier_wider_than_numerator: bool,
+    pub is_multiplier_geq_numerator_magnitude: bool,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaScalarDivisorFFI"][::std::mem::size_of::<CudaScalarDivisorFFI>() - 96usize];
+    ["Alignment of CudaScalarDivisorFFI"][::std::mem::align_of::<CudaScalarDivisorFFI>() - 8usize];
+    ["Offset of field: CudaScalarDivisorFFI::divisor_has_at_least_one_set"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, divisor_has_at_least_one_set) - 0usize];
+    ["Offset of field: CudaScalarDivisorFFI::decomposed_divisor"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, decomposed_divisor) - 8usize];
+    ["Offset of field: CudaScalarDivisorFFI::num_scalars_divisor"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, num_scalars_divisor) - 16usize];
+    ["Offset of field: CudaScalarDivisorFFI::active_bits_divisor"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, active_bits_divisor) - 20usize];
+    ["Offset of field: CudaScalarDivisorFFI::ilog2_divisor"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, ilog2_divisor) - 24usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_divisor_zero"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_divisor_zero) - 28usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_abs_divisor_one"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_abs_divisor_one) - 29usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_divisor_negative"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_divisor_negative) - 30usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_divisor_pow2"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_divisor_pow2) - 31usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_divisor_wider_than_numerator"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_divisor_wider_than_numerator) - 32usize];
+    ["Offset of field: CudaScalarDivisorFFI::multiplier_has_at_least_one_set"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, multiplier_has_at_least_one_set) - 40usize];
+    ["Offset of field: CudaScalarDivisorFFI::decomposed_multiplier"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, decomposed_multiplier) - 48usize];
+    ["Offset of field: CudaScalarDivisorFFI::num_scalars_multiplier"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, num_scalars_multiplier) - 56usize];
+    ["Offset of field: CudaScalarDivisorFFI::active_bits_multiplier"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, active_bits_multiplier) - 60usize];
+    ["Offset of field: CudaScalarDivisorFFI::ilog2_multiplier"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, ilog2_multiplier) - 64usize];
+    ["Offset of field: CudaScalarDivisorFFI::shift_pre"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, shift_pre) - 72usize];
+    ["Offset of field: CudaScalarDivisorFFI::shift_post"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, shift_post) - 80usize];
+    ["Offset of field: CudaScalarDivisorFFI::multiplier_length"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, multiplier_length) - 84usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_multiplier_zero"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_multiplier_zero) - 88usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_abs_multiplier_one"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_abs_multiplier_one) - 89usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_multiplier_negative"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_multiplier_negative) - 90usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_multiplier_pow2"]
+        [::std::mem::offset_of!(CudaScalarDivisorFFI, is_multiplier_pow2) - 91usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_multiplier_wider_than_numerator"][::std::mem::offset_of!(
+        CudaScalarDivisorFFI,
+        is_multiplier_wider_than_numerator
+    ) - 92usize];
+    ["Offset of field: CudaScalarDivisorFFI::is_multiplier_geq_numerator_magnitude"][::std::mem::offset_of!(
+        CudaScalarDivisorFFI,
+        is_multiplier_geq_numerator_magnitude
+    ) - 93usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
         streams: *const *mut ffi::c_void,
@@ -1447,12 +1532,8 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        scalar_properties: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        is_divisor_power_of_two: bool,
-        log2_divisor_exceeds_threshold: bool,
-        multiplier_exceeds_threshold: bool,
-        num_scalar_bits: u32,
-        ilog2_divisor: u32,
         allocate_ms_array: bool,
     ) -> u64;
 }
@@ -1463,19 +1544,10 @@ unsafe extern "C" {
         gpu_count: u32,
         numerator_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        ksks: *const *mut ffi::c_void,
-        decomposed_scalar: *const u64,
-        has_at_least_one_set: *const u64,
-        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
         bsks: *const *mut ffi::c_void,
-        num_scalars: u32,
-        multiplier_exceeds_threshold: bool,
-        is_divisor_power_of_two: bool,
-        log2_divisor_exceeds_threshold: bool,
-        ilog2_divisor: u32,
-        shift_pre: u64,
-        shift_post: u32,
-        rhs: u64,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+        scalar_properties: *const CudaScalarDivisorFFI,
     );
 }
 unsafe extern "C" {
@@ -1546,16 +1618,11 @@ unsafe extern "C" {
         pbs_base_log: u32,
         grouping_factor: u32,
         num_blocks: u32,
-        num_scalar_bits: u32,
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        scalar_properties: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        is_absolute_divisor_one: bool,
-        is_divisor_negative: bool,
-        l_exceed_threshold: bool,
-        is_power_of_two: bool,
-        multiplier_is_small: bool,
         allocate_ms_array: bool,
     ) -> u64;
 }
@@ -1566,24 +1633,11 @@ unsafe extern "C" {
         gpu_count: u32,
         numerator_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
         ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-        is_absolute_divisor_one: bool,
-        is_divisor_negative: bool,
-        l_exceed_threshold: bool,
-        is_power_of_two: bool,
-        multiplier_is_small: bool,
-        l: u32,
-        shift_post: u32,
-        is_rhs_power_of_two: bool,
-        is_rhs_zero: bool,
-        is_rhs_one: bool,
-        rhs_shift: u32,
+        scalar_properties: *const CudaScalarDivisorFFI,
         numerator_bits: u32,
-        num_scalars: u32,
-        decomposed_scalar: *const u64,
-        has_at_least_one_set: *const u64,
     );
 }
 unsafe extern "C" {
@@ -1612,14 +1666,8 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        scalar_properties: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        is_divisor_power_of_two: bool,
-        log2_divisor_exceeds_threshold: bool,
-        multiplier_exceeds_threshold: bool,
-        num_scalar_bits_for_div: u32,
-        num_scalar_bits_for_mul: u32,
-        ilog2_divisor: u32,
-        divisor: u64,
         allocate_ms_array: bool,
     ) -> u64;
 }
@@ -1631,23 +1679,10 @@ unsafe extern "C" {
         quotient_ct: *mut CudaRadixCiphertextFFI,
         remainder_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
-        decomposed_scalar_for_div: *const u64,
-        decomposed_scalar_for_mul: *const u64,
-        has_at_least_one_set_for_div: *const u64,
-        has_at_least_one_set_for_mul: *const u64,
+        ksks: *const *mut ffi::c_void,
         ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-        num_scalars_for_div: u32,
-        num_scalars_for_mul: u32,
-        multiplier_exceeds_threshold: bool,
-        is_divisor_power_of_two: bool,
-        log2_divisor_exceeds_threshold: bool,
-        ilog2_divisor: u32,
-        divisor: u64,
-        shift_pre: u64,
-        shift_post: u32,
-        rhs: u64,
+        scalar_properties: *const CudaScalarDivisorFFI,
         clear_blocks: *const ffi::c_void,
         h_clear_blocks: *const ffi::c_void,
         num_clear_blocks: u32,
@@ -1679,15 +1714,8 @@ unsafe extern "C" {
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
+        scalar_properties: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        num_scalar_bits_for_div: u32,
-        num_scalar_bits_for_mul: u32,
-        is_absolute_divisor_one: bool,
-        is_divisor_negative: bool,
-        l_exceed_threshold: bool,
-        is_absolute_divisor_power_of_two: bool,
-        is_divisor_zero: bool,
-        multiplier_is_small: bool,
         allocate_ms_array: bool,
     ) -> u64;
 }
@@ -1699,29 +1727,11 @@ unsafe extern "C" {
         quotient_ct: *mut CudaRadixCiphertextFFI,
         remainder_ct: *mut CudaRadixCiphertextFFI,
         mem_ptr: *mut i8,
-        ksks: *const *mut ffi::c_void,
         bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
         ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-        is_absolute_divisor_one: bool,
-        is_divisor_negative: bool,
-        is_divisor_zero: bool,
-        l_exceed_threshold: bool,
-        is_absolute_divisor_power_of_two: bool,
-        multiplier_is_small: bool,
-        l: u32,
-        shift_post: u32,
-        is_rhs_power_of_two: bool,
-        is_rhs_zero: bool,
-        is_rhs_one: bool,
-        rhs_shift: u32,
-        divisor_shift: u32,
+        scalar_properties: *const CudaScalarDivisorFFI,
         numerator_bits: u32,
-        num_scalars_for_div: u32,
-        num_scalars_for_mul: u32,
-        decomposed_scalar_for_div: *const u64,
-        decomposed_scalar_for_mul: *const u64,
-        has_at_least_one_set_for_div: *const u64,
-        has_at_least_one_set_for_mul: *const u64,
     );
 }
 unsafe extern "C" {

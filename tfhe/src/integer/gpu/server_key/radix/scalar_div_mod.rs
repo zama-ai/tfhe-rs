@@ -8,9 +8,9 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
     get_full_propagate_assign_size_on_gpu, get_scalar_div_integer_radix_kb_size_on_gpu,
-    get_scalar_div_rem_size_on_gpu, get_signed_scalar_div_integer_radix_kb_size_on_gpu,
-    get_signed_scalar_div_rem_size_on_gpu,
-    unchecked_signed_scalar_div_integer_radix_kb_assign_async,
+    get_scalar_div_rem_integer_radix_kb_size_on_gpu,
+    get_signed_scalar_div_integer_radix_kb_size_on_gpu, get_signed_scalar_div_rem_size_on_gpu,
+    prepare_default_scalar_divisor, unchecked_signed_scalar_div_integer_radix_kb_assign_async,
     unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async,
     unchecked_unsigned_scalar_div_integer_radix_kb_assign_async,
     unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async, CudaServerKey, PBSType,
@@ -92,6 +92,8 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable,
     {
+        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+
         let numerator_bits = numerator
             .as_ref()
             .info
@@ -103,24 +105,31 @@ impl CudaServerKey {
             .ilog2()
             * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
-        // Rust has a check on all division, so we shall also have one
-        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
+        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let lwe_dimension = self
+            .key_switching_key
+            .output_key_lwe_size()
+            .to_lwe_dimension();
+        let mut quotient = unsafe { numerator.duplicate_async(streams) };
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is \
-            >= to the number of bits encrypted in the ciphertext: \n\
-            encrypted bits: {numerator_bits}, scalar bits: {}
-            ",
+    >= to the number of bits encrypted in the ciphertext: \n\
+    encrypted bits: {numerator_bits}, scalar bits: {}
+    ",
             Scalar::BITS
         );
 
+        let mut scalar_properties = prepare_default_scalar_divisor();
+
         let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
-
-        let log2_divisor_exceeds_threshold =
+        scalar_properties.is_divisor_pow2 = is_divisor_power_of_two;
+        scalar_properties.is_abs_divisor_one = divisor == Scalar::ONE;
+        scalar_properties.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+        scalar_properties.is_divisor_wider_than_numerator =
             MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
-
-        let ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
 
         let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
@@ -128,7 +137,7 @@ impl CudaServerKey {
             >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
             && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
             && !is_divisor_power_of_two
-            && !log2_divisor_exceeds_threshold
+            && !scalar_properties.is_divisor_wider_than_numerator
         {
             let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
             let two_pow_e = divisor_dp
@@ -144,28 +153,100 @@ impl CudaServerKey {
             0
         };
 
-        let mut quotient = unsafe { numerator.duplicate_async(streams) };
-
-        let multiplier_exceeds_threshold = chosen_multiplier.multiplier
+        scalar_properties.shift_pre = shift_pre;
+        scalar_properties.shift_post = chosen_multiplier.shift_post;
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
             >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+        scalar_properties.multiplier_length = chosen_multiplier.l;
 
-        let rhs = if multiplier_exceeds_threshold {
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
         } else {
             chosen_multiplier.multiplier
         };
 
-        self.unchecked_unsigned_scalar_div_assign_async(
-            &mut quotient,
-            rhs,
-            streams,
-            multiplier_exceeds_threshold,
-            is_divisor_power_of_two,
-            log2_divisor_exceeds_threshold,
-            ilog2_divisor,
-            shift_pre,
-            chosen_multiplier.shift_post,
-        );
+        let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+
+        scalar_properties.decomposed_multiplier = decomposed_multiplier.as_ptr();
+        scalar_properties.num_scalars_multiplier = decomposed_multiplier.len() as u32;
+
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+
+        let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                multiplier_has_at_least_one_set[i % msg_bits] = 1;
+            }
+        }
+        scalar_properties.multiplier_has_at_least_one_set =
+            multiplier_has_at_least_one_set.as_ptr();
+
+        let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
+        scalar_properties.active_bits_multiplier = decomposed_multiplier
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count() as u32;
+
+        scalar_properties.is_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
+        scalar_properties.is_abs_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+        scalar_properties.is_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+
+        scalar_properties.ilog2_multiplier =
+            if scalar_properties.is_multiplier_pow2 && !scalar_properties.is_abs_multiplier_one {
+                MiniUnsignedInteger::ilog2(rhs)
+            } else {
+                0u32
+            };
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
+                    streams,
+                    quotient.as_mut(),
+                    &scalar_properties,
+                    &self.key_switching_key.d_vec,
+                    &d_bsk.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    num_blocks,
+                    PBSType::Classical,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
+                    streams,
+                    quotient.as_mut(),
+                    &scalar_properties,
+                    &self.key_switching_key.d_vec,
+                    &d_multibit_bsk.d_vec,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    d_multibit_bsk.glwe_dimension,
+                    d_multibit_bsk.polynomial_size,
+                    lwe_dimension,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
+                    d_multibit_bsk.grouping_factor,
+                    num_blocks,
+                    PBSType::MultiBit,
+                    None,
+                );
+            }
+        }
 
         quotient
     }
@@ -276,7 +357,10 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
+        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+
         let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
 
         let mut quotient: CudaUnsignedRadixCiphertext =
             unsafe { numerator.duplicate_async(streams) };
@@ -292,27 +376,21 @@ impl CudaServerKey {
             .message_modulus
             .0
             .ilog2()
-            * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-
-        // Rust has a check on all division, so we shall also have one
-        assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
+            * num_blocks;
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is \
-            >= to the number of bits encrypted in the ciphertext: \n\
-            encrypted bits: {numerator_bits}, scalar bits: {}
-            ",
+        >= to the number of bits encrypted in the ciphertext: \n\
+        encrypted bits: {numerator_bits}, scalar bits: {}",
             Scalar::BITS
         );
 
-        let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+        let mut scalar_properties = prepare_default_scalar_divisor();
 
+        let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
         let log2_divisor_exceeds_threshold =
             MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
-
-        let ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
-
         let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
         let shift_pre = if chosen_multiplier.multiplier
@@ -335,14 +413,71 @@ impl CudaServerKey {
             0
         };
 
-        let multiplier_exceeds_threshold = chosen_multiplier.multiplier
+        scalar_properties.shift_pre = shift_pre;
+        scalar_properties.shift_post = chosen_multiplier.shift_post;
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
             >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+        scalar_properties.multiplier_length = chosen_multiplier.l;
 
-        let rhs = if multiplier_exceeds_threshold {
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
         } else {
             chosen_multiplier.multiplier
         };
+
+        let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let decomposer_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+        let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer_rhs.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                multiplier_has_at_least_one_set[i % msg_bits] = 1;
+            }
+        }
+
+        scalar_properties.decomposed_multiplier = decomposed_multiplier.as_ptr();
+        scalar_properties.multiplier_has_at_least_one_set =
+            multiplier_has_at_least_one_set.as_ptr();
+        scalar_properties.num_scalars_multiplier = decomposed_multiplier.len() as u32;
+        scalar_properties.active_bits_multiplier = decomposed_multiplier
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
+        scalar_properties.is_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
+        scalar_properties.is_abs_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+        scalar_properties.is_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+        scalar_properties.ilog2_multiplier = if scalar_properties.is_multiplier_pow2 {
+            MiniUnsignedInteger::ilog2(rhs)
+        } else {
+            0
+        };
+
+        let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let decomposer_divisor =
+            BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
+        let mut divisor_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer_divisor.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                divisor_has_at_least_one_set[i % msg_bits] = 1;
+            }
+        }
+
+        scalar_properties.decomposed_divisor = decomposed_divisor.as_ptr();
+        scalar_properties.divisor_has_at_least_one_set = divisor_has_at_least_one_set.as_ptr();
+        scalar_properties.num_scalars_divisor = decomposed_divisor.len() as u32;
+        scalar_properties.active_bits_divisor = decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
+        scalar_properties.is_divisor_pow2 = is_divisor_power_of_two;
+        scalar_properties.is_abs_divisor_one = divisor == Scalar::ONE;
+        scalar_properties.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+        scalar_properties.is_divisor_wider_than_numerator = log2_divisor_exceeds_threshold;
 
         let h_clear_blocks = BlockDecomposer::with_early_stop_at_zero(
             divisor - Scalar::ONE,
@@ -351,7 +486,6 @@ impl CudaServerKey {
         .iter_as::<u8>()
         .map(|x| x as u64)
         .collect::<Vec<_>>();
-
         let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
 
         unsafe {
@@ -361,9 +495,7 @@ impl CudaServerKey {
                         streams,
                         quotient.as_mut(),
                         remainder.as_mut(),
-                        rhs,
-                        <Scalar as Reciprocable>::DoublePrecision::cast_from(divisor),
-                        self.message_modulus.0.ilog2() as usize,
+                        &scalar_properties,
                         &self.key_switching_key.d_vec,
                         &d_bsk.d_vec,
                         self.message_modulus,
@@ -377,12 +509,6 @@ impl CudaServerKey {
                         d_bsk.decomp_base_log,
                         LweBskGroupingFactor(0),
                         num_blocks,
-                        multiplier_exceeds_threshold,
-                        is_divisor_power_of_two,
-                        log2_divisor_exceeds_threshold,
-                        ilog2_divisor,
-                        shift_pre,
-                        chosen_multiplier.shift_post,
                         &h_clear_blocks,
                         &clear_blocks,
                         PBSType::Classical,
@@ -394,9 +520,7 @@ impl CudaServerKey {
                         streams,
                         quotient.as_mut(),
                         remainder.as_mut(),
-                        rhs,
-                        <Scalar as Reciprocable>::DoublePrecision::cast_from(divisor),
-                        self.message_modulus.0.ilog2() as usize,
+                        &scalar_properties,
                         &self.key_switching_key.d_vec,
                         &d_multibit_bsk.d_vec,
                         self.message_modulus,
@@ -410,12 +534,6 @@ impl CudaServerKey {
                         d_multibit_bsk.decomp_base_log,
                         d_multibit_bsk.grouping_factor,
                         num_blocks,
-                        multiplier_exceeds_threshold,
-                        is_divisor_power_of_two,
-                        log2_divisor_exceeds_threshold,
-                        ilog2_divisor,
-                        shift_pre,
-                        chosen_multiplier.shift_post,
                         &h_clear_blocks,
                         &clear_blocks,
                         PBSType::MultiBit,
@@ -646,41 +764,71 @@ impl CudaServerKey {
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is\
-            >= to the number of bits encrypted in the ciphertext"
+        >= to the number of bits encrypted in the ciphertext"
         );
 
-        // wrappings_abs returns Scalar::MIN when its input is Scalar::MIN (since in signed numbers
-        // Scalar::MIN's absolute value cannot be represented.
-        // However, casting Scalar::MIN to signed value will give the correct abs value
-        // If Scalar and Scalar::Unsigned have the same number of bits
-        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
-
-        let chosen_multiplier =
-            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
-
         let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate_async(streams);
-
         let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
         let lwe_dimension = self
             .key_switching_key
             .output_key_lwe_size()
             .to_lwe_dimension();
 
-        let is_absolute_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
-        let is_divisor_negative = divisor < Scalar::ZERO;
-        let l_exceed_threshold = chosen_multiplier.l >= numerator_bits;
-        let is_power_of_two =
-            absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize);
-        let multiplier_is_small = chosen_multiplier.multiplier
-            < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+        let mut scalar_properties = prepare_default_scalar_divisor();
 
-        let rhs = if multiplier_is_small {
-            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
-        } else {
+        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+        let chosen_multiplier =
+            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+        scalar_properties.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+        scalar_properties.is_divisor_negative = divisor < Scalar::ZERO;
+        scalar_properties.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
+            >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+        scalar_properties.shift_post = chosen_multiplier.shift_post;
+        scalar_properties.multiplier_length = chosen_multiplier.l;
+        scalar_properties.is_multiplier_wider_than_numerator =
+            chosen_multiplier.l >= numerator_bits;
+
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             let cst = chosen_multiplier.multiplier
                 - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
             Scalar::DoublePrecision::cast_from(cst)
+        } else {
+            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+        };
+
+        let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        scalar_properties.decomposed_multiplier = decomposed_multiplier.as_ptr();
+
+        let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+        let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                multiplier_has_at_least_one_set[i % msg_bits] = 1;
+            }
+        }
+        scalar_properties.multiplier_has_at_least_one_set =
+            multiplier_has_at_least_one_set.as_ptr();
+
+        let num_ciphertext_bits = msg_bits * 2 * num_blocks as usize;
+        scalar_properties.active_bits_multiplier = decomposed_multiplier
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
+
+        scalar_properties.is_multiplier_pow2 = rhs.is_power_of_two();
+        scalar_properties.is_abs_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+        scalar_properties.is_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+        scalar_properties.ilog2_multiplier = if scalar_properties.is_multiplier_pow2 {
+            rhs.ilog2()
+        } else {
+            0u32
         };
 
         match &self.bootstrapping_key {
@@ -688,10 +836,9 @@ impl CudaServerKey {
                 unchecked_signed_scalar_div_integer_radix_kb_assign_async(
                     streams,
                     quotient.as_mut(),
+                    &scalar_properties,
                     &self.key_switching_key.d_vec,
                     &d_bsk.d_vec,
-                    rhs,
-                    self.message_modulus.0.ilog2() as usize,
                     self.message_modulus,
                     self.carry_modulus,
                     d_bsk.glwe_dimension,
@@ -705,13 +852,6 @@ impl CudaServerKey {
                     num_blocks,
                     PBSType::Classical,
                     d_bsk.d_ms_noise_reduction_key.as_ref(),
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_power_of_two,
-                    multiplier_is_small,
-                    chosen_multiplier.l,
-                    chosen_multiplier.shift_post,
                     numerator_bits,
                 );
             }
@@ -719,10 +859,9 @@ impl CudaServerKey {
                 unchecked_signed_scalar_div_integer_radix_kb_assign_async(
                     streams,
                     quotient.as_mut(),
+                    &scalar_properties,
                     &self.key_switching_key.d_vec,
                     &d_multibit_bsk.d_vec,
-                    rhs,
-                    self.message_modulus.0.ilog2() as usize,
                     self.message_modulus,
                     self.carry_modulus,
                     d_multibit_bsk.glwe_dimension,
@@ -736,13 +875,6 @@ impl CudaServerKey {
                     num_blocks,
                     PBSType::MultiBit,
                     None,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_power_of_two,
-                    multiplier_is_small,
-                    chosen_multiplier.l,
-                    chosen_multiplier.shift_post,
                     numerator_bits,
                 );
             }
@@ -865,9 +997,9 @@ impl CudaServerKey {
     {
         let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
 
-        let mut quotient: CudaSignedRadixCiphertext = unsafe { numerator.duplicate_async(streams) };
+        let mut quotient: CudaSignedRadixCiphertext = numerator.duplicate_async(streams);
         let mut remainder: CudaSignedRadixCiphertext =
-            unsafe { self.create_trivial_zero_radix_async(num_blocks as usize, streams) };
+            self.create_trivial_zero_radix_async(num_blocks as usize, streams);
 
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
@@ -877,99 +1009,95 @@ impl CudaServerKey {
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is\
-            >= to the number of bits encrypted in the ciphertext"
+    >= to the number of bits encrypted in the ciphertext"
         );
 
-        // wrappings_abs returns Scalar::MIN when its input is Scalar::MIN (since in signed numbers
-        // Scalar::MIN's absolute value cannot be represented.
-        // However, casting Scalar::MIN to signed value will give the correct abs value
-        // If Scalar and Scalar::Unsigned have the same number of bits
-        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
-
-        let chosen_multiplier =
-            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
-
-        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
         let lwe_dimension = self
             .key_switching_key
             .output_key_lwe_size()
             .to_lwe_dimension();
 
-        let is_absolute_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
-        let is_divisor_negative = divisor < Scalar::ZERO;
-        let l_exceed_threshold = chosen_multiplier.l >= numerator_bits;
-        let is_absolute_divisor_power_of_two =
-            absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize);
-        let multiplier_is_small = chosen_multiplier.multiplier
-            < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
-        let is_divisor_zero = divisor == Scalar::ZERO;
+        let mut scalar_properties = prepare_default_scalar_divisor();
 
-        let divisor_shift = if is_absolute_divisor_power_of_two && !is_divisor_negative {
-            divisor.ilog2()
-        } else {
-            0u32
-        };
+        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+        let chosen_multiplier =
+            choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
 
-        let rhs = if multiplier_is_small {
-            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
-        } else {
+        let is_abs_divisor_pow2 = absolute_divisor.is_power_of_two();
+        scalar_properties.is_divisor_pow2 = is_abs_divisor_pow2;
+        scalar_properties.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+        scalar_properties.is_divisor_negative = divisor < Scalar::ZERO;
+        scalar_properties.is_divisor_zero = divisor == Scalar::ZERO;
+        if is_abs_divisor_pow2 && !scalar_properties.is_divisor_negative {
+            scalar_properties.ilog2_divisor = divisor.ilog2();
+        }
+
+        let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        let decomposer_divisor =
+            BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
+        let mut divisor_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer_divisor.collect_vec().iter().copied().enumerate() {
+            if bit == 1 {
+                divisor_has_at_least_one_set[i % msg_bits] = 1;
+            }
+        }
+        scalar_properties.decomposed_divisor = decomposed_divisor.as_ptr();
+        scalar_properties.divisor_has_at_least_one_set = divisor_has_at_least_one_set.as_ptr();
+        scalar_properties.num_scalars_divisor = decomposed_divisor.len() as u32;
+        scalar_properties.active_bits_divisor = decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
+
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
+            >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+        scalar_properties.multiplier_length = chosen_multiplier.l;
+        scalar_properties.shift_post = chosen_multiplier.shift_post;
+        scalar_properties.is_multiplier_wider_than_numerator =
+            chosen_multiplier.l >= numerator_bits;
+
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             let cst = chosen_multiplier.multiplier
                 - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
             Scalar::DoublePrecision::cast_from(cst)
-        };
-
-        let is_rhs_power_of_two = rhs.is_power_of_two();
-        let is_rhs_zero = rhs == Scalar::DoublePrecision::ZERO;
-        let is_rhs_one = rhs == Scalar::DoublePrecision::ONE;
-        let rhs_shift = if is_rhs_power_of_two && !is_rhs_one {
-            rhs.ilog2()
         } else {
-            0u32
+            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
         };
 
-        let msg_bits = self.message_modulus.0.ilog2() as usize;
-
-        let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
             .iter_as::<u64>()
             .collect::<Vec<_>>();
+        scalar_properties.decomposed_multiplier = decomposed_multiplier.as_ptr();
 
-        let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-        let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-        for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
+        let decomposer_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+        let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+        for (i, bit) in decomposer_rhs.collect_vec().iter().copied().enumerate() {
             if bit == 1 {
-                has_at_least_one_set_for_div[i % msg_bits] = 1;
+                multiplier_has_at_least_one_set[i % msg_bits] = 1;
             }
         }
-
-        let num_ciphertext_bits_for_div = 2 * msg_bits * num_blocks as usize;
-        let num_scalar_bits_for_div = decomposed_scalar_for_div
+        scalar_properties.multiplier_has_at_least_one_set =
+            multiplier_has_at_least_one_set.as_ptr();
+        scalar_properties.num_scalars_multiplier = decomposed_multiplier.len() as u32;
+        scalar_properties.active_bits_multiplier = decomposed_multiplier
             .iter()
-            .take(num_ciphertext_bits_for_div)
-            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
             .count() as u32;
 
-        let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-            .iter_as::<u64>()
-            .collect::<Vec<_>>();
-
-        let decomposer_for_mul =
-            BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-        let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-        for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-            if bit == 1 {
-                has_at_least_one_set_for_mul[i % msg_bits] = 1;
-            }
-        }
-
-        let num_ciphertext_bits_for_mul = msg_bits * num_blocks as usize;
-        let num_scalar_bits_for_mul = decomposed_scalar_for_mul
-            .iter()
-            .take(num_ciphertext_bits_for_mul)
-            .filter(|&&rhs_bit| rhs_bit == 1u64)
-            .count() as u32;
+        scalar_properties.is_multiplier_pow2 = rhs.is_power_of_two();
+        scalar_properties.is_abs_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+        scalar_properties.is_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+        scalar_properties.ilog2_multiplier =
+            if scalar_properties.is_multiplier_pow2 && !scalar_properties.is_abs_multiplier_one {
+                rhs.ilog2()
+            } else {
+                0u32
+            };
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
@@ -977,6 +1105,7 @@ impl CudaServerKey {
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
+                    &scalar_properties,
                     &self.key_switching_key.d_vec,
                     &d_bsk.d_vec,
                     self.message_modulus,
@@ -990,29 +1119,8 @@ impl CudaServerKey {
                     d_bsk.decomp_base_log,
                     LweBskGroupingFactor(0),
                     num_blocks,
-                    chosen_multiplier.shift_post,
                     PBSType::Classical,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_absolute_divisor_power_of_two,
-                    is_divisor_zero,
-                    multiplier_is_small,
-                    chosen_multiplier.l,
-                    is_rhs_power_of_two,
-                    is_rhs_zero,
-                    is_rhs_one,
-                    rhs_shift,
-                    divisor_shift,
                     numerator_bits,
-                    num_scalar_bits_for_div,
-                    num_scalar_bits_for_mul,
-                    decomposed_scalar_for_div.len() as u32,
-                    decomposed_scalar_for_mul.len() as u32,
-                    decomposed_scalar_for_div.as_ptr(),
-                    decomposed_scalar_for_mul.as_ptr(),
-                    has_at_least_one_set_for_div.as_ptr(),
-                    has_at_least_one_set_for_mul.as_ptr(),
                     d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
@@ -1021,6 +1129,7 @@ impl CudaServerKey {
                     streams,
                     quotient.as_mut(),
                     remainder.as_mut(),
+                    &scalar_properties,
                     &self.key_switching_key.d_vec,
                     &d_multibit_bsk.d_vec,
                     self.message_modulus,
@@ -1034,29 +1143,8 @@ impl CudaServerKey {
                     d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
                     num_blocks,
-                    chosen_multiplier.shift_post,
                     PBSType::MultiBit,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_absolute_divisor_power_of_two,
-                    is_divisor_zero,
-                    multiplier_is_small,
-                    chosen_multiplier.l,
-                    is_rhs_power_of_two,
-                    is_rhs_zero,
-                    is_rhs_one,
-                    rhs_shift,
-                    divisor_shift,
                     numerator_bits,
-                    num_scalar_bits_for_div,
-                    num_scalar_bits_for_mul,
-                    decomposed_scalar_for_div.len() as u32,
-                    decomposed_scalar_for_mul.len() as u32,
-                    decomposed_scalar_for_div.as_ptr(),
-                    decomposed_scalar_for_mul.as_ptr(),
-                    has_at_least_one_set_for_div.as_ptr(),
-                    has_at_least_one_set_for_mul.as_ptr(),
                     None,
                 );
             }
@@ -1264,6 +1352,8 @@ impl CudaServerKey {
     where
         Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
     {
+        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+
         let numerator_bits = numerator
             .as_ref()
             .info
@@ -1273,55 +1363,65 @@ impl CudaServerKey {
             .message_modulus
             .0
             .ilog2()
-            * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+            * num_blocks;
 
-        // Rust has a check on all division, so we shall also have one
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is \
-            >= to the number of bits encrypted in the ciphertext: \n\
-            encrypted bits: {numerator_bits}, scalar bits: {}
-            ",
+    >= to the number of bits encrypted in the ciphertext: \n\
+    encrypted bits: {numerator_bits}, scalar bits: {}
+    ",
             Scalar::BITS
         );
 
-        let lwe_ciphertext_count = numerator.as_ref().d_blocks.lwe_ciphertext_count();
+        let mut scalar_properties = prepare_default_scalar_divisor();
 
         let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
-
-        let log2_divisor_exceeds_threshold =
+        scalar_properties.is_divisor_pow2 = is_divisor_power_of_two;
+        scalar_properties.is_abs_divisor_one = divisor == Scalar::ONE;
+        scalar_properties.is_divisor_wider_than_numerator =
             MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
 
         let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
         if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
             && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+            && !scalar_properties.is_divisor_pow2
+            && !scalar_properties.is_divisor_wider_than_numerator
         {
-            let divisor = Scalar::DoublePrecision::cast_from(divisor);
-            // Find e such that d = (1 << e) * divisor_odd
-            // where divisor_odd is odd
-            let two_pow_e =
-                divisor & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor);
+            let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+            let two_pow_e = divisor_dp
+                & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
             let e = MiniUnsignedInteger::ilog2(two_pow_e);
-            let divisor_odd = divisor / two_pow_e;
+            let divisor_odd_dp = divisor_dp / two_pow_e;
 
             assert!(numerator_bits > e && e <= Scalar::BITS as u32);
-            let divisor_odd: Scalar = divisor_odd.cast_into(); // cast to lower precision
+            let divisor_odd: Scalar = divisor_odd_dp.cast_into();
             chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
         }
 
-        let multiplier_exceeds_threshold = chosen_multiplier.multiplier
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
             >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
 
-        let rhs = if multiplier_exceeds_threshold {
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
         } else {
             chosen_multiplier.multiplier
         };
 
-        let ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
+
+        let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+
+        scalar_properties.active_bits_multiplier = decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count() as u32;
 
         let full_prop_mem = if numerator.block_carries_are_empty() {
             0
@@ -1365,49 +1465,37 @@ impl CudaServerKey {
         let scalar_div_mem = match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => get_scalar_div_integer_radix_kb_size_on_gpu(
                 streams,
-                rhs,
+                &scalar_properties,
                 self.message_modulus,
                 self.carry_modulus,
                 d_bsk.glwe_dimension,
                 d_bsk.polynomial_size,
-                self.key_switching_key
-                    .output_key_lwe_size()
-                    .to_lwe_dimension(),
-                d_bsk.decomp_base_log,
-                d_bsk.decomp_level_count,
-                self.key_switching_key.decomposition_base_log(),
+                d_bsk.input_lwe_dimension,
                 self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
                 LweBskGroupingFactor(0),
-                lwe_ciphertext_count.0 as u32,
+                num_blocks,
                 PBSType::Classical,
-                is_divisor_power_of_two,
-                log2_divisor_exceeds_threshold,
-                multiplier_exceeds_threshold,
-                ilog2_divisor,
                 d_bsk.d_ms_noise_reduction_key.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_scalar_div_integer_radix_kb_size_on_gpu(
                     streams,
-                    rhs,
+                    &scalar_properties,
                     self.message_modulus,
                     self.carry_modulus,
                     d_multibit_bsk.glwe_dimension,
                     d_multibit_bsk.polynomial_size,
-                    self.key_switching_key
-                        .output_key_lwe_size()
-                        .to_lwe_dimension(),
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.decomp_level_count,
-                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.input_lwe_dimension,
                     self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count,
+                    d_multibit_bsk.decomp_base_log,
                     d_multibit_bsk.grouping_factor,
-                    lwe_ciphertext_count.0 as u32,
+                    num_blocks,
                     PBSType::MultiBit,
-                    is_divisor_power_of_two,
-                    log2_divisor_exceeds_threshold,
-                    multiplier_exceeds_threshold,
-                    ilog2_divisor,
                     None,
                 )
             }
@@ -1436,90 +1524,114 @@ impl CudaServerKey {
             .message_modulus
             .0
             .ilog2()
-            * numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+            * num_blocks;
 
-        // Rust has a check on all division, so we shall also have one
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is \
-            >= to the number of bits encrypted in the ciphertext: \n\
-            encrypted bits: {numerator_bits}, scalar bits: {}
-            ",
+    >= to the number of bits encrypted in the ciphertext: \n\
+    encrypted bits: {numerator_bits}, scalar bits: {}
+    ",
             Scalar::BITS
         );
+        let mut scalar_properties = prepare_default_scalar_divisor();
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
 
         let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
-
-        let log2_divisor_exceeds_threshold =
+        scalar_properties.is_divisor_pow2 = is_divisor_power_of_two;
+        scalar_properties.is_abs_divisor_one = divisor == Scalar::ONE;
+        scalar_properties.is_divisor_wider_than_numerator =
             MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
 
-        let ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+        let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        scalar_properties.active_bits_divisor = decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
 
-        let chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+        let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
 
-        let multiplier_exceeds_threshold = chosen_multiplier.multiplier
+        if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+            && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+            && !scalar_properties.is_divisor_pow2
+            && !scalar_properties.is_divisor_wider_than_numerator
+        {
+            let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+            let two_pow_e = divisor_dp
+                & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+            let e = MiniUnsignedInteger::ilog2(two_pow_e);
+            let divisor_odd_dp = divisor_dp / two_pow_e;
+
+            assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+            let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+            chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+        }
+
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
             >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
 
-        let rhs = if multiplier_exceeds_threshold {
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
             chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
         } else {
             chosen_multiplier.multiplier
         };
 
-        let size_tracker = unsafe {
-            match &self.bootstrapping_key {
-                CudaBootstrappingKey::Classic(d_bsk) => get_scalar_div_rem_size_on_gpu(
-                    streams,
-                    rhs,
-                    <Scalar as Reciprocable>::DoublePrecision::cast_from(divisor),
-                    self.message_modulus.0.ilog2() as usize,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    num_blocks,
-                    multiplier_exceeds_threshold,
-                    is_divisor_power_of_two,
-                    log2_divisor_exceeds_threshold,
-                    ilog2_divisor,
-                    PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
-                ),
-                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => get_scalar_div_rem_size_on_gpu(
-                    streams,
-                    rhs,
-                    <Scalar as Reciprocable>::DoublePrecision::cast_from(divisor),
-                    self.message_modulus.0.ilog2() as usize,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    d_multibit_bsk.input_lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    num_blocks,
-                    multiplier_exceeds_threshold,
-                    is_divisor_power_of_two,
-                    log2_divisor_exceeds_threshold,
-                    ilog2_divisor,
-                    PBSType::Classical,
-                    None,
-                ),
-            }
-        };
+        let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        scalar_properties.active_bits_multiplier = decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&rhs_bit| rhs_bit == 1u64)
+            .count() as u32;
 
-        size_tracker
+        unsafe {
+            match &self.bootstrapping_key {
+                CudaBootstrappingKey::Classic(d_bsk) => {
+                    get_scalar_div_rem_integer_radix_kb_size_on_gpu(
+                        streams,
+                        &scalar_properties,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_bsk.glwe_dimension,
+                        d_bsk.polynomial_size,
+                        d_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_bsk.decomp_level_count,
+                        d_bsk.decomp_base_log,
+                        LweBskGroupingFactor(0),
+                        num_blocks,
+                        PBSType::Classical,
+                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    )
+                }
+                CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                    get_scalar_div_rem_integer_radix_kb_size_on_gpu(
+                        streams,
+                        &scalar_properties,
+                        self.message_modulus,
+                        self.carry_modulus,
+                        d_multibit_bsk.glwe_dimension,
+                        d_multibit_bsk.polynomial_size,
+                        d_multibit_bsk.input_lwe_dimension,
+                        self.key_switching_key.decomposition_level_count(),
+                        self.key_switching_key.decomposition_base_log(),
+                        d_multibit_bsk.decomp_level_count,
+                        d_multibit_bsk.decomp_base_log,
+                        d_multibit_bsk.grouping_factor,
+                        num_blocks,
+                        PBSType::MultiBit,
+                        None,
+                    )
+                }
+            }
+        }
     }
 
     pub fn get_scalar_rem_size_on_gpu<Scalar>(
@@ -1545,56 +1657,65 @@ impl CudaServerKey {
         streams: &CudaStreams,
     ) -> u64
     where
-        Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+        Scalar: SignedReciprocable,
         <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
+        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
         let numerator_bits = self.message_modulus.0.ilog2()
             * numerator.ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is\
-            >= to the number of bits encrypted in the ciphertext"
+    >= to the number of bits encrypted in the ciphertext"
         );
 
-        // wrappings_abs returns Scalar::MIN when its input is Scalar::MIN (since in signed numbers
-        // Scalar::MIN's absolute value cannot be represented.
-        // However, casting Scalar::MIN to signed value will give the correct abs value
-        // If Scalar and Scalar::Unsigned have the same number of bits
-        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+        let mut scalar_properties = prepare_default_scalar_divisor();
 
+        let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
         let chosen_multiplier =
             choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
 
-        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        scalar_properties.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+        scalar_properties.is_divisor_negative = divisor < Scalar::ZERO;
+        scalar_properties.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
+            >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+        scalar_properties.is_multiplier_wider_than_numerator =
+            chosen_multiplier.l >= numerator_bits;
+
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
+            let cst = chosen_multiplier.multiplier
+                - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+            Scalar::DoublePrecision::cast_from(cst)
+        } else {
+            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+        };
+
+        let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
+        let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
+        scalar_properties.active_bits_multiplier = decomposed_rhs
+            .iter()
+            .take(num_ciphertext_bits)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
 
         let lwe_dimension = self
             .key_switching_key
             .output_key_lwe_size()
             .to_lwe_dimension();
 
-        let is_absolute_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
-        let is_divisor_negative = divisor < Scalar::ZERO;
-        let l_exceed_threshold = chosen_multiplier.l >= numerator_bits;
-        let is_power_of_two =
-            absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize);
-        let multiplier_is_small = chosen_multiplier.multiplier
-            < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
-
-        let rhs = if multiplier_is_small {
-            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
-        } else {
-            let cst = chosen_multiplier.multiplier
-                - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
-            Scalar::DoublePrecision::cast_from(cst)
-        };
-
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
                 get_signed_scalar_div_integer_radix_kb_size_on_gpu(
                     streams,
-                    rhs,
                     self.message_modulus,
                     self.carry_modulus,
                     d_bsk.glwe_dimension,
@@ -1607,18 +1728,13 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     num_blocks,
                     PBSType::Classical,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_power_of_two,
-                    multiplier_is_small,
+                    &scalar_properties,
                     d_bsk.d_ms_noise_reduction_key.as_ref(),
                 )
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_signed_scalar_div_integer_radix_kb_size_on_gpu(
                     streams,
-                    rhs,
                     self.message_modulus,
                     self.carry_modulus,
                     d_multibit_bsk.glwe_dimension,
@@ -1631,11 +1747,7 @@ impl CudaServerKey {
                     d_multibit_bsk.grouping_factor,
                     num_blocks,
                     PBSType::MultiBit,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_power_of_two,
-                    multiplier_is_small,
+                    &scalar_properties,
                     None,
                 )
             }
@@ -1654,76 +1766,61 @@ impl CudaServerKey {
     {
         assert_ne!(divisor, Scalar::ZERO, "attempt to divide by 0");
 
+        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
         let numerator_bits = self.message_modulus.0.ilog2()
             * numerator.ciphertext.d_blocks.lwe_ciphertext_count().0 as u32;
+        let msg_bits = self.message_modulus.0.ilog2() as usize;
 
         assert!(
             Scalar::BITS >= numerator_bits as usize,
             "The scalar divisor type must have a number of bits that is\
-            >= to the number of bits encrypted in the ciphertext"
+    >= to the number of bits encrypted in the ciphertext"
         );
 
-        // wrappings_abs returns Scalar::MIN when its input is Scalar::MIN (since in signed numbers
-        // Scalar::MIN's absolute value cannot be represented.
-        // However, casting Scalar::MIN to signed value will give the correct abs value
-        // If Scalar and Scalar::Unsigned have the same number of bits
+        let mut scalar_properties = prepare_default_scalar_divisor();
+
         let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+        scalar_properties.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+        scalar_properties.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+        scalar_properties.is_divisor_negative = divisor < Scalar::ZERO;
+        scalar_properties.is_divisor_zero = divisor == Scalar::ZERO;
+
+        let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        scalar_properties.active_bits_divisor = decomposed_divisor
+            .iter()
+            .take(msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
 
         let chosen_multiplier =
             choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+        scalar_properties.is_multiplier_geq_numerator_magnitude = chosen_multiplier.multiplier
+            >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+        scalar_properties.is_multiplier_wider_than_numerator =
+            chosen_multiplier.l >= numerator_bits;
 
-        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
+        let rhs = if scalar_properties.is_multiplier_geq_numerator_magnitude {
+            let cst = chosen_multiplier.multiplier
+                - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+            Scalar::DoublePrecision::cast_from(cst)
+        } else {
+            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+        };
+        let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+        scalar_properties.active_bits_multiplier = decomposed_rhs
+            .iter()
+            .take(2 * msg_bits * num_blocks as usize)
+            .filter(|&&bit| bit == 1u64)
+            .count() as u32;
 
         let lwe_dimension = self
             .key_switching_key
             .output_key_lwe_size()
             .to_lwe_dimension();
-
-        let is_absolute_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
-        let is_divisor_negative = divisor < Scalar::ZERO;
-        let l_exceed_threshold = chosen_multiplier.l >= numerator_bits;
-        let is_absolute_divisor_power_of_two =
-            absolute_divisor == (Scalar::Unsigned::ONE << chosen_multiplier.l as usize);
-        let multiplier_is_small = chosen_multiplier.multiplier
-            < (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
-        let is_divisor_zero = divisor == Scalar::ZERO;
-
-        let rhs = if multiplier_is_small {
-            Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
-        } else {
-            let cst = chosen_multiplier.multiplier
-                - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
-            Scalar::DoublePrecision::cast_from(cst)
-        };
-
-        let msg_bits = self.message_modulus.0.ilog2() as usize;
-
-        let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-            .iter_as::<u64>()
-            .collect::<Vec<_>>();
-
-        let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-        let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-        for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
-            if bit == 1 {
-                has_at_least_one_set_for_div[i % msg_bits] = 1;
-            }
-        }
-
-        let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-            .iter_as::<u64>()
-            .collect::<Vec<_>>();
-
-        let decomposer_for_mul =
-            BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-        let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-        for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-            if bit == 1 {
-                has_at_least_one_set_for_mul[i % msg_bits] = 1;
-            }
-        }
 
         unsafe {
             match &self.bootstrapping_key {
@@ -1741,14 +1838,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     num_blocks,
                     PBSType::Classical,
-                    is_absolute_divisor_one,
-                    is_divisor_negative,
-                    l_exceed_threshold,
-                    is_absolute_divisor_power_of_two,
-                    is_divisor_zero,
-                    multiplier_is_small,
-                    decomposed_scalar_for_div.len() as u32,
-                    decomposed_scalar_for_mul.len() as u32,
+                    &scalar_properties,
                     d_bsk.d_ms_noise_reduction_key.as_ref(),
                 ),
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -1766,14 +1856,7 @@ impl CudaServerKey {
                         d_multibit_bsk.grouping_factor,
                         num_blocks,
                         PBSType::MultiBit,
-                        is_absolute_divisor_one,
-                        is_divisor_negative,
-                        l_exceed_threshold,
-                        is_absolute_divisor_power_of_two,
-                        is_divisor_zero,
-                        multiplier_is_small,
-                        decomposed_scalar_for_div.len() as u32,
-                        decomposed_scalar_for_mul.len() as u32,
+                        &scalar_properties,
                         None,
                     )
                 }
@@ -1793,94 +1876,5 @@ impl CudaServerKey {
     {
         self.get_signed_scalar_div_rem_size_on_gpu(numerator, divisor, streams)
             + 2 * self.get_ciphertext_size_on_gpu(numerator)
-    }
-
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn unchecked_unsigned_scalar_div_assign_async<Scalar, T>(
-        &self,
-        numerator: &mut T,
-        rhs: Scalar,
-        streams: &CudaStreams,
-        multiplier_exceeds_threshold: bool,
-        is_divisor_power_of_two: bool,
-        log2_divisor_exceeds_threshold: bool,
-        ilog2_divisor: u32,
-        shift_pre: u64,
-        shift_post: u32,
-    ) where
-        Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
-        T: CudaIntegerRadixCiphertext,
-    {
-        let num_blocks = numerator.as_ref().d_blocks.lwe_ciphertext_count().0 as u32;
-
-        let lwe_dimension = self
-            .key_switching_key
-            .output_key_lwe_size()
-            .to_lwe_dimension();
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
-                    streams,
-                    numerator.as_mut(),
-                    rhs,
-                    self.message_modulus.0.ilog2() as usize,
-                    &self.key_switching_key.d_vec,
-                    &d_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count,
-                    d_bsk.decomp_base_log,
-                    LweBskGroupingFactor(0),
-                    num_blocks,
-                    multiplier_exceeds_threshold,
-                    is_divisor_power_of_two,
-                    log2_divisor_exceeds_threshold,
-                    ilog2_divisor,
-                    shift_pre,
-                    shift_post,
-                    PBSType::Classical,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                unchecked_unsigned_scalar_div_integer_radix_kb_assign_async(
-                    streams,
-                    numerator.as_mut(),
-                    rhs,
-                    self.message_modulus.0.ilog2() as usize,
-                    &self.key_switching_key.d_vec,
-                    &d_multibit_bsk.d_vec,
-                    self.message_modulus,
-                    self.carry_modulus,
-                    d_multibit_bsk.glwe_dimension,
-                    d_multibit_bsk.polynomial_size,
-                    lwe_dimension,
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count,
-                    d_multibit_bsk.decomp_base_log,
-                    d_multibit_bsk.grouping_factor,
-                    num_blocks,
-                    multiplier_exceeds_threshold,
-                    is_divisor_power_of_two,
-                    log2_divisor_exceeds_threshold,
-                    ilog2_divisor,
-                    shift_pre,
-                    shift_post,
-                    PBSType::MultiBit,
-                    None,
-                );
-            }
-        }
     }
 }
