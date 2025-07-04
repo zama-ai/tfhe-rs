@@ -56,6 +56,9 @@ jobs:
   wasm-tests:
     name: WASM tests
     needs: setup-instance
+    permissions:
+      # required to have access to the github cache
+      actions: write
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: true

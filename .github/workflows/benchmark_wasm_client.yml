@@ -80,6 +80,9 @@ jobs:
   wasm-client-benchmarks:
     name: Execute WASM client benchmarks
     needs: setup-instance
+    permissions:
+      # required to have access to the github cache
+      actions: write
     if: needs.setup-instance.result != 'skipped'
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     strategy:
