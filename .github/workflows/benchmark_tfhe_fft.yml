@@ -48,7 +48,7 @@ jobs:
     name: Execute FFT benchmarks in EC2
     needs: setup-ec2
     concurrency:
-      group: ${{ github.workflow_ref }}
+      group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: true
     runs-on: ${{ needs.setup-ec2.outputs.runner-name }}
     steps:
