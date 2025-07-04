@@ -397,8 +397,8 @@ pub fn throughput_num_threads(num_block: usize, op_pbs_count: u64) -> u64 {
         let total_num_sm = H100_PCIE_SM_COUNT * get_number_of_gpus();
         let operation_loading = ((total_num_sm as u64 / op_pbs_count) as f64).max(minimum_loading);
         let elements = (total_num_sm as f64 * block_multiplicator * operation_loading) as u64;
-        elements.min(1500) // This threshold is useful for operation with both a small number of
-                           // block and low PBs count.
+        elements.min(200) // This threshold is useful for operation with both a small number of
+                          // block and low PBs count.
     }
     #[cfg(feature = "hpu")]
     {
