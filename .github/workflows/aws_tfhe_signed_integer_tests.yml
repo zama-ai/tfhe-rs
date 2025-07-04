@@ -104,7 +104,7 @@ jobs:
     name: Signed integer tests
     needs: setup-instance
     concurrency:
-      group: ${{ github.workflow_ref }}
+      group: ${{ github.workflow_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     steps:
