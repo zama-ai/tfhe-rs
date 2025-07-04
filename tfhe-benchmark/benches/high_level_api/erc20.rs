@@ -87,6 +87,29 @@ where
 
     let amount = amount * FheType::cast_from(has_enough_funds);
 
+    let new_to_amount = to_amount + &amount;
+    let new_from_amount = from_amount - &amount;
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_no_cmux`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_no_cmux<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: Add<Output = FheType> + CastFrom<FheBool> + for<'a> FheOrd<&'a FheType> + Send + Sync,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType:
+        Add<Output = FheType> + Sub<Output = FheType> + Mul<FheType, Output = FheType>,
+{
+    let has_enough_funds = (from_amount).ge(amount);
+
+    let amount = amount * FheType::cast_from(has_enough_funds);
+
     let (new_to_amount, new_from_amount) =
         rayon::join(|| to_amount + &amount, || from_amount - &amount);
 
@@ -97,6 +120,30 @@ where
 /// it also uses the 'boolean' multiplication
 #[cfg(not(feature = "hpu"))]
 fn transfer_overflow<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: CastFrom<FheBool> + for<'a> FheOrd<&'a FheType> + Send + Sync,
+    FheBool: IfThenElse<FheType>,
+    for<'a> &'a FheType: Add<FheType, Output = FheType>
+        + OverflowingSub<&'a FheType, Output = FheType>
+        + Mul<FheType, Output = FheType>,
+{
+    let (new_from, did_not_have_enough) = (from_amount).overflowing_sub(amount);
+
+    let new_from_amount = did_not_have_enough.if_then_else(from_amount, &new_from);
+
+    let had_enough_funds = !did_not_have_enough;
+    let new_to_amount = to_amount + (amount * FheType::cast_from(had_enough_funds));
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_overflow`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_overflow<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -124,6 +171,30 @@ where
 /// the sender has enough funds, and the receiver will not overflow its balance
 #[cfg(not(feature = "hpu"))]
 fn transfer_safe<FheType>(
+    from_amount: &FheType,
+    to_amount: &FheType,
+    amount: &FheType,
+) -> (FheType, FheType)
+where
+    FheType: Send + Sync,
+    for<'a> &'a FheType: OverflowingSub<&'a FheType, Output = FheType>
+        + OverflowingAdd<&'a FheType, Output = FheType>,
+    FheBool: IfThenElse<FheType>,
+{
+    let (new_from, did_not_have_enough_funds) = (from_amount).overflowing_sub(amount);
+    let (new_to, did_not_have_enough_space) = (to_amount).overflowing_add(amount);
+
+    let something_not_ok = did_not_have_enough_funds | did_not_have_enough_space;
+
+    let new_from_amount = something_not_ok.if_then_else(from_amount, &new_from);
+    let new_to_amount = something_not_ok.if_then_else(to_amount, &new_to);
+
+    (new_from_amount, new_to_amount)
+}
+
+/// Parallel variant of [`transfer_safe`].
+#[cfg(not(feature = "hpu"))]
+fn par_transfer_safe<FheType>(
     from_amount: &FheType,
     to_amount: &FheType,
     amount: &FheType,
@@ -358,7 +429,8 @@ fn cuda_bench_transfer_throughput<FheType, F>(
         .map(|i| compressed_server_key.decompress_to_specific_gpu(GpuIndex::new(i as u32)))
         .collect::<Vec<_>>();
 
-    for num_elems in [10 * num_gpus, 100 * num_gpus, 500 * num_gpus] {
+    // 200 * num_gpus seems to be enough for maximum throughput on 8xH100 SXM5
+    for num_elems in [200 * num_gpus] {
         group.throughput(Throughput::Elements(num_elems));
         let bench_id =
             format!("{bench_name}::throughput::{fn_name}::{type_name}::{num_elems}_elems");
@@ -517,14 +589,19 @@ fn main() {
             "transfer::whitepaper",
             par_transfer_whitepaper::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "no_cmux",
+            par_transfer_no_cmux::<FheUint64>,
+        );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
@@ -544,7 +621,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -552,7 +629,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -560,7 +637,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -583,7 +660,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_throughput(
             &mut group,
@@ -591,7 +668,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_throughput(
             &mut group,
@@ -599,7 +676,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -631,14 +708,19 @@ fn main() {
             "transfer::whitepaper",
             par_transfer_whitepaper::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "no_cmux", transfer_no_cmux::<FheUint64>);
+        print_transfer_pbs_counts(
+            &cks,
+            "FheUint64",
+            "no_cmux",
+            par_transfer_no_cmux::<FheUint64>,
+        );
         print_transfer_pbs_counts(
             &cks,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
-        print_transfer_pbs_counts(&cks, "FheUint64", "safe", transfer_safe::<FheUint64>);
+        print_transfer_pbs_counts(&cks, "FheUint64", "safe", par_transfer_safe::<FheUint64>);
     }
 
     // FheUint64 latency
@@ -658,7 +740,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::no_cmux",
-            transfer_no_cmux::<FheUint64>,
+            par_transfer_no_cmux::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -666,7 +748,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::overflow",
-            transfer_overflow::<FheUint64>,
+            par_transfer_overflow::<FheUint64>,
         );
         bench_transfer_latency(
             &mut group,
@@ -674,7 +756,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::safe",
-            transfer_safe::<FheUint64>,
+            par_transfer_safe::<FheUint64>,
         );
 
         group.finish();
@@ -689,7 +771,7 @@ fn main() {
             bench_name,
             "FheUint64",
             "transfer::whitepaper",
-            par_transfer_whitepaper::<FheUint64>,
+            transfer_whitepaper::<FheUint64>,
         );
         cuda_bench_transfer_throughput(
             &mut group,
