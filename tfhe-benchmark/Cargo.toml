@@ -85,6 +85,12 @@ harness = false
 required-features = ["integer", "internal-keycache"]
 
 [[bench]]
+name = "hlapi-noise-squash"
+path = "benches/high_level_api/noise_squash.rs"
+harness = false
+required-features = ["integer", "internal-keycache"]
+
+[[bench]]
 name = "glwe_packing_compression-integer-bench"
 path = "benches/integer/glwe_packing_compression.rs"
 harness = false
