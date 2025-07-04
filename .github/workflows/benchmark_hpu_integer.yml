@@ -62,7 +62,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          git lfs pull --include="*" --exclude=""
+          make pull_hpu_files
           make bench_integer_hpu
           make bench_hlapi_erc20_hpu
 

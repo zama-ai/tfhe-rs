@@ -201,9 +201,9 @@ There are some example applications already available in `tfhe/examples/hpu`:
 In order to run those applications on hardware, user must build from the project root (i.e `tfhe-rs-internal`) with `hpu-v80` features:
 
 > NB: Running examples required to have correctly pulled the `.hpu` files. Those files, due to their size, are backed by git-lfs and disabled by default.
-> In order to retrieve them, use the following command:
+> In order to retrieve them, run the following command from **TFHE-rs** root folder:
 > ```bash
-> git lfs pull --include="*.hpu" --exclude=""
+> make pull_hpu_files
 > ```
 
 ``` bash
@@ -217,7 +217,7 @@ source setup_hpu.sh --config v80
 > NB: Error that occurred when ".hpu" files weren't correctly fetch could be a bit enigmatic: `memory allocation of ... bytes failed`
 > If you encountered this issue, you should run the following command:
 > ```bash
-> git lfs pull --include="*.hpu" --exclude=""
+> make pull_hpu_files
 > ```
 
 
