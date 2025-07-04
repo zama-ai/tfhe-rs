@@ -54,7 +54,7 @@ impl ClassicPBSParameters {
     ///
     /// # Warning
     ///
-    /// Failing to fix the parameters properly would yield incorrect and unsecure computation.
+    /// Failing to fix the parameters properly would yield incorrect and insecure computation.
     /// Unless you are a cryptographer who really knows the impact of each of those parameters, you
     /// __must__ stick with the provided parameters.
     #[allow(clippy::too_many_arguments)]
