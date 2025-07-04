@@ -21,10 +21,13 @@ use crate::core_crypto::prelude::{
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, KsType};
+use crate::integer::server_key::radix_parallel::scalar_div_mod::{
+    choose_multiplier, SignedReciprocable,
+};
 use crate::integer::server_key::radix_parallel::OutputFlag;
-use crate::integer::server_key::ScalarMultiplier;
+use crate::integer::server_key::{MiniUnsignedInteger, Reciprocable, ScalarMultiplier};
 use crate::integer::{ClientKey, RadixClientKey};
-use crate::prelude::CastInto;
+use crate::prelude::{CastFrom, CastInto};
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::ModulusSwitchType;
 use crate::shortint::{CarryModulus, MessageModulus};
@@ -70,6 +73,31 @@ pub enum ComparisonType {
     LE = 5,
     MAX = 6,
     MIN = 7,
+}
+
+pub fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
+    CudaScalarDivisorFFI {
+        decomposed_chosen_multiplier: std::ptr::null(),
+        chosen_multiplier_has_at_least_one_set: std::ptr::null(),
+        num_scalars: 0,
+        active_bits: 0,
+        ilog2_chosen_multiplier: 0,
+        ilog2_divisor: 0,
+        shift_pre: 0,
+        shift_post: 0,
+        chosen_multiplier_num_bits: 0,
+        is_chosen_multiplier_zero: false,
+        is_divisor_zero: false,
+        is_abs_chosen_multiplier_one: false,
+        is_abs_divisor_one: false,
+        is_chosen_multiplier_negative: false,
+        is_divisor_negative: false,
+        is_chosen_multiplier_pow2: false,
+        is_divisor_pow2: false,
+        chosen_multiplier_has_more_bits_than_numerator: false,
+        divisor_has_more_bits_than_numerator: false,
+        is_chosen_multiplier_geq_two_pow_numerator: false,
+    }
 }
 
 // If we build the Vec<u64> inside prepare_cuda_radix_ffi
@@ -478,41 +506,74 @@ pub fn get_scalar_mul_integer_radix_kb_size_on_gpu<T: UnsignedInteger>(
 #[allow(clippy::too_many_arguments)]
 pub fn get_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     streams: &CudaStreams,
-    rhs: Scalar,
+    divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
     polynomial_size: PolynomialSize,
     lwe_dimension: LweDimension,
-    pbs_base_log: DecompositionBaseLog,
-    pbs_level: DecompositionLevelCount,
-    ks_base_log: DecompositionBaseLog,
     ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    multiplier_exceeds_threshold: bool,
-    ilog2_divisor: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) -> u64
 where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
+    let msg_bits = message_modulus.0.ilog2() as usize;
 
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
+    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
+    scalar_divisor_ffi.divisor_has_more_bits_than_numerator =
+        MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
+
+    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+    if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        && !scalar_divisor_ffi.is_divisor_pow2
+        && !scalar_divisor_ffi.divisor_has_more_bits_than_numerator
+    {
+        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+        let two_pow_e =
+            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+        let e = MiniUnsignedInteger::ilog2(two_pow_e);
+        let divisor_odd_dp = divisor_dp / two_pow_e;
+
+        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+    }
+
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
+        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+    } else {
+        chosen_multiplier.multiplier
+    };
+
+    let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    let msg_bits = message_modulus.0.ilog2() as usize;
-    let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
+
+    scalar_divisor_ffi.active_bits = decomposed_rhs
         .iter()
-        .take(num_ciphertext_bits)
+        .take(2 * msg_bits * num_blocks as usize)
         .filter(|&&rhs_bit| rhs_bit == 1u64)
         .count() as u32;
+
+    let allocate_ms_array = noise_reduction_key.is_some();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
         scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -532,13 +593,9 @@ where
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             pbs_type as u32,
+            &raw const scalar_divisor_ffi,
             false,
-            is_divisor_power_of_two,
-            log2_divisor_exceeds_threshold,
-            multiplier_exceeds_threshold,
-            num_scalar_bits,
-            ilog2_divisor,
-            allocate_ms_noise_array,
+            allocate_ms_array,
         )
     };
     unsafe {
@@ -553,10 +610,9 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     streams: &CudaStreams,
-    rhs: Scalar,
+    divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -569,29 +625,50 @@ pub fn get_signed_scalar_div_integer_radix_kb_size_on_gpu<Scalar>(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_power_of_two: bool,
-    multiplier_is_small: bool,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) -> u64
 where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: SignedReciprocable,
+    <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
-    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
+    let msg_bits = message_modulus.0.ilog2() as usize;
 
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+    let chosen_multiplier = choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+    scalar_divisor_ffi.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+    scalar_divisor_ffi.is_divisor_negative = divisor < Scalar::ZERO;
+    scalar_divisor_ffi.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
+        >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+    scalar_divisor_ffi.chosen_multiplier_has_more_bits_than_numerator =
+        chosen_multiplier.l >= numerator_bits;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        let cst = chosen_multiplier.multiplier
+            - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+        Scalar::DoublePrecision::cast_from(cst)
+    } else {
+        Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+    };
+
+    let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
         .iter_as::<u64>()
         .collect::<Vec<_>>();
-    let msg_bits = message_modulus.0.ilog2() as usize;
+
     let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
+    scalar_divisor_ffi.active_bits = decomposed_rhs
         .iter()
         .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .filter(|&&bit| bit == 1u64)
         .count() as u32;
+
+    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
     let size_tracker = unsafe {
         scratch_cuda_integer_signed_scalar_div_radix_kb_64(
@@ -608,16 +685,11 @@ where
             pbs_base_log.0 as u32,
             grouping_factor.0 as u32,
             num_blocks,
-            num_scalar_bits,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             pbs_type as u32,
+            &raw const scalar_divisor_ffi,
             false,
-            is_absolute_divisor_one,
-            is_divisor_negative,
-            l_exceed_threshold,
-            is_power_of_two,
-            multiplier_is_small,
             allocate_ms_noise_array,
         )
     };
@@ -2728,9 +2800,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
-    rhs: Scalar,
     divisor: Scalar,
-    msg_bits: usize,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -2743,26 +2813,103 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
-    num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
-    shift_pre: u64,
-    shift_post: u32,
-    h_clear_blocks: &[T],
-    clear_blocks: &CudaVec<T>,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        quotient.d_blocks.0.d_vec.gpu_index(0)
-    );
-    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+    let num_blocks = quotient.d_blocks.lwe_ciphertext_count().0 as u32;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let numerator_bits = msg_bits as u32 * num_blocks;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+    let log2_divisor_exceeds_threshold = MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
+    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+    let shift_pre = if chosen_multiplier.multiplier
+        >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        && !is_divisor_power_of_two
+        && !log2_divisor_exceeds_threshold
+    {
+        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+        let two_pow_e =
+            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+        let e = MiniUnsignedInteger::ilog2(two_pow_e);
+        let divisor_odd_dp = divisor_dp / two_pow_e;
+
+        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+        e as u64
+    } else {
+        0
+    };
+
+    scalar_divisor_ffi.shift_pre = shift_pre;
+    scalar_divisor_ffi.shift_post = chosen_multiplier.shift_post;
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
+        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+    scalar_divisor_ffi.chosen_multiplier_num_bits = chosen_multiplier.l;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+    } else {
+        chosen_multiplier.multiplier
+    };
+
+    let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let decomposer_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+    let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer_rhs.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            multiplier_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+
+    scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
+    scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
+        multiplier_has_at_least_one_set.as_ptr();
+    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
+    scalar_divisor_ffi.active_bits = decomposed_multiplier
+        .iter()
+        .take(2 * msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+    scalar_divisor_ffi.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
+    scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+    scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+    scalar_divisor_ffi.ilog2_chosen_multiplier = if scalar_divisor_ffi.is_chosen_multiplier_pow2 {
+        MiniUnsignedInteger::ilog2(rhs)
+    } else {
+        0
+    };
+
+    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let decomposer_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
+    let mut divisor_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer_divisor.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            divisor_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+
+    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
+    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
+    scalar_divisor_ffi.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+    scalar_divisor_ffi.divisor_has_more_bits_than_numerator = log2_divisor_exceeds_threshold;
+
+    let h_clear_blocks =
+        BlockDecomposer::with_early_stop_at_zero(divisor - Scalar::ONE, message_modulus.0.ilog2())
+            .iter_as::<u64>()
+            .collect::<Vec<_>>();
+    let clear_blocks = CudaVec::from_cpu_async(&h_clear_blocks, streams, 0);
 
     let ct_modulus = quotient.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
@@ -2778,50 +2925,16 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         .iter()
         .map(|b| b.noise_level.0)
         .collect();
-
     let mut cuda_ffi_quotient =
         prepare_cuda_radix_ffi(quotient, &mut quotient_degrees, &mut quotient_noise_levels);
     let mut cuda_ffi_remainder =
         prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
 
-    let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_div[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_div = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_div = decomposed_scalar_for_div
+    let num_scalars_divisor = decomposed_divisor.len() as u32;
+    let active_bits_divisor = decomposed_divisor
         .iter()
-        .take(num_ciphertext_bits_for_div)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_mul[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_mul = msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_mul = decomposed_scalar_for_mul
-        .iter()
-        .take(num_ciphertext_bits_for_mul)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .take(msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
         .count() as u32;
 
     scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
@@ -2841,14 +2954,9 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
+        active_bits_divisor,
         true,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        ilog2_divisor,
-        divisor.cast_into(),
         allocate_ms_array,
     );
 
@@ -2859,23 +2967,13 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
-        decomposed_scalar_for_div.as_ptr(),
-        decomposed_scalar_for_mul.as_ptr(),
-        has_at_least_one_set_for_div.as_ptr(),
-        has_at_least_one_set_for_mul.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        decomposed_scalar_for_div.len() as u32,
-        decomposed_scalar_for_mul.len() as u32,
-        multiplier_exceeds_threshold,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        ilog2_divisor,
-        divisor.cast_into(),
-        shift_pre,
-        shift_post,
-        rhs.cast_into(),
+        &raw const scalar_divisor_ffi,
+        divisor_has_at_least_one_set.as_ptr(),
+        decomposed_divisor.as_ptr(),
+        num_scalars_divisor,
         clear_blocks.as_c_ptr(0),
         h_clear_blocks.as_ptr().cast::<std::ffi::c_void>(),
         min(clear_blocks.len() as u32, num_blocks),
@@ -2893,7 +2991,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -2901,10 +2998,12 @@ pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
 pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
+    Scalar,
 >(
     streams: &CudaStreams,
     quotient: &mut CudaRadixCiphertext,
     remainder: &mut CudaRadixCiphertext,
+    divisor: Scalar,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -2917,38 +3016,87 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
-    num_blocks: u32,
-    shift_post: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_absolute_divisor_power_of_two: bool,
-    is_divisor_zero: bool,
-    multiplier_is_small: bool,
-    l: u32,
-    is_rhs_power_of_two: bool,
-    is_rhs_zero: bool,
-    is_rhs_one: bool,
-    rhs_shift: u32,
-    divisor_shift: u32,
-    numerator_bits: u32,
-    num_scalar_bits_for_div: u32,
-    num_scalar_bits_for_mul: u32,
-    num_scalars_for_div: u32,
-    num_scalars_for_mul: u32,
-    decomposed_scalar_for_div: *const u64,
-    decomposed_scalar_for_mul: *const u64,
-    has_at_least_one_set_for_div: *const u64,
-    has_at_least_one_set_for_mul: *const u64,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        quotient.d_blocks.0.d_vec.gpu_index(0)
-    );
-    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+) where
+    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    let num_blocks = quotient.d_blocks.lwe_ciphertext_count().0 as u32;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let numerator_bits = msg_bits as u32 * num_blocks;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+    let chosen_multiplier = choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+    let is_abs_divisor_pow2 = absolute_divisor.is_power_of_two();
+    scalar_divisor_ffi.is_divisor_pow2 = is_abs_divisor_pow2;
+    scalar_divisor_ffi.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+    scalar_divisor_ffi.is_divisor_negative = divisor < Scalar::ZERO;
+    scalar_divisor_ffi.is_divisor_zero = divisor == Scalar::ZERO;
+    if is_abs_divisor_pow2 && !scalar_divisor_ffi.is_divisor_negative {
+        scalar_divisor_ffi.ilog2_divisor = divisor.ilog2();
+    }
+
+    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let decomposer_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
+    let mut divisor_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer_divisor.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            divisor_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
+        >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+    scalar_divisor_ffi.chosen_multiplier_num_bits = chosen_multiplier.l;
+    scalar_divisor_ffi.shift_post = chosen_multiplier.shift_post;
+    scalar_divisor_ffi.chosen_multiplier_has_more_bits_than_numerator =
+        chosen_multiplier.l >= numerator_bits;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        let cst = chosen_multiplier.multiplier
+            - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+        Scalar::DoublePrecision::cast_from(cst)
+    } else {
+        Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+    };
+
+    let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+
+    let decomposer_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+    let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer_rhs.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            multiplier_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+    scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
+        multiplier_has_at_least_one_set.as_ptr();
+    scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
+    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
+    scalar_divisor_ffi.active_bits = decomposed_multiplier
+        .iter()
+        .take(2 * msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
+    scalar_divisor_ffi.is_chosen_multiplier_pow2 = rhs.is_power_of_two();
+    scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+    scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+    scalar_divisor_ffi.ilog2_chosen_multiplier = if scalar_divisor_ffi.is_chosen_multiplier_pow2
+        && !scalar_divisor_ffi.is_abs_chosen_multiplier_one
+    {
+        rhs.ilog2()
+    } else {
+        0u32
+    };
 
     let ct_modulus = quotient.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
@@ -2970,6 +3118,13 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
     let mut cuda_ffi_remainder =
         prepare_cuda_radix_ffi(remainder, &mut quotient_degrees, &mut quotient_noise_levels);
 
+    let num_scalars_divisor = decomposed_divisor.len() as u32;
+    let active_bits_divisor = decomposed_divisor
+        .iter()
+        .take(message_modulus.0.ilog2() as usize * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
     scratch_integer_signed_scalar_div_rem_radix_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -2987,15 +3142,9 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
+        active_bits_divisor,
         true,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        is_divisor_zero,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3006,29 +3155,14 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
         &raw mut cuda_ffi_quotient,
         &raw mut cuda_ffi_remainder,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        is_divisor_zero,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        multiplier_is_small,
-        l,
-        shift_post,
-        is_rhs_power_of_two,
-        is_rhs_zero,
-        is_rhs_one,
-        rhs_shift,
-        divisor_shift,
+        &raw const scalar_divisor_ffi,
+        divisor_has_at_least_one_set.as_ptr(),
+        decomposed_divisor.as_ptr(),
+        num_scalars_divisor,
         numerator_bits,
-        num_scalars_for_div,
-        num_scalars_for_mul,
-        decomposed_scalar_for_div,
-        decomposed_scalar_for_mul,
-        has_at_least_one_set_for_div,
-        has_at_least_one_set_for_mul,
     );
 
     cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
@@ -3047,11 +3181,9 @@ pub unsafe fn unchecked_signed_scalar_div_rem_integer_radix_kb_assign_async<
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn get_scalar_div_rem_size_on_gpu<Scalar>(
+pub unsafe fn get_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
     streams: &CudaStreams,
-    rhs: Scalar,
     divisor: Scalar,
-    msg_bits: usize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3063,59 +3195,70 @@ pub unsafe fn get_scalar_div_rem_size_on_gpu<Scalar>(
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) -> u64
 where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
 {
+    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
+    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
+    scalar_divisor_ffi.divisor_has_more_bits_than_numerator =
+        MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
+
+    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let active_bits_divisor = decomposed_divisor
+        .iter()
+        .take(msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
+    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+    if chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        && !scalar_divisor_ffi.is_divisor_pow2
+        && !scalar_divisor_ffi.divisor_has_more_bits_than_numerator
+    {
+        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+        let two_pow_e =
+            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+        let e = MiniUnsignedInteger::ilog2(two_pow_e);
+        let divisor_odd_dp = divisor_dp / two_pow_e;
+
+        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+    }
+
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
+        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+    } else {
+        chosen_multiplier.multiplier
+    };
+
+    let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    scalar_divisor_ffi.active_bits = decomposed_rhs
+        .iter()
+        .take(2 * msg_bits * num_blocks as usize)
+        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .count() as u32;
+
     let allocate_ms_array = noise_reduction_key.is_some();
-
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
-
-    let decomposed_scalar_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_div = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_div = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_div.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_div[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_div = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_div = decomposed_scalar_for_div
-        .iter()
-        .take(num_ciphertext_bits_for_div)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let decomposed_scalar_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer_for_mul = BlockDecomposer::with_early_stop_at_zero(divisor, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set_for_mul = vec![0u64; msg_bits];
-    for (i, bit) in decomposer_for_mul.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set_for_mul[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits_for_mul = msg_bits * num_blocks as usize;
-    let num_scalar_bits_for_mul = decomposed_scalar_for_mul
-        .iter()
-        .take(num_ciphertext_bits_for_mul)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     let size_tracker = scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
         streams.ptr.as_ptr(),
@@ -3134,14 +3277,9 @@ where
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
+        active_bits_divisor,
         false,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        ilog2_divisor,
-        divisor.cast_into(),
         allocate_ms_array,
     );
 
@@ -3156,13 +3294,13 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
-pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
+pub unsafe fn get_signed_scalar_div_rem_integer_radix_kb_size_on_gpu<Scalar>(
     streams: &CudaStreams,
+    divisor: Scalar,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3175,16 +3313,54 @@ pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
     grouping_factor: LweBskGroupingFactor,
     num_blocks: u32,
     pbs_type: PBSType,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_absolute_divisor_power_of_two: bool,
-    is_divisor_zero: bool,
-    multiplier_is_small: bool,
-    num_scalar_bits_for_div: u32,
-    num_scalar_bits_for_mul: u32,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-) -> u64 {
+) -> u64
+where
+    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
+{
+    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+    scalar_divisor_ffi.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+    scalar_divisor_ffi.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+    scalar_divisor_ffi.is_divisor_negative = divisor < Scalar::ZERO;
+    scalar_divisor_ffi.is_divisor_zero = divisor == Scalar::ZERO;
+
+    let decomposed_divisor = BlockDecomposer::with_early_stop_at_zero(divisor, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    let active_bits_divisor = decomposed_divisor
+        .iter()
+        .take(msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
+    let chosen_multiplier = choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
+        >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+    scalar_divisor_ffi.chosen_multiplier_has_more_bits_than_numerator =
+        chosen_multiplier.l >= numerator_bits;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        let cst = chosen_multiplier.multiplier
+            - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+        Scalar::DoublePrecision::cast_from(cst)
+    } else {
+        Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+    };
+    let decomposed_rhs = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+    scalar_divisor_ffi.active_bits = decomposed_rhs
+        .iter()
+        .take(2 * msg_bits * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
     let allocate_ms_array = noise_reduction_key.is_some();
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
 
@@ -3205,15 +3381,9 @@ pub unsafe fn get_signed_scalar_div_rem_size_on_gpu(
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
+        active_bits_divisor,
         false,
-        num_scalar_bits_for_div,
-        num_scalar_bits_for_mul,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_absolute_divisor_power_of_two,
-        is_divisor_zero,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3239,8 +3409,7 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
 >(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
-    rhs: Scalar,
-    msg_bits: usize,
+    divisor: Scalar,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
     message_modulus: MessageModulus,
@@ -3253,17 +3422,10 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
-    num_blocks: u32,
-    multiplier_exceeds_threshold: bool,
-    is_divisor_power_of_two: bool,
-    log2_divisor_exceeds_threshold: bool,
-    ilog2_divisor: u32,
-    shift_pre: u64,
-    shift_post: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
 ) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: Reciprocable,
 {
     assert_eq!(
         streams.gpu_indexes[0],
@@ -3271,6 +3433,88 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
     );
     assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
     assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+
+    let num_blocks = numerator.d_blocks.lwe_ciphertext_count().0 as u32;
+
+    let numerator_bits = message_modulus.0.ilog2() * num_blocks;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let is_divisor_power_of_two = MiniUnsignedInteger::is_power_of_two(divisor);
+    scalar_divisor_ffi.is_divisor_pow2 = is_divisor_power_of_two;
+    scalar_divisor_ffi.is_abs_divisor_one = divisor == Scalar::ONE;
+    scalar_divisor_ffi.ilog2_divisor = MiniUnsignedInteger::ilog2(divisor);
+    scalar_divisor_ffi.divisor_has_more_bits_than_numerator =
+        MiniUnsignedInteger::ceil_ilog2(divisor) > numerator_bits;
+
+    let mut chosen_multiplier = choose_multiplier(divisor, numerator_bits, numerator_bits);
+
+    let shift_pre = if chosen_multiplier.multiplier
+        >= (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+        && crate::integer::server_key::radix_parallel::scalar_div_mod::is_even(divisor)
+        && !is_divisor_power_of_two
+        && !scalar_divisor_ffi.divisor_has_more_bits_than_numerator
+    {
+        let divisor_dp = Scalar::DoublePrecision::cast_from(divisor);
+        let two_pow_e =
+            divisor_dp & ((Scalar::DoublePrecision::ONE << numerator_bits as usize) - divisor_dp);
+        let e = MiniUnsignedInteger::ilog2(two_pow_e);
+        let divisor_odd_dp = divisor_dp / two_pow_e;
+
+        assert!(numerator_bits > e && e <= Scalar::BITS as u32);
+        let divisor_odd: Scalar = divisor_odd_dp.cast_into();
+        chosen_multiplier = choose_multiplier(divisor_odd, numerator_bits - e, numerator_bits);
+        e as u64
+    } else {
+        0
+    };
+
+    scalar_divisor_ffi.shift_pre = shift_pre;
+    scalar_divisor_ffi.shift_post = chosen_multiplier.shift_post;
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator =
+        chosen_multiplier.multiplier >= (Scalar::DoublePrecision::ONE << numerator_bits as usize);
+    scalar_divisor_ffi.chosen_multiplier_num_bits = chosen_multiplier.l;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        chosen_multiplier.multiplier - (Scalar::DoublePrecision::ONE << numerator_bits as usize)
+    } else {
+        chosen_multiplier.multiplier
+    };
+
+    let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+
+    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+
+    let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            multiplier_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+    scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
+        multiplier_has_at_least_one_set.as_ptr();
+    scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
+    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
+    scalar_divisor_ffi.active_bits = decomposed_multiplier
+        .iter()
+        .take(2 * msg_bits * num_blocks as usize)
+        .filter(|&&rhs_bit| rhs_bit == 1u64)
+        .count() as u32;
+
+    scalar_divisor_ffi.is_chosen_multiplier_pow2 = MiniUnsignedInteger::is_power_of_two(rhs);
+    scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+    scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+
+    scalar_divisor_ffi.ilog2_chosen_multiplier = if scalar_divisor_ffi.is_chosen_multiplier_pow2
+        && !scalar_divisor_ffi.is_abs_chosen_multiplier_one
+    {
+        MiniUnsignedInteger::ilog2(rhs)
+    } else {
+        0u32
+    };
 
     let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
@@ -3291,26 +3535,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_degrees,
         &mut numerator_noise_levels,
     );
-
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits = 2 * msg_bits * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
 
     scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
         streams.ptr.as_ptr(),
@@ -3329,12 +3553,8 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
         true,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        multiplier_exceeds_threshold,
-        num_scalar_bits,
-        ilog2_divisor,
         allocate_ms_array,
     );
 
@@ -3344,19 +3564,10 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
         streams.len() as u32,
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        ksks.ptr.as_ptr(),
-        decomposed_scalar.as_ptr(),
-        has_at_least_one_set.as_ptr(),
-        &raw const ms_noise_reduction_key_ffi,
         bsks.ptr.as_ptr(),
-        decomposed_scalar.len() as u32,
-        multiplier_exceeds_threshold,
-        is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold,
-        ilog2_divisor,
-        shift_pre,
-        shift_post,
-        rhs.cast_into(),
+        ksks.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+        &raw const scalar_divisor_ffi,
     );
 
     cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
@@ -3370,7 +3581,6 @@ pub unsafe fn unchecked_unsigned_scalar_div_integer_radix_kb_assign_async<
 }
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::fn_params_excessive_bools)]
 /// # Safety
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
@@ -3382,10 +3592,9 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
 >(
     streams: &CudaStreams,
     numerator: &mut CudaRadixCiphertext,
+    divisor: Scalar,
     ksks: &CudaVec<T>,
     bsks: &CudaVec<B>,
-    rhs: Scalar,
-    msg_bits: usize,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     glwe_dimension: GlweDimension,
@@ -3396,26 +3605,69 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
     pbs_level: DecompositionLevelCount,
     pbs_base_log: DecompositionBaseLog,
     grouping_factor: LweBskGroupingFactor,
-    num_blocks: u32,
     pbs_type: PBSType,
     noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
-    is_absolute_divisor_one: bool,
-    is_divisor_negative: bool,
-    l_exceed_threshold: bool,
-    is_power_of_two: bool,
-    multiplier_is_small: bool,
-    l: u32,
-    shift_post: u32,
-    numerator_bits: u32,
 ) where
-    Scalar: ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    Scalar: SignedReciprocable + ScalarMultiplier + DecomposableInto<u8> + CastInto<u64>,
+    <<Scalar as SignedReciprocable>::Unsigned as Reciprocable>::DoublePrecision: Send,
 {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        numerator.d_blocks.0.d_vec.gpu_index(0)
-    );
-    assert_eq!(streams.gpu_indexes[0], ksks.gpu_index(0));
-    assert_eq!(streams.gpu_indexes[0], bsks.gpu_index(0));
+    let num_blocks = numerator.d_blocks.lwe_ciphertext_count().0 as u32;
+    let msg_bits = message_modulus.0.ilog2() as usize;
+    let numerator_bits = msg_bits as u32 * num_blocks;
+
+    let mut scalar_divisor_ffi = prepare_default_scalar_divisor();
+
+    let absolute_divisor = Scalar::Unsigned::cast_from(divisor.wrapping_abs());
+    let chosen_multiplier = choose_multiplier(absolute_divisor, numerator_bits - 1, numerator_bits);
+
+    scalar_divisor_ffi.is_abs_divisor_one = absolute_divisor == Scalar::Unsigned::ONE;
+    scalar_divisor_ffi.is_divisor_negative = divisor < Scalar::ZERO;
+    scalar_divisor_ffi.is_divisor_pow2 = absolute_divisor.is_power_of_two();
+
+    scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator = chosen_multiplier.multiplier
+        >= (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << (numerator_bits - 1));
+    scalar_divisor_ffi.shift_post = chosen_multiplier.shift_post;
+    scalar_divisor_ffi.chosen_multiplier_num_bits = chosen_multiplier.l;
+    scalar_divisor_ffi.chosen_multiplier_has_more_bits_than_numerator =
+        chosen_multiplier.l >= numerator_bits;
+
+    let rhs = if scalar_divisor_ffi.is_chosen_multiplier_geq_two_pow_numerator {
+        let cst = chosen_multiplier.multiplier
+            - (<Scalar::Unsigned as Reciprocable>::DoublePrecision::ONE << numerator_bits);
+        Scalar::DoublePrecision::cast_from(cst)
+    } else {
+        Scalar::DoublePrecision::cast_from(chosen_multiplier.multiplier)
+    };
+
+    let decomposed_multiplier = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
+        .iter_as::<u64>()
+        .collect::<Vec<_>>();
+
+    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
+    let mut multiplier_has_at_least_one_set = vec![0u64; msg_bits];
+    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
+        if bit == 1 {
+            multiplier_has_at_least_one_set[i % msg_bits] = 1;
+        }
+    }
+    scalar_divisor_ffi.chosen_multiplier_has_at_least_one_set =
+        multiplier_has_at_least_one_set.as_ptr();
+    scalar_divisor_ffi.decomposed_chosen_multiplier = decomposed_multiplier.as_ptr();
+    scalar_divisor_ffi.num_scalars = decomposed_multiplier.len() as u32;
+    scalar_divisor_ffi.active_bits = decomposed_multiplier
+        .iter()
+        .take(msg_bits * 2 * num_blocks as usize)
+        .filter(|&&bit| bit == 1u64)
+        .count() as u32;
+
+    scalar_divisor_ffi.is_chosen_multiplier_pow2 = rhs.is_power_of_two();
+    scalar_divisor_ffi.is_abs_chosen_multiplier_one = rhs == Scalar::DoublePrecision::ONE;
+    scalar_divisor_ffi.is_chosen_multiplier_zero = rhs == Scalar::DoublePrecision::ZERO;
+    scalar_divisor_ffi.ilog2_chosen_multiplier = if scalar_divisor_ffi.is_chosen_multiplier_pow2 {
+        rhs.ilog2()
+    } else {
+        0u32
+    };
 
     let ct_modulus = numerator.d_blocks.ciphertext_modulus().raw_modulus_float();
     let ms_noise_reduction_key_ffi =
@@ -3437,36 +3689,6 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         &mut numerator_noise_levels,
     );
 
-    let decomposed_scalar = BlockDecomposer::with_early_stop_at_zero(rhs, 1)
-        .iter_as::<u64>()
-        .collect::<Vec<_>>();
-
-    let decomposer = BlockDecomposer::with_early_stop_at_zero(rhs, 1).iter_as::<u8>();
-
-    let mut has_at_least_one_set = vec![0u64; msg_bits];
-    for (i, bit) in decomposer.collect_vec().iter().copied().enumerate() {
-        if bit == 1 {
-            has_at_least_one_set[i % msg_bits] = 1;
-        }
-    }
-
-    let num_ciphertext_bits = msg_bits * 2 * num_blocks as usize;
-    let num_scalar_bits = decomposed_scalar
-        .as_slice()
-        .iter()
-        .take(num_ciphertext_bits)
-        .filter(|&&rhs_bit| rhs_bit == 1u64)
-        .count() as u32;
-
-    let is_rhs_power_of_two = rhs.is_power_of_two();
-    let is_rhs_zero = rhs == Scalar::ZERO;
-    let is_rhs_one = rhs == Scalar::ONE;
-    let rhs_shift = if is_rhs_power_of_two && !is_rhs_one {
-        rhs.ilog2()
-    } else {
-        0u32
-    };
-
     scratch_cuda_integer_signed_scalar_div_radix_kb_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -3481,16 +3703,11 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
         num_blocks,
-        num_scalar_bits,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         pbs_type as u32,
+        &raw const scalar_divisor_ffi,
         true,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_power_of_two,
-        multiplier_is_small,
         allocate_ms_array,
     );
 
@@ -3500,24 +3717,11 @@ pub unsafe fn unchecked_signed_scalar_div_integer_radix_kb_assign_async<
         streams.len() as u32,
         &raw mut cuda_ffi_numerator,
         mem_ptr,
-        ksks.ptr.as_ptr(),
         bsks.ptr.as_ptr(),
+        ksks.ptr.as_ptr(),
         &raw const ms_noise_reduction_key_ffi,
-        is_absolute_divisor_one,
-        is_divisor_negative,
-        l_exceed_threshold,
-        is_power_of_two,
-        multiplier_is_small,
-        l,
-        shift_post,
-        is_rhs_power_of_two,
-        is_rhs_zero,
-        is_rhs_one,
-        rhs_shift,
+        &raw const scalar_divisor_ffi,
         numerator_bits,
-        decomposed_scalar.len() as u32,
-        decomposed_scalar.as_slice().as_ptr().cast::<u64>(),
-        has_at_least_one_set.as_slice().as_ptr().cast::<u64>(),
     );
 
     cleanup_cuda_integer_signed_scalar_div_radix_kb_64(

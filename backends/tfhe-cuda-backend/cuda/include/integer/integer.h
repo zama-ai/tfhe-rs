@@ -48,6 +48,34 @@ typedef struct {
   uint32_t lwe_dimension;
 } CudaRadixCiphertextFFI;
 
+typedef struct {
+  uint64_t const *chosen_multiplier_has_at_least_one_set;
+  uint64_t const *decomposed_chosen_multiplier;
+
+  uint32_t const num_scalars;
+  uint32_t const active_bits;
+  uint64_t const shift_pre;
+  uint32_t const shift_post;
+  uint32_t const ilog2_chosen_multiplier;
+  uint32_t const chosen_multiplier_num_bits;
+
+  bool const is_chosen_multiplier_zero;
+  bool const is_abs_chosen_multiplier_one;
+  bool const is_chosen_multiplier_negative;
+  bool const is_chosen_multiplier_pow2;
+  bool const chosen_multiplier_has_more_bits_than_numerator;
+  // if signed: test if chosen_multiplier >= 2^{num_bits - 1}
+  bool const is_chosen_multiplier_geq_two_pow_numerator;
+
+  uint32_t const ilog2_divisor;
+
+  bool const is_divisor_zero;
+  bool const is_abs_divisor_one;
+  bool const is_divisor_negative;
+  bool const is_divisor_pow2;
+  bool const divisor_has_more_bits_than_numerator;
+} CudaScalarDivisorFFI;
+
 uint64_t scratch_cuda_apply_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
@@ -600,19 +628,15 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool is_divisor_power_of_two,
-    bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
-    uint32_t num_scalar_bits, uint32_t ilog2_divisor, bool allocate_ms_array);
+    PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 
 void cuda_integer_unsigned_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *ksks,
-    uint64_t const *decomposed_scalar, uint64_t const *has_at_least_one_set,
+    CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_scalars, bool multiplier_exceeds_threshold,
-    bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
-    uint32_t ilog2_divisor, uint64_t shift_pre, uint32_t shift_post,
-    uint64_t rhs);
+    const CudaScalarDivisorFFI *scalar_divisor_ffi);
 
 void cleanup_cuda_integer_unsigned_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -644,23 +668,16 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
     int8_t **mem_ptr, uint32_t glwe_dimension, uint32_t polynomial_size,
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
-    uint32_t num_blocks, uint32_t num_scalar_bits, uint32_t message_modulus,
-    uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    bool is_absolute_divisor_one, bool is_divisor_negative,
-    bool l_exceed_threshold, bool is_power_of_two, bool multiplier_is_small,
-    bool allocate_ms_array);
+    uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
+    PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    bool allocate_gpu_memory, bool allocate_ms_array);
 
 void cuda_integer_signed_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
-    CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *ksks,
-    void *const *bsks,
+    CudaRadixCiphertextFFI *numerator_ct, int8_t *mem_ptr, void *const *bsks,
+    void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
-    bool is_absolute_divisor_one, bool is_divisor_negative,
-    bool l_exceed_threshold, bool is_power_of_two, bool multiplier_is_small,
-    uint32_t l, uint32_t shift_post, bool is_rhs_power_of_two, bool is_rhs_zero,
-    bool is_rhs_one, uint32_t rhs_shift, uint32_t numerator_bits,
-    uint32_t num_scalars, uint64_t const *decomposed_scalar,
-    uint64_t const *has_at_least_one_set);
+    const CudaScalarDivisorFFI *scalar_divisor_ffi, uint32_t numerator_bits);
 
 void cleanup_cuda_integer_signed_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -672,24 +689,18 @@ uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool is_divisor_power_of_two,
-    bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
-    uint32_t num_scalar_bits_for_div, uint32_t num_scalar_bits_for_mul,
-    uint32_t ilog2_divisor, uint64_t divisor, bool allocate_ms_array);
+    PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint32_t const active_bits_divisor, bool allocate_gpu_memory,
+    bool allocate_ms_array);
 
 void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *quotient_ct, CudaRadixCiphertextFFI *remainder_ct,
-    int8_t *mem_ptr, void *const *ksks, void *const *bsks,
-    uint64_t const *decomposed_scalar_for_div,
-    uint64_t const *decomposed_scalar_for_mul,
-    uint64_t const *has_at_least_one_set_for_div,
-    uint64_t const *has_at_least_one_set_for_mul,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     const CudaModulusSwitchNoiseReductionKeyFFI *ms_noise_reduction_key,
-    uint32_t num_scalars_for_div, uint32_t num_scalars_for_mul,
-    bool multiplier_exceeds_threshold, bool is_divisor_power_of_two,
-    bool log2_divisor_exceeds_threshold, uint32_t ilog2_divisor,
-    uint64_t divisor, uint64_t shift_pre, uint32_t shift_post, uint64_t rhs,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint64_t const *divisor_has_at_least_one_set,
+    uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
     void const *clear_blocks, void const *h_clear_blocks,
     uint32_t num_clear_blocks);
 
@@ -703,27 +714,19 @@ uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
     uint32_t lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    uint32_t num_scalar_bits_for_div, uint32_t num_scalar_bits_for_mul,
-    bool is_absolute_divisor_one, bool is_divisor_negative,
-    bool l_exceed_threshold, bool is_absolute_divisor_power_of_two,
-    bool is_divisor_zero, bool multiplier_is_small, bool allocate_ms_array);
+    PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint32_t const active_bits_divisor, bool allocate_gpu_memory,
+    bool allocate_ms_array);
 
 void cuda_integer_signed_scalar_div_rem_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *quotient_ct, CudaRadixCiphertextFFI *remainder_ct,
-    int8_t *mem_ptr, void *const *ksks, void *const *bsks,
+    int8_t *mem_ptr, void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    bool is_absolute_divisor_one, bool is_divisor_negative,
-    bool is_divisor_zero, bool l_exceed_threshold,
-    bool is_absolute_divisor_power_of_two, bool multiplier_is_small, uint32_t l,
-    uint32_t shift_post, bool is_rhs_power_of_two, bool is_rhs_zero,
-    bool is_rhs_one, uint32_t rhs_shift, uint32_t divisor_shift,
-    uint32_t numerator_bits, uint32_t num_scalars_for_div,
-    uint32_t num_scalars_for_mul, uint64_t const *decomposed_scalar_for_div,
-    uint64_t const *decomposed_scalar_for_mul,
-    uint64_t const *has_at_least_one_set_for_div,
-    uint64_t const *has_at_least_one_set_for_mul);
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
+    uint64_t const *divisor_has_at_least_one_set,
+    uint64_t const *decomposed_divisor, uint32_t const num_scalars_divisor,
+    uint32_t numerator_bits);
 
 void cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

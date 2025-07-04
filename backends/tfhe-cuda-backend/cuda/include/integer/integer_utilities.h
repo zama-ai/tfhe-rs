@@ -5143,9 +5143,8 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
                              uint32_t const *gpu_indexes, uint32_t gpu_count,
                              const int_radix_params params,
                              uint32_t num_radix_blocks,
-                             const bool allocate_gpu_memory,
                              uint32_t num_scalar_bits,
-                             bool anticipated_buffer_drop,
+                             const bool allocate_gpu_memory,
                              uint64_t &size_tracker) {
 
     this->params = params;
@@ -5157,8 +5156,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
 
     this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
         streams, gpu_indexes, gpu_count, params, 2 * num_radix_blocks,
-        num_scalar_bits, allocate_gpu_memory, anticipated_buffer_drop,
-        size_tracker);
+        num_scalar_bits, allocate_gpu_memory, true, size_tracker);
 
     this->tmp = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -5225,10 +5223,10 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  int_radix_lut<Torus> *lut;
+  int_radix_lut<Torus> *lut = nullptr;
 
-  CudaRadixCiphertextFFI *last_block;
-  CudaRadixCiphertextFFI *padding_block;
+  CudaRadixCiphertextFFI *last_block = nullptr;
+  CudaRadixCiphertextFFI *padding_block = nullptr;
 
   int_extend_radix_with_sign_msb_buffer(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -5238,10 +5236,6 @@ template <typename Torus> struct int_extend_radix_with_sign_msb_buffer {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-
-    this->lut = nullptr;
-    this->last_block = nullptr;
-    this->padding_block = nullptr;
 
     if (num_additional_blocks != 0) {
       this->lut = new int_radix_lut<Torus>(streams, gpu_indexes, gpu_count,
@@ -5300,53 +5294,47 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *tmp_ffi;
+  CudaRadixCiphertextFFI *tmp_ffi = nullptr;
 
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
-  int_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem;
-  int_sc_prop_memory<Torus> *scp_mem;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
+  int_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem = nullptr;
+  int_sc_prop_memory<Torus> *scp_mem = nullptr;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
 
-  int_unsigned_scalar_div_mem(
-      cudaStream_t const *streams, uint32_t const *gpu_indexes,
-      uint32_t gpu_count, const int_radix_params params,
-      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      bool is_divisor_power_of_two, bool log2_divisor_exceeds_threshold,
-      bool multiplier_exceeds_threshold, uint32_t ilog2_divisor,
-      uint32_t num_scalar_bits, uint64_t &size_tracker) {
+  int_unsigned_scalar_div_mem(cudaStream_t const *streams,
+                              uint32_t const *gpu_indexes, uint32_t gpu_count,
+                              const int_radix_params params,
+                              uint32_t num_radix_blocks,
+                              const CudaScalarDivisorFFI *scalar_divisor_ffi,
+                              const bool allocate_gpu_memory,
+                              uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->tmp_ffi = nullptr;
-
-    this->logical_scalar_shift_mem = nullptr;
-    this->scalar_mul_high_mem = nullptr;
-    this->scp_mem = nullptr;
-    this->sub_and_propagate_mem = nullptr;
-
-    if (ilog2_divisor != (uint32_t)0) {
-      if (is_divisor_power_of_two) {
+    if (!scalar_divisor_ffi->is_abs_divisor_one) {
+      if (scalar_divisor_ffi->is_divisor_pow2) {
 
         logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
             streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
             num_radix_blocks, allocate_gpu_memory, size_tracker);
 
-      } else if (log2_divisor_exceeds_threshold) {
+      } else if (scalar_divisor_ffi->divisor_has_more_bits_than_numerator) {
 
         tmp_ffi = new CudaRadixCiphertextFFI;
         create_zero_radix_ciphertext_async<Torus>(
             streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-      } else if (multiplier_exceeds_threshold) {
+      } else if (scalar_divisor_ffi
+                     ->is_chosen_multiplier_geq_two_pow_numerator) {
 
         logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
             streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
             num_radix_blocks, allocate_gpu_memory, size_tracker);
         scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            allocate_gpu_memory, num_scalar_bits, true, size_tracker);
+            scalar_divisor_ffi->active_bits, allocate_gpu_memory, size_tracker);
         scp_mem = new int_sc_prop_memory<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
             FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
@@ -5365,7 +5353,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
             num_radix_blocks, allocate_gpu_memory, size_tracker);
         scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            allocate_gpu_memory, num_scalar_bits, true, size_tracker);
+            scalar_divisor_ffi->active_bits, allocate_gpu_memory, size_tracker);
       }
     }
   }
@@ -5410,8 +5398,8 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
   int_signed_scalar_mul_high_buffer(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, const int_radix_params params,
-      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      uint32_t num_scalar_bits, uint64_t &size_tracker) {
+      uint32_t num_radix_blocks, uint32_t num_scalar_bits,
+      const bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
@@ -5456,46 +5444,38 @@ template <typename Torus> struct int_signed_scalar_div_mem {
   int_radix_params params;
   bool allocate_gpu_memory;
 
-  CudaRadixCiphertextFFI *tmp_ffi;
-  CudaRadixCiphertextFFI *xsign_ffi;
+  CudaRadixCiphertextFFI *tmp_ffi = nullptr;
+  CudaRadixCiphertextFFI *xsign_ffi = nullptr;
 
-  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
-  int_signed_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem;
-  int_sc_prop_memory<Torus> *scp_mem;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+  int_arithmetic_scalar_shift_buffer<Torus> *arithmetic_scalar_shift_mem =
+      nullptr;
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
+  int_signed_scalar_mul_high_buffer<Torus> *scalar_mul_high_mem = nullptr;
+  int_sc_prop_memory<Torus> *scp_mem = nullptr;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
 
   int_signed_scalar_div_mem(cudaStream_t const *streams,
                             uint32_t const *gpu_indexes, uint32_t gpu_count,
                             const int_radix_params params,
-                            uint32_t num_radix_blocks, uint32_t num_scalar_bits,
+                            uint32_t num_radix_blocks,
+                            const CudaScalarDivisorFFI *scalar_divisor_ffi,
                             const bool allocate_gpu_memory,
-                            bool is_absolute_divisor_one,
-                            bool is_divisor_negative, bool l_exceed_threshold,
-                            bool is_power_of_two, bool multiplier_is_small,
                             uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
-    this->tmp_ffi = nullptr;
-    this->xsign_ffi = nullptr;
-    this->arithmetic_scalar_shift_mem = nullptr;
-    this->logical_scalar_shift_mem = nullptr;
-    this->scalar_mul_high_mem = nullptr;
-    this->scp_mem = nullptr;
-    this->sub_and_propagate_mem = nullptr;
+    if (!scalar_divisor_ffi->chosen_multiplier_has_more_bits_than_numerator) {
 
-    if (!l_exceed_threshold) {
-
-      if (is_absolute_divisor_one && is_divisor_negative) {
+      if (scalar_divisor_ffi->is_abs_divisor_one &&
+          scalar_divisor_ffi->is_divisor_negative) {
         tmp_ffi = new CudaRadixCiphertextFFI;
 
         create_zero_radix_ciphertext_async<Torus>(
             streams[0], gpu_indexes[0], tmp_ffi, num_radix_blocks,
             params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
-      } else if (!is_absolute_divisor_one) {
+      } else if (!scalar_divisor_ffi->is_abs_divisor_one) {
 
         tmp_ffi = new CudaRadixCiphertextFFI;
         create_zero_radix_ciphertext_async<Torus>(
@@ -5507,7 +5487,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
                 streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
                 num_radix_blocks, allocate_gpu_memory, size_tracker);
 
-        if (is_power_of_two) {
+        if (scalar_divisor_ffi->is_divisor_pow2) {
 
           logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
               streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
@@ -5525,13 +5505,14 @@ template <typename Torus> struct int_signed_scalar_div_mem {
 
           scalar_mul_high_mem = new int_signed_scalar_mul_high_buffer<Torus>(
               streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-              allocate_gpu_memory, num_scalar_bits, size_tracker);
+              scalar_divisor_ffi->active_bits, allocate_gpu_memory,
+              size_tracker);
 
           sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
               streams, gpu_indexes, gpu_count, params, num_radix_blocks,
               FLAG_NONE, allocate_gpu_memory, size_tracker);
 
-          if (!multiplier_is_small) {
+          if (scalar_divisor_ffi->is_chosen_multiplier_geq_two_pow_numerator) {
             scp_mem = new int_sc_prop_memory<Torus>(
                 streams, gpu_indexes, gpu_count, params, num_radix_blocks,
                 FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
@@ -5584,25 +5565,19 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
   CudaRadixCiphertextFFI *numerator_ct;
 
   int_unsigned_scalar_div_mem<Torus> *unsigned_div_mem;
-  int_bitop_buffer<Torus> *bitop_mem;
-  int_scalar_mul_buffer<Torus> *scalar_mul_mem;
-  int_sub_and_propagate<Torus> *sub_and_propagate_mem;
+  int_bitop_buffer<Torus> *bitop_mem = nullptr;
+  int_scalar_mul_buffer<Torus> *scalar_mul_mem = nullptr;
+  int_sub_and_propagate<Torus> *sub_and_propagate_mem = nullptr;
 
   int_unsigned_scalar_div_rem_buffer(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, const int_radix_params params,
-      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      const bool anticipated_buffer_drop, uint32_t num_scalar_bits_for_div,
-      uint32_t num_scalar_bits_for_mul, bool is_divisor_power_of_two,
-      bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
-      uint32_t ilog2_divisor, uint64_t divisor, uint64_t &size_tracker) {
+      uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+      uint32_t const active_bits_divisor, const bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-
-    this->bitop_mem = nullptr;
-    this->scalar_mul_mem = nullptr;
-    this->sub_and_propagate_mem = nullptr;
 
     this->numerator_ct = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -5611,26 +5586,19 @@ template <typename Torus> struct int_unsigned_scalar_div_rem_buffer {
 
     this->unsigned_div_mem = new int_unsigned_scalar_div_mem<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        allocate_gpu_memory, is_divisor_power_of_two,
-        log2_divisor_exceeds_threshold, multiplier_exceeds_threshold,
-        ilog2_divisor, num_scalar_bits_for_div, size_tracker);
+        scalar_divisor_ffi, allocate_gpu_memory, size_tracker);
 
-    if (is_divisor_power_of_two) {
-
+    if (scalar_divisor_ffi->is_divisor_pow2) {
       this->bitop_mem = new int_bitop_buffer<Torus>(
           streams, gpu_indexes, gpu_count, SCALAR_BITAND, params,
           num_radix_blocks, allocate_gpu_memory, size_tracker);
-
     } else {
-
-      if (divisor != (uint64_t)0 && divisor != (uint64_t)1 &&
-          num_radix_blocks != 0) {
+      if (!scalar_divisor_ffi->is_divisor_zero &&
+          !scalar_divisor_ffi->is_abs_divisor_one && num_radix_blocks != 0) {
         this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            num_scalar_bits_for_mul, allocate_gpu_memory,
-            anticipated_buffer_drop, size_tracker);
+            active_bits_divisor, allocate_gpu_memory, true, size_tracker);
       }
-
       this->sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks, FLAG_NONE,
           allocate_gpu_memory, size_tracker);
@@ -5669,26 +5637,20 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
   CudaRadixCiphertextFFI *numerator_ct;
 
   int_signed_scalar_div_mem<Torus> *signed_div_mem;
-  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem;
-  int_scalar_mul_buffer<Torus> *scalar_mul_mem;
+  int_logical_scalar_shift_buffer<Torus> *logical_scalar_shift_mem = nullptr;
+  int_scalar_mul_buffer<Torus> *scalar_mul_mem = nullptr;
   int_sub_and_propagate<Torus> *sub_and_propagate_mem;
   int_sc_prop_memory<Torus> *scp_mem;
 
   int_signed_scalar_div_rem_buffer(
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, const int_radix_params params,
-      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      const bool anticipated_buffer_drop, uint32_t num_scalar_bits_for_div,
-      uint32_t num_scalar_bits_for_mul, bool is_absolute_divisor_one,
-      bool is_divisor_negative, bool l_exceed_threshold,
-      bool is_absolute_divisor_power_of_two, bool is_divisor_zero,
-      bool multiplier_is_small, uint64_t &size_tracker) {
+      uint32_t num_radix_blocks, const CudaScalarDivisorFFI *scalar_divisor_ffi,
+      uint32_t const active_bits_divisor, const bool allocate_gpu_memory,
+      uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
-
-    this->scalar_mul_mem = nullptr;
-    this->logical_scalar_shift_mem = nullptr;
 
     this->numerator_ct = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -5697,27 +5659,27 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
 
     this->signed_div_mem = new int_signed_scalar_div_mem<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        num_scalar_bits_for_div, allocate_gpu_memory, is_absolute_divisor_one,
-        is_divisor_negative, l_exceed_threshold,
-        is_absolute_divisor_power_of_two, multiplier_is_small, size_tracker);
+        scalar_divisor_ffi, allocate_gpu_memory, size_tracker);
 
     this->scp_mem = new int_sc_prop_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks, FLAG_NONE,
         (uint32_t)0, allocate_gpu_memory, size_tracker);
 
-    bool is_divisor_one = is_absolute_divisor_one && !is_divisor_negative;
+    bool is_divisor_one = scalar_divisor_ffi->is_abs_divisor_one &&
+                          !scalar_divisor_ffi->is_divisor_negative;
 
-    if (!is_divisor_negative && is_absolute_divisor_power_of_two) {
+    if (!scalar_divisor_ffi->is_divisor_negative &&
+        scalar_divisor_ffi->is_divisor_pow2) {
       this->logical_scalar_shift_mem =
           new int_logical_scalar_shift_buffer<Torus>(
               streams, gpu_indexes, gpu_count, LEFT_SHIFT, params,
               num_radix_blocks, allocate_gpu_memory, size_tracker);
 
-    } else if (!is_divisor_zero && !is_divisor_one && num_radix_blocks != 0) {
+    } else if (!scalar_divisor_ffi->is_divisor_zero && !is_divisor_one &&
+               num_radix_blocks != 0) {
       this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-          num_scalar_bits_for_mul, allocate_gpu_memory, anticipated_buffer_drop,
-          size_tracker);
+          active_bits_divisor, allocate_gpu_memory, true, size_tracker);
     }
 
     this->sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
