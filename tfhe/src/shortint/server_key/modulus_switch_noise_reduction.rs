@@ -82,7 +82,7 @@ impl<InputScalar> ModulusSwitchNoiseReductionKey<InputScalar>
 where
     InputScalar: UnsignedInteger,
 {
-    fn improve_modulus_switch_noise<Cont>(
+    pub(crate) fn improve_modulus_switch_noise<Cont>(
         &self,
         input: &mut LweCiphertext<Cont>,
         log_modulus: CiphertextModulusLog,

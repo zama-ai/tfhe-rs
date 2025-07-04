@@ -17,7 +17,9 @@ use crate::shortint::parameters::test_params::{
 };
 use crate::shortint::parameters::{AtomicPatternParameters, CarryModulus};
 use crate::shortint::server_key::tests::parameterized_test::create_parameterized_test;
-use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
+use crate::shortint::server_key::{
+    ModulusSwitchConfiguration, ServerKey, ShortintBootstrappingKey,
+};
 use rayon::prelude::*;
 
 fn dp_ks_modswitch<
@@ -181,7 +183,17 @@ where
                 ShortintBootstrappingKey::Classic {
                     bsk,
                     modulus_switch_noise_reduction_key,
-                } => (bsk, modulus_switch_noise_reduction_key.as_ref().unwrap()),
+                } => {
+                    let modulus_switch_noise_reduction_key =
+                        match modulus_switch_noise_reduction_key {
+                            ModulusSwitchConfiguration::Standard => None,
+                            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                                modulus_switch_noise_reduction_key,
+                            ) => Some(modulus_switch_noise_reduction_key),
+                            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                        };
+                    (bsk, modulus_switch_noise_reduction_key.unwrap())
+                }
                 ShortintBootstrappingKey::MultiBit { .. } => todo!(),
             };
 
@@ -249,13 +261,22 @@ fn encrypt_dp_ks_ms_inner_helper(
 
     let (ksk, drift_key, br_input_modulus_log) = match &sks.atomic_pattern {
         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            let drift_key = match &standard_atomic_pattern_server_key.bootstrapping_key {
-                crate::shortint::server_key::ShortintBootstrappingKey::Classic {
-                    modulus_switch_noise_reduction_key,
-                    ..
-                } => modulus_switch_noise_reduction_key.as_ref().unwrap(),
-                crate::shortint::server_key::ShortintBootstrappingKey::MultiBit { .. } => todo!(),
+            let drift_key = {
+                let drift_key = standard_atomic_pattern_server_key
+                    .bootstrapping_key
+                    .modulus_switch_noise_reduction_key()
+                    .unwrap();
+
+                match drift_key {
+                    ModulusSwitchConfiguration::Standard => None,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => Some(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                }
+                .unwrap()
             };
+
             (
                 &standard_atomic_pattern_server_key.key_switching_key,
                 drift_key,
@@ -396,10 +417,21 @@ where
             assert!(noise_simulation_ksk
                 .matches_actual_ksk(&standard_atomic_pattern_server_key.key_switching_key));
 
-            let drift_key = standard_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+            let drift_key = {
+                let drift_key = standard_atomic_pattern_server_key
+                    .bootstrapping_key
+                    .modulus_switch_noise_reduction_key()
+                    .unwrap();
+
+                match drift_key {
+                    ModulusSwitchConfiguration::Standard => None,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => Some(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                }
+                .unwrap()
+            };
             assert!(noise_simulation_drift_key.matches_actual_drift_key(drift_key));
 
             standard_atomic_pattern_server_key
@@ -436,10 +468,21 @@ where
     // dimension checks
     let (expected_lwe_dimension_out, expected_modulus_f64_out) = match &sks.atomic_pattern {
         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
-            let drift_key = standard_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+            let drift_key = {
+                let drift_key = standard_atomic_pattern_server_key
+                    .bootstrapping_key
+                    .modulus_switch_noise_reduction_key()
+                    .unwrap();
+
+                match drift_key {
+                    ModulusSwitchConfiguration::Standard => None,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => Some(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                }
+                .unwrap()
+            };
 
             let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_modswitch(
                 cks.encrypt(0).ct,
@@ -455,10 +498,21 @@ where
             )
         }
         AtomicPatternServerKey::KeySwitch32(ks32_atomic_pattern_server_key) => {
-            let drift_key = ks32_atomic_pattern_server_key
-                .bootstrapping_key
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+            let drift_key = {
+                let drift_key = ks32_atomic_pattern_server_key
+                    .bootstrapping_key
+                    .modulus_switch_noise_reduction_key()
+                    .unwrap();
+
+                match drift_key {
+                    ModulusSwitchConfiguration::Standard => None,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => Some(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                }
+                .unwrap()
+            };
 
             let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_modswitch(
                 cks.encrypt(0).ct,

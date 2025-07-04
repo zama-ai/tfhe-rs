@@ -444,12 +444,12 @@ where
 
     pub fn modulus_switch_noise_reduction_key(
         &self,
-    ) -> Option<&ModulusSwitchNoiseReductionKey<InputScalar>> {
+    ) -> Option<&ModulusSwitchConfiguration<InputScalar>> {
         match self {
             Self::Classic {
                 bsk: _,
                 modulus_switch_noise_reduction_key,
-            } => modulus_switch_noise_reduction_key.as_ref(),
+            } => Some(modulus_switch_noise_reduction_key),
             Self::MultiBit { .. } => None,
         }
     }

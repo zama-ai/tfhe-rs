@@ -161,7 +161,7 @@ impl ClientKey {
                 compression_params.br_level,
                 pbs_params.ciphertext_modulus(),
             ),
-            modulus_switch_noise_reduction_key: None,
+            modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
         };
 
         let glwe_decompression_key = DecompressionKey {

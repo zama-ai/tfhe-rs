@@ -335,8 +335,8 @@ impl NoiseSquashingKey {
 
     pub fn modulus_switch_noise_reduction_key(
         &self,
-    ) -> Option<&ModulusSwitchNoiseReductionKey<u64>> {
-        self.modulus_switch_noise_reduction_key.as_ref()
+    ) -> &ModulusSwitchConfiguration<u64> {
+        &self.modulus_switch_noise_reduction_key
     }
 
     pub fn message_modulus(&self) -> MessageModulus {

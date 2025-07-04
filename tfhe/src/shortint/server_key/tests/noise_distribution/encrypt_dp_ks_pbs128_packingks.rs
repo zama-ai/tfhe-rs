@@ -21,7 +21,7 @@ use crate::shortint::parameters::v1_3::{
     V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use crate::shortint::parameters::{AtomicPatternParameters, NoiseSquashingCompressionParameters};
-use crate::shortint::server_key::ServerKey;
+use crate::shortint::server_key::{ModulusSwitchConfiguration, ServerKey};
 use rayon::prelude::*;
 
 fn dp_ks_classic_pbs128<
@@ -160,9 +160,18 @@ fn encrypt_dp_ks_classic_pbs128_inner_helper(
 
     let ct = cks.unchecked_encrypt(msg);
 
-    let drift_key = noise_squashing_key
-        .modulus_switch_noise_reduction_key()
-        .unwrap();
+    let drift_key = {
+        let drift_key = noise_squashing_key.modulus_switch_noise_reduction_key();
+
+        match drift_key {
+            ModulusSwitchConfiguration::Standard => None,
+            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                modulus_switch_noise_reduction_key,
+            ) => Some(modulus_switch_noise_reduction_key),
+            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+        }
+        .unwrap()
+    };
 
     let bsk_128 = noise_squashing_key.bootstrapping_key();
     let bsk_polynomial_size = bsk_128.polynomial_size();
@@ -581,9 +590,18 @@ fn noise_sanity_check_encrypt_dp_ks_classic_pbs128_packing_ks<P>(
         AtomicPatternServerKey::Standard(standard_atomic_pattern_server_key) => {
             let ksk = &standard_atomic_pattern_server_key.key_switching_key;
             let fbsk = noise_squashing_key.bootstrapping_key();
-            let drift_key = noise_squashing_key
-                .modulus_switch_noise_reduction_key()
-                .unwrap();
+            let drift_key = {
+                let drift_key = noise_squashing_key.modulus_switch_noise_reduction_key();
+
+                match drift_key {
+                    ModulusSwitchConfiguration::Standard => None,
+                    ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_key,
+                    ) => Some(modulus_switch_noise_reduction_key),
+                    ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+                }
+                .unwrap()
+            };
             let pksk = noise_squashing_compression_key.packing_key_switching_key();
 
             let id_lut = generate_programmable_bootstrap_glwe_lut(
@@ -734,9 +752,18 @@ fn encrypt_dp_ks_classic_pbs128_packing_ks_inner_helper(
         AtomicPatternServerKey::Dynamic(_) => unimplemented!(),
     };
 
-    let drift_key = noise_squashing_key
-        .modulus_switch_noise_reduction_key()
-        .unwrap();
+    let drift_key = {
+        let drift_key = noise_squashing_key.modulus_switch_noise_reduction_key();
+
+        match drift_key {
+            ModulusSwitchConfiguration::Standard => None,
+            ModulusSwitchConfiguration::DriftTechniqueNoiseReduction(
+                modulus_switch_noise_reduction_key,
+            ) => Some(modulus_switch_noise_reduction_key),
+            ModulusSwitchConfiguration::CenteredMeanNoiseReduction => None,
+        }
+        .unwrap()
+    };
 
     let bsk_128 = noise_squashing_key.bootstrapping_key();
     let bsk_polynomial_size = bsk_128.polynomial_size();
