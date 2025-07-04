@@ -1,7 +1,13 @@
 # Array types
 This document explains how to use array types on GPU, just as [on CPU](../../fhe-computation/types/array.md).
 
-Here is an example:
+Array types perform array and tensor operations on encrypted data, encapsulating the logic for iteration over array elements and array shape logic.
+
+## API elements discussed in this document
+
+- [`GpuFheUint32Array`](https://docs.rs/tfhe/latest/tfhe/array/type.GpuFheUint32Array.html): an n-d array of Uint32 encrypted values. Variants are available for all supported integer types and booleans.
+
+## Array types example
 
 ```rust
 use tfhe::{ConfigBuilder, set_server_key, ClearArray, ClientKey, CompressedServerKey};

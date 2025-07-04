@@ -58,17 +58,20 @@
   * [Generic trait bounds](fhe-computation/tooling/trait_bounds.md)
   * [Debugging](fhe-computation/tooling/debug.md)
 
-## Configuration
-
-* [Advanced Rust setup](configuration/rust_configuration.md)
+## Hardware acceleration
 * [GPU acceleration](configuration/gpu_acceleration/run_on_gpu.md)
+  * [A simple example](configuration/gpu_acceleration/simple_example.md) 
   * [Operations](configuration/gpu_acceleration/gpu_operations.md)
-  * [Benchmark](configuration/gpu_acceleration/benchmark.md)
   * [Compressing ciphertexts](configuration/gpu_acceleration/compressing_ciphertexts.md)
   * [Array types](configuration/gpu_acceleration/array_type.md)
+  * [ZK-POKs](configuration/gpu_acceleration/zk-pok.md)
   * [Multi-GPU support](configuration/gpu_acceleration/multi_gpu.md)
 * [HPU acceleration](configuration/hpu_acceleration/run_on_hpu.md)
   * [Benchmark](configuration/hpu_acceleration/benchmark.md)
+
+## Configuration
+
+* [Advanced Rust setup](configuration/rust_configuration.md)
 * [Parallelized PBS](configuration/parallelized_pbs.md)
 
 ## Integration
