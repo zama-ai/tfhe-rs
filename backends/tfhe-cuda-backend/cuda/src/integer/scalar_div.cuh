@@ -368,4 +368,97 @@ __host__ void host_integer_unsigned_scalar_div_rem_radix(
   }
 }
 
+template <typename Torus>
+__host__ uint64_t scratch_integer_signed_scalar_div_rem_radix(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, const int_radix_params params,
+    int_signed_scalar_div_rem_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, const bool allocate_gpu_memory,
+    uint32_t num_scalar_bits_for_div, uint32_t num_scalar_bits_for_mul,
+    bool is_absolute_divisor_one, bool is_divisor_negative,
+    bool l_exceed_threshold, bool is_absolute_divisor_power_of_two,
+    bool is_divisor_zero, bool multiplier_is_small) {
+
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_signed_scalar_div_rem_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+      allocate_gpu_memory, true, num_scalar_bits_for_div,
+      num_scalar_bits_for_mul, is_absolute_divisor_one, is_divisor_negative,
+      l_exceed_threshold, is_absolute_divisor_power_of_two, is_divisor_zero,
+      multiplier_is_small, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_integer_signed_scalar_div_rem_radix(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *quotient_ct,
+    CudaRadixCiphertextFFI *remainder_ct,
+    int_signed_scalar_div_rem_buffer<Torus> *mem_ptr, Torus *const *ksks,
+    void *const *bsks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
+    bool is_absolute_divisor_one, bool is_divisor_negative,
+    bool is_divisor_zero, bool l_exceed_threshold,
+    bool is_absolute_divisor_power_of_two, bool multiplier_is_small, uint32_t l,
+    uint32_t shift_post, bool is_rhs_power_of_two, bool is_rhs_zero,
+    bool is_rhs_one, uint32_t rhs_shift, uint32_t divisor_shift,
+    uint32_t numerator_bits, uint32_t num_scalars_for_div,
+    uint32_t num_scalars_for_mul, uint64_t const *decomposed_scalar_for_div,
+    uint64_t const *decomposed_scalar_for_mul,
+    uint64_t const *has_at_least_one_set_for_div,
+    uint64_t const *has_at_least_one_set_for_mul) {
+
+  auto numerator_ct = mem_ptr->numerator_ct;
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], numerator_ct,
+                                     quotient_ct);
+
+  host_integer_signed_scalar_div_radix_kb(
+      streams, gpu_indexes, gpu_count, quotient_ct, mem_ptr->signed_div_mem,
+      ksks, bsks, ms_noise_reduction_key, is_absolute_divisor_one,
+      is_divisor_negative, l_exceed_threshold, is_absolute_divisor_power_of_two,
+      multiplier_is_small, l, shift_post, is_rhs_power_of_two, is_rhs_zero,
+      is_rhs_one, rhs_shift, numerator_bits, num_scalars_for_div,
+      decomposed_scalar_for_div, has_at_least_one_set_for_div);
+
+  host_propagate_single_carry<Torus>(
+      streams, gpu_indexes, gpu_count, quotient_ct, nullptr, nullptr,
+      mem_ptr->scp_mem, bsks, ksks, ms_noise_reduction_key, FLAG_NONE,
+      (uint32_t)0);
+
+  if (!is_divisor_negative && is_absolute_divisor_power_of_two) {
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_ct,
+                                       quotient_ct);
+
+    host_integer_radix_logical_scalar_shift_kb_inplace(
+        streams, gpu_indexes, gpu_count, remainder_ct, divisor_shift,
+        mem_ptr->logical_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key,
+        remainder_ct->num_radix_blocks);
+
+  } else if (!is_divisor_zero) {
+
+    copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_ct,
+                                       quotient_ct);
+
+    bool is_divisor_one = is_absolute_divisor_one && !is_divisor_negative;
+
+    if (!is_divisor_one && remainder_ct->num_radix_blocks != 0) {
+      host_integer_scalar_mul_radix<Torus>(
+          streams, gpu_indexes, gpu_count, remainder_ct,
+          decomposed_scalar_for_mul, has_at_least_one_set_for_mul,
+          mem_ptr->scalar_mul_mem, bsks, ksks, ms_noise_reduction_key,
+          mem_ptr->params.message_modulus, num_scalars_for_mul);
+    }
+  }
+
+  host_sub_and_propagate_single_carry(
+      streams, gpu_indexes, gpu_count, numerator_ct, remainder_ct, nullptr,
+      nullptr, mem_ptr->sub_and_propagate_mem, bsks, ksks,
+      ms_noise_reduction_key, FLAG_NONE, (uint32_t)0);
+
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], remainder_ct,
+                                     numerator_ct);
+}
+
 #endif
