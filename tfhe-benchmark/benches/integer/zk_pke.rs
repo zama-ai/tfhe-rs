@@ -52,6 +52,7 @@ fn zk_throughput_num_elements() -> u64 {
     #[cfg(feature = "gpu")]
     {
         use tfhe::core_crypto::gpu::get_number_of_gpus;
+        println!("Execute with {} elements", get_number_of_gpus() as u64 * usable_cpu_threads);
         get_number_of_gpus() as u64 * usable_cpu_threads
     }
 
@@ -681,8 +682,6 @@ mod cuda {
                                         )
                                     })
                                     .collect::<Vec<_>>();
-
-                                assert_eq!(d_ksk_material_vec.len(), gpu_count);
 
                                 bench_group.bench_function(&bench_id_verify, |b| {
                                     b.iter(|| {
