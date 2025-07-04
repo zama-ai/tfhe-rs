@@ -4,7 +4,7 @@ set -e
 
 if [ $# -lt 1 ]; then
 		echo "invalid arguments, usage:\n"
-		echo "$0 dest_path"
+		echo "$0 <data_path>"
 		exit 1
 fi
 
@@ -13,4 +13,4 @@ if ! git lfs env 2>/dev/null >/dev/null; then
 		exit 1
 fi
 
-git lfs pull --include="$1/*" --exclude="*.hpu"
+git lfs pull --include="$1/*" --exclude=""

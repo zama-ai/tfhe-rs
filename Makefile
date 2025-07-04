@@ -1515,9 +1515,13 @@ write_params_to_file: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run \
 	--example write_params_to_file --features=boolean,shortint,hpu,internal-keycache
 
-.PHONY: pull_backward_compat_data # Clone the data repo needed for backward compatibility tests
+.PHONY: pull_backward_compat_data # Pull the data files needed for backward compatibility tests
 pull_backward_compat_data:
-	./scripts/pull_backward_compat_data.sh $(BACKWARD_COMPAT_DATA_DIR)
+	./scripts/pull_lfs_data.sh $(BACKWARD_COMPAT_DATA_DIR)
+
+.PHONY: pull_hpu_files # Pull the hpu files
+pull_hpu_files:
+	./scripts/pull_lfs_data.sh backends/tfhe-hpu-backend/
 
 #
 # Real use case examples
