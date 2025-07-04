@@ -54,13 +54,17 @@ rustup show
 
 ### Homomorphic types
 
-This crate provides 3 kinds of data types. Each kind is enabled by activating the corresponding feature in the TOML line and has multiple types:
+This crate provides 4 kinds of data types. Each kind is enabled by activating the corresponding feature in the TOML line and has multiple types:
 
-| Kind      | Features   | Type (s)                 |
-| --------- | ---------- | ------------------------ |
-| Booleans  | `boolean`  | Booleans                 |
-| ShortInts | `shortint` | Short integers           |
-| Integers  | `integer`  | Arbitrary-sized integers |
+| Kind      | Features         | Type (s)                    |
+| --------- | ---------------- | --------------------------- |
+| Booleans  | `boolean`        | Booleans                    |
+| ShortInts | `shortint`       | Short integers              |
+| Integers  | `integer`        | Arbitrary-sized integers    |
+| Integers+ | `extended-types` | Non-standard sized integers |
+| Strings   | `strings`        | ASCII strings               |
+
+The `Integers+` kind refers to types which have non-standard bit-width like `FheUint24` for example. Having more granular types can allow to improve performance. The feature is not enabled by default to avoid very long compile times if users don't need the extended-types.
 
 ### AVX-512
 
