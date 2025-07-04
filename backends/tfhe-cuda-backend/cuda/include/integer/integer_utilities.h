@@ -5139,18 +5139,20 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
 
   CudaRadixCiphertextFFI *tmp;
 
-  int_scalar_mul_high_buffer(
-      cudaStream_t const *streams, uint32_t const *gpu_indexes,
-      uint32_t gpu_count, const int_radix_params params,
-      uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
-      bool anticipated_buffer_drop, uint64_t &size_tracker) {
+  int_scalar_mul_high_buffer(cudaStream_t const *streams,
+                             uint32_t const *gpu_indexes, uint32_t gpu_count,
+                             const int_radix_params params,
+                             uint32_t num_radix_blocks,
+                             const bool allocate_gpu_memory,
+                             uint32_t num_scalar_bits,
+                             bool anticipated_buffer_drop,
+                             uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, shift_type, params,
+        streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
         2 * num_radix_blocks, allocate_gpu_memory, size_tracker);
 
     this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
@@ -5344,8 +5346,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
             num_radix_blocks, allocate_gpu_memory, size_tracker);
         scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
-            size_tracker);
+            allocate_gpu_memory, num_scalar_bits, true, size_tracker);
         scp_mem = new int_sc_prop_memory<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
             FLAG_NONE, (uint32_t)0, allocate_gpu_memory, size_tracker);
@@ -5364,8 +5365,7 @@ template <typename Torus> struct int_unsigned_scalar_div_mem {
             num_radix_blocks, allocate_gpu_memory, size_tracker);
         scalar_mul_high_mem = new int_scalar_mul_high_buffer<Torus>(
             streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-            allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, true,
-            size_tracker);
+            allocate_gpu_memory, num_scalar_bits, true, size_tracker);
       }
     }
   }
@@ -5411,14 +5411,13 @@ template <typename Torus> struct int_signed_scalar_mul_high_buffer {
       cudaStream_t const *streams, uint32_t const *gpu_indexes,
       uint32_t gpu_count, const int_radix_params params,
       uint32_t num_radix_blocks, const bool allocate_gpu_memory,
-      SHIFT_OR_ROTATE_TYPE shift_type, uint32_t num_scalar_bits,
-      uint64_t &size_tracker) {
+      uint32_t num_scalar_bits, uint64_t &size_tracker) {
 
     this->params = params;
     this->allocate_gpu_memory = allocate_gpu_memory;
 
     this->logical_scalar_shift_mem = new int_logical_scalar_shift_buffer<Torus>(
-        streams, gpu_indexes, gpu_count, shift_type, params,
+        streams, gpu_indexes, gpu_count, RIGHT_SHIFT, params,
         2 * num_radix_blocks, allocate_gpu_memory, size_tracker);
 
     this->scalar_mul_mem = new int_scalar_mul_buffer<Torus>(
@@ -5526,7 +5525,7 @@ template <typename Torus> struct int_signed_scalar_div_mem {
 
           scalar_mul_high_mem = new int_signed_scalar_mul_high_buffer<Torus>(
               streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-              allocate_gpu_memory, RIGHT_SHIFT, num_scalar_bits, size_tracker);
+              allocate_gpu_memory, num_scalar_bits, size_tracker);
 
           sub_and_propagate_mem = new int_sub_and_propagate<Torus>(
               streams, gpu_indexes, gpu_count, params, num_radix_blocks,
