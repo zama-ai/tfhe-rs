@@ -37,3 +37,11 @@ To add support for older CPU, import **TFHE-rs** with the `software-prng` featur
 ```toml
 tfhe = { version = "~1.3.0", features = ["boolean", "shortint", "integer", "software-prng"] }
 ```
+
+## Hardware acceleration
+
+**TFHE-rs** now features hardware-accelerated backends.
+
+You can refer to the:
+- [GPU backend instructions](../configuration/gpu_acceleration/run_on_gpu.md) to benefit from GPU accelerated primitives.
+- [HPU backend instructions](../configuration/hpu_acceleration/run_on_hpu.md) to benefit from custom FPGA accelerated primitives.
