@@ -174,12 +174,10 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *ct,
     int_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
-    uint64_t rhs, uint64_t const *decomposed_scalar,
-    uint64_t const *has_at_least_one_set,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_scalars) {
+    void *const *bsks, const CudaScalarDivisorFFI *scalar_divisor_ffi) {
 
-  if (rhs == (uint64_t)0) {
+  if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
     set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], ct,
                                                  0, ct->num_radix_blocks);
     return;
@@ -190,23 +188,26 @@ __host__ void host_integer_radix_scalar_mul_high_kb(
   host_extend_radix_with_trivial_zero_blocks_msb<Torus>(tmp_ffi, ct, streams,
                                                         gpu_indexes);
 
-  if (num_scalars != (uint32_t)0 && rhs != (uint64_t)1 &&
+  if (scalar_divisor_ffi->active_bits != (uint32_t)0 &&
+      !scalar_divisor_ffi->is_abs_chosen_multiplier_one &&
       tmp_ffi->num_radix_blocks != 0) {
-    if ((rhs & (rhs - 1)) == 0) {
 
-      uint32_t shift = std::log2(rhs);
-
+    if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_ffi, shift,
+          streams, gpu_indexes, gpu_count, tmp_ffi,
+          scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           ms_noise_reduction_key, tmp_ffi->num_radix_blocks);
 
     } else {
+
       host_integer_scalar_mul_radix<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-          (uint64_t **)ksks, ms_noise_reduction_key,
-          mem_ptr->params.message_modulus, num_scalars);
+          streams, gpu_indexes, gpu_count, tmp_ffi,
+          scalar_divisor_ffi->decomposed_chosen_multiplier,
+          scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
+          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
+          ms_noise_reduction_key, mem_ptr->params.message_modulus,
+          scalar_divisor_ffi->num_scalars);
     }
   }
 
@@ -218,13 +219,11 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *ct,
     int_signed_scalar_mul_high_buffer<Torus> *mem_ptr, Torus *const *ksks,
-    bool is_rhs_power_of_two, bool is_rhs_zero, bool is_rhs_one,
-    uint32_t rhs_shift, uint64_t const *decomposed_scalar,
-    uint64_t const *has_at_least_one_set,
+    const CudaScalarDivisorFFI *scalar_divisor_ffi,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key,
-    void *const *bsks, uint32_t num_scalars) {
+    void *const *bsks) {
 
-  if (is_rhs_zero) {
+  if (scalar_divisor_ffi->is_chosen_multiplier_zero) {
     set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], ct,
                                                  0, ct->num_radix_blocks);
     return;
@@ -236,22 +235,24 @@ __host__ void host_integer_radix_signed_scalar_mul_high_kb(
       streams, gpu_indexes, gpu_count, tmp_ffi, ct, mem_ptr->extend_radix_mem,
       ct->num_radix_blocks, bsks, (uint64_t **)ksks, ms_noise_reduction_key);
 
-  if (num_scalars != (uint32_t)0 && !is_rhs_one &&
+  if (scalar_divisor_ffi->active_bits != (uint32_t)0 &&
+      !scalar_divisor_ffi->is_abs_chosen_multiplier_one &&
       tmp_ffi->num_radix_blocks != 0) {
-    if (is_rhs_power_of_two) {
 
+    if (scalar_divisor_ffi->is_chosen_multiplier_pow2) {
       host_integer_radix_logical_scalar_shift_kb_inplace<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_ffi, rhs_shift,
+          streams, gpu_indexes, gpu_count, tmp_ffi,
+          scalar_divisor_ffi->ilog2_chosen_multiplier,
           mem_ptr->logical_scalar_shift_mem, bsks, (uint64_t **)ksks,
           ms_noise_reduction_key, tmp_ffi->num_radix_blocks);
-
     } else {
-
       host_integer_scalar_mul_radix<Torus>(
-          streams, gpu_indexes, gpu_count, tmp_ffi, decomposed_scalar,
-          has_at_least_one_set, mem_ptr->scalar_mul_mem, bsks,
-          (uint64_t **)ksks, ms_noise_reduction_key,
-          mem_ptr->params.message_modulus, num_scalars);
+          streams, gpu_indexes, gpu_count, tmp_ffi,
+          scalar_divisor_ffi->decomposed_chosen_multiplier,
+          scalar_divisor_ffi->chosen_multiplier_has_at_least_one_set,
+          mem_ptr->scalar_mul_mem, bsks, (uint64_t **)ksks,
+          ms_noise_reduction_key, mem_ptr->params.message_modulus,
+          scalar_divisor_ffi->num_scalars);
     }
   }
 
