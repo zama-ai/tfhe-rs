@@ -10,7 +10,7 @@ You can get the parameters used for benchmarks by cloning the repository and che
 make print_doc_bench_parameters
 ```
 
-### Operation time over FheUint 64
+### Operation latency CPU vs GPU comparison
 
 {% hint style="info" %}
 Benchmarks in the Table below were launched on: 
