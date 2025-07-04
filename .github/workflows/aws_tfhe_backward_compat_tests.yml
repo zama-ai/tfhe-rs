@@ -55,9 +55,9 @@ jobs:
   backward-compat-tests:
     name: Backward compatibility tests
     needs: [ setup-instance ]
-    permissions:
-      # required to have access to the github cache
-      actions: write
+    permissions: write-all
+      # # required to have access to the github cache
+      # actions: write
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: true
