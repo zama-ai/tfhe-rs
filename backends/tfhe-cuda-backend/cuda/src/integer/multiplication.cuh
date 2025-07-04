@@ -463,9 +463,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
             d_pbs_indexes_in, d_pbs_indexes_out,
             luts_message_carry->get_lut_indexes(0, 0), num_radix_blocks);
 
-    cuda_memset_async(
-        (Torus *)(current_blocks->ptr) + big_lwe_size * num_radix_blocks, 0,
-        big_lwe_size * sizeof(Torus), streams[0], gpu_indexes[0]);
+    set_zero_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], current_blocks, num_radix_blocks,
+        num_radix_blocks + 1);
 
     auto active_gpu_count =
         get_active_gpu_count(2 * num_radix_blocks, gpu_count);
