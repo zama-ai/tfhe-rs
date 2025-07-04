@@ -63,3 +63,70 @@ pub fn main() {
 }
 
 ```
+
+## Compression
+Like regular ciphertexts, squashed noise ciphertexts can stored into a list and compressed to reduce their size.
+
+To do that, use `CompressedSquashedNoiseCiphertextList::builder`:
+```rust
+use tfhe::prelude::*;
+use tfhe::shortint::parameters::{
+    NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+};
+use tfhe::*;
+
+// We use an identity function to verify FHE operations, it is fine in this context
+#[allow(clippy::eq_op)]
+pub fn main() {
+    // Configure computations enabling the noise squashing capability.
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .enable_noise_squashing(NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128)
+            .build();
+
+    // Generate the keys
+    let (cks, sks) = generate_keys(config);
+
+    // Set the key once for our various examples
+    set_server_key(sks);
+
+    // Encrypt some values
+    let clear_a: i32 = -42;
+    let clear_b: u32 = 1025;
+    let clear_c = false;
+
+    let a = FheInt32::encrypt(clear_a, &cks);
+    let b = FheUint32::encrypt(clear_b, &cks);
+    let c = FheBool::encrypt(clear_c, &cks);
+
+    // Squash the noise
+    let squashed_a = a.squash_noise().unwrap();
+    let squashed_b = b.squash_noise().unwrap();
+    let squashed_c = c.squash_noise().unwrap();
+
+    // Store ciphertexts into a list and compress them
+    let list = CompressedSquashedNoiseCiphertextList::builder()
+        .push(squashed_a)
+        .push(squashed_b)
+        .push(squashed_c)
+        .build()
+        .unwrap();
+
+    // Extract and decompress the ciphertexts
+    let squashed_a: SquashedNoiseFheInt = list.get(0).unwrap().unwrap();
+    let squashed_b: SquashedNoiseFheUint = list.get(1).unwrap().unwrap();
+    let squashed_c: SquashedNoiseFheBool = list.get(2).unwrap().unwrap();
+
+    // Decrypt them
+    let decrypted: i32 = squashed_a.decrypt(&cks);
+    assert_eq!(decrypted, clear_a);
+
+    let decrypted: u32 = squashed_b.decrypt(&cks);
+    assert_eq!(decrypted, clear_b);
+
+    let decrypted: bool = squashed_c.decrypt(&cks);
+    assert_eq!(decrypted, clear_c);
+}
+
+```
