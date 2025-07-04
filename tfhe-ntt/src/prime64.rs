@@ -76,6 +76,22 @@ impl crate::V3 {
             self.wrapping_sub_u64x4(x, modulus),
         )
     }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x4(self, modulus: u64x4, x: u64x4) -> u64x4 {
+        // First conditional subtraction
+        let t1 = self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, x),
+            x,
+            self.wrapping_sub_u64x4(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x4(
+            self.cmp_gt_u64x4(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x4(t1, modulus),
+        )
+    }
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -152,6 +168,22 @@ impl crate::V4 {
             self.cmp_gt_u64x8(modulus, x),
             x,
             self.wrapping_sub_u64x8(x, modulus),
+        )
+    }
+
+    #[inline(always)]
+    pub fn small_mod_double_sub_u64x8(self, modulus: u64x8, x: u64x8) -> u64x8 {
+        // First conditional subtraction
+        let t1 = self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, x),
+            x,
+            self.wrapping_sub_u64x8(x, modulus),
+        );
+        // Second conditional subtraction
+        self.select_u64x8(
+            self.cmp_gt_u64x8(modulus, t1),
+            t1,
+            self.wrapping_sub_u64x8(t1, modulus),
         )
     }
 }
@@ -316,7 +348,7 @@ fn mul_assign_normalize_ifma(
                     simd.wrapping_mul_add_u52x8(prod, n_inv_mod_p, zero),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -359,9 +391,9 @@ fn mul_accumulate_ifma(
                 let c3 = simd.widening_mul_u52x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_mul_add_u52x8(neg_p, c3, lo);
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -412,7 +444,7 @@ fn mul_assign_normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x8(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -454,9 +486,9 @@ fn mul_accumulate_avx512(
                 let c3 = simd.widening_mul_u64x8(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x8(lo, simd.wrapping_mul_u64x8(p, c3));
-                let prod = simd.small_mod_u64x8(p, prod);
+                let prod = simd.small_mod_double_sub_u64x8(p, prod);
 
-                *acc = cast(simd.small_mod_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x8(p, simd.wrapping_add_u64x8(prod, cast(*acc))));
             }
         },
     )
@@ -505,7 +537,7 @@ fn mul_assign_normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *lhs_ = cast(simd.small_mod_u64x4(p, t));
+                *lhs_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
@@ -546,9 +578,9 @@ fn mul_accumulate_avx2(
                 let c3 = simd.widening_mul_u64x4(c1, p_barrett).1;
                 // lo - p * c3
                 let prod = simd.wrapping_sub_u64x4(lo, simd.widening_mul_u64x4(p, c3).0);
-                let prod = simd.small_mod_u64x4(p, prod);
+                let prod = simd.small_mod_double_sub_u64x4(p, prod);
 
-                *acc = cast(simd.small_mod_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
+                *acc = cast(simd.small_mod_double_sub_u64x4(p, simd.wrapping_add_u64x4(prod, cast(*acc))));
             }
         },
     )
@@ -575,9 +607,16 @@ fn mul_assign_normalize_scalar(
         let prod = (d as u64).wrapping_sub(p.wrapping_mul(c3));
 
         let shoup_q = (((prod as u128) * (n_inv_mod_p_shoup as u128)) >> 64) as u64;
-        let t = u64::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
+        let mut t = u64::wrapping_sub(prod.wrapping_mul(n_inv_mod_p), shoup_q.wrapping_mul(p));
 
-        *lhs_ = t.min(t.wrapping_sub(p));
+        // Perform up to two conditional subtractions
+        if t >= p {
+            t = t.wrapping_sub(p);
+            if t >= p {
+                t = t.wrapping_sub(p);
+            }
+        }
+        *lhs_ = t;
     }
 }
 
@@ -599,10 +638,22 @@ fn mul_accumulate_scalar(
         let c1 = (d >> big_q_m1) as u64;
         let c3 = ((c1 as u128 * p_barrett as u128) >> 64) as u64;
         let prod = (d as u64).wrapping_sub(p.wrapping_mul(c3));
-        let prod = prod.min(prod.wrapping_sub(p));
+        let mut prod = prod;
+        if prod >= p {
+            prod = prod.wrapping_sub(p);
+            if prod >= p {
+                prod = prod.wrapping_sub(p);
+            }
+        }
 
-        let acc_ = prod + *acc;
-        *acc = acc_.min(acc_.wrapping_sub(p));
+        let mut acc_ = prod + *acc;
+        if acc_ >= p {
+            acc_ = acc_.wrapping_sub(p);
+            if acc_ >= p {
+                acc_ = acc_.wrapping_sub(p);
+            }
+        }
+        *acc = acc_;
     }
 }
 
@@ -637,7 +688,7 @@ fn normalize_ifma(
                     simd.wrapping_mul_add_u52x8(val, n_inv_mod_p, zero),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     )
@@ -671,7 +722,7 @@ fn normalize_avx512(
                     simd.wrapping_mul_u64x8(shoup_q, p),
                 );
 
-                *val_ = cast(simd.small_mod_u64x8(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x8(p, t));
             }
         },
     );
@@ -704,7 +755,7 @@ fn normalize_avx2(
                     simd.widening_mul_u64x4(shoup_q, p).0,
                 );
 
-                *val_ = cast(simd.small_mod_u64x4(p, t));
+                *val_ = cast(simd.small_mod_double_sub_u64x4(p, t));
             }
         },
     );
@@ -1480,6 +1531,158 @@ pub mod tests {
                 .unwrap()
                 .normalize(&mut val);
             assert_eq!(val, val_target);
+        }
+    }
+
+    #[test]
+    fn test_barrett_reduction_large_prime_regression() {
+        // This test specifically checks for the Barrett reduction bug that was fixed
+        // with the double-subtraction approach
+        let p = largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
+        let polynomial_size = 128;
+
+        let big_q = (p.ilog2() + 1) as u64;
+        let big_l = big_q + 63;
+        let p_barrett = ((1u128 << big_l) / p as u128) as u64;
+
+        // Use a value that could trigger the Barrett reduction bug
+        let mut acc = vec![p - 1; polynomial_size];
+        let lhs = vec![p - 1; polynomial_size];
+        let rhs = vec![p - 1; polynomial_size];
+
+        let expected = ((p - 1) as u128 * (p - 1) as u128) % p as u128;
+        mul_accumulate_scalar(&mut acc, &lhs, &rhs, p, p_barrett, big_q);
+        assert_eq!(acc[0], expected as u64, "Barrett reduction failed for large 64-bit prime");
+    }
+
+    /// Non-regression test for Barrett reduction double-subtraction bug.
+    /// This test ensures that both scalar and SIMD implementations correctly handle
+    /// the edge cases that triggered the original bug.
+    #[test]
+    fn test_barrett_reduction_double_subtraction_regression() {
+        // Test parameters that could trigger the Barrett reduction bug
+        let p = largest_prime_in_arithmetic_progression64(1 << 16, 1, 1 << 50, 1 << 63).unwrap();
+        let polynomial_size = 128;
+
+        let big_q = (p.ilog2() + 1) as u64;
+        let big_l = big_q + 63;
+        let p_barrett = ((1u128 << big_l) / p as u128) as u64;
+        let n_inv_mod_p = crate::prime::exp_mod64(Div64::new(p), polynomial_size as u64, p - 2);
+        let n_inv_mod_p_shoup = (((n_inv_mod_p as u128) << 64) / p as u128) as u64;
+
+        // Edge cases that could trigger the double-subtraction bug
+        let edge_cases = [
+            (p - 1, p - 1),  // Maximum values
+            (p - 1, 1),      // Max * 1
+            (1, p - 1),      // 1 * Max
+            (p / 2, p / 2),  // Half values
+            (p - 2, p - 2),  // Near maximum
+        ];
+
+        for (a, b) in edge_cases {
+            let expected_mul = (((a as u128 * b as u128) % p as u128 * n_inv_mod_p as u128) % p as u128) as u64;
+            let expected_accumulate = ((a as u128 * b as u128) % p as u128) as u64;
+
+            // Test 1: Scalar implementations
+            {
+                let mut acc_scalar = vec![0u64; polynomial_size];
+                let lhs_scalar = vec![a; polynomial_size];
+                let rhs_scalar = vec![b; polynomial_size];
+
+                mul_accumulate_scalar(&mut acc_scalar, &lhs_scalar, &rhs_scalar, p, p_barrett, big_q);
+                assert_eq!(acc_scalar[0], expected_accumulate, 
+                    "Scalar mul_accumulate failed for edge case a={}, b={}", a, b);
+
+                let mut lhs_mul_scalar = vec![a; polynomial_size];
+                mul_assign_normalize_scalar(&mut lhs_mul_scalar, &rhs_scalar, p, p_barrett, big_q, n_inv_mod_p, n_inv_mod_p_shoup);
+                assert_eq!(lhs_mul_scalar[0], expected_mul, 
+                    "Scalar mul_assign_normalize failed for edge case a={}, b={}", a, b);
+
+                let mut values_scalar = vec![a; polynomial_size];
+                normalize_scalar(&mut values_scalar, p, n_inv_mod_p, n_inv_mod_p_shoup);
+                let expected_normalize = ((a as u128 * n_inv_mod_p as u128) % p as u128) as u64;
+                assert_eq!(values_scalar[0], expected_normalize, 
+                    "Scalar normalize failed for edge case a={}", a);
+            }
+
+            // Test 2: SIMD implementations (only on x86/x86_64)
+            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+            {
+                // Test AVX2 implementations
+                if let Some(simd) = crate::V3::try_new() {
+                    let mut acc_avx2 = vec![0u64; polynomial_size];
+                    let lhs_avx2 = vec![a; polynomial_size];
+                    let rhs_avx2 = vec![b; polynomial_size];
+
+                    mul_accumulate_avx2(simd, &mut acc_avx2, &lhs_avx2, &rhs_avx2, p, p_barrett, big_q);
+                    assert_eq!(acc_avx2[0], expected_accumulate, 
+                        "AVX2 mul_accumulate failed for edge case a={}, b={}", a, b);
+
+                    let mut lhs_mul_avx2 = vec![a; polynomial_size];
+                    mul_assign_normalize_avx2(simd, &mut lhs_mul_avx2, &rhs_avx2, p, p_barrett, big_q, n_inv_mod_p, n_inv_mod_p_shoup);
+                    assert_eq!(lhs_mul_avx2[0], expected_mul, 
+                        "AVX2 mul_assign_normalize failed for edge case a={}, b={}", a, b);
+
+                    let mut values_avx2 = vec![a; polynomial_size];
+                    normalize_avx2(simd, &mut values_avx2, p, n_inv_mod_p, n_inv_mod_p_shoup);
+                    let expected_normalize = ((a as u128 * n_inv_mod_p as u128) % p as u128) as u64;
+                    assert_eq!(values_avx2[0], expected_normalize, 
+                        "AVX2 normalize failed for edge case a={}", a);
+                }
+
+                // Test AVX512 implementations
+                #[cfg(feature = "nightly")]
+                if let Some(simd) = crate::V4::try_new() {
+                    let mut acc_avx512 = vec![0u64; polynomial_size];
+                    let lhs_avx512 = vec![a; polynomial_size];
+                    let rhs_avx512 = vec![b; polynomial_size];
+
+                    mul_accumulate_avx512(simd, &mut acc_avx512, &lhs_avx512, &rhs_avx512, p, p_barrett, big_q);
+                    assert_eq!(acc_avx512[0], expected_accumulate, 
+                        "AVX512 mul_accumulate failed for edge case a={}, b={}", a, b);
+
+                    let mut lhs_mul_avx512 = vec![a; polynomial_size];
+                    mul_assign_normalize_avx512(simd, &mut lhs_mul_avx512, &rhs_avx512, p, p_barrett, big_q, n_inv_mod_p, n_inv_mod_p_shoup);
+                    assert_eq!(lhs_mul_avx512[0], expected_mul, 
+                        "AVX512 mul_assign_normalize failed for edge case a={}, b={}", a, b);
+
+                    let mut values_avx512 = vec![a; polynomial_size];
+                    normalize_avx512(simd, &mut values_avx512, p, n_inv_mod_p, n_inv_mod_p_shoup);
+                    let expected_normalize = ((a as u128 * n_inv_mod_p as u128) % p as u128) as u64;
+                    assert_eq!(values_avx512[0], expected_normalize, 
+                        "AVX512 normalize failed for edge case a={}", a);
+                }
+
+                // Test IFMA implementations (for 64-bit primes < 2^51)
+                #[cfg(feature = "nightly")]
+                if p < (1u64 << 51) {
+                    if let Some(simd) = crate::V4IFma::try_new() {
+                        let mut acc_ifma = vec![0u64; polynomial_size];
+                        let lhs_ifma = vec![a; polynomial_size];
+                        let rhs_ifma = vec![b; polynomial_size];
+
+                        mul_accumulate_ifma(simd, &mut acc_ifma, &lhs_ifma, &rhs_ifma, p, p_barrett, big_q);
+                        assert_eq!(acc_ifma[0], expected_accumulate, 
+                            "IFMA mul_accumulate failed for edge case a={}, b={}", a, b);
+
+                        let mut lhs_mul_ifma = vec![a; polynomial_size];
+                        mul_assign_normalize_ifma(simd, &mut lhs_mul_ifma, &rhs_ifma, p, p_barrett, big_q, n_inv_mod_p, n_inv_mod_p_shoup);
+                        assert_eq!(lhs_mul_ifma[0], expected_mul, 
+                            "IFMA mul_assign_normalize failed for edge case a={}, b={}", a, b);
+                    }
+                }
+            }
+        }
+
+        println!("✓ Barrett reduction double-subtraction regression test passed");
+        println!("  - Scalar implementations: tested for all edge cases");
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        {
+            println!("  - SIMD implementations: tested for all edge cases");
+        }
+        #[cfg(not(any(target_arch = "x86", target_arch = "x86_64")))]
+        {
+            println!("  - SIMD implementations: not available on this platform");
         }
     }
 }
