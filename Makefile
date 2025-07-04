@@ -1452,6 +1452,14 @@ bench_hlapi_dex_gpu: install_rs_check_toolchain
 	--bench hlapi-dex \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
+.PHONY: bench_hlapi_hpu # Run benchmarks for HLAPI operations on HPU
+bench_hlapi_hpu: install_rs_check_toolchain
+	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
+	RUSTFLAGS="$(RUSTFLAGS)" \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe-benchmark -- --quick
+
 .PHONY: bench_hlapi_erc20_hpu # Run benchmarks for ECR20 operations on HPU
 bench_hlapi_erc20_hpu: install_rs_check_toolchain
 	source ./setup_hpu.sh --config $(HPU_CONFIG) ; \
