@@ -1467,13 +1467,15 @@ bench_tfhe_zk_pok: install_rs_check_toolchain
 
 .PHONY: bench_hlapi_noise_squash # Run benchmarks for DEX operations
 bench_hlapi_noise_squash: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
 .PHONY: bench_hlapi_noise_squash_gpu # Run benchmarks for DEX operations on GPU
 bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
