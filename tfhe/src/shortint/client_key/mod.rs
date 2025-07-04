@@ -396,7 +396,39 @@ impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
         self.decrypt_message_and_carry(ct) % ct.message_modulus.0
     }
 
-    pub(crate) fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
+    /// Decrypt a ciphertext without decoding the message, using the client key.
+    ///
+    /// This can be used to extract noise values after doing some computations.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::core_crypto::algorithms::misc::divide_round;
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the keys
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let msg = 3;
+    ///
+    /// // Encryption of two messages:
+    /// let ct1 = cks.encrypt(msg);
+    /// let ct2 = cks.encrypt(msg);
+    ///
+    /// // Compute homomorphically an addition to generate a carry
+    /// let ct_res = sks.unchecked_add(&ct1, &ct2);
+    ///
+    /// // Decrypt:
+    /// let res = cks.decrypt_no_decode(&ct_res);
+    /// let expected_res = 3 + 3;
+    /// // Delta for params 2_2 with a padding bit
+    /// let delta = (1u64 << (u64::BITS - 1 - 1)) / 16 * 2;
+    /// let noise = res.0.wrapping_sub(expected_res * delta);
+    ///
+    /// assert!((noise as i64).abs() < delta as i64 / 2);
+    /// ```
+    pub fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
         let lwe_decryption_key = self.encryption_key();
 
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
