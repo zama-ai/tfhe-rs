@@ -1,8 +1,5 @@
 ---
-description: >-
-  TFHE-rs is a pure Rust implementation of TFHE for Boolean and integer
-  arithmetics over encrypted data. It includes a Rust and C API, as well as a
-  client-side WASM API.
+description:
 layout:
   title:
     visible: true
@@ -17,6 +14,10 @@ layout:
 ---
 
 # Welcome to TFHE-rs
+
+TFHE-rs is a pure Rust implementation of TFHE for Boolean and integer arithmetics over encrypted data. It includes a Rust and C API, as well as a client-side WASM API.
+
+TFHE-rs also includes a [GPU accelerated backend](configuration/gpu_acceleration/run_on_gpu.md) as well as an [HPU accelerated backend](configuration/hpu_acceleration/run_on_hpu.md).
 
 ## Get started
 
