@@ -160,7 +160,7 @@ Homomorphic operations on encrypted data can be very expensive. Consider these o
 * Remove unnecessary use of homomorphic operations and maximize parallelization.
 * Simplify the code with Rayon crate that parallelizes iterators and manages threads efficiently.
 
-The final code is available [here](https://github.com/zama-ai/tfhe-rs/tree/main/tfhe/examples/sha256\_bool).
+The final code is available [here](https://github.com/zama-ai/tfhe-rs/tree/main/tfhe/examples/sha256_bool).
 
 Now let's dive into details of each SHA256 operation.
 
