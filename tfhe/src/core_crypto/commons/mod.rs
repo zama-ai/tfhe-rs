@@ -26,7 +26,7 @@ pub mod traits;
 #[cfg(test)]
 pub mod test_tools {
     use rand::Rng;
-    use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
+    use statrs::distribution::{ContinuousCDF, Normal};
 
     pub use crate::core_crypto::algorithms::misc::{
         modular_distance, modular_distance_custom_mod, torus_modular_diff,
@@ -172,18 +172,10 @@ pub mod test_tools {
         assert!(probability_to_be_in_the_interval >= 0.0);
         assert!(probability_to_be_in_the_interval <= 1.0);
 
-        // We have f64 arithmetic errors sightly farther away, so to protect ourselves, limit to
-        // 125000
-        assert!(
-            sample_count <= 125000.,
-            "variance_confidence_interval cannot handle sample count > 125000",
-        );
-
         let alpha = 1.0 - probability_to_be_in_the_interval;
         let degrees_of_freedom = sample_count - 1.0;
-        let chi2 = ChiSquared::new(degrees_of_freedom).unwrap();
-        let chi2_lower = chi2.inverse_cdf(alpha / 2.0);
-        let chi2_upper = chi2.inverse_cdf(1.0 - alpha / 2.0);
+        let chi2_lower = chi2_cdf_inv(degrees_of_freedom, alpha / 2.0);
+        let chi2_upper = chi2_cdf_inv(degrees_of_freedom, 1.0 - alpha / 2.0);
 
         // Lower bound is divided by Chi_right^2 so by chi2_upper, upper bound divided by Chi_left^2
         // so chi2_lower
@@ -322,6 +314,16 @@ pub mod test_tools {
     fn phi_inv(x: f64) -> f64 {
         let normal_law = Normal::new(0.0, 1.0).unwrap();
         normal_law.inverse_cdf(x)
+    }
+
+    /// (Chi² law CDF)^{-1}
+    /// Uses xsf rust binding.
+    /// xsf is the C++ module powering scipy special functions, this allows to match python tools
+    /// that we may be using in terms of precision for some of the scientific computing we do.
+    /// Could confirm that the results are identical for xsf and scipy for large degrees of freedom.
+    fn chi2_cdf_inv(degrees_of_freedom: f64, p: f64) -> f64 {
+        // from scipy: 2*sc.gammaincinv(df/2, p)
+        2.0 * xsf::gammaincinv(degrees_of_freedom / 2.0, p)
     }
 
     /// Based on Shapiro-Francia normality test
