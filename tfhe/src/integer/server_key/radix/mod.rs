@@ -708,6 +708,16 @@ impl ServerKey {
 
         //add the carry to the next block
         if index < ctxt.blocks().len() - 1 {
+            let next_block = &mut ctxt.blocks_mut()[index + 1];
+            if self
+                .key
+                .max_noise_level
+                .validate(next_block.noise_level() + carry.noise_level())
+                .is_err()
+            {
+                let id_lut = self.key.generate_lookup_table(|x| x);
+                self.key.apply_lookup_table_assign(next_block, &id_lut);
+            }
             self.key
                 .unchecked_add_assign(&mut ctxt.blocks_mut()[index + 1], &carry);
         }
