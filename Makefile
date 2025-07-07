@@ -156,23 +156,23 @@ install_tarpaulin: install_rs_build_toolchain
 
 .PHONY: install_cargo_dylint # Install custom tfhe-rs lints
 install_cargo_dylint:
-	cargo install cargo-dylint dylint-link
+	cargo install --locked cargo-dylint dylint-link
 
 .PHONY: install_typos_checker # Install typos checker
 install_typos_checker: install_rs_build_toolchain
 	@typos --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install typos-cli || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked typos-cli || \
 	( echo "Unable to install typos-cli, unknown error." && exit 1 )
 
 .PHONY: install_zizmor # Install zizmor workflow security checker
 install_zizmor: install_rs_build_toolchain
 	@zizmor --version > /dev/null 2>&1 || \
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install zizmor --version ~1.9 || \
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked zizmor --version ~1.9 || \
 	( echo "Unable to install zizmor, unknown error." && exit 1 )
 
-.PHONY: install_cargo_cross # Install custom tfhe-rs lints
+.PHONY: install_cargo_cross # Install cross for big endian tests
 install_cargo_cross: install_rs_build_toolchain
-	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install cross
+	cargo $(CARGO_RS_BUILD_TOOLCHAIN) install --locked cross
 
 .PHONY: setup_venv # Setup Python virtualenv for wasm tests
 setup_venv:
