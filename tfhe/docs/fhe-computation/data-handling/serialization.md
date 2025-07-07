@@ -36,7 +36,7 @@ fn main() {
 The safe deserialization must take the output of a safe-serialization as input. During the process, the following validation occurs:
 
 * **Type match**: deserializing `type A` from a serialized `type B` raises an error indicating "On deserialization, expected type A, got type B".
-* **Version compatibility**: data serialized in previous versions of **TFHE-rs** are automatically upgraded to the latest version using the [data versioning](data_versioning.md) feature.
+* **Version compatibility**: data serialized in previous versions of **TFHE-rs** are automatically upgraded to the latest version using the [data versioning](data-versioning.md) feature.
 * **Parameter compatibility**: deserializing an object of `type A` with one set of crypto parameters from an object of `type A` with another set of crypto parameters raises an error indicating "Deserialized object of type A not conformant with given parameter set"
   * If both parameter sets have the same LWE dimension for ciphertexts, a ciphertext from param 1 may not fail this deserialization check with param 2.
   * This check can't distinguish ciphertexts/server keys from independent client keys with the same parameters.

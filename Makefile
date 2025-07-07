@@ -1108,6 +1108,10 @@ check_intra_md_links: install_mlc
 check_md_links: install_mlc
 	mlc --match-file-extension tfhe/docs
 
+.PHONY: check_doc_paths_use_dash # Check paths use "-" instead of "_" in docs for gitbook compatibility
+check_doc_paths_use_dash:
+	python3 ./scripts/check_doc_paths_use_dash.py
+
 .PHONY: check_parameter_export_ok # Checks exported "current" shortint parameter module is correct
 check_parameter_export_ok:
 	python3 ./scripts/check_current_param_export.py
@@ -1552,7 +1556,8 @@ sha256_bool: install_rs_check_toolchain
 
 .PHONY: pcc # pcc stands for pre commit checks (except GPU)
 pcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested check_intra_md_links clippy_all check_compile_tests test_tfhe_lints \
+check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash \
+clippy_all check_compile_tests test_tfhe_lints \
 tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
@@ -1564,7 +1569,7 @@ pcc_hpu: clippy_hpu clippy_hpu_backend clippy_hpu_mockup test_integer_hpu_mockup
 
 .PHONY: fpcc # pcc stands for pre commit checks, the f stands for fast
 fpcc: no_tfhe_typo no_dbg_log check_parameter_export_ok check_fmt check_typos lint_doc \
-check_md_docs_are_tested clippy_fast check_compile_tests
+check_md_docs_are_tested check_intra_md_links check_doc_paths_use_dash clippy_fast check_compile_tests
 
 .PHONY: conformance # Automatically fix problems that can be fixed
 conformance: fix_newline fmt fmt_js

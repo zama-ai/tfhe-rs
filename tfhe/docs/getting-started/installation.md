@@ -43,5 +43,5 @@ tfhe = { version = "~1.3.1", features = ["boolean", "shortint", "integer", "soft
 **TFHE-rs** now features hardware-accelerated backends.
 
 You can refer to the:
-- [GPU backend instructions](../configuration/gpu_acceleration/run_on_gpu.md) to benefit from GPU accelerated primitives.
-- [HPU backend instructions](../configuration/hpu_acceleration/run_on_hpu.md) to benefit from custom FPGA accelerated primitives.
+- [GPU backend instructions](../configuration/gpu-acceleration/run-on-gpu.md) to benefit from GPU accelerated primitives.
+- [HPU backend instructions](../configuration/hpu-acceleration/run-on-hpu.md) to benefit from custom FPGA accelerated primitives.

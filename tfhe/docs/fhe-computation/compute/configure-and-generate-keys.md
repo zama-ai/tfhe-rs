@@ -4,7 +4,7 @@ This document explains how to initialize the configuration and generate keys.
 
 The configuration specifies the selected data types and their custom crypto-parameters. You should only use custom parameters for advanced usage and/or testing.
 
-To create a configuration, use the `ConfigBuilder` type. The following example shows the setup using 8-bit unsigned integers with default parameters. Additionally, ensure the `integers` feature is enabled, as indicated in the table on [this page](../../configuration/rust_configuration.md#homomorphic-types).
+To create a configuration, use the `ConfigBuilder` type. The following example shows the setup using 8-bit unsigned integers with default parameters. Additionally, ensure the `integers` feature is enabled, as indicated in the table on [this page](../../configuration/rust-configuration.md#homomorphic-types).
 
 The configuration is initialized by creating a builder with all types deactivated. Then, the integer types with default parameters are activated, for using `FheUint8` values.
 

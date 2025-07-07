@@ -7,11 +7,11 @@ mod test_cpu_doc {
 
     // CONGFIGURATION
     doctest!(
-        "../docs/configuration/parallelized_pbs.md",
+        "../docs/configuration/parallelized-pbs.md",
         configuration_parallelized_pbs
     );
     doctest!(
-        "../docs/configuration/rust_configuration.md",
+        "../docs/configuration/rust-configuration.md",
         configuration_rust_configuration
     );
 
@@ -27,19 +27,19 @@ mod test_cpu_doc {
         advanced_features_noise_squashing
     );
     doctest!(
-        "../docs/fhe-computation/advanced-features/overflow_operations.md",
+        "../docs/fhe-computation/advanced-features/overflow-operations.md",
         advanced_features_overflow_operations
     );
     doctest!(
-        "../docs/fhe-computation/advanced-features/public_key.md",
+        "../docs/fhe-computation/advanced-features/public-key.md",
         advanced_features_public_key
     );
     doctest!(
-        "../docs/fhe-computation/advanced-features/rayon_crate.md",
+        "../docs/fhe-computation/advanced-features/rayon-crate.md",
         advanced_features_rayon_crate
     );
     doctest!(
-        "../docs/fhe-computation/advanced-features/trivial_ciphertext.md",
+        "../docs/fhe-computation/advanced-features/trivial-ciphertext.md",
         advanced_features_trivial_ciphertext
     );
     doctest!(
@@ -76,7 +76,7 @@ mod test_cpu_doc {
         data_handling_compress
     );
     doctest!(
-        "../docs/fhe-computation/data-handling/data_versioning.md",
+        "../docs/fhe-computation/data-handling/data-versioning.md",
         data_handling_data_versioning
     );
     doctest!(
@@ -125,7 +125,7 @@ mod test_cpu_doc {
         tooling_pbs_stats
     );
     doctest!(
-        "../docs/fhe-computation/tooling/trait_bounds.md",
+        "../docs/fhe-computation/tooling/trait-bounds.md",
         tooling_trait_bounds
     );
 
@@ -135,7 +135,7 @@ mod test_cpu_doc {
 
     // GETTING STARTED
     doctest!(
-        "../docs/getting_started/quick_start.md",
+        "../docs/getting-started/quick-start.md",
         getting_started_quick_start
     );
 
@@ -143,7 +143,7 @@ mod test_cpu_doc {
 
     // FINE GRAINED API
     doctest!(
-        "../docs/references/fine-grained-apis/quick_start.md",
+        "../docs/references/fine-grained-apis/quick-start.md",
         references_fine_grained_apis_quick_start
     );
 
@@ -209,10 +209,10 @@ mod test_cpu_doc {
 
     // Tutorials
     doctest!(
-        "../docs/tutorials/ascii_fhe_string.md",
+        "../docs/tutorials/ascii-fhe-string.md",
         tutorials_ascii_fhe_string
     );
-    doctest!("../docs/tutorials/parity_bit.md", tutorials_parity_bit);
+    doctest!("../docs/tutorials/parity-bit.md", tutorials_parity_bit);
 }
 
 #[cfg(feature = "gpu")]
@@ -220,31 +220,31 @@ mod test_gpu_doc {
     use doc_comment::doctest;
 
     doctest!(
-        "../docs/configuration/gpu_acceleration/run_on_gpu.md",
+        "../docs/configuration/gpu-acceleration/run-on-gpu.md",
         configuration_gpu_acceleration_run_on_gpu
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/gpu_operations.md",
+        "../docs/configuration/gpu-acceleration/gpu-operations.md",
         configuration_gpu_acceleration_gpu_operations
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/compressing_ciphertexts.md",
+        "../docs/configuration/gpu-acceleration/compressing-ciphertexts.md",
         configuration_gpu_acceleration_compressing_ciphertexts
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/array_type.md",
+        "../docs/configuration/gpu-acceleration/array-type.md",
         configuration_gpu_acceleration_array_type
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/multi_gpu.md",
+        "../docs/configuration/gpu-acceleration/multi-gpu.md",
         configuration_gpu_acceleration_multi_gpu_device_selection
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/zk-pok.md",
+        "../docs/configuration/gpu-acceleration/zk-pok.md",
         configuration_gpu_acceleration_zk_pok
     );
     doctest!(
-        "../docs/configuration/gpu_acceleration/simple_example.md",
+        "../docs/configuration/gpu-acceleration/simple-example.md",
         configuration_gpu_simple_example
     );
 }
@@ -254,7 +254,7 @@ mod test_hpu_doc {
     use doc_comment::doctest;
 
     doctest!(
-        "../docs/configuration/hpu_acceleration/run_on_hpu.md",
+        "../docs/configuration/hpu-acceleration/run-on-hpu.md",
         configuration_hpu_acceleration_run_on_hpu
     );
 }

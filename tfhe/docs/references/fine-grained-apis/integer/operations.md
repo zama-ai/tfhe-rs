@@ -6,7 +6,7 @@ The structure and operations related to integers are described in this section.
 
 In `integer`, the encrypted data is split amongst many ciphertexts encrypted with the `shortint` library. Below is a scheme representing an integer composed by k shortint ciphertexts.
 
-![](../../../\_static/integer-ciphertext.png)
+![](../../../.gitbook/assets/integer-ciphertext.png)
 
 This crate implements two ways to represent an integer:
 

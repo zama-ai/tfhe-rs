@@ -8,7 +8,7 @@ In `shortint`, the encrypted data is stored in an LWE ciphertext.
 
 Conceptually, the message stored in an LWE ciphertext is divided into a **carry buffer** and a **message buffer**.
 
-![](../../../\_static/ciphertext-representation.png)
+![](../../../.gitbook/assets/ciphertext-representation.png)
 
 The message buffer is the space where the actual message is stored. This represents the modulus of the input messages (denoted by `MessageModulus` in the code). When doing computations on a ciphertext, the encrypted message can overflow the message modulus. The part of the message which exceeds the message modulus is stored in the carry buffer. The size of the carry buffer is defined by another modulus, called `CarryModulus`.
 
