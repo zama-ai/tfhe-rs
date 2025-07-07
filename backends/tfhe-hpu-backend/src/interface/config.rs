@@ -42,7 +42,8 @@ impl std::str::FromStr for ShellString {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub enum FFIMode {
     V80 {
-        id: u32,
+        id: ShellString,
+        board_sn: ShellString,
         hpu_path: ShellString,
         ami_path: ShellString,
         qdma_h2c: ShellString,
