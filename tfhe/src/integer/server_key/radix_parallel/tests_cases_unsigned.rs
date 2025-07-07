@@ -2601,6 +2601,44 @@ where
     }
 
     {
+        // Test with an input with only one bit of carry, but noise level is maxed
+
+        let mut ct = RadixCiphertext::from(vec![
+            cks.encrypt_one_block(block_msg_mod - 1),
+            cks.encrypt_one_block(block_msg_mod - 1),
+            cks.encrypt_one_block(block_msg_mod - 1),
+            cks.encrypt_one_block(block_msg_mod - 1),
+        ]);
+
+        let ct_cloned = ct.clone();
+        sks.unchecked_add_assign(&mut ct, &ct_cloned);
+
+        for block in &mut ct.blocks[1..] {
+            block.set_noise_level(
+                NoiseLevel::NOMINAL * sks.key.max_noise_level.get(),
+                sks.key.max_noise_level,
+            );
+        }
+
+        executor.execute(&mut ct);
+
+        let clean_degree = Degree::new(block_msg_mod - 1);
+        for block in &mut ct.blocks {
+            assert_eq!(block.noise_level(), NoiseLevel::NOMINAL);
+            assert_eq!(block.degree, clean_degree);
+        }
+
+        let decrypted: u64 = cks.decrypt(&ct);
+        let modulus = cks
+            .parameters()
+            .message_modulus()
+            .0
+            .pow(ct.blocks.len() as u32);
+        let expected = ((modulus - 1) * 2) % modulus;
+        assert_eq!(decrypted, expected);
+    }
+
+    {
         // Test corner case where all blocks (except first) have degree 0, but non-nominal noise
         // to make sure they are still cleaned up
         let mut ct = RadixCiphertext::from(vec![
