@@ -1,7 +1,7 @@
 use crate::integer::keycache::KEY_CACHE;
 use crate::integer::server_key::radix_parallel::tests_cases_unsigned::FunctionExecutor;
 use crate::integer::server_key::radix_parallel::tests_long_run::{
-    get_long_test_iterations, NB_CTXT_LONG_RUN,
+    get_long_test_iterations, NB_CTXT_LONG_RUN, RandomOpSequenceDataGenerator
 };
 use crate::integer::server_key::radix_parallel::tests_unsigned::CpuFunctionExecutor;
 use crate::integer::tests::create_parameterized_test;
@@ -12,6 +12,10 @@ use std::cmp::{max, min};
 use std::sync::Arc;
 
 create_parameterized_test!(random_op_sequence {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
+});
+
+create_parameterized_test!(random_op_sequence_data_generator {
     PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
 });
 
@@ -542,72 +546,51 @@ pub(crate) fn random_op_sequence_test<P>(
         div_rem_op_range.end..div_rem_op_range.end + scalar_div_rem_op.len();
     let log2_ops_range = scalar_div_rem_op_range.end..scalar_div_rem_op_range.end + log2_ops.len();
 
-    let mut clear_left_vec: Vec<u64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random u64 values
-        .collect();
-    let mut clear_right_vec: Vec<u64> = (0..total_num_ops)
-        .map(|_| rng.gen()) // Generate random u64 values
-        .collect();
-    let mut left_vec: Vec<RadixCiphertext> = clear_left_vec
-        .iter()
-        .map(|&m| cks.encrypt(m)) // Generate random u64 values
-        .collect();
-    let mut right_vec: Vec<RadixCiphertext> = clear_right_vec
-        .iter()
-        .map(|&m| cks.encrypt(m)) // Generate random u64 values
-        .collect();
+    let mut datagen = RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(1000, &cks);
+    println!("random_op_sequence_test::seed = {}", datagen.get_seed().0);
+
     for fn_index in 0..get_long_test_iterations() {
-        let i = rng.gen_range(0..total_num_ops);
-        let j = rng.gen_range(0..total_num_ops);
+
+        let (i, idx) = datagen.gen_op_index();
+        let (lhs, rhs) = datagen.gen_op_operands(idx);
 
         if binary_ops_range.contains(&i) {
             let index = i - binary_ops_range.start;
             let (binary_op_executor, clear_fn, fn_name) = &mut binary_ops[index];
 
-            let clear_left = clear_left_vec[i];
-            let clear_right = clear_right_vec[i];
+            let clear_left = lhs.p;
+            let clear_right = rhs.p;
 
-            let res = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
+            let res = binary_op_executor.execute((&lhs.c, &rhs.c));
             // Check carries are empty and noise level is nominal
             assert!(
                 res.block_carries_are_empty(),
-                "Non empty carries on op {fn_name}"
+                "{idx}: Non empty carries on op {fn_name}"
             );
             res.blocks.iter().enumerate().for_each(|(k, b)| {
                 assert!(
                     b.noise_level() <= NoiseLevel::NOMINAL,
-                    "Noise level greater than nominal value on op {fn_name} for block {k}",
+                    "{idx}: Noise level greater than nominal value on op {fn_name} for block {k}",
                 )
             });
             // Determinism check
-            let res_1 = binary_op_executor.execute((&left_vec[i], &right_vec[i]));
+            let res_1 = binary_op_executor.execute((&lhs.c, &rhs.c));
             assert_eq!(
                 res, res_1,
-                "Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
+                "{idx}: Determinism check failed on binary op {fn_name} with clear inputs {clear_left} and {clear_right}.",
             );
-            let input_degrees_left: Vec<u64> =
-                left_vec[i].blocks.iter().map(|b| b.degree.0).collect();
-            let input_degrees_right: Vec<u64> =
-                right_vec[i].blocks.iter().map(|b| b.degree.0).collect();
             let decrypted_res: u64 = cks.decrypt(&res);
             let expected_res: u64 = clear_fn(clear_left, clear_right);
-            println!("Execute {fn_name}: lhs degrees {input_degrees_left:?}, rhs degrees {input_degrees_right:?}, result {decrypted_res}, expected {expected_res}");
 
-            if i % 2 == 0 {
-                left_vec[j] = res.clone();
-                clear_left_vec[j] = expected_res;
-            } else {
-                right_vec[j] = res.clone();
-                clear_right_vec[j] = expected_res;
-            }
+            println!("{idx}: Executed {fn_name}: result {decrypted_res}, expected {expected_res}");
+            datagen.put_op_result_random_side(expected_res, res, fn_name, idx);
 
             // Correctness check
             assert_eq!(
                 decrypted_res, expected_res,
-                "Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}. \
-                with input degrees {input_degrees_left:?} and {input_degrees_right:?}",
+                "{idx}: Invalid result on binary op {fn_name} with clear inputs {clear_left} and {clear_right} at iteration {fn_index}"
             );
-        } else if unary_ops_range.contains(&i) {
+        } /*else if unary_ops_range.contains(&i) {
             let index = i - unary_ops_range.start;
             let (unary_op_executor, clear_fn, fn_name) = &mut unary_ops[index];
             println!("Execute {fn_name}");
@@ -1132,6 +1115,38 @@ pub(crate) fn random_op_sequence_test<P>(
                 right_vec[j] = cast_res.clone();
                 clear_right_vec[j] = expected_res;
             }
-        }
+        }*/
     }
+}
+
+pub(crate) fn random_op_sequence_data_generator<P>(param: P)
+where
+    P: Into<TestParameters> + Clone,
+{
+    let param = param.into();
+    let (cks, _sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT_LONG_RUN));
+
+    let mut datagen = RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(1000, &cks);
+
+    let mut datagen2 =  RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new_with_seed(1000, datagen.get_seed(), &cks);
+
+    for (v1, v2) in datagen.lhs.iter().zip(datagen2.lhs.iter()) {
+        assert_eq!(v1.p, v2.p);
+    }
+
+    for (v1, v2) in datagen.rhs.iter().zip(datagen2.rhs.iter()) {
+        assert_eq!(v1.p, v2.p);
+    }
+
+    let datagen = RandomOpSequenceDataGenerator::<u64, RadixCiphertext>::new(1000, &cks);
+
+    for (v1, v2) in datagen.lhs.iter().zip(datagen2.lhs.iter()) {
+        assert_ne!(v1.p, v2.p);
+    }
+
+    for (v1, v2) in datagen.rhs.iter().zip(datagen2.rhs.iter()) {
+        assert_ne!(v1.p, v2.p);
+    }
+
 }

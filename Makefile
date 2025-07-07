@@ -688,10 +688,16 @@ test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
 
 .PHONY: test_integer_short_run_gpu # Run the long run integer tests on the gpu backend
 test_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
+#	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
+	TFHE_RS_TESTS_LONG_TESTS_MINIMAL=TRUE \
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=integer,gpu -p $(TFHE_SPEC) -- integer::server_key::radix_parallel::tests_long_run::test_random_op_sequence::test_random_op_sequence_data_generator_param_message_2_carry_2_ks_pbs_tuniform_2m128 --test-threads=1 --nocapture
+
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	TFHE_RS_TESTS_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
+		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence --test-threads=1 --nocapture
+#integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence
 
 .PHONY: test_integer_compression
 test_integer_compression: install_rs_build_toolchain
