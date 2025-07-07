@@ -10,7 +10,7 @@ use std::os::fd::AsRawFd;
 use std::time::Duration;
 
 const AMI_VERSION_FILE: &str = "/sys/module/ami/version";
-const AMI_VERSION_PATTERN: &str = r"3\.0\.\d+-zama";
+const AMI_VERSION_PATTERN: &str = r"3\.1\.\d+-zama";
 
 const AMI_ID_FILE: &str = "/sys/bus/pci/drivers/ami/devices";
 const AMI_ID_PATTERN: &str = r"(?<bus>[[:xdigit:]]{2}):(?<dev>[[:xdigit:]]{2})\.(?<func>[[:xdigit:]])\s(?<devn>\d+)\s(?<hwmon>\d+)";
@@ -36,7 +36,7 @@ pub struct AmiInfo {
 /// Set of discovery function
 /// Enable to probe the device IDs and status
 impl AmiInfo {
-    pub fn new(ami_id: u32) -> Result<Self, Box<dyn Error>> {
+    pub fn new(ami_id: &str) -> Result<Self, Box<dyn Error>> {
         // First read content of AMI_DEVICES_MAP
         let devices_file = OpenOptions::new()
             .read(true)
@@ -46,8 +46,11 @@ impl AmiInfo {
         let devices_rd = BufReader::new(devices_file);
         let line = devices_rd
             .lines()
-            .nth(1 + ami_id as usize)
-            .ok_or("No device found")??;
+            .find(|line_result| match line_result {
+                Ok(l) => l.starts_with(ami_id),
+                Err(_) => false,
+            })
+            .ok_or("Could not find line starting with {ami_id:?}.")??;
 
         // Extract AMI device path
         lazy_static! {
@@ -75,12 +78,13 @@ impl AmiInfo {
 
 pub struct AmiDriver {
     ami_dev: File,
+    ami_info: AmiInfo,
     retry_rate: Duration,
 }
 
 impl AmiDriver {
     pub fn new(
-        ami_id: u32,
+        ami_id: &str,
         amc_ver: &Version,
         retry_rate: Duration,
     ) -> Result<Self, Box<dyn Error>> {
@@ -97,6 +101,7 @@ impl AmiDriver {
 
         Ok(Self {
             ami_dev,
+            ami_info,
             retry_rate,
         })
     }
@@ -357,11 +362,13 @@ impl AmiDriver {
     // TODO ugly quick patch
     // Clean this when driver interface is specified
     pub fn iop_ackq_rd(&self) -> u32 {
+        let ami_devn = self.ami_info.devn;
+        let ami_proc_path = format!("/proc/ami_iop_ack_{}", ami_devn);
         let mut iop_ack_f = OpenOptions::new()
             .read(true)
             .write(true)
             .create(false)
-            .open("/proc/ami_iop_ack")
+            .open(&ami_proc_path)
             .unwrap();
 
         // Read a line and extract a 32b integer
@@ -371,7 +378,7 @@ impl AmiDriver {
             0
         } else {
             let ack_nb = ack_str.as_str().trim_ascii().parse::<u32>().unwrap();
-            tracing::trace!("Get value {ack_str} from proc/ami_iop_ack => {ack_nb}",);
+            tracing::trace!("Get value {ack_str} from {ami_proc_path} => {ack_nb}",);
             ack_nb
         }
     }

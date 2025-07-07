@@ -17,12 +17,7 @@ RUST_LOG="info"
 
 # Setting PCI device variable: depends on the machine
 mapfile -t DEVICE< <(lspci -d 10ee:50b5)
-if [ ${#DEVICE[@]} -gt 1 ]; then
-    echo "[ERROR]: There is more than one device pcie, we only support one hpu for now"
-    return 1
-else
-    V80_PCIE_DEV="${DEVICE[0]%%:*}"
-fi
+V80_PCIE_DEV="unselected"
 
 # V80 bitstream refresh rely on XilinxVivado tools
 XILINX_VIVADO=${XILINX_VIVADO:-"/opt/amd/Vivado/2024.2"}
@@ -69,7 +64,10 @@ do
                 V80_PCIE_DEV="${2}"
                 ((i++))
             else
-                echo "Error: --pcie-dev requires a value"
+                echo "Please select a device in following list (1st two digits):"
+                for item in "${DEVICE[@]}"; do
+                    echo "$item"
+                done
                 return 1
             fi
             shift 2
