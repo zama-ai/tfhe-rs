@@ -21,6 +21,7 @@ exclude = [
     "utils/tfhe-backward-compat-data",
     "utils/tfhe-lints",
     "apps/trivium",
+    "reproductibility_test",
 ]
 [workspace.dependencies]
 aligned-vec = { version = "0.6", default-features = false }
