@@ -17,7 +17,7 @@ The SHA-256 function processes the input data in blocks or chunks of 512 bits. B
 2. Append "0" bits until exactly 64 bits remain to make the message length a multiple of 512
 3. Append the last 64 bits as a binary encoding of the original input length
 
-![](../\_static/sha256.png)
+![](../.gitbook/assets/sha256.png)
 
 In this diagram, the numbers on the top represent the length of the padded input at each position. The formula L+1+k+64 ensures that the length reaches a multiple of 512, matching the required length of the padded input.
 

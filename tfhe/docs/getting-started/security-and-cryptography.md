@@ -23,7 +23,7 @@ $$plaintext = (\Delta * m) + e$$
 
 $$m \in \mathbb{Z}_p$$
 
-![](../\_static/lwe.png)
+![](../.gitbook/assets/lwe.png)
 
 To get a **ciphertext** from a **plaintext,** you must encrypt the plaintext using a secret key.
 
@@ -73,7 +73,7 @@ TFHE scheme draws this random noise either from:
 
 The following figure illustrates how the extra bit of noise is incurred during an addition operation.
 
-![Noise overtaking the plaintexts after homomorphic addition. Most significant bits are on the left.](../\_static/overflow.png)
+![Noise overtaking the plaintexts after homomorphic addition. Most significant bits are on the left.](../.gitbook/assets/overflow.png)
 
 **TFHE-rs** enables automatic noise management by performing bootstrapping operations to reset the noise.
 
@@ -91,7 +91,7 @@ Since encoded values have a fixed precision, operating on them can produce resul
 
 For example, when adding two ciphertexts, the sum could exceed the range of either ciphertext, and thus necessitate a carry that would then be transferred onto the first padding bit. In the following figure, each plaintext over 32 bits has one bit of padding on its left (the most significant bit). After the addition, the padding bit gets consumed to accommodate the carry. We refer to this process as **consuming** bits of padding. Without any padding-left, further additions may not produce accurate results.
 
-![](../\_static/carry.png)
+![](../.gitbook/assets/carry.png)
 
 ## Security
 

@@ -4,20 +4,20 @@
 
 ## Get Started
 
-* [What is TFHE-rs?](getting_started/README.md)
-* [Installation](getting_started/installation.md)
-* [Quick start](getting_started/quick_start.md)
-* [Benchmarks](getting_started/benchmarks/README.md)
-  * [CPU Benchmarks](getting_started/benchmarks/cpu/README.md)
-    * [Integer](getting_started/benchmarks/cpu/cpu_integer_operations.md)
-    * [Programmable bootstrapping](getting_started/benchmarks/cpu/cpu_programmable_bootstrapping.md)
-  * [GPU Benchmarks](getting_started/benchmarks/gpu/README.md)
-    * [Integer](getting_started/benchmarks/gpu/gpu_integer_operations.md)
-    * [Programmable bootstrapping](getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md)
-  * [HPU Benchmarks](getting_started/benchmarks/hpu/README.md)
-    * [Integer](getting_started/benchmarks/hpu/hpu_integer_operations.md)
-  * [Zero-knowledge proof benchmarks](getting_started/benchmarks/zk_proof_benchmarks.md)
-* [Security and cryptography](getting_started/security_and_cryptography.md)
+* [What is TFHE-rs?](getting-started/README.md)
+* [Installation](getting-started/installation.md)
+* [Quick start](getting-started/quick-start.md)
+* [Benchmarks](getting-started/benchmarks/README.md)
+  * [CPU Benchmarks](getting-started/benchmarks/cpu/README.md)
+    * [Integer](getting-started/benchmarks/cpu/cpu-integer-operations.md)
+    * [Programmable bootstrapping](getting-started/benchmarks/cpu/cpu-programmable-bootstrapping.md)
+  * [GPU Benchmarks](getting-started/benchmarks/gpu/README.md)
+    * [Integer](getting-started/benchmarks/gpu/gpu-integer-operations.md)
+    * [Programmable bootstrapping](getting-started/benchmarks/gpu/gpu-programmable-bootstrapping.md)
+  * [HPU Benchmarks](getting-started/benchmarks/hpu/README.md)
+    * [Integer](getting-started/benchmarks/hpu/hpu-integer-operations.md)
+  * [Zero-knowledge proof benchmarks](getting-started/benchmarks/zk-proof-benchmarks.md)
+* [Security and cryptography](getting-started/security-and-cryptography.md)
 
 ## FHE Computation
 
@@ -44,53 +44,53 @@
 * [Data handling](fhe-computation/data-handling/README.md)
   * [Compressing ciphertexts/keys](fhe-computation/data-handling/compress.md)
   * [Serialization/deserialization](fhe-computation/data-handling/serialization.md)
-  * [Data versioning](fhe-computation/data-handling/data_versioning.md)
+  * [Data versioning](fhe-computation/data-handling/data-versioning.md)
 * [Advanced features](fhe-computation/advanced-features/README.md)
   * [Encrypted pseudo random values](fhe-computation/advanced-features/encrypted-prf.md)
-  * [Overflow detection](fhe-computation/advanced-features/overflow_operations.md)
-  * [Public key encryption](fhe-computation/advanced-features/public_key.md)
-  * [Trivial ciphertexts](fhe-computation/advanced-features/trivial_ciphertext.md)
+  * [Overflow detection](fhe-computation/advanced-features/overflow-operations.md)
+  * [Public key encryption](fhe-computation/advanced-features/public-key.md)
+  * [Trivial ciphertexts](fhe-computation/advanced-features/trivial-ciphertext.md)
   * [Zero-knowledge proofs](fhe-computation/advanced-features/zk-pok.md)
-  * [Multi-threading with Rayon crate](fhe-computation/advanced-features/rayon_crate.md)
+  * [Multi-threading with Rayon crate](fhe-computation/advanced-features/rayon-crate.md)
   * [Noise squashing](fhe-computation/advanced-features/noise-squashing.md)
 * [Tooling](fhe-computation/tooling/README.md)
   * [PBS statistics](fhe-computation/tooling/pbs-stats.md)
-  * [Generic trait bounds](fhe-computation/tooling/trait_bounds.md)
+  * [Generic trait bounds](fhe-computation/tooling/trait-bounds.md)
   * [Debugging](fhe-computation/tooling/debug.md)
 
 ## Hardware acceleration
-* [GPU acceleration](configuration/gpu_acceleration/run_on_gpu.md)
-  * [A simple example](configuration/gpu_acceleration/simple_example.md) 
-  * [Operations](configuration/gpu_acceleration/gpu_operations.md)
-  * [Compressing ciphertexts](configuration/gpu_acceleration/compressing_ciphertexts.md)
-  * [Array types](configuration/gpu_acceleration/array_type.md)
-  * [ZK-POKs](configuration/gpu_acceleration/zk-pok.md)
-  * [Multi-GPU support](configuration/gpu_acceleration/multi_gpu.md)
-* [HPU acceleration](configuration/hpu_acceleration/run_on_hpu.md)
-  * [Benchmark](configuration/hpu_acceleration/benchmark.md)
+* [GPU acceleration](configuration/gpu-acceleration/run-on-gpu.md)
+  * [A simple example](configuration/gpu-acceleration/simple-example.md) 
+  * [Operations](configuration/gpu-acceleration/gpu-operations.md)
+  * [Compressing ciphertexts](configuration/gpu-acceleration/compressing-ciphertexts.md)
+  * [Array types](configuration/gpu-acceleration/array-type.md)
+  * [ZK-POKs](configuration/gpu-acceleration/zk-pok.md)
+  * [Multi-GPU support](configuration/gpu-acceleration/multi-gpu.md)
+* [HPU acceleration](configuration/hpu-acceleration/run-on-hpu.md)
+  * [Benchmark](configuration/hpu-acceleration/benchmark.md)
 
 ## Configuration
 
-* [Advanced Rust setup](configuration/rust_configuration.md)
-* [Parallelized PBS](configuration/parallelized_pbs.md)
+* [Advanced Rust setup](configuration/rust-configuration.md)
+* [Parallelized PBS](configuration/parallelized-pbs.md)
 
 ## Integration
 
-* [JS on WASM API](integration/js_on_wasm_api.md)
-* [High-level API in C](integration/c_api.md)
+* [JS on WASM API](integration/js-on-wasm-api.md)
+* [High-level API in C](integration/c-api.md)
 
 ## Tutorials
 
-* [Homomorphic parity bit](tutorials/parity_bit.md)
-* [Homomorphic case changing on Ascii string](tutorials/ascii_fhe_string.md)
-* [SHA256 with Boolean API](tutorials/sha256_bool.md)
+* [Homomorphic parity bit](tutorials/parity-bit.md)
+* [Homomorphic case changing on Ascii string](tutorials/ascii-fhe-string.md)
+* [SHA256 with Boolean API](tutorials/sha256-bool.md)
 * [All tutorials](tutorials/see-all-tutorials.md)
 
 ## References
 
 * [API references](https://docs.rs/tfhe/latest/tfhe/)
 * [Fine-grained APIs](references/fine-grained-apis/README.md)
-  * [Quick start](references/fine-grained-apis/quick_start.md)
+  * [Quick start](references/fine-grained-apis/quick-start.md)
   * [Boolean](references/fine-grained-apis/boolean/README.md)
     * [Operations](references/fine-grained-apis/boolean/operations.md)
     * [Cryptographic parameters](references/fine-grained-apis/boolean/parameters.md)

@@ -8,5 +8,5 @@ By their nature, homomorphic operations run slower than their cleartext equivale
 All GPU benchmarks were launched on H100 GPUs, and rely on the multithreaded PBS algorithm.
 {% endhint %}
 
-* [Integer operations](gpu_integer_operations.md)
-* [Programmable Bootstrapping](gpu_programmable_bootstrapping.md)
+* [Integer operations](gpu-integer-operations.md)
+* [Programmable Bootstrapping](gpu-programmable-bootstrapping.md)

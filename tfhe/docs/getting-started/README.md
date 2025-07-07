@@ -1,6 +1,6 @@
 # What is TFHE-rs?
 
-![](../.gitbook/assets/doc\_header\_tfhe-rs.png)
+![](../.gitbook/assets/doc-header-tfhe-rs.png)
 
 **TFHE-rs** is a pure Rust implementation of Fully Homomorphic Encryption over the Torus (TFHE) to perform Boolean and integer arithmetic on encrypted data.
 

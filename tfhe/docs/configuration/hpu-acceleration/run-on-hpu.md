@@ -10,7 +10,7 @@ This guide explains how to update your existing program to leverage HPU accelera
 * A HPU bitstream that you can find (or build) in [HPU fpga repository](https://github.com/zama-ai/hpu_fpga) and load in V80 flash and FPGA using its [README](https://github.com/zama-ai/hpu_fpga/blob/main/README.md)
 * AMI linux device driver version from this [fork](https://github.com/zama-ai/AVED)
 * QDMA linux device driver version from this [fork](https://github.com/zama-ai/dma_ip_drivers)
-* Rust version - check this [page](../rust_configuration.md)
+* Rust version - check this [page](../rust-configuration.md)
 
 ## Importing to your project
 
@@ -38,7 +38,7 @@ For optimal performance when using **TFHE-rs**, run your code in release mode wi
 
 ### Configuring and creating keys.
 
-Comparing to the [CPU example](../../getting_started/quick_start.md), HPU set up differs in the key creation and device registration, as detailed [here](run\_on\_hpu.md#setting-the-hpu)
+Comparing to the [CPU example](../../getting-started/quick-start.md), HPU set up differs in the key creation and device registration, as detailed [here](run-on-hpu.md#setting-the-hpu)
 
 Here is a full example (combining the client and server parts):
 

@@ -1,8 +1,8 @@
 # Tutorial
 
-`tfhe::shortint` is dedicated to the manipulation of small unsigned integers that fit in a single [LWE ciphertext](../../../getting_started/security_and_cryptography.md#lwe-ciphertexts). The actual size depends on the chosen parameters, but is always smaller than 8 bits. For example, with the `PARAM_MESSAGE_2_CARRY_2_KS_PBS` parameters, you can encode messages of 2 bits inside a `shortint`.
+`tfhe::shortint` is dedicated to the manipulation of small unsigned integers that fit in a single [LWE ciphertext](../../../getting-started/security-and-cryptography.md#lwe-ciphertexts). The actual size depends on the chosen parameters, but is always smaller than 8 bits. For example, with the `PARAM_MESSAGE_2_CARRY_2_KS_PBS` parameters, you can encode messages of 2 bits inside a `shortint`.
 
-The [integer](../integer/README.md) and [high-level](../quick_start.md#high-level-api) API leverage shortints to allow homomorphic computations over larger integers.
+The [integer](../integer/README.md) and [high-level](../quick-start.md#high-level-api) API leverage shortints to allow homomorphic computations over larger integers.
 
 The steps to homomorphically evaluate a `shortint` circuit are described below.
 
