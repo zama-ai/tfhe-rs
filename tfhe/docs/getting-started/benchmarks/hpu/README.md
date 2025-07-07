@@ -8,4 +8,4 @@ By their nature, homomorphic operations run slower than their cleartext equivale
 All HPU benchmarks were launched on AMD Alveo v80 FPGAs.
 {% endhint %}
 
-* [Integer operations](hpu_integer_operations.md)
+* [Integer operations](hpu-integer-operations.md)

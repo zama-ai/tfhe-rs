@@ -2,7 +2,7 @@
 
 This document explains a feature to facilitate debugging.
 
-Starting from **TFHE-rs 0.5**, [trivial ciphertexts](../advanced-features/trivial_ciphertext.md) introduce a new feature to facilitate debugging. This feature supports a debugger, print statements, and faster execution, significantly reducing waiting time and enhancing the development pace of FHE applications.
+Starting from **TFHE-rs 0.5**, [trivial ciphertexts](../advanced-features/trivial-ciphertext.md) introduce a new feature to facilitate debugging. This feature supports a debugger, print statements, and faster execution, significantly reducing waiting time and enhancing the development pace of FHE applications.
 
 {% hint style="warning" %}
 Trivial ciphertexts are not secure. An application released/deployed in production must never receive trivial ciphertext from a client.

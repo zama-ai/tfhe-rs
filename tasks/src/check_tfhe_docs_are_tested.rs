@@ -7,7 +7,7 @@ const DIR_TO_IGNORE: [&str; 2] = [".git", "target"];
 
 const FILES_TO_IGNORE: [&str; 9] = [
     // This contains fragments of code that are unrelated to TFHE-rs
-    "tfhe/docs/tutorials/sha256_bool.md",
+    "tfhe/docs/tutorials/sha256-bool.md",
     // TODO: This contains code that could be executed as a trivium docstring
     "apps/trivium/README.md",
     // TODO: should we test this ?
@@ -119,7 +119,17 @@ pub fn check_tfhe_docs_are_tested() -> Result<(), Error> {
     }
 
     for value_to_remove in FILES_TO_IGNORE {
-        let path_to_remove = curr_dir.join(value_to_remove).canonicalize()?.to_path_buf();
+        let file_to_ignore = curr_dir.join(value_to_remove);
+        if !file_to_ignore.exists() {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "Encountered errors while ignoring files: {} does not exist",
+                    file_to_ignore.display()
+                ),
+            ));
+        }
+        let path_to_remove = file_to_ignore.canonicalize()?.to_path_buf();
         doc_files.remove(&path_to_remove);
     }
 
