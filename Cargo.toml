@@ -38,6 +38,7 @@ exclude = [
     "utils/tfhe-lints",
     "apps/trivium",
     "utils/tfhe-forward-compat-matrices",
+    "reproductibility_test",
 ]
 
 [workspace.package]
