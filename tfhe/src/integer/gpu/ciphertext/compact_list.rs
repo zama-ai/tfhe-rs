@@ -8,12 +8,10 @@ use crate::core_crypto::prelude::{
 use crate::integer::ciphertext::{CompactCiphertextListExpander, DataKind};
 use crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
-use crate::integer::gpu::ciphertext::{
-    expand_async, CudaRadixCiphertext, CudaVec, KsType, LweDimension,
-};
+use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, CudaVec, KsType, LweDimension};
 use crate::integer::gpu::key_switching_key::CudaKeySwitchingKey;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
-use crate::integer::gpu::PBSType;
+use crate::integer::gpu::{expand_async, PBSType};
 use crate::shortint::ciphertext::CompactCiphertextList;
 use crate::shortint::parameters::{
     CompactCiphertextListExpansionKind, Degree, LweBskGroupingFactor, NoiseLevel,
