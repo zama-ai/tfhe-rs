@@ -1222,12 +1222,9 @@ generic_integer_impl_operation!(
     /// let a = FheUint16::encrypt(23u16, &client_key);
     /// let b = FheUint16::encrypt(3u16, &client_key);
     ///
-    /// let (quotient, remainder) = (&a).div_rem(&b);
-    ///
-    /// let quotient: u16 = quotient.decrypt(&client_key);
-    /// assert_eq!(quotient, 23u16 / 3u16);
-    /// let remainder: u16 = remainder.decrypt(&client_key);
-    /// assert_eq!(remainder, 23u16 % 3u16);
+    /// let result = &a / &b;
+    /// let result: u16 = result.decrypt(&client_key);
+    /// assert_eq!(result, 37849u16 / 3u16);
     /// ```
     rust_trait: Div(div),
     implem: {
