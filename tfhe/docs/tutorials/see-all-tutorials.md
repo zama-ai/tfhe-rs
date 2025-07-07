@@ -2,9 +2,9 @@
 
 ### Start here
 
-* [Homomorphic parity bit](parity\_bit.md)
-* [Homomorphic case changing on Ascii string](ascii\_fhe\_string.md)
-* [SHA 256 with Boolean API](sha256\_bool.md)
+* [Homomorphic parity bit](parity-bit.md)
+* [Homomorphic case changing on Ascii string](ascii-fhe-string.md)
+* [SHA 256 with Boolean API](sha256-bool.md)
 
 ### Go further
 

@@ -13,11 +13,11 @@ The cryptographic parameters `PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_P
 Below come the results for the execution on eight H100 using SXM technology.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-![](../../../_static/gpu_integer_benchmark_h100x8_sxm5_multi_bit_tuniform_2m128_ciphertext.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-ciphertext.svg)
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-![](../../../_static/gpu_integer_benchmark_h100x8_sxm5_multi_bit_tuniform_2m128_plaintext.svg)
+![](../../../.gitbook/assets/gpu-integer-benchmark-h100x8-sxm5-multi-bit-tuniform-2m128-plaintext.svg)
 
 ## Reproducing TFHE-rs benchmarks
 

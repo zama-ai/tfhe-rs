@@ -12,11 +12,11 @@ The cryptographic parameters `HPU_PARAM_MESSAGE_2_CARRY_2_KS32_PBS_TUNIFORM_2M12
 Below are the results for the execution on a single Alveo v80 board.
 The following table shows the performance when the inputs of the benchmarked operation are encrypted:
 
-![](../../../_static/hpu_integer_benchmark_hpux1_tuniform_2m128_ciphertext.svg)
+![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-ciphertext.svg)
 
 The following table shows the performance when the left input of the benchmarked operation is encrypted and the other is a clear scalar of the same size:
 
-![](../../../_static/hpu_integer_benchmark_hpux1_tuniform_2m128_plaintext.svg)
+![](../../../.gitbook/assets/hpu-integer-benchmark-hpux1-tuniform-2m128-plaintext.svg)
 
 ## Reproducing TFHE-rs benchmarks
 

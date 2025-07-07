@@ -3,17 +3,17 @@
 **TFHE-rs** has a CUDA GPU backend  that enables faster integer arithmetic operations on encrypted data, when compared to the default CPU backend. This guide explains how to update your existing program to leverage GPU acceleration, or to start a new program using GPU. 
 
 To explore a simple code example, go to:
-{% content-ref url="./simple_example.md" %} A simple TFHE-rs GPU example {% endcontent-ref %}
+{% content-ref url="./simple-example.md" %} A simple TFHE-rs GPU example {% endcontent-ref %}
 
 ## FHE performance on GPU
 
 The GPU backend is **up to 4.2x faster** than the CPU one. For a comparison between CPU and GPU latencies, see the following page.
-{% content-ref url="../../getting_started/benchmarks/README.md" %} GPU vs CPU benchmarks {% endcontent-ref %}
+{% content-ref url="../../getting-started/benchmarks/README.md" %} GPU vs CPU benchmarks {% endcontent-ref %}
 
-Different integer operations obtain different speedups. Please refer to the [detailed GPU benchmarks of FHE operations](../../getting_started/benchmarks/gpu/README.md) for detailed figures.
+Different integer operations obtain different speedups. Please refer to the [detailed GPU benchmarks of FHE operations](../../getting-started/benchmarks/gpu/README.md) for detailed figures.
 
 {% hint style="warning" %}
-To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting_started/benchmarks/gpu/gpu_programmable_bootstrapping.md). To obtain the best performance when running benchmarks, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution. Bear in mind that GPU warmup is necessary before doing performance measurements.
+To reproduce TFHE-rs GPU benchmarks, see [this dedicated page](../../getting-started/benchmarks/gpu/gpu-programmable-bootstrapping.md). To obtain the best performance when running benchmarks, set the environment variable `CUDA_MODULE_LOADING=EAGER` to avoid CUDA API overheads during the first kernel execution. Bear in mind that GPU warmup is necessary before doing performance measurements.
 {% endhint %}
 
 ## GPU TFHE-rs features
@@ -28,12 +28,12 @@ TFHE-rs uses dedicated parameters for the GPU in order to achieve optimal perfor
 
 The GPU backend is designed to speed up server-side FHE operations and supports the following TFHE-rs features:
 
-- [FHE ciphertext operations](./gpu_operations.md)
-- [Ciphertext compression](./compressing_ciphertexts.md)
-- [Ciphertext arrays](array_type.md)
+- [FHE ciphertext operations](./gpu-operations.md)
+- [Ciphertext compression](./compressing-ciphertexts.md)
+- [Ciphertext arrays](array-type.md)
 - [ZK-POK proof expansion](zk-pok.md)
 - [Noise Squashing](https://docs.rs/tfhe/latest/tfhe/struct.FheInt.html#method.squash_noise)
-- [Multi-GPU for throughput optimization](./multi_gpu.md) 
+- [Multi-GPU for throughput optimization](./multi-gpu.md) 
 
 The following features are not supported:
 
@@ -67,7 +67,7 @@ To compile and execute GPU TFHE-rs programs, make sure your system has the follo
 * [gcc](https://gcc.gnu.org/) >= 8.0 - check this [page](https://gist.github.com/ax3l/9489132) for more details about nvcc/gcc compatible versions
 * [cmake](https://cmake.org/) >= 3.24
 * libclang, to match Rust bingen [requirements](https://rust-lang.github.io/rust-bindgen/requirements.html) >= 9.0
-* Rust version - see this [page](../rust_configuration.md)
+* Rust version - see this [page](../rust-configuration.md)
 
 ### 2. Import GPU-enabled TFHE-rs
 
