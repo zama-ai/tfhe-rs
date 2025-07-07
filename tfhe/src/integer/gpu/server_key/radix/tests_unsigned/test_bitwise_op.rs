@@ -16,7 +16,12 @@ create_gpu_parameterized_test!(integer_unchecked_bitxor);
 create_gpu_parameterized_test!(integer_bitnot);
 create_gpu_parameterized_test!(integer_bitand);
 create_gpu_parameterized_test!(integer_bitor);
-create_gpu_parameterized_test!(integer_bitxor);
+create_gpu_parameterized_test!(integer_bitxor {
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    TEST_PARAM_GPU_MULTI_BIT_GROUP_3_MESSAGE_3_CARRY_3_KS_PBS_GAUSSIAN_2M64,
+});
 
 fn integer_unchecked_bitnot<P>(param: P)
 where
