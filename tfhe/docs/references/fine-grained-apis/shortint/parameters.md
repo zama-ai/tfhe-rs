@@ -1,6 +1,6 @@
 # Cryptographic Parameters
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-64}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-64}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting-started/security-and-cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
@@ -34,7 +34,7 @@ fn main() {
 
 ## Impact of parameters on the operations
 
-As shown [here](../../../getting_started/benchmarks/cpu/README.md), the choice of the parameter set impacts the operations available and their efficiency.
+As shown [here](../../../getting-started/benchmarks/cpu/README.md), the choice of the parameter set impacts the operations available and their efficiency.
 
 ### Generic bi-variate functions.
 

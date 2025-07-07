@@ -1,12 +1,12 @@
 # Cryptographic Parameters
 
-This document explains how the choice of cryptographic parameters impacts both the security and efficiency of FHE algorithms. The chosen parameters determine the error probability (sometimes referred to failure probability) and overall performance of computations using fully homomorphic encryption. This error probability is due to the noisy nature of FHE computations (see [here](../../getting\_started/security\_and\_cryptography.md) for more details about the encryption process).
+This document explains how the choice of cryptographic parameters impacts both the security and efficiency of FHE algorithms. The chosen parameters determine the error probability (sometimes referred to failure probability) and overall performance of computations using fully homomorphic encryption. This error probability is due to the noisy nature of FHE computations (see [here](../../getting-started/security-and-cryptography.md) for more details about the encryption process).
 
 All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator). 
 
 ## Default parameters
-Currently, the default parameters use blocks that contain 2 bits of message and 2 bits of carry - a tweaked uniform (TUniform, defined [here](../../getting_started/security_and_cryptography.md#noise)) noise distribution, and have a bootstrapping failure probability $$p_{error} \le 2^{-128}$$.
-These are particularly suitable for applications that need to be secure in the IND-CPA^D model (see [here](../../getting_started/security_and_cryptography.md#security) for more details).
+Currently, the default parameters use blocks that contain 2 bits of message and 2 bits of carry - a tweaked uniform (TUniform, defined [here](../../getting-started/security-and-cryptography.md#noise)) noise distribution, and have a bootstrapping failure probability $$p_{error} \le 2^{-128}$$.
+These are particularly suitable for applications that need to be secure in the IND-CPA^D model (see [here](../../getting-started/security-and-cryptography.md#security) for more details).
 The GPU backend still uses an error probability smaller than $$2^{-64}$$ by default. Those will be updated soon.
 
 When using the high-level API of **TFHE-rs**, you can create a key pair using the default recommended set of parameters. For example:

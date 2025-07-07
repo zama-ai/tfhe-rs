@@ -4,7 +4,7 @@ This document explains the basic steps of using the high-level API of **TFHE-rs.
 
 ## Setting up a Rust project
 
-If you already know how to set up a Rust project, feel free to go directly to the next [section](quick_start.md#using-tfhe-rs-and-its-apis).
+If you already know how to set up a Rust project, feel free to go directly to the next [section](quick-start.md#using-tfhe-rs-and-its-apis).
 
 First, install the Rust programming language tools. Visit https://rustup.rs/ and follow the instructions. For alternative installation methods, refer to the [official Rust installation page](https://rust-lang.github.io/rustup/installation/other.html).
 
@@ -116,4 +116,4 @@ fn main() {
 }
 ```
 
-You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../configuration/rust_configuration.md)
+You can learn more about homomorphic types and associated compilation features in the [configuration documentation.](../configuration/rust-configuration.md)
