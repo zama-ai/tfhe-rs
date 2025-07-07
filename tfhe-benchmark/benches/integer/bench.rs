@@ -9,6 +9,7 @@ use benchmark::utilities::{
 use criterion::{criterion_group, Criterion, Throughput};
 use rand::prelude::*;
 use rayon::prelude::*;
+use std::cell::LazyCell;
 use std::cmp::max;
 use std::env;
 use tfhe::integer::keycache::KEY_CACHE;
@@ -47,9 +48,11 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
+        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
+
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+            let (cks, sks) = (&keys.0, &keys.1);
 
             let encrypt_two_values = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -76,7 +79,7 @@ fn bench_server_key_binary_function_dirty_inputs<F>(
             b.iter_batched(
                 encrypt_two_values,
                 |(mut ct_0, mut ct_1)| {
-                    binary_op(&sks, &mut ct_0, &mut ct_1);
+                    binary_op(sks, &mut ct_0, &mut ct_1);
                 },
                 criterion::BatchSize::SmallInput,
             )
@@ -104,7 +107,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext) + Sync,
+    F: Fn(&ServerKey, &RadixCiphertext, &RadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -119,27 +122,23 @@ fn bench_server_key_binary_function_clean_inputs<F>(
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                bench_group.bench_function(&bench_id, |b| {
+                let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let encrypt_two_values = || {
-                        let clear_0 = gen_random_u256(&mut rng);
-                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    let clear_0 = gen_random_u256(&mut rng);
+                    let clear_1 = gen_random_u256(&mut rng);
 
-                        let clear_1 = gen_random_u256(&mut rng);
-                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    (sks, ct_0, ct_1)
+                });
 
-                        (ct_0, ct_1)
-                    };
-
-                    b.iter_batched(
-                        encrypt_two_values,
-                        |(mut ct_0, mut ct_1)| {
-                            binary_op(&sks, &mut ct_0, &mut ct_1);
-                        },
-                        criterion::BatchSize::SmallInput,
-                    )
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (sks, ct_0, ct_1) = (&bench_data.0, &bench_data.1, &bench_data.2);
+                    b.iter(|| {
+                        binary_op(sks, ct_0, ct_1);
+                    })
                 });
             }
             BenchmarkType::Throughput => {
@@ -147,12 +146,12 @@ fn bench_server_key_binary_function_clean_inputs<F>(
 
                 // Execute the operation once to know its cost.
                 let clear_0 = gen_random_u256(&mut rng);
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+                let ct_0 = cks.encrypt_radix(clear_0, num_block);
                 let clear_1 = gen_random_u256(&mut rng);
-                let mut ct_1 = cks.encrypt_radix(clear_1, num_block);
+                let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
                 reset_pbs_count();
-                binary_op(&sks, &mut ct_0, &mut ct_1);
+                binary_op(&sks, &ct_0, &ct_1);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
@@ -175,12 +174,13 @@ fn bench_server_key_binary_function_clean_inputs<F>(
 
                     b.iter_batched(
                         setup_encrypted_values,
-                        |(mut cts_0, mut cts_1)| {
-                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
-                                |(ct_0, ct_1)| {
+                        |(cts_0, cts_1)| {
+                            cts_0
+                                .par_iter()
+                                .zip(cts_1.par_iter())
+                                .for_each(|(ct_0, ct_1)| {
                                     binary_op(&sks, ct_0, ct_1);
-                                },
-                            )
+                                })
                         },
                         criterion::BatchSize::SmallInput,
                     )
@@ -222,9 +222,11 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
+        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
+
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+            let (cks, sks) = (&keys.0, &keys.1);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -247,7 +249,7 @@ fn bench_server_key_unary_function_dirty_inputs<F>(
             b.iter_batched(
                 encrypt_one_value,
                 |mut ct_0| {
-                    unary_fn(&sks, &mut ct_0);
+                    unary_fn(sks, &mut ct_0);
                 },
                 criterion::BatchSize::SmallInput,
             )
@@ -275,7 +277,7 @@ fn bench_server_key_unary_function_clean_inputs<F>(
     display_name: &str,
     unary_fn: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertext) + Sync,
+    F: Fn(&ServerKey, &RadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -291,23 +293,22 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                bench_group.bench_function(&bench_id, |b| {
+                let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let encrypt_one_value = || {
-                        let clear_0 = gen_random_u256(&mut rng);
+                    let clear_0 = gen_random_u256(&mut rng);
 
-                        cks.encrypt_radix(clear_0, num_block)
-                    };
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    (sks, ct_0)
+                });
 
-                    b.iter_batched(
-                        encrypt_one_value,
-                        |mut ct_0| {
-                            unary_fn(&sks, &mut ct_0);
-                        },
-                        criterion::BatchSize::SmallInput,
-                    )
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (sks, ct_0) = (&bench_data.0, &bench_data.1);
+
+                    b.iter(|| {
+                        unary_fn(sks, ct_0);
+                    })
                 });
             }
             BenchmarkType::Throughput => {
@@ -315,10 +316,10 @@ fn bench_server_key_unary_function_clean_inputs<F>(
 
                 // Execute the operation once to know its cost.
                 let clear_0 = gen_random_u256(&mut rng);
-                let mut ct_0 = cks.encrypt_radix(clear_0, num_block);
+                let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
                 reset_pbs_count();
-                unary_fn(&sks, &mut ct_0);
+                unary_fn(&sks, &ct_0);
                 let pbs_count = max(get_pbs_count(), 1); // Operation might not perform any PBS, so we take 1 as default
 
                 bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
@@ -335,8 +336,8 @@ fn bench_server_key_unary_function_clean_inputs<F>(
                     };
                     b.iter_batched(
                         setup_encrypted_values,
-                        |mut cts| {
-                            cts.par_iter_mut().for_each(|ct_0| {
+                        |cts| {
+                            cts.par_iter().for_each(|ct_0| {
                                 unary_fn(&sks, ct_0);
                             })
                         },
@@ -381,9 +382,11 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
 
         let max_value_for_bit_size = ScalarType::MAX >> (ScalarType::BITS as usize - bit_size);
 
+        let keys = LazyCell::new(move || KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix));
+
         let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
         bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+            let (cks, sks) = (&keys.0, &keys.1);
 
             let encrypt_one_value = || {
                 let clear_0 = gen_random_u256(&mut rng);
@@ -410,7 +413,7 @@ fn bench_server_key_binary_scalar_function_dirty_inputs<F, G>(
             b.iter_batched(
                 encrypt_one_value,
                 |(mut ct_0, clear_1)| {
-                    binary_op(&sks, &mut ct_0, clear_1);
+                    binary_op(sks, &mut ct_0, clear_1);
                 },
                 criterion::BatchSize::SmallInput,
             )
@@ -437,7 +440,7 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
     binary_op: F,
     rng_func: G,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, ScalarType) + Sync,
+    F: Fn(&ServerKey, &RadixCiphertext, ScalarType) + Sync,
     G: Fn(&mut ThreadRng, usize) -> ScalarType,
 {
     let mut bench_group = c.benchmark_group(bench_name);
@@ -458,26 +461,23 @@ fn bench_server_key_binary_scalar_function_clean_inputs<F, G>(
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
-                bench_group.bench_function(&bench_id, |b| {
+                let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let encrypt_one_value = || {
-                        let clear_0 = gen_random_u256(&mut rng);
-                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    let clear_0 = gen_random_u256(&mut rng);
+                    let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
 
-                        let clear_1 = rng_func(&mut rng, bit_size) & max_value_for_bit_size;
+                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    (sks, ct_0, clear_1)
+                });
 
-                        (ct_0, clear_1)
-                    };
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits_scalar_{bit_size}");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (sks, ct_0, clear_1) = (&bench_data.0, &bench_data.1, bench_data.2);
 
-                    b.iter_batched(
-                        encrypt_one_value,
-                        |(mut ct_0, clear_1)| {
-                            binary_op(&sks, &mut ct_0, clear_1);
-                        },
-                        criterion::BatchSize::SmallInput,
-                    )
+                    b.iter(|| {
+                        binary_op(sks, ct_0, clear_1);
+                    })
                 });
             }
             BenchmarkType::Throughput => {
@@ -586,29 +586,26 @@ fn if_then_else_parallelized(c: &mut Criterion) {
 
         match get_bench_type() {
             BenchmarkType::Latency => {
-                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-                bench_group.bench_function(&bench_id, |b| {
+                let bench_data = LazyCell::new(|| {
                     let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                    let encrypt_tree_values = || {
-                        let clear_0 = gen_random_u256(&mut rng);
-                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    let clear_0 = gen_random_u256(&mut rng);
+                    let clear_1 = gen_random_u256(&mut rng);
+                    let clear_cond = rng.gen_bool(0.5);
 
-                        let clear_1 = gen_random_u256(&mut rng);
-                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let true_ct = cks.encrypt_radix(clear_0, num_block);
+                    let false_ct = cks.encrypt_radix(clear_1, num_block);
+                    let condition = cks.encrypt_bool(clear_cond);
 
-                        let cond = sks.create_trivial_boolean_block(rng.gen_bool(0.5));
+                    (sks, condition, true_ct, false_ct)
+                });
 
-                        (cond, ct_0, ct_1)
-                    };
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (sks, condition, true_ct, false_ct) =
+                        (&bench_data.0, &bench_data.1, &bench_data.2, &bench_data.3);
 
-                    b.iter_batched(
-                        encrypt_tree_values,
-                        |(condition, true_ct, false_ct)| {
-                            sks.if_then_else_parallelized(&condition, &true_ct, &false_ct)
-                        },
-                        criterion::BatchSize::SmallInput,
-                    )
+                    b.iter(|| sks.if_then_else_parallelized(condition, true_ct, false_ct))
                 });
             }
             BenchmarkType::Throughput => {
@@ -699,33 +696,28 @@ fn ciphertexts_sum_parallelized(c: &mut Criterion) {
 
             match get_bench_type() {
                 BenchmarkType::Latency => {
-                    bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
-                    bench_group.bench_function(&bench_id, |b| {
+                    let bench_data = LazyCell::new(|| {
                         let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                        let nb_ctxt = bit_size.div_ceil(param.message_modulus().0.ilog2() as usize);
-                        let cks = RadixClientKey::from((cks, nb_ctxt));
+                        let clears = (0..len)
+                            .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
+                            .collect::<Vec<_>>();
 
-                        let encrypt_values = || {
-                            let clears = (0..len)
-                                .map(|_| gen_random_u256(&mut rng) & max_for_bit_size)
-                                .collect::<Vec<_>>();
+                        // encryption of integers
+                        let ctxts = clears
+                            .iter()
+                            .copied()
+                            .map(|clear| cks.encrypt_radix(clear, num_block))
+                            .collect::<Vec<_>>();
 
-                            // encryption of integers
-                            let ctxts = clears
-                                .iter()
-                                .copied()
-                                .map(|clear| cks.encrypt(clear))
-                                .collect::<Vec<_>>();
+                        (sks, ctxts)
+                    });
 
-                            ctxts
-                        };
+                    bench_id = format!("{bench_name}_{len}_ctxts::{param_name}::{bit_size}_bits");
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (sks, ctxts) = (&bench_data.0, &bench_data.1);
 
-                        b.iter_batched(
-                            encrypt_values,
-                            |ctxts| sks.sum_ciphertexts_parallelized(&ctxts),
-                            criterion::BatchSize::SmallInput,
-                        )
+                        b.iter(|| sks.sum_ciphertexts_parallelized(ctxts))
                     });
                 }
                 BenchmarkType::Throughput => {
