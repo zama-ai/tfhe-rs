@@ -488,9 +488,14 @@ clippy_param_dedup: install_rs_check_toolchain
 
 .PHONY: clippy_backward_compat_data # Run clippy lints on tfhe-backward-compat-data
 clippy_backward_compat_data: install_rs_check_toolchain # the toolchain is selected with toolchain.toml
-	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
-		-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all-targets \
-		-- --no-deps -D warnings
+	@# Some old crates are x86 specific, only run in that case
+	@if uname -a | grep -q x86; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" -Z unstable-options \
+			-C $(BACKWARD_COMPAT_DATA_DIR) clippy --all-targets \
+			-- --no-deps -D warnings; \
+	else \
+		echo "Cannot run clippy for backward compat crate on non x86 platform for now."; \
+	fi
 
 .PHONY: clippy_all # Run all clippy targets
 clippy_all: clippy_rustdoc clippy clippy_boolean clippy_shortint clippy_integer clippy_all_targets \
