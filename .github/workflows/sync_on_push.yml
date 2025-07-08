@@ -21,7 +21,7 @@ jobs:
           persist-credentials: 'false'
           token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
       - name: git-sync
-        uses: wei/git-sync@55c6b63b4f21607da0e9877ca9b4d11a29fc6d83
+        uses: valtech-sd/git-sync@e734cfe9485a92e720eac5af8a4555dde5fecf88
         with:
           source_repo: "zama-ai/tfhe-rs"
           source_branch: "main"
