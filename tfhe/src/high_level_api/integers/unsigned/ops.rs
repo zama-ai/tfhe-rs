@@ -1224,7 +1224,7 @@ generic_integer_impl_operation!(
     ///
     /// let result = &a / &b;
     /// let result: u16 = result.decrypt(&client_key);
-    /// assert_eq!(result, 37849u16 / 3u16);
+    /// assert_eq!(result, 23u16 / 3u16);
     /// ```
     rust_trait: Div(div),
     implem: {
