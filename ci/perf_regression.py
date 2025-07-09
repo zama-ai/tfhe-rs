@@ -7,13 +7,12 @@ It is capable of launching any performance benchmarks available in `tfhe-benchma
 Used in a GitHub action workflow, it can parse an issue comment and generate arguments to be fed
 to a `cargo bench` command.
 
-To defined what to run and where, a TOML file is used to define targets, check `ci/regression.toml` to have an
+To define what to run and where, a TOML file is used to define targets, check `ci/regression.toml` to have an
 explanation of all possible fields.
-One can also provide a fully custom profile via the issue comment string see
-:func:`parse_issue_comment` for details.
+One can also provide a fully custom profile via the issue comment string see: func:`parse_issue_comment` for details.
 
-This script is also capable check for performances regression based on previous benchmarks results.
-It works by provide a results file containing the baseline values and the results of the last run.
+This script is also capable of checking for performance regression based on previous benchmarks results.
+It works by providing a result file containing the baseline values and the results of the last run.
 """
 
 import argparse
@@ -340,8 +339,9 @@ class ProfileDefinition:
 
     def generate_cargo_commands(self):
         """
+        Generate Cargo commands to run benchmarks.
 
-        :return:
+        :return: :class:`list` of :class:`str` of Cargo commands
         """
         commands = []
         for key, ops in self.targets.items():
@@ -423,7 +423,7 @@ def write_commands_to_file(commands):
     Write commands to a file.
     This file is meant to be read a string and passed to `toJSON()` GitHub actions function.
 
-    :param commands: list of commands to write
+    :param commands: :class:`list` of commands to write
     """
     with GENERATED_COMMANDS_PATH.open("w") as f:
         f.write("[")
@@ -435,8 +435,8 @@ def write_commands_to_file(commands):
 def write_env_to_file(env_vars: dict[EnvOption, str]):
     """
     Write environment variables to a file.
-    This file is meant to executed in GitHub actions function. The variable contained in it, would be sent to
-    GITHUB_ENV file thus the following workflow steps would be able to use these variables.
+    This file is meant to be executed in a GitHub actions function. The variable contained in it, would be sent to
+    a GITHUB_ENV file thus the following workflow steps would be able to use these variables.
 
     :param env_vars: dict of environment variables to write
     """
@@ -463,19 +463,18 @@ if __name__ == "__main__":
         try:
             profile_args_pairs = parse_issue_comment(comment)
             profile_definitions = parse_toml_file(PROFILE_DEFINITION_PATH)
-            print(profile_definitions)  # DEBUG
 
             definition = build_definition(profile_args_pairs, profile_definitions)
             commands = definition.generate_cargo_commands()
-            print(definition)
         except Exception as err:
             print(f"failed to generate commands (error:{err}")
             sys.exit(2)
 
         try:
-            print(commands)  # DEBUG
             write_commands_to_file(commands)
             write_env_to_file(definition.env_vars)
         except Exception as err:
             print(f"failed to write commands/env to file (error:{err})")
             sys.exit(3)
+    elif args.command == "check_regression":
+        pass
