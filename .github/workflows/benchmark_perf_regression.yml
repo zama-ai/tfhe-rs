@@ -60,8 +60,9 @@ jobs:
       - name: Set Slab details outputs
         id: set_slab_details
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "backend=${{ backend }}" >> "${GITHUB_OUTPUT}"
-          echo "profile=${{ profile }}" >> "${GITHUB_OUTPUT}"
+          echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
+
 
   setup-instance:
     name: Setup instance (regression-benchmarks)

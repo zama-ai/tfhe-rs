@@ -3,6 +3,9 @@ name: Placeholder Workflow
 
 on:
   workflow_dispatch:
+    inputs:
+      command:
+        description: "Command to parse"
   issue_comment:
     types: created
 
@@ -26,7 +29,7 @@ jobs:
   prepare-benchmarks:
     name: Prepare operations matrix
     runs-on: ubuntu-latest
-    if: github.event.issue.pull_request
+    #if: github.event.issue.pull_request
     outputs:
       commands: ${{ steps.set_commands.outputs.commands }}
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
@@ -45,7 +48,11 @@ jobs:
 
       - name: Dump issue comment into file # To avoid possible code-injection
         run: |
-          echo "${{ github.event.comment.body }}" >> dumped_comment.txt
+          echo "${{ inputs.command }}" >> dumped_comment.txt
+
+#      - name: Dump issue comment into file # To avoid possible code-injection
+#        run: |
+#          echo "${{ github.event.comment.body }}" >> dumped_comment.txt
 
       - name: Generate cargo commands and env
         run: |
@@ -61,5 +68,5 @@ jobs:
       - name: Set Slab details outputs
         id: set_slab_details
         run: | # zizmor: ignore[template-injection] this env variable is safe
-          echo "backend=${{ backend }}" >> "${GITHUB_OUTPUT}"
-          echo "profile=${{ profile }}" >> "${GITHUB_OUTPUT}"
+          echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
+          echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"

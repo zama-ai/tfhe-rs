@@ -446,6 +446,16 @@ def write_env_to_file(env_vars: dict[EnvOption, str]):
             f.write(f'\techo "{key.value}={v}";\n')
         f.write('} >> "$GITHUB_ENV"\n')
 
+def write_backend_config_to_file(backend, profile):
+    """
+    Write backend and profile configuration to different files to ease parsing.
+
+    :param backend:
+    :param profile:
+    :return:
+    """
+    for filepart, content in [("backend", backend), ("profile", profile)]:
+        pathlib.Path(f"ci/{FILE_PREFIX}slab_{filepart}_config.txt").write_text(f"{content}\n")
 
 # TODO Perform regression computing by providing a file containing results from database that would be parsed
 
@@ -473,6 +483,7 @@ if __name__ == "__main__":
         try:
             write_commands_to_file(commands)
             write_env_to_file(definition.env_vars)
+            write_backend_config_to_file(definition.slab_backend, definition.slab_profile)
         except Exception as err:
             print(f"failed to write commands/env to file (error:{err})")
             sys.exit(3)
