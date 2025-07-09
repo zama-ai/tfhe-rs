@@ -602,7 +602,12 @@ mod cuda {
                             });
                         }
                         BenchmarkType::Throughput => {
-                            let elements = 100 * get_number_of_gpus() as u64; // This value, found empirically, ensure saturation of 8XH100 SXM5
+                            let mut elements_per_gpu = 100;
+                            if bits == 4096 {
+                                elements_per_gpu /= 5;
+                            }
+                            // This value, found empirically, ensure saturation of 8XH100 SXM5
+                            let elements = elements_per_gpu * get_number_of_gpus() as u64;
                             bench_group.throughput(Throughput::Elements(elements));
 
                             bench_id_verify = format!(
