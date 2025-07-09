@@ -441,6 +441,11 @@ def write_env_to_file(env_vars: dict[EnvOption, str]):
     :param env_vars: dict of environment variables to write
     """
     with CUSTOM_ENV_PATH.open("w") as f:
+        if not env_vars:
+            f.write("#!/usr/bin/env bash\n\n")
+            f.write("echo 'no env vars to set';\n")
+            return
+
         f.write("#!/usr/bin/env bash\n\n{\n")
         for key, v in env_vars.items():
             f.write(f'\techo "{key.value}={v}";\n')
