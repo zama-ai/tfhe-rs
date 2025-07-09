@@ -23,8 +23,6 @@ env:
 
 permissions: {}
 
-# TODO UTILISER `source ci/perf_regression_custom_env.sh` afin d'exporter les variables d'env
-# Question: comment passer ce fichier d'un job à l'autre ? en utilisant le github cache ?
 jobs:
   prepare-benchmarks:
     name: Prepare operations matrix
@@ -35,11 +33,6 @@ jobs:
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
       slab-profile: ${{ steps.set_slab_details.outputs.profile }}
     steps:
-      # TODO:
-      # * récupérer et parser les commandes cargo avec toJSON() et placer en output du job
-      # * récupérer et mettre en env global le custom environment généré
-      # * récupérer le backend et le profil slab et les mettre en output du job (fichier à parser ?)
-
       - name: Checkout tfhe-rs repo
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -58,7 +51,6 @@ jobs:
         run: |
           python3 ci/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
           echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
-          source ci/perf_regression_custom_env.sh
 
       - name: Set commands output
         id: set_commands
@@ -70,6 +62,13 @@ jobs:
         run: | # zizmor: ignore[template-injection] this env variable is safe
           echo "backend=$(cat ci/perf_regression_slab_backend_config.txt)" >> "${GITHUB_OUTPUT}"
           echo "profile=$(cat ci/perf_regression_slab_profile_config.txt)" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload custom env artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: custom_env_${{ github.sha }}
+          path: ci/perf_regression_custom_env.sh
+          retention-days: 1
 
   setup-instance:
     name: Setup instance (regression-benchmarks)
@@ -144,6 +143,16 @@ jobs:
           } >> "${GITHUB_ENV}"
         env:
           SHA: ${{ github.sha }}
+
+      - name: Download custom env artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: custom_env_${{ github.sha }}
+          path: ci
+
+      - name: Export custom env variables
+        run: |
+          source ci/perf_regression_custom_env.sh
 
       # Re-export environment variables as dependencies setup perform this task in the previous job.
       # Local env variables are cleaned at the end of each job.

@@ -68,7 +68,8 @@ slab.backend = "hyperstack"
 slab.profile = "multi-h100"
 
 [cpu.default]
-target.integer = ["add", "mul", "div"]
+target.integer = ["add_parallelized", "mul_parallelized", "div_parallelized"]
 slab.backend = "aws"
-slab.profile = "bench"
+#slab.profile = "bench"
+slab.profile = "cpu-small"  # Used for debug purposes
 env.fast_bench = "TRUE"

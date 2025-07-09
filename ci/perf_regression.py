@@ -348,7 +348,7 @@ class ProfileDefinition:
             features = self._build_features(key)
             ops_filter = [f"::{op}::" for op in ops]
             commands.append(
-                f"--bench {self.tfhe_rs_targets[key]["target"]} --features={','.join(features)} -- '{"\|".join(ops_filter)}'"
+                f"--bench {self.tfhe_rs_targets[key]["target"]} --features={','.join(features)} -- '{"\\|".join(ops_filter)}'"
             )
 
         return commands
