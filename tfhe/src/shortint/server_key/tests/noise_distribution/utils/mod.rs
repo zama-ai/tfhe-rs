@@ -2,7 +2,9 @@ pub mod noise_simulation;
 pub mod traits;
 
 use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
-use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
+use crate::core_crypto::algorithms::lwe_encryption::{
+    allocate_and_encrypt_new_lwe_ciphertext, decrypt_lwe_ciphertext,
+};
 use crate::core_crypto::algorithms::lwe_keyswitch::{
     keyswitch_lwe_ciphertext, keyswitch_lwe_ciphertext_with_scalar_change,
 };
@@ -15,6 +17,8 @@ use crate::core_crypto::algorithms::lwe_programmable_bootstrapping::fft64_pbs::p
 use crate::core_crypto::algorithms::misc::torus_modular_diff;
 use crate::core_crypto::algorithms::test::round_decode;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
+use crate::core_crypto::commons::generators::EncryptionRandomGenerator;
+use crate::core_crypto::commons::math::random::{ByteRandomGenerator, Gaussian, Uniform};
 use crate::core_crypto::commons::math::torus::UnsignedTorus;
 use crate::core_crypto::commons::noise_formulas::secure_noise::{
     minimal_lwe_variance_for_132_bits_security_gaussian,
@@ -22,7 +26,8 @@ use crate::core_crypto::commons::noise_formulas::secure_noise::{
 };
 use crate::core_crypto::commons::numeric::{CastFrom, CastInto, UnsignedInteger};
 use crate::core_crypto::commons::parameters::{
-    CiphertextModulusLog, DynamicDistribution, LweCiphertextCount, LweDimension, PlaintextCount,
+    CiphertextModulus, CiphertextModulusLog, DynamicDistribution, LweCiphertextCount, LweDimension,
+    PlaintextCount,
 };
 use crate::core_crypto::commons::test_tools::{
     arithmetic_mean, equivalent_pfail_gaussian_noise, gaussian_mean_confidence_interval,
@@ -30,6 +35,7 @@ use crate::core_crypto::commons::test_tools::{
     pfail_clopper_pearson_exact_confidence_interval, variance, NormalityTestResult,
 };
 use crate::core_crypto::commons::traits::container::{Container, ContainerMut};
+use crate::core_crypto::commons::traits::Encryptable;
 use crate::core_crypto::entities::glwe_ciphertext::{GlweCiphertext, GlweCiphertextOwned};
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKey;
 use crate::core_crypto::entities::lwe_ciphertext::{LweCiphertext, LweCiphertextOwned};
@@ -174,6 +180,30 @@ pub fn mean_and_variance_check<Scalar: UnsignedInteger>(
     };
 
     mean_is_in_interval && variance_is_ok
+}
+
+pub fn encrypt_new_noiseless_lwe<
+    Scalar: UnsignedInteger + Encryptable<Uniform, Gaussian<f64>> + CastFrom<u64>,
+    InputKeyCont: Container<Element = Scalar>,
+    Gen: ByteRandomGenerator,
+>(
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    ciphertext_modulus: CiphertextModulus<Scalar>,
+    msg: Scalar,
+    encoding: &ShortintEncoding<Scalar>,
+    encryption_random_generation: &mut EncryptionRandomGenerator<Gen>,
+) -> LweCiphertext<Vec<Scalar>> {
+    let noiseless_distribution = Gaussian::from_dispersion_parameter(Variance(0.0), 0.0);
+
+    let plaintext = encoding.encode(Cleartext(msg));
+
+    allocate_and_encrypt_new_lwe_ciphertext(
+        lwe_secret_key,
+        plaintext,
+        noiseless_distribution,
+        ciphertext_modulus,
+        encryption_random_generation,
+    )
 }
 
 #[derive(Clone, Copy)]
@@ -732,16 +762,13 @@ impl<
     }
 }
 
-impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateBlindRotationResult
+impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateBootstrapResult
     for GlweCiphertext<AccCont>
 {
     type Output = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocated_blind_rotation_result(
-        &self,
-        _side_resources: &mut Self::SideResources,
-    ) -> Self::Output {
+    fn allocate_bootstrap_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
         let glwe_dim = self.glwe_size().to_glwe_dimension();
         let poly_size = self.polynomial_size();
         let equivalent_lwe_dim = glwe_dim.to_equivalent_lwe_dimension(poly_size);
