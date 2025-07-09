@@ -25,16 +25,13 @@ jobs:
   prepare-benchmarks:
     name: Prepare operations matrix
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' ||
-      (github.event_name == 'schedule' && github.repository == 'zama-ai/tfhe-rs')
+    if: github.event.issue.pull_request
     outputs:
       commands: ${{ steps.set_commands.outputs.commands }}
       slab-backend: ${{ steps.set_slab_details.outputs.backend }}
       slab-profile: ${{ steps.set_slab_details.outputs.profile }}
     steps:
       # TODO:
-      # * mettre le commentaire d'issue dans un fichier
-      # * parser le commentaire avec le script perf_regression.py (penser à faire un checkout)
       # * récupérer et parser les commandes cargo avec toJSON() et placer en output du job
       # * récupérer et mettre en env global le custom environment généré
       # * récupérer le backend et le profil slab et les mettre en output du job (fichier à parser ?)
@@ -47,8 +44,7 @@ jobs:
 
       - name: Dump issue comment into file # To avoid possible code-injection
         run: |
-          # ------- Comment à récupérer ----------------
-          echo "${{ github.comment}}" >> dumped_comment.txt
+          echo "${{ github.event.comment.body }}" >> dumped_comment.txt
 
       - name: Generate cargo commands and env
         run: |

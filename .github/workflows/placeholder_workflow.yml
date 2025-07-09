@@ -3,14 +3,63 @@ name: Placeholder Workflow
 
 on:
   workflow_dispatch:
+  issue_comment:
+    types: created
+
+env:
+  CARGO_TERM_COLOR: always
+  RESULTS_FILENAME: parsed_benchmark_results_${{ github.sha }}.json
+  ACTION_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  RUST_BACKTRACE: "full"
+  RUST_MIN_STACK: "8388608"
+  SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+  SLACK_ICON: https://pbs.twimg.com/profile_images/1274014582265298945/OjBKP9kn_400x400.png
+  SLACK_USERNAME: ${{ secrets.BOT_USERNAME }}
+  SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
 
 permissions: {}
 
+# TODO UTILISER `source ci/perf_regression_custom_env.sh` afin d'exporter les variables d'env
+# Question: comment passer ce fichier d'un job à l'autre ? en utilisant le github cache ?
 jobs:
-  placeholder:
-    name: Placeholder
+  prepare-benchmarks:
+    name: Prepare operations matrix
     runs-on: ubuntu-latest
-
+    if: github.event.issue.pull_request
+    outputs:
+      commands: ${{ steps.set_commands.outputs.commands }}
+      slab-backend: ${{ steps.set_slab_details.outputs.backend }}
+      slab-profile: ${{ steps.set_slab_details.outputs.profile }}
     steps:
-      - run: |
-          echo "Hello this is a Placeholder Workflow"
+      # TODO:
+      # * récupérer et parser les commandes cargo avec toJSON() et placer en output du job
+      # * récupérer et mettre en env global le custom environment généré
+      # * récupérer le backend et le profil slab et les mettre en output du job (fichier à parser ?)
+
+      - name: Checkout tfhe-rs repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: 'false'
+          token: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+
+      - name: Dump issue comment into file # To avoid possible code-injection
+        run: |
+          echo "${{ github.event.comment.body }}" >> dumped_comment.txt
+
+      - name: Generate cargo commands and env
+        run: |
+          python3 ci/perf_regression.py parse_profile --issue-comment "$(cat dumped_comment.txt)"
+          echo "COMMANDS=$(cat ci/perf_regression_generated_commands.json)" >> "${GITHUB_ENV}"
+          source ci/perf_regression_custom_env.sh
+
+      - name: Set commands output
+        id: set_commands
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "commands=${{ toJSON(env.COMMANDS) }}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set Slab details outputs
+        id: set_slab_details
+        run: | # zizmor: ignore[template-injection] this env variable is safe
+          echo "backend=${{ backend }}" >> "${GITHUB_OUTPUT}"
+          echo "profile=${{ profile }}" >> "${GITHUB_OUTPUT}"
