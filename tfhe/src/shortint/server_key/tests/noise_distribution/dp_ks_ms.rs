@@ -20,7 +20,7 @@ use crate::shortint::server_key::tests::parameterized_test::create_parameterized
 use crate::shortint::server_key::{ServerKey, ShortintBootstrappingKey};
 use rayon::prelude::*;
 
-fn dp_ks_modswitch<
+pub fn dp_ks_ms<
     InputCt,
     ScalarMulResult,
     KsResult,
@@ -138,7 +138,7 @@ where
     // We need to be able to apply the PBS
     Bsk: StandardFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
-    let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_modswitch(
+    let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_ms(
         input,
         scalar,
         ksk,
@@ -278,7 +278,7 @@ fn encrypt_dp_ks_ms_inner_helper(
 
     let ct = cks.unchecked_encrypt(msg);
 
-    let (input, after_dp, after_ks, after_drift, after_ms) = dp_ks_modswitch(
+    let (input, after_dp, after_ks, after_drift, after_ms) = dp_ks_ms(
         ct.ct,
         scalar_for_multiplication,
         ksk,
@@ -430,7 +430,7 @@ where
 
     let (_input_sim, _after_dp_sim, _after_ks_sim, _after_drift_sim, after_ms_sim) = {
         let noise_simulation = NoiseSimulationLwe::encrypt(&cks, 0);
-        dp_ks_modswitch(
+        dp_ks_ms(
             noise_simulation,
             max_scalar_mul,
             &noise_simulation_ksk,
@@ -451,7 +451,7 @@ where
                 .modulus_switch_noise_reduction_key()
                 .unwrap();
 
-            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_modswitch(
+            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_ms(
                 cks.encrypt(0).ct,
                 max_scalar_mul,
                 &standard_atomic_pattern_server_key.key_switching_key,
@@ -472,7 +472,7 @@ where
                 .modulus_switch_noise_reduction_key()
                 .unwrap();
 
-            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_modswitch(
+            let (_input, _after_dp, _after_ks, _after_drift, after_ms) = dp_ks_ms(
                 cks.encrypt(0).ct,
                 max_scalar_mul,
                 &ks32_atomic_pattern_server_key.key_switching_key,
