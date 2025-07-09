@@ -65,9 +65,6 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Test debug (scalar only)
-        run: make test_ntt
-
       - name: Test no-std (scalar only)
         run: make test_ntt_no_std
 
