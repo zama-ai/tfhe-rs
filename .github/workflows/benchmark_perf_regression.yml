@@ -198,7 +198,7 @@ jobs:
           --bench-type "${BENCH_TYPE}"
         env:
           REF_NAME: ${{ github.ref_name }}
-          BENCH_TYPE: ${{ matrix.bench_type }}
+          BENCH_TYPE: ${{ env.__TFHE_RS_BENCH_TYPE }}
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
