@@ -71,3 +71,4 @@ slab.profile = "multi-h100"
 target.integer = ["add", "mul", "div"]
 slab.backend = "aws"
 slab.profile = "bench"
+env.fast_bench = "TRUE"
