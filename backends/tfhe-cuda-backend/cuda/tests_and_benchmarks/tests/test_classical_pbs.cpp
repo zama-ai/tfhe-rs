@@ -167,7 +167,8 @@ TEST_P(ClassicalProgrammableBootstrapTestPrimitives_u64, bootstrap) {
   int8_t *pbs_buffer;
   scratch_cuda_programmable_bootstrap_64(
       stream, gpu_index, &pbs_buffer, lwe_dimension, glwe_dimension,
-      polynomial_size, pbs_level, number_of_inputs, true, false);
+      polynomial_size, pbs_level, number_of_inputs, true,
+      PBS_MS_REDUCTION_T::NO_REDUCTION);
 
   int number_of_sm = 0;
   cudaDeviceGetAttribute(&number_of_sm, cudaDevAttrMultiProcessorCount, 0);

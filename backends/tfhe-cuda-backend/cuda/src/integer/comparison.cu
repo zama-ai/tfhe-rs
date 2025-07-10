@@ -8,12 +8,12 @@ uint64_t scratch_cuda_integer_radix_comparison_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     COMPARISON_TYPE op_type, bool is_signed, bool allocate_gpu_memory,
-    bool allocate_ms_array) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch comparison")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, allocate_ms_array);
+                          message_modulus, carry_modulus, noise_reduction_type);
 
   uint64_t size_tracker = 0;
   switch (op_type) {
@@ -111,12 +111,12 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, allocate_ms_array);
+                          message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
@@ -159,12 +159,12 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, allocate_ms_array);
+                          message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_radix_comparison_check_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,

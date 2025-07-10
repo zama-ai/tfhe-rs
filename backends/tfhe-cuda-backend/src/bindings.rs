@@ -45,6 +45,26 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_modulus_switch_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_out: *mut ffi::c_void,
+        lwe_in: *const ffi::c_void,
+        size: u32,
+        log_modulus: u32,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_centered_modulus_switch_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_out: *mut ffi::c_void,
+        lwe_in: *const ffi::c_void,
+        lwe_dimension: u32,
+        log_modulus: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_improve_noise_modulus_switch_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
@@ -77,6 +97,10 @@ unsafe extern "C" {
 pub const PBS_TYPE_MULTI_BIT: PBS_TYPE = 0;
 pub const PBS_TYPE_CLASSICAL: PBS_TYPE = 1;
 pub type PBS_TYPE = ffi::c_uint;
+pub const PBS_MS_REDUCTION_T_NO_REDUCTION: PBS_MS_REDUCTION_T = 0;
+pub const PBS_MS_REDUCTION_T_DRIFT: PBS_MS_REDUCTION_T = 1;
+pub const PBS_MS_REDUCTION_T_CENTERED: PBS_MS_REDUCTION_T = 2;
+pub type PBS_MS_REDUCTION_T = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaModulusSwitchNoiseReductionKeyFFI {
@@ -191,7 +215,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -461,7 +485,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -486,7 +510,7 @@ unsafe extern "C" {
         num_many_lut: u32,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -531,7 +555,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -591,7 +615,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -636,7 +660,7 @@ unsafe extern "C" {
         num_blocks: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -711,7 +735,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -748,7 +772,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -802,7 +826,7 @@ unsafe extern "C" {
         shift_type: SHIFT_OR_ROTATE_TYPE,
         is_signed: bool,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -848,7 +872,7 @@ unsafe extern "C" {
         op_type: COMPARISON_TYPE,
         is_signed: bool,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -910,7 +934,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         op_type: BITOP_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -971,7 +995,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1018,7 +1042,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         shift_type: SHIFT_OR_ROTATE_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1064,7 +1088,7 @@ unsafe extern "C" {
         requested_flag: u32,
         uses_carry: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1089,7 +1113,7 @@ unsafe extern "C" {
         requested_flag: u32,
         uses_carry: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1162,7 +1186,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         compute_overflow: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1211,7 +1235,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         reduce_degrees_for_single_carry_propagation: bool,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1255,7 +1279,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         num_scalar_bits: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1304,7 +1328,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1352,7 +1376,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         lut_degree: u64,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1406,7 +1430,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1450,7 +1474,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1495,7 +1519,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1558,7 +1582,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1603,7 +1627,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         requested_flag: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1651,7 +1675,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1695,7 +1719,7 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1740,7 +1764,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1786,7 +1810,7 @@ unsafe extern "C" {
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         active_bits_divisor: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1838,7 +1862,7 @@ unsafe extern "C" {
         scalar_divisor_ffi: *const CudaScalarDivisorFFI,
         active_bits_divisor: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1889,7 +1913,7 @@ unsafe extern "C" {
         direction: Direction,
         bit_value: BitValue,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1935,7 +1959,7 @@ unsafe extern "C" {
         allocate_gpu_memory: bool,
         message_bits_per_block: u32,
         total_random_bits: u32,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -1980,7 +2004,7 @@ unsafe extern "C" {
         counter_num_blocks: u32,
         num_bits_in_ciphertext: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2049,7 +2073,7 @@ unsafe extern "C" {
         pbs_type: PBS_TYPE,
         casting_key_type: KS_TYPE,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2469,7 +2493,7 @@ unsafe extern "C" {
         level_count: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2483,7 +2507,7 @@ unsafe extern "C" {
         level_count: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {
@@ -2497,7 +2521,7 @@ unsafe extern "C" {
         level_count: u32,
         input_lwe_ciphertext_count: u32,
         allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
+        noise_reduction_type: PBS_MS_REDUCTION_T,
     ) -> u64;
 }
 unsafe extern "C" {

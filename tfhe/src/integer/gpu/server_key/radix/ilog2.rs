@@ -59,7 +59,7 @@ impl CudaServerKey {
                     LweBskGroupingFactor(0),
                     direction as u32,
                     bit_value as u32,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -302,7 +302,7 @@ impl CudaServerKey {
                     input_num_blocks as u32,
                     counter_num_blocks as u32,
                     num_bits_in_ciphertext,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

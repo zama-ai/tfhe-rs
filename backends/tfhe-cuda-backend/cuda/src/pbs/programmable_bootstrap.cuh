@@ -341,7 +341,8 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
                          uint32_t lwe_dimension, uint32_t polynomial_size,
                          uint32_t level_count, uint32_t grouping_factor,
                          uint32_t input_lwe_ciphertext_count, PBS_TYPE pbs_type,
-                         bool allocate_gpu_memory, bool allocate_ms_array,
+                         bool allocate_gpu_memory,
+                         PBS_MS_REDUCTION_T noise_reduction_type,
                          uint64_t &size_tracker) {
   switch (sizeof(Torus)) {
   case sizeof(uint32_t):
@@ -353,7 +354,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       size_tracker = scratch_cuda_programmable_bootstrap_32(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
-          allocate_gpu_memory, allocate_ms_array);
+          allocate_gpu_memory, noise_reduction_type);
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")
@@ -373,7 +374,7 @@ void execute_scratch_pbs(cudaStream_t stream, uint32_t gpu_index,
       size_tracker = scratch_cuda_programmable_bootstrap_64(
           stream, gpu_index, pbs_buffer, lwe_dimension, glwe_dimension,
           polynomial_size, level_count, input_lwe_ciphertext_count,
-          allocate_gpu_memory, allocate_ms_array);
+          allocate_gpu_memory, noise_reduction_type);
       break;
     default:
       PANIC("Error: unsupported cuda PBS type.")

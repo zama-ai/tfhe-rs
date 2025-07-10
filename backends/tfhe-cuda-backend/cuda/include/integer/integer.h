@@ -87,7 +87,8 @@ uint64_t scratch_cuda_apply_univariate_lut_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array);
+    uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     int8_t **mem_ptr, void const *input_lut, uint32_t lwe_dimension,
@@ -96,7 +97,7 @@ uint64_t scratch_cuda_apply_many_univariate_lut_kb_64(
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint32_t num_many_lut, uint64_t lut_degree, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 void cuda_apply_univariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
     CudaRadixCiphertextFFI *output_radix_lwe,
@@ -117,7 +118,8 @@ uint64_t scratch_cuda_apply_bivariate_lut_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t input_lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array);
+    uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_apply_bivariate_lut_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -147,7 +149,7 @@ uint64_t scratch_cuda_full_propagation_64(
     uint32_t polynomial_size, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_full_propagation_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -166,7 +168,7 @@ uint64_t scratch_cuda_integer_mult_radix_ciphertext_kb_64(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t pbs_base_log,
     uint32_t pbs_level, uint32_t ks_base_log, uint32_t ks_level,
     uint32_t grouping_factor, uint32_t num_blocks, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_mult_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -200,7 +202,7 @@ uint64_t scratch_cuda_integer_radix_logical_scalar_shift_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_radix_logical_scalar_shift_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -215,7 +217,7 @@ uint64_t scratch_cuda_integer_radix_arithmetic_scalar_shift_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_radix_arithmetic_scalar_shift_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -238,7 +240,8 @@ uint64_t scratch_cuda_integer_radix_shift_and_rotate_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool is_signed, bool allocate_gpu_memory, bool allocate_ms_array);
+    bool is_signed, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_radix_shift_and_rotate_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -259,7 +262,7 @@ uint64_t scratch_cuda_integer_radix_comparison_kb_64(
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     COMPARISON_TYPE op_type, bool is_signed, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_comparison_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -289,7 +292,8 @@ uint64_t scratch_cuda_integer_radix_bitop_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    BITOP_TYPE op_type, bool allocate_gpu_memory, bool allocate_ms_array);
+    BITOP_TYPE op_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_bitop_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -318,7 +322,7 @@ uint64_t scratch_cuda_integer_radix_cmux_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -340,7 +344,7 @@ uint64_t scratch_cuda_integer_radix_scalar_rotate_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, SHIFT_OR_ROTATE_TYPE shift_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_radix_scalar_rotate_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -360,7 +364,8 @@ uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
-    uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array);
+    uint32_t uses_carry, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -369,7 +374,8 @@ uint64_t scratch_cuda_add_and_propagate_single_carry_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
-    uint32_t uses_carry, bool allocate_gpu_memory, bool allocate_ms_array);
+    uint32_t uses_carry, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -404,7 +410,7 @@ uint64_t scratch_cuda_integer_overflowing_sub_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t compute_overflow,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_overflowing_sub_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -428,7 +434,7 @@ uint64_t scratch_cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     uint32_t num_blocks_in_radix, uint32_t max_num_radix_in_vec,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool reduce_degrees_for_single_carry_propagation, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_radix_partial_sum_ciphertexts_vec_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -448,7 +454,7 @@ uint64_t scratch_cuda_integer_scalar_mul_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, uint32_t num_scalar_bits, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_scalar_multiplication_integer_radix_ciphertext_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -470,7 +476,8 @@ uint64_t scratch_cuda_integer_div_rem_radix_ciphertext_kb_64(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool allocate_ms_array);
+    PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_div_rem_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -491,7 +498,8 @@ uint64_t scratch_cuda_integer_compute_prefix_sum_hillis_steele_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    uint64_t lut_degree, bool allocate_gpu_memory, bool allocate_ms_array);
+    uint64_t lut_degree, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_compute_prefix_sum_hillis_steele_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -517,7 +525,8 @@ uint64_t scratch_cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     uint32_t small_lwe_dimension, uint32_t ks_level, uint32_t ks_base_log,
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
-    PBS_TYPE pbs_type, bool allocate_gpu_memory, bool allocate_ms_array);
+    PBS_TYPE pbs_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_abs_inplace_radix_ciphertext_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -537,7 +546,7 @@ uint64_t scratch_cuda_integer_are_all_comparisons_block_true_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_are_all_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -558,7 +567,7 @@ uint64_t scratch_cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_radix_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_is_at_least_one_comparisons_block_true_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -589,7 +598,7 @@ uint64_t scratch_cuda_apply_noise_squashing_kb(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_radix_blocks, uint32_t num_original_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_apply_noise_squashing_kb(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -611,7 +620,7 @@ uint64_t scratch_cuda_sub_and_propagate_single_carry_kb_64_inplace(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, uint32_t requested_flag,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_sub_and_propagate_single_carry_kb_64_inplace(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -633,7 +642,7 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_unsigned_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -653,7 +662,7 @@ uint64_t scratch_cuda_extend_radix_with_sign_msb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t num_additional_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_extend_radix_with_sign_msb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -674,7 +683,7 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
-    bool allocate_gpu_memory, bool allocate_ms_array);
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_signed_scalar_div_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -695,7 +704,7 @@ uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_unsigned_scalar_div_rem_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -720,7 +729,7 @@ uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, const CudaScalarDivisorFFI *scalar_divisor_ffi,
     uint32_t const active_bits_divisor, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_signed_scalar_div_rem_radix_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -743,7 +752,8 @@ uint64_t scratch_integer_count_of_consecutive_bits_kb_64(
     uint32_t pbs_level, uint32_t pbs_base_log, uint32_t grouping_factor,
     uint32_t num_blocks, uint32_t counter_num_blocks, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, Direction direction,
-    BitValue bit_value, bool allocate_gpu_memory, bool allocate_ms_array);
+    BitValue bit_value, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_count_of_consecutive_bits_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -763,7 +773,7 @@ uint64_t scratch_cuda_integer_grouped_oprf_64(
     uint32_t num_blocks_to_process, uint32_t num_blocks,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     bool allocate_gpu_memory, uint32_t message_bits_per_block,
-    uint32_t total_random_bits, bool allocate_ms_array);
+    uint32_t total_random_bits, PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_grouped_oprf_async_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -784,7 +794,7 @@ uint64_t scratch_integer_ilog2_kb_64(
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
     uint32_t input_num_blocks, uint32_t counter_num_blocks,
     uint32_t num_bits_in_ciphertext, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_ilog2_kb_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

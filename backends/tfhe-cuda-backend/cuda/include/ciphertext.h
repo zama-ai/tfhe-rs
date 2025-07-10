@@ -26,6 +26,15 @@ void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
                                     void *lwe_array_out, uint32_t size,
                                     uint32_t log_modulus);
 
+void cuda_modulus_switch_64(void *stream, uint32_t gpu_index, void *lwe_out,
+                            const void *lwe_in, uint32_t size,
+                            uint32_t log_modulus);
+
+void cuda_centered_modulus_switch_64(void *stream, uint32_t gpu_index,
+                                     void *lwe_out, const void *lwe_in,
+                                     uint32_t lwe_dimension,
+                                     uint32_t log_modulus);
+
 void cuda_improve_noise_modulus_switch_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,
     void const *lwe_array_in, void const *lwe_array_indexes,

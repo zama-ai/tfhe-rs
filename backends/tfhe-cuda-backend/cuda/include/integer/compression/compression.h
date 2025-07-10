@@ -40,7 +40,7 @@ uint64_t scratch_cuda_integer_decompress_radix_ciphertext_64(
     uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t num_blocks_to_decompress, uint32_t message_modulus,
     uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
-    bool allocate_ms_array);
+    PBS_MS_REDUCTION_T noise_reduction_type);
 
 void cuda_integer_compress_radix_ciphertext_64(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

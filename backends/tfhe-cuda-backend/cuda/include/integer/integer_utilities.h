@@ -243,7 +243,7 @@ struct int_radix_params {
   uint32_t grouping_factor;
   uint32_t message_modulus;
   uint32_t carry_modulus;
-  bool allocate_ms_array;
+  PBS_MS_REDUCTION_T noise_reduction_type;
 
   int_radix_params(){};
 
@@ -253,7 +253,7 @@ struct int_radix_params {
                    uint32_t ks_base_log, uint32_t pbs_level,
                    uint32_t pbs_base_log, uint32_t grouping_factor,
                    uint32_t message_modulus, uint32_t carry_modulus,
-                   bool allocate_ms_array)
+                   PBS_MS_REDUCTION_T noise_reduction_type)
 
       : pbs_type(pbs_type), glwe_dimension(glwe_dimension),
         polynomial_size(polynomial_size), big_lwe_dimension(big_lwe_dimension),
@@ -261,7 +261,7 @@ struct int_radix_params {
         ks_base_log(ks_base_log), pbs_level(pbs_level),
         pbs_base_log(pbs_base_log), grouping_factor(grouping_factor),
         message_modulus(message_modulus), carry_modulus(carry_modulus),
-        allocate_ms_array(allocate_ms_array){};
+        noise_reduction_type(noise_reduction_type){};
 
   void print() {
     printf("pbs_type: %u, glwe_dimension: %u, "
@@ -356,7 +356,7 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.allocate_ms_array, size);
+          allocate_gpu_memory, params.noise_reduction_type, size);
       if (i == 0) {
         size_tracker += size;
       }
@@ -573,7 +573,7 @@ template <typename Torus> struct int_radix_lut {
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
-          allocate_gpu_memory, params.allocate_ms_array, size);
+          allocate_gpu_memory, params.noise_reduction_type, size);
       if (i == 0) {
         size_tracker += size;
       }
@@ -880,7 +880,7 @@ template <typename InputTorus> struct int_noise_squashing_lut {
                               params.small_lwe_dimension, params.glwe_dimension,
                               params.polynomial_size, params.pbs_level,
                               num_radix_blocks_on_gpu, allocate_gpu_memory,
-                              params.allocate_ms_array, size);
+                              params.noise_reduction_type, size);
       cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       if (i == 0) {
         size_tracker += size;
