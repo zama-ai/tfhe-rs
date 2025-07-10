@@ -143,6 +143,24 @@ __device__ void init_decomposer_state_inplace(T *rotated_acc, int base_log,
   }
 }
 
+/*
+ * Receives num_poly  concatenated polynomials of type T. For each performs a
+ * rounding to increase accuracy of the PBS. Calculates inplace.
+ *
+ *  By default, it works on a single polynomial.
+ */
+template <typename T, int elems_per_thread, uint32_t block_size,
+          uint32_t base_log, int level_count>
+__device__ void init_decomposer_state_inplace_2_2_params(T *rotated_acc) {
+  uint32_t tid = threadIdx.x;
+  for (int i = 0; i < elems_per_thread; i++) {
+    T x_acc = rotated_acc[tid];
+    rotated_acc[tid] =
+        init_decomposer_state_2_2_params<T, base_log, level_count>(x_acc);
+    tid = tid + block_size;
+  }
+}
+
 /**
  * In case of classical PBS, this method should accumulate the result.
  * In case of multi-bit PBS, it should overwrite.
