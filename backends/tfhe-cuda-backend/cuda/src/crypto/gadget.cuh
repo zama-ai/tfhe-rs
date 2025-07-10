@@ -145,8 +145,8 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
   constexpr T mask_mod_b = (1ll << base_log) - 1ll;
   uint32_t tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
-    auto input1 = state[tid];
-    auto input2 = state[tid + params::degree / 2];
+    auto input1 = state[i];
+    auto input2 = state[i + params::opt / 2];
     T res_re = input1 & mask_mod_b;
     T res_im = input2 & mask_mod_b;
 
