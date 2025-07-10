@@ -440,7 +440,7 @@ impl CudaFlattenedVecCompactCiphertextList {
                         LweBskGroupingFactor(0),
                         self.num_lwe_per_compact_list.as_slice(),
                         self.is_boolean.as_slice(),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

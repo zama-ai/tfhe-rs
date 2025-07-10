@@ -46,7 +46,7 @@ __global__ void device_programmable_bootstrap_cg(
     uint32_t lwe_dimension, uint32_t polynomial_size, uint32_t base_log,
     uint32_t level_count, int8_t *device_mem,
     uint64_t device_memory_size_per_block, uint32_t num_many_lut,
-    uint32_t lut_stride, bool uses_noise_reduction) {
+    uint32_t lut_stride, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   grid_group grid = this_grid();
 
@@ -80,7 +80,7 @@ __global__ void device_programmable_bootstrap_cg(
   // The third dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
   const Torus *block_lwe_array_in =
-      uses_noise_reduction
+      (noise_reduction_type == PBS_MS_REDUCTION_T::DRIFT)
           ? &lwe_array_in[blockIdx.x * (lwe_dimension + 1)]
           : &lwe_array_in[lwe_input_indexes[blockIdx.x] * (lwe_dimension + 1)];
 
@@ -96,9 +96,15 @@ __global__ void device_programmable_bootstrap_cg(
   // rotated array is not in use anymore by the time we perform the fft
 
   // Put "b" in [0, 2N[
+  constexpr auto log_modulus = params::log2_degree + 1;
   Torus b_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                 params::log2_degree + 1);
+  Torus correction = 0;
+  if (noise_reduction_type == PBS_MS_REDUCTION_T::CENTERED) {
+    correction = centered_binary_modulus_switch_body_correction_to_add(
+        block_lwe_array_in, lwe_dimension, log_modulus);
+  }
+  modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                 log_modulus);
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
@@ -195,7 +201,7 @@ __host__ uint64_t scratch_programmable_bootstrap_cg(
     pbs_buffer<Torus, CLASSICAL> **buffer, uint32_t lwe_dimension,
     uint32_t glwe_dimension, uint32_t polynomial_size, uint32_t level_count,
     uint32_t input_lwe_ciphertext_count, bool allocate_gpu_memory,
-    bool allocate_ms_array) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<Torus>(polynomial_size);
@@ -225,7 +231,7 @@ __host__ uint64_t scratch_programmable_bootstrap_cg(
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
       stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::CG,
-      allocate_gpu_memory, allocate_ms_array, size_tracker);
+      allocate_gpu_memory, noise_reduction_type, size_tracker);
   return size_tracker;
 }
 
@@ -265,7 +271,7 @@ __host__ void host_programmable_bootstrap_cg(
   int thds = polynomial_size / params::opt;
   dim3 grid(input_lwe_ciphertext_count, glwe_dimension + 1, level_count);
 
-  bool uses_noise_reduction = buffer->uses_noise_reduction;
+  auto noise_reduction_type = buffer->noise_reduction_type;
 
   void *kernel_args[17];
   kernel_args[0] = &lwe_array_out;
@@ -283,7 +289,7 @@ __host__ void host_programmable_bootstrap_cg(
   kernel_args[12] = &d_mem;
   kernel_args[14] = &num_many_lut;
   kernel_args[15] = &lut_stride;
-  kernel_args[16] = &uses_noise_reduction;
+  kernel_args[16] = &noise_reduction_type;
 
   if (max_shared_memory < partial_sm) {
     kernel_args[13] = &full_dm;
