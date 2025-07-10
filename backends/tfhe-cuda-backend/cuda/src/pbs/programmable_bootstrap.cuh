@@ -157,11 +157,13 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128(
  *  - Thread blocks at dimension z relates to the decomposition level.
  *  - Thread blocks at dimension y relates to the glwe dimension.
  *  - polynomial_size / params::opt threads are available per block
+ * To avoid a cluster synchronization the accumulator output is different than
+ * the input, and next iteration are switched to act as a ping pong buffer.
  */
 template <typename G, class params, uint32_t polynomial_size,
           uint32_t glwe_dimension, uint32_t level_count>
 __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
-    double2 *fft, double2 *join_buffer,
+    double2 *fft, double2 *accumulator_out,
     const double2 *__restrict__ bootstrapping_key, int iteration, G &group,
     int this_block_rank) {
   // Continues multiplying fft by every polynomial in that particular bsk level
@@ -195,14 +197,12 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
                                                              false>(
       buffer_regs, fft_slice, bsk_poly);
 
-  // Synchronize to ensure all blocks have used the fft already
-  group.sync();
-
-  // In 2_2 params, level_count=1 so we can just copy the result from the
-  // registers into shared without needing to accumulate
+  // We don't need to synchronize here, cause we are going to use a buffer
+  // different than the input In 2_2 params, level_count=1 so we can just copy
+  // the result from the registers into shared without needing to accumulate
   int tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
-    fft[tid] = buffer_regs[i];
+    accumulator_out[tid] = buffer_regs[i];
     tid += params::degree / params::opt;
   }
   __syncthreads();

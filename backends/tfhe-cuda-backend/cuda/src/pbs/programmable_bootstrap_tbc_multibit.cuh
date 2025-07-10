@@ -229,7 +229,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
       &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
-  double2 *block_join_buffer = (double2 *)sharedmem;
+  double2 *accumulator_aux = (double2 *)sharedmem;
 
   Torus *global_accumulator_slice =
       &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
@@ -262,25 +262,29 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
                                              base_log, level_count>(
         accumulator_rotated);
 
+    // This is the ping pong buffer logic to avoid a cluster synchronization
+    auto accumulator_in = i % 2 ? accumulator_fft : accumulator_aux;
+    auto accumulator_out = i % 2 ? accumulator_aux : accumulator_fft;
+
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
     decompose_and_compress_level_2_2_params<Torus, params, base_log>(
-        accumulator_fft, accumulator_rotated);
+        accumulator_in, accumulator_rotated);
 
-    NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
+    NSMFFT_direct<HalfDegree<params>>(accumulator_in);
     __syncthreads();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain_2_2_params<
         cluster_group, params, polynomial_size, glwe_dimension, level_count>(
-        accumulator_fft, block_join_buffer, keybundle, i, cluster,
+        accumulator_in, accumulator_out, keybundle, i, cluster,
         this_block_rank);
 
-    NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
+    NSMFFT_inverse<HalfDegree<params>>(accumulator_out);
     __syncthreads();
 
-    add_to_torus<Torus, params>(accumulator_fft, accumulator_rotated, true);
+    add_to_torus<Torus, params>(accumulator_out, accumulator_rotated, true);
   }
 
   auto accumulator = accumulator_rotated;
