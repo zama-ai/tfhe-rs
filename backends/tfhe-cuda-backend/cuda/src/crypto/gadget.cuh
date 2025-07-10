@@ -158,9 +158,10 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
     carry_re >>= (base_log - 1);
     carry_im >>= (base_log - 1);
 
-    // We don't need to update the state cause we know we won't use it anymore in 2_2 params
-    // *input1 += carry_re; // Update state
-    // *input2 += carry_im; // Update state
+    /* We don't need to update the state cause we know we won't use it anymore
+     *in 2_2 params input1 += carry_re; // Update state input2 += carry_im; //
+     *Update state
+     */
 
     res_re -= carry_re << base_log;
     res_im -= carry_im << base_log;

@@ -22,13 +22,13 @@ get_join_buffer_element(int level_id, int glwe_id, G &group,
                         double2 *global_memory_buffer, uint32_t polynomial_size,
                         uint32_t glwe_dimension, bool support_dsm);
 
-template <typename G>
-__device__ __forceinline__ double2 *get_join_buffer_element_tbc(
-    int level_id, int glwe_id, G &cluster, double2 *global_memory_buffer,
-    uint32_t polynomial_size, uint32_t glwe_dimension, bool support_dsm) {
+template <typename G, uint32_t level_id, uint32_t glwe_dimension>
+__device__ __forceinline__ double2 *
+get_join_buffer_element_tbc(int glwe_id, G &cluster,
+                            double2 *shared_memory_buffer) {
   double2 *buffer_slice;
   buffer_slice = cluster.map_shared_rank(
-      global_memory_buffer, glwe_id + level_id * (glwe_dimension + 1));
+      shared_memory_buffer, glwe_id + level_id * (glwe_dimension + 1));
   return buffer_slice;
 }
 
@@ -158,50 +158,53 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_128(
  *  - Thread blocks at dimension y relates to the glwe dimension.
  *  - polynomial_size / params::opt threads are available per block
  */
-template <typename G, class params>
+template <typename G, class params, uint32_t polynomial_size,
+          uint32_t glwe_dimension, uint32_t level_count>
 __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
     double2 *fft, double2 *join_buffer,
     const double2 *__restrict__ bootstrapping_key, int iteration, G &group,
-    int this_block_rank, bool support_dsm = false) {
-  const uint32_t polynomial_size = params::degree;
-  const uint32_t glwe_dimension = gridDim.y - 1;
-  const uint32_t level_count = gridDim.z;
-
-  // The first product is used to initialize level_join_buffer
-  // auto this_block_rank = get_this_block_rank<G>(group, support_dsm);
-
+    int this_block_rank) {
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
-  auto bsk_slice = get_ith_mask_kth_block(
-      bootstrapping_key, iteration, blockIdx.y, blockIdx.z, polynomial_size,
-      glwe_dimension, level_count);
-  for (int j = 0; j < glwe_dimension + 1; j++) {
-    int idx = (j + this_block_rank) % (glwe_dimension + 1);
+  // We accumulate in registers to free shared memory
+  double2 buffer_regs[params::opt / 2];
+  // In 2_2 params we only have one level
+  constexpr uint32_t level_id = 0;
+  // The first product doesn't need using dsm
+  auto bsk_slice =
+      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
+                                        glwe_dimension, level_count, level_id>(
+          bootstrapping_key, iteration, this_block_rank);
+  auto bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2;
+  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
+                                                             true>(
+      buffer_regs, fft, bsk_poly);
 
-    auto bsk_poly = bsk_slice + idx * polynomial_size / 2;
+  // Synchronize to ensure all blocks have written its fft result
+  group.sync();
+  constexpr uint32_t glwe_id = 1;
+  int idx = (glwe_id + this_block_rank) % (glwe_dimension + 1);
+  bsk_slice =
+      get_ith_mask_kth_block_2_2_params<double2, polynomial_size,
+                                        glwe_dimension, level_count, level_id>(
+          bootstrapping_key, iteration, idx);
+  bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2;
+  auto fft_slice =
+      get_join_buffer_element_tbc<G, level_id, glwe_dimension>(idx, group, fft);
+  polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
+                                                             false>(
+      buffer_regs, fft_slice, bsk_poly);
 
-    auto buffer_slice = get_join_buffer_element_tbc<G>(
-        blockIdx.z, idx, group, join_buffer, polynomial_size, glwe_dimension,
-        support_dsm);
+  // Synchronize to ensure all blocks have used the fft already
+  group.sync();
 
-    polynomial_product_accumulate_in_fourier_domain<params, double2>(
-        buffer_slice, fft, bsk_poly, j == 0);
-    group.sync();
+  // In 2_2 params, level_count=1 so we can just copy the result from the
+  // registers into shared without needing to accumulate
+  int tid = threadIdx.x;
+  for (int i = 0; i < params::opt / 2; i++) {
+    fft[tid] = buffer_regs[i];
+    tid += params::degree / params::opt;
   }
-
-  // -----------------------------------------------------------------
-  // All blocks are synchronized here; after this sync, level_join_buffer has
-  // the values needed from every other block
-
-  // accumulate rest of the products into fft buffer
-  for (int l = 0; l < level_count; l++) {
-    auto cur_src_acc = get_join_buffer_element_tbc<G>(
-        l, blockIdx.y, group, join_buffer, polynomial_size, glwe_dimension,
-        support_dsm);
-
-    polynomial_accumulate_in_fourier_domain<params>(fft, cur_src_acc, l == 0);
-  }
-
   __syncthreads();
 }
 

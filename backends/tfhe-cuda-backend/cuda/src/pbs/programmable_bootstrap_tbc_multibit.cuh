@@ -272,9 +272,10 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     __syncthreads();
 
     // Perform G^-1(ACC) * GGSW -> GLWE
-    mul_ggsw_glwe_in_fourier_domain_2_2_params<cluster_group, params>(
+    mul_ggsw_glwe_in_fourier_domain_2_2_params<
+        cluster_group, params, polynomial_size, glwe_dimension, level_count>(
         accumulator_fft, block_join_buffer, keybundle, i, cluster,
-        this_block_rank, support_dsm);
+        this_block_rank);
 
     NSMFFT_inverse<HalfDegree<params>>(accumulator_fft);
     __syncthreads();
