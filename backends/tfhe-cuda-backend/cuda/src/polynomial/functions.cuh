@@ -83,6 +83,36 @@ divide_by_monomial_negacyclic_inplace(T *accumulator,
 /*
  * Receives num_poly  concatenated polynomials of type T. For each:
  *
+ * Performs acc = acc * (X^ä + 1) if zeroAcc = false
+ * Performs acc = 0 if zeroAcc
+ * takes single buffer and calculates inplace.
+ *
+ *  By default, it works on a single polynomial.
+ */
+template <typename T, int elems_per_thread, int block_size>
+__device__ void divide_by_monomial_negacyclic_2_2_params_inplace(
+    T *accumulator, const T *__restrict__ input, uint32_t j) {
+  constexpr int degree = block_size * elems_per_thread;
+  int tid = threadIdx.x;
+  if (j < degree) {
+    for (int i = 0; i < elems_per_thread; i++) {
+      int x = tid + j - SEL(degree, 0, tid < degree - j);
+      accumulator[i] = SEL(-1, 1, tid < degree - j) * input[x];
+      tid += block_size;
+    }
+  } else {
+    int32_t jj = j - degree;
+    for (int i = 0; i < elems_per_thread; i++) {
+      int x = tid + jj - SEL(degree, 0, tid < degree - jj);
+      accumulator[i] = SEL(1, -1, tid < degree - jj) * input[x];
+      tid += block_size;
+    }
+  }
+}
+
+/*
+ * Receives num_poly  concatenated polynomials of type T. For each:
+ *
  * Performs result_acc = acc * (X^ä - 1) - acc
  * takes single buffer as input and returns a single rotated buffer
  *
@@ -152,12 +182,10 @@ __device__ void init_decomposer_state_inplace(T *rotated_acc, int base_log,
 template <typename T, int elems_per_thread, uint32_t block_size,
           uint32_t base_log, int level_count>
 __device__ void init_decomposer_state_inplace_2_2_params(T *rotated_acc) {
-  uint32_t tid = threadIdx.x;
   for (int i = 0; i < elems_per_thread; i++) {
-    T x_acc = rotated_acc[tid];
-    rotated_acc[tid] =
+    T x_acc = rotated_acc[i];
+    rotated_acc[i] =
         init_decomposer_state_2_2_params<T, base_log, level_count>(x_acc);
-    tid = tid + block_size;
   }
 }
 
@@ -187,6 +215,31 @@ __device__ void add_to_torus(double2 *m_values, Torus *result,
       result[tid] += torus_real;
       result[tid + params::degree / 2] += torus_imag;
     }
+    tid = tid + params::degree / params::opt;
+  }
+}
+
+/**
+ * In case of classical PBS, this method should accumulate the result.
+ * In case of multi-bit PBS, it should overwrite.
+ */
+template <typename Torus, class params>
+__device__ void add_to_torus_2_2_params(double2 *m_values, Torus *result) {
+  int tid = threadIdx.x;
+#pragma unroll
+  for (int i = 0; i < params::opt / 2; i++) {
+    double double_real = m_values[tid].x;
+    double double_imag = m_values[tid].y;
+
+    Torus torus_real = 0;
+    typecast_double_round_to_torus<Torus>(double_real, torus_real);
+
+    Torus torus_imag = 0;
+    typecast_double_round_to_torus<Torus>(double_imag, torus_imag);
+
+    result[i] = torus_real;
+    result[i + params::opt / 2] = torus_imag;
+
     tid = tid + params::degree / params::opt;
   }
 }
