@@ -179,7 +179,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
     int idx = (j + this_block_rank) % (glwe_dimension + 1);
 
     auto bsk_poly = bsk_slice + idx * polynomial_size / 2;
-    
+
     auto buffer_slice = get_join_buffer_element_tbc<G>(
         blockIdx.z, idx, group, join_buffer, polynomial_size, glwe_dimension,
         support_dsm);

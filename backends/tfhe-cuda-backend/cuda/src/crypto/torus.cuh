@@ -91,6 +91,23 @@ __device__ inline T init_decomposer_state(T input, uint32_t base_log,
   return res - (need_balance << rep_bit_count);
 }
 
+template <typename T, uint32_t base_log, uint32_t level_count>
+__device__ inline T init_decomposer_state_2_2_params(T input) {
+  constexpr T rep_bit_count = level_count * base_log;
+  constexpr T non_rep_bit_count = sizeof(T) * 8 - rep_bit_count;
+  T res = input >> (non_rep_bit_count - 1);
+  T rounding_bit = res & (T)(1);
+  res++;
+  res >>= 1;
+  constexpr T torus_max = scalar_max<T>();
+  constexpr T mod_mask = torus_max >> non_rep_bit_count;
+  res &= mod_mask;
+  T shifted_random = rounding_bit << (rep_bit_count - 1);
+  T need_balance =
+      (((res - (T)(1)) | shifted_random) & res) >> (rep_bit_count - 1);
+  return res - (need_balance << rep_bit_count);
+}
+
 template <typename T>
 __device__ __forceinline__ void modulus_switch(T input, T &output,
                                                uint32_t log_modulus) {
