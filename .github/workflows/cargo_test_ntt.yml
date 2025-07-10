@@ -13,7 +13,7 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -65,20 +65,11 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Test no-std (scalar only)
-        run: make test_ntt_no_std
+      - name: Test debug
+        run: make test_ntt
 
-      - name: Test Barrett reduction scalar implementations
-        run: |
-          cd tfhe-ntt
-          cargo test --release --lib -- test_barrett_reduction_large_prime_regression
-          cargo test --release --lib -- test_barrett_reduction_double_subtraction_regression
-          cargo test --release --lib -- test_mul_assign_normalize_scalar
-          cargo test --release --lib -- test_mul_accumulate_scalar
-          cargo test --release --lib -- test_normalize_scalar
-          cargo test --release --lib -- test_barrett32
-          cargo test --release --lib -- test_barrett52
-          cargo test --release --lib -- test_barrett64
+      - name: Test no-std
+        run: make test_ntt_no_std
 
   cargo-tests-ntt-nightly:
     needs: should-run
@@ -99,29 +90,11 @@ jobs:
           toolchain: nightly
           override: true
 
-      - name: Test nightly (includes SIMD on x86_64)
+      - name: Test nightly
         run: make test_ntt_nightly
 
-      - name: Test no-std nightly (includes SIMD on x86_64)
+      - name: Test no-std nightly
         run: make test_ntt_no_std_nightly
-
-      - name: Test Barrett reduction SIMD implementations (x86_64 only)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' || matrix.os == 'windows-latest'
-        run: |
-          cd tfhe-ntt
-          # Test non-regression tests for SIMD implementations
-          cargo test --release --features=nightly --lib -- test_barrett_reduction_double_subtraction_regression || echo "SIMD regression tests not available on this platform"
-          
-          # Test SIMD implementations specifically
-          cargo test --release --features=nightly --lib -- test_mul_assign_normalize_avx2 || echo "AVX2 not available on this platform"
-          cargo test --release --features=nightly --lib -- test_mul_assign_normalize_avx512 || echo "AVX512 not available on this platform"
-          cargo test --release --features=nightly --lib -- test_mul_accumulate_avx2 || echo "AVX2 not available on this platform"
-          cargo test --release --features=nightly --lib -- test_mul_accumulate_avx512 || echo "AVX512 not available on this platform"
-          cargo test --release --features=nightly --lib -- test_normalize_avx2 || echo "AVX2 not available on this platform"
-          cargo test --release --features=nightly --lib -- test_normalize_avx512 || echo "AVX512 not available on this platform"
-          # Test 64-bit SIMD implementations
-          cargo test --release --features=nightly --lib -- test_mul_assign_normalize_ifma || echo "IFMA not available on this platform"
-          cargo test --release --features=nightly --lib -- test_mul_accumulate_ifma || echo "IFMA not available on this platform"
 
   cargo-tests-ntt-successful:
     needs: [ should-run, cargo-tests-ntt, cargo-tests-ntt-nightly ]
@@ -139,8 +112,6 @@ jobs:
           needs.cargo-tests-ntt-nightly.result == 'success'
         run: |
           echo "All tfhe-ntt tests passed"
-          echo "✓ Scalar Barrett reduction tests: PASSED"
-          echo "✓ SIMD Barrett reduction tests: PASSED (on x86_64 platforms)"
 
       - name: Check tests failure
         if: needs.should-run.outputs.ntt_test == 'true' &&
@@ -148,5 +119,4 @@ jobs:
           needs.cargo-tests-ntt-nightly.result != 'success')
         run: |
           echo "Some tfhe-ntt tests failed"
-          echo "❌ Scalar Barrett reduction tests: FAILED" && exit 1
-          echo "❌ SIMD Barrett reduction tests: FAILED" && exit 1
+          exit 1
