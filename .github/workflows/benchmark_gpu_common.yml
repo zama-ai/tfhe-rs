@@ -187,7 +187,7 @@ jobs:
 
   cuda-benchmarks:
     name: Cuda benchmarks (${{ inputs.profile }})
-    needs: [ prepare-matrix, setup-instance ]
+    needs: [ prepare-matrix, setup-instance, install-dependencies ]
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
     timeout-minutes: 1440 # 24 hours
     continue-on-error: true
