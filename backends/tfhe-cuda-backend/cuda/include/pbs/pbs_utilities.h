@@ -544,6 +544,11 @@ __device__ T *get_ith_mask_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
                                      int glwe_dimension, uint32_t level_count);
 
+template <typename T, uint32_t polynomial_size, uint32_t glwe_dimension,
+          uint32_t level_count, uint32_t level_id>
+__device__ const T *get_ith_mask_kth_block_2_2_params(const T *ptr,
+                                                      int iteration, int k);
+
 template <typename T>
 __device__ T *get_ith_body_kth_block(T *ptr, int i, int k, int level,
                                      uint32_t polynomial_size,
