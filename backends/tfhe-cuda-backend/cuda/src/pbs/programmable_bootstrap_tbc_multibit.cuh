@@ -208,28 +208,17 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory;
 
-  if constexpr (SMD == FULLSM) {
-    // The first (polynomial_size/2) * sizeof(double2) bytes are reserved for
-    // external product using distributed shared memory
-    selected_memory = sharedmem;
-    if (support_dsm)
-      selected_memory += sizeof(Torus) * polynomial_size;
-  } else {
-    int block_index = blockIdx.z + blockIdx.y * gridDim.z +
-                      blockIdx.x * gridDim.z * gridDim.y;
-    selected_memory = &device_mem[block_index * device_memory_size_per_block];
-  }
+  // When using 2_2 params and tbc we know everything fits in shared memory
+  // The first (polynomial_size/2) * sizeof(double2) bytes are reserved for
+  // external product using distributed shared memory
+  selected_memory = sharedmem;
+  if (support_dsm)
+    selected_memory += sizeof(Torus) * polynomial_size;
 
   Torus *accumulator_rotated = (Torus *)selected_memory;
   double2 *accumulator_fft =
       (double2 *)accumulator_rotated +
       (ptrdiff_t)(sizeof(Torus) * polynomial_size / sizeof(double2));
-
-  if constexpr (SMD == PARTIALSM) {
-    accumulator_fft = (double2 *)sharedmem;
-    if (support_dsm)
-      accumulator_fft += sizeof(double2) * (polynomial_size / 2);
-  }
 
   // The first dimension of the block is used to determine on which ciphertext
   // this block is operating, in the case of batch bootstraps
@@ -241,9 +230,6 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
                   (glwe_dimension + 1)];
 
   double2 *block_join_buffer = (double2 *)sharedmem;
-  // double2 *block_join_buffer =
-  //     &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
-  //                  params::degree / 2];
 
   Torus *global_accumulator_slice =
       &global_accumulator[(blockIdx.y + blockIdx.x * (glwe_dimension + 1)) *
@@ -279,9 +265,9 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
-    GadgetMatrix<Torus, params> gadget_acc(base_log, level_count,
-                                           accumulator_rotated);
-    gadget_acc.decompose_and_compress_level(accumulator_fft, blockIdx.z);
+    decompose_and_compress_level_2_2_params<Torus, params, base_log>(
+        accumulator_fft, accumulator_rotated);
+
     NSMFFT_direct<HalfDegree<params>>(accumulator_fft);
     __syncthreads();
 
