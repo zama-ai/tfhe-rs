@@ -10,18 +10,57 @@ use crate::core_crypto::prelude::{
     RSigmaFactor, UnsignedInteger, Variance,
 };
 use crate::shortint::server_key::ModulusSwitchNoiseReductionKey;
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
-pub struct CudaModulusSwitchNoiseReductionKey {
+pub struct CudaModulusSwitchDriftNoiseReductionKey {
     pub modulus_switch_zeros: CudaVec<u64>,
     pub ms_bound: NoiseEstimationMeasureBound,
     pub ms_r_sigma_factor: RSigmaFactor,
     pub ms_input_variance: Variance,
     pub num_zeros: u32,
 }
+#[derive(Clone, Debug)]
+pub enum CudaModulusSwitchNoiseReductionConfiguration {
+    Drift(CudaModulusSwitchDriftNoiseReductionKey),
+    Centered,
+}
+
+impl CudaModulusSwitchNoiseReductionConfiguration {
+    pub fn from_modulus_switch_noise_reduction_key(
+        ms_noise_red_key: &ModulusSwitchNoiseReductionKey<u64>,
+        streams: &CudaStreams,
+    ) -> Self {
+        let h_input = ms_noise_red_key
+            .modulus_switch_zeros
+            .as_view()
+            .into_container();
+        let lwe_ciphertext_count = ms_noise_red_key.modulus_switch_zeros.lwe_ciphertext_count();
+
+        let mut d_zeros_vec = CudaVec::new_multi_gpu(
+            ms_noise_red_key.modulus_switch_zeros.lwe_size().0 * lwe_ciphertext_count.0,
+            streams,
+        );
+
+        unsafe {
+            d_zeros_vec.copy_from_cpu_multi_gpu_async(h_input, streams);
+        }
+
+        streams.synchronize();
+        Self::Drift(CudaModulusSwitchDriftNoiseReductionKey {
+            modulus_switch_zeros: d_zeros_vec,
+            num_zeros: ms_noise_red_key
+                .modulus_switch_zeros
+                .lwe_ciphertext_count()
+                .0 as u32,
+            ms_bound: ms_noise_red_key.ms_bound,
+            ms_r_sigma_factor: ms_noise_red_key.ms_r_sigma_factor,
+            ms_input_variance: ms_noise_red_key.ms_input_variance,
+        })
+    }
+}
 
 pub fn prepare_cuda_ms_noise_reduction_key_ffi(
-    input_ms_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    input_ms_key: Option<&CudaModulusSwitchDriftNoiseReductionKey>,
     modulus: f64,
 ) -> CudaModulusSwitchNoiseReductionKeyFFI {
     input_ms_key.map_or(
@@ -58,14 +97,15 @@ pub struct CudaLweBootstrapKey {
     // Decomposition level count
     pub(crate) decomp_level_count: DecompositionLevelCount,
     // Pointer to the noise reduction key
-    pub(crate) d_ms_noise_reduction_key: Option<CudaModulusSwitchNoiseReductionKey>,
+    pub(crate) ms_noise_reduction_configuration:
+        Option<CudaModulusSwitchNoiseReductionConfiguration>,
 }
 
 #[allow(dead_code)]
 impl CudaLweBootstrapKey {
     pub fn from_lwe_bootstrap_key<InputBskCont: Container>(
         bsk: &LweBootstrapKey<InputBskCont>,
-        ms_noise_reduction_key: Option<&ModulusSwitchNoiseReductionKey<u64>>,
+        ms_noise_reduction_configuration: Option<CudaModulusSwitchNoiseReductionConfiguration>,
         streams: &CudaStreams,
     ) -> Self
     where
@@ -106,39 +146,6 @@ impl CudaLweBootstrapKey {
             );
         }
 
-        // If noise reduction key is present, copy it to the GPU
-        let d_ms_noise_reduction_key = ms_noise_reduction_key.map_or_else(
-            || None,
-            |ms_noise_red_key| {
-                let h_input = ms_noise_red_key
-                    .modulus_switch_zeros
-                    .as_view()
-                    .into_container();
-                let lwe_ciphertext_count =
-                    ms_noise_red_key.modulus_switch_zeros.lwe_ciphertext_count();
-                let mut d_zeros_vec = CudaVec::new_multi_gpu(
-                    input_lwe_dimension.to_lwe_size().0 * lwe_ciphertext_count.0,
-                    streams,
-                );
-
-                unsafe {
-                    d_zeros_vec.copy_from_cpu_multi_gpu_async(h_input, streams);
-                }
-
-                streams.synchronize();
-                Some(CudaModulusSwitchNoiseReductionKey {
-                    modulus_switch_zeros: d_zeros_vec,
-                    num_zeros: ms_noise_red_key
-                        .modulus_switch_zeros
-                        .lwe_ciphertext_count()
-                        .0 as u32,
-                    ms_bound: ms_noise_red_key.ms_bound,
-                    ms_r_sigma_factor: ms_noise_red_key.ms_r_sigma_factor,
-                    ms_input_variance: ms_noise_red_key.ms_input_variance,
-                })
-            },
-        );
-
         streams.synchronize();
         Self {
             d_vec,
@@ -147,7 +154,7 @@ impl CudaLweBootstrapKey {
             polynomial_size,
             decomp_base_log,
             decomp_level_count,
-            d_ms_noise_reduction_key,
+            ms_noise_reduction_configuration,
         }
     }
 

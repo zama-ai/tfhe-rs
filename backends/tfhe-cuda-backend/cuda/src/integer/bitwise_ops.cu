@@ -7,12 +7,13 @@ uint64_t scratch_cuda_integer_radix_bitop_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    BITOP_TYPE op_type, bool allocate_gpu_memory, bool allocate_ms_array) {
+    BITOP_TYPE op_type, bool allocate_gpu_memory,
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, allocate_ms_array);
+                          message_modulus, carry_modulus, noise_reduction_type);
 
   return scratch_cuda_integer_radix_bitop_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,

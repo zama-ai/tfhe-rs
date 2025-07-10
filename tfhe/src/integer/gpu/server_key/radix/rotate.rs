@@ -51,7 +51,7 @@ impl CudaServerKey {
                     is_signed,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -172,7 +172,7 @@ impl CudaServerKey {
                     is_signed,
                     PBSType::Classical,
                     LweBskGroupingFactor(0),
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -587,7 +587,7 @@ impl CudaServerKey {
                 self.carry_modulus,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_full_propagate_assign_size_on_gpu(
@@ -640,7 +640,7 @@ impl CudaServerKey {
                 T::IS_SIGNED,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_rotate_left_integer_radix_kb_size_on_gpu(
@@ -698,7 +698,7 @@ impl CudaServerKey {
                 self.carry_modulus,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_full_propagate_assign_size_on_gpu(
@@ -751,7 +751,7 @@ impl CudaServerKey {
                 T::IS_SIGNED,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_rotate_right_integer_radix_kb_size_on_gpu(

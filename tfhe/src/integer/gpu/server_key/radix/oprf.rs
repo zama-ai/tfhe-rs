@@ -391,7 +391,7 @@ impl CudaServerKey {
                     PBSType::Classical,
                     message_bits_count,
                     total_random_bits as u32,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                    d_bsk.ms_noise_reduction_configuration.as_ref(),
                 );
             }
             CudaBootstrappingKey::MultiBit(d_bsk) => {
@@ -447,7 +447,7 @@ impl CudaServerKey {
                 PBSType::Classical,
                 message_bits,
                 message_bits,
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_bsk) => get_grouped_oprf_size_on_gpu(
                 streams,

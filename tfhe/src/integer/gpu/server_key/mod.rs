@@ -1,4 +1,6 @@
-use crate::core_crypto::gpu::lwe_bootstrap_key::CudaLweBootstrapKey;
+use crate::core_crypto::gpu::lwe_bootstrap_key::{
+    CudaLweBootstrapKey, CudaModulusSwitchNoiseReductionConfiguration,
+};
 use crate::core_crypto::gpu::lwe_keyswitch_key::CudaLweKeyswitchKey;
 use crate::core_crypto::gpu::lwe_multi_bit_bootstrap_key::CudaLweMultiBitBootstrapKey;
 use crate::core_crypto::gpu::CudaStreams;
@@ -107,26 +109,30 @@ impl CudaServerKey {
                         pbs_params.ciphertext_modulus,
                         &mut engine.encryption_generator,
                     );
-                let modulus_switch_noise_reduction_key =
-                    match pbs_params.modulus_switch_noise_reduction_params {
-                        ModulusSwitchType::Standard => None,
-                        ModulusSwitchType::DriftTechniqueNoiseReduction(
-                            modulus_switch_noise_reduction_params,
-                        ) => Some(ModulusSwitchNoiseReductionKey::new(
+                let modulus_switch_noise_reduction_configuration = match pbs_params
+                    .modulus_switch_noise_reduction_params
+                {
+                    ModulusSwitchType::Standard => None,
+                    ModulusSwitchType::DriftTechniqueNoiseReduction(
+                        modulus_switch_noise_reduction_params,
+                    ) => {
+                        let ms_red_key = ModulusSwitchNoiseReductionKey::new(
                             modulus_switch_noise_reduction_params,
                             &std_cks.lwe_secret_key,
                             &mut engine,
                             pbs_params.ciphertext_modulus,
                             pbs_params.lwe_noise_distribution,
-                        )),
-                        ModulusSwitchType::CenteredMeanNoiseReduction => {
-                            panic!("Centered MS not supportred on GPU")
-                        }
-                    };
+                        );
+                        Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&ms_red_key,streams))
+                    }
+                    ModulusSwitchType::CenteredMeanNoiseReduction => {
+                        Some(CudaModulusSwitchNoiseReductionConfiguration::Centered)
+                    }
+                };
 
                 let d_bootstrap_key = CudaLweBootstrapKey::from_lwe_bootstrap_key(
                     &h_bootstrap_key,
-                    modulus_switch_noise_reduction_key.as_ref(),
+                    modulus_switch_noise_reduction_configuration,
                     streams,
                 );
 
@@ -248,16 +254,16 @@ impl CudaServerKey {
         let bootstrapping_key = match bootstrapping_key {
             crate::shortint::server_key::compressed::ShortintCompressedBootstrappingKey::Classic{ bsk: h_bootstrap_key, modulus_switch_noise_reduction_key, } => {
 
-                let  ms_noise_reduction_key = match modulus_switch_noise_reduction_key {
+                let  modulus_switch_noise_reduction_configuration = match modulus_switch_noise_reduction_key {
                     CompressedModulusSwitchConfiguration::Standard => None,
-                    CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_key) => Some(modulus_switch_noise_reduction_key.decompress()),
-                    CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => panic!("Centered MS not supportred on GPU"),
+                    CompressedModulusSwitchConfiguration::DriftTechniqueNoiseReduction(modulus_switch_noise_reduction_key) => Some(CudaModulusSwitchNoiseReductionConfiguration::from_modulus_switch_noise_reduction_key(&modulus_switch_noise_reduction_key.decompress(), streams)),
+                    CompressedModulusSwitchConfiguration::CenteredMeanNoiseReduction => Some(CudaModulusSwitchNoiseReductionConfiguration::Centered),
                 };
 
                 let standard_bootstrapping_key = h_bootstrap_key.par_decompress_into_lwe_bootstrap_key();
 
                 let d_bootstrap_key =
-                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, ms_noise_reduction_key.as_ref(), streams);
+                    CudaLweBootstrapKey::from_lwe_bootstrap_key(&standard_bootstrapping_key, modulus_switch_noise_reduction_configuration, streams);
 
                 CudaBootstrappingKey::Classic(d_bootstrap_key)
             }

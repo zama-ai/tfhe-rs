@@ -40,7 +40,7 @@ impl CudaServerKey {
                         num_blocks,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {

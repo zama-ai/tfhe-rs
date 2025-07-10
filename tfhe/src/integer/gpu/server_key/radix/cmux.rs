@@ -52,7 +52,7 @@ impl CudaServerKey {
                         lwe_ciphertext_count.0 as u32,
                         PBSType::Classical,
                         LweBskGroupingFactor(0),
-                        d_bsk.d_ms_noise_reduction_key.as_ref(),
+                        d_bsk.ms_noise_reduction_configuration.as_ref(),
                     );
                 }
                 CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
@@ -163,7 +163,7 @@ impl CudaServerKey {
                 self.carry_modulus,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_full_propagate_assign_size_on_gpu(
@@ -215,7 +215,7 @@ impl CudaServerKey {
                 lwe_ciphertext_count.0 as u32,
                 PBSType::Classical,
                 LweBskGroupingFactor(0),
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
+                d_bsk.ms_noise_reduction_configuration.as_ref(),
             ),
             CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
                 get_cmux_integer_radix_kb_size_on_gpu(

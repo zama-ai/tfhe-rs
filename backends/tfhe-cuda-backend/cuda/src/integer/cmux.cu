@@ -7,12 +7,12 @@ uint64_t scratch_cuda_integer_radix_cmux_kb_64(
     uint32_t ks_base_log, uint32_t pbs_level, uint32_t pbs_base_log,
     uint32_t grouping_factor, uint32_t lwe_ciphertext_count,
     uint32_t message_modulus, uint32_t carry_modulus, PBS_TYPE pbs_type,
-    bool allocate_gpu_memory, bool allocate_ms_array) {
+    bool allocate_gpu_memory, PBS_MS_REDUCTION_T noise_reduction_type) {
   PUSH_RANGE("scratch cmux")
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           big_lwe_dimension, small_lwe_dimension, ks_level,
                           ks_base_log, pbs_level, pbs_base_log, grouping_factor,
-                          message_modulus, carry_modulus, allocate_ms_array);
+                          message_modulus, carry_modulus, noise_reduction_type);
 
   std::function<uint64_t(uint64_t)> predicate_lut_f =
       [](uint64_t x) -> uint64_t { return x == 1; };

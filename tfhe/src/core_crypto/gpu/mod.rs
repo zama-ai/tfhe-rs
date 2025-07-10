@@ -4,7 +4,7 @@ pub mod slice;
 pub mod vec;
 
 use crate::core_crypto::gpu::lwe_bootstrap_key::{
-    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionKey,
+    prepare_cuda_ms_noise_reduction_key_ffi, CudaModulusSwitchNoiseReductionConfiguration,
 };
 use crate::core_crypto::gpu::vec::{CudaVec, GpuIndex};
 use crate::core_crypto::prelude::{
@@ -27,6 +27,12 @@ pub struct CudaStreams {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for CudaStreams {}
 unsafe impl Sync for CudaStreams {}
+
+pub enum PBSMSNoiseReductionType {
+    NoReduction = PBS_MS_REDUCTION_T_NO_REDUCTION as isize,
+    Drift = PBS_MS_REDUCTION_T_DRIFT as isize,
+    Centered = PBS_MS_REDUCTION_T_CENTERED as isize,
+}
 
 impl CudaStreams {
     /// Create a new `CudaStreams` structure with as many GPUs as there are on the machine
@@ -145,20 +151,34 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
     base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
     num_samples: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     let num_many_lut = 1u32;
     let lut_stride = 0u32;
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
 
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let ms_noise_reduction_ptr = noise_reduction_key.map_or(std::ptr::null_mut(), |ms_key| {
-        ms_key.modulus_switch_zeros.ptr[0]
-    });
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+    let mut ms_noise_reduction_ptr = std::ptr::null_mut();
 
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    match ms_noise_reduction_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+                ms_noise_reduction_ptr = noise_reduction_key.modulus_switch_zeros.ptr[0];
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
+
     scratch_cuda_programmable_bootstrap_64(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -169,7 +189,7 @@ pub unsafe fn programmable_bootstrap_async<T: UnsignedInteger>(
         level.0 as u32,
         num_samples,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_programmable_bootstrap_lwe_ciphertext_vector_64(
@@ -210,10 +230,20 @@ pub fn get_programmable_bootstrap_size_on_gpu(
     polynomial_size: PolynomialSize,
     level: DecompositionLevelCount,
     num_samples: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
 ) -> u64 {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+    let noise_reduction_type =
+        ms_noise_reduction_configuration.map_or(PBSMSNoiseReductionType::NoReduction, |config| {
+            match config {
+                CudaModulusSwitchNoiseReductionConfiguration::Drift(_) => {
+                    PBSMSNoiseReductionType::Drift
+                }
+                CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                    PBSMSNoiseReductionType::Centered
+                }
+            }
+        });
     let size_tracker = unsafe {
         scratch_cuda_programmable_bootstrap_64(
             streams.ptr[0],
@@ -225,7 +255,7 @@ pub fn get_programmable_bootstrap_size_on_gpu(
             level.0 as u32,
             num_samples,
             false,
-            allocate_ms_noise_array,
+            noise_reduction_type as u32,
         )
     };
 
@@ -258,16 +288,32 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
     base_log: DecompositionBaseLog,
     level: DecompositionLevelCount,
     num_samples: u32,
-    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+    ms_noise_reduction_configuration: Option<&CudaModulusSwitchNoiseReductionConfiguration>,
     ct_modulus: f64,
 ) {
     let mut pbs_buffer: *mut i8 = std::ptr::null_mut();
-    let ms_noise_reduction_key_ffi =
-        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
-    let ms_noise_reduction_ptr = noise_reduction_key.map_or(std::ptr::null_mut(), |ms_key| {
-        ms_key.modulus_switch_zeros.ptr[0]
-    });
-    let allocate_ms_noise_array = noise_reduction_key.is_some();
+
+    // Initializes as NoReduction and change variables later if otherwise
+    let mut noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+    let mut ms_noise_reduction_key_ffi = prepare_cuda_ms_noise_reduction_key_ffi(None, ct_modulus);
+    let mut ms_noise_reduction_ptr = std::ptr::null_mut();
+
+    match ms_noise_reduction_configuration {
+        None => {
+            noise_reduction_type = PBSMSNoiseReductionType::NoReduction;
+        }
+        Some(config) => match config {
+            CudaModulusSwitchNoiseReductionConfiguration::Drift(noise_reduction_key) => {
+                ms_noise_reduction_key_ffi =
+                    prepare_cuda_ms_noise_reduction_key_ffi(Some(noise_reduction_key), ct_modulus);
+                ms_noise_reduction_ptr = noise_reduction_key.modulus_switch_zeros.ptr[0];
+            }
+            CudaModulusSwitchNoiseReductionConfiguration::Centered => {
+                noise_reduction_type = PBSMSNoiseReductionType::Centered;
+            }
+        },
+    }
+
     scratch_cuda_programmable_bootstrap_128(
         streams.ptr[0],
         streams.gpu_indexes[0].get(),
@@ -278,7 +324,7 @@ pub unsafe fn programmable_bootstrap_128_async<T: UnsignedInteger>(
         level.0 as u32,
         num_samples,
         true,
-        allocate_ms_noise_array,
+        noise_reduction_type as u32,
     );
 
     cuda_programmable_bootstrap_lwe_ciphertext_vector_128(
