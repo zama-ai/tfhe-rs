@@ -145,21 +145,22 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
   constexpr T mask_mod_b = (1ll << base_log) - 1ll;
   uint32_t tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
-    auto input1 = &state[tid];
-    auto input2 = &state[tid + params::degree / 2];
-    T res_re = *input1 & mask_mod_b;
-    T res_im = *input2 & mask_mod_b;
+    auto input1 = state[tid];
+    auto input2 = state[tid + params::degree / 2];
+    T res_re = input1 & mask_mod_b;
+    T res_im = input2 & mask_mod_b;
 
-    *input1 >>= base_log; // Update state
-    *input2 >>= base_log; // Update state
+    input1 >>= base_log; // Update state
+    input2 >>= base_log; // Update state
 
-    T carry_re = ((res_re - 1ll) | *input1) & res_re;
-    T carry_im = ((res_im - 1ll) | *input2) & res_im;
+    T carry_re = ((res_re - 1ll) | input1) & res_re;
+    T carry_im = ((res_im - 1ll) | input2) & res_im;
     carry_re >>= (base_log - 1);
     carry_im >>= (base_log - 1);
 
-    *input1 += carry_re; // Update state
-    *input2 += carry_im; // Update state
+    // We don't need to update the state cause we know we won't use it anymore in 2_2 params
+    // *input1 += carry_re; // Update state
+    // *input2 += carry_im; // Update state
 
     res_re -= carry_re << base_log;
     res_im -= carry_im << base_log;
