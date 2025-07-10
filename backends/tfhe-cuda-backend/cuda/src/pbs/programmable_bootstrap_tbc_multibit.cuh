@@ -240,7 +240,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
       &lut_vector[lut_vector_indexes[blockIdx.x] * params::degree *
                   (glwe_dimension + 1)];
 
-  double2 *block_join_buffer =  (double2 *) sharedmem;
+  double2 *block_join_buffer = (double2 *)sharedmem;
   // double2 *block_join_buffer =
   //     &join_buffer[blockIdx.x * level_count * (glwe_dimension + 1) *
   //                  params::degree / 2];
@@ -271,9 +271,10 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   for (int i = 0; (i + lwe_offset) < lwe_dimension && i < lwe_chunk_size; i++) {
     // Perform a rounding to increase the accuracy of the
     // bootstrapped ciphertext
-    init_decomposer_state_inplace<Torus, params::opt,
-                                  params::degree / params::opt>(
-        accumulator_rotated, base_log, level_count);
+    init_decomposer_state_inplace_2_2_params<Torus, params::opt,
+                                             params::degree / params::opt,
+                                             base_log, level_count>(
+        accumulator_rotated);
 
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
