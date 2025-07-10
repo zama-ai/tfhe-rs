@@ -84,6 +84,25 @@ void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
       static_cast<uint64_t *>(lwe_array_out), size, log_modulus);
 }
 
+void cuda_modulus_switch_64(void *stream, uint32_t gpu_index, void *lwe_out,
+                            const void *lwe_in, uint32_t size,
+                            uint32_t log_modulus) {
+  host_modulus_switch<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index,
+                                static_cast<uint64_t *>(lwe_out),
+                                static_cast<const uint64_t *>(lwe_in), size,
+                                log_modulus);
+}
+
+void cuda_centered_modulus_switch_64(void *stream, uint32_t gpu_index,
+                                     void *lwe_out, const void *lwe_in,
+                                     uint32_t lwe_dimension,
+                                     uint32_t log_modulus) {
+  host_centered_modulus_switch_inplace<uint64_t>(
+      static_cast<cudaStream_t>(stream), gpu_index,
+      static_cast<uint64_t *>(lwe_out), static_cast<const uint64_t *>(lwe_in),
+      lwe_dimension, log_modulus);
+}
+
 // This end point is used only for testing purposes
 // its output always follows trivial ordering
 void cuda_improve_noise_modulus_switch_64(

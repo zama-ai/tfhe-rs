@@ -69,12 +69,16 @@ __global__ void __launch_bounds__(params::degree / params::opt)
                             blockIdx.x * level_count * (glwe_dimension + 1)) *
                                (polynomial_size / 2) * 4;
 
+  constexpr auto log_modulus = params::log2_degree + 1;
   if constexpr (first_iter) {
     // First iteration
     // Put "b" in [0, 2N[
     InputTorus b_hat = 0;
-    modulus_switch<InputTorus>(block_lwe_array_in[lwe_dimension], b_hat,
-                               params::log2_degree + 1);
+    auto correction = centered_binary_modulus_switch_body_correction_to_add(
+        block_lwe_array_in, lwe_dimension, log_modulus);
+    modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                   log_modulus);
+
     // The y-dimension is used to select the element of the GLWE this block will
     // compute
     divide_by_monomial_negacyclic_inplace<__uint128_t, params::opt,
@@ -93,8 +97,7 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   // Put "a" in [0, 2N[
   InputTorus a_hat = 0;
   modulus_switch<InputTorus>(block_lwe_array_in[lwe_iteration], a_hat,
-                             params::log2_degree +
-                                 1); // 2 * params::log2_degree + 1);
+                             log_modulus);
 
   __syncthreads();
 
@@ -311,9 +314,12 @@ __global__ void device_programmable_bootstrap_cg_128(
   // rotated array is not in use anymore by the time we perform the fft
 
   // Put "b" in [0, 2N[
+  constexpr auto log_modulus = params::log2_degree + 1;
   InputTorus b_hat = 0;
-  modulus_switch<InputTorus>(block_lwe_array_in[lwe_dimension], b_hat,
-                             params::log2_degree + 1);
+  auto correction = centered_binary_modulus_switch_body_correction_to_add(
+      block_lwe_array_in, lwe_dimension, log_modulus);
+  modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                 log_modulus);
 
   divide_by_monomial_negacyclic_inplace<__uint128_t, params::opt,
                                         params::degree / params::opt>(
@@ -325,8 +331,7 @@ __global__ void device_programmable_bootstrap_cg_128(
 
     // Put "a" in [0, 2N[
     InputTorus a_hat = 0;
-    modulus_switch<InputTorus>(block_lwe_array_in[i], a_hat,
-                               params::log2_degree + 1);
+    modulus_switch<InputTorus>(block_lwe_array_in[i], a_hat, log_modulus);
 
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
