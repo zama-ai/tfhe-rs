@@ -192,7 +192,6 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     const double2 *__restrict__ keybundle_array, double2 *join_buffer,
     Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
     uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
-    int8_t *device_mem, uint64_t device_memory_size_per_block, bool support_dsm,
     uint32_t num_many_lut, uint32_t lut_stride) {
 
   constexpr uint32_t level_count = 1;
@@ -212,8 +211,8 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   // The first (polynomial_size/2) * sizeof(double2) bytes are reserved for
   // external product using distributed shared memory
   selected_memory = sharedmem;
-  if (support_dsm)
-    selected_memory += sizeof(Torus) * polynomial_size;
+  // We know that dsm is supported
+  selected_memory += sizeof(Torus) * polynomial_size;
 
   Torus *accumulator_rotated = (Torus *)selected_memory;
   double2 *accumulator_fft =
@@ -238,20 +237,22 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   const double2 *keybundle =
       &keybundle_array[blockIdx.x * keybundle_size_per_input];
 
+  // The acc rotated is moved to registers to free shared memory for other
+  // potential improvements. itself this change doesn't report much benefit.
+  Torus reg_acc_rotated[params::opt];
   if (lwe_offset == 0) {
     // Put "b" in [0, 2N[
     Torus b_hat = 0;
     modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
                    params::log2_degree + 1);
 
-    divide_by_monomial_negacyclic_inplace<Torus, params::opt,
-                                          params::degree / params::opt>(
-        accumulator_rotated, &block_lut_vector[blockIdx.y * params::degree],
-        b_hat, false);
+    divide_by_monomial_negacyclic_2_2_params_inplace<
+        Torus, params::opt, params::degree / params::opt>(
+        reg_acc_rotated, &block_lut_vector[blockIdx.y * params::degree], b_hat);
   } else {
     // Load the accumulator calculated in previous iterations
-    copy_polynomial<Torus, params::opt, params::degree / params::opt>(
-        global_accumulator_slice, accumulator_rotated);
+    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+        global_accumulator_slice, reg_acc_rotated);
   }
 
   for (int i = 0; (i + lwe_offset) < lwe_dimension && i < lwe_chunk_size; i++) {
@@ -260,7 +261,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     init_decomposer_state_inplace_2_2_params<Torus, params::opt,
                                              params::degree / params::opt,
                                              base_log, level_count>(
-        accumulator_rotated);
+        reg_acc_rotated);
 
     // This is the ping pong buffer logic to avoid a cluster synchronization
     auto accumulator_in = i % 2 ? accumulator_fft : accumulator_aux;
@@ -270,7 +271,7 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
     decompose_and_compress_level_2_2_params<Torus, params, base_log>(
-        accumulator_in, accumulator_rotated);
+        accumulator_in, reg_acc_rotated);
 
     NSMFFT_direct<HalfDegree<params>>(accumulator_in);
     __syncthreads();
@@ -284,9 +285,14 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     NSMFFT_inverse<HalfDegree<params>>(accumulator_out);
     __syncthreads();
 
-    add_to_torus<Torus, params>(accumulator_out, accumulator_rotated, true);
+    add_to_torus_2_2_params<Torus, params>(accumulator_out, reg_acc_rotated);
   }
-
+  // Temporary copy to keep the other logic as it is
+  for (int i = 0; i < params::opt; i++) {
+    accumulator_rotated[threadIdx.x + i * (params::degree / params::opt)] =
+        reg_acc_rotated[i];
+  }
+  __syncthreads();
   auto accumulator = accumulator_rotated;
 
   if (blockIdx.z == 0) {
@@ -564,8 +570,7 @@ __host__ void execute_tbc_external_product_loop(
           lwe_array_out, lwe_output_indexes, lut_vector, lut_vector_indexes,
           lwe_array_in, lwe_input_indexes, keybundle_fft, buffer_fft,
           global_accumulator, lwe_dimension, lwe_offset, chunk_size,
-          keybundle_size_per_input, d_mem, 0, supports_dsm, num_many_lut,
-          lut_stride));
+          keybundle_size_per_input, num_many_lut, lut_stride));
     } else {
       check_cuda_error(cudaLaunchKernelEx(
           &config,
