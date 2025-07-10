@@ -396,6 +396,7 @@ __host__ uint64_t scratch_programmable_bootstrap_cg_128(
     uint32_t level_count, uint32_t input_lwe_ciphertext_count,
     bool allocate_gpu_memory, bool allocate_ms_array) {
 
+  cuda_set_device(gpu_index);
   uint64_t full_sm =
       get_buffer_size_full_sm_programmable_bootstrap_cg<__uint128_t>(
           polynomial_size);
