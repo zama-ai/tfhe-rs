@@ -10,37 +10,16 @@ on:
 permissions: {}
 
 jobs:
-  run-benchmarks-1-h100:
-    name: Run integer benchmarks (1xH100)
+  run-benchmarks-8-h100-sxm5-integer:
+    name: Run integer benchmarks (8xH100-SXM5)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: single-h100
-      hardware_name: n3-H100x1
-      command: integer,integer_multi_bit
-      op_flavor: default
-      bench_type: latency
-      all_precisions: true
-    secrets:
-      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
-      JOB_SECRET: ${{ secrets.JOB_SECRET }}
-      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
-      SLAB_URL: ${{ secrets.SLAB_URL }}
-      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
-
-  run-benchmarks-2-h100:
-    name: Run integer benchmarks (2xH100)
-    if: github.repository == 'zama-ai/tfhe-rs'
-    uses: ./.github/workflows/benchmark_gpu_common.yml
-    with:
-      profile: 2-h100
-      hardware_name: n3-H100x2
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100x8-SXM5
       command: integer_multi_bit
       op_flavor: default
-      bench_type: latency
+      bench_type: both
       all_precisions: true
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -52,16 +31,16 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-8-h100:
-    name: Run integer benchmarks (8xH100)
+  run-benchmarks-8-h100-sxm5-integer-compression:
+    name: Run integer compression benchmarks (8xH100-SXM5)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: multi-h100
-      hardware_name: n3-H100x8
-      command: integer_multi_bit
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100x8-SXM5
+      command: integer_compression
       op_flavor: default
-      bench_type: latency
+      bench_type: both
       all_precisions: true
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
@@ -73,16 +52,37 @@ jobs:
       SLAB_URL: ${{ secrets.SLAB_URL }}
       SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
 
-  run-benchmarks-l40:
-    name: Run integer benchmarks (L40)
+  run-benchmarks-8-h100-sxm5-integer-zk:
+    name: Run integer zk benchmarks (8xH100-SXM5)
     if: github.repository == 'zama-ai/tfhe-rs'
     uses: ./.github/workflows/benchmark_gpu_common.yml
     with:
-      profile: l40
-      hardware_name: n3-L40x1
-      command: integer_multi_bit,integer_compression,pbs,ks
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100x8-SXM5
+      command: integer_zk
       op_flavor: default
-      bench_type: latency
+      bench_type: both
+      all_precisions: true
+    secrets:
+      BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      REPO_CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN }}
+      JOB_SECRET: ${{ secrets.JOB_SECRET }}
+      SLAB_ACTION_TOKEN: ${{ secrets.SLAB_ACTION_TOKEN }}
+      SLAB_URL: ${{ secrets.SLAB_URL }}
+      SLAB_BASE_URL: ${{ secrets.SLAB_BASE_URL }}
+
+  run-benchmarks-8-h100-sxm5-noise-squash:
+    name: Run integer zk benchmarks (8xH100-SXM5)
+    if: github.repository == 'zama-ai/tfhe-rs'
+    uses: ./.github/workflows/benchmark_gpu_common.yml
+    with:
+      profile: multi-h100-sxm5
+      hardware_name: n3-H100x8-SXM5
+      command: hlapi_noise_squash
+      op_flavor: default
+      bench_type: both
       all_precisions: true
     secrets:
       BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
