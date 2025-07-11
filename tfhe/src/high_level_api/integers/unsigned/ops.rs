@@ -277,6 +277,16 @@ where
     }
 }
 
+impl<Id> FheMax<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+    fn max(&self, rhs: Self) -> Self::Output {
+        self.max(&rhs)
+    }
+}
+
 impl<Id> FheMin<&Self> for FheUint<Id>
 where
     Id: FheUintId,
@@ -327,6 +337,16 @@ where
                 min_cmp.if_then_else(self, rhs)
             }
         })
+    }
+}
+
+impl<Id> FheMin<Self> for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    type Output = Self;
+    fn min(&self, rhs: Self) -> Self::Output {
+        self.min(&rhs)
     }
 }
 
@@ -1199,12 +1219,12 @@ generic_integer_impl_operation!(
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
     ///
-    /// let a = FheUint16::encrypt(37849u16, &client_key);
+    /// let a = FheUint16::encrypt(23u16, &client_key);
     /// let b = FheUint16::encrypt(3u16, &client_key);
     ///
     /// let result = &a / &b;
     /// let result: u16 = result.decrypt(&client_key);
-    /// assert_eq!(result, 37849u16 / 3u16);
+    /// assert_eq!(result, 23u16 / 3u16);
     /// ```
     rust_trait: Div(div),
     implem: {
