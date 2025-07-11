@@ -1149,6 +1149,66 @@ where
         })
     }
 
+    /// Rotates the bits of the unsigned integer to the right by multiple amounts,
+    /// returning an array of results.
+    ///
+    /// This is more efficient than calling rotate_right multiple times with different
+    /// amounts as it avoids unnecessary cloning of the input ciphertext.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::prelude::*;
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32};
+    ///
+    /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
+    /// set_server_key(server_key);
+    ///
+    /// let msg = 0x12345678_u32;
+    /// let amounts = [2, 7, 11];
+    ///
+    /// let a = FheUint32::encrypt(msg, &client_key);
+    /// let results = a.rotate_right_batch(amounts);
+    ///
+    /// let decrypted: Vec<u32> = results.iter().map(|r| r.decrypt(&client_key)).collect();
+    /// let expected: Vec<u32> = amounts.iter().map(|&amt| msg.rotate_right(amt)).collect();
+    /// assert_eq!(decrypted, expected);
+    /// ```
+    pub fn rotate_right_batch<const N: usize>(&self, amounts: [u32; N]) -> [Self; N] {
+        use std::array;
+
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(cpu_key) => {
+                let sk = &cpu_key.pbs_key();
+                let ct = self.ciphertext.on_cpu();
+
+                // Create results array by rotating with each amount
+                array::from_fn(|i| {
+                    let rotated_ct = sk.scalar_rotate_right_parallelized(&*ct, amounts[i]);
+                    Self::new(rotated_ct, cpu_key.tag.clone())
+                })
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(cuda_key) => {
+                let streams = &cuda_key.streams;
+                let ct = self.ciphertext.on_gpu(streams);
+
+                // Create results array by rotating with each amount
+                array::from_fn(|i| {
+                    let rotated_ct = cuda_key
+                        .key
+                        .key
+                        .scalar_rotate_right(&*ct, amounts[i], streams);
+                    Self::new(rotated_ct, cuda_key.tag.clone())
+                })
+            }
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+
     /// Creates a FheUint that encrypts either of two values depending
     /// on an encrypted condition
     ///
@@ -1566,6 +1626,61 @@ mod test {
             )));
 
             ct_clone += &ct_clone.clone();
+        }
+    }
+
+    #[test]
+    fn test_rotate_right_batch() {
+        let config = ConfigBuilder::default().build();
+        let (client_key, server_key) = generate_keys(config);
+        set_server_key(server_key);
+
+        // Test basic case from doctest
+        let msg = 0x12345678_u32;
+        let amounts = [2, 7, 11];
+        let ct = crate::FheUint32::encrypt(msg, &client_key);
+        let results = ct.rotate_right_batch(amounts);
+        let decrypted: Vec<u32> = results.iter().map(|r| r.decrypt(&client_key)).collect();
+        let expected: Vec<u32> = amounts.iter().map(|&amt| msg.rotate_right(amt)).collect();
+        assert_eq!(decrypted, expected);
+
+        // Test edge cases
+
+        // Single rotations
+        let single_cases = [
+            ([0u32], 0x12345678_u32),  // Zero rotation
+            ([1u32], 0xFFFF0000_u32),  // Single bit rotation
+            ([32u32], 0xABCDEF01_u32), // Full rotation (should equal original)
+        ];
+
+        for (amounts, msg) in single_cases {
+            let ct = crate::FheUint32::encrypt(msg, &client_key);
+            let results = ct.rotate_right_batch(amounts);
+            let decrypted: Vec<u32> = results.iter().map(|r| r.decrypt(&client_key)).collect();
+            let expected: Vec<u32> = amounts.iter().map(|&amt| msg.rotate_right(amt)).collect();
+            assert_eq!(
+                decrypted, expected,
+                "Failed for msg=0x{:x}, amounts={:?}",
+                msg, amounts
+            );
+        }
+
+        // Triple rotations
+        let triple_cases = [
+            ([1u32, 16, 31], 0xFFFFFFFF_u32), // All bits set
+            ([8u32, 16, 24], 0x12345678_u32), // Byte boundaries
+        ];
+
+        for (amounts, msg) in triple_cases {
+            let ct = crate::FheUint32::encrypt(msg, &client_key);
+            let results = ct.rotate_right_batch(amounts);
+            let decrypted: Vec<u32> = results.iter().map(|r| r.decrypt(&client_key)).collect();
+            let expected: Vec<u32> = amounts.iter().map(|&amt| msg.rotate_right(amt)).collect();
+            assert_eq!(
+                decrypted, expected,
+                "Failed for msg=0x{:x}, amounts={:?}",
+                msg, amounts
+            );
         }
     }
 }

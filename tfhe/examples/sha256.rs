@@ -269,28 +269,8 @@ const INIT: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
 
-fn par_rotr<const N: usize>(input: &FheUint32, amounts: [u32; N]) -> [FheUint32; N] {
-    let mut result = array::from_fn(|_| input.clone());
-
-    // TODO use input.rotate_right(amounts) when tfhe-rs adds it
-    result
-        .par_iter_mut()
-        .zip(amounts.into_par_iter())
-        .for_each(|(elem, amount)| elem.rotate_right_assign(amount));
-
-    result
-}
-
 fn rotr<const N: usize>(input: &FheUint32, amounts: [u32; N]) -> [FheUint32; N] {
-    let mut result = array::from_fn(|_| input.clone());
-
-    // TODO use input.rotate_right(amounts) when tfhe-rs adds it
-    result
-        .iter_mut()
-        .zip(amounts)
-        .for_each(|(elem, amount)| elem.rotate_right_assign(amount));
-
-    result
+    input.rotate_right_batch(amounts)
 }
 
 fn encrypt_data<T: AsRef<[u8]>>(input: T, client_key: Option<&ClientKey>) -> Vec<FheUint32> {
@@ -427,9 +407,9 @@ fn sha256_fhe_parallel(input: Vec<FheUint32>) -> [FheUint32; 8] {
 
         for i in 16..64 {
             let (s0_a, s0_b, s1_a, s1_b) = join!(
-                || par_rotr(&w[i - 15], [7u32, 18]),
+                || rotr(&w[i - 15], [7u32, 18]),
                 || (&w[i - 15] >> 3u32),
-                || par_rotr(&w[i - 2], [17u32, 19]),
+                || rotr(&w[i - 2], [17u32, 19]),
                 || (&w[i - 2] >> 10u32),
             );
 
@@ -451,11 +431,11 @@ fn sha256_fhe_parallel(input: Vec<FheUint32>) -> [FheUint32; 8] {
         for i in 0..64 {
             // Please clippy
             let e_rotations = || {
-                let rotations = par_rotr(&e, [6u32, 11, 25]);
+                let rotations = rotr(&e, [6u32, 11, 25]);
                 &rotations[0] ^ &rotations[1] ^ &rotations[2]
             };
             let a_rotations = || {
-                let rotations = par_rotr(&a, [2u32, 13, 22]);
+                let rotations = rotr(&a, [2u32, 13, 22]);
                 &rotations[0] ^ &rotations[1] ^ &rotations[2]
             };
             let (s1, ch, s0, maj) = join!(
