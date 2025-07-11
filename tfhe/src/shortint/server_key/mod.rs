@@ -441,6 +441,16 @@ where
             }
         }
     }
+
+    pub fn modulus_switch_configuration(&self) -> Option<&ModulusSwitchConfiguration<InputScalar>> {
+        match self {
+            Self::Classic {
+                bsk: _,
+                modulus_switch_noise_reduction_key,
+            } => Some(modulus_switch_noise_reduction_key),
+            Self::MultiBit { .. } => None,
+        }
+    }
 }
 
 /// A structure containing the server public key.
