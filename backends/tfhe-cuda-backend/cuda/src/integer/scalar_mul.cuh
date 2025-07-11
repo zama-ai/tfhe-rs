@@ -136,7 +136,8 @@ template <typename T>
 __host__ void host_integer_small_scalar_mul_radix(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, CudaRadixCiphertextFFI *output_lwe_array,
-    CudaRadixCiphertextFFI *input_lwe_array, T scalar) {
+    CudaRadixCiphertextFFI *input_lwe_array, T scalar,
+    const uint32_t message_modulus, const uint32_t carry_modulus) {
 
   if (output_lwe_array->num_radix_blocks != input_lwe_array->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
@@ -166,6 +167,8 @@ __host__ void host_integer_small_scalar_mul_radix(
     output_lwe_array->noise_levels[i] =
         input_lwe_array->noise_levels[i] * scalar;
     output_lwe_array->degrees[i] = input_lwe_array->degrees[i] * scalar;
+    CHECK_NOISE_LEVEL(output_lwe_array->noise_levels[i], message_modulus,
+                      carry_modulus);
   }
 }
 

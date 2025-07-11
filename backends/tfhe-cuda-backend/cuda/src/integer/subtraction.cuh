@@ -73,6 +73,7 @@ __host__ void host_integer_radix_subtraction(
       streams, gpu_indexes, gpu_count, lwe_array_out, lwe_array_in_2,
       message_modulus, carry_modulus, num_radix_blocks);
   host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array_out, lwe_array_out,
-                       lwe_array_in_1, num_radix_blocks);
+                       lwe_array_in_1, num_radix_blocks, message_modulus,
+                       carry_modulus);
 }
 #endif

@@ -268,10 +268,11 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // but in that position, interesting_remainder2 always has a 0
     auto merged_interesting_remainder = interesting_remainder1;
 
-    host_addition<Torus>(streams[0], gpu_indexes[0],
-                         merged_interesting_remainder,
-                         merged_interesting_remainder, interesting_remainder2,
-                         merged_interesting_remainder->num_radix_blocks);
+    host_addition<Torus>(
+        streams[0], gpu_indexes[0], merged_interesting_remainder,
+        merged_interesting_remainder, interesting_remainder2,
+        merged_interesting_remainder->num_radix_blocks,
+        radix_params.message_modulus, radix_params.carry_modulus);
 
     // after create_clean_version_of_merged_remainder
     // `merged_interesting_remainder` will be reused as
@@ -382,9 +383,10 @@ __host__ void host_unsigned_integer_div_rem_kb(
       cuda_synchronize_stream(mem_ptr->sub_streams_3[j], gpu_indexes[j]);
     }
 
-    host_addition<Torus>(streams[0], gpu_indexes[0], overflow_sum,
-                         subtraction_overflowed,
-                         at_least_one_upper_block_is_non_zero, 1);
+    host_addition<Torus>(
+        streams[0], gpu_indexes[0], overflow_sum, subtraction_overflowed,
+        at_least_one_upper_block_is_non_zero, 1, radix_params.message_modulus,
+        radix_params.carry_modulus);
 
     auto message_modulus = radix_params.message_modulus;
     int factor = (i) ? message_modulus - 1 : message_modulus - 2;
@@ -434,7 +436,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
       as_radix_ciphertext_slice<Torus>(&quotient_block, quotient, block_of_bit,
                                        block_of_bit + 1);
       host_addition<Torus>(streams[0], gpu_indexes[0], &quotient_block,
-                           &quotient_block, mem_ptr->did_not_overflow, 1);
+                           &quotient_block, mem_ptr->did_not_overflow, 1,
+                           radix_params.message_modulus,
+                           radix_params.carry_modulus);
     };
 
     for (uint j = 0; j < gpu_count; j++) {
@@ -477,7 +481,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
   // Clean the quotient and remainder
   // as even though they have no carries, they are not at nominal noise level
   host_addition<Torus>(streams[0], gpu_indexes[0], remainder, remainder1,
-                       remainder2, remainder1->num_radix_blocks);
+                       remainder2, remainder1->num_radix_blocks,
+                       radix_params.message_modulus,
+                       radix_params.carry_modulus);
 
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);

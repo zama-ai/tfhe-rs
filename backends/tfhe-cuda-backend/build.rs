@@ -54,8 +54,7 @@ fn main() {
         }
 
         if cfg!(feature = "debug") {
-            cmake_config.define("CMAKE_BUILD_TYPE", "DEBUG");
-            cmake_config.define("CMAKE_CXX_FLAGS", "-Wuninitialized -O0");
+            cmake_config.define("CMAKE_BUILD_TYPE", "Debug");
         }
 
         // Build the CMake project
