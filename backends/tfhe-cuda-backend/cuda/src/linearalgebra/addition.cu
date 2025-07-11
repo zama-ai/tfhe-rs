@@ -10,7 +10,7 @@ void cuda_add_lwe_ciphertext_vector_32(void *stream, uint32_t gpu_index,
       output->num_radix_blocks != input_2->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
   host_addition<uint32_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
-                          input_1, input_2, output->num_radix_blocks);
+                          input_1, input_2, output->num_radix_blocks, 0, 0);
 }
 
 /*
@@ -48,7 +48,7 @@ void cuda_add_lwe_ciphertext_vector_64(void *stream, uint32_t gpu_index,
       output->num_radix_blocks != input_2->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
   host_addition<uint64_t>(static_cast<cudaStream_t>(stream), gpu_index, output,
-                          input_1, input_2, output->num_radix_blocks);
+                          input_1, input_2, output->num_radix_blocks, 0, 0);
 }
 
 /*

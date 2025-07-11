@@ -159,11 +159,13 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
     // control_bit|b|a
     host_pack_bivariate_blocks<Torus>(
         streams, gpu_indexes, gpu_count, mux_inputs, mux_lut->lwe_indexes_out,
-        rotated_input, input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits);
+        rotated_input, input_bits_a, mux_lut->lwe_indexes_in, 2, total_nb_bits,
+        mem->params.message_modulus, mem->params.carry_modulus);
 
     // The shift bit is already properly aligned/positioned
     host_add_the_same_block_to_all_blocks<Torus>(
-        streams[0], gpu_indexes[0], mux_inputs, mux_inputs, &shift_bit);
+        streams[0], gpu_indexes[0], mux_inputs, mux_inputs, &shift_bit,
+        mem->params.message_modulus, mem->params.carry_modulus);
 
     // we have
     // control_bit|b|a
@@ -183,8 +185,9 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
 
   // Bitshift and add the other bits
   for (int i = bits_per_block - 2; i >= 0; i--) {
-    host_integer_small_scalar_mul_radix<Torus>(streams, gpu_indexes, gpu_count,
-                                               lwe_array, lwe_array, 2);
+    host_integer_small_scalar_mul_radix<Torus>(
+        streams, gpu_indexes, gpu_count, lwe_array, lwe_array, 2,
+        mem->params.message_modulus, mem->params.carry_modulus);
     for (int j = 0; j < num_radix_blocks; j++) {
       CudaRadixCiphertextFFI block;
       CudaRadixCiphertextFFI bit_to_add;
@@ -193,7 +196,8 @@ __host__ void host_integer_radix_shift_and_rotate_kb_inplace(
                                        i + j * bits_per_block,
                                        i + j * bits_per_block + 1);
       host_addition<Torus>(streams[0], gpu_indexes[0], &block, &block,
-                           &bit_to_add, 1);
+                           &bit_to_add, 1, mem->params.message_modulus,
+                           mem->params.carry_modulus);
     }
 
     // To give back a clean ciphertext
