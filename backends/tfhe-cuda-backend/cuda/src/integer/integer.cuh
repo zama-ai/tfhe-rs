@@ -597,6 +597,8 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
+                      params.carry_modulus);
   }
   POP_RANGE()
 }
@@ -702,6 +704,8 @@ __host__ void integer_radix_apply_many_univariate_lookup_table_kb(
     auto degrees_index = lut->h_lut_indexes[i % lut->num_blocks];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
+                      params.carry_modulus);
   }
   POP_RANGE()
 }
@@ -818,6 +822,8 @@ __host__ void integer_radix_apply_bivariate_lookup_table_kb(
     auto degrees_index = lut->h_lut_indexes[i];
     lwe_array_out->degrees[i] = lut->degrees[degrees_index];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
+                      params.carry_modulus);
   }
   POP_RANGE()
 }
@@ -1446,6 +1452,8 @@ void host_full_propagate_inplace(
     auto degrees_index = mem_ptr->lut->h_lut_indexes[0];
     input_blocks->degrees[i] = mem_ptr->lut->degrees[degrees_index];
     input_blocks->noise_levels[i] = NoiseLevel::NOMINAL;
+    CHECK_NOISE_LEVEL(input_blocks->noise_levels[i], params.message_modulus,
+                      params.carry_modulus);
 
     if (i < num_blocks - 1) {
       CudaRadixCiphertextFFI next_input_block;
@@ -1456,7 +1464,8 @@ void host_full_propagate_inplace(
                                        mem_ptr->tmp_big_lwe_vector, 1, 2);
 
       host_addition<Torus>(streams[0], gpu_indexes[0], &next_input_block,
-                           &next_input_block, &second_input, 1);
+                           &next_input_block, &second_input, 1,
+                           params.message_modulus, params.carry_modulus);
     }
   }
 }
@@ -1847,7 +1856,8 @@ void host_propagate_single_carry(
           "pointer")
   if (uses_carry == 1) {
     host_addition<Torus>(streams[0], gpu_indexes[0], lwe_array, lwe_array,
-                         input_carries, 1);
+                         input_carries, 1, params.message_modulus,
+                         params.carry_modulus);
   }
 
   // Step 1
@@ -1873,7 +1883,8 @@ void host_propagate_single_carry(
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
   host_addition<Torus>(
       streams[0], gpu_indexes[0], prepared_blocks, shifted_blocks,
-      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks);
+      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks,
+      params.message_modulus, params.carry_modulus);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
@@ -1882,7 +1893,8 @@ void host_propagate_single_carry(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
     host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
-                         &shifted_simulators, 1);
+                         &shifted_simulators, 1, params.message_modulus,
+                         params.carry_modulus);
   }
 
   host_radix_sum_in_groups<Torus>(
@@ -1896,7 +1908,8 @@ void host_propagate_single_carry(
         mem->prop_simu_group_carries_mem->resolved_carries, mem->num_groups - 1,
         mem->num_groups);
     host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
-                         &shifted_resolved_carries, 1);
+                         &shifted_resolved_carries, 1, params.message_modulus,
+                         params.carry_modulus);
 
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], prepared_blocks, num_radix_blocks,
@@ -1977,11 +1990,13 @@ void host_add_and_propagate_single_carry(
   }
 
   host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
-                       rhs_array, num_radix_blocks);
+                       rhs_array, num_radix_blocks, params.message_modulus,
+                       params.carry_modulus);
 
   if (uses_carry == 1) {
     host_addition<Torus>(streams[0], gpu_indexes[0], lhs_array, lhs_array,
-                         input_carries, 1);
+                         input_carries, 1, params.message_modulus,
+                         params.carry_modulus);
   }
   // Step 1
   host_compute_shifted_blocks_and_states<Torus>(
@@ -2012,7 +2027,8 @@ void host_add_and_propagate_single_carry(
   auto shifted_blocks = mem->shifted_blocks_state_mem->shifted_blocks;
   host_addition<Torus>(
       streams[0], gpu_indexes[0], prepared_blocks, shifted_blocks,
-      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks);
+      mem->prop_simu_group_carries_mem->simulators, num_radix_blocks,
+      params.message_modulus, params.carry_modulus);
 
   if (requested_flag == outputFlag::FLAG_OVERFLOW ||
       requested_flag == outputFlag::FLAG_CARRY) {
@@ -2021,7 +2037,8 @@ void host_add_and_propagate_single_carry(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
     host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag, &output_flag,
-                         &shifted_simulators, 1);
+                         &shifted_simulators, 1, params.message_modulus,
+                         params.carry_modulus);
   }
 
   // Step 3
@@ -2036,7 +2053,8 @@ void host_add_and_propagate_single_carry(
     if (num_radix_blocks == 1 && requested_flag == outputFlag::FLAG_OVERFLOW &&
         uses_carry == 1) {
       host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag,
-                           &output_flag, input_carries, 1);
+                           &output_flag, input_carries, 1,
+                           params.message_modulus, params.carry_modulus);
 
     } else {
       CudaRadixCiphertextFFI shifted_resolved_carries;
@@ -2045,7 +2063,8 @@ void host_add_and_propagate_single_carry(
           mem->prop_simu_group_carries_mem->resolved_carries,
           mem->num_groups - 1, mem->num_groups);
       host_addition<Torus>(streams[0], gpu_indexes[0], &output_flag,
-                           &output_flag, &shifted_resolved_carries, 1);
+                           &output_flag, &shifted_resolved_carries, 1,
+                           params.message_modulus, params.carry_modulus);
     }
     copy_radix_ciphertext_slice_async<Torus>(
         streams[0], gpu_indexes[0], prepared_blocks, num_radix_blocks,
@@ -2150,7 +2169,8 @@ void host_single_borrow_propagate(
         &shifted_simulators, mem->prop_simu_group_carries_mem->simulators,
         num_radix_blocks - 1, num_radix_blocks);
     host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
-                         mem->overflow_block, &shifted_simulators, 1);
+                         mem->overflow_block, &shifted_simulators, 1,
+                         params.message_modulus, params.carry_modulus);
   }
   CudaRadixCiphertextFFI resolved_borrows;
   as_radix_ciphertext_slice<Torus>(
@@ -2162,7 +2182,8 @@ void host_single_borrow_propagate(
   //  borrows
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
-                         mem->overflow_block, &resolved_borrows, 1);
+                         mem->overflow_block, &resolved_borrows, 1,
+                         params.message_modulus, params.carry_modulus);
   }
 
   cuda_event_record(mem->incoming_events[0], streams[0], gpu_indexes[0]);
@@ -2312,6 +2333,8 @@ __host__ void integer_radix_apply_noise_squashing_kb(
   for (uint i = 0; i < lut->num_blocks; i++) {
     lwe_array_out->degrees[i] = lut->degrees[0];
     lwe_array_out->noise_levels[i] = NoiseLevel::NOMINAL;
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], params.message_modulus,
+                      params.carry_modulus);
   }
   POP_RANGE()
 }

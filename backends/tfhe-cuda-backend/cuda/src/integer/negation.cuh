@@ -106,6 +106,8 @@ __host__ void host_integer_radix_negation(
 
     lwe_array_out->degrees[i] = z - static_cast<uint64_t>(zb);
     lwe_array_out->noise_levels[i] = lwe_array_in->noise_levels[i];
+    CHECK_NOISE_LEVEL(lwe_array_out->noise_levels[i], message_modulus,
+                      carry_modulus);
     zb = z / message_modulus;
   }
 }

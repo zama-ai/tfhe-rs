@@ -9,6 +9,7 @@
 #include "device.h"
 #include "helper_multi_gpu.h"
 #include "integer/integer.h"
+#include "integer/integer_utilities.h"
 #include "linear_algebra.h"
 #include "utils/kernel_dimensions.cuh"
 #include <stdio.h>
@@ -102,11 +103,12 @@ __global__ void addition(T *output, T const *input_1, T const *input_2,
 // Coefficient-wise addition
 // num_radix_blocks selects the amount of blocks to be added from the inputs
 template <typename T>
-__host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
-                            CudaRadixCiphertextFFI *output,
-                            CudaRadixCiphertextFFI const *input_1,
-                            CudaRadixCiphertextFFI const *input_2,
-                            uint32_t num_radix_blocks) {
+__host__ void
+host_addition(cudaStream_t stream, uint32_t gpu_index,
+              CudaRadixCiphertextFFI *output,
+              CudaRadixCiphertextFFI const *input_1,
+              CudaRadixCiphertextFFI const *input_2, uint32_t num_radix_blocks,
+              const uint32_t message_modulus, const uint32_t carry_modulus) {
   if (output->lwe_dimension != input_1->lwe_dimension ||
       output->lwe_dimension != input_2->lwe_dimension)
     PANIC("Cuda error: input and output num radix blocks must be the same")
@@ -135,6 +137,7 @@ __host__ void host_addition(cudaStream_t stream, uint32_t gpu_index,
     output->degrees[i] = input_1->degrees[i] + input_2->degrees[i];
     output->noise_levels[i] =
         input_1->noise_levels[i] + input_2->noise_levels[i];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
 }
 
@@ -160,7 +163,8 @@ template <typename T>
 __host__ void host_add_the_same_block_to_all_blocks(
     cudaStream_t stream, uint32_t gpu_index, CudaRadixCiphertextFFI *output,
     CudaRadixCiphertextFFI const *input_with_multiple_blocks,
-    CudaRadixCiphertextFFI const *input_with_single_block) {
+    CudaRadixCiphertextFFI const *input_with_single_block,
+    const uint32_t message_modulus, const uint32_t carry_modulus) {
   if (output->num_radix_blocks != input_with_multiple_blocks->num_radix_blocks)
     PANIC("Cuda error: input and output num radix blocks must be the same")
   if (input_with_single_block->num_radix_blocks != 1)
@@ -192,6 +196,7 @@ __host__ void host_add_the_same_block_to_all_blocks(
                          input_with_single_block->degrees[0];
     output->noise_levels[i] = input_with_multiple_blocks->noise_levels[i] +
                               input_with_single_block->noise_levels[0];
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
 }
 
@@ -380,6 +385,7 @@ __host__ void host_unchecked_sub_with_correcting_term(
     output->noise_levels[i] =
         input_1->noise_levels[i] + input_2->noise_levels[i];
     zb = z / message_modulus;
+    CHECK_NOISE_LEVEL(output->noise_levels[i], message_modulus, carry_modulus);
   }
 }
 

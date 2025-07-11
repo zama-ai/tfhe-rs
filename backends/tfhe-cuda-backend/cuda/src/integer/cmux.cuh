@@ -84,7 +84,8 @@ __host__ void host_integer_radix_cmux_kb(
                                    num_radix_blocks, 2 * num_radix_blocks);
 
   host_addition<Torus>(streams[0], gpu_indexes[0], &mem_true, &mem_true,
-                       &mem_false, num_radix_blocks);
+                       &mem_false, num_radix_blocks, params.message_modulus,
+                       params.carry_modulus);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, &mem_true, bsks, ksks,
