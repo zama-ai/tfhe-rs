@@ -13,7 +13,7 @@ env:
   CHECKOUT_TOKEN: ${{ secrets.REPO_CHECKOUT_TOKEN || secrets.GITHUB_TOKEN }}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}${{ github.ref == 'refs/heads/main' && github.sha || '' }}
+  group: ${{ github.workflow }}-${{ github.head_ref }}
   cancel-in-progress: true
 
 permissions:
