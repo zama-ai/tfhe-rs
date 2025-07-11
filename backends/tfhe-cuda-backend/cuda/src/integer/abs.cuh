@@ -53,7 +53,8 @@ __host__ void host_integer_abs_kb(
       streams, gpu_indexes, gpu_count, mask, num_bits_in_ciphertext - 1,
       mem_ptr->arithmetic_scalar_shift_mem, bsks, ksks, ms_noise_reduction_key);
   host_addition<Torus>(streams[0], gpu_indexes[0], ct, mask, ct,
-                       ct->num_radix_blocks);
+                       ct->num_radix_blocks, mem_ptr->params.message_modulus,
+                       mem_ptr->params.carry_modulus);
 
   uint32_t requested_flag = outputFlag::FLAG_NONE;
   uint32_t uses_carry = 0;

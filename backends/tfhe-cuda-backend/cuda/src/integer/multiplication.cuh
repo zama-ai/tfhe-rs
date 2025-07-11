@@ -346,7 +346,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     as_radix_ciphertext_slice<Torus>(&terms_slice, terms, num_radix_blocks,
                                      2 * num_radix_blocks);
     host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out, terms,
-                         &terms_slice, num_radix_blocks);
+                         &terms_slice, num_radix_blocks,
+                         mem_ptr->params.message_modulus,
+                         mem_ptr->params.carry_modulus);
     return;
   }
 
@@ -531,7 +533,8 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
 
     host_addition<Torus>(streams[0], gpu_indexes[0], radix_lwe_out,
                          current_blocks, &current_blocks_slice,
-                         num_radix_blocks);
+                         num_radix_blocks, mem_ptr->params.message_modulus,
+                         mem_ptr->params.carry_modulus);
   }
 }
 

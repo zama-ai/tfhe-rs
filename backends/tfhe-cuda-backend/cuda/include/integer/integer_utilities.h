@@ -20,6 +20,36 @@ public:
   static const uint64_t UNKNOWN = std::numeric_limits<uint64_t>::max();
 };
 
+#ifdef DEBUG
+#define CHECK_NOISE_LEVEL(noise_level_expr, msg_mod, carry_mod)                \
+  do {                                                                         \
+    if ((msg_mod) == 2 && (carry_mod) == 2) {                                  \
+      constexpr int max_noise_level = 3;                                       \
+      if ((noise_level_expr) > max_noise_level)                                \
+        PANIC("Cuda error: noise exceeds maximum authorized value for 1_1 "    \
+              "parameters");                                                   \
+    } else if ((msg_mod) == 4 && (carry_mod) == 4) {                           \
+      constexpr int max_noise_level = 5;                                       \
+      if ((noise_level_expr) > max_noise_level)                                \
+        PANIC("Cuda error: noise exceeds maximum authorized value for 2_2 "    \
+              "parameters");                                                   \
+    } else if ((msg_mod) == 8 && (carry_mod) == 8) {                           \
+      constexpr int max_noise_level = 9;                                       \
+      if ((noise_level_expr) > max_noise_level)                                \
+        PANIC("Cuda error: noise exceeds maximum authorized value for 3_3 "    \
+              "parameters");                                                   \
+    } else if ((msg_mod) == 0 && (carry_mod) == 0) {                           \
+      break;                                                                   \
+    } else {                                                                   \
+      PANIC("Invalid message modulus or carry modulus")                        \
+    }                                                                          \
+  } while (0)
+#else
+#define CHECK_NOISE_LEVEL(noise_level_expr, message_modulus, carry_modulus)    \
+  do {                                                                         \
+  } while (0)
+#endif
+
 template <typename Torus>
 __global__ void radix_blocks_rotate_right(Torus *dst, Torus *src,
                                           uint32_t value, uint32_t blocks_count,
