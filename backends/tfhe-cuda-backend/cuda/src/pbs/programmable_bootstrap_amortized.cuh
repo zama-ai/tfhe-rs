@@ -89,7 +89,9 @@ __global__ void device_programmable_bootstrap_amortized(
 
   // Put "b", the body, in [0, 2N[
   Torus b_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
+  Torus e_mms = centered_binary_modulus_switch_body_correction_to_add(
+      block_lwe_array_in, lwe_dimension, params::log2_degree + 1);
+  modulus_switch(block_lwe_array_in[lwe_dimension] + e_mms, b_hat,
                  params::log2_degree + 1);
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,

@@ -25,6 +25,10 @@ void cuda_glwe_sample_extract_64(void *stream, uint32_t gpu_index,
 void cuda_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
                                     void *lwe_array_out, uint32_t size,
                                     uint32_t log_modulus);
+    
+void cuda_centered_modulus_switch_inplace_64(void *stream, uint32_t gpu_index,
+                                    void *lwe_array_out, uint32_t lwe_dimension,
+                                    uint32_t log_modulus);
 
 void cuda_improve_noise_modulus_switch_64(
     void *stream, uint32_t gpu_index, void *lwe_array_out,

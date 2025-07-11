@@ -45,6 +45,15 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
+    pub fn cuda_centered_modulus_switch_inplace_64(
+        stream: *mut ffi::c_void,
+        gpu_index: u32,
+        lwe_array_out: *mut ffi::c_void,
+        lwe_dimension: u32,
+        log_modulus: u32,
+    );
+}
+unsafe extern "C" {
     pub fn cuda_improve_noise_modulus_switch_64(
         stream: *mut ffi::c_void,
         gpu_index: u32,
