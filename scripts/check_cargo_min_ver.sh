@@ -55,8 +55,10 @@ ver_minor="$(echo "${ver_string}" | cut -d '.' -f 2)"
 min_ver_major="$(echo "${MIN_RUST_VERSION}" | cut -d '.' -f 1)"
 min_ver_minor="$(echo "${MIN_RUST_VERSION}" | cut -d '.' -f 2)"
 
-if [[ "${ver_major}" -ge "${min_ver_major}" ]] && [[ "${ver_minor}" -ge "${min_ver_minor}" ]]; then
+if [[ "${ver_major}" -gt "${min_ver_major}" ]]; then
     exit 0
+elif [[ "${ver_major}" -eq "${min_ver_major}" ]] && [[ "${ver_minor}" -ge "${min_ver_minor}" ]]; then
+    exit 0
+else
+    exit 1
 fi
-
-exit 1
