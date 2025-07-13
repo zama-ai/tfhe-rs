@@ -149,7 +149,7 @@ To run this code, use the following command:
 > Note that when running code that uses `TFHE-rs`, it is highly recommended
 to run in release mode with cargo's `--release` flag to have the best performances possible.
 
-*Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick-start)*
+*Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick_start)*
 
 <p align="right">
   <a href="#about" > ↑ Back to top </a>
