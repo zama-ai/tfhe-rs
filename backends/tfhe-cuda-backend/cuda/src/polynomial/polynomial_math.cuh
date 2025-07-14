@@ -252,4 +252,24 @@ __device__ void polynomial_accumulate_monic_monomial_mul_on_regs(
   }
 }
 
+// Does the same as polynomial_accumulate_monic_monomial_mul() but result is
+// being written to registers and coefficients are precalculated
+template <typename T, class params>
+__device__ void polynomial_accumulate_monic_monomial_mul_on_regs_precalc(
+    T *result, const T *__restrict__ poly, int8_t *coefs,
+    uint32_t monomial_degree) {
+// Every thread has a fixed position to track instead of "chasing" the
+// position
+#pragma unroll
+  for (int i = 0; i < params::opt; i++) {
+    int pos =
+        (threadIdx.x + i * (params::degree / params::opt) - monomial_degree) &
+        (params::degree - 1);
+
+    T element = poly[pos];
+    result[i] +=
+        coefs[threadIdx.x + i * (params::degree / params::opt)] * element;
+  }
+}
+
 #endif // CNCRT_POLYNOMIAL_MATH_H
