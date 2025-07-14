@@ -296,15 +296,16 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
 
     add_to_torus_2_2_params<Torus, params>(accumulator_out, reg_acc_rotated);
   }
-  // Temporary copy to keep the other logic as it is
-  for (int i = 0; i < params::opt; i++) {
-    accumulator_rotated[threadIdx.x + i * (params::degree / params::opt)] =
-        reg_acc_rotated[i];
-  }
-  __syncthreads();
-  auto accumulator = accumulator_rotated;
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
+
+    // Temporary copy to keep the other logic as it is
+    for (int i = 0; i < params::opt; i++) {
+      accumulator_rotated[threadIdx.x + i * (params::degree / params::opt)] =
+          reg_acc_rotated[i];
+    }
+    __syncthreads();
+    auto accumulator = accumulator_rotated;
     auto block_lwe_array_out =
         &lwe_array_out[lwe_output_indexes[blockIdx.x] *
                            (glwe_dimension * polynomial_size + 1) +
@@ -575,6 +576,19 @@ __host__ void execute_tbc_external_product_loop(
     config.dynamicSmemBytes = full_dm + minimum_dm;
     if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
         glwe_dimension == 1 && base_log == 22) {
+      check_cuda_error(cudaFuncSetAttribute(
+          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+              Torus, params, FULLSM>,
+          cudaFuncAttributeMaxDynamicSharedMemorySize, full_dm + minimum_dm));
+      check_cuda_error(cudaFuncSetAttribute(
+          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+              Torus, params, FULLSM>,
+          cudaFuncAttributePreferredSharedMemoryCarveout,
+          cudaSharedmemCarveoutMaxShared));
+      check_cuda_error(cudaFuncSetCacheConfig(
+          device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
+              Torus, params, FULLSM>,
+          cudaFuncCachePreferShared));
       check_cuda_error(cudaLaunchKernelEx(
           &config,
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
