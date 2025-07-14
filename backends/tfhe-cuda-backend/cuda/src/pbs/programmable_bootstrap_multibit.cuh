@@ -146,6 +146,131 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
   }
 }
 
+template <typename Torus, class params, sharedMemDegree SMD>
+__global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
+    const Torus *__restrict__ lwe_array_in,
+    const Torus *__restrict__ lwe_input_indexes, double2 *keybundle_array,
+    const Torus *__restrict__ bootstrapping_key, uint32_t lwe_offset,
+    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input) {
+
+  constexpr uint32_t lwe_dimension = 920;
+  constexpr uint32_t polynomial_size = 2048;
+  constexpr uint32_t grouping_factor = 4;
+  constexpr uint32_t glwe_dimension = 1;
+  constexpr uint32_t level_count = 1;
+
+  extern __shared__ int8_t sharedmem[];
+  int8_t *selected_memory;
+  selected_memory = sharedmem;
+  // Some int8_t coefficients of values {-1,1,1} are precalculated to accelerate
+  // the monomial multiplication There is no need of synchronization since the
+  // sync is done after monimial calculation The precalculated coefficients are
+  // stored after the memory reserved for the monomials
+  // uint32_t[1<<grouping_factor]
+  int8_t *precalc_coefs =
+      selected_memory + (sizeof(uint32_t) * (1 << grouping_factor));
+  for (int i = 0; i < params::opt; i++) {
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt)] = -1;
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt) +
+                  params::degree] = 1;
+    precalc_coefs[threadIdx.x + i * (params::degree / params::opt) +
+                  2 * params::degree] = -1;
+  }
+
+  // Ids
+  constexpr uint32_t level_id = 0;
+  uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
+  uint32_t poly_id = blockIdx.y % (glwe_dimension + 1);
+  uint32_t lwe_iteration = (blockIdx.x % lwe_chunk_size + lwe_offset);
+  uint32_t input_idx = blockIdx.x / lwe_chunk_size;
+
+  if (lwe_iteration < (lwe_dimension / grouping_factor)) {
+
+    const Torus *block_lwe_array_in =
+        &lwe_array_in[lwe_input_indexes[input_idx] * (lwe_dimension + 1)];
+
+    double2 *keybundle = keybundle_array +
+                         // select the input
+                         input_idx * keybundle_size_per_input;
+
+    ////////////////////////////////////////////////////////////
+    // Computes all keybundles
+    uint32_t rev_lwe_iteration =
+        ((lwe_dimension / grouping_factor) - lwe_iteration - 1);
+
+    // ////////////////////////////////
+    // Keygen guarantees the first term is a constant term of the polynomial, no
+    // polynomial multiplication required
+    const Torus *bsk_slice = get_multi_bit_ith_lwe_gth_group_kth_block(
+        bootstrapping_key, 0, rev_lwe_iteration, glwe_id, level_id,
+        grouping_factor, 2 * polynomial_size, glwe_dimension, level_count);
+    const Torus *bsk_poly_ini = bsk_slice + poly_id * params::degree;
+
+    Torus reg_acc[params::opt];
+
+    copy_polynomial_in_regs<Torus, params::opt, params::degree / params::opt>(
+        bsk_poly_ini, reg_acc);
+
+    constexpr int offset = polynomial_size * (glwe_dimension + 1) *
+                           (glwe_dimension + 1) * level_count;
+    // Precalculate the monomial degrees and store them in shared memory
+    uint32_t *monomial_degrees = (uint32_t *)selected_memory;
+
+    if (threadIdx.x < (1 << grouping_factor)) {
+      const Torus *lwe_array_group =
+          block_lwe_array_in + rev_lwe_iteration * grouping_factor;
+      monomial_degrees[threadIdx.x] = calculates_monomial_degree<Torus, params>(
+          lwe_array_group, threadIdx.x, grouping_factor);
+    }
+    __syncthreads();
+
+    // Accumulate the other terms
+    for (int g = 1; g < (1 << grouping_factor); g++) {
+
+      uint32_t monomial_degree = monomial_degrees[g];
+
+      int full_cycles_count = monomial_degree / params::degree;
+      int remainder_degrees = monomial_degree % params::degree;
+      int jump = full_cycles_count * params::degree + params::degree -
+                 remainder_degrees;
+
+      const Torus *bsk_poly = bsk_poly_ini + g * offset;
+      // Multiply by the bsk element
+      polynomial_accumulate_monic_monomial_mul_on_regs_precalc<Torus, params>(
+          reg_acc, bsk_poly, precalc_coefs + jump, monomial_degree);
+    }
+    __syncthreads(); // needed because we are going to reuse the
+                     // shared memory for the fft
+
+    // Move from local memory back to shared memory but as complex
+    int tid = threadIdx.x;
+    double2 *fft = (double2 *)selected_memory;
+#pragma unroll
+    for (int i = 0; i < params::opt / 2; i++) {
+      fft[tid] =
+          make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
+                           (double)std::numeric_limits<Torus>::max(),
+                       __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
+                           (double)std::numeric_limits<Torus>::max());
+      tid += params::degree / params::opt;
+    }
+
+    NSMFFT_direct<HalfDegree<params>>(fft);
+
+    // lwe iteration
+    auto keybundle_out = get_ith_mask_kth_block(
+        keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
+        polynomial_size, glwe_dimension, level_count);
+    // auto keybundle_out = get_ith_mask_kth_block_2_2_params<Torus,
+    // polynomial_size,glwe_dimension,level_count,level_id>(keybundle,
+    // blockIdx.x % lwe_chunk_size, glwe_id);
+    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
+
+    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
+        fft, keybundle_poly);
+  }
+}
+
 template <typename Torus, class params, sharedMemDegree SMD, bool is_first_iter>
 __global__ void __launch_bounds__(params::degree / params::opt)
     device_multi_bit_programmable_bootstrap_accumulate_step_one(
@@ -562,20 +687,39 @@ __host__ void execute_compute_keybundle(
                       (glwe_dimension + 1) * (glwe_dimension + 1), level_count);
   dim3 thds(polynomial_size / params::opt, 1, 1);
 
-  if (max_shared_memory < full_sm_keybundle)
+  if (max_shared_memory < full_sm_keybundle) {
     device_multi_bit_programmable_bootstrap_keybundle<Torus, params, NOSM>
         <<<grid_keybundle, thds, 0, stream>>>(
             lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
             lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, full_sm_keybundle);
-  else
-    device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
-        <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
-            lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-            lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
-            level_count, lwe_offset, chunk_size, keybundle_size_per_input,
-            d_mem, 0);
+  } else {
+    if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
+        glwe_dimension == 1 && lwe_dimension == 920) {
+      check_cuda_error(cudaFuncSetAttribute(
+          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+              Torus, params, FULLSM>,
+          cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
+      cudaFuncSetCacheConfig(
+          device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+              Torus, params, FULLSM>,
+          cudaFuncCachePreferShared);
+      check_cuda_error(cudaGetLastError());
+      device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
+          Torus, params, FULLSM>
+          <<<grid_keybundle, thds, 3 * full_sm_keybundle, stream>>>(
+              lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+              lwe_offset, chunk_size, keybundle_size_per_input);
+    } else {
+      device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
+          <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
+              lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+              lwe_dimension, glwe_dimension, polynomial_size, grouping_factor,
+              level_count, lwe_offset, chunk_size, keybundle_size_per_input,
+              d_mem, 0);
+    }
+  }
   check_cuda_error(cudaGetLastError());
 }
 
