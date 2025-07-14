@@ -697,18 +697,19 @@ __host__ void execute_compute_keybundle(
   } else {
     if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
         glwe_dimension == 1 && lwe_dimension == 920) {
+      dim3 thds_new_keybundle(512, 1, 1);
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, params, FULLSM>,
+              Torus, Degree<2048>, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize, 3 * full_sm_keybundle));
       cudaFuncSetCacheConfig(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-              Torus, params, FULLSM>,
+              Torus, Degree<2048>, FULLSM>,
           cudaFuncCachePreferShared);
       check_cuda_error(cudaGetLastError());
       device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-          Torus, params, FULLSM>
-          <<<grid_keybundle, thds, 3 * full_sm_keybundle, stream>>>(
+          Torus, Degree<2048>, FULLSM>
+          <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle, stream>>>(
               lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
               lwe_offset, chunk_size, keybundle_size_per_input);
     } else {
