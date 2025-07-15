@@ -354,6 +354,9 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     copy_polynomial_from_regs<Torus, params::opt, params::degree / params::opt>(
         reg_acc_rotated, global_accumulator_slice);
   }
+  // Before exiting the kernel we need to sync the cluster to ensure that
+  //  that other blocks can still access the dsm in the ping pong buffer
+  cluster.sync();
 }
 
 template <typename Torus>

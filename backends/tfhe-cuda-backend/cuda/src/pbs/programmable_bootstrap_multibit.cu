@@ -415,15 +415,15 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           level_count, cuda_get_max_shared_memory(gpu_index));
 
-  if (supports_tbc &&
-      !(input_lwe_ciphertext_count > num_sms / 2 && supports_cg))
-    return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
-        stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
-        glwe_dimension, polynomial_size, level_count,
-        input_lwe_ciphertext_count, allocate_gpu_memory);
-  else
+  // if (supports_tbc &&
+  //     !(input_lwe_ciphertext_count > num_sms / 2 && supports_cg))
+  return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
+      stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
+      glwe_dimension, polynomial_size, level_count, input_lwe_ciphertext_count,
+      allocate_gpu_memory);
+  // else
 #endif
-      if (supports_cg)
+  if (supports_cg)
     return scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         glwe_dimension, polynomial_size, level_count,
