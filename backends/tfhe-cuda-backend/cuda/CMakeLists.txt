@@ -78,8 +78,10 @@ endif()
 
 add_compile_definitions(CUDA_ARCH=${CUDA_ARCH})
 
+string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWERCASE)
+
 # Check if the DEBUG flag is defined
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE_LOWERCASE STREQUAL "debug")
   # Debug mode
   message("Compiling in Debug mode")
   add_definitions(-DDEBUG)
