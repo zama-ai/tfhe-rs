@@ -74,4 +74,11 @@ __device__ inline double2 operator*(double a, double2 b) {
   return {__dmul_rn(b.x, a), __dmul_rn(b.y, a)};
 }
 
+__device__ inline double2 shfl_xor_double2(double2 val, int laneMask,
+                                           unsigned mask = 0xFFFFFFFF) {
+  double lo = __shfl_xor_sync(mask, val.x, laneMask);
+  double hi = __shfl_xor_sync(mask, val.y, laneMask);
+
+  return make_double2(lo, hi);
+}
 #endif
