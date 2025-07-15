@@ -46,6 +46,10 @@ mod test_cpu_doc {
         "../docs/fhe-computation/advanced-features/zk-pok.md",
         advanced_features_zk_pok
     );
+    doctest!(
+        "../docs/fhe-computation/advanced-features/upgrade-key-chain.md",
+        upgrade_key_chain
+    );
 
     // COMPUTE
     doctest!(

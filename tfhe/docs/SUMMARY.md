@@ -53,6 +53,7 @@
   * [Zero-knowledge proofs](fhe-computation/advanced-features/zk-pok.md)
   * [Multi-threading with Rayon crate](fhe-computation/advanced-features/rayon-crate.md)
   * [Noise squashing](fhe-computation/advanced-features/noise-squashing.md)
+  * [Key upgrade](fhe-computation/advanced-features/upgrade-key-chain.md)
 * [Tooling](fhe-computation/tooling/README.md)
   * [PBS statistics](fhe-computation/tooling/pbs-stats.md)
   * [Generic trait bounds](fhe-computation/tooling/trait-bounds.md)
