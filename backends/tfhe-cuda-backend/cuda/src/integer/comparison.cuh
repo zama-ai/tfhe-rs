@@ -218,6 +218,8 @@ __host__ void is_at_least_one_comparisons_block_true(
   while (remaining_blocks > 0) {
     // Split in max_value chunks
     int num_chunks = (remaining_blocks + max_value - 1) / max_value;
+    cudaDeviceSynchronize();
+    printf("Is at least one comparison block true chunks %d\n", num_chunks);
 
     // Since all blocks encrypt either 0 or 1, we can sum max_value of them
     // as in the worst case we will be adding `max_value` ones
@@ -243,6 +245,8 @@ __host__ void is_at_least_one_comparisons_block_true(
 
     // Applies the LUT
     if (remaining_blocks == 1) {
+        cudaDeviceSynchronize();
+        printf("Last lut\n");
       // In the last iteration we copy the output to the final address
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, lwe_array_out,
@@ -250,6 +254,8 @@ __host__ void is_at_least_one_comparisons_block_true(
           lut, 1);
       return;
     } else {
+        cudaDeviceSynchronize();
+        printf("lut with %d blocks\n", num_chunks);
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
           streams, gpu_indexes, gpu_count, mem_ptr->tmp_lwe_array_out,
           buffer->tmp_block_accumulated, bsks, ksks, ms_noise_reduction_key,
@@ -296,6 +302,8 @@ __host__ void host_compare_blocks_with_zero(
   // Accumulator
   auto sum = lwe_array_out;
 
+  cudaDeviceSynchronize();
+  printf("Here in compare blocks with zero\n");
   if (num_radix_blocks == 1) {
     // Just copy
     copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0], sum, 0,
@@ -306,6 +314,8 @@ __host__ void host_compare_blocks_with_zero(
     auto sum_i = (Torus *)sum->ptr;
     auto chunk = (Torus *)lwe_array_in->ptr;
     while (remainder_blocks > 1) {
+        cudaDeviceSynchronize();
+        printf("Here in compare blocks with zero remainder blocks %d\n", remainder_blocks);
       uint32_t chunk_size =
           std::min(remainder_blocks, num_elements_to_fill_carry);
 
@@ -320,6 +330,8 @@ __host__ void host_compare_blocks_with_zero(
       sum_i += big_lwe_size;
     }
   }
+    cudaDeviceSynchronize();
+    printf("Here in compare blocks with zero num sum blocks: %d\n", num_sum_blocks);
 
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array_out, sum, bsks, ksks,
