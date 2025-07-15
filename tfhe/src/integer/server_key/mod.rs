@@ -7,6 +7,7 @@ pub(crate) mod crt;
 mod crt_parallel;
 pub(crate) mod radix;
 pub(crate) mod radix_parallel;
+pub use radix_parallel::kv_store::KVStore;
 
 use super::backward_compatibility::server_key::{CompressedServerKeyVersions, ServerKeyVersions};
 use crate::conformance::ParameterSetConformant;
