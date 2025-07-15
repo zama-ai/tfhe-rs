@@ -4,7 +4,9 @@ mod oprf;
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, EnvConfig, OperatorType, ParamsAndNumBlocksIter};
+use crate::utilities::{
+    write_to_json, BenchmarkType, EnvConfig, OperatorType, ParamsAndNumBlocksIter, BENCH_TYPE,
+};
 use criterion::{criterion_group, Criterion};
 use rand::prelude::*;
 use std::env;
@@ -1128,7 +1130,9 @@ define_server_key_bench_default_fn!(
 #[cfg(feature = "gpu")]
 mod cuda {
     use super::*;
-    use criterion::criterion_group;
+    use crate::utilities::{throughput_num_threads, BenchmarkType, BENCH_TYPE};
+    use criterion::{criterion_group, Throughput};
+    use rayon::prelude::*;
     use tfhe::core_crypto::gpu::CudaStreams;
     use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     use tfhe::integer::gpu::ciphertext::CudaUnsignedRadixCiphertext;
@@ -1200,11 +1204,12 @@ mod cuda {
         binary_op: F,
     ) where
         F: Fn(
-            &CudaServerKey,
-            &mut CudaUnsignedRadixCiphertext,
-            &mut CudaUnsignedRadixCiphertext,
-            &CudaStreams,
-        ),
+                &CudaServerKey,
+                &mut CudaUnsignedRadixCiphertext,
+                &mut CudaUnsignedRadixCiphertext,
+                &CudaStreams,
+            ) + Sync
+            + Send,
     {
         let mut bench_group = c.benchmark_group(bench_name);
         bench_group
@@ -1217,39 +1222,72 @@ mod cuda {
         for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
             let param_name = param.name();
 
-            let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+            let bench_id;
 
-            bench_group.bench_function(&bench_id, |b| {
-                let (cks, _cpu_sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
-                let gpu_sks = CudaServerKey::new(&cks, &streams);
+            match BENCH_TYPE.get().unwrap() {
+                BenchmarkType::Latency => {
+                    bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
 
-                let encrypt_two_values = || {
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_0 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_0 = cks.encrypt_radix(clear_0, num_block);
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &streams);
 
-                    let clearlow = rng.gen::<u128>();
-                    let clearhigh = rng.gen::<u128>();
-                    let clear_1 = tfhe::integer::U256::from((clearlow, clearhigh));
-                    let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                        let encrypt_two_values = || {
+                            let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let ct_1 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                            let d_ctxt_1 =
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams);
+                            let d_ctxt_2 =
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams);
 
-                    let d_ctxt_1 =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams);
-                    let d_ctxt_2 =
-                        CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams);
+                            (d_ctxt_1, d_ctxt_2)
+                        };
 
-                    (d_ctxt_1, d_ctxt_2)
-                };
+                        b.iter_batched(
+                            encrypt_two_values,
+                            |(mut ct_0, mut ct_1)| {
+                                binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &streams);
+                            },
+                            criterion::BatchSize::SmallInput,
+                        )
+                    });
+                }
+                BenchmarkType::Throughput => {
+                    bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                    bench_group
+                        .sample_size(10)
+                        .measurement_time(std::time::Duration::from_secs(30));
+                    let elements = throughput_num_threads(num_block);
+                    bench_group.throughput(Throughput::Elements(elements));
+                    bench_group.bench_function(&bench_id, |b| {
+                        let (cks, _cpu_sks) =
+                            KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+                        let gpu_sks = CudaServerKey::new(&cks, &streams);
 
-                b.iter_batched(
-                    encrypt_two_values,
-                    |(mut ct_0, mut ct_1)| {
-                        binary_op(&gpu_sks, &mut ct_0, &mut ct_1, &streams);
-                    },
-                    criterion::BatchSize::SmallInput,
-                )
-            });
+                        let mut cts_0 = (0..elements)
+                            .map(|_| {
+                                let ct_0 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_0, &streams)
+                            })
+                            .collect::<Vec<_>>();
+                        let mut cts_1 = (0..elements)
+                            .map(|_| {
+                                let ct_1 = cks.encrypt_radix(gen_random_u256(&mut rng), num_block);
+                                CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_1, &streams)
+                            })
+                            .collect::<Vec<_>>();
+
+                        b.iter(|| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&gpu_sks, ct_0, ct_1, &streams);
+                                },
+                            )
+                        })
+                    });
+                }
+            }
 
             write_to_json::<u64, _>(
                 &bench_id,
@@ -2054,18 +2092,18 @@ mod cuda {
         cuda_add,
         cuda_mul,
         cuda_div_rem,
-        cuda_bitand,
-        cuda_bitnot,
-        cuda_left_shift,
-        cuda_rotate_left,
-        cuda_eq,
+        // cuda_bitand,
+        // cuda_bitnot,
+        // cuda_left_shift,
+        // cuda_rotate_left,
+        // cuda_eq,
         cuda_gt,
-        cuda_max,
-        cuda_default_if_then_else,
-        cuda_ilog2,
-        cuda_scalar_mul,
-        cuda_scalar_div,
-        cuda_scalar_rem,
+        // cuda_max,
+        // cuda_default_if_then_else,
+        // cuda_ilog2,
+        // cuda_scalar_mul,
+        // cuda_scalar_div,
+        // cuda_scalar_rem,
     );
 
     criterion_group!(
@@ -2541,7 +2579,7 @@ fn go_through_gpu_bench_groups(val: &str) {
         "default" => {
             default_cuda_ops();
             default_scalar_cuda_ops();
-            cuda_cast_ops();
+            // cuda_cast_ops();
         }
         "fast_default" => {
             default_cuda_dedup_ops();
@@ -2588,6 +2626,8 @@ fn go_through_cpu_bench_groups(val: &str) {
     };
 }
 fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             #[cfg(feature = "gpu")]

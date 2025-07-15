@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::path::PathBuf;
 use std::{env, fs};
+use std::sync::OnceLock;
 use tfhe::core_crypto::prelude::*;
 
 #[cfg(feature = "boolean")]
@@ -152,6 +153,7 @@ pub mod shortint_utils {
 #[allow(unused_imports)]
 #[cfg(feature = "shortint")]
 pub use shortint_utils::*;
+use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
 
 #[derive(Clone, Copy, Default, Serialize)]
 pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
@@ -352,6 +354,47 @@ impl EnvConfig {
             }
         } else {
             BENCH_BIT_SIZES.to_vec()
+        }
+    }
+}
+
+#[allow(dead_code)]
+pub fn throughput_num_threads(num_block: usize) -> u64 {
+    let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
+    let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil();
+
+    #[cfg(feature = "gpu")]
+    {
+        // This value is for Nvidia H100 GPU
+        let streaming_multiprocessors = 132;
+        let num_gpus = unsafe { cuda_get_number_of_gpus() };
+        ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        let num_threads = rayon::current_num_threads() as f64;
+        // Add 20% more to maximum threads available.
+        ((num_threads + (num_threads * 0.2)) * block_multiplicator) as u64
+    }
+}
+
+#[allow(dead_code)]
+pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
+
+#[allow(dead_code)]
+pub enum BenchmarkType {
+    Latency,
+    Throughput,
+}
+
+#[allow(dead_code)]
+impl BenchmarkType {
+    pub fn from_env() -> Result<Self, String> {
+        let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
+        match raw_value.to_lowercase().as_str() {
+            "latency" => Ok(BenchmarkType::Latency),
+            "throughput" => Ok(BenchmarkType::Throughput),
+            _ => Err(format!("benchmark type '{raw_value}' is not supported")),
         }
     }
 }

@@ -49,6 +49,7 @@ impl ShortintEngine {
         match grouping_factor.0 {
             2 => ThreadCount(5),
             3 => ThreadCount(7),
+            4 => ThreadCount(13),
             _ => {
                 todo!("Currently shortint only supports grouping factor 2 and 3 for multi bit PBS")
             }
