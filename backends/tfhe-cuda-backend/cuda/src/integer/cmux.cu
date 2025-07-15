@@ -17,11 +17,12 @@ uint64_t scratch_cuda_integer_radix_cmux_kb_64(
   std::function<uint64_t(uint64_t)> predicate_lut_f =
       [](uint64_t x) -> uint64_t { return x == 1; };
 
-  return scratch_cuda_integer_radix_cmux_kb<uint64_t>(
+  uint64_t ret = scratch_cuda_integer_radix_cmux_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       (int_cmux_buffer<uint64_t> **)mem_ptr, predicate_lut_f,
       lwe_ciphertext_count, params, allocate_gpu_memory);
   POP_RANGE()
+  return ret;
 }
 
 void cuda_cmux_integer_radix_ciphertext_kb_64(

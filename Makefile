@@ -686,6 +686,33 @@ test_integer_gpu_debug: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile release_lto_off \
 		--features=integer,gpu-debug -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
+.PHONY: test_high_level_api_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
+test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run --profile $(CARGO_PROFILE) \
+		--features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) && \
+		EXECUTABLE=$$(find target/release/deps/ -type f -executable -name "tfhe-*") && \
+		RUSTFLAGS="$(RUSTFLAGS)" bash -c "cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest list --cargo-profile $(CARGO_PROFILE) \
+        		--features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC)" &> /tmp/test_list.txt && \
+		TESTS_HL=$$(cat /tmp/test_list.txt | sed -e $$'s/\x1b\[[0-9;]*m//g' | grep high_level_api::.*gpu.*) && \
+		RESULT=0 && \
+		while read t; do \
+		  echo compute-sanitizer --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
+		  compute-sanitizer --leak-check=full --error-exitcode=1 --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
+		  if [[ $$? != "0" ]]; then \
+		    	RESULT=1; \
+		  fi; \
+		done <<< "$${TESTS_HL}"
+		exit $$RESULT
+
+.PHONY: test_integer_hl_test_gpu_check_warnings
+test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build \
+		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p $(TFHE_SPEC) &> /tmp/gpu_compile_output
+	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning:" | grep "\[tfhe-cuda-backend" | grep -v "inline function" || true) && \
+	if [[ "$${WARNINGS}" != "" ]]; then \
+		echo "$${WARNINGS}" && exit 1; \
+	fi
+
 
 .PHONY: test_integer_long_run_gpu # Run the long run integer tests on the gpu backend
 test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
@@ -1582,7 +1609,7 @@ tfhe_lints
 
 .PHONY: pcc_gpu # pcc stands for pre commit checks for GPU compilation
 pcc_gpu: check_rust_bindings_did_not_change clippy_rustdoc_gpu \
-clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu
+clippy_gpu clippy_cuda_backend clippy_bench_gpu check_compile_tests_benches_gpu test_integer_hl_test_gpu_check_warnings
 
 .PHONY: pcc_hpu # pcc stands for pre commit checks for HPU compilation
 pcc_hpu: clippy_hpu clippy_hpu_backend clippy_hpu_mockup test_integer_hpu_mockup_ci_fast
