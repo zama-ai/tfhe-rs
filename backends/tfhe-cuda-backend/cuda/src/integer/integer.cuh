@@ -536,6 +536,7 @@ __host__ void integer_radix_apply_univariate_lookup_table_kb(
   std::vector<Torus *> lwe_trivial_indexes_vec = lut->lwe_trivial_indexes_vec;
 
   auto active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+  printf("Active GPUs in lut univ: %d, gpu count: %d\n", active_gpu_count, gpu_count);
   if (active_gpu_count == 1) {
     execute_keyswitch_async<Torus>(
         streams, gpu_indexes, 1, lwe_after_ks_vec[0],

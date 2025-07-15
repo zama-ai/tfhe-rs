@@ -40,9 +40,11 @@ int32_t cuda_setup_multi_gpu(int device_0_id) {
 
 int get_active_gpu_count(int num_inputs, int gpu_count) {
   int threshold_number_of_inputs = 12;
-  int ceil_div_inputs = (num_inputs + threshold_number_of_inputs - 1) /
-                        threshold_number_of_inputs;
-  int active_gpu_count = std::max(ceil_div_inputs, gpu_count);
+  int ceil_div_inputs = std::max(1, (num_inputs + threshold_number_of_inputs - 1) /
+                        threshold_number_of_inputs);
+  printf("ceil div inputs: %dn, gpu_count: %d\n", ceil_div_inputs, gpu_count);
+  int active_gpu_count = std::min(ceil_div_inputs, gpu_count);
+  printf("active gpus: %d\n", active_gpu_count);
   return active_gpu_count;
 }
 

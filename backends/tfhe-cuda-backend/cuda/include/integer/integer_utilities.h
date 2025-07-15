@@ -305,6 +305,7 @@ template <typename Torus> struct int_radix_lut {
     ///////////////
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
+      printf("Active GPUs in int_radix_lut: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(i);
       int8_t *gpu_pbs_buffer;
@@ -447,6 +448,7 @@ template <typename Torus> struct int_radix_lut {
     // LUT is used as a trivial encryption and must be initialized outside
     // this constructor
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_radix_lut 1: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     for (uint i = 0; i < active_gpu_count; i++) {
       auto lut = (Torus *)cuda_malloc_with_size_tracking_async(
           num_luts * lut_buffer_size, streams[i], gpu_indexes[i], size_tracker,
@@ -520,6 +522,7 @@ template <typename Torus> struct int_radix_lut {
 
     ///////////////
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_radix_lut 2: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(i);
@@ -827,6 +830,7 @@ template <typename InputTorus> struct int_noise_squashing_lut {
 
     ///////////////
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_noise_squash_lut 1: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(i);
@@ -2789,6 +2793,7 @@ template <typename Torus> struct int_borrow_prop_memory {
     }
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_borrow_prop: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     sub_streams_1 =
         (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
     sub_streams_2 =
@@ -2880,6 +2885,7 @@ template <typename Torus> struct int_zero_out_if_buffer {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_zero_out_if: %d, gpu count: %d\n", active_gpu_count, gpu_count);
 
     tmp = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -3285,6 +3291,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
       bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     active_gpu_count = get_active_gpu_count(1, gpu_count);
+      printf("Active GPUs in int_arithmetic_scalar_shift: %d, gpu count: %d\n", active_gpu_count, gpu_count);
     // In the arithmetic shift, a PBS has to be applied to the last rotated
     // block twice: once to shift it, once to compute the padding block to be
     // copied onto all blocks to the left of the last rotated block
@@ -3920,6 +3927,7 @@ template <typename Torus> struct int_comparison_buffer {
     this->is_signed = is_signed;
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
+      printf("Active GPUs in int_compar: %d, gpu count: %d\n", active_gpu_count, gpu_count);
 
     identity_lut_f = [](Torus x) -> Torus { return x; };
 
@@ -4425,6 +4433,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
                               uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
+      printf("Active GPUs in int_div_rem: %d, gpu count: %d\n", active_gpu_count, gpu_count);
 
     this->params = params;
     shift_mem_1 = new int_logical_scalar_shift_buffer<Torus>(
