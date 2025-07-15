@@ -56,6 +56,15 @@ pub enum AtomicPatternKind {
     KeySwitch32,
 }
 
+impl AtomicPatternKind {
+    pub fn pbs_order(self) -> PBSOrder {
+        match self {
+            Self::Standard(pbsorder) => pbsorder,
+            Self::KeySwitch32 => PBSOrder::KeyswitchBootstrap,
+        }
+    }
+}
+
 /// The set of operations needed to implement an Atomic Pattern.
 ///
 /// Here the definition of Atomic Pattern is a bit more TFHE-specific and includes the evaluation of
