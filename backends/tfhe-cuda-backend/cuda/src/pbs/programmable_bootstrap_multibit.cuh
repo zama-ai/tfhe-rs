@@ -177,6 +177,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
                   2 * params::degree] = -1;
   }
 
+  double2 *shared_fft = (double2 *)(precalc_coefs + polynomial_size * 3);
   // Ids
   constexpr uint32_t level_id = 0;
   uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
@@ -239,12 +240,10 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
       polynomial_accumulate_monic_monomial_mul_on_regs_precalc<Torus, params>(
           reg_acc, bsk_poly, precalc_coefs + jump, monomial_degree);
     }
-    __syncthreads(); // needed because we are going to reuse the
-                     // shared memory for the fft
 
     // Move from local memory back to shared memory but as complex
     int tid = threadIdx.x;
-    double2 *fft = (double2 *)selected_memory;
+    double2 *fft = shared_fft;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
       fft[tid] =
@@ -708,10 +707,10 @@ __host__ void execute_compute_keybundle(
           cudaFuncCachePreferShared);
       check_cuda_error(cudaGetLastError());
       device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
-          Torus, Degree<2048>, FULLSM>
-          <<<grid_keybundle, thds_new_keybundle, 3 * full_sm_keybundle, stream>>>(
-              lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
-              lwe_offset, chunk_size, keybundle_size_per_input);
+          Torus, Degree<2048>, FULLSM><<<grid_keybundle, thds_new_keybundle,
+                                         3 * full_sm_keybundle, stream>>>(
+          lwe_array_in, lwe_input_indexes, keybundle_fft, bootstrapping_key,
+          lwe_offset, chunk_size, keybundle_size_per_input);
     } else {
       device_multi_bit_programmable_bootstrap_keybundle<Torus, params, FULLSM>
           <<<grid_keybundle, thds, full_sm_keybundle, stream>>>(
