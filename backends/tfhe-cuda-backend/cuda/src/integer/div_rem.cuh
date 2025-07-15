@@ -80,6 +80,9 @@ __host__ void host_unsigned_integer_div_rem_kb(
   set_zero_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
                                                quotient, 0, num_blocks);
 
+  cudaDeviceSynchronize();
+  printf("Here 0\n");
+
   for (int i = total_bits - 1; i >= 0; i--) {
     uint32_t pos_in_block = i % num_bits_in_message;
     uint32_t msb_bit_set = total_bits - 1 - i;
@@ -243,18 +246,28 @@ __host__ void host_unsigned_integer_div_rem_kb(
     for (uint j = 0; j < gpu_count; j++) {
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
+      cudaDeviceSynchronize();
+      printf("Here 1\n");
     // interesting_divisor
     trim_last_interesting_divisor_bits(mem_ptr->sub_streams_1, gpu_indexes,
                                        gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 2\n");
     // divisor_ms_blocks
     trim_first_divisor_ms_bits(mem_ptr->sub_streams_2, gpu_indexes, gpu_count);
     // interesting_remainder1
     // numerator_block_stack
+      cudaDeviceSynchronize();
+      printf("Here 3\n");
     left_shift_interesting_remainder1(mem_ptr->sub_streams_3, gpu_indexes,
                                       gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 4\n");
     // interesting_remainder2
     left_shift_interesting_remainder2(mem_ptr->sub_streams_4, gpu_indexes,
                                       gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 5\n");
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
@@ -370,12 +383,20 @@ __host__ void host_unsigned_integer_div_rem_kb(
     }
     // new_remainder
     // subtraction_overflowed
+      cudaDeviceSynchronize();
+      printf("Here 6 before overlfow sub\n");
     do_overflowing_sub(mem_ptr->sub_streams_1, gpu_indexes, gpu_count);
     // at_least_one_upper_block_is_non_zero
+      cudaDeviceSynchronize();
+      printf("Here 7\n");
     check_divisor_upper_blocks(mem_ptr->sub_streams_2, gpu_indexes, gpu_count);
     // cleaned_merged_interesting_remainder
+      cudaDeviceSynchronize();
+      printf("Here 8\n");
     create_clean_version_of_merged_remainder(mem_ptr->sub_streams_3,
                                              gpu_indexes, gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 9\n");
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
@@ -441,13 +462,21 @@ __host__ void host_unsigned_integer_div_rem_kb(
       cuda_synchronize_stream(streams[j], gpu_indexes[j]);
     }
     // cleaned_merged_interesting_remainder
+      cudaDeviceSynchronize();
+      printf("Here 10\n");
     conditionally_zero_out_merged_interesting_remainder(mem_ptr->sub_streams_1,
                                                         gpu_indexes, gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 11\n");
     // new_remainder
     conditionally_zero_out_merged_new_remainder(mem_ptr->sub_streams_2,
                                                 gpu_indexes, gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 12\n");
     // quotient
     set_quotient_bit(mem_ptr->sub_streams_3, gpu_indexes, gpu_count);
+      cudaDeviceSynchronize();
+      printf("Here 13\n");
     for (uint j = 0; j < mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(mem_ptr->sub_streams_2[j], gpu_indexes[j]);
@@ -482,10 +511,14 @@ __host__ void host_unsigned_integer_div_rem_kb(
   for (uint j = 0; j < gpu_count; j++) {
     cuda_synchronize_stream(streams[j], gpu_indexes[j]);
   }
+    cudaDeviceSynchronize();
+    printf("Here 14\n");
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_1, gpu_indexes, gpu_count, remainder, remainder,
       bsks, ksks, ms_noise_reduction_key, mem_ptr->message_extract_lut_1,
       num_blocks);
+    cudaDeviceSynchronize();
+    printf("Here 15\n");
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       mem_ptr->sub_streams_2, gpu_indexes, gpu_count, quotient, quotient, bsks,
       ksks, ms_noise_reduction_key, mem_ptr->message_extract_lut_2, num_blocks);
