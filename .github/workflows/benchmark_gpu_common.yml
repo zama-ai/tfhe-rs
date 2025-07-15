@@ -192,7 +192,7 @@ jobs:
       matrix:
         # explicit include-based build matrix, of known valid options
         include:
-          - cuda: "12.2"
+          - cuda: "12.4"
             gcc: 11
     steps:
       - name: Checkout tfhe-rs repo
@@ -224,7 +224,7 @@ jobs:
         params_type: ${{ fromJSON(needs.prepare-matrix.outputs.params_type) }}
         # explicit include-based build matrix, of known valid options
         include:
-          - cuda: "12.2"
+          - cuda: "12.4"
             gcc: 11
     env:
       CUDA_PATH: /usr/local/cuda-${{ matrix.cuda }}
