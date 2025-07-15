@@ -3,13 +3,14 @@
 #[path = "../utilities.rs"]
 mod utilities;
 
-use crate::utilities::{write_to_json, OperatorType};
-use std::env;
-
-use criterion::{criterion_group, Criterion};
+use crate::utilities::{
+    throughput_num_threads, write_to_json, BenchmarkType, EnvConfig, OperatorType, BENCH_TYPE,
+};
+use criterion::{criterion_group, Criterion, Throughput};
 use itertools::iproduct;
 use rand::prelude::*;
-use rand::Rng;
+use rayon::prelude::*;
+use std::env;
 use std::vec::IntoIter;
 use tfhe::integer::keycache::KEY_CACHE;
 use tfhe::integer::{IntegerKeyKind, RadixCiphertext, ServerKey};
@@ -17,6 +18,7 @@ use tfhe::keycache::NamedParam;
 
 use tfhe::integer::U256;
 
+use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 #[allow(unused_imports)]
 use tfhe::shortint::parameters::{
     PARAM_MESSAGE_1_CARRY_1_KS_PBS, PARAM_MESSAGE_2_CARRY_2_KS_PBS, PARAM_MESSAGE_3_CARRY_3_KS_PBS,
@@ -27,7 +29,7 @@ use tfhe::shortint::parameters::{
 /// It must be as big as the largest bit size tested
 type ScalarType = U256;
 
-const FAST_BENCH_BIT_SIZES: [usize; 1] = [32];
+const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
 const BENCH_BIT_SIZES: [usize; 7] = [8, 16, 32, 40, 64, 128, 256];
 
 fn gen_random_u256(rng: &mut ThreadRng) -> U256 {
@@ -73,7 +75,7 @@ impl Default for ParamsAndNumBlocksIter {
             // FIXME One set of parameter is tested since we want to benchmark only quickest
             // operations.
             let params = vec![
-                PARAM_MESSAGE_2_CARRY_2_KS_PBS.into(),
+                PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64.into(),
                 // PARAM_MESSAGE_3_CARRY_3_KS_PBS.into(),
                 // PARAM_MESSAGE_4_CARRY_4_KS_PBS.into(),
             ];
@@ -173,7 +175,7 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     display_name: &str,
     binary_op: F,
 ) where
-    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext),
+    F: Fn(&ServerKey, &mut RadixCiphertext, &mut RadixCiphertext) + Sync,
 {
     let mut bench_group = c.benchmark_group(bench_name);
     bench_group
@@ -184,28 +186,69 @@ fn bench_server_key_binary_function_clean_inputs<F>(
     for (param, num_block, bit_size) in ParamsAndNumBlocksIter::default() {
         let param_name = param.name();
 
-        let bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
-        bench_group.bench_function(&bench_id, |b| {
-            let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+        let bench_id;
 
-            let encrypt_two_values = || {
-                let clear_0 = gen_random_u256(&mut rng);
-                let ct_0 = cks.encrypt_radix(clear_0, num_block);
+        match BENCH_TYPE.get().unwrap() {
+            BenchmarkType::Latency => {
+                bench_id = format!("{bench_name}::{param_name}::{bit_size}_bits");
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
-                let clear_1 = gen_random_u256(&mut rng);
-                let ct_1 = cks.encrypt_radix(clear_1, num_block);
+                    let encrypt_two_values = || {
+                        let clear_0 = gen_random_u256(&mut rng);
+                        let ct_0 = cks.encrypt_radix(clear_0, num_block);
 
-                (ct_0, ct_1)
-            };
+                        let clear_1 = gen_random_u256(&mut rng);
+                        let ct_1 = cks.encrypt_radix(clear_1, num_block);
 
-            b.iter_batched(
-                encrypt_two_values,
-                |(mut ct_0, mut ct_1)| {
-                    binary_op(&sks, &mut ct_0, &mut ct_1);
-                },
-                criterion::BatchSize::SmallInput,
-            )
-        });
+                        (ct_0, ct_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(mut ct_0, mut ct_1)| {
+                            binary_op(&sks, &mut ct_0, &mut ct_1);
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+            BenchmarkType::Throughput => {
+                bench_id = format!("{bench_name}::throughput::{param_name}::{bit_size}_bits");
+                bench_group
+                    .sample_size(10)
+                    .measurement_time(std::time::Duration::from_secs(30));
+                let elements = throughput_num_threads(num_block);
+                bench_group.throughput(Throughput::Elements(elements));
+                bench_group.bench_function(&bench_id, |b| {
+                    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+                    let encrypt_two_values = || {
+                        let mut cts_0 = (0..elements)
+                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+
+                        let mut cts_1 = (0..elements)
+                            .map(|_| cks.encrypt_radix(gen_random_u256(&mut rng), num_block))
+                            .collect::<Vec<_>>();
+
+                        (cts_0, cts_1)
+                    };
+
+                    b.iter_batched(
+                        encrypt_two_values,
+                        |(mut cts_0, mut cts_1)| {
+                            cts_0.par_iter_mut().zip(cts_1.par_iter_mut()).for_each(
+                                |(ct_0, ct_1)| {
+                                    binary_op(&sks, ct_0, ct_1);
+                                },
+                            )
+                        },
+                        criterion::BatchSize::SmallInput,
+                    )
+                });
+            }
+        }
 
         write_to_json::<u64, _>(
             &bench_id,
@@ -1190,37 +1233,37 @@ criterion_group!(
 
 criterion_group!(
     default_parallelized_ops,
-    neg_parallelized,
-    abs_parallelized,
+    // neg_parallelized,
+    // abs_parallelized,
     add_parallelized,
-    unsigned_overflowing_add_parallelized,
-    sub_parallelized,
-    unsigned_overflowing_sub_parallelized,
+    // unsigned_overflowing_add_parallelized,
+    // sub_parallelized,
+    // unsigned_overflowing_sub_parallelized,
     mul_parallelized,
     // div_parallelized,
     // rem_parallelized,
     div_rem_parallelized,
-    bitand_parallelized,
-    bitnot_parallelized,
-    bitor_parallelized,
-    bitxor_parallelized,
-    left_shift_parallelized,
-    right_shift_parallelized,
-    rotate_left_parallelized,
-    rotate_right_parallelized,
+    // bitand_parallelized,
+    // bitnot_parallelized,
+    // bitor_parallelized,
+    // bitxor_parallelized,
+    // left_shift_parallelized,
+    // right_shift_parallelized,
+    // rotate_left_parallelized,
+    // rotate_right_parallelized,
 );
 
 criterion_group!(
     default_parallelized_ops_comp,
-    max_parallelized,
-    min_parallelized,
-    eq_parallelized,
-    ne_parallelized,
-    lt_parallelized,
-    le_parallelized,
+    // max_parallelized,
+    // min_parallelized,
+    // eq_parallelized,
+    // ne_parallelized,
+    // lt_parallelized,
+    // le_parallelized,
     gt_parallelized,
-    ge_parallelized,
-    if_then_else_parallelized,
+    // ge_parallelized,
+    // if_then_else_parallelized,
 );
 
 criterion_group!(
@@ -1370,26 +1413,31 @@ criterion_group!(
 criterion_group!(misc, full_propagate, full_propagate_parallelized);
 
 fn main() {
+    BENCH_TYPE.get_or_init(|| BenchmarkType::from_env().unwrap());
+
     match env::var("__TFHE_RS_BENCH_OP_FLAVOR") {
         Ok(val) => {
             match val.to_lowercase().as_str() {
-                "default" => default_parallelized_ops(),
+                "default" => {
+                    default_parallelized_ops();
+                    default_parallelized_ops_comp()
+                }
                 "default_comp" => default_parallelized_ops_comp(),
-                "default_scalar" => default_scalar_parallelized_ops(),
-                "default_scalar_comp" => default_scalar_parallelized_ops_comp(),
-                "smart" => smart_ops(),
-                "smart_comp" => smart_ops_comp(),
-                "smart_scalar" => smart_scalar_ops(),
-                "smart_parallelized" => smart_parallelized_ops(),
-                "smart_parallelized_comp" => smart_parallelized_ops_comp(),
-                "smart_scalar_parallelized" => smart_scalar_parallelized_ops(),
-                "smart_scalar_parallelized_comp" => smart_scalar_parallelized_ops_comp(),
-                "unchecked" => unchecked_ops(),
-                "unchecked_parallelized" => unchecked_parallelized_ops(),
-                "unchecked_comp" => unchecked_ops_comp(),
-                "unchecked_scalar" => unchecked_scalar_ops(),
-                "unchecked_scalar_comp" => unchecked_scalar_ops_comp(),
-                "misc" => misc(),
+                // "default_scalar" => default_scalar_parallelized_ops(),
+                // "default_scalar_comp" => default_scalar_parallelized_ops_comp(),
+                // "smart" => smart_ops(),
+                // "smart_comp" => smart_ops_comp(),
+                // "smart_scalar" => smart_scalar_ops(),
+                // "smart_parallelized" => smart_parallelized_ops(),
+                // "smart_parallelized_comp" => smart_parallelized_ops_comp(),
+                // "smart_scalar_parallelized" => smart_scalar_parallelized_ops(),
+                // "smart_scalar_parallelized_comp" => smart_scalar_parallelized_ops_comp(),
+                // "unchecked" => unchecked_ops(),
+                // "unchecked_parallelized" => unchecked_parallelized_ops(),
+                // "unchecked_comp" => unchecked_ops_comp(),
+                // "unchecked_scalar" => unchecked_scalar_ops(),
+                // "unchecked_scalar_comp" => unchecked_scalar_ops_comp(),
+                // "misc" => misc(),
                 _ => panic!("unknown benchmark operations flavor"),
             };
         }

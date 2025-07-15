@@ -16,6 +16,7 @@ PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csv
 FAST_TESTS?=FALSE
 FAST_BENCH?=FALSE
 BENCH_OP_FLAVOR?=DEFAULT
+BENCH_TYPE?=latency
 NODE_VERSION=20
 # sed: -n, do not print input stream, -e means a script/expression
 # 1,/version/ indicates from the first line, to the line matching version at the start of the line
@@ -565,7 +566,7 @@ dieharder_csprng: install_dieharder build_concrete_csprng
 
 .PHONY: bench_integer # Run benchmarks for unsigned integer
 bench_integer: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
 	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench integer-bench \
 	--features=$(TARGET_ARCH_FEATURE),integer,internal-keycache,$(AVX512_FEATURE) -p $(TFHE_SPEC) --
