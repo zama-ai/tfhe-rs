@@ -23,6 +23,7 @@ runs:
         echo "${CMAKE_SCRIPT_SHA} cmake-${CMAKE_VERSION}-linux-x86_64.sh" > checksum
         sha256sum -c checksum
         sudo bash cmake-"${CMAKE_VERSION}"-linux-x86_64.sh --skip-license --prefix=/usr/ --exclude-subdir
+        sudo apt remove -y unattended-upgrades
         sudo apt update
         sudo apt install -y cmake-format libclang-dev
       env:
@@ -50,11 +51,13 @@ runs:
     - name: Export CUDA variables
       shell: bash
       run: |
+        find /usr/local -executable -name "nvcc"
         CUDA_PATH=/usr/local/cuda-"${CUDA_VERSION}"
         {
           echo "CUDA_PATH=$CUDA_PATH";
           echo "LD_LIBRARY_PATH=$CUDA_PATH/lib64:$LD_LIBRARY_PATH";
           echo "CUDA_MODULE_LOADER=EAGER";
+          echo "PATH=$PATH:$CUDA_PATH/bin"; 
         } >> "${GITHUB_ENV}"
         {
           echo "PATH=$PATH:$CUDA_PATH/bin"; 
@@ -73,6 +76,11 @@ runs:
         } >> "${GITHUB_ENV}"
       env:
         GCC_VERSION: ${{ inputs.gcc-version }}
+
+    - name: Check setup
+      shell: bash
+      run: |
+        which nvcc
 
     - name: Check device is detected
       shell: bash
