@@ -92,6 +92,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
     // and all blocks after it are also trivial zeros
     // This number is in range 1..=num_bocks -1
     uint32_t first_trivial_block = last_non_trivial_block + 1;
+    printf("num blocks: %d, first trivial block: %d\n", num_blocks, first_trivial_block);
     reset_radix_ciphertext_blocks(interesting_remainder1, first_trivial_block);
     reset_radix_ciphertext_blocks(interesting_remainder2, first_trivial_block);
     reset_radix_ciphertext_blocks(interesting_divisor, first_trivial_block);
