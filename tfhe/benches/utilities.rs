@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::fs;
+use std::{env, fs};
 use std::path::PathBuf;
 #[cfg(feature = "boolean")]
 use tfhe::boolean::parameters::BooleanParameters;
@@ -225,6 +225,101 @@ pub fn write_to_json<
 
     fs::write(params_directory, serde_json::to_string(&record).unwrap()).unwrap();
 }
+
+const FAST_BENCH_BIT_SIZES: [usize; 1] = [64];
+const BENCH_BIT_SIZES: [usize; 8] = [4, 8, 16, 32, 40, 64, 128, 256];
+const MULTI_BIT_CPU_SIZES: [usize; 6] = [4, 8, 16, 32, 40, 64];
+
+/// User configuration in which benchmarks must be run.
+#[derive(Default)]
+pub struct EnvConfig {
+    pub is_multi_bit: bool,
+    pub is_fast_bench: bool,
+}
+
+impl EnvConfig {
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        let is_multi_bit = match env::var("__TFHE_RS_BENCH_TYPE") {
+            Ok(val) => val.to_lowercase() == "multi_bit",
+            Err(_) => false,
+        };
+
+        let is_fast_bench = match env::var("__TFHE_RS_FAST_BENCH") {
+            Ok(val) => val.to_lowercase() == "true",
+            Err(_) => false,
+        };
+
+        EnvConfig {
+            is_multi_bit,
+            is_fast_bench,
+        }
+    }
+
+    /// Get precisions values to benchmark.
+    #[allow(dead_code)]
+    pub fn bit_sizes(&self) -> Vec<usize> {
+        if self.is_fast_bench {
+            FAST_BENCH_BIT_SIZES.to_vec()
+        } else if self.is_multi_bit {
+            if cfg!(feature = "gpu") {
+                BENCH_BIT_SIZES.to_vec()
+            } else {
+                MULTI_BIT_CPU_SIZES.to_vec()
+            }
+        } else {
+            BENCH_BIT_SIZES.to_vec()
+        }
+    }
+}
+
+use std::sync::OnceLock;
+#[cfg(feature = "gpu")]
+use tfhe_cuda_backend::cuda_bind::cuda_get_number_of_gpus;
+
+/// Generate a number of threads to use to saturate current machine for throughput measurements.
+#[allow(dead_code)]
+pub fn throughput_num_threads(num_block: usize) -> u64 {
+    let ref_block_count = 32; // Represent a ciphertext of 64 bits for 2_2 parameters set
+    let block_multiplicator = (ref_block_count as f64 / num_block as f64).ceil();
+
+    #[cfg(feature = "gpu")]
+    {
+        // This value is for Nvidia H100 GPU
+        let streaming_multiprocessors = 132;
+        let num_gpus = unsafe { cuda_get_number_of_gpus() };
+        ((streaming_multiprocessors * num_gpus) as f64 * block_multiplicator) as u64
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        let num_threads = rayon::current_num_threads() as f64;
+        // Add 20% more to maximum threads available.
+        ((num_threads + (num_threads * 0.2)) * block_multiplicator) as u64
+    }
+}
+
+#[allow(dead_code)]
+pub static BENCH_TYPE: OnceLock<BenchmarkType> = OnceLock::new();
+
+#[allow(dead_code)]
+pub enum BenchmarkType {
+    Latency,
+    Throughput,
+}
+
+#[allow(dead_code)]
+impl BenchmarkType {
+    pub fn from_env() -> Result<Self, String> {
+        let raw_value = env::var("__TFHE_RS_BENCH_TYPE").unwrap_or("latency".to_string());
+        match raw_value.to_lowercase().as_str() {
+            "latency" => Ok(BenchmarkType::Latency),
+            "throughput" => Ok(BenchmarkType::Throughput),
+            _ => Err(format!("benchmark type '{raw_value}' is not supported")),
+        }
+    }
+
+}
+
 
 // Empty main to please clippy.
 #[allow(dead_code)]
