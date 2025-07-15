@@ -313,12 +313,16 @@ __host__ void host_compare_blocks_with_zero(
     uint32_t remainder_blocks = num_radix_blocks;
     auto sum_i = (Torus *)sum->ptr;
     auto chunk = (Torus *)lwe_array_in->ptr;
+    int blocks_check = sum->num_radix_blocks;
+    cudaDeviceSynchronize();
+    printf("Here in compare blocks with zero sum %d input %d\n", sum->num_radix_blocks, lwe_array_in->num_radix_blocks);
     while (remainder_blocks > 1) {
         cudaDeviceSynchronize();
         printf("Here in compare blocks with zero remainder blocks %d\n", remainder_blocks);
       uint32_t chunk_size =
           std::min(remainder_blocks, num_elements_to_fill_carry);
 
+      printf("Chunk size: %d, sum_i blocks: %d, remainder blocks: %d\n", chunk_size, blocks_check, remainder_blocks);
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], sum_i, chunk,
                                    big_lwe_dimension, chunk_size);
 
@@ -328,6 +332,7 @@ __host__ void host_compare_blocks_with_zero(
       // Update operands
       chunk += (chunk_size - 1) * big_lwe_size;
       sum_i += big_lwe_size;
+      blocks_check -= 1;
     }
   }
     cudaDeviceSynchronize();

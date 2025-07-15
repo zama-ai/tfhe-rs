@@ -340,7 +340,7 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                           uint32_t const *gpu_indexes,
                                           uint32_t gpu_count) {
       auto trivial_blocks = divisor_ms_blocks;
-      printf("Trivial blocks: %d\n", trivial_blocks);
+      printf("Trivial blocks: %d\n", trivial_blocks->num_radix_blocks);
       if (trivial_blocks->num_radix_blocks == 0) {
         set_zero_radix_ciphertext_slice_async<Torus>(
             streams[0], gpu_indexes[0], at_least_one_upper_block_is_non_zero, 0,
