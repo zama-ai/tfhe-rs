@@ -11,6 +11,7 @@ use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
 use lazy_static::*;
 use serde::{Deserialize, Serialize};
+use crate::shortint::parameters::classic::tuniform::p_fail_2_minus_64::ks_pbs::PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64;
 
 named_params_impl!( ShortintParameterSet =>
     PARAM_MESSAGE_1_CARRY_0_KS_PBS,
@@ -178,6 +179,7 @@ named_params_impl!( ShortintParameterSet =>
     WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_7_CARRY_0_KS_PBS,
     WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_7_CARRY_1_KS_PBS,
     WOPBS_ONLY_2_BLOCKS_PARAM_MESSAGE_8_CARRY_0_KS_PBS,
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M64,
     // Coverage
     #[cfg(tarpaulin)]
     COVERAGE_PARAM_MESSAGE_2_CARRY_2_KS_PBS,
