@@ -165,14 +165,22 @@ __host__ void host_integer_overflowing_sub(
       stream[0], gpu_indexes[0], output, input_left, input_right, num_blocks,
       radix_params.message_modulus, radix_params.carry_modulus);
 
-    cudaDeviceSynchronize();
-    check_cuda_error(cudaGetLastError());
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   host_single_borrow_propagate<Torus>(
       streams, gpu_indexes, gpu_count, output, overflow_block, input_borrow,
       (int_borrow_prop_memory<Torus> *)mem_ptr, bsks, (Torus **)(ksks),
       ms_noise_reduction_key, num_groups, compute_overflow, uses_input_borrow);
-    cudaDeviceSynchronize();
-    check_cuda_error(cudaGetLastError());
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   POP_RANGE()
 }
 

@@ -2115,14 +2115,24 @@ void host_single_borrow_propagate(
         streams[0], gpu_indexes[0], lwe_array, lwe_array, input_borrow, 1,
         message_modulus, carry_modulus);
   }
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   // Step 1
   host_compute_shifted_blocks_and_borrow_states<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array,
       mem->shifted_blocks_borrow_state_mem, bsks, ksks, ms_noise_reduction_key,
       lut_stride, num_many_lut);
 
-    cudaDeviceSynchronize();
-    check_cuda_error(cudaGetLastError());
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   auto borrow_states = mem->shifted_blocks_borrow_state_mem->borrow_states;
   copy_radix_ciphertext_slice_async<Torus>(
       streams[0], gpu_indexes[0], mem->overflow_block, 0, 1, borrow_states,
@@ -2134,8 +2144,12 @@ void host_single_borrow_propagate(
       mem->prop_simu_group_carries_mem, bsks, ksks, ms_noise_reduction_key,
       num_radix_blocks, num_groups);
 
-    cudaDeviceSynchronize();
-    check_cuda_error(cudaGetLastError());
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   auto shifted_blocks =
       (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
@@ -2145,12 +2159,22 @@ void host_single_borrow_propagate(
                           (Torus *)prepared_blocks->ptr, shifted_blocks,
                           simulators, big_lwe_dimension, num_radix_blocks);
 
-    cudaDeviceSynchronize();
-    check_cuda_error(cudaGetLastError());
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   host_integer_radix_add_scalar_one_inplace<Torus>(
       streams, gpu_indexes, gpu_count, prepared_blocks, message_modulus,
       carry_modulus);
 
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     CudaRadixCiphertextFFI shifted_simulators;
     as_radix_ciphertext_slice<Torus>(
@@ -2159,6 +2183,12 @@ void host_single_borrow_propagate(
     host_addition<Torus>(streams[0], gpu_indexes[0], mem->overflow_block,
                          mem->overflow_block, &shifted_simulators, 1);
   }
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   CudaRadixCiphertextFFI resolved_borrows;
   as_radix_ciphertext_slice<Torus>(
       &resolved_borrows, mem->prop_simu_group_carries_mem->resolved_carries,
@@ -2172,6 +2202,12 @@ void host_single_borrow_propagate(
                          mem->overflow_block, &resolved_borrows, 1);
   }
 
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     auto borrow_flag = mem->lut_borrow_flag;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -2180,6 +2216,12 @@ void host_single_borrow_propagate(
         1);
   }
 
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   // subtract borrow and cleanup prepared blocks
   auto resolved_carries = mem->prop_simu_group_carries_mem->resolved_carries;
   host_negation<Torus>(
@@ -2194,6 +2236,12 @@ void host_single_borrow_propagate(
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
       bsks, ksks, ms_noise_reduction_key, message_extract, num_radix_blocks);
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
 
 }
 
