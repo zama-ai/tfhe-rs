@@ -4,6 +4,7 @@ use super::{
 };
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::commons::math::random::{Deserialize, Serialize};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::backward_compatibility::list_compression::{
     CompressedNoiseSquashingCompressionKeyVersions, CompressedSquashedNoiseCiphertextListVersions,
     NoiseSquashingCompressionPrivateKeyVersions,
@@ -24,6 +25,8 @@ use crate::shortint::parameters::NoiseSquashingCompressionParameters;
 use crate::Versionize;
 
 use crate::integer::backward_compatibility::list_compression::NoiseSquashingCompressionKeyVersions;
+use crate::integer::gpu::ciphertext::{CudaCompressedSquashedNoiseCiphertextList, SquashedCudaCompressible};
+use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
 #[versionize(NoiseSquashingCompressionPrivateKeyVersions)]
@@ -348,6 +351,26 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
     }
 }
 
+// impl NoiseSquashingCompressionKey {
+//     pub fn decompress_to_cuda(&self, streams: &CudaStreams) -> CudaNoiseSquashingCompressionKey {
+//         let packing_key_switching_key = self
+//             .key
+//             .packing_key_switching_key
+//             .as_view()
+//             .decompress_into_lwe_packing_keyswitch_key();
+//
+//         let glwe_compression_key = CompressionKey {
+//             key: crate::shortint::list_compression::CompressionKey {
+//                 packing_key_switching_key,
+//                 lwe_per_glwe: self.key.lwe_per_glwe,
+//                 storage_log_modulus: self.key.storage_log_modulus,
+//             },
+//         };
+//
+//         CudaCompressionKey::from_compression_key(&glwe_compression_key, streams)
+//     }
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -358,20 +381,35 @@ mod test {
         TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use rand::Rng;
+    use crate::core_crypto::gpu::CudaStreams;
+    use crate::integer::gpu::ciphertext::{CudaCompressedSquashedNoiseCiphertextList, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
+    use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
+    use crate::integer::gpu::ciphertext::squashed_noise::{CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext, CudaSquashedNoiseSignedRadixCiphertext};
+    use crate::integer::gpu::gen_keys_radix_gpu;
+    use crate::integer::gpu::noise_squashing::keys::CudaNoiseSquashingKey;
 
     #[test]
-    fn test_compressed_noise_squashed_ciphertext_list() {
+    fn test_cuda_compressed_noise_squashed_ciphertext_list() {
         let param = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let noise_squashing_parameters =
             TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
+        const NUM_BLOCKS: usize = 16;
+        let streams = CudaStreams::new_multi_gpu();
+
         // The goal is to test that encrypting a value stored in a type
         // for which the bit count does not match the target block count of the encrypted
         // radix properly applies upcasting/downcasting
-        let (cks, sks) = crate::integer::keycache::KEY_CACHE
-            .get_from_params(param, crate::integer::IntegerKeyKind::Radix);
+                    let (radix_cks, sks) =
+                gen_keys_radix_gpu(param, NUM_BLOCKS, &streams);
+            let cks = radix_cks.as_ref();
+
         let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_parameters);
         let noise_squashing_key = NoiseSquashingKey::new(&cks, &noise_squashing_private_key);
+
+        let compressed_noise_squashing_compression_key = cks.new_compressed_noise_squashing_key(&noise_squashing_private_key);
+
+        let cuda_noise_squashing_key = compressed_noise_squashing_compression_key.decompress_to_cuda(&streams);
 
         let noise_squashing_compression_private_key = NoiseSquashingCompressionPrivateKey::new(
             TEST_PARAM_NOISE_SQUASHING_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -380,8 +418,6 @@ mod test {
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
 
         let mut rng = rand::thread_rng();
-
-        const NUM_BLOCKS: usize = 16;
 
         let clear_a = rng.gen_range(0..=i32::MAX);
         let clear_b = rng.gen_range(i32::MIN..=-1);
@@ -393,30 +429,40 @@ mod test {
         let ct_c = cks.encrypt_radix(clear_c, NUM_BLOCKS);
         let ct_d = cks.encrypt_bool(clear_d);
 
-        let ns_ct_a = noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&sks, &ct_a)
+        let d_ct_a = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_a, &streams);
+        let d_ct_b = CudaSignedRadixCiphertext::from_signed_radix_ciphertext(&ct_b, &streams);
+        let d_ct_c = CudaUnsignedRadixCiphertext::from_radix_ciphertext(&ct_c, &streams);
+        let d_ct_d = CudaBooleanBlock::from_boolean_block(&ct_d, &streams);
+
+        let ns_ct_a = cuda_noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(&sks, &d_ct_a, &streams)
             .unwrap();
-        let ns_ct_b = noise_squashing_key
-            .squash_signed_radix_ciphertext_noise(&sks, &ct_b)
+        let ns_ct_b = cuda_noise_squashing_key
+            .squash_signed_radix_ciphertext_noise(&sks, &d_ct_b, &streams)
             .unwrap();
-        let ns_ct_c = noise_squashing_key
-            .squash_radix_ciphertext_noise(&sks, &ct_c)
+        let ns_ct_c = cuda_noise_squashing_key
+            .squash_radix_ciphertext_noise(&sks, &d_ct_c.ciphertext, &streams)
             .unwrap();
-        let ns_ct_d = noise_squashing_key
-            .squash_boolean_block_noise(&sks, &ct_d)
+        let ns_ct_d = cuda_noise_squashing_key
+            .squash_boolean_block_noise(&sks, &d_ct_d, &streams)
             .unwrap();
 
-        let list = CompressedSquashedNoiseCiphertextList::builder()
-            .push(ns_ct_a)
-            .push(ns_ct_b)
-            .push(ns_ct_c)
-            .push(ns_ct_d)
+        let list = CudaCompressedSquashedNoiseCiphertextList::builder()
+            .push(&ns_ct_a, &streams)
+            .push(&ns_ct_b, &streams)
+            .push(&ns_ct_c, &streams)
+            .push(&ns_ct_d, &streams)
             .build(&compression_key);
 
-        let ns_ct_a: SquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
-        let ns_ct_b: SquashedNoiseSignedRadixCiphertext = list.get(1).unwrap().unwrap();
-        let ns_ct_c: SquashedNoiseRadixCiphertext = list.get(2).unwrap().unwrap();
-        let ns_ct_d: SquashedNoiseBooleanBlock = list.get(3).unwrap().unwrap();
+        let d_ns_ct_a: CudaSquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
+        let d_ns_ct_b: CudaSquashedNoiseSignedRadixCiphertext = list.get(1).unwrap().unwrap();
+        let d_ns_ct_c: CudaSquashedNoiseRadixCiphertext = list.get(2).unwrap().unwrap();
+        let d_ns_ct_d: CudaSquashedNoiseBooleanBlock = list.get(3).unwrap().unwrap();
+
+        let ns_ct_a = d_ns_ct_a.to_squashed_noise_signed_radix_ciphertext(&streams);
+        let ns_ct_b = d_ns_ct_b.to_squashed_noise_signed_radix_ciphertext(&streams);
+        let ns_ct_c = d_ns_ct_c.to_squashed_noise_radix_ciphertext(&streams);
+        let ns_ct_d = d_ns_ct_d.to_squashed_noise_boolean_block(&streams);
 
         let decryption_key = noise_squashing_compression_private_key.private_key_view();
 

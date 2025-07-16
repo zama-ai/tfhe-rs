@@ -1,4 +1,3 @@
-use crate::core_crypto::gpu::CudaStreams;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::{CarryModulus, MessageModulus};

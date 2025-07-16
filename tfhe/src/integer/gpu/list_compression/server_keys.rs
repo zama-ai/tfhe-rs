@@ -4,7 +4,7 @@ use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::{glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount, PolynomialSize, UnsignedInteger};
 use crate::error;
-use crate::integer::ciphertext::DataKind;
+use crate::integer::ciphertext::{DataKind, NoiseSquashingCompressionKey};
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
@@ -442,6 +442,18 @@ impl CudaDecompressionKey {
 }
 
 impl CudaNoiseSquashingCompressionKey {
+
+        pub fn from_noise_squashing_compression_key(compression_key: &NoiseSquashingCompressionKey, streams: &CudaStreams) -> Self {
+        Self {
+            packing_key_switching_key: CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(
+                &compression_key.key.packing_key_switching_key,
+                streams,
+            ),
+            lwe_per_glwe: compression_key.key.lwe_per_glwe,
+            storage_log_modulus: compression_key.key.storage_log_modulus,
+        }
+    }
+
         unsafe fn flatten_async(
         ciphertexts_slice: &[CudaSquashedNoiseRadixCiphertext],
         streams: &CudaStreams,

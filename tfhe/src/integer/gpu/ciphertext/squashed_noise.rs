@@ -117,6 +117,12 @@ impl CudaSquashedNoiseSignedRadixCiphertext {
             original_block_count: self.ciphertext.original_block_count,
         }
     }
+
+    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> CudaSquashedNoiseSignedRadixCiphertext {
+        Self {
+            ciphertext : self.ciphertext.duplicate(streams),
+        }
+    }
 }
 
 impl CudaSquashedNoiseBooleanBlock {
@@ -132,14 +138,10 @@ impl CudaSquashedNoiseBooleanBlock {
                 .clone(),
         }
     }
-}
 
-impl CudaCompressible for CudaSquashedNoiseRadixCiphertext {
-    fn compress_into(
-        self,
-        messages: &mut Vec<CudaRadixCiphertext>,
-        streams: &CudaStreams,
-    ) -> DataKind {
-        todo!()
+    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> CudaSquashedNoiseBooleanBlock {
+        Self {
+            ciphertext : self.ciphertext.duplicate(streams),
+        }
     }
 }

@@ -1,7 +1,8 @@
 use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::ciphertext::DataKind;
-use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
+use crate::integer::gpu::ciphertext::squashed_noise::{CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext, CudaSquashedNoiseSignedRadixCiphertext};
 use crate::integer::gpu::list_compression::server_keys::{CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList};
+use crate::named::Named;
 
 pub struct CudaCompressedSquashedNoiseCiphertextListBuilder {
     pub(crate) ciphertexts: Vec<CudaSquashedNoiseRadixCiphertext>,
@@ -12,6 +13,11 @@ pub struct CudaCompressedSquashedNoiseCiphertextList {
     pub(crate) packed_list: CudaPackedGlweCiphertextList<u128>,
     pub(crate) info: Vec<DataKind>,
 }
+
+impl Named for CudaCompressedSquashedNoiseCiphertextList {
+    const NAME: &'static str = "integer::gpu::CudaCompressedSquashedNoiseCiphertextList";
+}
+
 pub trait SquashedCudaCompressible {
     fn compress_into(
         self,
@@ -30,6 +36,34 @@ impl SquashedCudaCompressible for CudaSquashedNoiseRadixCiphertext {
         let num_blocks = x.original_block_count;
 
         messages.push(x);
+        DataKind::Unsigned(num_blocks)
+    }
+}
+
+impl SquashedCudaCompressible for CudaSquashedNoiseSignedRadixCiphertext {
+    fn compress_into(
+        self,
+        messages: &mut Vec<CudaSquashedNoiseRadixCiphertext>,
+        streams: &CudaStreams,
+    ) -> DataKind {
+        let x = self.duplicate(streams);
+        let num_blocks = x.ciphertext.original_block_count;
+
+        messages.push(x.ciphertext);
+        DataKind::Unsigned(num_blocks)
+    }
+}
+
+impl SquashedCudaCompressible for CudaSquashedNoiseBooleanBlock {
+    fn compress_into(
+        self,
+        messages: &mut Vec<CudaSquashedNoiseRadixCiphertext>,
+        streams: &CudaStreams,
+    ) -> DataKind {
+        let x = self.duplicate(streams);
+        let num_blocks = x.ciphertext.original_block_count;
+
+        messages.push(x.ciphertext);
         DataKind::Unsigned(num_blocks)
     }
 }
@@ -81,4 +115,10 @@ impl CudaCompressedSquashedNoiseCiphertextListBuilder {
         }
     }
 
+}
+
+impl CudaCompressedSquashedNoiseCiphertextList {
+    pub fn builder() -> CudaCompressedSquashedNoiseCiphertextListBuilder{
+        CudaCompressedSquashedNoiseCiphertextListBuilder::new()
+    }
 }
