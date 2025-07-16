@@ -2228,10 +2228,22 @@ void host_single_borrow_propagate(
       streams[0], gpu_indexes[0], (Torus *)resolved_carries->ptr,
       (Torus *)resolved_carries->ptr, big_lwe_dimension, num_groups);
 
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   host_radix_sum_in_groups<Torus>(
       streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
       resolved_carries, num_radix_blocks, mem->group_size);
 
+    for (uint i = 0; i < gpu_count; i++) {
+        cuda_set_device(gpu_indexes[i]);
+        cudaDeviceSynchronize();
+        printf("Synchronize gpu %d\n", i);
+        check_cuda_error(cudaGetLastError());
+    }
   auto message_extract = mem->lut_message_extract;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
