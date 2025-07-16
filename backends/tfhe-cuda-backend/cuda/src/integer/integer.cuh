@@ -2245,6 +2245,7 @@ void host_single_borrow_propagate(
         check_cuda_error(cudaGetLastError());
     }
   auto message_extract = mem->lut_message_extract;
+  printf("lut blocks: %d, call with %d\n", message_extract->num_blocks, num_radix_blocks);
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
       streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
       bsks, ksks, ms_noise_reduction_key, message_extract, num_radix_blocks);
