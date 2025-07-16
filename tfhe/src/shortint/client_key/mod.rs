@@ -429,7 +429,13 @@ impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
     /// assert!((noise as i64).abs() < delta as i64 / 2);
     /// ```
     pub fn decrypt_no_decode(&self, ct: &Ciphertext) -> Plaintext<u64> {
-        let lwe_decryption_key = self.encryption_key();
+        let lwe_decryption_key = if ct.atomic_pattern.pbs_order()
+            == self.atomic_pattern.encryption_key_choice().into_pbs_order()
+        {
+            self.encryption_key()
+        } else {
+            self.atomic_pattern.intermediate_encryption_key()
+        };
 
         decrypt_lwe_ciphertext(&lwe_decryption_key, &ct.ct)
     }

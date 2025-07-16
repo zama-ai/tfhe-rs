@@ -7,7 +7,9 @@ use tfhe_versionable::Versionize;
 use crate::shortint::backward_compatibility::client_key::atomic_pattern::AtomicPatternClientKeyVersions;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::DynamicDistribution;
-use crate::shortint::{AtomicPatternKind, AtomicPatternParameters, ShortintParameterSet};
+use crate::shortint::{
+    AtomicPatternKind, AtomicPatternParameters, EncryptionKeyChoice, ShortintParameterSet,
+};
 
 use super::{LweSecretKeyOwned, LweSecretKeyView};
 
@@ -25,6 +27,14 @@ pub trait EncryptionAtomicPattern {
 
     /// The secret key used for encryption
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64>;
+
+    /// The kind of secret key used for encryption
+    fn encryption_key_choice(&self) -> EncryptionKeyChoice;
+
+    /// Encryption key used for ciphertexts "in the middle" of the atomic pattern
+    ///
+    /// For KS-PBS this is the small key, for PBS-KS this is the big key
+    fn intermediate_encryption_key(&self) -> LweSecretKeyView<'_, u64>;
 
     /// The noise distribution used for encryption
     fn encryption_noise(&self) -> DynamicDistribution<u64>;
@@ -47,6 +57,14 @@ impl<T: EncryptionAtomicPattern> EncryptionAtomicPattern for &T {
 
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64> {
         (*self).encryption_key()
+    }
+
+    fn intermediate_encryption_key(&self) -> LweSecretKeyView<'_, u64> {
+        (*self).intermediate_encryption_key()
+    }
+
+    fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        (*self).encryption_key_choice()
     }
 
     fn encryption_noise(&self) -> DynamicDistribution<u64> {
@@ -116,6 +134,20 @@ impl EncryptionAtomicPattern for AtomicPatternClientKey {
         match self {
             Self::Standard(ap) => ap.encryption_key(),
             Self::KeySwitch32(ap) => ap.encryption_key(),
+        }
+    }
+
+    fn intermediate_encryption_key(&self) -> LweSecretKeyView<'_, u64> {
+        match self {
+            Self::Standard(ap) => ap.intermediate_encryption_key(),
+            Self::KeySwitch32(ap) => ap.intermediate_encryption_key(),
+        }
+    }
+
+    fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        match self {
+            Self::Standard(ap) => ap.encryption_key_choice(),
+            Self::KeySwitch32(ap) => ap.encryption_key_choice(),
         }
     }
 

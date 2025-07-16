@@ -9,7 +9,7 @@ use crate::shortint::backward_compatibility::client_key::atomic_pattern::KS32Ato
 use crate::shortint::client_key::{GlweSecretKeyOwned, LweSecretKeyOwned, LweSecretKeyView};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{DynamicDistribution, KeySwitch32PBSParameters};
-use crate::shortint::{AtomicPatternKind, ShortintParameterSet};
+use crate::shortint::{AtomicPatternKind, EncryptionKeyChoice, ShortintParameterSet};
 
 use super::EncryptionAtomicPattern;
 
@@ -156,6 +156,14 @@ impl EncryptionAtomicPattern for KS32AtomicPatternClientKey {
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64> {
         // The KS32 atomic pattern is only supported with the KsPbs order
         self.glwe_secret_key.as_lwe_secret_key()
+    }
+
+    fn intermediate_encryption_key(&self) -> LweSecretKeyView<'_, u64> {
+        panic!("KS32 AP does not support decrypting with the intermediate encryption key")
+    }
+
+    fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        self.parameters.encryption_key_choice()
     }
 
     fn encryption_noise(&self) -> DynamicDistribution<u64> {
