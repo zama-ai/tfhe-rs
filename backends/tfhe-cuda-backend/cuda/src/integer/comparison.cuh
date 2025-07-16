@@ -29,7 +29,7 @@ device_accumulate_all_blocks(Torus *output, Torus const *input_block,
       sum += block[i * (lwe_dimension + 1)];
     }
 
-    //output[idx] = sum;
+    output[idx] = sum;
   }
 }
 
@@ -45,8 +45,8 @@ __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   // Add all blocks and store in sum
-  //device_accumulate_all_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
-  //    output, input, lwe_dimension, num_radix_blocks);
+  device_accumulate_all_blocks<Torus><<<num_blocks, num_threads, 0, stream>>>(
+      output, input, lwe_dimension, num_radix_blocks);
   check_cuda_error(cudaGetLastError());
 }
 

@@ -332,6 +332,12 @@ __host__ void host_unsigned_integer_div_rem_kb(
           subtraction_overflowed, (const CudaRadixCiphertextFFI *)nullptr,
           mem_ptr->overflow_sub_mem, bsks, ksks, ms_noise_reduction_key,
           compute_borrow, uses_input_borrow);
+      for (uint i = 0; i < gpu_count; i++) {
+          cuda_set_device(gpu_indexes[i]);
+          cudaDeviceSynchronize();
+          printf("Synchronize gpu %d\n", i);
+          check_cuda_error(cudaGetLastError());
+      }
     };
 
     // fills:
@@ -341,6 +347,12 @@ __host__ void host_unsigned_integer_div_rem_kb(
                                           uint32_t gpu_count) {
       auto trivial_blocks = divisor_ms_blocks;
       printf("Trivial blocks: %d\n", trivial_blocks->num_radix_blocks);
+        for (uint i = 0; i < gpu_count; i++) {
+            cuda_set_device(gpu_indexes[i]);
+            cudaDeviceSynchronize();
+            printf("Synchronize gpu %d\n", i);
+            check_cuda_error(cudaGetLastError());
+        }
       if (trivial_blocks->num_radix_blocks == 0) {
         set_zero_radix_ciphertext_slice_async<Torus>(
             streams[0], gpu_indexes[0], at_least_one_upper_block_is_non_zero, 0,

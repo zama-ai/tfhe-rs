@@ -2121,6 +2121,8 @@ void host_single_borrow_propagate(
       mem->shifted_blocks_borrow_state_mem, bsks, ksks, ms_noise_reduction_key,
       lut_stride, num_many_lut);
 
+    cudaDeviceSynchronize();
+    check_cuda_error(cudaGetLastError());
   auto borrow_states = mem->shifted_blocks_borrow_state_mem->borrow_states;
   copy_radix_ciphertext_slice_async<Torus>(
       streams[0], gpu_indexes[0], mem->overflow_block, 0, 1, borrow_states,
@@ -2132,6 +2134,8 @@ void host_single_borrow_propagate(
       mem->prop_simu_group_carries_mem, bsks, ksks, ms_noise_reduction_key,
       num_radix_blocks, num_groups);
 
+    cudaDeviceSynchronize();
+    check_cuda_error(cudaGetLastError());
   auto shifted_blocks =
       (Torus *)mem->shifted_blocks_borrow_state_mem->shifted_blocks->ptr;
   auto prepared_blocks = mem->prop_simu_group_carries_mem->prepared_blocks;
@@ -2141,6 +2145,8 @@ void host_single_borrow_propagate(
                           (Torus *)prepared_blocks->ptr, shifted_blocks,
                           simulators, big_lwe_dimension, num_radix_blocks);
 
+    cudaDeviceSynchronize();
+    check_cuda_error(cudaGetLastError());
   host_integer_radix_add_scalar_one_inplace<Torus>(
       streams, gpu_indexes, gpu_count, prepared_blocks, message_modulus,
       carry_modulus);
@@ -2166,49 +2172,29 @@ void host_single_borrow_propagate(
                          mem->overflow_block, &resolved_borrows, 1);
   }
 
-  cuda_event_record(mem->incoming_events[0], streams[0], gpu_indexes[0]);
-  for (int j = 0; j < mem->active_gpu_count; j++) {
-    cuda_stream_wait_event(mem->sub_streams_1[j], mem->incoming_events[0],
-                           gpu_indexes[j]);
-    cuda_stream_wait_event(mem->sub_streams_2[j], mem->incoming_events[0],
-                           gpu_indexes[j]);
-  }
-
   if (compute_overflow == outputFlag::FLAG_OVERFLOW) {
     auto borrow_flag = mem->lut_borrow_flag;
     integer_radix_apply_univariate_lookup_table_kb<Torus>(
-        mem->sub_streams_1, gpu_indexes, gpu_count, overflow_block,
+        streams, gpu_indexes, gpu_count, overflow_block,
         mem->overflow_block, bsks, ksks, ms_noise_reduction_key, borrow_flag,
         1);
-  }
-  for (int j = 0; j < mem->active_gpu_count; j++) {
-    cuda_event_record(mem->outgoing_events1[j], mem->sub_streams_1[j],
-                      gpu_indexes[j]);
   }
 
   // subtract borrow and cleanup prepared blocks
   auto resolved_carries = mem->prop_simu_group_carries_mem->resolved_carries;
   host_negation<Torus>(
-      mem->sub_streams_2[0], gpu_indexes[0], (Torus *)resolved_carries->ptr,
+      streams[0], gpu_indexes[0], (Torus *)resolved_carries->ptr,
       (Torus *)resolved_carries->ptr, big_lwe_dimension, num_groups);
 
   host_radix_sum_in_groups<Torus>(
-      mem->sub_streams_2[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
+      streams[0], gpu_indexes[0], prepared_blocks, prepared_blocks,
       resolved_carries, num_radix_blocks, mem->group_size);
 
   auto message_extract = mem->lut_message_extract;
   integer_radix_apply_univariate_lookup_table_kb<Torus>(
-      mem->sub_streams_2, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
+      streams, gpu_indexes, gpu_count, lwe_array, prepared_blocks,
       bsks, ksks, ms_noise_reduction_key, message_extract, num_radix_blocks);
 
-  for (int j = 0; j < mem->active_gpu_count; j++) {
-    cuda_event_record(mem->outgoing_events2[j], mem->sub_streams_2[j],
-                      gpu_indexes[j]);
-    cuda_stream_wait_event(streams[0], mem->outgoing_events1[j],
-                           gpu_indexes[0]);
-    cuda_stream_wait_event(streams[0], mem->outgoing_events2[j],
-                           gpu_indexes[0]);
-  }
 }
 
 /// num_radix_blocks corresponds to the number of blocks on which to apply the
