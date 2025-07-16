@@ -29,7 +29,7 @@ device_accumulate_all_blocks(Torus *output, Torus const *input_block,
       sum += block[i * (lwe_dimension + 1)];
     }
 
-    output[idx] = sum;
+    //output[idx] = sum;
   }
 }
 
@@ -231,6 +231,7 @@ __host__ void is_at_least_one_comparisons_block_true(
     for (int i = 0; i < num_chunks; i++) {
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
+      cudaDeviceSynchronize();
       printf("chunk length %d, accumulator blocks: %d, input blocks: %d\n", chunk_length,
              buffer->tmp_block_accumulated->num_radix_blocks,
              mem_ptr->tmp_lwe_array_out->num_radix_blocks);
