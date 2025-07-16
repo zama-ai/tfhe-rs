@@ -570,7 +570,7 @@ template <typename Torus> struct int_radix_lut {
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      if (i != src_gpu_idx) {
+      if (gpu_indexes[i] != gpu_indexes[src_gpu_idx]) {
         auto dst_lut = lut_vec[i];
         auto dst_lut_indexes = lut_indexes_vec[i];
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
@@ -581,7 +581,7 @@ template <typename Torus> struct int_radix_lut {
             streams[i], gpu_indexes[i], gpu_memory_allocated);
       }
     }
-    cuda_set_device(gpu_indexes[0]);
+    cuda_set_device(gpu_indexes[src_gpu_idx]);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
