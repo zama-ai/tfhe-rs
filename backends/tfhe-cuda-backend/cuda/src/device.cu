@@ -2,6 +2,12 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 
+uint32_t cuda_get_device() {
+  int device;
+  check_cuda_error(cudaGetDevice(&device));
+  return static_cast<uint32_t>(device);
+}
+
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
 }

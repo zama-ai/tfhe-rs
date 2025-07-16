@@ -699,17 +699,18 @@ template <typename Torus> struct int_radix_lut {
     using_trivial_lwe_indexes = false;
   }
 
-  // Broadcast luts from gpu src_gpu_idx to all active gpus
-  void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes,
-                     uint32_t src_gpu_idx) {
+  // Broadcast luts from device gpu_indexes[0] to all active gpus
+  void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes) {
+    int active_device = cuda_get_device();
+
     Torus lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
 
-    auto src_lut = lut_vec[src_gpu_idx];
-    auto src_lut_indexes = lut_indexes_vec[src_gpu_idx];
+    auto src_lut = lut_vec[0];
+    auto src_lut_indexes = lut_indexes_vec[0];
 
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      if (i != src_gpu_idx) {
+      if (gpu_indexes[i] != gpu_indexes[0]) {
         auto dst_lut = lut_vec[i];
         auto dst_lut_indexes = lut_indexes_vec[i];
         cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
@@ -720,7 +721,9 @@ template <typename Torus> struct int_radix_lut {
             streams[i], gpu_indexes[i], gpu_memory_allocated);
       }
     }
-    cuda_set_device(gpu_indexes[0]);
+    // Ensure the device set at the end of this method is the same as it was set
+    // at the beginning
+    cuda_set_device(active_device);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1033,7 +1036,7 @@ template <typename Torus> struct int_bit_extract_luts_buffer {
         lut->get_lut_indexes(0, 0), h_lut_indexes,
         num_radix_blocks * bits_per_block * sizeof(Torus), streams[0],
         gpu_indexes[0], allocate_gpu_memory);
-    lut->broadcast_lut(streams, gpu_indexes, 0);
+    lut->broadcast_lut(streams, gpu_indexes);
 
     /**
      * the input indexes should take the first bits_per_block PBS to target
@@ -1200,7 +1203,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         mux_lut->get_degree(0), mux_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, mux_lut_f, gpu_memory_allocated);
-    mux_lut->broadcast_lut(streams, gpu_indexes, 0);
+    mux_lut->broadcast_lut(streams, gpu_indexes);
 
     auto cleaning_lut_f = [params](Torus x) -> Torus {
       return x % params.message_modulus;
@@ -1210,7 +1213,7 @@ template <typename Torus> struct int_shift_and_rotate_buffer {
         cleaning_lut->get_degree(0), cleaning_lut->get_max_degree(0),
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cleaning_lut_f, gpu_memory_allocated);
-    cleaning_lut->broadcast_lut(streams, gpu_indexes, 0);
+    cleaning_lut->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1300,7 +1303,7 @@ template <typename Torus> struct int_fullprop_buffer {
         lwe_indexes, h_lwe_indexes, lwe_indexes_size, streams[0],
         gpu_indexes[0], allocate_gpu_memory);
 
-    lut->broadcast_lut(streams, gpu_indexes, 0);
+    lut->broadcast_lut(streams, gpu_indexes);
 
     tmp_small_lwe_vector = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
@@ -1435,9 +1438,9 @@ template <typename Torus> struct int_overflowing_sub_memory {
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_message_acc, gpu_memory_allocated);
 
-    luts_array->broadcast_lut(streams, gpu_indexes, 0);
-    luts_borrow_propagation_sum->broadcast_lut(streams, gpu_indexes, 0);
-    message_acc->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array->broadcast_lut(streams, gpu_indexes);
+    luts_borrow_propagation_sum->broadcast_lut(streams, gpu_indexes);
+    message_acc->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1583,7 +1586,7 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
           luts_message_carry->get_max_degree(1), params.glwe_dimension,
           params.polynomial_size, message_modulus, params.carry_modulus,
           lut_f_carry, gpu_memory_allocated);
-      luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+      luts_message_carry->broadcast_lut(streams, gpu_indexes);
     }
   }
   int_sum_ciphertexts_vec_memory(
@@ -1734,7 +1737,7 @@ template <typename Torus> struct int_seq_group_prop_memory {
         seq_lut_indexes, h_seq_lut_indexes, num_seq_luts * sizeof(Torus),
         streams[0], gpu_indexes[0], allocate_gpu_memory);
 
-    lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes, 0);
+    lut_sequential_algorithm->broadcast_lut(streams, gpu_indexes);
     free(h_seq_lut_indexes);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -1790,7 +1793,7 @@ template <typename Torus> struct int_hs_group_prop_memory {
         glwe_dimension, polynomial_size, message_modulus, carry_modulus,
         f_lut_hillis_steele, gpu_memory_allocated);
 
-    lut_hillis_steele->broadcast_lut(streams, gpu_indexes, 0);
+    lut_hillis_steele->broadcast_lut(streams, gpu_indexes);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -1967,7 +1970,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
 
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
   };
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2228,7 +2231,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         scalar_array_cum_sum, h_scalar_array_cum_sum,
         num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         allocate_gpu_memory);
-    luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes);
 
     if (use_sequential_algorithm_to_resolve_group_carries) {
 
@@ -2254,7 +2257,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
         lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
         streams[0], gpu_indexes[0], gpu_memory_allocated);
 
-    luts_array_second_step->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array_second_step->broadcast_lut(streams, gpu_indexes);
 
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         scalar_array_cum_sum, new_scalars, new_num_blocks * sizeof(Torus),
@@ -2360,7 +2363,7 @@ template <typename Torus> struct int_sc_prop_memory {
         message_modulus, carry_modulus, f_message_extract,
         gpu_memory_allocated);
 
-    lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+    lut_message_extract->broadcast_lut(streams, gpu_indexes);
 
     // This store a single block that with be used to store the overflow or
     // carry results
@@ -2419,7 +2422,7 @@ template <typename Torus> struct int_sc_prop_memory {
           polynomial_size, message_modulus, carry_modulus, f_overflow_fp,
           gpu_memory_allocated);
 
-      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes, 0);
+      lut_overflow_flag_prep->broadcast_lut(streams, gpu_indexes);
     }
 
     // For the final cleanup in case of overflow or carry (it seems that I can)
@@ -2462,7 +2465,7 @@ template <typename Torus> struct int_sc_prop_memory {
           (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0],
           allocate_gpu_memory);
 
-      lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+      lut_message_extract->broadcast_lut(streams, gpu_indexes);
     }
     if (requested_flag == outputFlag::FLAG_CARRY) { // Carry case
 
@@ -2490,7 +2493,7 @@ template <typename Torus> struct int_sc_prop_memory {
           (num_radix_blocks + 1) * sizeof(Torus), streams[0], gpu_indexes[0],
           allocate_gpu_memory);
 
-      lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+      lut_message_extract->broadcast_lut(streams, gpu_indexes);
     }
   };
 
@@ -2687,7 +2690,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
         gpu_indexes[0], allocate_gpu_memory);
     // Do I need to do something else for the multi-gpu?
 
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
   };
 
   // needed for the division to update the lut indexes
@@ -2698,7 +2701,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
     cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
         lut_indexes, new_lut_indexes, new_num_blocks * sizeof(Torus),
         streams[0], gpu_indexes[0], gpu_memory_allocated);
-    luts_array_first_step->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array_first_step->broadcast_lut(streams, gpu_indexes);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -2798,7 +2801,7 @@ template <typename Torus> struct int_borrow_prop_memory {
         message_modulus, carry_modulus, f_message_extract,
         gpu_memory_allocated);
 
-    lut_message_extract->broadcast_lut(streams, gpu_indexes, 0);
+    lut_message_extract->broadcast_lut(streams, gpu_indexes);
 
     if (compute_overflow) {
       lut_borrow_flag = new int_radix_lut<Torus>(
@@ -2815,7 +2818,7 @@ template <typename Torus> struct int_borrow_prop_memory {
           glwe_dimension, polynomial_size, message_modulus, carry_modulus,
           f_borrow_flag, gpu_memory_allocated);
 
-      lut_borrow_flag->broadcast_lut(streams, gpu_indexes, 0);
+      lut_borrow_flag->broadcast_lut(streams, gpu_indexes);
     }
 
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
@@ -2982,7 +2985,7 @@ template <typename Torus> struct int_mul_memory {
           zero_out_predicate_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           zero_out_predicate_lut_f, gpu_memory_allocated);
-      zero_out_predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
+      zero_out_predicate_lut->broadcast_lut(streams, gpu_indexes);
 
       zero_out_mem = new int_zero_out_if_buffer<Torus>(
           streams, gpu_indexes, gpu_count, params, num_radix_blocks,
@@ -3056,7 +3059,7 @@ template <typename Torus> struct int_mul_memory {
           luts_array->get_lut_indexes(0, lsb_vector_block_count), 1,
           msb_vector_block_count);
 
-    luts_array->broadcast_lut(streams, gpu_indexes, 0);
+    luts_array->broadcast_lut(streams, gpu_indexes);
     // create memory object for sum ciphertexts
     sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
         streams, gpu_indexes, gpu_count, params, num_radix_blocks,
@@ -3188,7 +3191,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
           cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           shift_lut_f, gpu_memory_allocated);
-      cur_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
+      cur_lut_bivariate->broadcast_lut(streams, gpu_indexes);
 
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
     }
@@ -3272,7 +3275,7 @@ template <typename Torus> struct int_logical_scalar_shift_buffer {
           cur_lut_bivariate->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           shift_lut_f, gpu_memory_allocated);
-      cur_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
+      cur_lut_bivariate->broadcast_lut(streams, gpu_indexes);
 
       lut_buffers_bivariate.push_back(cur_lut_bivariate);
     }
@@ -3376,7 +3379,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
           shift_last_block_lut_univariate->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, last_block_lut_f, gpu_memory_allocated);
-      shift_last_block_lut_univariate->broadcast_lut(streams, gpu_indexes, 0);
+      shift_last_block_lut_univariate->broadcast_lut(streams, gpu_indexes);
 
       lut_buffers_univariate.push_back(shift_last_block_lut_univariate);
     }
@@ -3401,7 +3404,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
         padding_block_lut_univariate->get_max_degree(0), params.glwe_dimension,
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         padding_block_lut_f, gpu_memory_allocated);
-    padding_block_lut_univariate->broadcast_lut(streams, gpu_indexes, 0);
+    padding_block_lut_univariate->broadcast_lut(streams, gpu_indexes);
 
     lut_buffers_univariate.push_back(padding_block_lut_univariate);
 
@@ -3440,7 +3443,7 @@ template <typename Torus> struct int_arithmetic_scalar_shift_buffer {
           shift_blocks_lut_bivariate->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           blocks_lut_f, gpu_memory_allocated);
-      shift_blocks_lut_bivariate->broadcast_lut(streams, gpu_indexes, 0);
+      shift_blocks_lut_bivariate->broadcast_lut(streams, gpu_indexes);
 
       lut_buffers_bivariate.push_back(shift_blocks_lut_bivariate);
     }
@@ -3555,8 +3558,8 @@ template <typename Torus> struct int_cmux_buffer {
         2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0],
         allocate_gpu_memory);
 
-    predicate_lut->broadcast_lut(streams, gpu_indexes, 0);
-    message_extract_lut->broadcast_lut(streams, gpu_indexes, 0);
+    predicate_lut->broadcast_lut(streams, gpu_indexes);
+    message_extract_lut->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3628,7 +3631,7 @@ template <typename Torus> struct int_are_all_block_true_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_max_value_f, gpu_memory_allocated);
 
-    is_max_value->broadcast_lut(streams, gpu_indexes, 0);
+    is_max_value->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3688,7 +3691,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, operator_f, gpu_memory_allocated);
 
-    operator_lut->broadcast_lut(streams, gpu_indexes, 0);
+    operator_lut->broadcast_lut(streams, gpu_indexes);
 
     // f(x) -> x == 0
     Torus total_modulus = params.message_modulus * params.carry_modulus;
@@ -3706,7 +3709,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_non_zero_lut_f, gpu_memory_allocated);
 
-    is_non_zero_lut->broadcast_lut(streams, gpu_indexes, 0);
+    is_non_zero_lut->broadcast_lut(streams, gpu_indexes);
 
     // Scalar may have up to num_radix_blocks blocks
     scalar_comparison_luts = new int_radix_lut<Torus>(
@@ -3726,7 +3729,7 @@ template <typename Torus> struct int_comparison_eq_buffer {
           lut_f, gpu_memory_allocated);
     }
 
-    scalar_comparison_luts->broadcast_lut(streams, gpu_indexes, 0);
+    scalar_comparison_luts->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3800,7 +3803,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
         params.polynomial_size, params.message_modulus, params.carry_modulus,
         block_selector_f, gpu_memory_allocated);
 
-    tree_inner_leaf_lut->broadcast_lut(streams, gpu_indexes, 0);
+    tree_inner_leaf_lut->broadcast_lut(streams, gpu_indexes);
   }
 
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
@@ -3990,7 +3993,7 @@ template <typename Torus> struct int_comparison_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, identity_lut_f, gpu_memory_allocated);
 
-    identity_lut->broadcast_lut(streams, gpu_indexes, 0);
+    identity_lut->broadcast_lut(streams, gpu_indexes);
 
     uint32_t total_modulus = params.message_modulus * params.carry_modulus;
     auto is_zero_f = [total_modulus](Torus x) -> Torus {
@@ -4007,7 +4010,7 @@ template <typename Torus> struct int_comparison_buffer {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, is_zero_f, gpu_memory_allocated);
 
-    is_zero_lut->broadcast_lut(streams, gpu_indexes, 0);
+    is_zero_lut->broadcast_lut(streams, gpu_indexes);
 
     switch (op) {
     case COMPARISON_TYPE::MAX:
@@ -4090,7 +4093,7 @@ template <typename Torus> struct int_comparison_buffer {
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, signed_lut_f, gpu_memory_allocated);
 
-      signed_lut->broadcast_lut(streams, gpu_indexes, 0);
+      signed_lut->broadcast_lut(streams, gpu_indexes);
     }
   }
 
@@ -4314,7 +4317,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
             params.glwe_dimension, params.polynomial_size,
             params.message_modulus, params.carry_modulus, lut_f_masking,
             gpu_memory_allocated);
-        luts[j]->broadcast_lut(streams, gpu_indexes, 0);
+        luts[j]->broadcast_lut(streams, gpu_indexes);
       }
     }
 
@@ -4341,7 +4344,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           luts[j]->get_degree(0), luts[j]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, lut_f_message_extract, gpu_memory_allocated);
-      luts[j]->broadcast_lut(streams, gpu_indexes, 0);
+      luts[j]->broadcast_lut(streams, gpu_indexes);
     }
 
     // Give name to closures to improve readability
@@ -4377,8 +4380,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cur_lut_f, params.message_modulus - 2,
         gpu_memory_allocated);
-    zero_out_if_overflow_did_not_happen[0]->broadcast_lut(streams, gpu_indexes,
-                                                          0);
+    zero_out_if_overflow_did_not_happen[0]->broadcast_lut(streams, gpu_indexes);
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
         zero_out_if_overflow_did_not_happen[1]->get_lut(0, 0),
@@ -4387,8 +4389,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, cur_lut_f, params.message_modulus - 1,
         gpu_memory_allocated);
-    zero_out_if_overflow_did_not_happen[1]->broadcast_lut(streams, gpu_indexes,
-                                                          0);
+    zero_out_if_overflow_did_not_happen[1]->broadcast_lut(streams, gpu_indexes);
 
     // create and generate zero_out_if_overflow_happened
     zero_out_if_overflow_happened = new int_radix_lut<Torus> *[2];
@@ -4415,7 +4416,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, overflow_happened_f, params.message_modulus - 2,
         gpu_memory_allocated);
-    zero_out_if_overflow_happened[0]->broadcast_lut(streams, gpu_indexes, 0);
+    zero_out_if_overflow_happened[0]->broadcast_lut(streams, gpu_indexes);
     generate_device_accumulator_bivariate_with_factor<Torus>(
         streams[0], gpu_indexes[0],
         zero_out_if_overflow_happened[1]->get_lut(0, 0),
@@ -4424,7 +4425,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
         params.glwe_dimension, params.polynomial_size, params.message_modulus,
         params.carry_modulus, overflow_happened_f, params.message_modulus - 1,
         gpu_memory_allocated);
-    zero_out_if_overflow_happened[1]->broadcast_lut(streams, gpu_indexes, 0);
+    zero_out_if_overflow_happened[1]->broadcast_lut(streams, gpu_indexes);
 
     // merge_overflow_flags_luts
     merge_overflow_flags_luts = new int_radix_lut<Torus> *[num_bits_in_message];
@@ -4444,7 +4445,7 @@ template <typename Torus> struct unsigned_int_div_rem_memory {
           merge_overflow_flags_luts[i]->get_max_degree(0),
           params.glwe_dimension, params.polynomial_size, params.message_modulus,
           params.carry_modulus, lut_f_bit, gpu_memory_allocated);
-      merge_overflow_flags_luts[i]->broadcast_lut(streams, gpu_indexes, 0);
+      merge_overflow_flags_luts[i]->broadcast_lut(streams, gpu_indexes);
     }
   }
 
@@ -4788,7 +4789,7 @@ template <typename Torus> struct int_bitop_buffer {
             lut->get_max_degree(0), params.glwe_dimension,
             params.polynomial_size, params.message_modulus,
             params.carry_modulus, lut_bivariate_f, gpu_memory_allocated);
-        lut->broadcast_lut(streams, gpu_indexes, 0);
+        lut->broadcast_lut(streams, gpu_indexes);
       }
       break;
     default:
@@ -4818,7 +4819,7 @@ template <typename Torus> struct int_bitop_buffer {
             params.polynomial_size, params.message_modulus,
             params.carry_modulus, lut_univariate_scalar_f,
             gpu_memory_allocated);
-        lut->broadcast_lut(streams, gpu_indexes, 0);
+        lut->broadcast_lut(streams, gpu_indexes);
       }
     }
   }
@@ -5099,7 +5100,7 @@ template <typename Torus> struct int_div_rem_memory {
           compare_signed_bits_lut->get_max_degree(0), params.glwe_dimension,
           params.polynomial_size, params.message_modulus, params.carry_modulus,
           f_compare_extracted_signed_bits, gpu_memory_allocated);
-      compare_signed_bits_lut->broadcast_lut(streams, gpu_indexes, 0);
+      compare_signed_bits_lut->broadcast_lut(streams, gpu_indexes);
     }
   }
 

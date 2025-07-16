@@ -439,7 +439,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       cudaFreeHost(h_lwe_indexes_in_pinned);
       cudaFreeHost(h_lwe_indexes_out_pinned);
 
-      luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+      luts_message_carry->broadcast_lut(streams, gpu_indexes);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
@@ -515,7 +515,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       cudaFreeHost(h_lwe_indexes_in_pinned);
       cudaFreeHost(h_lwe_indexes_out_pinned);
 
-      luts_message_carry->broadcast_lut(streams, gpu_indexes, 0);
+      luts_message_carry->broadcast_lut(streams, gpu_indexes);
       luts_message_carry->using_trivial_lwe_indexes = false;
 
       integer_radix_apply_univariate_lookup_table_kb<Torus>(
