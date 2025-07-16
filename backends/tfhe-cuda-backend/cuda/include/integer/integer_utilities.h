@@ -338,8 +338,9 @@ template <typename Torus> struct int_radix_lut {
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
-      auto num_blocks_on_gpu =
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
+      auto num_blocks_on_gpu = std::max(
+          THRESHOLD_MULTI_GPU,
+          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count));
 
       uint64_t size = 0;
       execute_scratch_pbs<Torus>(
@@ -554,8 +555,9 @@ template <typename Torus> struct int_radix_lut {
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
-      auto num_blocks_on_gpu =
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
+      auto num_blocks_on_gpu = std::max(
+          THRESHOLD_MULTI_GPU,
+          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count));
 
       uint64_t size = 0;
       execute_scratch_pbs<Torus>(
@@ -862,8 +864,9 @@ template <typename InputTorus> struct int_noise_squashing_lut {
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
       cuda_set_device(gpu_indexes[i]);
-      auto num_radix_blocks_on_gpu =
-          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
+      auto num_radix_blocks_on_gpu = std::max(
+          THRESHOLD_MULTI_GPU,
+          get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count));
       int8_t *gpu_pbs_buffer;
       uint64_t size = 0;
       execute_scratch_pbs_128(streams[i], gpu_indexes[i], &gpu_pbs_buffer,
@@ -4987,7 +4990,6 @@ template <typename Torus> struct int_div_rem_memory {
   // sub streams
   cudaStream_t *sub_streams_1;
   cudaStream_t *sub_streams_2;
-  cudaStream_t *sub_streams_3;
 
   // temporary device buffers
   CudaRadixCiphertextFFI *positive_numerator;
@@ -5003,7 +5005,7 @@ template <typename Torus> struct int_div_rem_memory {
                      bool allocate_gpu_memory, uint64_t &size_tracker) {
 
     gpu_memory_allocated = allocate_gpu_memory;
-    this->active_gpu_count = get_active_gpu_count(2 * num_blocks, gpu_count);
+    this->active_gpu_count = get_active_gpu_count(num_blocks, gpu_count);
     this->params = params;
     this->is_signed = is_signed;
 
@@ -5068,16 +5070,11 @@ template <typename Torus> struct int_div_rem_memory {
           params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
 
       // init sub streams
-      sub_streams_1 =
-          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-      sub_streams_2 =
-          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-      sub_streams_3 =
-          (cudaStream_t *)malloc(active_gpu_count * sizeof(cudaStream_t));
-      for (uint j = 0; j < active_gpu_count; j++) {
+      sub_streams_1 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+      sub_streams_2 = (cudaStream_t *)malloc(gpu_count * sizeof(cudaStream_t));
+      for (uint j = 0; j < gpu_count; j++) {
         sub_streams_1[j] = cuda_create_stream(gpu_indexes[j]);
         sub_streams_2[j] = cuda_create_stream(gpu_indexes[j]);
-        sub_streams_3[j] = cuda_create_stream(gpu_indexes[j]);
       }
 
       // init lookup tables
@@ -5141,14 +5138,12 @@ template <typename Torus> struct int_div_rem_memory {
       delete compare_signed_bits_lut;
 
       // release sub streams
-      for (uint i = 0; i < active_gpu_count; i++) {
+      for (uint i = 0; i < gpu_count; i++) {
         cuda_destroy_stream(sub_streams_1[i], gpu_indexes[i]);
         cuda_destroy_stream(sub_streams_2[i], gpu_indexes[i]);
-        cuda_destroy_stream(sub_streams_3[i], gpu_indexes[i]);
       }
       free(sub_streams_1);
       free(sub_streams_2);
-      free(sub_streams_3);
 
       // delete temporary buffers
       delete positive_numerator;
