@@ -40,6 +40,7 @@ __host__ void accumulate_all_blocks(cudaStream_t stream, uint32_t gpu_index,
                                     uint32_t num_radix_blocks) {
 
   cuda_set_device(gpu_index);
+  printf("GPU %d\n", gpu_index);
   int num_blocks = 0, num_threads = 0;
   int num_entries = (lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
@@ -230,6 +231,9 @@ __host__ void is_at_least_one_comparisons_block_true(
     for (int i = 0; i < num_chunks; i++) {
       uint32_t chunk_length =
           std::min(max_value, begin_remaining_blocks - i * max_value);
+      printf("chunk length %d, accumulator blocks: %d, input blocks: %d\n", chunk_length,
+             buffer->tmp_block_accumulated->num_radix_blocks,
+             mem_ptr->tmp_lwe_array_out->num_radix_blocks);
       chunk_lengths[i] = chunk_length;
       accumulate_all_blocks<Torus>(streams[0], gpu_indexes[0], accumulator,
                                    input_blocks, big_lwe_dimension,
