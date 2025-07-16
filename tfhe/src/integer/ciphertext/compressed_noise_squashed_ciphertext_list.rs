@@ -69,6 +69,14 @@ impl CompressedNoiseSquashingCompressionKey {
         let key = self.key.decompress();
         NoiseSquashingCompressionKey { key }
     }
+
+    pub fn from_raw_parts(key: ShortintCompressedNoiseSquashingCompressionKey) -> Self {
+        Self { key }
+    }
+
+    pub fn into_raw_pars(self) -> ShortintCompressedNoiseSquashingCompressionKey {
+        self.key
+    }
 }
 
 impl Named for CompressedNoiseSquashingCompressionKey {
@@ -79,6 +87,16 @@ impl Named for CompressedNoiseSquashingCompressionKey {
 #[versionize(NoiseSquashingCompressionKeyVersions)]
 pub struct NoiseSquashingCompressionKey {
     pub(crate) key: ShortintNoiseSquashingCompressionKey,
+}
+
+impl NoiseSquashingCompressionKey {
+    pub fn from_raw_parts(key: ShortintNoiseSquashingCompressionKey) -> Self {
+        Self { key }
+    }
+
+    pub fn into_raw_pars(self) -> ShortintNoiseSquashingCompressionKey {
+        self.key
+    }
 }
 
 impl Named for NoiseSquashingCompressionKey {
