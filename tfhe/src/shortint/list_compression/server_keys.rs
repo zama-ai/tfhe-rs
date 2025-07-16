@@ -246,6 +246,39 @@ pub struct NoiseSquashingCompressionKey {
     pub(super) lwe_per_glwe: LweCiphertextCount,
 }
 
+impl NoiseSquashingCompressionKey {
+    /// Construct from raw parts
+    ///
+    /// # Panics
+    ///
+    /// Panics if lwe_per_glwe is greater than the output polynomial size of the packing key
+    /// switching key
+    pub fn from_raw_parts(
+        packing_key_switching_key: LwePackingKeyswitchKey<Vec<u128>>,
+        lwe_per_glwe: LweCiphertextCount,
+    ) -> Self {
+        assert!(
+            lwe_per_glwe.0 <= packing_key_switching_key.output_polynomial_size().0,
+            "Cannot pack more than polynomial_size(={}) elements per glwe, {} requested",
+            packing_key_switching_key.output_polynomial_size().0,
+            lwe_per_glwe.0,
+        );
+        Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+        }
+    }
+
+    pub fn into_raw_parts(self) -> (LwePackingKeyswitchKey<Vec<u128>>, LweCiphertextCount) {
+        let Self {
+            packing_key_switching_key,
+            lwe_per_glwe,
+        } = self;
+
+        (packing_key_switching_key, lwe_per_glwe)
+    }
+}
+
 impl NoiseSquashingPrivateKey {
     pub fn new_noise_squashing_compression_key(
         &self,
