@@ -530,11 +530,13 @@ __host__ void host_integer_div_rem_kb(
     }
 
     host_integer_abs_kb<Torus>(
-        int_mem_ptr->sub_streams_1, gpu_indexes, gpu_count, positive_numerator,
-        bsks, ksks, ms_noise_reduction_key, int_mem_ptr->abs_mem_1, true);
-    host_integer_abs_kb<Torus>(
-        int_mem_ptr->sub_streams_2, gpu_indexes, gpu_count, positive_divisor,
-        bsks, ksks, ms_noise_reduction_key, int_mem_ptr->abs_mem_2, true);
+        int_mem_ptr->sub_streams_1, gpu_indexes, int_mem_ptr->active_gpu_count,
+        positive_numerator, bsks, ksks, ms_noise_reduction_key,
+        int_mem_ptr->abs_mem_1, true);
+    host_integer_abs_kb<Torus>(int_mem_ptr->sub_streams_2, gpu_indexes,
+                               int_mem_ptr->active_gpu_count, positive_divisor,
+                               bsks, ksks, ms_noise_reduction_key,
+                               int_mem_ptr->abs_mem_2, true);
     for (uint j = 0; j < int_mem_ptr->active_gpu_count; j++) {
       cuda_synchronize_stream(int_mem_ptr->sub_streams_1[j], gpu_indexes[j]);
       cuda_synchronize_stream(int_mem_ptr->sub_streams_2[j], gpu_indexes[j]);
