@@ -6,6 +6,7 @@
 
 extern std::mutex m;
 extern bool p2p_enabled;
+extern const int THRESHOLD_MULTI_GPU;
 
 extern "C" {
 int32_t cuda_setup_multi_gpu(int device_0_id);
