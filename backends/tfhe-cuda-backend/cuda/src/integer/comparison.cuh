@@ -148,7 +148,7 @@ __host__ void are_all_comparisons_block_true(
         cuda_memcpy_async_to_gpu(is_max_value_lut->get_lut_indexes(0, 0),
                                  h_lut_indexes, num_chunks * sizeof(Torus),
                                  streams[0], gpu_indexes[0]);
-        is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
+        is_max_value_lut->broadcast_lut(streams, gpu_indexes);
       }
       lut = is_max_value_lut;
     }
@@ -167,7 +167,7 @@ __host__ void are_all_comparisons_block_true(
                                is_max_value_lut->h_lut_indexes,
                                is_max_value_lut->num_blocks * sizeof(Torus),
                                streams[0], gpu_indexes[0]);
-      is_max_value_lut->broadcast_lut(streams, gpu_indexes, 0);
+      is_max_value_lut->broadcast_lut(streams, gpu_indexes);
       reset_radix_ciphertext_blocks(lwe_array_out, 1);
       return;
     } else {
@@ -499,7 +499,7 @@ __host__ void tree_sign_reduction(
       streams[0], gpu_indexes[0], last_lut->get_lut(0, 0),
       last_lut->get_degree(0), last_lut->get_max_degree(0), glwe_dimension,
       polynomial_size, message_modulus, carry_modulus, f, true);
-  last_lut->broadcast_lut(streams, gpu_indexes, 0);
+  last_lut->broadcast_lut(streams, gpu_indexes);
 
   // Last leaf
   integer_radix_apply_univariate_lookup_table_kb<Torus>(

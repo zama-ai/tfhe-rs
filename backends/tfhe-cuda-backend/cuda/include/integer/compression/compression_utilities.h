@@ -124,7 +124,7 @@ template <typename Torus> struct int_decompression {
         encryption_params.carry_modulus, decompression_rescale_f,
         gpu_memory_allocated);
 
-    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes, 0);
+    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes);
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
