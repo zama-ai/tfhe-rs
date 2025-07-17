@@ -215,13 +215,9 @@ unsafe extern "C" {
         gpu_indexes: *const u32,
         gpu_count: u32,
         mem_ptr: *mut *mut i8,
-        encryption_glwe_dimension: u32,
-        encryption_polynomial_size: u32,
         compression_glwe_dimension: u32,
         compression_polynomial_size: u32,
         lwe_dimension: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
         num_radix_blocks: u32,
         message_modulus: u32,
         carry_modulus: u32,
@@ -253,7 +249,6 @@ unsafe extern "C" {
         glwe_in: *const ffi::c_void,
         indexes_array: *const u32,
         indexes_array_size: u32,
-        bsks: *const *mut ffi::c_void,
         mem_ptr: *mut i8,
     );
 }

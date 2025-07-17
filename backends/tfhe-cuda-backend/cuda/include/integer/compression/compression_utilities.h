@@ -89,9 +89,6 @@ template <typename Torus> struct int_decompression {
     Torus lwe_accumulator_size = (compression_params.glwe_dimension *
                                       compression_params.polynomial_size +
                                   1);
-    decompression_rescale_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, encryption_params, 1, num_radix_blocks,
-        allocate_gpu_memory, size_tracker);
 
     tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * glwe_accumulator_size * sizeof(Torus), streams[0],
@@ -103,28 +100,34 @@ template <typename Torus> struct int_decompression {
         num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
         gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
-    // Rescale is done using an identity LUT
-    // Here we do not divide by message_modulus
-    // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
-    // space, we want to keep the original 2 bits value in the 4 bits space,
-    // so we apply the identity and the encoding will rescale it for us.
-    auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
+    // Check if Torus is uint64_t
+    if constexpr (std::is_same_v<Torus, uint64_t>) {
+      // Rescale is done using an identity LUT
+      // Here we do not divide by message_modulus
+      // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
+      // space, we want to keep the original 2 bits value in the 4 bits space,
+      // so we apply the identity and the encoding will rescale it for us.
+      decompression_rescale_lut = new int_radix_lut<Torus>(
+          streams, gpu_indexes, gpu_count, encryption_params, 1,
+          num_radix_blocks, allocate_gpu_memory, size_tracker);
+      auto decompression_rescale_f = [](Torus x) -> Torus { return x; };
 
-    auto effective_compression_message_modulus =
-        encryption_params.carry_modulus;
-    auto effective_compression_carry_modulus = 1;
+      auto effective_compression_message_modulus =
+          encryption_params.carry_modulus;
+      auto effective_compression_carry_modulus = 1;
 
-    generate_device_accumulator_with_encoding<Torus>(
-        streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
-        decompression_rescale_lut->get_degree(0),
-        decompression_rescale_lut->get_max_degree(0),
-        encryption_params.glwe_dimension, encryption_params.polynomial_size,
-        effective_compression_message_modulus,
-        effective_compression_carry_modulus, encryption_params.message_modulus,
-        encryption_params.carry_modulus, decompression_rescale_f,
-        gpu_memory_allocated);
+      generate_device_accumulator_with_encoding<Torus>(
+          streams[0], gpu_indexes[0], decompression_rescale_lut->get_lut(0, 0),
+          decompression_rescale_lut->get_degree(0),
+          decompression_rescale_lut->get_max_degree(0),
+          encryption_params.glwe_dimension, encryption_params.polynomial_size,
+          effective_compression_message_modulus,
+          effective_compression_carry_modulus,
+          encryption_params.message_modulus, encryption_params.carry_modulus,
+          decompression_rescale_f, gpu_memory_allocated);
 
-    decompression_rescale_lut->broadcast_lut(streams, gpu_indexes, 0);
+      decompression_rescale_lut->broadcast_lut(streams, gpu_indexes, 0);
+    }
   }
   void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                uint32_t gpu_count) {
@@ -135,8 +138,11 @@ template <typename Torus> struct int_decompression {
     cuda_drop_with_size_tracking_async(tmp_indexes_array, streams[0],
                                        gpu_indexes[0], gpu_memory_allocated);
 
-    decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
-    delete decompression_rescale_lut;
+    // Check if Torus is uint64_t
+    if constexpr (std::is_same_v<Torus, uint64_t>) {
+      decompression_rescale_lut->release(streams, gpu_indexes, gpu_count);
+      delete decompression_rescale_lut;
+    }
   }
 };
 #endif

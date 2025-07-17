@@ -1,5 +1,11 @@
+use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::{
+    generate_binary_glwe_secret_key, LweCiphertextCount, PolynomialSize,
+};
+use crate::error::error;
 use crate::integer::ciphertext::DataKind;
+use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
 use crate::integer::gpu::ciphertext::squashed_noise::{
     CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext,
     CudaSquashedNoiseSignedRadixCiphertext,
@@ -7,7 +13,12 @@ use crate::integer::gpu::ciphertext::squashed_noise::{
 use crate::integer::gpu::list_compression::server_keys::{
     CudaNoiseSquashingCompressionKey, CudaPackedGlweCiphertextList,
 };
+use crate::integer::gpu::{decompress_integer_radix_async, decompress_integer_radix_async_128};
+use crate::integer::parameters::GlweDimension;
 use crate::named::Named;
+use crate::shortint::ciphertext::{Degree, NoiseLevel};
+use crate::shortint::{AtomicPatternKind, PBSOrder};
+use itertools::Itertools;
 
 pub struct CudaCompressedSquashedNoiseCiphertextListBuilder {
     pub(crate) ciphertexts: Vec<CudaSquashedNoiseRadixCiphertext>,
@@ -120,25 +131,142 @@ impl CudaCompressedSquashedNoiseCiphertextListBuilder {
     }
 }
 
-pub trait CudaSquashedNoiseExpandable{
+pub trait CudaSquashedNoiseExpandable: Sized {
     fn from_expanded_blocks(
-        blocks: CudaSquashedNoiseRadixCiphertext,
+        blocks: CudaLweCiphertextList<u128>,
+        info: CudaRadixCiphertextInfo,
         kind: DataKind,
     ) -> crate::Result<Self>;
+}
+
+fn create_error_message(tried: DataKind, actual: DataKind) -> crate::Error {
+    fn name(kind: DataKind) -> &'static str {
+        match kind {
+            DataKind::Unsigned(_) => "CudaSquashedNoiseRadixCiphertext",
+            DataKind::Signed(_) => "CudaSquashedNoiseSignedRadixCiphertext",
+            DataKind::Boolean => "CudaSquashedNoiseBooleanBlock",
+            DataKind::String { .. } => "Unsupported type",
+        }
+    }
+    crate::error!(
+        "Tried to expand a {}, but a {} is stored in this slot",
+        name(tried),
+        name(actual)
+    )
+}
+
+impl CudaSquashedNoiseExpandable for CudaSquashedNoiseRadixCiphertext {
+    fn from_expanded_blocks(
+        blocks: CudaLweCiphertextList<u128>,
+        info: CudaRadixCiphertextInfo,
+        kind: DataKind,
+    ) -> crate::Result<Self> {
+        if let DataKind::Unsigned(block_count) = kind {
+            Ok(Self {
+                packed_d_blocks: blocks,
+                original_block_count: block_count,
+                info,
+            })
+        } else {
+            Err(create_error_message(DataKind::Unsigned(0), kind))
+        }
+    }
 }
 
 impl CudaCompressedSquashedNoiseCiphertextList {
     pub fn builder() -> CudaCompressedSquashedNoiseCiphertextListBuilder {
         CudaCompressedSquashedNoiseCiphertextListBuilder::new()
     }
+    pub fn unpack(
+        &self,
+        kind: DataKind,
+        start_block_index: usize,
+        end_block_index: usize,
+        streams: &CudaStreams,
+    ) -> Result<(CudaLweCiphertextList<u128>, CudaRadixCiphertextInfo), crate::Error> {
+        if end_block_index >= self.packed_list.bodies_count() {
+            return Err(error!(
+            "Tried getting index {end_block_index} for CudaCompressedSquashedNoiseCiphertextList \
+            with {} elements, out of bound access.",
+            self.packed_list.bodies_count()
+        ));
+        }
+
+        let meta = self.packed_list.meta.as_ref().ok_or_else(|| {
+            error!("Missing ciphertext metadata in CudaCompressedSquashedNoiseCiphertextList")
+        })?;
+
+        let indexes_array = (start_block_index..=end_block_index)
+            .map(|x| x as u32)
+            .collect_vec();
+
+        let compression_glwe_dimension = meta.glwe_dimension;
+        let compression_polynomial_size = meta.polynomial_size;
+        let indexes_array_len = LweCiphertextCount(indexes_array.len());
+
+        let message_modulus = meta.message_modulus;
+        let carry_modulus = meta.carry_modulus;
+        let ciphertext_modulus = meta.ciphertext_modulus;
+        let storage_log_modulus = meta.storage_log_modulus;
+
+        let lwe_dimension = meta
+            .glwe_dimension
+            .to_equivalent_lwe_dimension(meta.polynomial_size);
+
+        let mut output_lwe = CudaLweCiphertextList::new(
+            lwe_dimension,
+            indexes_array_len,
+            ciphertext_modulus,
+            streams,
+        );
+
+        unsafe {
+            decompress_integer_radix_async_128(
+                streams,
+                &mut output_lwe.0.d_vec,
+                &self.packed_list.data,
+                meta.bodies_count as u32,
+                message_modulus,
+                carry_modulus,
+                compression_glwe_dimension,
+                compression_polynomial_size,
+                lwe_dimension,
+                storage_log_modulus.0 as u32,
+                indexes_array.as_slice(),
+                indexes_array_len.0 as u32,
+            );
+        }
+        streams.synchronize();
+        let degree = match kind {
+            DataKind::Unsigned(_) | DataKind::Signed(_) | DataKind::String { .. } => {
+                Degree::new(message_modulus.0 - 1)
+            }
+            DataKind::Boolean => Degree::new(1),
+        };
+
+        let first_block_info = CudaBlockInfo {
+            degree,
+            message_modulus,
+            carry_modulus,
+            atomic_pattern: AtomicPatternKind::Standard(PBSOrder::KeyswitchBootstrap),
+            noise_level: NoiseLevel::NOMINAL,
+        };
+
+        let blocks = vec![first_block_info; output_lwe.0.lwe_ciphertext_count.0];
+
+        Ok((output_lwe, CudaRadixCiphertextInfo { blocks }))
+    }
 
     #[allow(clippy::unnecessary_wraps)]
     fn blocks_of(
         &self,
         index: usize,
-        decomp_key: &CudaNoiseSquashingDecompressionKey,
         streams: &CudaStreams,
-    ) -> Option<(CudaSquashedNoiseRadixCiphertext, DataKind)> {
+    ) -> Option<(
+        CudaLweCiphertextList<u128>,
+        CudaRadixCiphertextInfo,
+        DataKind,
+    )> {
         let preceding_infos = self.info.get(..index)?;
         let current_info = self.info.get(index).copied()?;
         let message_modulus = self.packed_list.message_modulus()?;
@@ -151,31 +279,18 @@ impl CudaCompressedSquashedNoiseCiphertextList {
 
         let end_block_index = start_block_index + current_info.num_blocks(message_modulus) - 1;
 
-        Some((
-            decomp_key
-                .unpack(
-                    &self.packed_list,
-                    current_info,
-                    start_block_index,
-                    end_block_index,
-                    streams,
-                )
-                .unwrap(),
-            current_info,
-        ))
+        let unpacked = self
+            .unpack(current_info, start_block_index, end_block_index, streams)
+            .unwrap();
+        Some((unpacked.0, unpacked.1, current_info))
     }
 
-        pub fn get<T>(
-        &self,
-        index: usize,
-        decomp_key: &CudaNoiseSquashingDecompressionKey,
-        streams: &CudaStreams,
-    ) -> crate::Result<Option<T>>
+    pub fn get<T>(&self, index: usize, streams: &CudaStreams) -> crate::Result<Option<T>>
     where
         T: CudaSquashedNoiseExpandable,
     {
-        self.blocks_of(index, decomp_key, streams)
-            .map(|(blocks, kind)| T::from_expanded_blocks(blocks, kind))
+        self.blocks_of(index, streams)
+            .map(|(blocks, info, kind)| T::from_expanded_blocks(blocks, info, kind))
             .transpose()
     }
 }
@@ -185,12 +300,16 @@ mod test {
     use crate::core_crypto::gpu::CudaStreams;
     use crate::integer::ciphertext::NoiseSquashingCompressionPrivateKey;
     use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
-    use crate::integer::gpu::ciphertext::squashed_noise::{CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext, CudaSquashedNoiseSignedRadixCiphertext};
+    use crate::integer::gpu::ciphertext::squashed_noise::{
+        CudaSquashedNoiseBooleanBlock, CudaSquashedNoiseRadixCiphertext,
+        CudaSquashedNoiseSignedRadixCiphertext,
+    };
     use crate::integer::gpu::ciphertext::{
         CudaCompressedSquashedNoiseCiphertextList, CudaSignedRadixCiphertext,
         CudaUnsignedRadixCiphertext,
     };
     use crate::integer::gpu::gen_keys_radix_gpu;
+    use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
     use crate::integer::noise_squashing::{NoiseSquashingKey, NoiseSquashingPrivateKey};
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
@@ -198,7 +317,6 @@ mod test {
         TEST_PARAM_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
     use rand::Rng;
-    use crate::integer::gpu::list_compression::server_keys::CudaNoiseSquashingCompressionKey;
 
     #[test]
     fn test_cuda_compressed_noise_squashed_ciphertext_list() {
@@ -226,7 +344,11 @@ mod test {
         );
         let noise_squashing_compression_key = noise_squashing_private_key
             .new_noise_squashing_compression_key(&noise_squashing_compression_private_key);
-        let cuda_noise_squashing_compression_key = CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(&noise_squashing_compression_key, &streams);
+        let cuda_noise_squashing_compression_key =
+            CudaNoiseSquashingCompressionKey::from_noise_squashing_compression_key(
+                &noise_squashing_compression_key,
+                &streams,
+            );
         let mut rng = rand::thread_rng();
 
         let clear_a = rng.gen_range(0..=i32::MAX);
@@ -264,10 +386,10 @@ mod test {
             .push(ns_ct_d, &streams)
             .build(&cuda_noise_squashing_compression_key, &streams);
 
-        let d_ns_ct_a: CudaSquashedNoiseSignedRadixCiphertext = list.get(0).unwrap().unwrap();
-        let d_ns_ct_b: CudaSquashedNoiseSignedRadixCiphertext = list.get(1).unwrap().unwrap();
-        let d_ns_ct_c: CudaSquashedNoiseRadixCiphertext = list.get(2).unwrap().unwrap();
-        let d_ns_ct_d: CudaSquashedNoiseBooleanBlock = list.get(3).unwrap().unwrap();
+        let d_ns_ct_a: CudaSquashedNoiseSignedRadixCiphertext = list.get(0, &streams).unwrap().unwrap();
+        let d_ns_ct_b: CudaSquashedNoiseSignedRadixCiphertext = list.get(1, &streams).unwrap().unwrap();
+        let d_ns_ct_c: CudaSquashedNoiseRadixCiphertext = list.get(2, &streams).unwrap().unwrap();
+        let d_ns_ct_d: CudaSquashedNoiseBooleanBlock = list.get(3, &streams).unwrap().unwrap();
 
         let ns_ct_a = d_ns_ct_a.to_squashed_noise_signed_radix_ciphertext(&streams);
         let ns_ct_b = d_ns_ct_b.to_squashed_noise_signed_radix_ciphertext(&streams);

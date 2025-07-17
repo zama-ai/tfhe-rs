@@ -359,13 +359,11 @@ __host__ void host_integer_decompress(
   }
 }
 
-template <>
-__host__ void host_integer_decompress<__uint128_t>(
+__host__ void host_integer_decompress_128(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, __uint128_t *d_lwe_array_out,
     __uint128_t const *d_packed_glwe_in, uint32_t const *h_indexes_array,
-    uint32_t indexes_array_size, void *const *d_bsks,
-    int_decompression<__uint128_t> *h_mem_ptr) {
+    uint32_t indexes_array_size, int_decompression<__uint128_t> *h_mem_ptr) {
 
   auto d_indexes_array = h_mem_ptr->tmp_indexes_array;
   cuda_memcpy_async_to_gpu(d_indexes_array, (void *)h_indexes_array,
