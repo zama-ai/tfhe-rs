@@ -334,12 +334,7 @@ template <typename Torus> struct radix_columns {
         ++ct_count;
         ++message_ciphertexts;
       }
-      new_columns_counter[c_id] = ct_count;
-    }
 
-    for (size_t c_id = 0; c_id < num_blocks; ++c_id) {
-      const size_t column_len = columns_counter[c_id];
-      size_t ct_count = new_columns_counter[c_id];
       // add carry cts into new columns
       if (c_id > 0) {
         const size_t prev_c_id = c_id - 1;
@@ -355,6 +350,7 @@ template <typename Torus> struct radix_columns {
           ++ct_count;
         }
       }
+
       // add remaining cts into new columns
       const size_t start_index = column_len - column_len % chunk_size;
       for (size_t i = start_index; i < column_len; ++i) {
@@ -365,7 +361,10 @@ template <typename Torus> struct radix_columns {
       if (ct_count > chunk_size) {
         needs_processing = true;
       }
+
+      new_columns_counter[c_id] = ct_count;
     }
+
     total_ciphertexts = pbs_count;
     swap(columns, new_columns);
     swap(columns_counter, new_columns_counter);
