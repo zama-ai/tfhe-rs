@@ -118,9 +118,12 @@ impl CudaSquashedNoiseSignedRadixCiphertext {
         }
     }
 
-    pub(crate) fn duplicate(&self, streams: &CudaStreams) -> CudaSquashedNoiseSignedRadixCiphertext {
+    pub(crate) fn duplicate(
+        &self,
+        streams: &CudaStreams,
+    ) -> CudaSquashedNoiseSignedRadixCiphertext {
         Self {
-            ciphertext : self.ciphertext.duplicate(streams),
+            ciphertext: self.ciphertext.duplicate(streams),
         }
     }
 }
@@ -141,7 +144,7 @@ impl CudaSquashedNoiseBooleanBlock {
 
     pub(crate) fn duplicate(&self, streams: &CudaStreams) -> CudaSquashedNoiseBooleanBlock {
         Self {
-            ciphertext : self.ciphertext.duplicate(streams),
+            ciphertext: self.ciphertext.duplicate(streams),
         }
     }
 }

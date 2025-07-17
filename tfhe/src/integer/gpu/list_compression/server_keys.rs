@@ -2,11 +2,15 @@ use crate::core_crypto::gpu::entities::lwe_packing_keyswitch_key::CudaLwePacking
 use crate::core_crypto::gpu::lwe_ciphertext_list::CudaLweCiphertextList;
 use crate::core_crypto::gpu::vec::CudaVec;
 use crate::core_crypto::gpu::CudaStreams;
-use crate::core_crypto::prelude::{glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog, GlweCiphertextCount, LweCiphertextCount, PolynomialSize, UnsignedInteger};
+use crate::core_crypto::prelude::{
+    glwe_ciphertext_size, glwe_mask_size, CiphertextModulus, CiphertextModulusLog,
+    GlweCiphertextCount, LweCiphertextCount, PolynomialSize, UnsignedInteger,
+};
 use crate::error;
 use crate::integer::ciphertext::{DataKind, NoiseSquashingCompressionKey};
 use crate::integer::compression_keys::CompressionKey;
 use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextInfo};
+use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
@@ -18,7 +22,6 @@ use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::prelude::{GlweDimension, LweDimension};
 use crate::shortint::{CarryModulus, MessageModulus, PBSOrder};
 use itertools::Itertools;
-use crate::integer::gpu::ciphertext::squashed_noise::CudaSquashedNoiseRadixCiphertext;
 
 #[derive(Debug)]
 pub struct CudaCompressionKey {
@@ -30,9 +33,7 @@ pub struct CudaCompressionKey {
 pub struct CudaNoiseSquashingCompressionKey {
     pub packing_key_switching_key: CudaLwePackingKeyswitchKey<u128>,
     pub lwe_per_glwe: LweCiphertextCount,
-    pub storage_log_modulus: CiphertextModulusLog,
 }
-
 
 pub struct CudaDecompressionKey {
     pub blind_rotate_key: CudaBootstrappingKey<u64>,
@@ -66,7 +67,7 @@ pub struct CudaPackedGlweCiphertextList<T: UnsignedInteger> {
     pub meta: Option<CudaPackedGlweCiphertextListMeta<T>>,
 }
 
-impl<T:UnsignedInteger> CudaPackedGlweCiphertextList<T> {
+impl<T: UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     /// Returns the message modulus of the Ciphertexts in the list, or None if the list is empty
     pub fn message_modulus(&self) -> Option<MessageModulus> {
         self.meta.as_ref().map(|meta| meta.message_modulus)
@@ -96,7 +97,7 @@ impl<T:UnsignedInteger> CudaPackedGlweCiphertextList<T> {
     }
 }
 
-impl<T:UnsignedInteger> Clone for CudaPackedGlweCiphertextList<T> {
+impl<T: UnsignedInteger> Clone for CudaPackedGlweCiphertextList<T> {
     fn clone(&self) -> Self {
         Self {
             data: self.data.clone(),
@@ -442,19 +443,20 @@ impl CudaDecompressionKey {
 }
 
 impl CudaNoiseSquashingCompressionKey {
-
-        pub fn from_noise_squashing_compression_key(compression_key: &NoiseSquashingCompressionKey, streams: &CudaStreams) -> Self {
+    pub fn from_noise_squashing_compression_key(
+        compression_key: &NoiseSquashingCompressionKey,
+        streams: &CudaStreams,
+    ) -> Self {
         Self {
             packing_key_switching_key: CudaLwePackingKeyswitchKey::from_lwe_packing_keyswitch_key(
                 &compression_key.key.packing_key_switching_key,
                 streams,
             ),
             lwe_per_glwe: compression_key.key.lwe_per_glwe,
-            storage_log_modulus: compression_key.key.storage_log_modulus,
         }
     }
 
-        unsafe fn flatten_async(
+    unsafe fn flatten_async(
         ciphertexts_slice: &[CudaSquashedNoiseRadixCiphertext],
         streams: &CudaStreams,
     ) -> CudaLweCiphertextList<u128> {
@@ -504,13 +506,14 @@ impl CudaNoiseSquashingCompressionKey {
     ) -> CudaPackedGlweCiphertextList<u128> {
         let lwe_pksk = &self.packing_key_switching_key;
 
-        let ciphertext_modulus = lwe_pksk.ciphertext_modulus();
+        let first_ct = ciphertexts.first().unwrap();
+        let ciphertext_modulus = first_ct.packed_d_blocks.ciphertext_modulus();
         let compressed_polynomial_size = lwe_pksk.output_polynomial_size();
         let compressed_glwe_size = lwe_pksk.output_glwe_size();
 
         let num_lwes: usize = ciphertexts
             .iter()
-            .map(|x|x.packed_d_blocks.lwe_ciphertext_count().0)
+            .map(|x| x.packed_d_blocks.lwe_ciphertext_count().0)
             .sum();
 
         let num_glwes = num_lwes.div_ceil(self.lwe_per_glwe.0);
@@ -520,7 +523,9 @@ impl CudaNoiseSquashingCompressionKey {
         );
         // The number of u64 (both mask and bodies)
         let uncompressed_len = num_glwes * glwe_mask_size + num_lwes;
-        let number_bits_to_pack = uncompressed_len * self.storage_log_modulus.0;
+        let ciphertext_modulus_log = ciphertext_modulus.into_modulus_log();
+        // The CPU implementation uses ciphertext_modulus_log instead of self.storage_log_modulus
+        let number_bits_to_pack = uncompressed_len * ciphertext_modulus_log.0;
         let compressed_len = number_bits_to_pack.div_ceil(u64::BITS as usize);
         let mut packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
 
@@ -555,7 +560,7 @@ impl CudaNoiseSquashingCompressionKey {
                 lwe_pksk.decomposition_base_log(),
                 lwe_pksk.decomposition_level_count(),
                 self.lwe_per_glwe.0 as u32,
-                self.storage_log_modulus.0 as u32,
+                ciphertext_modulus_log.0 as u32,
                 num_lwes as u32,
             );
 
@@ -568,7 +573,7 @@ impl CudaNoiseSquashingCompressionKey {
             message_modulus,
             carry_modulus,
             ciphertext_modulus,
-            storage_log_modulus: self.storage_log_modulus,
+            storage_log_modulus: ciphertext_modulus_log,
             lwe_per_glwe: LweCiphertextCount(compressed_polynomial_size.0),
             bodies_count: num_lwes,
             initial_len: uncompressed_len,
