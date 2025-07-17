@@ -3102,10 +3102,18 @@ template <typename Torus> struct int_mul_memory {
 
     luts_array->broadcast_lut(streams, gpu_indexes);
     // create memory object for sum ciphertexts
-    sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
-        streams, gpu_indexes, gpu_count, params, num_radix_blocks,
-        2 * num_radix_blocks, vector_result_sb, small_lwe_vector, luts_array,
-        true, allocate_gpu_memory, size_tracker);
+
+    if (luts_array->num_blocks < num_radix_blocks * 2 * num_radix_blocks) {
+        sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+                streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+                2 * num_radix_blocks, vector_result_sb, small_lwe_vector, luts_array,
+                true, allocate_gpu_memory, size_tracker);
+    } else {
+        sum_ciphertexts_mem = new int_sum_ciphertexts_vec_memory<Torus>(
+                streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+                2 * num_radix_blocks,
+                true, allocate_gpu_memory, size_tracker);
+    }
     uint32_t uses_carry = 0;
     uint32_t requested_flag = outputFlag::FLAG_NONE;
     sc_prop_mem = new int_sc_prop_memory<Torus>(
