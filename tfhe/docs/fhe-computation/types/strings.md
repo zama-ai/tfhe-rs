@@ -29,7 +29,7 @@ Here is an example:
 # Cargo.toml
 
 [dependencies]
-tfhe = { version = "~1.3.1", features = ["integer", "strings"] }
+tfhe = { version = "~1.3.2", features = ["integer", "strings"] }
 ```
 
 ```rust
