@@ -77,7 +77,3 @@ runs:
     - name: Check device is detected
       shell: bash
       run: nvidia-smi
-    
-    - name: Enable MPS
-      shell: bash
-      run: nvidia-cuda-mps-control -d
