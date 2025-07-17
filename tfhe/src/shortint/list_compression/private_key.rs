@@ -73,6 +73,50 @@ impl NoiseSquashingCompressionPrivateKey {
         }
     }
 
+    /// Construct from raw parts
+    ///
+    /// # Panics
+    ///
+    /// Panics if params does not match the `post_packing_ks_key`
+    pub fn from_raw_parts(
+        post_packing_ks_key: GlweSecretKeyOwned<u128>,
+        params: NoiseSquashingCompressionParameters,
+    ) -> Self {
+        assert_eq!(
+            post_packing_ks_key.polynomial_size(),
+            params.packing_ks_polynomial_size,
+            "Invalid polynomial size for NoiseSquashingCompressionPrivateKey, expected {}, got {}",
+            params.packing_ks_polynomial_size.0,
+            post_packing_ks_key.polynomial_size().0,
+        );
+
+        assert_eq!(
+            post_packing_ks_key.glwe_dimension(),
+            params.packing_ks_glwe_dimension,
+            "Invalid GLWE dimension for NoiseSquashingCompressionPrivateKey, expected {}, got {}",
+            params.packing_ks_glwe_dimension.0,
+            post_packing_ks_key.glwe_dimension().0,
+        );
+
+        Self {
+            post_packing_ks_key,
+            params,
+        }
+    }
+
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        GlweSecretKeyOwned<u128>,
+        NoiseSquashingCompressionParameters,
+    ) {
+        let Self {
+            post_packing_ks_key,
+            params,
+        } = self;
+        (post_packing_ks_key, params)
+    }
+
     /// Extract and decrypt all the ciphertexts in the list
     pub fn unpack_and_decrypt_squashed_noise_ciphertexts(
         &self,
