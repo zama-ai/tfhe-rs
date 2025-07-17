@@ -391,13 +391,13 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         d_pbs_indexes_out, luts_message_carry->get_lut_indexes(0, 0), d_columns,
         d_columns_counter, chunk_size);
 
-    Torus *pbs_indexes_in_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
-    Torus *pbs_indexes_out_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
-    Torus *lut_indexes_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
-
-    cuda_memcpy_async_to_cpu(pbs_indexes_in_gpu_calculation, luts_message_carry->lwe_indexes_in, luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_to_cpu(pbs_indexes_out_gpu_calculation, luts_message_carry->lwe_indexes_out, luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
-    cuda_memcpy_async_to_cpu(lut_indexes_gpu_calculation, luts_message_carry->get_lut_indexes(0, 0), luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+//    Torus *pbs_indexes_in_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
+//    Torus *pbs_indexes_out_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
+//    Torus *lut_indexes_gpu_calculation = (Torus *)malloc(luts_message_carry->num_blocks * sizeof(Torus));
+//
+//    cuda_memcpy_async_to_cpu(pbs_indexes_in_gpu_calculation, luts_message_carry->lwe_indexes_in, luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+//    cuda_memcpy_async_to_cpu(pbs_indexes_out_gpu_calculation, luts_message_carry->lwe_indexes_out, luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
+//    cuda_memcpy_async_to_cpu(lut_indexes_gpu_calculation, luts_message_carry->get_lut_indexes(0, 0), luts_message_carry->num_blocks * sizeof(Torus), streams[0], gpu_indexes[0]);
 
     uint32_t total_ciphertexts = 0;
     uint32_t total_messages = 0;
@@ -407,18 +407,18 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     current_columns.next_accumulation(h_pbs_indexes_in, h_pbs_indexes_out,
                                       h_lut_indexes, total_ciphertexts,
                                       total_messages, needs_processing);
-    printf("Total ctxt: %d\n", total_ciphertexts);
-    printf("Indexes calculated on GPU\n");
-    for (int i = 0; i < total_ciphertexts; i++) {
-        printf("%d: %d, %d, %d\n", i, pbs_indexes_in_gpu_calculation[i], pbs_indexes_out_gpu_calculation[i], lut_indexes_gpu_calculation[i]);
-    }
-      printf("Indexes calculated on CPU\n");
-      for (int i = 0; i < total_ciphertexts; i++) {
-          printf("%d: %d, %d, %d\n", i, h_pbs_indexes_in[i], h_pbs_indexes_out[i], h_lut_indexes[i]);
-      }
-      free(pbs_indexes_in_gpu_calculation);
-      free(pbs_indexes_out_gpu_calculation);
-      free(lut_indexes_gpu_calculation);
+//    printf("Total ctxt: %d\n", total_ciphertexts);
+//    printf("Indexes calculated on GPU\n");
+//    for (int i = 0; i < total_ciphertexts; i++) {
+//        printf("%d: %d, %d, %d\n", i, pbs_indexes_in_gpu_calculation[i], pbs_indexes_out_gpu_calculation[i], lut_indexes_gpu_calculation[i]);
+//    }
+//      printf("Indexes calculated on CPU\n");
+//      for (int i = 0; i < total_ciphertexts; i++) {
+//          printf("%d: %d, %d, %d\n", i, h_pbs_indexes_in[i], h_pbs_indexes_out[i], h_lut_indexes[i]);
+//      }
+//      free(pbs_indexes_in_gpu_calculation);
+//      free(pbs_indexes_out_gpu_calculation);
+//      free(lut_indexes_gpu_calculation);
 
       luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0], h_pbs_indexes_in, h_pbs_indexes_out);
     cuda_memcpy_with_size_tracking_async_to_gpu(
