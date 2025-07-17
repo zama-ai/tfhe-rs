@@ -10,7 +10,7 @@ use crate::core_crypto::commons::math::random::{
 /// ## Why this Seeder implementation?
 ///
 /// [`Seeder`] is a trait available to the external user, and we expect some of them to implement
-/// their own seeding strategy. Since this trait is public, it means that the implementor can be
+/// their own seeding strategy. Since this trait is public, it means that the implementer can be
 /// arbitrarily slow. For this reason, it is better to only use it once when we initialize the
 /// engine, and use the CSPRNG to generate other seeds when needed, because that gives us the
 /// control on the performances.
