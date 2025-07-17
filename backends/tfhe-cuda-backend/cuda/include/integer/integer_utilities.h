@@ -723,8 +723,10 @@ template <typename Torus> struct int_radix_lut {
   void set_lwe_indexes(cudaStream_t stream, uint32_t gpu_index,
                        Torus *h_indexes_in, Torus *h_indexes_out) {
 
-    memcpy(h_lwe_indexes_in, h_indexes_in, num_blocks * sizeof(Torus));
-    memcpy(h_lwe_indexes_out, h_indexes_out, num_blocks * sizeof(Torus));
+    if (h_indexes_in != h_lwe_indexes_in)
+      memcpy(h_lwe_indexes_in, h_indexes_in, num_blocks * sizeof(Torus));
+    if (h_indexes_out != h_lwe_indexes_out)
+      memcpy(h_lwe_indexes_out, h_indexes_out, num_blocks * sizeof(Torus));
 
     cuda_memcpy_with_size_tracking_async_to_gpu(
         lwe_indexes_in, h_lwe_indexes_in, num_blocks * sizeof(Torus), stream,

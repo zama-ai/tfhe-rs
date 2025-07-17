@@ -403,7 +403,11 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     cuda_memcpy_with_size_tracking_async_to_gpu(
             luts_message_carry->get_lut_indexes(0, 0), h_lut_indexes,
             total_ciphertexts * sizeof(Torus), streams[0], gpu_indexes[0], true);
+    cudaDeviceSynchronize();
+    printf("Here 1\n");
     luts_message_carry->broadcast_lut(streams, gpu_indexes);
+      cudaDeviceSynchronize();
+      printf("Here 2\n");
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
     if (active_gpu_count == 1) {
@@ -454,11 +458,15 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
       h_pbs_indexes_out[i] = i + i / num_radix_blocks;
       h_lut_indexes[i] = i / num_radix_blocks;
     }
+      cudaDeviceSynchronize();
+      printf("Here 3\n");
     mem_ptr->luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0], h_pbs_indexes_in, h_pbs_indexes_out);
     cuda_memcpy_with_size_tracking_async_to_gpu(
             luts_message_carry->get_lut_indexes(0, 0), h_lut_indexes,
             2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0], true);
     luts_message_carry->broadcast_lut(streams, gpu_indexes);
+      cudaDeviceSynchronize();
+      printf("Here 4\n");
     auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
     auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
 
