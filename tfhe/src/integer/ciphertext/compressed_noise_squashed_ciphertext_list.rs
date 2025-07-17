@@ -47,6 +47,14 @@ impl NoiseSquashingCompressionPrivateKey {
             key: (&self.key).into(),
         }
     }
+
+    pub fn from_raw_parts(key: ShortintNoiseSquashingCompressionPrivateKey) -> Self {
+        Self { key }
+    }
+
+    pub fn into_raw_parts(self) -> ShortintNoiseSquashingCompressionPrivateKey {
+        self.key
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
