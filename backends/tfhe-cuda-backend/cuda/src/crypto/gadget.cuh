@@ -1,5 +1,5 @@
 #ifndef CNCRT_CRYPTO_CUH
-#define CNCRT_CRPYTO_CUH
+#define CNCRT_CRYPTO_CUH
 
 #include "crypto/torus.cuh"
 #include "device.h"
