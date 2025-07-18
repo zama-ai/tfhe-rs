@@ -397,7 +397,7 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                                       luts_message_carry->h_lut_indexes,
                                       total_ciphertexts, total_messages,
                                       needs_processing);
-    printf("Total ctxt: %d\n", total_ciphertexts);
+    printf("Total ctxt: %d, lut blocks: %d\n", total_ciphertexts, luts_message_carry->num_blocks);
     printf("Indexes calculated on GPU\n");
     for (int i = 0; i < total_ciphertexts; i++) {
         printf("%d: %d, %d, %d\n", i, pbs_indexes_in_gpu_calculation[i], pbs_indexes_out_gpu_calculation[i], lut_indexes_gpu_calculation[i]);
