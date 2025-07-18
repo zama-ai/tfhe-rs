@@ -25,6 +25,7 @@ runs:
         sudo bash cmake-"${CMAKE_VERSION}"-linux-x86_64.sh --skip-license --prefix=/usr/ --exclude-subdir
         sudo apt update
         sudo apt install -y cmake-format libclang-dev
+        sudo apt remove -y unattended-upgrades
       env:
         CMAKE_VERSION: 3.29.6
         CMAKE_SCRIPT_SHA: "6e4fada5cba3472ae503a11232b6580786802f0879cead2741672bf65d97488a"
