@@ -694,10 +694,15 @@ test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
 		RUSTFLAGS="$(RUSTFLAGS)" bash -c "cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest list --cargo-profile $(CARGO_PROFILE) \
         		--features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC)" &> /tmp/test_list.txt && \
 		TESTS_HL=$$(cat /tmp/test_list.txt | sed -e $$'s/\x1b\[[0-9;]*m//g' | grep high_level_api::.*gpu.*) && \
+		RESULT=0 && \
 		while read t; do \
 		  echo compute-sanitizer --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
-		  compute-sanitizer --error-exitcode=1 --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t}; \
+		  compute-sanitizer --error-exitcode=1 --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
+		  if [[ $$? != "0" ]]; then \
+		    	RESULT=1; \
+		  fi; \
 		done <<< "$${TESTS_HL}"
+		exit $$RESULT
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
 test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
