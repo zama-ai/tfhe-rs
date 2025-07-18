@@ -24,7 +24,7 @@ use crate::integer::gpu::ciphertext::{
 use crate::integer::server_key::radix_parallel::scalar_div_mod::SignedReciprocable;
 use crate::integer::server_key::{Reciprocable, ScalarMultiplier};
 use crate::prelude::{CastInto, FheDecrypt, FheTryEncrypt};
-use crate::{ClientKey, Error};
+use crate::{ClientKey, Error, FheInt, FheUint, Tag};
 use rayon::prelude::*;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
@@ -57,6 +57,54 @@ where
             let streams = &key.streams;
             Self(self.0.iter().map(|elem| elem.duplicate(streams)).collect())
         })
+    }
+}
+
+impl<Id: FheUintId> From<Vec<FheUint<Id>>> for GpuFheUintArray<Id> {
+    fn from(value: Vec<FheUint<Id>>) -> Self {
+        let container = with_cuda_internal_keys(|cuda_keys| {
+            value
+                .into_iter()
+                .map(|elem| elem.ciphertext.into_gpu(&cuda_keys.streams))
+                .collect::<Vec<_>>()
+        });
+        let shape = vec![container.len()];
+        Self::new(container, shape)
+    }
+}
+
+impl<Id: FheUintId> From<GpuFheUintArray<Id>> for Vec<FheUint<Id>> {
+    fn from(value: GpuFheUintArray<Id>) -> Self {
+        value
+            .into_container()
+            .0
+            .into_iter()
+            .map(|elem| FheUint::new(elem, Tag::default()))
+            .collect()
+    }
+}
+
+impl<Id: FheIntId> From<Vec<FheInt<Id>>> for GpuFheIntArray<Id> {
+    fn from(value: Vec<FheInt<Id>>) -> Self {
+        let container = with_cuda_internal_keys(|cuda_keys| {
+            value
+                .into_iter()
+                .map(|elem| elem.ciphertext.into_gpu(&cuda_keys.streams))
+                .collect::<Vec<_>>()
+        });
+        let shape = vec![container.len()];
+        Self::new(container, shape)
+    }
+}
+
+impl<Id: FheIntId> From<GpuFheIntArray<Id>> for Vec<FheInt<Id>> {
+    fn from(value: GpuFheIntArray<Id>) -> Self {
+        value
+            .into_container()
+            .0
+            .into_iter()
+            .map(|elem| FheInt::new(elem, Tag::default()))
+            .collect()
     }
 }
 

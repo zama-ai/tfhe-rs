@@ -2,7 +2,11 @@ mod booleans;
 mod signed;
 mod unsigned;
 
-use crate::{generate_keys, set_server_key, ClientKey, ConfigBuilder, FheId};
+use crate::prelude::*;
+use crate::{
+    generate_keys, set_server_key, ClientKey, ConfigBuilder, CpuFheBoolArray, CpuFheInt32Array,
+    CpuFheUint32Array, FheBool, FheId, FheInt32, FheUint32,
+};
 #[cfg(feature = "gpu")]
 use crate::{Config, CudaServerKey};
 use rand::distributions::{Distribution, Standard};
@@ -11,6 +15,8 @@ use std::fmt::Debug;
 
 use crate::array::traits::IOwnedArray;
 use crate::array::ClearArray;
+#[cfg(feature = "gpu")]
+use crate::array::{GpuFheBoolArray, GpuFheInt32Array, GpuFheUint32Array};
 use crate::high_level_api::array::{FheBackendArray, FheBackendArraySlice};
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
 use std::ops::{BitAnd, BitOr, BitXor};
@@ -291,5 +297,134 @@ where
 
         let result = (lhs & &rhs).decrypt(ck);
         assert_eq!(result, expected_result);
+    }
+}
+
+#[cfg(feature = "gpu")]
+#[test]
+fn test_gpu_conversions() {
+    let ck = setup_default_gpu();
+
+    let num_values = 50;
+
+    // Vec<FheUint> <=> GpuFheUint
+    {
+        let clears = draw_random_values::<u32>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheUint32::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let gpu_array = GpuFheUint32Array::from(encrypted);
+        let decrypted: Vec<u32> = gpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheUint32>::from(gpu_array);
+        let decrypted: Vec<u32> = encrypted
+            .iter()
+            .map(|fheuint| fheuint.decrypt(&ck))
+            .collect();
+        assert_eq!(decrypted, clears);
+    }
+
+    // Vec<FheInt> <=> GpuFheInt
+    {
+        let clears = draw_random_values::<i32>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheInt32::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let gpu_array = GpuFheInt32Array::from(encrypted);
+        let decrypted: Vec<i32> = gpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheInt32>::from(gpu_array);
+        let decrypted: Vec<i32> = encrypted.iter().map(|fheint| fheint.decrypt(&ck)).collect();
+        assert_eq!(decrypted, clears);
+    }
+
+    // Vec<FheBool> <=> GpuFheBool
+    {
+        let clears = draw_random_values::<bool>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheBool::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let gpu_array = GpuFheBoolArray::from(encrypted);
+        let decrypted: Vec<bool> = gpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheBool>::from(gpu_array);
+        let decrypted: Vec<bool> = encrypted
+            .iter()
+            .map(|fhebool| fhebool.decrypt(&ck))
+            .collect();
+        assert_eq!(decrypted, clears);
+    }
+}
+
+#[test]
+fn test_cpu_conversions() {
+    let ck = setup_default_cpu();
+
+    let num_values = 50;
+
+    // Vec<FheUint> <=> CpuFheUint
+    {
+        let clears = draw_random_values::<u32>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheUint32::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let cpu_array = CpuFheUint32Array::from(encrypted);
+        let decrypted: Vec<u32> = cpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheUint32>::from(cpu_array);
+        let decrypted: Vec<u32> = encrypted
+            .iter()
+            .map(|fheuint| fheuint.decrypt(&ck))
+            .collect();
+        assert_eq!(decrypted, clears);
+    }
+
+    // Vec<FheInt> <=> CpuFheInt
+    {
+        let clears = draw_random_values::<i32>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheInt32::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let cpu_array = CpuFheInt32Array::from(encrypted);
+        let decrypted: Vec<i32> = cpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheInt32>::from(cpu_array);
+        let decrypted: Vec<i32> = encrypted.iter().map(|fheint| fheint.decrypt(&ck)).collect();
+        assert_eq!(decrypted, clears);
+    }
+
+    // Vec<FheBool> <=> CpuFheBool
+    {
+        let clears = draw_random_values::<bool>(num_values);
+        let encrypted = clears
+            .iter()
+            .map(|v| FheBool::encrypt(*v, &ck))
+            .collect::<Vec<_>>();
+
+        let cpu_array = CpuFheBoolArray::from(encrypted);
+        let decrypted: Vec<bool> = cpu_array.decrypt(&ck);
+        assert_eq!(decrypted, clears);
+
+        let encrypted = Vec::<FheBool>::from(cpu_array);
+        let decrypted: Vec<bool> = encrypted
+            .iter()
+            .map(|fhebool| fhebool.decrypt(&ck))
+            .collect();
+        assert_eq!(decrypted, clears);
     }
 }
