@@ -1,6 +1,7 @@
 #include "device.h"
 #include <cstdint>
 #include <cuda_runtime.h>
+#include  <cstdlib>
 
 uint32_t cuda_get_device() {
   int device;
@@ -96,6 +97,10 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
   check_cuda_error(cudaDeviceGetAttribute(
       &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
+  if (std::rand() % 100 > 97)
+  {
+    size = size * 0.9;
+  }
   if (support_async_alloc) {
     check_cuda_error(cudaMallocAsync((void **)&ptr, size, stream));
   } else {
@@ -351,10 +356,13 @@ void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
   check_cuda_error(cudaDeviceGetAttribute(
       &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
-  if (support_async_alloc) {
-    check_cuda_error(cudaFreeAsync(ptr, stream));
-  } else {
-    check_cuda_error(cudaFree(ptr));
+  if (std::rand() % 100 > 5)
+  {
+    if (support_async_alloc) {
+      check_cuda_error(cudaFreeAsync(ptr, stream));
+    } else {
+      check_cuda_error(cudaFree(ptr));
+    }
   }
 #else
   check_cuda_error(cudaFree(ptr));
