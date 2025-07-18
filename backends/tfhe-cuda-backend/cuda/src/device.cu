@@ -97,9 +97,9 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
       &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
   if (support_async_alloc) {
-    check_cuda_error(cudaMallocAsync((void **)&ptr, size, stream));
+    check_cuda_error(cudaMallocAsync((void **)&ptr, size * 0.95, stream));
   } else {
-    check_cuda_error(cudaMalloc((void **)&ptr, size));
+    check_cuda_error(cudaMalloc((void **)&ptr, size * 0.95));
   }
 #else
   check_cuda_error(cudaMalloc((void **)&ptr, size));
@@ -352,9 +352,9 @@ void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
       &support_async_alloc, cudaDevAttrMemoryPoolsSupported, gpu_index));
 
   if (support_async_alloc) {
-    check_cuda_error(cudaFreeAsync(ptr, stream));
+    //check_cuda_error(cudaFreeAsync(ptr, stream));
   } else {
-    check_cuda_error(cudaFree(ptr));
+    //check_cuda_error(cudaFree(ptr));
   }
 #else
   check_cuda_error(cudaFree(ptr));
