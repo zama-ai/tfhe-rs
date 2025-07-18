@@ -99,9 +99,12 @@ __global__ void device_programmable_bootstrap_tbc(
   // rotated array is not in use anymore by the time we perform the fft
 
   // Put "b" in [0, 2N[
+  constexpr auto log_modulus = params::log2_degree + 1;
   Torus b_hat = 0;
-  modulus_switch(block_lwe_array_in[lwe_dimension], b_hat,
-                 params::log2_degree + 1);
+  auto correction = centered_binary_modulus_switch_body_correction_to_add(
+      block_lwe_array_in, lwe_dimension, log_modulus);
+  modulus_switch(block_lwe_array_in[lwe_dimension] + correction, b_hat,
+                 log_modulus);
 
   divide_by_monomial_negacyclic_inplace<Torus, params::opt,
                                         params::degree / params::opt>(
@@ -114,7 +117,7 @@ __global__ void device_programmable_bootstrap_tbc(
     // Put "a" in [0, 2N[
     Torus a_hat = 0;
     modulus_switch(block_lwe_array_in[i], a_hat,
-                   params::log2_degree + 1); // 2 * params::log2_degree + 1);
+                   log_modulus); // 2 * params::log2_degree + 1);
 
     // Perform ACC * (X^ä - 1)
     multiply_by_monomial_negacyclic_and_sub_polynomial<
