@@ -238,11 +238,12 @@ jobs:
           cp ./host-contracts/.env.example ./host-contracts/.env
           npm --prefix ./host-contracts ci --include=optional
           cd host-contracts && npm install && npm run deploy:emptyProxies && npx hardhat compile
+        working-directory: fhevm/
 
       - name: Run benchmarks on GPU
         run: |
           BENCHMARK_BATCH_SIZE="${{ env.BATCH_SIZE }}" FHEVM_DF_SCHEDULE="${{ env.SCHEDULING_POLICY }}" BENCHMARK_TYPE="${{ env.BENCHMARK_TYPE }}" OPTIMIZATION_TARGET="${{ env.OPTIMIZATION_TARGET }}" make -e "benchmark_${{ env.BENCHMARKS }}_gpu"
-        working-directory: coprocessor/fhevm-engine/coprocessor
+        working-directory: fhevm/coprocessor/fhevm-engine/coprocessor
 
       - name: Parse results
         run: |
@@ -257,6 +258,7 @@ jobs:
           --walk-subdirs \
           --crate "coprocessor/fhevm-engine/coprocessor" \
           --name-suffix "operation_batch_size_${{ env.BATCH_SIZE }}-schedule_${{ env.SCHEDULING_POLICY }}-optimization_target_${{ env.OPTIMIZATION_TARGET }}"
+        working-directory: fhevm/
 
       - name: Upload parsed results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
