@@ -138,7 +138,7 @@ jobs:
       - name: Install git LFS
         run: |
           sudo apt-get update
-          sudo apt-get install -y git-lfs
+          sudo apt-get install -y git-lfs protobuf-compiler
           git lfs install
 
       - name: Checkout tfhe-rs
