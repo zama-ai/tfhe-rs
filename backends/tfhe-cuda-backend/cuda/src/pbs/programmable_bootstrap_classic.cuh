@@ -382,9 +382,9 @@ __host__ uint64_t scratch_programmable_bootstrap(
     check_cuda_error(cudaGetLastError());
   }
 
-  uint64_t size_tracker = 0x0FFFFFFF;
+  uint64_t size_tracker = 0;
   *buffer = new pbs_buffer<Torus, CLASSICAL>(
-      stream, gpu_index, lwe_dimension - 20, glwe_dimension, polynomial_size,
+      stream, gpu_index, lwe_dimension, glwe_dimension, polynomial_size,
       level_count, input_lwe_ciphertext_count, PBS_VARIANT::DEFAULT,
       allocate_gpu_memory, allocate_ms_array, size_tracker);
   return size_tracker;

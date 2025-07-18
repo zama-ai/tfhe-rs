@@ -697,7 +697,7 @@ test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
 		RESULT=0 && \
 		while read t; do \
 		  echo compute-sanitizer --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
-		  compute-sanitizer --error-exitcode=1 --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
+		  compute-sanitizer --leak-check=full --error-exitcode=1 --target-processes=all $$(pwd)/$${EXECUTABLE} -- $${t} && \
 		  if [[ $$? != "0" ]]; then \
 		    	RESULT=1; \
 		  fi; \
