@@ -36,9 +36,6 @@ package-lock.json
 .env
 __pycache__
 
-# Dir used for backward compatibility test data
-# First directive is to ignore symlinks
-tests/tfhe-backward-compat-data
 ci/
 
 # In case someone clones the lattice-estimator locally to verify security
