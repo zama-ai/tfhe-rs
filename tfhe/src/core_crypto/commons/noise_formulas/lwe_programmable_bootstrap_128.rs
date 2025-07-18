@@ -6,20 +6,22 @@ use crate::core_crypto::commons::parameters::*;
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
+pub fn pbs_128_variance_132_bits_security_gaussian_fft_mul(
     input_lwe_dimension: LweDimension,
     output_glwe_dimension: GlweDimension,
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
-    Variance(pbs_variance_132_bits_security_gaussian_fft_mul_impl(
+    Variance(pbs_128_variance_132_bits_security_gaussian_fft_mul_impl(
         input_lwe_dimension.0 as f64,
         output_glwe_dimension.0 as f64,
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -29,18 +31,19 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul(
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
 #[allow(clippy::suspicious_operation_groupings)]
-pub fn pbs_variance_132_bits_security_gaussian_fft_mul_impl(
+pub fn pbs_128_variance_132_bits_security_gaussian_fft_mul_impl(
     input_lwe_dimension: f64,
     output_glwe_dimension: f64,
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00705
             * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
-                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+                + 2.0 * 0.0f64.max(-mantissa_size + core::f64::consts::LOG2_E * modulus.ln()))
             .exp2()
             * decomposition_level_count.powf(1.01827)
             * output_glwe_dimension.powf(1.22003)
@@ -68,20 +71,22 @@ pub fn pbs_variance_132_bits_security_gaussian_fft_mul_impl(
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
+pub fn pbs_128_variance_132_bits_security_tuniform_fft_mul(
     input_lwe_dimension: LweDimension,
     output_glwe_dimension: GlweDimension,
     output_polynomial_size: PolynomialSize,
     decomposition_base_log: DecompositionBaseLog,
     decomposition_level_count: DecompositionLevelCount,
+    mantissa_size: f64,
     modulus: f64,
 ) -> Variance {
-    Variance(pbs_variance_132_bits_security_tuniform_fft_mul_impl(
+    Variance(pbs_128_variance_132_bits_security_tuniform_fft_mul_impl(
         input_lwe_dimension.0 as f64,
         output_glwe_dimension.0 as f64,
         output_polynomial_size.0 as f64,
         2.0f64.powi(decomposition_base_log.0 as i32),
         decomposition_level_count.0 as f64,
+        mantissa_size,
         modulus,
     ))
 }
@@ -90,18 +95,19 @@ pub fn pbs_variance_132_bits_security_tuniform_fft_mul(
 /// if the keys used are encrypted using secure noise given by the
 /// [`minimal_glwe_variance`](`super::secure_noise`)
 /// and [`minimal_lwe_variance`](`super::secure_noise`) family of functions.
-pub fn pbs_variance_132_bits_security_tuniform_fft_mul_impl(
+pub fn pbs_128_variance_132_bits_security_tuniform_fft_mul_impl(
     input_lwe_dimension: f64,
     output_glwe_dimension: f64,
     output_polynomial_size: f64,
     decomposition_base: f64,
     decomposition_level_count: f64,
+    mantissa_size: f64,
     modulus: f64,
 ) -> f64 {
     input_lwe_dimension
         * (0.00705
             * (2.88539008177793 * decomposition_base.ln() - 2.88539008177793 * modulus.ln()
-                + 2.0 * 0.0f64.max(core::f64::consts::LOG2_E * modulus.ln() - 53.0))
+                + 2.0 * 0.0f64.max(-mantissa_size + core::f64::consts::LOG2_E * modulus.ln()))
             .exp2()
             * decomposition_level_count.powf(1.01827)
             * output_glwe_dimension.powf(1.22003)

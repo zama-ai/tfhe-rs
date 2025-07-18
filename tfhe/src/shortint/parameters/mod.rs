@@ -302,6 +302,12 @@ impl PBSParameters {
             Self::MultiBitPBS(params) => params.max_noise_level,
         }
     }
+    pub const fn log2_p_fail(&self) -> f64 {
+        match self {
+            Self::PBS(params) => params.log2_p_fail,
+            Self::MultiBitPBS(params) => params.log2_p_fail,
+        }
+    }
     pub const fn ciphertext_modulus(&self) -> CiphertextModulus {
         match self {
             Self::PBS(params) => params.ciphertext_modulus,
