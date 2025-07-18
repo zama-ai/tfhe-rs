@@ -710,15 +710,21 @@ mod cuda {
                         }
                     }
 
-                    write_to_json::<u64, _>(
-                        &bench_id_verify_and_expand,
-                        shortint_params,
-                        param_name,
-                        "pke_zk_verify_and_expand",
-                        &OperatorType::Atomic,
-                        shortint_params.message_modulus().0 as u32,
-                        vec![shortint_params.message_modulus().0.ilog2(); num_block],
-                    );
+                    for bench_id in [
+                        bench_id_verify,
+                        bench_id_expand_without_verify,
+                        bench_id_verify_and_expand,
+                    ] {
+                        write_to_json::<u64, _>(
+                            &bench_id,
+                            shortint_params,
+                            param_name,
+                            "pke_zk_verify_and_expand",
+                            &OperatorType::Atomic,
+                            shortint_params.message_modulus().0 as u32,
+                            vec![shortint_params.message_modulus().0.ilog2(); num_block],
+                        );
+                    }
                 }
             }
         }
