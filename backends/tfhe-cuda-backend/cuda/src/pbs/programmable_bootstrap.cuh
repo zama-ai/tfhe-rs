@@ -197,7 +197,6 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
                                                              false>(
       buffer_regs, fft_slice, bsk_poly);
 
-  group.sync();
   // We don't need to synchronize here, cause we are going to use a buffer
   // different than the input In 2_2 params, level_count=1 so we can just copy
   // the result from the registers into shared without needing to accumulate
