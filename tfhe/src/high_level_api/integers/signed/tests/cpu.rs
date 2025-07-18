@@ -111,6 +111,12 @@ fn test_integer_compress_decompress() {
 }
 
 #[test]
+fn test_min_max() {
+    let client_key = setup_default_cpu();
+    super::test_case_min_max(&client_key);
+}
+
+#[test]
 fn test_trivial_fhe_int8() {
     let config = ConfigBuilder::default().build();
     let (client_key, sks) = generate_keys(config);
