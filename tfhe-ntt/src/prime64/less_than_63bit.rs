@@ -71,13 +71,13 @@ pub(crate) fn fwd_butterfly_avx2(
     two_p: u64x4,
 ) -> (u64x4, u64x4) {
     let _ = two_p;
-    let z0 = simd.small_mod_u64x4(p, z0);
+    let z0 = simd.small_mod_double_sub_u64x4(p, z0);
     let shoup_q = simd.widening_mul_u64x4(z1, w_shoup).1;
     let t = simd.wrapping_add_u64x4(
-        simd.widening_mul_u64x4(z1, w).0,
-        simd.widening_mul_u64x4(shoup_q, neg_p).0,
+        simd.wrapping_mul_u64x4(z1, w),
+        simd.wrapping_mul_u64x4(shoup_q, neg_p),
     );
-    let t = simd.small_mod_u64x4(p, t);
+    let t = simd.small_mod_double_sub_u64x4(p, t);
     (
         simd.wrapping_add_u64x4(z0, t),
         simd.wrapping_add_u64x4(simd.wrapping_sub_u64x4(z0, t), p),
@@ -97,16 +97,16 @@ pub(crate) fn fwd_last_butterfly_avx2(
     two_p: u64x4,
 ) -> (u64x4, u64x4) {
     let _ = two_p;
-    let z0 = simd.small_mod_u64x4(p, z0);
+    let z0 = simd.small_mod_double_sub_u64x4(p, z0);
     let shoup_q = simd.widening_mul_u64x4(z1, w_shoup).1;
     let t = simd.wrapping_add_u64x4(
-        simd.widening_mul_u64x4(z1, w).0,
-        simd.widening_mul_u64x4(shoup_q, neg_p).0,
+        simd.wrapping_mul_u64x4(z1, w),
+        simd.wrapping_mul_u64x4(shoup_q, neg_p),
     );
-    let t = simd.small_mod_u64x4(p, t);
+    let t = simd.small_mod_double_sub_u64x4(p, t);
     (
-        simd.small_mod_u64x4(p, simd.wrapping_add_u64x4(z0, t)),
-        simd.small_mod_u64x4(
+        simd.small_mod_double_sub_u64x4(p, simd.wrapping_add_u64x4(z0, t)),
+        simd.small_mod_double_sub_u64x4(
             p,
             simd.wrapping_add_u64x4(simd.wrapping_sub_u64x4(z0, t), p),
         ),
@@ -544,6 +544,66 @@ mod tests {
             for i in 0..n {
                 assert_eq!(result[i], mul(p, negacyclic_convolution[i], n as u64),);
             }
+        }
+    }
+
+    // Regression tests for Barrett reduction double-subtraction bug
+    #[test]
+    fn test_barrett_regression_scalar() {
+        // Test case that would trigger the double-subtraction bug
+        let p = 0x7fffffffffffffff; // 2^63 - 1
+        let a = 0x7ffffffffffffffe; // p - 1
+        let b = 0x7ffffffffffffffe; // p - 1
+        
+        // This multiplication should not cause double subtraction
+        let result = mul(p, a, b);
+        assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[test]
+    fn test_barrett_regression_avx2() {
+        if let Some(simd) = crate::V3::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x7fffffffffffffff; // 2^63 - 1
+            let a = 0x7ffffffffffffffe; // p - 1
+            let b = 0x7ffffffffffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+        }
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_barrett_regression_avx512() {
+        if let Some(simd) = crate::V4::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x7fffffffffffffff; // 2^63 - 1
+            let a = 0x7ffffffffffffffe; // p - 1
+            let b = 0x7ffffffffffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+        }
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_barrett_regression_avx512_ifma() {
+        if let Some(simd) = crate::V4IFma::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x7fffffffffffffff; // 2^63 - 1
+            let a = 0x7ffffffffffffffe; // p - 1
+            let b = 0x7ffffffffffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
         }
     }
 }
