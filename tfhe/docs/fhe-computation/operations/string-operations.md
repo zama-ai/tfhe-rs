@@ -35,7 +35,7 @@ The following example shows how to perform string operations:
 ```rust
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringLen,
+    generate_keys, set_server_key, ConfigBuilder, FheAsciiString,
 };
     
 fn main() -> Result<(), Box<dyn std::error::Error>> {

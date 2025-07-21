@@ -403,7 +403,6 @@ impl<AP: EncryptionAtomicPattern> GenericClientKey<AP> {
     /// # Example
     ///
     /// ```rust
-    /// use tfhe::core_crypto::algorithms::misc::divide_round;
     /// use tfhe::shortint::gen_keys;
     /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
     ///

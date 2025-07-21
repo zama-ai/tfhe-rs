@@ -12,10 +12,8 @@ use crate::core_crypto::prelude::*;
 ///
 /// ```rust
 /// use itertools::Itertools;
-/// use tfhe_csprng::seeders::Seed;
-/// use tfhe::core_crypto::fft_impl::common::modulus_switch;
 /// use tfhe::core_crypto::prelude::*;
-/// use tfhe::core_crypto::prelude::compressed_modulus_switched_lwe_ciphertext::CompressedModulusSwitchedLweCiphertext;
+/// use tfhe_csprng::seeders::Seed;
 ///
 /// let log_modulus = 12;
 ///
@@ -43,14 +41,15 @@ use crate::core_crypto::prelude::*;
 ///     &mut encryption_generator,
 /// );
 ///
-/// let lwe_msed_before = lwe_ciphertext_modulus_switch::<_, u64, _>(lwe, CiphertextModulusLog(log_modulus));
+/// let lwe_msed_before =
+///     lwe_ciphertext_modulus_switch::<_, u64, _>(lwe, CiphertextModulusLog(log_modulus));
 ///
 /// // Can be stored using much less space than the standard lwe ciphertexts
 /// let compressed = lwe_msed_before.compress::<u64>();
 ///
 /// let lwe_msed_after = compressed.extract::<u64>();
 ///
-/// for (i, j) in lwe_msed_before.mask().zip_eq(lwe_msed_after.mask()){
+/// for (i, j) in lwe_msed_before.mask().zip_eq(lwe_msed_after.mask()) {
 ///     assert_eq!(i, j);
 /// }
 ///

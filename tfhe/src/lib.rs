@@ -6,7 +6,6 @@
 // https://doc.rust-lang.org/rustdoc/write-documentation/documentation-tests.html#showing-warnings-in-doctests
 #![doc(test(attr(warn(unused))))]
 #![doc(test(attr(allow(unused_variables))))]
-#![doc(test(attr(allow(unused_imports))))]
 // Enable all warnings first as it may break the "allow" priority/activation as some lints gets
 // moved around in clippy categories
 

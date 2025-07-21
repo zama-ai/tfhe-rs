@@ -167,7 +167,7 @@ impl FheAsciiString {
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -201,7 +201,7 @@ impl FheAsciiString {
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -235,10 +235,7 @@ impl FheAsciiString {
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty,
-    ///     FheStringLen,
-    /// };
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -298,10 +295,7 @@ impl FheStringRepeat<u16> for FheAsciiString {
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty,
-    ///     FheStringLen,
-    /// };
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);
@@ -342,10 +336,7 @@ impl FheStringRepeat<(FheUint16, u16)> for FheAsciiString {
     ///
     /// ```rust
     /// use tfhe::prelude::*;
-    /// use tfhe::{
-    ///     generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheStringIsEmpty,
-    ///     FheStringLen, FheUint16,
-    /// };
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheAsciiString, FheUint16};
     ///
     /// let (client_key, server_key) = generate_keys(ConfigBuilder::default());
     /// set_server_key(server_key);

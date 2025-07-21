@@ -197,7 +197,6 @@ impl KeySwitchingKey {
     ///     V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     ///     V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
-    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
@@ -365,7 +364,6 @@ impl KeySwitchingKey {
     ///     V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     ///     V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
-    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
@@ -522,7 +520,6 @@ impl<'keys> KeySwitchingKeyView<'keys> {
     ///     V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_GAUSSIAN_2M128,
     ///     V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128,
     /// };
-    /// use tfhe::shortint::prelude::*;
     /// use tfhe::shortint::{gen_keys, KeySwitchingKey};
     ///
     /// // Generate the client keys and server keys:
