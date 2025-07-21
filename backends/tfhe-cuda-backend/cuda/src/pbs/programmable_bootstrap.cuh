@@ -101,19 +101,19 @@ mul_ggsw_glwe_in_fourier_domain(double2 *fft, double2 *join_buffer,
  *  - Thread blocks at dimension z relates to the decomposition level.
  *  - Thread blocks at dimension y relates to the glwe dimension.
  *  - polynomial_size / params::opt threads are available per block
+ *  - local fft is read from registers
  * To avoid a cluster synchronization the accumulator output is different than
  * the input, and next iteration are switched to act as a ping pong buffer.
  */
 template <typename G, class params, uint32_t polynomial_size,
           uint32_t glwe_dimension, uint32_t level_count>
 __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
-    double2 *fft, double2 *accumulator_out,
+    double2 *fft, double2 *fft_regs, double2 *buffer_regs,
     const double2 *__restrict__ bootstrapping_key, int iteration, G &group,
     int this_block_rank) {
   // Continues multiplying fft by every polynomial in that particular bsk level
   // Each y-block accumulates in a different polynomial at each iteration
   // We accumulate in registers to free shared memory
-  double2 buffer_regs[params::opt / 2];
   // In 2_2 params we only have one level
   constexpr uint32_t level_id = 0;
   // The first product doesn't need using dsm
@@ -124,7 +124,7 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
   auto bsk_poly = bsk_slice + blockIdx.y * polynomial_size / 2;
   polynomial_product_accumulate_in_fourier_domain_2_2_params<params, double2,
                                                              true>(
-      buffer_regs, fft, bsk_poly);
+      buffer_regs, fft_regs, bsk_poly);
 
   // Synchronize to ensure all blocks have written its fft result
   group.sync();
@@ -142,14 +142,8 @@ __device__ void mul_ggsw_glwe_in_fourier_domain_2_2_params(
       buffer_regs, fft_slice, bsk_poly);
 
   // We don't need to synchronize here, cause we are going to use a buffer
-  // different than the input In 2_2 params, level_count=1 so we can just copy
-  // the result from the registers into shared without needing to accumulate
-  int tid = threadIdx.x;
-  for (int i = 0; i < params::opt / 2; i++) {
-    accumulator_out[tid] = buffer_regs[i];
-    tid += params::degree / params::opt;
-  }
-  __syncthreads();
+  // different than the input In 2_2 params, level_count=1 so we can just return
+  // the buffer in registers to avoid synchronizations and shared memory usage
 }
 
 template <typename Torus>

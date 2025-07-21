@@ -415,15 +415,14 @@ uint64_t scratch_cuda_multi_bit_programmable_bootstrap_64(
           input_lwe_ciphertext_count, glwe_dimension, polynomial_size,
           level_count, cuda_get_max_shared_memory(gpu_index));
 
-  // if (supports_tbc &&
-  //     !(input_lwe_ciphertext_count > num_sms / 2 && supports_cg))
-  return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
-      stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
-      glwe_dimension, polynomial_size, level_count, input_lwe_ciphertext_count,
-      allocate_gpu_memory);
-  // else
+  if (supports_tbc)
+    return scratch_cuda_tbc_multi_bit_programmable_bootstrap<uint64_t>(
+        stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
+        glwe_dimension, polynomial_size, level_count,
+        input_lwe_ciphertext_count, allocate_gpu_memory);
+  else
 #endif
-  if (supports_cg)
+      if (supports_cg)
     return scratch_cuda_cg_multi_bit_programmable_bootstrap<uint64_t>(
         stream, gpu_index, (pbs_buffer<uint64_t, MULTI_BIT> **)buffer,
         glwe_dimension, polynomial_size, level_count,
@@ -492,6 +491,17 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   int log2_max_num_pbs = log2_int(max_num_pbs);
   if (log2_max_num_pbs > 13)
     ith_divisor = log2_max_num_pbs - 11;
+#else
+  // When having few samples we are interested in using a larger chunksize so
+  // the keybundle can saturate the GPU. To obtain homogeneous waves we use half
+  // of the sms as the chunksize, by doing so we always get a multiple of the
+  // number of sms, removing the tailing effect. We don't divide by 4 because
+  // some flavors of H100 might not have a number of sms divisible by 4. This is
+  // applied only to few number of samples(8) because it can have a negative
+  // effect of over saturation.
+  if (max_num_pbs <= 8) {
+    return num_sms / 2;
+  }
 #endif
 
   for (int i = sqrt(x); i >= 1; i--) {

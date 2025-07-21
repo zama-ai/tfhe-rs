@@ -64,6 +64,8 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
 // Computes result += first * second
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
+// The result is always in registers and if init_accumulator true
+// the first is also in registers this is tuned for 2_2 params
 template <class params, typename T, bool init_accumulator>
 __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
     T *__restrict__ result, T *__restrict__ first,
@@ -71,12 +73,12 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
   int tid = threadIdx.x;
   if constexpr (init_accumulator) {
     for (int i = 0; i < params::opt / 2; i++) {
-      result[i] = first[tid] * second[tid];
-      tid += params::degree / params::opt;
+      result[i] = first[i] * __ldg(&second[tid]);
+      tid += (params::degree / params::opt);
     }
   } else {
     for (int i = 0; i < params::opt / 2; i++) {
-      result[i] += first[tid] * second[tid];
+      result[i] += first[tid] * __ldg(&second[tid]);
       tid += params::degree / params::opt;
     }
   }

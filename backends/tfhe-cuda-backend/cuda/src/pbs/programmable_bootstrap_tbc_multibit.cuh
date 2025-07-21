@@ -181,18 +181,34 @@ __global__ void __launch_bounds__(params::degree / params::opt)
   }
 }
 
+// Specialized version for the multi-bit bootstrap using 2_2 params:
+// Polynomial size = 2048
+// PBS level = 1
+// Grouping factor = 4
+// PBS base = 22
+// Glwe dimension = 1
+// At the moment everything is hardcoded as constexpr, but later
+// we will generate a cleaner/nicer way handle it.
+// Main optimizations:
+//- Leverage shared memory to reduce one cluster synchronization. A
+//  ping pong buffer is used for that, so everything is synchronized
+//  automatically after 2 iterations
+//- Move everything to registers to avoid shared memory synchronizations
+//- Use a register based fft that uses the minimal synchronizations
+//- Register based fourier domain multiplication. Transfer fft's between blocks
+// instead of accumulator.
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void
-device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
-    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-    const Torus *__restrict__ lut_vector,
-    const Torus *__restrict__ lut_vector_indexes,
-    const Torus *__restrict__ lwe_array_in,
-    const Torus *__restrict__ lwe_input_indexes,
-    const double2 *__restrict__ keybundle_array, double2 *join_buffer,
-    Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
-    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+__global__ void __launch_bounds__(params::degree / params::opt)
+    device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
+        Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+        const Torus *__restrict__ lut_vector,
+        const Torus *__restrict__ lut_vector_indexes,
+        const Torus *__restrict__ lwe_array_in,
+        const Torus *__restrict__ lwe_input_indexes,
+        const double2 *__restrict__ keybundle_array, double2 *join_buffer,
+        Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
+        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint32_t num_many_lut, uint32_t lut_stride) {
 
   constexpr uint32_t level_count = 1;
   constexpr uint32_t grouping_factor = 4;
@@ -215,9 +231,10 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
   constexpr uint32_t num_buffers_ping_pong = 2;
   selected_memory += sizeof(Torus) * polynomial_size * num_buffers_ping_pong;
 
-  double2 *accumulator_aux = (double2 *)sharedmem;
-  double2 *accumulator_fft = accumulator_aux + (polynomial_size / 2);
-  double2 *shared_twiddles = accumulator_fft + (polynomial_size / 2);
+  double2 *accumulator_ping = (double2 *)sharedmem;
+  double2 *accumulator_pong = accumulator_ping + (polynomial_size / 2);
+  double2 *shared_twiddles = accumulator_pong + (polynomial_size / 2);
+  double2 *shared_fft = shared_twiddles + (polynomial_size / 2);
   // accumulator rotated shares the same memory space than the twiddles.
   // it is only used during the sample extract so it is safe to use it
   Torus *accumulator_rotated = (Torus *)selected_memory;
@@ -271,30 +288,37 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
         reg_acc_rotated);
 
     // This is the ping pong buffer logic to avoid a cluster synchronization
-    auto accumulator_in = i % 2 ? accumulator_fft : accumulator_aux;
-    auto accumulator_out = i % 2 ? accumulator_aux : accumulator_fft;
+    auto accumulator_fft = i % 2 ? accumulator_ping : accumulator_pong;
 
+    double2 fft_out_regs[params::opt / 2];
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
     decompose_and_compress_level_2_2_params<Torus, params, base_log>(
-        accumulator_in, reg_acc_rotated);
+        fft_out_regs, reg_acc_rotated);
 
-    NSMFFT_direct_2_2_params<HalfDegree<params>>(accumulator_in,
+    NSMFFT_direct_2_2_params<HalfDegree<params>>(shared_fft, fft_out_regs,
                                                  shared_twiddles);
-    __syncthreads();
+    // we move registers into shared memory to use dsm
+    int tid = threadIdx.x;
+    for (Index k = 0; k < params::opt / 4; k++) {
+      accumulator_fft[tid] = fft_out_regs[k];
+      accumulator_fft[tid + params::degree / 4] =
+          fft_out_regs[k + params::opt / 4];
+      tid = tid + params::degree / params::opt;
+    }
 
+    double2 buffer_regs[params::opt / 2];
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain_2_2_params<
         cluster_group, params, polynomial_size, glwe_dimension, level_count>(
-        accumulator_in, accumulator_out, keybundle, i, cluster,
+        accumulator_fft, fft_out_regs, buffer_regs, keybundle, i, cluster,
         this_block_rank);
 
-    NSMFFT_inverse_2_2_params<HalfDegree<params>>(accumulator_out,
+    NSMFFT_inverse_2_2_params<HalfDegree<params>>(shared_fft, buffer_regs,
                                                   shared_twiddles);
-    __syncthreads();
 
-    add_to_torus_2_2_params<Torus, params>(accumulator_out, reg_acc_rotated);
+    add_to_torus_2_2_params<Torus, params>(buffer_regs, reg_acc_rotated);
   }
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {
@@ -454,7 +478,7 @@ __host__ uint64_t scratch_tbc_multi_bit_programmable_bootstrap(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
           cudaFuncAttributeMaxDynamicSharedMemorySize,
-          full_sm_tbc_accumulate + minimum_sm_tbc_accumulate));
+          full_sm_tbc_accumulate + 2 * minimum_sm_tbc_accumulate));
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
@@ -578,10 +602,13 @@ __host__ void execute_tbc_external_product_loop(
     config.dynamicSmemBytes = full_dm + minimum_dm;
     if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
         glwe_dimension == 1 && base_log == 22) {
+
+      config.dynamicSmemBytes = full_dm + 2 * minimum_dm;
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
-          cudaFuncAttributeMaxDynamicSharedMemorySize, full_dm + minimum_dm));
+          cudaFuncAttributeMaxDynamicSharedMemorySize,
+          full_dm + 2 * minimum_dm));
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params<
               Torus, params, FULLSM>,
