@@ -32,7 +32,7 @@ use tfhe::shortint::parameters::{
 };
 use tfhe::{
     set_server_key, CompressedCiphertextList, CompressedCiphertextListBuilder, FheBool,
-    FheInt64, FheUint16, FheUint2, FheUint32,
+    FheInt64, FheUint2, FheUint32,
 };
 
 fn main() {
