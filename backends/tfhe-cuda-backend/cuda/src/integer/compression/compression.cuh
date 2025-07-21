@@ -139,6 +139,62 @@ host_integer_compress(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                    tmp_glwe_array_out, num_glwes, num_radix_blocks, mem_ptr);
 }
 
+__host__ inline void
+host_integer_compress_128(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                      uint32_t gpu_count, __uint128_t *glwe_array_out,
+                      __uint128_t const *lwe_array_in, __uint128_t *const *fp_ksk,
+                      uint32_t num_radix_blocks,
+                      int_compression<__uint128_t> *mem_ptr) {
+
+  auto compression_params = mem_ptr->compression_params;
+  auto input_lwe_dimension = compression_params.small_lwe_dimension;
+
+  uint32_t lwe_in_size = input_lwe_dimension + 1;
+  uint32_t glwe_out_size = (compression_params.glwe_dimension + 1) *
+                           compression_params.polynomial_size;
+    printf("input_lwe_dimension: %u\n", input_lwe_dimension);
+    printf("lwe_in_size: %u\n", lwe_in_size);
+    printf("glwe_out_size: %u\n", glwe_out_size);
+  uint32_t num_glwes =
+      (num_radix_blocks + mem_ptr->lwe_per_glwe - 1) / mem_ptr->lwe_per_glwe;
+printf("cuda num_glwes: %u\n", num_glwes);
+  // Keyswitch LWEs to GLWE
+  auto tmp_glwe_array_out = mem_ptr->tmp_glwe_array_out;
+  cuda_memset_async(tmp_glwe_array_out, 0,
+                    num_glwes * (compression_params.glwe_dimension + 1) *
+                        compression_params.polynomial_size * sizeof(__uint128_t),
+                    streams[0], gpu_indexes[0]);
+  auto fp_ks_buffer = mem_ptr->fp_ks_buffer;
+  auto rem_lwes = num_radix_blocks;
+
+  auto lwe_subset = lwe_array_in;
+  auto glwe_out = tmp_glwe_array_out;
+  while (rem_lwes > 0) {
+    auto chunk_size = min(rem_lwes, mem_ptr->lwe_per_glwe);
+
+    host_packing_keyswitch_lwe_list_to_glwe<__uint128_t>(
+        streams[0], gpu_indexes[0], glwe_out, lwe_subset, fp_ksk[0],
+        fp_ks_buffer, input_lwe_dimension, compression_params.glwe_dimension,
+        compression_params.polynomial_size, compression_params.ks_base_log,
+        compression_params.ks_level, chunk_size);
+
+    rem_lwes -= chunk_size;
+    lwe_subset += chunk_size * lwe_in_size;
+    glwe_out += glwe_out_size;
+  }
+
+  // Modulus switch
+  host_modulus_switch_inplace<__uint128_t>(
+      streams[0], gpu_indexes[0], tmp_glwe_array_out,
+      num_glwes * compression_params.glwe_dimension *
+              compression_params.polynomial_size +
+          num_radix_blocks,
+      mem_ptr->storage_log_modulus);
+
+  host_pack<__uint128_t>(streams[0], gpu_indexes[0], glwe_array_out,
+                   tmp_glwe_array_out, num_glwes, num_radix_blocks, mem_ptr);
+}
+
 template <typename Torus>
 __global__ void extract(Torus *glwe_array_out, Torus const *array_in,
                         uint32_t log_modulus, uint32_t initial_out_len) {
@@ -359,7 +415,7 @@ __host__ void host_integer_decompress(
   }
 }
 
-__host__ void host_integer_decompress_128(
+__host__ inline void host_integer_decompress_128(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, __uint128_t *d_lwe_array_out,
     __uint128_t const *d_packed_glwe_in, uint32_t const *h_indexes_array,
@@ -390,6 +446,7 @@ __host__ void host_integer_decompress_128(
   host_extract<__uint128_t>(streams[0], gpu_indexes[0], extracted_glwe,
                             d_packed_glwe_in, current_glwe_index, h_mem_ptr);
   glwe_vec.push_back(std::make_pair(1, extracted_glwe));
+  printf("indexes_array_size: %u\n", indexes_array_size);
   for (int i = 1; i < indexes_array_size; i++) {
     auto glwe_index = h_indexes_array[i] / lwe_per_glwe;
     if (glwe_index != current_glwe_index) {
@@ -412,6 +469,7 @@ __host__ void host_integer_decompress_128(
   auto d_indexes_array_chunk = d_indexes_array;
   for (const auto &max_idx_and_glwe : glwe_vec) {
     const auto num_lwes = max_idx_and_glwe.first;
+  printf("num_lwes: %u\n", num_lwes);
     extracted_glwe = max_idx_and_glwe.second;
 
     cuda_glwe_sample_extract_64(

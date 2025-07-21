@@ -483,8 +483,8 @@ impl CudaNoiseSquashingCompressionKey {
         for ciphertext in ciphertexts_slice {
             let dest_ptr = d_vec
                 .as_mut_c_ptr(0)
-                .add(offset * std::mem::size_of::<u64>());
-            let size = ciphertext.packed_d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
+                .add(offset * std::mem::size_of::<u128>());
+            let size = ciphertext.packed_d_blocks.0.d_vec.len * std::mem::size_of::<u128>();
             cuda_memcpy_async_gpu_to_gpu(
                 dest_ptr,
                 ciphertext.packed_d_blocks.0.d_vec.as_c_ptr(0),
@@ -499,7 +499,7 @@ impl CudaNoiseSquashingCompressionKey {
         CudaLweCiphertextList::from_cuda_vec(d_vec, lwe_ciphertext_count, ciphertext_modulus)
     }
 
-    pub fn compress_ciphertexts_into_list(
+    pub fn compress_noise_squashed_ciphertexts_into_list(
         &self,
         ciphertexts: &[CudaSquashedNoiseRadixCiphertext],
         streams: &CudaStreams,
@@ -517,6 +517,7 @@ impl CudaNoiseSquashingCompressionKey {
             .sum();
 
         let num_glwes = num_lwes.div_ceil(self.lwe_per_glwe.0);
+        println!("rust num_glwes: {}", num_glwes);
         let glwe_mask_size = glwe_mask_size(
             compressed_glwe_size.to_glwe_dimension(),
             compressed_polynomial_size,
@@ -526,7 +527,7 @@ impl CudaNoiseSquashingCompressionKey {
         let ciphertext_modulus_log = ciphertext_modulus.into_modulus_log();
         // The CPU implementation uses ciphertext_modulus_log instead of self.storage_log_modulus
         let number_bits_to_pack = uncompressed_len * ciphertext_modulus_log.0;
-        let compressed_len = number_bits_to_pack.div_ceil(u64::BITS as usize);
+        let compressed_len = number_bits_to_pack.div_ceil(u128::BITS as usize);
         let mut packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
 
         if ciphertexts.is_empty() {
@@ -546,6 +547,7 @@ impl CudaNoiseSquashingCompressionKey {
 
         unsafe {
             let input_lwes = Self::flatten_async(ciphertexts, streams);
+            println!("rust input_lwes len: {}", input_lwes.lwe_ciphertext_count().0);
 
             compress_integer_radix_async(
                 streams,

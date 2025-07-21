@@ -393,6 +393,8 @@ mod test {
         let ct_c = cks.encrypt_radix(clear_c, NUM_BLOCKS);
         let ct_d = cks.encrypt_bool(clear_d);
 
+        println!("ct_c lwe_dimension: {}", ct_c.blocks.first().unwrap().ct.lwe_size().to_lwe_dimension().0);
+
         let ns_ct_a = noise_squashing_key
             .squash_signed_radix_ciphertext_noise(&sks, &ct_a)
             .unwrap();
@@ -405,6 +407,7 @@ mod test {
         let ns_ct_d = noise_squashing_key
             .squash_boolean_block_noise(&sks, &ct_d)
             .unwrap();
+        println!("ns_ct_c lwe_dimension: {}", ns_ct_c.packed_blocks.first().unwrap().lwe_ciphertext().lwe_size().to_lwe_dimension().0);
 
         let list = CompressedSquashedNoiseCiphertextList::builder()
             .push(ns_ct_a)

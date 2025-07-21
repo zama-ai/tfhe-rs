@@ -134,12 +134,12 @@ void cuda_integer_compress_radix_ciphertext_128(
     void *glwe_array_out, void const *lwe_array_in, void *const *fp_ksk,
     uint32_t num_nths, int8_t *mem_ptr) {
 
-  host_integer_compress<__uint128_t>(
+  host_integer_compress_128(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count,
       static_cast<__uint128_t *>(glwe_array_out),
       static_cast<const __uint128_t *>(lwe_array_in),
-      (__uint128_t *const *)(fp_ksk), num_nths,
-      (int_compression<__uint128_t> *)mem_ptr);
+      reinterpret_cast<__uint128_t *const *>(fp_ksk), num_nths,
+      reinterpret_cast<int_compression<__uint128_t> *>(mem_ptr));
 }
 void cuda_integer_decompress_radix_ciphertext_128(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,
@@ -150,7 +150,7 @@ void cuda_integer_decompress_radix_ciphertext_128(
                               static_cast<__uint128_t *>(lwe_array_out),
                               static_cast<const __uint128_t *>(glwe_in),
                               indexes_array, indexes_array_size,
-                              (int_decompression<__uint128_t> *)mem_ptr);
+                              reinterpret_cast<int_decompression<__uint128_t> *>(mem_ptr));
 }
 void cleanup_cuda_integer_compress_radix_ciphertext_128(
     void *const *streams, uint32_t const *gpu_indexes, uint32_t gpu_count,

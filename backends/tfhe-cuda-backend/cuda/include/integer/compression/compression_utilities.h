@@ -30,15 +30,15 @@ template <typename Torus> struct int_compression {
     Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                   compression_params.polynomial_size;
 
-    tmp_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
+    tmp_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
-            sizeof(Torus),
-        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
-    tmp_glwe_array_out = (Torus *)cuda_malloc_with_size_tracking_async(
+        sizeof(Torus),
+        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory));
+    tmp_glwe_array_out = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         lwe_per_glwe * glwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        gpu_indexes[0], size_tracker, allocate_gpu_memory));
 
-    size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe_64(
+    size_tracker += scratch_packing_keyswitch_lwe_list_to_glwe<Torus>(
         streams[0], gpu_indexes[0], &fp_ks_buffer,
         compression_params.small_lwe_dimension,
         compression_params.glwe_dimension, compression_params.polynomial_size,
@@ -90,22 +90,22 @@ template <typename Torus> struct int_decompression {
                                       compression_params.polynomial_size +
                                   1);
 
-    tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
+    tmp_extracted_glwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * glwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
-    tmp_indexes_array = (uint32_t *)cuda_malloc_with_size_tracking_async(
+        gpu_indexes[0], size_tracker, allocate_gpu_memory));
+    tmp_indexes_array = static_cast<uint32_t *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * sizeof(uint32_t), streams[0], gpu_indexes[0],
-        size_tracker, allocate_gpu_memory);
-    tmp_extracted_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
+        size_tracker, allocate_gpu_memory));
+    tmp_extracted_lwe = static_cast<Torus *>(cuda_malloc_with_size_tracking_async(
         num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        gpu_indexes[0], size_tracker, allocate_gpu_memory));
 
     // Check if Torus is uint64_t
     if constexpr (std::is_same_v<Torus, uint64_t>) {
       // Rescale is done using an identity LUT
       // Here we do not divide by message_modulus
-      // Example: in the 2_2 case we are mapping a 2 bits message onto a 4 bits
-      // space, we want to keep the original 2 bits value in the 4 bits space,
+      // Example: in the 2_2 case we are mapping a 2-bit message onto a 4-bit
+      // space, we want to keep the original 2-bit value in the 4-bit space,
       // so we apply the identity and the encoding will rescale it for us.
       decompression_rescale_lut = new int_radix_lut<Torus>(
           streams, gpu_indexes, gpu_count, encryption_params, 1,
