@@ -55,7 +55,7 @@ __global__ void decompose_vectorize_init(Torus const *lwe_in, Torus *lwe_out,
   lwe_out[write_state_idx] = state;
 }
 
-// Continue decomposiion of an array of Torus elements in place. Supposes
+// Continue decomposition of an array of Torus elements in place. Supposes
 // that the array contains already decomposed elements and
 // computes the new decomposed level in place.
 template <typename Torus>
