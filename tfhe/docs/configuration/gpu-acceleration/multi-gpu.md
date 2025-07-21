@@ -31,9 +31,7 @@ When selecting a specific GPU to execute on, there are two essential requirement
 Instead of a single server key being used across all GPUs automatically, you’ll need decompress the server key to each GPU, so that the key is available in memory.
 For example, by default, the GPU server key is decompressed and loaded onto all available GPUs automatically as follows:
 ```rust
-use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey};
-use tfhe::prelude::*;
-use rayon::prelude::*;
+use tfhe::{ConfigBuilder, ClientKey, CompressedServerKey};
 fn main() {
     let config = ConfigBuilder::default().build();
 
@@ -47,9 +45,7 @@ fn main() {
 However, to use the multi-GPU selection feature, you can create a vector of server keys, each on a specific GPU:
 
 ```rust
-use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, GpuIndex};
-use tfhe::prelude::*;
-use rayon::prelude::*;
+use tfhe::{ConfigBuilder, ClientKey, CompressedServerKey, GpuIndex};
 use tfhe::core_crypto::gpu::get_number_of_gpus;
 fn main() {
     let config = ConfigBuilder::default().build();
@@ -66,9 +62,8 @@ fn main() {
 #### Step 2: Define the inputs to operate on
 We will be doing 100 additions in parallel on each GPU:
 ```rust
-use tfhe::{ConfigBuilder, set_server_key, ClientKey, CompressedServerKey, FheUint64, GpuIndex};
+use tfhe::{ConfigBuilder, ClientKey, CompressedServerKey, FheUint64, GpuIndex};
 use tfhe::prelude::*;
-use rayon::prelude::*;
 use tfhe::core_crypto::gpu::get_number_of_gpus;
 use rand::{thread_rng, Rng};
 fn main() {

@@ -61,8 +61,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
-    /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -147,8 +146,7 @@ impl<Id: FheUintId> FheUint<Id> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
-    /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint8, GpuIndex};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -236,8 +234,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
-    /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);
@@ -323,8 +320,7 @@ impl<Id: FheIntId> FheInt<Id> {
     ///
     /// ```rust
     /// use tfhe::core_crypto::gpu::check_valid_cuda_malloc_assert_oom;
-    /// use tfhe::prelude::FheDecrypt;
-    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex, Seed};
+    /// use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheInt8, GpuIndex};
     ///
     /// let config = ConfigBuilder::default().build();
     /// let (client_key, server_key) = generate_keys(config);

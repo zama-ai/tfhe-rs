@@ -6,10 +6,7 @@ use crate::GpuIndex;
 /// ```rust
 /// use rand::Rng;
 /// use tfhe::prelude::*;
-/// use tfhe::{
-///     generate_keys, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheInt16,
-///     FheInt32, GpuIndex,
-/// };
+/// use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, FheInt32, GpuIndex};
 ///
 /// let config = ConfigBuilder::default();
 /// let client_key = ClientKey::generate(config);

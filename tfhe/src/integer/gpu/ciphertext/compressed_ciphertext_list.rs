@@ -178,8 +178,6 @@ impl CudaCompressedCiphertextList {
 
     /// ```rust
     ///  use tfhe::core_crypto::gpu::CudaStreams;
-    /// use tfhe::integer::{BooleanBlock, ClientKey, RadixCiphertext, SignedRadixCiphertext};
-    /// use tfhe::integer::ciphertext::CompressedCiphertextListBuilder;
     /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::ciphertext::compressed_ciphertext_list::CudaCompressedCiphertextListBuilder;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
@@ -324,7 +322,6 @@ impl CompressedCiphertextList {
     /// use tfhe::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
     /// use tfhe::integer::gpu::ciphertext::{CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext};
     /// use tfhe::integer::gpu::gen_keys_radix_gpu;
-    /// use tfhe::integer::ClientKey;
     /// use tfhe::shortint::parameters::{
     ///     COMP_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     ///     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
