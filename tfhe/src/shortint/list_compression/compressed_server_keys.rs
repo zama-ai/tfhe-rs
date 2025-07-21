@@ -19,9 +19,6 @@ use crate::shortint::backward_compatibility::list_compression::{
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
 use crate::shortint::client_key::ClientKey;
 use crate::shortint::engine::ShortintEngine;
-use crate::shortint::server_key::{
-    ModulusSwitchConfiguration, PBSConformanceParams, ShortintBootstrappingKey,
-};
 use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -76,10 +73,7 @@ impl CompressedDecompressionKey {
         par_convert_standard_lwe_bootstrap_key_to_fourier(&blind_rotate_key, &mut fourier_bsk);
 
         DecompressionKey {
-            blind_rotate_key: ShortintBootstrappingKey::Classic {
-                bsk: fourier_bsk,
-                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
-            },
+            blind_rotate_key: fourier_bsk,
             lwe_per_glwe: self.lwe_per_glwe,
         }
     }
@@ -181,9 +175,7 @@ impl ParameterSetConformant for CompressedDecompressionKey {
             lwe_per_glwe,
         } = self;
 
-        let params: PBSConformanceParams = parameter_set.into();
-
-        let params: LweBootstrapKeyConformanceParams<_> = (&params).into();
+        let params: LweBootstrapKeyConformanceParams<_> = parameter_set.into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }

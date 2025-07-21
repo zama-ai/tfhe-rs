@@ -7,8 +7,7 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::parameters::{CarryModulus, MessageModulus, NoiseLevel};
 use crate::shortint::server_key::{
     apply_standard_blind_rotate, generate_lookup_table_with_output_encoding,
-    unchecked_scalar_mul_assign, LookupTableSize, ModulusSwitchConfiguration,
-    ShortintBootstrappingKey,
+    unchecked_scalar_mul_assign, LookupTableSize,
 };
 use crate::shortint::{Ciphertext, MaxNoiseLevel};
 use rayon::iter::ParallelIterator;
@@ -221,37 +220,20 @@ impl DecompressionKey {
             ciphertext_modulus,
         );
 
-        match &self.blind_rotate_key {
-            ShortintBootstrappingKey::Classic {
-                bsk,
-                modulus_switch_noise_reduction_key,
-            } => {
-                assert!(
-                    matches!(
-                        modulus_switch_noise_reduction_key,
-                        ModulusSwitchConfiguration::Standard
-                    ),
-                    "Decompression key should not do modulus switch noise reduction"
-                );
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let buffers = engine.get_computation_buffers();
 
-                ShortintEngine::with_thread_local_mut(|engine| {
-                    let buffers = engine.get_computation_buffers();
+            let mut glwe_out = decompression_rescale.acc.clone();
 
-                    let mut glwe_out = decompression_rescale.acc.clone();
+            apply_standard_blind_rotate(
+                &self.blind_rotate_key,
+                &intermediate_lwe,
+                &mut glwe_out,
+                buffers,
+            );
 
-                    apply_standard_blind_rotate(bsk, &intermediate_lwe, &mut glwe_out, buffers);
-
-                    extract_lwe_sample_from_glwe_ciphertext(
-                        &glwe_out,
-                        &mut output_br,
-                        MonomialDegree(0),
-                    );
-                });
-            }
-            ShortintBootstrappingKey::MultiBit { .. } => {
-                panic!("Decompression can't use a multi bit PBS")
-            }
-        }
+            extract_lwe_sample_from_glwe_ciphertext(&glwe_out, &mut output_br, MonomialDegree(0));
+        });
 
         Ok(Ciphertext::new(
             output_br,

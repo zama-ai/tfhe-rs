@@ -1,6 +1,7 @@
 use super::private_key::NoiseSquashingCompressionPrivateKey;
 use super::CompressionPrivateKeys;
 use crate::conformance::ParameterSetConformant;
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::LweBootstrapKeyConformanceParams;
 use crate::core_crypto::prelude::*;
 use crate::shortint::atomic_pattern::AtomicPatternParameters;
 use crate::shortint::backward_compatibility::list_compression::{
@@ -12,12 +13,8 @@ use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::CompressedNoiseSquashingCompressionKey;
 use crate::shortint::noise_squashing::NoiseSquashingPrivateKey;
 use crate::shortint::parameters::{
-    CompressionParameters, ModulusSwitchType, NoiseSquashingCompressionParameters,
-    NoiseSquashingParameters, PolynomialSize,
-};
-use crate::shortint::server_key::{
-    ModulusSwitchConfiguration, PBSConformanceParams, PbsTypeConformanceParams,
-    ShortintBootstrappingKey,
+    CompressionParameters, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    PolynomialSize,
 };
 use crate::shortint::EncryptionKeyChoice;
 use serde::{Deserialize, Serialize};
@@ -35,7 +32,7 @@ pub struct CompressionKey {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Versionize)]
 #[versionize(DecompressionKeyVersions)]
 pub struct DecompressionKey {
-    pub blind_rotate_key: ShortintBootstrappingKey<u64>,
+    pub blind_rotate_key: FourierLweBootstrapKeyOwned,
     pub lwe_per_glwe: LweCiphertextCount,
 }
 
@@ -67,20 +64,18 @@ impl ClientKey {
             "Compression is only compatible with ciphertext in post PBS dimension"
         );
 
-        let blind_rotate_key =
-            ShortintEngine::with_thread_local_mut(|engine| ShortintBootstrappingKey::Classic {
-                bsk: engine.new_classic_bootstrapping_key(
-                    &private_compression_key
-                        .post_packing_ks_key
-                        .as_lwe_secret_key(),
-                    &std_cks.glwe_secret_key,
-                    pbs_params.glwe_noise_distribution(),
-                    compression_params.br_base_log,
-                    compression_params.br_level,
-                    pbs_params.ciphertext_modulus(),
-                ),
-                modulus_switch_noise_reduction_key: ModulusSwitchConfiguration::Standard,
-            });
+        let blind_rotate_key = ShortintEngine::with_thread_local_mut(|engine| {
+            engine.new_classic_bootstrapping_key(
+                &private_compression_key
+                    .post_packing_ks_key
+                    .as_lwe_secret_key(),
+                &std_cks.glwe_secret_key,
+                pbs_params.glwe_noise_distribution(),
+                compression_params.br_base_log,
+                compression_params.br_level,
+                pbs_params.ciphertext_modulus(),
+            )
+        });
 
         DecompressionKey {
             blind_rotate_key,
@@ -212,26 +207,32 @@ impl ParameterSetConformant for DecompressionKey {
             lwe_per_glwe,
         } = self;
 
-        let params: PBSConformanceParams = parameter_set.into();
+        let params: LweBootstrapKeyConformanceParams<u64> = parameter_set.into();
 
         blind_rotate_key.is_conformant(&params) && *lwe_per_glwe == parameter_set.lwe_per_glwe
     }
 }
 
-impl From<&CompressionKeyConformanceParams> for PBSConformanceParams {
+impl From<&CompressionKeyConformanceParams> for LweBootstrapKeyConformanceParams<u64> {
     fn from(value: &CompressionKeyConformanceParams) -> Self {
+        let CompressionKeyConformanceParams {
+            br_level,
+            br_base_log,
+            packing_ks_polynomial_size,
+            packing_ks_glwe_dimension,
+            uncompressed_polynomial_size,
+            uncompressed_glwe_dimension,
+            ..
+        } = value;
+
         Self {
-            in_lwe_dimension: value
-                .packing_ks_glwe_dimension
-                .to_equivalent_lwe_dimension(value.packing_ks_polynomial_size),
-            out_glwe_dimension: value.uncompressed_glwe_dimension,
-            out_polynomial_size: value.uncompressed_polynomial_size,
-            base_log: value.br_base_log,
-            level: value.br_level,
+            decomp_base_log: *br_base_log,
+            decomp_level_count: *br_level,
+            input_lwe_dimension: packing_ks_glwe_dimension
+                .to_equivalent_lwe_dimension(*packing_ks_polynomial_size),
+            output_glwe_size: uncompressed_glwe_dimension.to_glwe_size(),
+            polynomial_size: *uncompressed_polynomial_size,
             ciphertext_modulus: value.cipherext_modulus,
-            pbs_type: PbsTypeConformanceParams::Classic {
-                modulus_switch_noise_reduction: ModulusSwitchType::Standard,
-            },
         }
     }
 }
