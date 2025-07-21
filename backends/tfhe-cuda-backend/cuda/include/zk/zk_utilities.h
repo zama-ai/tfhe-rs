@@ -138,7 +138,7 @@ template <typename Torus> struct zk_expand_mem {
     auto compact_list_id = 0;
     auto idx = 0;
     auto count = 0;
-    // During flatenning, all num_lwes LWEs from all compact lists are stored
+    // During flattening, all num_lwes LWEs from all compact lists are stored
     // sequentially on a Torus array. h_lwe_compact_input_indexes stores the
     // index of the first LWE related to the compact list that contains the i-th
     // LWE
