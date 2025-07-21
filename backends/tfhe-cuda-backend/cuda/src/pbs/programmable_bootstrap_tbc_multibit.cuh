@@ -280,17 +280,28 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     decompose_and_compress_level_2_2_params<Torus, params, base_log>(
         accumulator_in, reg_acc_rotated);
 
-    NSMFFT_direct_2_2_params<HalfDegree<params>>(accumulator_in,
+    double2 fft_out_regs[params::opt / 2];
+    NSMFFT_direct_2_2_params<HalfDegree<params>>(accumulator_in, fft_out_regs,
                                                  shared_twiddles);
     __syncthreads();
+    // we move registers into shared memory to use dsm
+    int tid = threadIdx.x;
+#pragma unroll
+    for (Index k = 0; k < params::opt / 4; k++) {
+      accumulator_in[tid] = fft_out_regs[k];
+      accumulator_in[tid + params::degree / 4] =
+          fft_out_regs[k + params::opt / 4];
+      tid = tid + params::degree / params::opt;
+    }
 
+    double2 buffer_regs[params::opt / 2];
     // Perform G^-1(ACC) * GGSW -> GLWE
     mul_ggsw_glwe_in_fourier_domain_2_2_params<
         cluster_group, params, polynomial_size, glwe_dimension, level_count>(
-        accumulator_in, accumulator_out, keybundle, i, cluster,
+        accumulator_in, fft_out_regs, buffer_regs, keybundle, i, cluster,
         this_block_rank);
 
-    NSMFFT_inverse_2_2_params<HalfDegree<params>>(accumulator_out,
+    NSMFFT_inverse_2_2_params<HalfDegree<params>>(accumulator_out, buffer_regs,
                                                   shared_twiddles);
     __syncthreads();
 
