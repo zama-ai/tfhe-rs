@@ -143,7 +143,6 @@ template <typename T, class params, uint32_t base_log>
 __device__ void decompose_and_compress_level_2_2_params(double2 *result,
                                                         T *state) {
   constexpr T mask_mod_b = (1ll << base_log) - 1ll;
-  uint32_t tid = threadIdx.x;
   for (int i = 0; i < params::opt / 2; i++) {
     auto input1 = state[i];
     auto input2 = state[i + params::opt / 2];
@@ -158,20 +157,12 @@ __device__ void decompose_and_compress_level_2_2_params(double2 *result,
     carry_re >>= (base_log - 1);
     carry_im >>= (base_log - 1);
 
-    /* We don't need to update the state cause we know we won't use it anymore
-     *in 2_2 params input1 += carry_re; // Update state input2 += carry_im; //
-     *Update state
-     */
-
     res_re -= carry_re << base_log;
     res_im -= carry_im << base_log;
 
-    typecast_torus_to_double(res_re, result[tid].x);
-    typecast_torus_to_double(res_im, result[tid].y);
-
-    tid += params::degree / params::opt;
+    typecast_torus_to_double(res_re, result[i].x);
+    typecast_torus_to_double(res_im, result[i].y);
   }
-  __syncthreads();
 }
 
 template <typename Torus>

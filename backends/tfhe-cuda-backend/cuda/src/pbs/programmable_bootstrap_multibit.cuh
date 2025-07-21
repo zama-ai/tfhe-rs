@@ -146,6 +146,20 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle(
   }
 }
 
+// Calculates the keybundles for 2_2 params
+// Lwe Dimension = 920
+// Polynomial Size = 2048
+// Grouping factor = 4
+// Glwe dimension = 1
+// PBS level = 1
+// In this initial version everything is hardcoded as constexpr, we
+// will wrap it up in a nicer/cleaner version in the future.
+// Additionally, we initialize an int8_t vector with coefficients used in the
+// monomial multiplication The size of this vector is 3x2048 and the
+// coefficients are: [0 .. 2047] = -1 [2048 .. 4095] = 1 [4096 .. 6143] = -11
+// Then we can just calculate the offset needed to apply this coefficients, and
+// the operation transforms into a pointwise vector multiplication, avoiding to
+// perform extra instructions other than MADD
 template <typename Torus, class params, sharedMemDegree SMD>
 __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     const Torus *__restrict__ lwe_array_in,
@@ -162,11 +176,7 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
   extern __shared__ int8_t sharedmem[];
   int8_t *selected_memory;
   selected_memory = sharedmem;
-  // Some int8_t coefficients of values {-1,1,1} are precalculated to accelerate
-  // the monomial multiplication There is no need of synchronization since the
-  // sync is done after monimial calculation The precalculated coefficients are
-  // stored after the memory reserved for the monomials
-  // uint32_t[1<<grouping_factor]
+
   int8_t *precalc_coefs =
       selected_memory + (sizeof(uint32_t) * (1 << grouping_factor));
   for (int i = 0; i < params::opt; i++) {
@@ -178,6 +188,12 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
   }
 
   double2 *shared_fft = (double2 *)(precalc_coefs + polynomial_size * 3);
+  double2 *shared_twiddles = shared_fft + (polynomial_size / 2);
+  for (int k = 0; k < params::opt / 2; k++) {
+    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
+        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+  }
+
   // Ids
   constexpr uint32_t level_id = 0;
   uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
@@ -242,31 +258,29 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     }
 
     // Move from local memory back to shared memory but as complex
-    int tid = threadIdx.x;
+    double2 fft_regs[params::opt / 2];
     double2 *fft = shared_fft;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] =
+      fft_regs[i] =
           make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
                            (double)std::numeric_limits<Torus>::max(),
                        __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
                            (double)std::numeric_limits<Torus>::max());
-      tid += params::degree / params::opt;
     }
 
-    NSMFFT_direct<HalfDegree<params>>(fft);
+    NSMFFT_direct_2_2_params<HalfDegree<params>>(fft, fft_regs,
+                                                 shared_twiddles);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
         keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
         polynomial_size, glwe_dimension, level_count);
-    // auto keybundle_out = get_ith_mask_kth_block_2_2_params<Torus,
-    // polynomial_size,glwe_dimension,level_count,level_id>(keybundle,
-    // blockIdx.x % lwe_chunk_size, glwe_id);
-    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
 
-    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft, keybundle_poly);
+    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
+    copy_polynomial_from_regs<double2, params::opt / 2,
+                              params::degree / params::opt>(fft_regs,
+                                                            keybundle_poly);
   }
 }
 
@@ -694,8 +708,13 @@ __host__ void execute_compute_keybundle(
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, full_sm_keybundle);
   } else {
-    if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
-        glwe_dimension == 1 && lwe_dimension == 920) {
+    bool supports_tbc =
+        has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+            num_samples, glwe_dimension, polynomial_size, level_count,
+            cuda_get_max_shared_memory(gpu_index));
+
+    if (supports_tbc && polynomial_size == 2048 && grouping_factor == 4 &&
+        level_count == 1 && glwe_dimension == 1 && lwe_dimension == 920) {
       dim3 thds_new_keybundle(512, 1, 1);
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
