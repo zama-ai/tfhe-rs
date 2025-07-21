@@ -148,9 +148,11 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
  * negacyclic fft optimized for 2_2 params
    it uses the twiddles from shared memory for extra performance
    this is possible cause we know for 2_2 params will have memory available
+   the fft is returned in registers to avoid extra synchronizations
  */
 template <class params>
-__device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *shared_twiddles) {
+__device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
+                                         double2 *shared_twiddles) {
 
   /* We don't make bit reverse here, since twiddles are already reversed
    *  Each thread is always in charge of "opt/2" pairs of coefficients,
@@ -259,16 +261,13 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *shared_twiddles) {
     }
   }
 
-  __syncthreads();
-  // store registers in SM
-  tid = threadIdx.x;
+// Return result in registers, no need to synchronize here
+// only with we need to use the same shared memory afterwards
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
-    A[tid * 2] = u[i];
-    A[tid * 2 + 1] = v[i];
-    tid = tid + STRIDE;
+    fft_out[i] = u[i];
+    fft_out[i + params::opt / 2] = v[i];
   }
-  __syncthreads();
 }
 
 /*
@@ -406,9 +405,11 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
  * negacyclic inverse fft optimized for 2_2 params
  * it uses the twiddles from shared memory for extra performance
  * this is possible cause we know for 2_2 params will have memory available
+ * the input comes from registers to avoid some synchronizations and shared mem
+ * usage
  */
 template <class params>
-__device__ void NSMFFT_inverse_2_2_params(double2 *A,
+__device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
                                           double2 *shared_twiddles) {
 
   /* We don't make bit reverse here, since twiddles are already reversed
@@ -418,7 +419,6 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A,
    *  full loop, which should increase performance
    */
 
-  __syncthreads();
   constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
   constexpr Index LOG2_DEGREE = params::log2_degree;
   constexpr Index DEGREE = params::degree;
@@ -431,13 +431,11 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A,
   // load into registers and divide by compressed polynomial size
 #pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
-    u[i] = A[2 * tid];
-    v[i] = A[2 * tid + 1];
+    u[i] = buffer_regs[i];
+    v[i] = buffer_regs[i + params::opt / 2];
 
     u[i] /= DEGREE;
     v[i] /= DEGREE;
-
-    tid += STRIDE;
   }
 
   Index twiddle_shift = DEGREE;

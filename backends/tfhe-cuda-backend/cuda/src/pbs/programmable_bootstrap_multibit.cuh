@@ -178,6 +178,12 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
   }
 
   double2 *shared_fft = (double2 *)(precalc_coefs + polynomial_size * 3);
+  double2 *shared_twiddles = shared_fft + (polynomial_size / 2);
+  for (int k = 0; k < params::opt / 2; k++) {
+    shared_twiddles[threadIdx.x + k * (params::degree / params::opt)] =
+        negtwiddles[threadIdx.x + k * (params::degree / params::opt)];
+  }
+
   // Ids
   constexpr uint32_t level_id = 0;
   uint32_t glwe_id = blockIdx.y / (glwe_dimension + 1);
@@ -254,19 +260,19 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
       tid += params::degree / params::opt;
     }
 
-    NSMFFT_direct<HalfDegree<params>>(fft);
+    double2 fft_regs[params::opt / 2];
+    NSMFFT_direct_2_2_params<HalfDegree<params>>(fft, fft_regs,
+                                                 shared_twiddles);
 
     // lwe iteration
     auto keybundle_out = get_ith_mask_kth_block(
         keybundle, blockIdx.x % lwe_chunk_size, glwe_id, level_id,
         polynomial_size, glwe_dimension, level_count);
-    // auto keybundle_out = get_ith_mask_kth_block_2_2_params<Torus,
-    // polynomial_size,glwe_dimension,level_count,level_id>(keybundle,
-    // blockIdx.x % lwe_chunk_size, glwe_id);
-    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
 
-    copy_polynomial<double2, params::opt / 2, params::degree / params::opt>(
-        fft, keybundle_poly);
+    auto keybundle_poly = keybundle_out + poly_id * params::degree / 2;
+    copy_polynomial_from_regs<double2, params::opt / 2,
+                              params::degree / params::opt>(fft_regs,
+                                                            keybundle_poly);
   }
 }
 
