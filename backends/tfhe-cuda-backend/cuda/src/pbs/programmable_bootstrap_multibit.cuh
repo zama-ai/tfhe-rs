@@ -248,19 +248,17 @@ __global__ void device_multi_bit_programmable_bootstrap_keybundle_2_2_params(
     }
 
     // Move from local memory back to shared memory but as complex
-    int tid = threadIdx.x;
+    double2 fft_regs[params::opt / 2];
     double2 *fft = shared_fft;
 #pragma unroll
     for (int i = 0; i < params::opt / 2; i++) {
-      fft[tid] =
+      fft_regs[i] =
           make_double2(__ll2double_rn((int64_t)reg_acc[i]) /
                            (double)std::numeric_limits<Torus>::max(),
                        __ll2double_rn((int64_t)reg_acc[i + params::opt / 2]) /
                            (double)std::numeric_limits<Torus>::max());
-      tid += params::degree / params::opt;
     }
 
-    double2 fft_regs[params::opt / 2];
     NSMFFT_direct_2_2_params<HalfDegree<params>>(fft, fft_regs,
                                                  shared_twiddles);
 
