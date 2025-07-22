@@ -182,17 +182,17 @@ __global__ void __launch_bounds__(params::degree / params::opt)
 }
 
 template <typename Torus, class params, sharedMemDegree SMD>
-__global__ void
-device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
-    Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
-    const Torus *__restrict__ lut_vector,
-    const Torus *__restrict__ lut_vector_indexes,
-    const Torus *__restrict__ lwe_array_in,
-    const Torus *__restrict__ lwe_input_indexes,
-    const double2 *__restrict__ keybundle_array, double2 *join_buffer,
-    Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
-    uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
-    uint32_t num_many_lut, uint32_t lut_stride) {
+__global__ void __launch_bounds__(params::degree / params::opt)
+    device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
+        Torus *lwe_array_out, const Torus *__restrict__ lwe_output_indexes,
+        const Torus *__restrict__ lut_vector,
+        const Torus *__restrict__ lut_vector_indexes,
+        const Torus *__restrict__ lwe_array_in,
+        const Torus *__restrict__ lwe_input_indexes,
+        const double2 *__restrict__ keybundle_array, double2 *join_buffer,
+        Torus *global_accumulator, uint32_t lwe_dimension, uint32_t lwe_offset,
+        uint32_t lwe_chunk_size, uint32_t keybundle_size_per_input,
+        uint32_t num_many_lut, uint32_t lut_stride) {
 
   constexpr uint32_t level_count = 1;
   constexpr uint32_t grouping_factor = 4;
@@ -274,19 +274,19 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
     auto accumulator_in = i % 2 ? accumulator_fft : accumulator_aux;
     auto accumulator_out = i % 2 ? accumulator_aux : accumulator_fft;
 
+    double2 fft_out_regs[params::opt / 2];
     // Decompose the accumulator. Each block gets one level of the
     // decomposition, for the mask and the body (so block 0 will have the
     // accumulator decomposed at level 0, 1 at 1, etc.)
     decompose_and_compress_level_2_2_params<Torus, params, base_log>(
-        accumulator_in, reg_acc_rotated);
+        fft_out_regs, reg_acc_rotated);
 
-    double2 fft_out_regs[params::opt / 2];
     NSMFFT_direct_2_2_params<HalfDegree<params>>(accumulator_in, fft_out_regs,
                                                  shared_twiddles);
     __syncthreads();
     // we move registers into shared memory to use dsm
     int tid = threadIdx.x;
-#pragma unroll
+    // #pragma unroll
     for (Index k = 0; k < params::opt / 4; k++) {
       accumulator_in[tid] = fft_out_regs[k];
       accumulator_in[tid + params::degree / 4] =
@@ -303,9 +303,8 @@ device_multi_bit_programmable_bootstrap_tbc_accumulate_2_2_params(
 
     NSMFFT_inverse_2_2_params<HalfDegree<params>>(accumulator_out, buffer_regs,
                                                   shared_twiddles);
-    __syncthreads();
 
-    add_to_torus_2_2_params<Torus, params>(accumulator_out, reg_acc_rotated);
+    add_to_torus_2_2_params<Torus, params>(buffer_regs, reg_acc_rotated);
   }
 
   if (lwe_offset + lwe_chunk_size >= (lwe_dimension / grouping_factor)) {

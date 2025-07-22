@@ -73,12 +73,12 @@ __device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
   int tid = threadIdx.x;
   if constexpr (init_accumulator) {
     for (int i = 0; i < params::opt / 2; i++) {
-      result[i] = first[i] * second[tid];
+      result[i] = first[i] * __ldg(&second[tid]);
       tid += (params::degree / params::opt);
     }
   } else {
     for (int i = 0; i < params::opt / 2; i++) {
-      result[i] += first[tid] * second[tid];
+      result[i] += first[tid] * __ldg(&second[tid]);
       tid += params::degree / params::opt;
     }
   }

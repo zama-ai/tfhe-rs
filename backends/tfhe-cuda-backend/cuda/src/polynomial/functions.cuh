@@ -237,8 +237,8 @@ __device__ void add_to_torus_2_2_params(double2 *m_values, Torus *result) {
   int tid = threadIdx.x;
 #pragma unroll
   for (int i = 0; i < params::opt / 2; i++) {
-    double double_real = m_values[tid].x;
-    double double_imag = m_values[tid].y;
+    double double_real = m_values[i].x;
+    double double_imag = m_values[i].y;
 
     Torus torus_real = 0;
     typecast_double_round_to_torus<Torus>(double_real, torus_real);
