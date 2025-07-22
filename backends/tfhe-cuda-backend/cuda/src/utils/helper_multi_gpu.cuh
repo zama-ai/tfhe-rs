@@ -97,6 +97,7 @@ void multi_gpu_alloc_lwe_many_lut_output_async(
 /// and split the array among them.
 /// The input indexing logic is given by an index array.
 /// The output indexing is always the trivial one
+/// num_inputs: total num of lwe in src
 template <typename Torus>
 void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,

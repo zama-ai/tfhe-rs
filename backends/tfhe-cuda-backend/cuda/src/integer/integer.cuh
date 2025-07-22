@@ -966,6 +966,43 @@ uint64_t generate_many_lookup_table(
 }
 
 template <typename Torus>
+void generate_lookup_table_no_encoding(Torus *acc, uint32_t glwe_dimension,
+                                       uint32_t polynomial_size,
+                                       std::function<Torus(uint32_t)> f) {
+
+  memset(acc, 0, glwe_dimension * polynomial_size * sizeof(Torus));
+
+  auto body = &acc[glwe_dimension * polynomial_size];
+
+  for (uint32_t i = 0; i < polynomial_size; i++) {
+    body[i] = f(i);
+  }
+}
+
+template <typename Torus>
+void generate_device_accumulator_no_encoding(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t &degree,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
+    uint32_t polynomial_size, std::function<Torus(uint32_t)> f,
+    bool gpu_memory_allocated) {
+
+  Torus *h_lut =
+      (Torus *)malloc((glwe_dimension + 1) * polynomial_size * sizeof(Torus));
+
+  generate_lookup_table_no_encoding<Torus>(h_lut, glwe_dimension,
+                                           polynomial_size, f);
+
+  degree = (uint64_t)message_modulus * (uint64_t)carry_modulus * 2;
+
+  cuda_memcpy_with_size_tracking_async_to_gpu(
+      acc, h_lut, (glwe_dimension + 1) * polynomial_size * sizeof(Torus),
+      stream, gpu_index, gpu_memory_allocated);
+
+  cuda_synchronize_stream(stream, gpu_index);
+  free(h_lut);
+}
+
+template <typename Torus>
 uint64_t generate_lookup_table_bivariate(Torus *acc, uint32_t glwe_dimension,
                                          uint32_t polynomial_size,
                                          uint32_t message_modulus,

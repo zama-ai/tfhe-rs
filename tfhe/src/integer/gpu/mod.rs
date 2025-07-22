@@ -2792,6 +2792,173 @@ pub(crate) unsafe fn add_and_propagate_single_carry_assign_async<T: UnsignedInte
 ///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
+pub(crate) unsafe fn grouped_oprf_async<B: Numeric>(
+    streams: &CudaStreams,
+    radix_lwe_out: &mut CudaRadixCiphertext,
+    seeded_lwe_input: &CudaVec<u64>,
+    num_blocks_to_process: u32,
+    total_num_blocks: u32,
+    bootstrapping_key: &CudaVec<B>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    message_bits_per_block: u32,
+    total_random_bits: u32,
+    ms_noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        radix_lwe_out.d_blocks.0.d_vec.gpu_index(0),
+    );
+    assert_eq!(streams.gpu_indexes[0], seeded_lwe_input.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], bootstrapping_key.gpu_index(0),);
+
+    let ct_modulus = radix_lwe_out
+        .d_blocks
+        .ciphertext_modulus()
+        .raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(ms_noise_reduction_key, ct_modulus);
+    let allocate_ms_array = ms_noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut out_degrees = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.get())
+        .collect();
+    let mut out_noise_levels = radix_lwe_out
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_radix_lwe_out =
+        prepare_cuda_radix_ffi(radix_lwe_out, &mut out_degrees, &mut out_noise_levels);
+
+    scratch_cuda_integer_grouped_oprf_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks_to_process,
+        total_num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        true,
+        message_bits_per_block,
+        total_random_bits,
+        allocate_ms_array,
+    );
+
+    cuda_integer_grouped_oprf_async_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_radix_lwe_out,
+        seeded_lwe_input.as_c_ptr(0),
+        num_blocks_to_process,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+    );
+
+    cleanup_cuda_integer_grouped_oprf_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(radix_lwe_out, &cuda_ffi_radix_lwe_out);
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn get_grouped_oprf_size_on_gpu(
+    streams: &CudaStreams,
+    num_blocks_to_process: u32,
+    total_num_blocks: u32,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    message_bits_per_block: u32,
+    total_random_bits: u32,
+    ms_noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) -> u64 {
+    let allocate_ms_array = ms_noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let size_tracker = unsafe {
+        scratch_cuda_integer_grouped_oprf_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+            glwe_dimension.0 as u32,
+            polynomial_size.0 as u32,
+            lwe_dimension.0 as u32,
+            ks_level.0 as u32,
+            ks_base_log.0 as u32,
+            pbs_level.0 as u32,
+            pbs_base_log.0 as u32,
+            grouping_factor.0 as u32,
+            num_blocks_to_process,
+            total_num_blocks,
+            message_modulus.0 as u32,
+            carry_modulus.0 as u32,
+            pbs_type as u32,
+            false,
+            message_bits_per_block,
+            total_random_bits,
+            allocate_ms_array,
+        )
+    };
+
+    unsafe {
+        cleanup_cuda_integer_grouped_oprf_64(
+            streams.ptr.as_ptr(),
+            streams.gpu_indexes_ptr(),
+            streams.len() as u32,
+            std::ptr::addr_of_mut!(mem_ptr),
+        )
+    };
+
+    size_tracker
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
+///   is required
 pub unsafe fn unchecked_unsigned_scalar_div_rem_integer_radix_kb_assign_async<
     T: UnsignedInteger,
     B: Numeric,
