@@ -10,6 +10,7 @@
 #include "utils/helper_multi_gpu.cuh"
 #include <cmath>
 #include <functional>
+#include <map>
 #include <queue>
 
 class NoiseLevel {
@@ -91,6 +92,13 @@ void generate_device_accumulator_with_encoding(
     uint32_t input_message_modulus, uint32_t input_carry_modulus,
     uint32_t output_message_modulus, uint32_t output_carry_modulus,
     std::function<Torus(Torus)> f, bool gpu_memory_allocated);
+
+template <typename Torus>
+void generate_device_accumulator_no_encoding(
+    cudaStream_t stream, uint32_t gpu_index, Torus *acc, uint64_t *degree,
+    uint32_t message_modulus, uint32_t carry_modulus, uint32_t glwe_dimension,
+    uint32_t polynomial_size, std::function<Torus(uint32_t)> f,
+    bool gpu_memory_allocated);
 
 /*
  *  generate univariate accumulator (lut) for device pointer
@@ -5741,6 +5749,118 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
     }
     sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
     delete sub_and_propagate_mem;
+  }
+};
+
+template <typename Torus> struct int_grouped_oprf_memory {
+  int_radix_params params;
+  bool allocate_gpu_memory;
+
+  int_radix_lut<Torus> *luts;
+  CudaRadixCiphertextFFI *plaintext_corrections;
+  Torus *h_lut_indexes;
+
+  int_grouped_oprf_memory(cudaStream_t const *streams,
+                          uint32_t const *gpu_indexes, uint32_t gpu_count,
+                          int_radix_params params, uint32_t num_blocks,
+                          uint32_t message_bits_per_block,
+                          uint64_t total_random_bits, bool allocate_gpu_memory,
+                          uint64_t &size_tracker) {
+    this->params = params;
+    this->allocate_gpu_memory = allocate_gpu_memory;
+
+    this->luts = new int_radix_lut<Torus>(
+        streams, gpu_indexes, gpu_count, params, message_bits_per_block,
+        num_blocks, allocate_gpu_memory, size_tracker);
+
+    this->plaintext_corrections = new CudaRadixCiphertextFFI;
+    create_zero_radix_ciphertext_async<Torus>(
+        streams[0], gpu_indexes[0], this->plaintext_corrections, num_blocks,
+        params.big_lwe_dimension, size_tracker, allocate_gpu_memory);
+
+    uint64_t message_modulus_log2 = (uint64_t)std::log2(params.message_modulus);
+    uint64_t carry_modulus_log2 = (uint64_t)std::log2(params.carry_modulus);
+    uint64_t full_bits_count = 1 + carry_modulus_log2 + message_modulus_log2;
+    uint64_t delta = 1ULL << (64 - full_bits_count);
+    size_t lwe_size = params.big_lwe_dimension + 1;
+
+    // Pre-generate all possible LUTs.
+    //
+    for (uint32_t random_bits = 1; random_bits <= message_bits_per_block;
+         ++random_bits) {
+      uint64_t p = 1ULL << random_bits;
+      uint64_t poly_delta =
+          2 * static_cast<uint64_t>(params.polynomial_size) / p;
+
+      auto lut_f = [poly_delta, delta](uint32_t x) -> Torus {
+        return (2 * (x / poly_delta) + 1) * delta / 2;
+      };
+
+      uint64_t degree;
+      uint32_t lut_index = random_bits - 1;
+      generate_device_accumulator_no_encoding<Torus>(
+          streams[0], gpu_indexes[0], luts->get_lut(0, lut_index), &degree,
+          params.message_modulus, params.carry_modulus, params.glwe_dimension,
+          params.polynomial_size, lut_f, allocate_gpu_memory);
+      *luts->get_degree(lut_index) = degree;
+    }
+    luts->broadcast_lut(streams, gpu_indexes);
+
+    // For each block, this loop determines the exact number of bits to generate
+    // (handling both bounded and unbounded cases), which pre-computed LUT to
+    // use, and the final plaintext correction to add.
+    //
+    Torus *h_corrections =
+        (Torus *)calloc(num_blocks * lwe_size, sizeof(Torus));
+    this->h_lut_indexes = (Torus *)malloc(num_blocks * sizeof(Torus));
+
+    uint64_t bits_processed = 0;
+    for (uint32_t i = 0; i < num_blocks; ++i) {
+      uint32_t bits_for_this_block = 0;
+      if (bits_processed < total_random_bits) {
+        uint64_t bits_remaining = total_random_bits - bits_processed;
+        bits_for_this_block =
+            std::min((uint64_t)message_bits_per_block, bits_remaining);
+      }
+
+      if (bits_for_this_block > 0) {
+        uint64_t p = 1ULL << bits_for_this_block;
+        Torus plaintext_to_add = (p - 1) * delta / 2;
+        h_corrections[i * lwe_size + params.big_lwe_dimension] =
+            plaintext_to_add;
+        this->h_lut_indexes[i] = bits_for_this_block - 1;
+      } else {
+        this->h_lut_indexes[i] = 0;
+      }
+      bits_processed += bits_for_this_block;
+    }
+
+    // Copy the prepared plaintext corrections to the GPU.
+    cuda_memcpy_async_to_gpu(this->plaintext_corrections->ptr, h_corrections,
+                             num_blocks * lwe_size * sizeof(Torus), streams[0],
+                             gpu_indexes[0]);
+
+    // Copy the prepared LUT indexes to the GPU.
+    for (uint32_t i = 0; i < luts->active_gpu_count; ++i) {
+      cuda_memcpy_async_to_gpu(luts->get_lut_indexes(i, 0), this->h_lut_indexes,
+                               num_blocks * sizeof(Torus), streams[i],
+                               gpu_indexes[i]);
+    }
+
+    free(h_corrections);
+  }
+
+  void release(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+               uint32_t gpu_count) {
+    this->luts->release(streams, gpu_indexes, gpu_count);
+    delete this->luts;
+
+    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
+                                   this->plaintext_corrections,
+                                   this->allocate_gpu_memory);
+    delete this->plaintext_corrections;
+
+    free(this->h_lut_indexes);
   }
 };
 
