@@ -1,33 +1,18 @@
-use crate::core_crypto::gpu::{
-    get_programmable_bootstrap_multi_bit_size_on_gpu, get_programmable_bootstrap_size_on_gpu,
-    CudaStreams,
-};
+use crate::core_crypto::gpu::CudaStreams;
 use crate::integer::gpu::ciphertext::{
-    CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
+    CudaIntegerRadixCiphertext, CudaRadixCiphertext, CudaSignedRadixCiphertext,
+    CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
 
 use crate::core_crypto::commons::generators::DeterministicSeeder;
-use crate::core_crypto::prelude::DefaultRandomGenerator;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use crate::core_crypto::prelude::{DefaultRandomGenerator, LweBskGroupingFactor};
 
 use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
-use crate::shortint::server_key::LookupTableOwned;
 
 pub use tfhe_csprng::seeders::{Seed, Seeder};
 
-use crate::core_crypto::gpu::{
-    cuda_multi_bit_programmable_bootstrap_lwe_ciphertext,
-    cuda_programmable_bootstrap_lwe_ciphertext,
-};
-
-use crate::core_crypto::commons::numeric::Numeric;
-use crate::core_crypto::gpu::add_lwe_ciphertext_vector_plaintext_scalar_async;
-use crate::core_crypto::gpu::glwe_ciphertext_list::CudaGlweCiphertextList;
-use crate::core_crypto::prelude::CastInto;
-use crate::integer::gpu::server_key::radix::CudaLweCiphertextList;
-use crate::integer::gpu::CudaVec;
-use itertools::Itertools;
+use crate::integer::gpu::{get_grouped_oprf_size_on_gpu, grouped_oprf_async, CudaVec, PBSType};
 
 impl CudaServerKey {
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -62,88 +47,11 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        assert!(self.message_modulus.0.is_power_of_two());
-        let range_log_size = self.message_modulus.0.ilog2() as u64 * num_blocks;
-
-        let random_bits_count = range_log_size;
-
-        assert!(self.message_modulus.0.is_power_of_two());
-        let mut streams_vector = Vec::<CudaStreams>::with_capacity(num_blocks as usize);
-        for _ in 0..num_blocks {
-            streams_vector.push(CudaStreams::new_single_gpu(streams.gpu_indexes[0]));
-        }
-
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
-
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-
-        let seeds: Vec<Seed> = (0..num_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let blocks = seeds
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, seed)| {
-                let stream_index = i;
-                let i = i as u64;
-                if i * message_bits_count < random_bits_count {
-                    // if we generate 5 bits of noise in n blocks of 2 bits, the third (i=2) block
-                    // must have only one bit of random
-                    if random_bits_count < (i + 1) * message_bits_count {
-                        let top_message_bits_count = random_bits_count - i * message_bits_count;
-
-                        assert!(top_message_bits_count <= message_bits_count);
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                top_message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    } else {
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    }
-                } else {
-                    let ct: CudaUnsignedRadixCiphertext =
-                        self.create_trivial_zero_radix(1, &streams_vector[stream_index]);
-                    ct.ciphertext
-                }
-            })
-            .collect::<Vec<_>>();
-        self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
-    }
-
-    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
-        &self,
-        streams: &CudaStreams,
-    ) -> u64 {
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => get_programmable_bootstrap_size_on_gpu(
-                streams,
-                d_bsk.input_lwe_dimension,
-                d_bsk.glwe_dimension,
-                d_bsk.polynomial_size,
-                d_bsk.decomp_level_count,
-                1,
-                d_bsk.d_ms_noise_reduction_key.as_ref(),
-            ),
-            CudaBootstrappingKey::MultiBit(d_bsk) => {
-                get_programmable_bootstrap_multi_bit_size_on_gpu(
-                    streams,
-                    d_bsk.glwe_dimension,
-                    d_bsk.polynomial_size,
-                    d_bsk.decomp_level_count,
-                    1,
-                )
-            }
-        }
+        let result = unsafe {
+            self.generate_oblivious_pseudo_random_unbounded_integer_async(seed, num_blocks, streams)
+        };
+        streams.synchronize();
+        result
     }
 
     /// Generates an encrypted `num_block` blocks unsigned integer
@@ -185,74 +93,26 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        assert!(self.message_modulus.0.is_power_of_two());
-        let range_log_size = self.message_modulus.0.ilog2() as u64 * num_blocks;
+        let result = unsafe {
+            let message_bits_count = self.message_modulus.0.ilog2() as u64;
+            let range_log_size = message_bits_count * num_blocks;
 
-        assert!(
-            random_bits_count <= range_log_size,
-            "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
-        );
+            assert!(
+                random_bits_count <= range_log_size,
+                "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, 2^{range_log_size}[",
+            );
 
-        assert!(self.message_modulus.0.is_power_of_two());
-        let mut streams_vector = Vec::<CudaStreams>::with_capacity(num_blocks as usize);
-        for _ in 0..num_blocks {
-            streams_vector.push(CudaStreams::new_single_gpu(streams.gpu_indexes[0]));
-        }
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
-
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-
-        let seeds: Vec<Seed> = (0..num_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let blocks = seeds
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, seed)| {
-                let stream_index = i;
-                let i = i as u64;
-
-                if i * message_bits_count < random_bits_count {
-                    // if we generate 5 bits of noise in n blocks of 2 bits, the third (i=2) block
-                    // must have only one bit of random
-                    if random_bits_count < (i + 1) * message_bits_count {
-                        let top_message_bits_count = random_bits_count - i * message_bits_count;
-
-                        assert!(top_message_bits_count <= message_bits_count);
-
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                top_message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    } else {
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    }
-                } else {
-                    let ct: CudaUnsignedRadixCiphertext =
-                        self.create_trivial_zero_radix(1, &streams_vector[stream_index]);
-                    ct.ciphertext
-                }
-            })
-            .collect::<Vec<_>>();
-        self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
+            self.generate_oblivious_pseudo_random_bounded_integer_async(
+                seed,
+                random_bits_count,
+                num_blocks,
+                streams,
+            )
+        };
+        streams.synchronize();
+        result
     }
 
-    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
-        &self,
-        streams: &CudaStreams,
-    ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
-    }
     /// Generates an encrypted `num_block` blocks signed integer
     /// taken uniformly in its full range using the given seed.
     /// The encryted value is oblivious to the server.
@@ -286,39 +146,11 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        assert!(self.message_modulus.0.is_power_of_two());
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
-        let mut streams_vector = Vec::<CudaStreams>::with_capacity(num_blocks as usize);
-        for _ in 0..num_blocks {
-            streams_vector.push(CudaStreams::new_single_gpu(streams.gpu_indexes[0]));
-        }
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-
-        let seeds: Vec<Seed> = (0..num_blocks)
-            .map(|_| deterministic_seeder.seed())
-            .collect();
-
-        let blocks = seeds
-            .into_par_iter()
-            .enumerate()
-            .map(|(i, seed)| {
-                let stream_index = i;
-                let ct: CudaSignedRadixCiphertext = self.generate_oblivious_pseudo_random(
-                    seed,
-                    message_bits_count,
-                    &streams_vector[stream_index],
-                );
-                ct.ciphertext
-            })
-            .collect::<Vec<_>>();
-        self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
-    }
-
-    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
-        &self,
-        streams: &CudaStreams,
-    ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+        let result = unsafe {
+            self.generate_oblivious_pseudo_random_unbounded_integer_async(seed, num_blocks, streams)
+        };
+        streams.synchronize();
+        result
     }
 
     /// Generates an encrypted `num_block` blocks signed integer
@@ -362,78 +194,33 @@ impl CudaServerKey {
         num_blocks: u64,
         streams: &CudaStreams,
     ) -> CudaSignedRadixCiphertext {
-        assert!(self.message_modulus.0.is_power_of_two());
-        let range_log_size = self.message_modulus.0.ilog2() as u64 * num_blocks;
+        let result = unsafe {
+            let message_bits_count = self.message_modulus.0.ilog2() as u64;
+            let range_log_size = message_bits_count * num_blocks;
 
-        #[allow(clippy::int_plus_one)]
-        {
-            assert!(
-                random_bits_count + 1 <= range_log_size,
-                "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
-                random_bits_count, range_log_size-1, range_log_size-1,
-            );
-        }
+            #[allow(clippy::int_plus_one)]
+            {
+                assert!(
+                    random_bits_count + 1 <= range_log_size,
+                    "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [-2^{}, 2^{}[",
+                    random_bits_count, range_log_size - 1, range_log_size - 1,
+                );
+            }
 
-        assert!(self.message_modulus.0.is_power_of_two());
-        let mut streams_vector = Vec::<CudaStreams>::with_capacity(num_blocks as usize);
-        for _ in 0..num_blocks {
-            streams_vector.push(CudaStreams::new_single_gpu(streams.gpu_indexes[0]));
-        }
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
-
-        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
-
-        let seeds = (0..num_blocks).map(|_| deterministic_seeder.seed());
-
-        let blocks = seeds
-            .into_iter()
-            .enumerate()
-            .map(|(i, seed)| {
-                let stream_index = i;
-                let i = i as u64;
-                if i * message_bits_count < random_bits_count {
-                    // if we generate 5 bits of noise in n blocks of 2 bits, the third (i=2)
-                    // block must have only one bit of random
-                    if random_bits_count < (i + 1) * message_bits_count {
-                        let top_message_bits_count = random_bits_count - i * message_bits_count;
-
-                        assert!(top_message_bits_count <= message_bits_count);
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                top_message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    } else {
-                        let ct: CudaUnsignedRadixCiphertext = self
-                            .generate_oblivious_pseudo_random(
-                                seed,
-                                message_bits_count,
-                                &streams_vector[stream_index],
-                            );
-                        ct.ciphertext
-                    }
-                } else {
-                    let ct: CudaUnsignedRadixCiphertext =
-                        self.create_trivial_zero_radix(1, &streams_vector[stream_index]);
-                    ct.ciphertext
-                }
-            })
-            .collect::<Vec<_>>();
-
-        self.convert_radixes_vec_to_single_radix_ciphertext(&blocks, streams)
+            self.generate_oblivious_pseudo_random_bounded_integer_async(
+                seed,
+                random_bits_count,
+                num_blocks,
+                streams,
+            )
+        };
+        streams.synchronize();
+        result
     }
 
-    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
-        &self,
-        streams: &CudaStreams,
-    ) -> u64 {
-        self.get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(streams)
-    }
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    /// `2^random_bits_count` must be smaller than the message modulus
-    /// The encryted value is oblivious to the server
+    // Generic interface to generate a single-block oblivious pseudo-random integer.
+    // It performs checks specific to single-block capacity.
+    //
     pub fn generate_oblivious_pseudo_random<T>(
         &self,
         seed: Seed,
@@ -445,174 +232,272 @@ impl CudaServerKey {
     {
         assert!(
             1 << random_bits_count <= self.message_modulus.0,
-            "The range asked for a random value (=[0, 2^{}[) does not fit in the available range [0, {}[",
-            random_bits_count, self.message_modulus.0
-        );
-        self.generate_oblivious_pseudo_random_message_and_carry(seed, random_bits_count, streams)
-    }
-
-    /// Uniformly generates a random value in `[0, 2^random_bits_count[`
-    /// The encryted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random_message_and_carry<T>(
-        &self,
-        seed: Seed,
-        random_bits_count: u64,
-        streams: &CudaStreams,
-    ) -> T
-    where
-        T: CudaIntegerRadixCiphertext,
-    {
-        assert!(
-            self.message_modulus.0.is_power_of_two(),
-            "The message modulus(={}), must be a power of 2 to use the OPRF",
+            "The range asked for a random value (=[0, 2^{random_bits_count}[) does not fit in the available range [0, {}[",
             self.message_modulus.0
         );
-        let message_bits_count = self.message_modulus.0.ilog2() as u64;
-
-        assert!(
-            self.carry_modulus.0.is_power_of_two(),
-            "The carry modulus(={}), must be a power of 2 to use the OPRF",
-            self.carry_modulus.0
-        );
         let carry_bits_count = self.carry_modulus.0.ilog2() as u64;
-
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
         assert!(
             random_bits_count <= carry_bits_count + message_bits_count,
             "The number of random bits asked for (={random_bits_count}) is bigger than carry_bits_count (={carry_bits_count}) + message_bits_count(={message_bits_count})",
         );
-        self.generate_oblivious_pseudo_random_custom_encoding(
-            seed,
-            random_bits_count,
-            1 + carry_bits_count + message_bits_count,
-            streams,
-        )
+
+        let result = unsafe {
+            self.generate_oblivious_pseudo_random_bounded_integer_async(
+                seed,
+                random_bits_count,
+                1,
+                streams,
+            )
+        };
+        streams.synchronize();
+        result
     }
 
-    /// Uniformly generates a random encrypted value in `[0, 2^random_bits_count[`
-    /// The output in in the form 0000rrr000noise (rbc=3, fbc=7)
-    /// The encryted value is oblivious to the server
-    pub(crate) fn generate_oblivious_pseudo_random_custom_encoding<T>(
+    // Generic internal implementation for unbounded pseudo-random generation.
+    // It calls the core implementation with parameters for the unbounded case.
+    //
+    unsafe fn generate_oblivious_pseudo_random_unbounded_integer_async<T>(
         &self,
         seed: Seed,
-        random_bits_count: u64,
-        full_bits_count: u64,
+        num_blocks: u64,
         streams: &CudaStreams,
     ) -> T
     where
         T: CudaIntegerRadixCiphertext,
     {
-        assert!(
-            random_bits_count <= full_bits_count,
-            "The number of random bits asked for (={random_bits_count}) is bigger than full_bits_count (={full_bits_count})"
+        assert!(self.message_modulus.0.is_power_of_two());
+
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+
+        let mut result = self.create_trivial_zero_radix(num_blocks as usize, streams);
+
+        if num_blocks == 0 {
+            return result;
+        }
+
+        self.generate_multiblocks_oblivious_pseudo_random_async(
+            result.as_mut(),
+            seed,
+            num_blocks,
+            num_blocks,
+            num_blocks * message_bits_count,
+            streams,
         );
 
-        let (in_lwe_size, out_lwe_dimension, polynomial_size) = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => (
-                d_bsk.input_lwe_dimension().to_lwe_size(),
-                d_bsk.output_lwe_dimension(),
-                d_bsk.polynomial_size(),
-            ),
-            CudaBootstrappingKey::MultiBit(d_bsk) => (
-                d_bsk.input_lwe_dimension().to_lwe_size(),
-                d_bsk.output_lwe_dimension(),
-                d_bsk.polynomial_size(),
-            ),
+        result
+    }
+
+    // Generic internal implementation for bounded pseudo-random generation.
+    // It calls the core implementation with parameters for the bounded case.
+    //
+    unsafe fn generate_oblivious_pseudo_random_bounded_integer_async<T>(
+        &self,
+        seed: Seed,
+        random_bits_count: u64,
+        num_blocks: u64,
+        streams: &CudaStreams,
+    ) -> T
+    where
+        T: CudaIntegerRadixCiphertext,
+    {
+        assert!(self.message_modulus.0.is_power_of_two());
+        let message_bits_count = self.message_modulus.0.ilog2() as u64;
+        let num_active_blocks = random_bits_count.div_ceil(message_bits_count);
+
+        let mut result = self.create_trivial_zero_radix(num_blocks as usize, streams);
+
+        if num_active_blocks == 0 {
+            return result;
+        }
+
+        self.generate_multiblocks_oblivious_pseudo_random_async(
+            result.as_mut(),
+            seed,
+            num_active_blocks,
+            num_blocks,
+            random_bits_count,
+            streams,
+        );
+        result
+    }
+
+    // Core private implementation that calls the OPRF backend.
+    // This function contains the main logic for both bounded and unbounded generation.
+    //
+    unsafe fn generate_multiblocks_oblivious_pseudo_random_async(
+        &self,
+        result: &mut CudaRadixCiphertext,
+        seed: Seed,
+        num_active_blocks: u64,
+        num_blocks: u64,
+        total_random_bits: u64,
+        streams: &CudaStreams,
+    ) {
+        let (input_lwe_dimension, polynomial_size) = match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
+            }
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                (d_bsk.input_lwe_dimension, d_bsk.polynomial_size)
+            }
         };
+        let in_lwe_size = input_lwe_dimension.to_lwe_size();
 
-        let seeded = raw_seeded_msed_to_lwe(
-            &create_random_from_seed_modulus_switched::<u64>(
-                seed,
-                in_lwe_size,
-                polynomial_size.to_blind_rotation_input_modulus_log(),
-            ),
-            self.ciphertext_modulus,
-        );
+        let mut deterministic_seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
+        let seeds: Vec<Seed> = (0..num_active_blocks)
+            .map(|_| deterministic_seeder.seed())
+            .collect();
 
-        let p = 1 << random_bits_count;
+        let h_seeded_lwe_list: Vec<u64> = seeds
+            .into_iter()
+            .flat_map(|seed| {
+                raw_seeded_msed_to_lwe(
+                    &create_random_from_seed_modulus_switched::<u64>(
+                        seed,
+                        in_lwe_size,
+                        polynomial_size.to_blind_rotation_input_modulus_log(),
+                    ),
+                    self.ciphertext_modulus,
+                )
+                .into_container()
+            })
+            .collect();
 
-        let delta = 1_u64 << (64 - full_bits_count);
+        let mut d_seeded_lwe_input = CudaVec::<u64>::new_async(h_seeded_lwe_list.len(), streams, 0);
+        d_seeded_lwe_input.copy_from_cpu_async(&h_seeded_lwe_list, streams, 0);
 
-        let poly_delta = 2 * polynomial_size.0 as u64 / p;
-
-        let lut_no_encode: LookupTableOwned =
-            self.generate_lookup_table_no_encode(|x| (2 * (x / poly_delta) + 1) * delta / 2);
-
-        let num_ct_blocks = 1;
-        let ct_seeded = CudaLweCiphertextList::from_lwe_ciphertext(&seeded, streams);
-
-        let mut ct_out: T = self.create_trivial_zero_radix(num_ct_blocks, streams);
-
-        let number_of_messages = 1;
-        let d_accumulator =
-            CudaGlweCiphertextList::from_glwe_ciphertext(&lut_no_encode.acc, streams);
-        let mut lut_vector_indexes: Vec<u64> = vec![u64::ZERO; number_of_messages];
-        for (i, ind) in lut_vector_indexes.iter_mut().enumerate() {
-            *ind = <usize as CastInto<u64>>::cast_into(i);
-        }
-
-        let mut d_lut_vector_indexes =
-            unsafe { CudaVec::<u64>::new_async(number_of_messages, streams, 0) };
-        unsafe { d_lut_vector_indexes.copy_from_cpu_async(&lut_vector_indexes, streams, 0) };
-        let lwe_indexes_usize: Vec<usize> = (0..num_ct_blocks).collect_vec();
-        let lwe_indexes = lwe_indexes_usize
-            .iter()
-            .map(|&x| <usize as CastInto<u64>>::cast_into(x))
-            .collect_vec();
-        let mut d_output_indexes = unsafe { CudaVec::<u64>::new_async(num_ct_blocks, streams, 0) };
-        let mut d_input_indexes = unsafe { CudaVec::<u64>::new_async(num_ct_blocks, streams, 0) };
-        unsafe {
-            d_input_indexes.copy_from_cpu_async(&lwe_indexes, streams, 0);
-            d_output_indexes.copy_from_cpu_async(&lwe_indexes, streams, 0);
-        }
+        let message_bits_count = self.message_modulus.0.ilog2();
 
         match &self.bootstrapping_key {
             CudaBootstrappingKey::Classic(d_bsk) => {
-                cuda_programmable_bootstrap_lwe_ciphertext(
-                    &ct_seeded,
-                    &mut ct_out.as_mut().d_blocks,
-                    &d_accumulator,
-                    &d_lut_vector_indexes,
-                    &d_output_indexes,
-                    &d_input_indexes,
-                    d_bsk,
+                grouped_oprf_async(
                     streams,
+                    result,
+                    &d_seeded_lwe_input,
+                    num_active_blocks as u32,
+                    num_blocks as u32,
+                    &d_bsk.d_vec,
+                    d_bsk.input_lwe_dimension,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    LweBskGroupingFactor(0),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    message_bits_count,
+                    total_random_bits as u32,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
                 );
             }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                cuda_multi_bit_programmable_bootstrap_lwe_ciphertext(
-                    &ct_seeded,
-                    &mut ct_out.as_mut().d_blocks,
-                    &d_accumulator,
-                    &d_lut_vector_indexes,
-                    &d_output_indexes,
-                    &d_input_indexes,
-                    d_multibit_bsk,
+            CudaBootstrappingKey::MultiBit(d_bsk) => {
+                grouped_oprf_async(
                     streams,
+                    result,
+                    &d_seeded_lwe_input,
+                    num_active_blocks as u32,
+                    num_blocks as u32,
+                    &d_bsk.d_vec,
+                    d_bsk.input_lwe_dimension,
+                    d_bsk.glwe_dimension,
+                    d_bsk.polynomial_size,
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count,
+                    d_bsk.decomp_base_log,
+                    d_bsk.grouping_factor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    message_bits_count,
+                    total_random_bits as u32,
+                    None,
                 );
             }
         }
+    }
 
-        let plaintext_to_add = (p - 1) * delta / 2;
-        let ct_cloned = ct_out.duplicate(streams);
-        unsafe {
-            add_lwe_ciphertext_vector_plaintext_scalar_async(
+    // Getter for the GPU memory usage of OPRF.
+    //
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        let message_bits = self.message_modulus.0.ilog2();
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => get_grouped_oprf_size_on_gpu(
                 streams,
-                &mut ct_out.as_mut().d_blocks.0.d_vec,
-                &ct_cloned.as_ref().d_blocks.0.d_vec,
-                plaintext_to_add,
-                out_lwe_dimension,
-                num_ct_blocks as u32,
-            );
+                1,
+                1,
+                d_bsk.input_lwe_dimension,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                LweBskGroupingFactor(0),
+                self.message_modulus,
+                self.carry_modulus,
+                PBSType::Classical,
+                message_bits,
+                message_bits,
+                d_bsk.d_ms_noise_reduction_key.as_ref(),
+            ),
+            CudaBootstrappingKey::MultiBit(d_bsk) => get_grouped_oprf_size_on_gpu(
+                streams,
+                1,
+                1,
+                d_bsk.input_lwe_dimension,
+                d_bsk.glwe_dimension,
+                d_bsk.polynomial_size,
+                self.key_switching_key.decomposition_level_count(),
+                self.key_switching_key.decomposition_base_log(),
+                d_bsk.decomp_level_count,
+                d_bsk.decomp_base_log,
+                d_bsk.grouping_factor,
+                self.message_modulus,
+                self.carry_modulus,
+                PBSType::MultiBit,
+                message_bits,
+                message_bits,
+                None,
+            ),
         }
-        streams.synchronize();
-        ct_out
+    }
+
+    pub fn get_par_generate_oblivious_pseudo_random_unsigned_integer_bounded_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+    }
+
+    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
+    }
+
+    pub fn get_par_generate_oblivious_pseudo_random_signed_integer_bounded_size_on_gpu(
+        &self,
+        streams: &CudaStreams,
+    ) -> u64 {
+        self.get_par_generate_oblivious_pseudo_random_unsigned_integer_size_on_gpu(streams)
     }
 }
 
 #[cfg(test)]
 pub(crate) mod test {
+    use crate::core_crypto::commons::generators::DeterministicSeeder;
     use crate::core_crypto::gpu::vec::GpuIndex;
-    use crate::core_crypto::gpu::CudaStreams;
+    use crate::core_crypto::gpu::{get_number_of_gpus, CudaStreams};
     use crate::core_crypto::prelude::decrypt_lwe_ciphertext;
     use crate::integer::gpu::server_key::radix::CudaUnsignedRadixCiphertext;
     use crate::integer::gpu::server_key::CudaBootstrappingKey;
@@ -621,19 +506,40 @@ pub(crate) mod test {
     use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
     use crate::shortint::oprf::{create_random_from_seed_modulus_switched, raw_seeded_msed_to_lwe};
     use crate::shortint::parameters::PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+    use rand::prelude::SliceRandom;
+    use rand::Rng;
     use rayon::prelude::*;
     use statrs::distribution::ContinuousCDF;
     use std::collections::HashMap;
-    use tfhe_csprng::seeders::Seed;
+    use tfhe_csprng::generators::DefaultRandomGenerator;
+    use tfhe_csprng::seeders::{Seed, Seeder};
 
     fn square(a: f64) -> f64 {
         a * a
     }
 
+    fn get_random_gpu_streams() -> CudaStreams {
+        let num_gpus = get_number_of_gpus();
+        assert_ne!(
+            num_gpus, 0,
+            "Cannot run GPU test, since no GPUs are available."
+        );
+
+        let mut gpu_indexes: Vec<GpuIndex> = (0..num_gpus).map(GpuIndex::new).collect();
+
+        let mut rng = rand::thread_rng();
+        gpu_indexes.shuffle(&mut rng);
+
+        let num_gpus_to_use = rng.gen_range(1..=num_gpus as usize);
+
+        let random_slice = &gpu_indexes[..num_gpus_to_use];
+
+        CudaStreams::new_multi_gpu_with_indexes(random_slice)
+    }
+
     #[test]
     fn oprf_compare_plain_ci_run_filter() {
-        let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        let streams = get_random_gpu_streams();
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             &streams,
@@ -651,21 +557,23 @@ pub(crate) mod test {
         streams: &CudaStreams,
     ) {
         let params = ck.parameters();
-
-        let random_bits_count = 2;
+        let num_blocks = 8;
+        let message_bits_per_block = params.message_modulus().0.ilog2() as u64;
+        let random_bits_count = num_blocks * message_bits_per_block;
 
         let input_p = 2 * params.polynomial_size().0 as u64;
-
         let log_input_p = input_p.ilog2();
-
-        let p_prime = 1 << random_bits_count;
-
+        let p_prime = 1 << message_bits_per_block;
         let output_p = 2 * params.carry_modulus().0 * params.message_modulus().0;
-
         let poly_delta = 2 * params.polynomial_size().0 as u64 / p_prime;
 
-        let d_img: CudaUnsignedRadixCiphertext =
-            sk.generate_oblivious_pseudo_random(seed, random_bits_count, streams);
+        let d_img: CudaUnsignedRadixCiphertext = sk
+            .par_generate_oblivious_pseudo_random_unsigned_integer_bounded(
+                seed,
+                random_bits_count,
+                num_blocks,
+                streams,
+            );
         let img: RadixCiphertext = d_img.to_radix_ciphertext(streams);
 
         let (lwe_size, polynomial_size) = match &sk.bootstrapping_key {
@@ -679,48 +587,52 @@ pub(crate) mod test {
             ),
         };
 
-        let ct = raw_seeded_msed_to_lwe(
-            &create_random_from_seed_modulus_switched::<u64>(
-                seed,
-                lwe_size,
-                polynomial_size.to_blind_rotation_input_modulus_log(),
-            ),
-            sk.ciphertext_modulus,
-        );
+        let mut seeder = DeterministicSeeder::<DefaultRandomGenerator>::new(seed);
 
-        let AtomicPatternClientKey::Standard(std_ck) = &ck.key.atomic_pattern else {
-            panic!("Only std AP is supported on GPU")
-        };
+        for i in 0..num_blocks as usize {
+            let block_seed = seeder.seed();
 
-        let sk = std_ck.small_lwe_secret_key();
-        let plain_prf_input = decrypt_lwe_ciphertext(&sk, &ct)
-            .0
-            .wrapping_add(1 << (64 - log_input_p - 1))
-            >> (64 - log_input_p);
+            let ct = raw_seeded_msed_to_lwe(
+                &create_random_from_seed_modulus_switched::<u64>(
+                    block_seed,
+                    lwe_size,
+                    polynomial_size.to_blind_rotation_input_modulus_log(),
+                ),
+                sk.ciphertext_modulus,
+            );
 
-        let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
+            let AtomicPatternClientKey::Standard(std_ck) = &ck.key.atomic_pattern else {
+                panic!("Only std AP is supported on GPU")
+            };
 
-        let negacyclic_part = |x| {
-            assert!(x < input_p);
-            if x < input_p / 2 {
-                half_negacyclic_part(x)
-            } else {
-                2 * output_p - half_negacyclic_part(x - (input_p / 2))
-            }
-        };
+            let secret_key = std_ck.small_lwe_secret_key();
+            let plain_prf_input = decrypt_lwe_ciphertext(&secret_key, &ct)
+                .0
+                .wrapping_add(1 << (64 - log_input_p - 1))
+                >> (64 - log_input_p);
 
-        let prf = |x| {
-            let a = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
-            assert!(a % 2 == 0);
-            a / 2
-        };
+            let half_negacyclic_part = |x| 2 * (x / poly_delta) + 1;
+            let negacyclic_part = |x| {
+                assert!(x < input_p);
+                if x < input_p / 2 {
+                    half_negacyclic_part(x)
+                } else {
+                    2 * output_p - half_negacyclic_part(x - (input_p / 2))
+                }
+            };
+            let prf = |x| {
+                let a = (negacyclic_part(x) + p_prime - 1) % (2 * output_p);
+                assert!(a % 2 == 0);
+                a / 2
+            };
 
-        let expected_output = prf(plain_prf_input);
+            let expected_output = prf(plain_prf_input);
 
-        let output = ck.key.decrypt_message_and_carry(&img.blocks[0]);
+            let output = ck.key.decrypt_message_and_carry(&img.blocks[i]);
 
-        assert!(output < p_prime);
-        assert_eq!(output, expected_output);
+            assert!(output < p_prime);
+            assert_eq!(output, expected_output);
+        }
     }
 
     #[test]
@@ -728,8 +640,7 @@ pub(crate) mod test {
         let sample_count: usize = 100_000;
 
         let p_value_limit: f64 = 0.000_01;
-        let gpu_index = 0;
-        let streams = CudaStreams::new_single_gpu(GpuIndex::new(gpu_index));
+        let streams = get_random_gpu_streams();
         let (ck, gpu_sk) = gen_keys_gpu(
             PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
             &streams,
@@ -748,7 +659,7 @@ pub(crate) mod test {
                 &streams,
             );
             let img: RadixCiphertext = d_img.to_radix_ciphertext(&streams);
-            ck.key.decrypt_message_and_carry(&img.blocks[0])
+            ck.decrypt_radix(&img)
         });
     }
 

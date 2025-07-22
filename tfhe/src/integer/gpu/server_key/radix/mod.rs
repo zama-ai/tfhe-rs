@@ -24,7 +24,7 @@ use crate::integer::gpu::{
 };
 use crate::integer::server_key::radix_parallel::OutputFlag;
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
-use crate::shortint::engine::{fill_accumulator_no_encoding, fill_many_lut_accumulator};
+use crate::shortint::engine::fill_many_lut_accumulator;
 use crate::shortint::parameters::AtomicPatternKind;
 use crate::shortint::server_key::{
     generate_lookup_table, BivariateLookupTableOwned, LookupTableOwned, LookupTableSize,
@@ -689,29 +689,6 @@ impl CudaServerKey {
             self.carry_modulus,
             f,
         )
-    }
-    pub(crate) fn generate_lookup_table_no_encode<F>(&self, f: F) -> LookupTableOwned
-    where
-        F: Fn(u64) -> u64,
-    {
-        let (glwe_size, polynomial_size) = match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
-            }
-            CudaBootstrappingKey::MultiBit(d_bsk) => {
-                (d_bsk.glwe_dimension.to_glwe_size(), d_bsk.polynomial_size)
-            }
-        };
-        let mut acc = GlweCiphertext::new(0, glwe_size, polynomial_size, self.ciphertext_modulus);
-
-        fill_accumulator_no_encoding(&mut acc, polynomial_size, glwe_size, f);
-
-        LookupTableOwned {
-            acc,
-            // We should not rely on the degree in this case
-            // The degree should be set manually on the outputs of PBS by this LUT
-            degree: Degree::new(self.message_modulus.0 * self.carry_modulus.0 * 2),
-        }
     }
 
     pub fn generate_many_lookup_table(
