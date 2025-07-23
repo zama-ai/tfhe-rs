@@ -122,6 +122,10 @@ impl KeySwitch32PBSParameters {
             .to_equivalent_lwe_dimension(self.polynomial_size())
     }
 
+    pub const fn log2_p_fail(&self) -> f64 {
+        self.log2_p_fail
+    }
+
     pub fn to_shortint_conformance_param(&self) -> CiphertextConformanceParams {
         let expected_dim = self
             .glwe_dimension

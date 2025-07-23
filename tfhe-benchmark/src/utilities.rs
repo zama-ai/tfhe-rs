@@ -71,6 +71,7 @@ pub mod shortint_utils {
                         .try_to()
                         .expect("failed to convert ciphertext modulus"),
                 ),
+                error_probability: Some(2f64.powf(params.log2_p_fail())),
                 ..Default::default()
             }
         }
@@ -134,6 +135,9 @@ pub mod shortint_utils {
                     comp_params.packing_ks_key_noise_distribution,
                 ),
                 ciphertext_modulus: Some(pbs_params.ciphertext_modulus()),
+                error_probability: pbs_params
+                    .log2_p_fail()
+                    .map(|log2_pfail| 2f64.powf(log2_pfail)),
                 ..Default::default()
             }
         }
@@ -175,6 +179,7 @@ pub struct CryptoParametersRecord<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: Option<CiphertextModulus<Scalar>>,
     pub lwe_per_glwe: Option<LweCiphertextCount>,
     pub storage_log_modulus: Option<CiphertextModulusLog>,
+    pub error_probability: Option<f64>,
 }
 
 impl<Scalar: UnsignedInteger> CryptoParametersRecord<Scalar> {
@@ -291,7 +296,7 @@ pub fn write_to_json<
         bit_size,
         polynomial_multiplication: PolynomialMultiplication::Fft,
         precision: (params.message_modulus.unwrap_or(2) as u32).ilog2(),
-        error_probability: 2f64.powf(-41.0),
+        error_probability: params.error_probability.unwrap_or(2f64.powf(-41.0)),
         integer_representation: IntegerRepresentation::Radix,
         decomposition_basis,
         pbs_algorithm: None, // To be added in future version

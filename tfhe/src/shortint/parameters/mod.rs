@@ -630,6 +630,15 @@ impl ShortintParameterSet {
         }
     }
 
+    pub const fn log2_p_fail(&self) -> Option<f64> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => Some(params.log2_p_fail()),
+            ShortintParameterSetInner::WopbsOnly(_) => None,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => Some(params.log2_p_fail()),
+            ShortintParameterSetInner::KS32PBS(params) => Some(params.log2_p_fail()),
+        }
+    }
+
     pub const fn pbs_only(&self) -> bool {
         self.inner.is_pbs_only()
     }
