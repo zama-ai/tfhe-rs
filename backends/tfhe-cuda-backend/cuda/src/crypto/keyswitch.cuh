@@ -125,7 +125,7 @@ __host__ void host_keyswitch_lwe_ciphertext_vector(
 
   int shared_mem = sizeof(Torus) * num_threads_y * num_threads_x;
   if (num_blocks_per_sample > 65536)
-    PANIC("Cuda error (Keyswith): number of blocks per sample is too large");
+    PANIC("Cuda error (Keyswitch): number of blocks per sample is too large");
 
   // In multiplication of large integers (512, 1024, 2048), the number of
   // samples can be larger than 65536, so we need to set it in the first
