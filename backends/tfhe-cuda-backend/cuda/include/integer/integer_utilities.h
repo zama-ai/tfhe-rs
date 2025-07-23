@@ -336,7 +336,7 @@ template <typename Torus> struct int_radix_lut {
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_set_device(i);
+      cuda_set_device(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
@@ -552,7 +552,7 @@ template <typename Torus> struct int_radix_lut {
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_set_device(i);
+      cuda_set_device(gpu_indexes[i]);
       int8_t *gpu_pbs_buffer;
       auto num_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
@@ -862,7 +862,7 @@ template <typename InputTorus> struct int_noise_squashing_lut {
     active_gpu_count = get_active_gpu_count(num_radix_blocks, gpu_count);
     cuda_synchronize_stream(streams[0], gpu_indexes[0]);
     for (uint i = 0; i < active_gpu_count; i++) {
-      cuda_set_device(i);
+      cuda_set_device(gpu_indexes[i]);
       auto num_radix_blocks_on_gpu =
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count);
       int8_t *gpu_pbs_buffer;
