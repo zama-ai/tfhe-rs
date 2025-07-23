@@ -111,7 +111,7 @@ void cuda_improve_noise_modulus_switch_64(
     void const *encrypted_zeros, uint32_t lwe_size, uint32_t num_lwes,
     uint32_t num_zeros, double input_variance, double r_sigma, double bound,
     uint32_t log_modulus) {
-  host_improve_noise_modulus_switch<uint64_t>(
+  host_drift_modulus_switch<uint64_t>(
       static_cast<cudaStream_t>(stream), gpu_index,
       static_cast<uint64_t *>(lwe_array_out),
       static_cast<uint64_t const *>(lwe_array_in),

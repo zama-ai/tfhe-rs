@@ -411,7 +411,7 @@ __global__ void __launch_bounds__(512)
 }
 
 template <typename Torus>
-__host__ void host_improve_noise_modulus_switch(
+__host__ void host_drift_modulus_switch(
     cudaStream_t stream, uint32_t gpu_index, Torus *array_out,
     Torus const *array_in, uint64_t const *indexes, const Torus *zeros,
     uint32_t lwe_size, uint32_t num_lwes, const uint32_t num_zeros,

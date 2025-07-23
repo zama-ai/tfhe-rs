@@ -8,13 +8,13 @@ uint64_t scratch_cuda_integer_unsigned_scalar_div_radix_kb_64(
     uint32_t num_blocks, uint32_t message_modulus, uint32_t carry_modulus,
     PBS_TYPE pbs_type, bool allocate_gpu_memory, bool is_divisor_power_of_two,
     bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
-    uint32_t num_scalar_bits, uint32_t ilog2_divisor, bool allocate_ms_array) {
+    uint32_t num_scalar_bits, uint32_t ilog2_divisor, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
-                          allocate_ms_array);
+                          noise_reduction_type);
 
   return scratch_integer_unsigned_scalar_div_radix<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
@@ -62,13 +62,13 @@ uint64_t scratch_cuda_integer_signed_scalar_div_radix_kb_64(
     uint32_t carry_modulus, PBS_TYPE pbs_type, bool allocate_gpu_memory,
     bool is_absolute_divisor_one, bool is_divisor_negative,
     bool l_exceed_threshold, bool is_power_of_two, bool multiplier_is_small,
-    bool allocate_ms_array) {
+    PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
-                          allocate_ms_array);
+                          noise_reduction_type);
 
   return scratch_integer_signed_scalar_div_radix_kb<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
@@ -121,13 +121,13 @@ uint64_t scratch_integer_unsigned_scalar_div_rem_radix_kb_64(
     PBS_TYPE pbs_type, bool allocate_gpu_memory, bool is_divisor_power_of_two,
     bool log2_divisor_exceeds_threshold, bool multiplier_exceeds_threshold,
     uint32_t num_scalar_bits_for_div, uint32_t num_scalar_bits_for_mul,
-    uint32_t ilog2_divisor, uint64_t divisor, bool allocate_ms_array) {
+    uint32_t ilog2_divisor, uint64_t divisor, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
-                          allocate_ms_array);
+                          noise_reduction_type);
 
   return scratch_integer_unsigned_scalar_div_rem_radix<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
@@ -188,13 +188,13 @@ uint64_t scratch_integer_signed_scalar_div_rem_radix_kb_64(
     uint32_t num_scalar_bits_for_div, uint32_t num_scalar_bits_for_mul,
     bool is_absolute_divisor_one, bool is_divisor_negative,
     bool l_exceed_threshold, bool is_absolute_divisor_power_of_two,
-    bool is_divisor_zero, bool multiplier_is_small, bool allocate_ms_array) {
+    bool is_divisor_zero, bool multiplier_is_small, PBS_MS_REDUCTION_T noise_reduction_type) {
 
   int_radix_params params(pbs_type, glwe_dimension, polynomial_size,
                           glwe_dimension * polynomial_size, lwe_dimension,
                           ks_level, ks_base_log, pbs_level, pbs_base_log,
                           grouping_factor, message_modulus, carry_modulus,
-                          allocate_ms_array);
+                          noise_reduction_type);
 
   return scratch_integer_signed_scalar_div_rem_radix<uint64_t>(
       (cudaStream_t *)(streams), gpu_indexes, gpu_count, params,
