@@ -489,6 +489,10 @@ uint32_t get_lwe_chunk_size(uint32_t gpu_index, uint32_t max_num_pbs,
   int log2_max_num_pbs = log2_int(max_num_pbs);
   if (log2_max_num_pbs > 13)
     ith_divisor = log2_max_num_pbs - 11;
+#else
+  if (max_num_pbs <= 8) {
+    return num_sms / 2;
+  }
 #endif
 
   for (int i = sqrt(x); i >= 1; i--) {
