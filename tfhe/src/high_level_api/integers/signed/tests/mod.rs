@@ -453,3 +453,28 @@ fn test_case_ilog2(cks: &ClientKey) {
         assert!(!is_ok);
     }
 }
+
+fn test_case_min_max(cks: &ClientKey) {
+    let mut rng = rand::thread_rng();
+    let a_val: i8 = rng.gen();
+    let b_val: i8 = rng.gen();
+
+    let a = FheInt8::encrypt(a_val, cks);
+    let b = FheInt8::encrypt(b_val, cks);
+
+    // Test by-reference operations
+    let encrypted_min = a.min(&b);
+    let encrypted_max = a.max(&b);
+    let decrypted_min: i8 = encrypted_min.decrypt(cks);
+    let decrypted_max: i8 = encrypted_max.decrypt(cks);
+    assert_eq!(decrypted_min, a_val.min(b_val));
+    assert_eq!(decrypted_max, a_val.max(b_val));
+
+    // Test by-value operations
+    let encrypted_min = a.min(b.clone());
+    let encrypted_max = a.max(b);
+    let decrypted_min: i8 = encrypted_min.decrypt(cks);
+    let decrypted_max: i8 = encrypted_max.decrypt(cks);
+    assert_eq!(decrypted_min, a_val.min(b_val));
+    assert_eq!(decrypted_max, a_val.max(b_val));
+}
