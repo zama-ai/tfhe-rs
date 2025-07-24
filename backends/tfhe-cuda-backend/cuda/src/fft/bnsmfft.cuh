@@ -230,21 +230,13 @@ __device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
 
     tid = threadIdx.x;
     double2 reg_A[BUTTERFLY_DEPTH];
-    __syncwarp();
-    // #pragma unroll
+
+    tid = threadIdx.x;
+#pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
       reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
-      tid = tid + STRIDE;
-    }
-    __syncwarp();
-
-    tid = threadIdx.x;
-    // #pragma unroll
-    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
-      Index rank = tid & thread_mask;
-      bool u_stays_in_register = rank < lane_mask;
       w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
       u[i] = (u_stays_in_register) ? u[i] : w;
       v[i] = (u_stays_in_register) ? w : v[i];
@@ -444,18 +436,12 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
 
     // at this point registers are ready for the  butterfly
     tid = threadIdx.x;
-    __syncwarp();
     double2 reg_A[BUTTERFLY_DEPTH];
-    // #pragma unroll
+#pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       w = (u[i] - v[i]);
       u[i] += v[i];
       v[i] = w * conjugate(shared_twiddles[tid / lane_mask + twiddle_shift]);
-
-      // keep one of the register for next iteration and store another one in sm
-      Index rank = tid & thread_mask;
-      bool u_stays_in_register = rank < lane_mask;
-      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
 
       tid = tid + STRIDE;
     }
@@ -463,10 +449,11 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
 
     // prepare registers for next butterfly iteration
     tid = threadIdx.x;
-    // #pragma unroll
+#pragma unroll
     for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
       Index rank = tid & thread_mask;
       bool u_stays_in_register = rank < lane_mask;
+      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
       w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
       u[i] = (u_stays_in_register) ? u[i] : w;
       v[i] = (u_stays_in_register) ? w : v[i];
@@ -513,7 +500,8 @@ __device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
     }
   }
 
-  // last iteration
+// last iteration
+#pragma unroll
   for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
     w = (u[i] - v[i]);
     buffer_regs[i] = u[i] + v[i];
