@@ -360,8 +360,8 @@ impl
             packing_ks_polynomial_size: compression_params.packing_ks_polynomial_size,
             packing_ks_glwe_dimension: compression_params.packing_ks_glwe_dimension,
             lwe_per_glwe: compression_params.lwe_per_glwe,
-            uncompressed_polynomial_size: squashing_params.polynomial_size,
-            uncompressed_glwe_dimension: squashing_params.glwe_dimension,
+            uncompressed_polynomial_size: squashing_params.polynomial_size(),
+            uncompressed_glwe_dimension: squashing_params.glwe_dimension(),
             cipherext_modulus: compression_params.ciphertext_modulus,
         }
     }
