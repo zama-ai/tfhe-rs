@@ -3,7 +3,7 @@ use crate::shortint::parameters::{
     DynamicDistribution, NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
-use crate::shortint::prelude::{DecompositionBaseLog, LweDimension};
+use crate::shortint::prelude::DecompositionBaseLog;
 
 use crate::core_crypto::algorithms::par_allocate_and_generate_new_lwe_bootstrap_key;
 use crate::core_crypto::algorithms::test::{FftBootstrapKeys, TestResources};
@@ -75,14 +75,18 @@ pub fn execute_bootstrap_u128(
     squash_params: NoiseSquashingParameters,
     input_params: MultiBitPBSParameters,
 ) {
+    let NoiseSquashingParameters::Classic(squash_params) = squash_params else {
+        panic!()
+    };
+
     let glwe_dimension = squash_params.glwe_dimension;
     let polynomial_size = squash_params.polynomial_size;
     let ciphertext_modulus = squash_params.ciphertext_modulus;
 
     let mut rsc = TestResources::new();
 
-    let noise_squashing_test_params: NoiseSquashingTestParams<u128> = NoiseSquashingTestParams {
-        lwe_dimension: LweDimension(input_params.lwe_dimension.0),
+    let noise_squashing_test_params = NoiseSquashingTestParams::<u128> {
+        lwe_dimension: input_params.lwe_dimension,
         glwe_dimension: squash_params.glwe_dimension,
         polynomial_size: squash_params.polynomial_size,
         lwe_noise_distribution: DynamicDistribution::new_t_uniform(46),
