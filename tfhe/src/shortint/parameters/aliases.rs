@@ -51,7 +51,6 @@ use super::current_params::{
     V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 };
 use super::NoiseSquashingCompressionParameters;
-use crate::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
 
 // Aliases
 
@@ -131,7 +130,7 @@ pub const NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     V1_3_NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
 pub const NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
-    NoiseSquashingMultiBitParameters =
+    NoiseSquashingParameters =
     V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
 // GPU 2^-64
