@@ -1,3 +1,4 @@
+use crate::shortint::parameters::noise_squashing::NoiseSquashingClassicParameters;
 use crate::shortint::parameters::{
     CarryModulus, CoreCiphertextModulus, DecompositionBaseLog, DecompositionLevelCount,
     DynamicDistribution, GlweDimension, LweCiphertextCount, MessageModulus,
@@ -6,7 +7,7 @@ use crate::shortint::parameters::{
 };
 
 pub const V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
-    NoiseSquashingParameters = NoiseSquashingParameters {
+    NoiseSquashingParameters = NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
     glwe_dimension: GlweDimension(2),
     polynomial_size: PolynomialSize(2048),
     glwe_noise_distribution: DynamicDistribution::new_t_uniform(30),
@@ -23,4 +24,4 @@ pub const V1_1_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128:
     message_modulus: MessageModulus(4),
     carry_modulus: CarryModulus(4),
     ciphertext_modulus: CoreCiphertextModulus::<u128>::new_native(),
-};
+});

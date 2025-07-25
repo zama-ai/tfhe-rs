@@ -236,11 +236,11 @@ impl NoiseSquashingPrivateKey {
 
     pub fn new(params: NoiseSquashingParameters) -> Self {
         assert!(
-            params.carry_modulus.0 >= params.message_modulus.0,
+            params.carry_modulus().0 >= params.message_modulus().0,
             "NoiseSquashingPrivateKey requires its CarryModulus {:?} to be greater \
             or equal to its MessageModulus {:?}",
-            params.carry_modulus.0,
-            params.message_modulus.0,
+            params.carry_modulus().0,
+            params.message_modulus().0,
         );
 
         Self {
