@@ -6,8 +6,6 @@ use crate::keycache::*;
 #[cfg(tarpaulin)]
 use crate::shortint::parameters::coverage_parameters::*;
 use crate::shortint::parameters::current_params::*;
-use crate::shortint::parameters::noise_squashing::NoiseSquashingMultiBitParameters;
-use crate::shortint::parameters::parameters_wopbs::*;
 use crate::shortint::parameters::*;
 use crate::shortint::wopbs::WopbsKey;
 use crate::shortint::{ClientKey, KeySwitchingKey, ServerKey};
@@ -489,11 +487,7 @@ fn cpke_params_default_name(params: &CompactPublicKeyEncryptionParameters) -> St
 }
 
 named_params_impl!( NoiseSquashingParameters =>
-    V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
-);
-
-named_params_impl!( NoiseSquashingMultiBitParameters =>
-    V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    V1_3_NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,V1_3_NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
 );
 
 named_params_impl!( NoiseSquashingCompressionParameters =>

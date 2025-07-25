@@ -22,8 +22,8 @@ impl NoiseSquashingPrivateKey {
     pub fn new(params: NoiseSquashingParameters) -> Self {
         let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
+                params.glwe_dimension(),
+                params.polynomial_size(),
                 &mut engine.secret_generator,
             )
         });
@@ -56,11 +56,11 @@ impl NoiseSquashingPrivateKey {
     ) -> Self {
         assert_eq!(
             post_noise_squashing_secret_key.polynomial_size(),
-            params.polynomial_size
+            params.polynomial_size()
         );
         assert_eq!(
             post_noise_squashing_secret_key.glwe_dimension(),
-            params.glwe_dimension
+            params.glwe_dimension()
         );
         Self {
             post_noise_squashing_secret_key,
@@ -83,9 +83,9 @@ impl<'a> From<&'a NoiseSquashingPrivateKey> for NoiseSquashingPrivateKeyView<'a>
         Self {
             post_noise_squashing_secret_key: &value.post_noise_squashing_secret_key,
             encoding: ShortintEncoding {
-                ciphertext_modulus: value.params.ciphertext_modulus,
-                message_modulus: value.params.message_modulus,
-                carry_modulus: value.params.carry_modulus,
+                ciphertext_modulus: value.params.ciphertext_modulus(),
+                message_modulus: value.params.message_modulus(),
+                carry_modulus: value.params.carry_modulus(),
                 padding_bit: PaddingBit::Yes,
             },
         }
