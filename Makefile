@@ -1330,6 +1330,13 @@ bench_integer_zk: install_rs_check_toolchain
 	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
 	-p tfhe-benchmark --
 
+.PHONY: bench_standard_ap
+bench_standard_ap: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench standard-ap-bench \
+	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \

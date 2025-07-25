@@ -55,6 +55,13 @@ harness = false
 required-features = ["shortint", "internal-keycache"]
 
 [[bench]]
+name = "standard-ap-bench"
+path = "benches/shortint/standard_ap.rs"
+harness = false
+required-features = ["shortint"]
+
+
+[[bench]]
 name = "oprf-shortint-bench"
 path = "benches/shortint/oprf.rs"
 harness = false
