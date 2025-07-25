@@ -1,6 +1,6 @@
 # Cryptographic Parameters
 
-All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator), with an error probability equal to $$2^{-64}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting-started/security-and-cryptography.md) for more details about the encryption process).
+All parameter sets provide at least 128-bits of security according to the [Lattice-Estimator](https://github.com/malb/lattice-estimator). Default parameters have an error probability equal to $$2^{-128}$$ when using programmable bootstrapping. This error probability is due to the randomness added at each encryption (see [here](../../../getting-started/security-and-cryptography.md) for more details about the encryption process).
 
 ## Parameters and message precision
 
