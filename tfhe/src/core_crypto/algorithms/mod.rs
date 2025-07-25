@@ -2,6 +2,19 @@
 //! operating on [`slices of scalars`](`slice_algorithms`) and on
 //! [`polynomials`](`polynomial_algorithms`).
 
+pub mod cm_ggsw_encryption;
+pub mod cm_glwe_encryption;
+pub mod cm_glwe_sample_extraction;
+pub mod cm_lwe_bootstrap_key_conversion;
+pub mod cm_lwe_bootstrap_key_generation;
+pub mod cm_lwe_compression;
+pub mod cm_lwe_compression_key_generation;
+pub mod cm_lwe_encryption;
+pub mod cm_lwe_keyswitch;
+pub mod cm_lwe_keyswitch_key_generation;
+pub mod cm_lwe_programmable_bootstrapping;
+pub mod cm_modulus_switch_noise_reduction;
+pub mod cm_params;
 pub mod ggsw_conversion;
 pub mod ggsw_encryption;
 pub mod glwe_encryption;
@@ -54,6 +67,17 @@ pub(crate) mod test;
 
 // No pub use for slice and polynomial algorithms which would not interest higher level users
 // They can still be used via `use crate::core_crypto::algorithms::slice_algorithms::*;`
+pub use cm_ggsw_encryption::*;
+pub use cm_glwe_encryption::*;
+pub use cm_glwe_sample_extraction::*;
+pub use cm_lwe_bootstrap_key_conversion::*;
+pub use cm_lwe_bootstrap_key_generation::*;
+pub use cm_lwe_compression::*;
+pub use cm_lwe_compression_key_generation::*;
+pub use cm_lwe_encryption::*;
+pub use cm_lwe_keyswitch::*;
+pub use cm_lwe_programmable_bootstrapping::*;
+pub use cm_params::*;
 pub use ggsw_conversion::*;
 pub use ggsw_encryption::*;
 pub use glwe_encryption::*;

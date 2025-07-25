@@ -31,6 +31,10 @@ pub struct CiphertextCount(pub usize);
 #[versionize(LweCiphertextCountVersions)]
 pub struct LweCiphertextCount(pub usize);
 
+/// The number of ciphertexts in an lwe ciphertext list.
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+pub struct CmLweCiphertextCount(pub usize);
+
 /// The index of a ciphertext in an lwe ciphertext list.
 #[cfg(feature = "gpu")]
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]
@@ -79,6 +83,10 @@ impl LweDimension {
         LweSize(self.0 + 1)
     }
 }
+
+/// The number of scalar in an LWE mask, or the length of an LWE secret key.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub struct CmDimension(pub usize);
 
 /// The number of LWE encryptions of 0 in an LWE public ke, Versionize, Versionizey.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize, Versionize)]

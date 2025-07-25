@@ -4,6 +4,16 @@
 //! associated to the object, e.g., `get_mask` for the entity `LweCiphertext`.
 
 pub mod cleartext;
+pub mod cm_ggsw_ciphertext;
+pub mod cm_ggsw_ciphertext_list;
+pub mod cm_glwe_ciphertext;
+pub mod cm_glwe_ciphertext_list;
+pub mod cm_lwe_bootstrap_key;
+pub mod cm_lwe_ciphertext;
+pub mod cm_lwe_ciphertext_list;
+pub mod cm_lwe_compression_key;
+pub mod cm_lwe_compression_key_part;
+pub mod cm_lwe_keyswitch_key;
 pub mod compressed_modulus_switched_glwe_ciphertext;
 pub mod compressed_modulus_switched_lwe_ciphertext;
 pub mod compressed_modulus_switched_multi_bit_lwe_ciphertext;
@@ -68,6 +78,16 @@ pub use crate::core_crypto::fft_impl::fft64::math::polynomial::FourierPolynomial
 #[cfg(feature = "zk-pok")]
 pub use crate::zk::*;
 pub use cleartext::*;
+pub use cm_ggsw_ciphertext::*;
+pub use cm_ggsw_ciphertext_list::*;
+pub use cm_glwe_ciphertext::*;
+pub use cm_glwe_ciphertext_list::*;
+pub use cm_lwe_bootstrap_key::*;
+pub use cm_lwe_ciphertext::*;
+pub use cm_lwe_ciphertext_list::*;
+pub use cm_lwe_compression_key::*;
+pub use cm_lwe_compression_key_part::*;
+pub use cm_lwe_keyswitch_key::*;
 pub use compressed_modulus_switched_lwe_ciphertext::*;
 pub use compressed_modulus_switched_multi_bit_lwe_ciphertext::*;
 pub use ggsw_ciphertext::*;

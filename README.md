@@ -1,278 +1,140 @@
-<p align="center">
-<!-- product name logo -->
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/5283e0ba-da1e-43af-9f2a-c5221367a12b">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/b94a8c96-7595-400b-9311-70765c706955">
-  <img width=600 alt="Zama TFHE-rs">
-</picture>
-</p>
+# Artifact: Sharing the Mask: TFHE Bootstrapping on Packed Messages
 
-<hr/>
+## Description
+This artifact contains source files to reproduce the benchmarks and security estimates of the paper entitled **Sharing the Mask: TFHE Bootstrapping on Packed Messages**.
 
-<p align="center">
-  <a href="https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf"> 📃 Read Handbook</a> |<a href="https://docs.zama.ai/tfhe-rs"> 📒 Documentation</a> | <a href="https://zama.ai/community"> 💛 Community support</a> | <a href="https://github.com/zama-ai/awesome-zama"> 📚 FHE resources by Zama</a>
-</p>
+### Source Files and Benchmarks
+In what follows, we provide instructions on how to run the benchmarks from the paper.  
+This allows users to reproduce the experimental results presented in Table 3 and Table 4.
+The implementation extends the **TFHE-rs** library (v1.3.0).
+Source files related to the implementation of the "Common Mask" technique are prefixed by *cm_*, and can be found here in ```tfhe/src/core_crypto/algorithms/``` and ```tfhe/src/core_crypto/entities/```.
 
 
-<p align="center">
-  <a href="https://github.com/zama-ai/tfhe-rs/releases"><img src="https://img.shields.io/github/v/release/zama-ai/tfhe-rs?style=flat-square"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-BSD--3--Clause--Clear-%23ffb243?style=flat-square"></a>
-  <a href="https://github.com/zama-ai/bounty-program"><img src="https://img.shields.io/badge/Contribute-Zama%20Bounty%20Program-%23ffd208?style=flat-square"></a>
-  <a href="https://slsa.dev"><img alt="SLSA 3" src="https://slsa.dev/images/gh-badge-level3.svg" /></a>
-</p>
+### Security estimates of the parameter sets
+We provide a script to reproduce the security estimates of the parameter sets (**Tables 8-13**) based on the lattice-estimator. This gives the security evaluations regarding the attacks **usvp**, **bdd**, **dual**, **dual-hybrid** and **bdd-hybrid** (as displayed on **Table 13**), but for all parameter sets.
+In the paper, except in the Table 13, only the minimum value among all the evaluations is given as an output.
+The script called ```estimates.py``` is in the ```security_estimates``` folder.
 
-## About
+## Benchmarks 
+## Setup and Dependencies 
+Tested on Linux and macOS with Rust version ≥ 1.85 (we recommend installing Rust via [rustup](https://www.rust-lang.org/tools/install), as rustup is required later by the provided Makefile).
+The complete list of dependencies and a guide on how to install TFHE-rs can be found in the online documentation [here](https://docs.zama.ai/tfhe-rs/1.3/getting-started/installation) or in the local file [here](./README_TFHE-rs.md).
 
-### What is TFHE-rs
+## How to run benchmarks
+At the root of the project (i.e., in the TFHE-rs folder), enter the following commands to run the benchmarks:
+- ```make bench_common_mask_bootstrapping```: this outputs the latency related to the CM bootstrapping for all precision, number of bodies and failure probabilities used in the paper;
+- ```make bench_bootstrapping```: this outputs the latency related to the reference bootstrapping for all precision and failure probabilities used in the paper.
 
-**TFHE-rs** is a pure Rust implementation of TFHE for boolean and integer arithmetics over encrypted data.
+The benchmark files are in ```tfhe-benchmark/benches/core_crypto/cm_bench.rs``` (for the ones related to the common mask bootstrapping) and ```tfhe-benchmark/benches/shortint/standard_ap.rs``` (for the ones related to the usual bootstrapping). 
 
-It includes:
-- a **Rust** API
-- a **C** API
-- and a **client-side WASM** API
+*WARNING*: Benchmarks were executed on an **AWS `hpc7a.96xlarge` instance** equipped with an **AMD EPYC 9R14 CPU @ 2.60GHz** and **740 GB of memory**.
+To prevent potential crashes due to memory limitations, **parameter sets involving large precision and/or high sample counts are disabled by default**.
 
-TFHE-rs is designed for developers and researchers who want full control over
-what they can do with TFHE, while not having to worry about the low-level
-implementation. The goal is to have a stable, simple, high-performance, and
-production-ready library for all the advanced features of TFHE.
-<br></br>
+*To Enable All Benchmarks:*
+- For **`pfail < 2^{-64}`**, uncomment lines **[23–29]**
+- For **`pfail < 2^{-128}`**, uncomment lines **[48–54]**
 
-### Main features
 
-- **Low-level cryptographic library** that implements Zama’s variant of TFHE, including programmable bootstrapping
-- **Implementation of the original TFHE boolean API** that can be used as a drop-in replacement for other TFHE libraries
-- **Short integer API** that enables exact, unbounded FHE integer arithmetics with up to 8 bits of message space
-- **Size-efficient public key encryption**
-- **Ciphertext and server key compression** for efficient data transfer
-- **Full Rust API, C bindings to the Rust High-Level API, and client-side Javascript API using WASM**.
-
-*Learn more about TFHE-rs features in the [documentation](https://docs.zama.ai/tfhe-rs/readme).*
-<br></br>
-
-## Table of Contents
-- **[Getting started](#getting-started)**
-   - [Cargo.toml configuration](#cargotoml-configuration)
-   - [A simple example](#a-simple-example)
-- **[Resources](#resources)**
-   - [TFHE deep dive](#tfhe-deep-dive)
-   - [Tutorials](#tutorials)
-   - [Documentation](#documentation)
-- **[Working with TFHE-rs](#working-with-tfhe-rs)**
-   - [Disclaimers](#disclaimers)
-   - [Citations](#citations)
-   - [Contributing](#contributing)
-   - [License](#license)
-- **[Support](#support)**
-<br></br>
-
-## Getting started
-
-> [!Important]
-> **TFHE-rs** released its first stable version v1.0.0 in February 2025, stabilizing the high-level API for the x86 CPU backend.
-
-### Cargo.toml configuration
-To use the latest version of `TFHE-rs` in your project, you first need to add it as a dependency in your `Cargo.toml`:
-
-```toml
-tfhe = { version = "*", features = ["boolean", "shortint", "integer"] }
+### Sample Output Structure
+A typical benchmark result looks like this:
+```
+Common Mask Benchmarks/KS-PBS_p=2_pfail=2-64
+                        time:   [9.6238 ms 9.6390 ms 9.6688 ms]
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
 ```
 
-> [!Note]
-> Note: You need to use Rust version >= 1.84 to compile TFHE-rs.
+#### Here's what this means:
+The first line indicates the operation whose the latency is measured. The legends are:
+```{Operations}_p={Precision}_w={Number of Slots}__pfail={Failure Probability} ```, for the CM-based bootstrapping;
+```{Operations}_p={Precision}_pfail={Failure Probability} ```, for the reference bootstrapping.
 
-> [!Note]
-> Note: AArch64-based machines are not supported for Windows as it's currently missing an entropy source to be able to seed the [CSPRNGs](https://en.wikipedia.org/wiki/Cryptographically_secure_pseudorandom_number_generator) used in TFHE-rs.
+**Examples:**
+- ```KS->PBS_p=2_pfail=2-64``` means that this benchmark is measuring the latency of a ```KS->PBS``` i.e., a keyswitch followed by a bootstrapping, with the precision ```p=2``` and a failure probability ```p_fail=2^{-64}```. 
+- ```KS->CM-PBS_p=2_w=2_pfail=2-64``` means that this benchmark is measuring the latency of a ```CM-KS->CM-PBS``` i.e., a CM-based keyswitch followed by a CM-based bootstrapping, with the precision *p=2*, two slots *w=2* and a failure probability ```p_fail=2^{-64}```. 
 
-<p align="right">
-  <a href="#about" > ↑ Back to top </a>
-</p>
+#### Understanding Benchmark Output (Criterion.rs)
+This project uses [Criterion.rs](https://docs.rs/criterion/latest/criterion/) for benchmarking. Criterion is a powerful and statistically robust benchmarking framework for Rust, and it may produce outputs that are unfamiliar at first glance. Here is a short explanation:
+- `time: [low est.  median  high est.]`: The estimated execution time of the function.
+- `change`: The performance change compared to a previous run (if available).
+- `outliers`: Some runs deviated from the typical time. Criterion detects and accounts for these using statistical methods.
 
-### A simple example
+---
 
-Here is a full example:
 
-``` rust
-use tfhe::prelude::*;
-use tfhe::{generate_keys, set_server_key, ConfigBuilder, FheUint32, FheUint8};
+####  Common Warnings and What They Mean
+##### `Found X outliers among Y measurements`
+Criterion runs each benchmark many times (default: 100) to get statistically significant results.
+An *outlier* is a run that was significantly faster or slower than the others.
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Basic configuration to use homomorphic integers
-    let config = ConfigBuilder::default().build();
+- **Why does this happen?** Often, it's due to **other processes on the machine** (e.g., background services, OS interrupts, or CPU scheduling) affecting performance temporarily.
+- **Why it doesn't invalidate results:** Criterion uses statistical techniques to minimize the impact of these outliers when estimating performance.
+- **Best practice to reduce outliers:** Run the benchmarks on a **freshly rebooted machine**, with as few background processes as possible. Ideally, let the system idle for a minute after boot to stabilize before running benchmarks.
 
-    // Key generation
-    let (client_key, server_keys) = generate_keys(config);
+##### `Unable to complete 100 samples in 5.0s.`
+The benchmark took longer than the expected 5 seconds.
+This is merely a warning indicating that the full set of 100 samples could not be collected within the default 5-second measurement window.
 
-    let clear_a = 1344u32;
-    let clear_b = 5u32;
-    let clear_c = 7u8;
+- **No action is required**: Criterion will still proceed to run all 100 samples, and the results remain statistically valid.
+- **Why the warning appears**: It's there to inform you that benchmarking is taking longer than expected and to help you tune settings if needed.
+- **Optional**: If you're constrained by time (e.g., running in CI), you can:
+  - Reduce the sample size (e.g., to 10 or 20 samples).
+  - Or increase the measurement time using:
+    ```bash
+    cargo bench -- --measurement-time 30
+    ```
 
-    // Encrypting the input data using the (private) client_key
-    // FheUint32: Encrypted equivalent to u32
-    let mut encrypted_a = FheUint32::try_encrypt(clear_a, &client_key)?;
-    let encrypted_b = FheUint32::try_encrypt(clear_b, &client_key)?;
 
-    // FheUint8: Encrypted equivalent to u8
-    let encrypted_c = FheUint8::try_encrypt(clear_c, &client_key)?;
+## How to run the tests
+To run the correctness tests, use the following command: ```make test_common_mask``` at the root of the project.
+These could be useful to get minimal examples of the code without the benchmark overlay.
+Here are the main tests:
+- Computing a keyswitch: ```tfhe/src/core_crypto/algorithms/test/cm_lwe_keyswitch.rs```
+- Computing a bootstrapping: ```tfhe/src/core_crypto/algorithms/test/cm_lwe_programmable_bootstrapping.rs```
+- Computing compression: ```tfhe/src/core_crypto/algorithms/test/cm_lwe_compression.rs```
 
-    // On the server side:
-    set_server_key(server_keys);
+Running these tests should output a green *ok*.
 
-    // Clear equivalent computations: 1344 * 5 = 6720
-    let encrypted_res_mul = &encrypted_a * &encrypted_b;
+*WARNING*: Tests were executed on an **AWS `hpc7a.96xlarge` instance** equipped with an **AMD EPYC 9R14 CPU @ 2.60GHz** and **740 GB of memory**.
+To prevent potential crashes due to memory limitations, **parameter sets involving large precision and/or high sample counts are disabled by default**.
 
-    // Clear equivalent computations: 6720 >> 5 = 210
-    encrypted_a = &encrypted_res_mul >> &encrypted_b;
+*To Enable more tests:*
+In the file ``` ./tfhe/src/core_crypto/algorithms/cm-params.rs```:
+- For **`pfail < 2^{-64}`**, uncomment lines **[223–229]** and update the number of items in line **209**;
+- For **`pfail < 2^{-128}`**, uncomment lines **[246–252]** and update the number of items in line **232**;
 
-    // Clear equivalent computations: let casted_a = a as u8;
-    let casted_a: FheUint8 = encrypted_a.cast_into();
 
-    // Clear equivalent computations: min(210, 7) = 7
-    let encrypted_res_min = &casted_a.min(&encrypted_c);
 
-    // Operation between clear and encrypted data:
-    // Clear equivalent computations: 7 & 1 = 1
-    let encrypted_res = encrypted_res_min & 1_u8;
 
-    // Decrypting on the client side:
-    let clear_res: u8 = encrypted_res.decrypt(&client_key);
-    assert_eq!(clear_res, 1_u8);
+## Security Estimates
+## Setup and Dependencies 
+To run the script, you need to:
+- Install SageMath version >= 9.3 (see installation instructions in [here](https://doc.sagemath.org/html/en/installation/index.html))
+- Clone the lattice estimator repository from [here](https://github.com/malb/lattice-estimator) into the *security_estimates* folder, i.e.:
+```bash 
+  cd security_estimates/
+  git clone https://github.com/malb/lattice-estimator.git
+  ``` 
+  This has been tested with the commit *5ba00f5*.
 
-    Ok(())
-}
+
+## How to run the security scripts
+From the ```security_estimates``` folder, you just have to run ```sage estimates.py``` from the lattice estimator folder.
+The first print from the script appears after ~30s.
+
+By default, the script is going to estimate the security for all parameter sets but **this takes several hours to run**. If only table X has to be reproduced, it is possible to comment all the last lines of the script (```estimates.py```, L277-281) except ```print_table_X```(where ```X``` refers to the table number from paper).
+
+### Sample Output Structure
+A typical output from the script is:
+
+``` 
+TABLE 8
+[(LWEParameters(n=790, q=18446744073709551616, Xs=D(σ=0.50, μ=0.50), Xe=D(σ=140010787519455.50), m=+Infinity, tag=None), [('dual_hybrid', 131.99795566989317), ('usvp', 139.31328486797534), ('dual', 143.72739944730603), ('bdd', 154.85610718083302), ('bdd_hybrid', 348.98671493681695)])]
 ```
 
-To run this code, use the following command:
-<p align="center"> <code> cargo run --release </code> </p>
 
-> [!Note]
-> Note that when running code that uses `TFHE-rs`, it is highly recommended
-to run in release mode with cargo's `--release` flag to have the best performances possible.
+#### Here's what this means:
+By splitting in several parts:
+- ```LWEParameters(n=790, q=18446744073709551616, Xs=D(σ=0.50, μ=0.50), Xe=D(σ=140010787519455.50), m=+Infinity, tag=None)```: this gives the evaluated parameter sets, the lattice dimension ```n=790```, the modulus ```q=18446744073709551616```, the secret key distribution  ```Xs=D(σ=0.50, μ=0.50)``` (i.e., binary in this case), the error variance of a centered Gaussian distribution ```Xe=D(σ=140010787519455.50)```, the number of samples ```m=+Infinity```;
+- ```[('dual_hybrid', 131.99795566989317), ('usvp', 139.31328486797534), ('dual', 143.72739944730603), ('bdd', 154.85610718083302), ('bdd_hybrid', 348.98671493681695)])]```: each tuple gives the considered attack and the logarithm of the attack cost, e.g., for the ```dual_hybrid```, the security estimation is ```131.99795566989317``` bits.
 
-*Find an example with more explanations in [this part of the documentation](https://docs.zama.ai/tfhe-rs/get-started/quick-start)*
-
-<p align="right">
-  <a href="#about" > ↑ Back to top </a>
-</p>
-
-
-
-## Resources
-
-### TFHE-rs Handbook
-A document containing scientific and technical details about algorithms implemented into the library is available here: [TFHE-rs: A (Practical) Handbook](https://github.com/zama-ai/tfhe-rs-handbook/blob/main/tfhe-rs-handbook.pdf).
-
-### TFHE deep dive
-- [TFHE Deep Dive - Part I - Ciphertext types](https://www.zama.ai/post/tfhe-deep-dive-part-1)
-- [TFHE Deep Dive - Part II - Encodings and linear leveled operations](https://www.zama.ai/post/tfhe-deep-dive-part-2)
-- [TFHE Deep Dive - Part III - Key switching and leveled multiplications](https://www.zama.ai/post/tfhe-deep-dive-part-3)
-- [TFHE Deep Dive - Part IV - Programmable Bootstrapping](https://www.zama.ai/post/tfhe-deep-dive-part-4)
-<br></br>
-
-### Tutorials
-- [[Video tutorial] Implement signed integers using TFHE-rs ](https://www.zama.ai/post/video-tutorial-implement-signed-integers-ssing-tfhe-rs)
-- [Homomorphic parity bit](https://docs.zama.ai/tfhe-rs/tutorials/parity_bit)
-- [Homomorphic case changing on Ascii string](https://docs.zama.ai/tfhe-rs/tutorials/ascii_fhe_string)
-- [Boolean SHA256 with TFHE-rs](https://www.zama.ai/post/boolean-sha256-tfhe-rs)
-- [Dark market with TFHE-rs](https://www.zama.ai/post/dark-market-tfhe-rs)
-- [Regular expression engine with TFHE-rs](https://www.zama.ai/post/regex-engine-tfhe-rs)
-
-*Explore more useful resources in [TFHE-rs tutorials](https://docs.zama.ai/tfhe-rs/tutorials) and [Awesome Zama repo](https://github.com/zama-ai/awesome-zama)*
-<br></br>
-### Documentation
-
-Full, comprehensive documentation is available here: [https://docs.zama.ai/tfhe-rs](https://docs.zama.ai/tfhe-rs).
-<p align="right">
-  <a href="#about" > ↑ Back to top </a>
-</p>
-
-
-## Working with TFHE-rs
-
-### Disclaimers
-
-#### Security estimation
-
-Security estimations are done using the
-[Lattice Estimator](https://github.com/malb/lattice-estimator)
-with `red_cost_model = reduction.RC.BDGL16`.
-
-When a new update is published in the Lattice Estimator, we update parameters accordingly.
-
-### Security model
-
-By default, the parameter sets used in the High-Level API with the x86 CPU backend have a failure probability $\le 2^{128}$ to securely work in the IND-CPA^D model using the algorithmic techniques provided in our code base [1].
-If you want to work within the IND-CPA security model, which is less strict than the IND-CPA-D model, the parameter sets can easily be changed and would have slightly better performance. More details can be found in the [TFHE-rs documentation](https://docs.zama.ai/tfhe-rs).
-
-The default parameters used in the High-Level API with the GPU backend are chosen considering the IND-CPA security model, and are selected with a bootstrapping failure probability fixed at $p_{error} \le 2^{-64}$. In particular, it is assumed that the results of decrypted computations are not shared by the secret key owner with any third parties, as such an action can lead to leakage of the secret encryption key. If you are designing an application where decryptions must be shared, you will need to craft custom encryption parameters which are chosen in consideration of the IND-CPA^D security model [2].
-
-[1] Bernard, Olivier, et al. "Drifting Towards Better Error Probabilities in Fully Homomorphic Encryption Schemes". https://eprint.iacr.org/2024/1718.pdf
-
-[2] Li, Baiyu, et al. "Securing approximate homomorphic encryption using differential privacy." Annual International Cryptology Conference. Cham: Springer Nature Switzerland, 2022. https://eprint.iacr.org/2022/816.pdf
-
-#### Side-channel attacks
-
-Mitigation for side-channel attacks has not yet been implemented in TFHE-rs,
-and will be released in upcoming versions.
-<br></br>
-
-### Citations
-To cite TFHE-rs in academic papers, please use the following entry:
-
-```text
-@Misc{TFHE-rs,
-  title={{TFHE-rs: A Pure Rust Implementation of the TFHE Scheme for Boolean and Integer Arithmetics Over Encrypted Data}},
-  author={Zama},
-  year={2022},
-  note={\url{https://github.com/zama-ai/tfhe-rs}},
-}
-```
-
-### Contributing
-
-There are two ways to contribute to TFHE-rs:
-
-- [Open issues](https://github.com/zama-ai/tfhe-rs/issues/new/choose) to report bugs and typos, or to suggest new ideas
-- Request to become an official contributor by emailing [hello@zama.ai](mailto:hello@zama.ai).
-
-Becoming an approved contributor involves signing our Contributor License Agreement (CLA). Only approved contributors can send pull requests, so please make sure to get in touch before you do!
-<br></br>
-
-### License
-This software is distributed under the **BSD-3-Clause-Clear** license. Read [this](LICENSE) for more details.
-
-#### FAQ
-**Is Zama’s technology free to use?**
->Zama’s libraries are free to use under the BSD 3-Clause Clear license only for development, research, prototyping, and experimentation purposes. However, for any commercial use of Zama's open source code, companies must purchase Zama’s commercial patent license.
->
->Everything we do is open source and we are very transparent on what it means for our users, you can read more about how we monetize our open source products at Zama in [this blogpost](https://www.zama.ai/post/open-source).
-
-**What do I need to do if I want to use Zama’s technology for commercial purposes?**
->To commercially use Zama’s technology you need to be granted Zama’s patent license. Please contact us hello@zama.ai for more information.
-
-**Do you file IP on your technology?**
->Yes, all Zama’s technologies are patented.
-
-**Can you customize a solution for my specific use case?**
->We are open to collaborating and advancing the FHE space with our partners. If you have specific needs, please email us at hello@zama.ai.
-
-<p align="right">
-  <a href="#about" > ↑ Back to top </a>
-</p>
-
-
-## Support
-
-<a target="_blank" href="https://community.zama.ai">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/08656d0a-3f44-4126-b8b6-8c601dff5380">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/zama-ai/tfhe-rs/assets/157474013/1c9c9308-50ac-4aab-a4b9-469bb8c536a4">
-  <img alt="Support">
-</picture>
-</a>
-
-🌟 If you find this project helpful or interesting, please consider giving it a star on GitHub! Your support helps to grow the community and motivates further development.
-
-<p align="right">
-  <a href="#about" > ↑ Back to top </a>
-</p>
