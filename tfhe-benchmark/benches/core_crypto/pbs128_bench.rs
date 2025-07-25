@@ -23,14 +23,14 @@ fn pbs_128(c: &mut Criterion) {
     let base_params = BENCH_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
 
     let lwe_dimension = base_params.lwe_dimension; // From PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128
-    let glwe_dimension = noise_params.glwe_dimension;
-    let polynomial_size = noise_params.polynomial_size;
+    let glwe_dimension = noise_params.glwe_dimension();
+    let polynomial_size = noise_params.polynomial_size();
     let lwe_noise_distribution = base_params.lwe_noise_distribution;
-    let glwe_noise_distribution = noise_params.glwe_noise_distribution;
-    let pbs_base_log = noise_params.decomp_base_log;
-    let pbs_level = noise_params.decomp_level_count;
+    let glwe_noise_distribution = noise_params.glwe_noise_distribution();
+    let pbs_base_log = noise_params.decomp_base_log();
+    let pbs_level = noise_params.decomp_level_count();
     let input_ciphertext_modulus = base_params.ciphertext_modulus;
-    let output_ciphertext_modulus = noise_params.ciphertext_modulus;
+    let output_ciphertext_modulus = noise_params.ciphertext_modulus();
 
     let mut boxed_seeder = new_seeder();
     let seeder = boxed_seeder.as_mut();
@@ -179,7 +179,8 @@ mod cuda {
     use tfhe::core_crypto::prelude::*;
     use tfhe::shortint::engine::ShortintEngine;
     use tfhe::shortint::parameters::{
-        ModulusSwitchType, NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        ModulusSwitchType, NoiseSquashingParameters,
+        NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
@@ -195,6 +196,10 @@ mod cuda {
         type Scalar = u128;
         let input_params = PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
         let squash_params = NOISE_SQUASHING_PARAM_GPU_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let NoiseSquashingParameters::Classic(squash_params) = squash_params else {
+            panic!("Multi bit noise squashing PBS currently not supported on GPU");
+        };
 
         let lwe_noise_distribution_u64 = DynamicDistribution::new_t_uniform(46);
         let ct_modulus_u64: CiphertextModulus<u64> = CiphertextModulus::new_native();
