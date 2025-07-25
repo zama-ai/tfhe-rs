@@ -31,78 +31,78 @@ user = "ubuntu"
 
 [backend.hyperstack.gpu-test]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x1"
 user = "ubuntu"
 
 [backend.hyperstack.single-h100]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x1"
 user = "ubuntu"
 
 [backend.hyperstack.2-h100]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x2"
 user = "ubuntu"
 
 [backend.hyperstack.4-h100]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x4"
 user = "ubuntu"
 
 [backend.hyperstack.multi-h100]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x8"
 user = "ubuntu"
 
 [backend.hyperstack.multi-h100-nvlink]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100x8-NVLink"
 user = "ubuntu"
 
 [backend.hyperstack.multi-h100-sxm5]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100-SXM5x8"
 user = "ubuntu"
 
 [backend.hyperstack.multi-h100-sxm5_fallback]
 environment_name = "us-1"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-H100-SXM5x8"
 user = "ubuntu"
 
 [backend.hyperstack.multi-a100-nvlink]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-A100x8-NVLink"
 user = "ubuntu"
 
 [backend.hyperstack.multi-gpu-test]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x4"
 user = "ubuntu"
 
 [backend.hyperstack.multi-gpu-test_fallback]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-RTX-A6000x2"
 user = "ubuntu"
 
 [backend.hyperstack.l40]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-L40x1"
 user = "ubuntu"
 
 [backend.hyperstack.l40_fallback]
 environment_name = "canada"
-image_name = "Ubuntu Server 22.04 LTS R535 CUDA 12.2"
+image_name = "Ubuntu Server 22.04 LTS R570 CUDA 12.8"
 flavor_name = "n3-RTX-A6000x1"
 user = "ubuntu"

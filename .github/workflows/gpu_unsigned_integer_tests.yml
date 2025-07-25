@@ -110,7 +110,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.2"
+            cuda: "12.8"
             gcc: 11
     steps:
       - name: Checkout tfhe-rs
