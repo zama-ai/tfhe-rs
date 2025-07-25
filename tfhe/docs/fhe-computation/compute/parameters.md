@@ -7,7 +7,6 @@ All parameter sets provide at least 128-bits of security according to the [Latti
 ## Default parameters
 Currently, the default parameters use blocks that contain 2 bits of message and 2 bits of carry - a tweaked uniform (TUniform, defined [here](../../getting-started/security-and-cryptography.md#noise)) noise distribution, and have a bootstrapping failure probability $$p_{error} \le 2^{-128}$$.
 These are particularly suitable for applications that need to be secure in the IND-CPA^D model (see [here](../../getting-started/security-and-cryptography.md#security) for more details).
-The GPU backend still uses an error probability smaller than $$2^{-64}$$ by default. Those will be updated soon.
 
 When using the high-level API of **TFHE-rs**, you can create a key pair using the default recommended set of parameters. For example:
 
