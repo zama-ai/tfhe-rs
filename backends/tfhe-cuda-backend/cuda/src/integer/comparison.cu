@@ -48,7 +48,7 @@ void cuda_comparison_integer_radix_ciphertext_kb_64(
     void *const *bsks, void *const *ksks,
     CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
   PUSH_RANGE("comparison")
-  if (lwe_array_1->num_radix_blocks != lwe_array_1->num_radix_blocks)
+  if (lwe_array_1->num_radix_blocks != lwe_array_2->num_radix_blocks)
     PANIC("Cuda error: input num radix blocks must be the same")
   // The output ciphertext might be a boolean block or a radix ciphertext
   // depending on the case (eq/gt vs max/min) so the amount of blocks to
