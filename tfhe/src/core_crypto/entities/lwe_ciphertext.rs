@@ -150,6 +150,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweBodyList<C> {
         }
     }
 
+    pub fn data(self) -> C {
+        self.data
+    }
+
     pub fn lwe_body_count(&self) -> LweBodyCount {
         LweBodyCount(self.data.container_len())
     }
@@ -257,6 +261,10 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> LweMask<C> {
             data: container,
             ciphertext_modulus,
         }
+    }
+
+    pub fn data(self) -> C {
+        self.data
     }
 
     /// Return the [`LweDimension`] of the [`LweMask`].

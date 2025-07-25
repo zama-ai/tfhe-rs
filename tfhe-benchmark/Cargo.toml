@@ -170,3 +170,9 @@ required-features = ["integer", "internal-keycache"]
 name = "wasm_benchmarks_parser"
 path = "src/bin/wasm_benchmarks_parser.rs"
 required-features = ["shortint", "internal-keycache"]
+
+[[bench]]
+name = "cm-bench"
+path = "benches/core_crypto/cm_bench.rs"
+harness = false
+required-features = []

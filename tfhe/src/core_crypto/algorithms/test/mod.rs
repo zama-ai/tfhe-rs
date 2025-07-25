@@ -6,6 +6,9 @@ use crate::core_crypto::prelude::*;
 pub(crate) use params::*;
 use std::fmt::Debug;
 
+mod cm_lwe_compression;
+mod cm_lwe_keyswitch;
+pub mod cm_lwe_programmable_bootstrapping;
 mod ggsw_encryption;
 mod glwe_encryption;
 mod glwe_linear_algebra;

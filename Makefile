@@ -639,6 +639,23 @@ test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 			--features=experimental,zk-pok,nightly-avx512 -p $(TFHE_SPEC) -- core_crypto::; \
 	fi
 
+
+.PHONY: test_common_mask
+test_common_mask: install_rs_build_toolchain install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+		--features=experimental,zk-pok -p $(TFHE_SPEC) -- \
+		core_crypto::algorithms::test::cm \
+		core_crypto::algorithms::cm_lwe_encryption::test::cm_encryption \
+		core_crypto::fft_impl::fft64::crypto::cm_ggsw::tests::test_cm_ep
+	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
+		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
+			--features=experimental,zk-pok,nightly-avx512 -p $(TFHE_SPEC) -- \
+			core_crypto::::algorithms::test::cm \
+			core_crypto::algorithms::cm_lwe_encryption::test::cm_encryption \
+			core_crypto::fft_impl::fft64::crypto::cm_ggsw::tests::test_cm_ep; \
+	fi
+
+
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
 test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain install_tarpaulin
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
@@ -1330,13 +1347,6 @@ bench_integer_zk: install_rs_check_toolchain
 	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
 	-p tfhe-benchmark --
 
-.PHONY: bench_standard_ap
-bench_standard_ap: install_rs_check_toolchain
-	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
-	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
-	--bench standard-ap-bench \
-	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
-
 .PHONY: bench_shortint # Run benchmarks for shortint
 bench_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
@@ -1356,6 +1366,20 @@ bench_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
 	--bench boolean-bench \
 	--features=boolean,internal-keycache,nightly-avx512 -p tfhe-benchmark
+
+.PHONY: bench_bootstrapping
+bench_bootstrapping: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_PARAMS_SET=$(BENCH_PARAMS_SET) __TFHE_RS_BENCH_TYPE=$(BENCH_TYPE) \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench standard-ap-bench \
+	--features=shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+
+.PHONY: bench_common_mask_bootstrapping # Run benchmarks for CM-PBS
+bench_common_mask_bootstrapping: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench cm-bench \
+	--features=boolean,shortint,internal-keycache,nightly-avx512 -p tfhe-benchmark
+
 
 .PHONY: bench_ks # Run benchmarks for keyswitch
 bench_ks: install_rs_check_toolchain

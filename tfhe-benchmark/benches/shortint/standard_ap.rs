@@ -4,7 +4,7 @@ use tfhe::shortint::keycache::KEY_CACHE;
 use tfhe::shortint::parameters::v1_3::*;
 
 fn programmable_bootstrapping_bench(c: &mut Criterion) {
-    let mut bench_group = c.benchmark_group("Standard benchmarks");
+    let mut bench_group = c.benchmark_group("Sharing_The_Mask");
 
     let params_64 = vec![
         V1_3_PARAM_MESSAGE_1_CARRY_1_KS_PBS_TUNIFORM_2M128,
@@ -37,7 +37,7 @@ fn programmable_bootstrapping_bench(c: &mut Criterion) {
 
             let p = param.carry_modulus.0.ilog2() + param.message_modulus.0.ilog2();
 
-            let bench_id = format!("KS-PBS_p={p}_pfail={p_fail}");
+            let bench_id = format!("KS->PBS_p={p}_pfail={p_fail}");
 
             bench_group.bench_function(&bench_id, |b| {
                 b.iter(|| {

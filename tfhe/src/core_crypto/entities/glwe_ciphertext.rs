@@ -91,6 +91,165 @@ impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> CreateFrom<C> for 
     }
 }
 
+pub type GlweBodyOwned<Scalar> = GlweBody<Vec<Scalar>>;
+pub type GlweBodyView<'data, Scalar> = GlweBody<&'data [Scalar]>;
+pub type GlweBodyMutView<'data, Scalar> = GlweBody<&'data mut [Scalar]>;
+
+#[derive(Clone, Debug)]
+pub struct GlweBodyList<C: Container>
+where
+    C::Element: UnsignedInteger,
+{
+    data: C,
+    polynomial_size: PolynomialSize,
+    ciphertext_modulus: CiphertextModulus<C::Element>,
+}
+
+pub type GlweBodyListView<'data, Scalar> = GlweBodyList<&'data [Scalar]>;
+pub type GlweBodyListMutView<'data, Scalar> = GlweBodyList<&'data mut [Scalar]>;
+
+impl<T: UnsignedInteger, C: Container<Element = T>> AsRef<[T]> for GlweBodyList<C> {
+    fn as_ref(&self) -> &[T] {
+        self.data.as_ref()
+    }
+}
+
+impl<T: UnsignedInteger, C: ContainerMut<Element = T>> AsMut<[T]> for GlweBodyList<C> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.data.as_mut()
+    }
+}
+
+impl<'data, T: UnsignedInteger> CreateFrom<&'data [T]> for GlweBodyListView<'data, T> {
+    type Metadata = GlweBodyListCreationMetadata<T>;
+
+    #[inline]
+    fn create_from(from: &[T], meta: Self::Metadata) -> GlweBodyListView<'_, T> {
+        let GlweBodyListCreationMetadata {
+            ciphertext_modulus,
+            polynomial_size,
+        } = meta;
+        GlweBodyList {
+            data: from,
+            polynomial_size,
+            ciphertext_modulus,
+        }
+    }
+}
+
+impl<'data, T: UnsignedInteger> CreateFrom<&'data mut [T]> for GlweBodyListMutView<'data, T> {
+    type Metadata = GlweBodyListCreationMetadata<T>;
+
+    #[inline]
+    fn create_from(from: &mut [T], meta: Self::Metadata) -> GlweBodyListMutView<'_, T> {
+        let GlweBodyListCreationMetadata {
+            ciphertext_modulus,
+            polynomial_size,
+        } = meta;
+        GlweBodyList {
+            data: from,
+            ciphertext_modulus,
+            polynomial_size,
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> GlweBodyList<C> {
+    pub fn from_container(
+        container: C,
+        polynomial_size: PolynomialSize,
+        ciphertext_modulus: CiphertextModulus<Scalar>,
+    ) -> Self {
+        Self {
+            data: container,
+            polynomial_size,
+            ciphertext_modulus,
+        }
+    }
+
+    pub fn data(self) -> C {
+        self.data
+    }
+
+    pub fn lwe_body_count(&self) -> LweBodyCount {
+        LweBodyCount(self.data.container_len() / self.polynomial_size.0)
+    }
+
+    pub fn polynomial_size(&self) -> PolynomialSize {
+        self.polynomial_size
+    }
+
+    pub fn ciphertext_modulus(&self) -> CiphertextModulus<Scalar> {
+        self.ciphertext_modulus
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> GlweBodyList<C> {
+    pub fn as_mut_polynomial_list(&mut self) -> PolynomialListMutView<'_, Scalar> {
+        let polynomial_size = self.polynomial_size();
+        PolynomialList::from_container(self.as_mut(), polynomial_size)
+    }
+}
+
+/// Metadata used in the [`CreateFrom`] implementation to create [`LweBodyList`] entities.
+#[derive(Clone, Copy)]
+pub struct GlweBodyListCreationMetadata<Scalar: UnsignedInteger> {
+    pub polynomial_size: PolynomialSize,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
+}
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ContiguousEntityContainer
+    for GlweBodyList<C>
+{
+    type Element = C::Element;
+
+    type EntityViewMetadata = GlweCiphertextCreationMetadata<Self::Element>;
+
+    type EntityView<'this>
+        = GlweBodyView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfViewMetadata = GlweBodyListCreationMetadata<Self::Element>;
+
+    type SelfView<'this>
+        = GlweBodyListView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    fn get_entity_view_creation_metadata(&self) -> Self::EntityViewMetadata {
+        GlweCiphertextCreationMetadata {
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
+    }
+
+    fn get_entity_view_pod_size(&self) -> usize {
+        self.polynomial_size.0
+    }
+
+    fn get_self_view_creation_metadata(&self) -> Self::SelfViewMetadata {
+        GlweBodyListCreationMetadata {
+            polynomial_size: self.polynomial_size,
+            ciphertext_modulus: self.ciphertext_modulus(),
+        }
+    }
+}
+
+impl<Scalar: UnsignedInteger, C: ContainerMut<Element = Scalar>> ContiguousEntityContainerMut
+    for GlweBodyList<C>
+{
+    type EntityMutView<'this>
+        = GlweBodyMutView<'this, Self::Element>
+    where
+        Self: 'this;
+
+    type SelfMutView<'this>
+        = GlweBodyListMutView<'this, Self::Element>
+    where
+        Self: 'this;
+}
+
 /// A convenience structure to easily manipulate the mask of a [`GlweCiphertext`].
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
