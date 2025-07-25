@@ -102,8 +102,8 @@ impl NoiseSquashingPrivateKeyView<'_> {
             ));
         }
 
-        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus;
-        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus;
+        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus();
+        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus();
 
         if packed_blocks_msg_mod != key_msg_mod || packed_blocks_carry_mod != key_carry_mod {
             return Err(crate::error!(
@@ -170,8 +170,8 @@ impl NoiseSquashingPrivateKeyView<'_> {
             ));
         }
 
-        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus;
-        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus;
+        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus();
+        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus();
 
         if packed_blocks_msg_mod != key_msg_mod || packed_blocks_carry_mod != key_carry_mod {
             return Err(crate::error!(
@@ -207,8 +207,8 @@ impl NoiseSquashingPrivateKeyView<'_> {
         let boolean_block_msg_mod = ciphertext.message_modulus();
         let boolean_block_carry_mod = ciphertext.carry_modulus();
 
-        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus;
-        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus;
+        let key_msg_mod = self.key.noise_squashing_parameters().message_modulus();
+        let key_carry_mod = self.key.noise_squashing_parameters().carry_modulus();
 
         if boolean_block_msg_mod != key_msg_mod || boolean_block_carry_mod != key_carry_mod {
             return Err(crate::error!(
@@ -236,11 +236,11 @@ impl NoiseSquashingPrivateKey {
 
     pub fn new(params: NoiseSquashingParameters) -> Self {
         assert!(
-            params.carry_modulus.0 >= params.message_modulus.0,
+            params.carry_modulus().0 >= params.message_modulus().0,
             "NoiseSquashingPrivateKey requires its CarryModulus {:?} to be greater \
             or equal to its MessageModulus {:?}",
-            params.carry_modulus.0,
-            params.message_modulus.0,
+            params.carry_modulus().0,
+            params.message_modulus().0,
         );
 
         Self {
