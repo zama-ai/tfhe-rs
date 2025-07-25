@@ -173,7 +173,7 @@ pub fn keyswitch_glwe_ciphertext_native_mod_compatible<Scalar, KSKCont, InputCon
     assert!(
         glwe_keyswitch_key.polynomial_size() == input_glwe_ciphertext.polynomial_size(),
         "Mismatched input PolynomialSize. \
-        GlweKeyswithcKey input PolynomialSize: {:?}, input GlweCiphertext PolynomialSize {:?}.",
+        GlweKeyswitchKey input PolynomialSize: {:?}, input GlweCiphertext PolynomialSize {:?}.",
         glwe_keyswitch_key.polynomial_size(),
         input_glwe_ciphertext.polynomial_size(),
     );
@@ -254,7 +254,7 @@ pub fn keyswitch_glwe_ciphertext_other_mod<Scalar, KSKCont, InputCont, OutputCon
     assert!(
         glwe_keyswitch_key.polynomial_size() == input_glwe_ciphertext.polynomial_size(),
         "Mismatched input PolynomialSize. \
-        GlweKeyswithcKey input PolynomialSize: {:?}, input GlweCiphertext PolynomialSize {:?}.",
+        GlweKeyswitchKey input PolynomialSize: {:?}, input GlweCiphertext PolynomialSize {:?}.",
         glwe_keyswitch_key.polynomial_size(),
         input_glwe_ciphertext.polynomial_size(),
     );
