@@ -64,6 +64,29 @@ __device__ void polynomial_product_accumulate_in_fourier_domain(
 // Computes result += first * second
 // If init_accumulator is set, assumes that result was not initialized and does
 // that with the outcome of first * second
+// The result is always in registers and if init_accumulator true
+// the first is also in registers this is tuned for 2_2 params
+template <class params, typename T, bool init_accumulator>
+__device__ void polynomial_product_accumulate_in_fourier_domain_2_2_params(
+    T *__restrict__ result, T *__restrict__ first,
+    const T *__restrict__ second) {
+  int tid = threadIdx.x;
+  if constexpr (init_accumulator) {
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[i] = first[i] * __ldg(&second[tid]);
+      tid += (params::degree / params::opt);
+    }
+  } else {
+    for (int i = 0; i < params::opt / 2; i++) {
+      result[i] += first[tid] * __ldg(&second[tid]);
+      tid += params::degree / params::opt;
+    }
+  }
+}
+
+// Computes result += first * second
+// If init_accumulator is set, assumes that result was not initialized and does
+// that with the outcome of first * second
 template <class params>
 __device__ void polynomial_product_accumulate_in_fourier_domain_128(
     double *result, double *first, const double *second,
@@ -228,6 +251,26 @@ __device__ void polynomial_accumulate_monic_monomial_mul_on_regs(
                 remainder_degrees);
 
     result[i] += x;
+  }
+}
+
+// Does the same as polynomial_accumulate_monic_monomial_mul() but result is
+// being written to registers and coefficients are precalculated
+template <typename T, class params>
+__device__ void polynomial_accumulate_monic_monomial_mul_on_regs_precalc(
+    T *result, const T *__restrict__ poly, int8_t *coefs,
+    uint32_t monomial_degree) {
+// Every thread has a fixed position to track instead of "chasing" the
+// position
+#pragma unroll
+  for (int i = 0; i < params::opt; i++) {
+    int pos =
+        (threadIdx.x + i * (params::degree / params::opt) - monomial_degree) &
+        (params::degree - 1);
+
+    T element = poly[pos];
+    result[i] +=
+        coefs[threadIdx.x + i * (params::degree / params::opt)] * element;
   }
 }
 
