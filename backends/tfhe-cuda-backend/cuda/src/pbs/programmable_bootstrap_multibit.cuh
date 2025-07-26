@@ -698,8 +698,13 @@ __host__ void execute_compute_keybundle(
             level_count, lwe_offset, chunk_size, keybundle_size_per_input,
             d_mem, full_sm_keybundle);
   } else {
-    if (polynomial_size == 2048 && grouping_factor == 4 && level_count == 1 &&
-        glwe_dimension == 1 && lwe_dimension == 920) {
+    bool supports_tbc =
+        has_support_to_cuda_programmable_bootstrap_tbc_multi_bit<uint64_t>(
+            num_samples, glwe_dimension, polynomial_size, level_count,
+            cuda_get_max_shared_memory(gpu_index));
+
+    if (supports_tbc && polynomial_size == 2048 && grouping_factor == 4 &&
+        level_count == 1 && glwe_dimension == 1 && lwe_dimension == 920) {
       dim3 thds_new_keybundle(512, 1, 1);
       check_cuda_error(cudaFuncSetAttribute(
           device_multi_bit_programmable_bootstrap_keybundle_2_2_params<
