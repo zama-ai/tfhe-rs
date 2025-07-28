@@ -6566,6 +6566,294 @@ pub fn get_div_rem_integer_radix_kb_size_on_gpu(
 #[allow(clippy::too_many_arguments)]
 /// # Safety
 ///
+/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
+///   be dropped until streams is synchronized.
+/// - `output_ct` must be allocated with enough blocks to store the result.
+pub unsafe fn count_of_consecutive_bits_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output_ct: &mut CudaRadixCiphertext,
+    input_ct: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    grouping_factor: LweBskGroupingFactor,
+    direction: Direction,
+    bit_value: BitValue,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    assert_eq!(
+        streams.gpu_indexes[0],
+        output_ct.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: stream and output ct are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        input_ct.d_blocks.0.d_vec.gpu_index(0),
+        "GPU error: stream and input ct are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        bootstrapping_key.gpu_index(0),
+        "GPU error: stream and bootstrapping_key are on different GPUs"
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        keyswitch_key.gpu_index(0),
+        "GPU error: stream and keyswitch_key are on different GPUs"
+    );
+
+    let num_blocks = input_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let counter_num_blocks = output_ct.d_blocks.lwe_ciphertext_count().0 as u32;
+    let ct_modulus = input_ct.d_blocks.ciphertext_modulus().raw_modulus_float();
+
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut output_degrees = output_ct.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let mut cuda_ffi_output_ct =
+        prepare_cuda_radix_ffi(output_ct, &mut output_degrees, &mut output_noise_levels);
+
+    let mut input_degrees = input_ct.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input_ct
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_input_ct =
+        prepare_cuda_radix_ffi(input_ct, &mut input_degrees, &mut input_noise_levels);
+
+    scratch_integer_count_of_consecutive_bits_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        num_blocks,
+        counter_num_blocks,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        direction,
+        bit_value,
+        true,
+        allocate_ms_array,
+    );
+
+    cuda_integer_count_of_consecutive_bits_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_output_ct,
+        &raw const cuda_ffi_input_ct,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+    );
+
+    cleanup_cuda_integer_count_of_consecutive_bits_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(output_ct, &cuda_ffi_output_ct);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
+/// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must not
+///   be dropped until streams is synchronized.
+/// - `output_ct` must be allocated with enough blocks to store the result.
+pub(crate) unsafe fn ilog2_async<T: UnsignedInteger, B: Numeric>(
+    streams: &CudaStreams,
+    output: &mut CudaRadixCiphertext,
+    input: &CudaRadixCiphertext,
+    trivial_ct_neg_n: &CudaRadixCiphertext,
+    trivial_ct_2: &CudaRadixCiphertext,
+    trivial_ct_m_minus_1_block: &CudaRadixCiphertext,
+    bootstrapping_key: &CudaVec<B>,
+    keyswitch_key: &CudaVec<T>,
+    lwe_dimension: LweDimension,
+    glwe_dimension: GlweDimension,
+    polynomial_size: PolynomialSize,
+    ks_level: DecompositionLevelCount,
+    ks_base_log: DecompositionBaseLog,
+    pbs_level: DecompositionLevelCount,
+    pbs_base_log: DecompositionBaseLog,
+    grouping_factor: LweBskGroupingFactor,
+    message_modulus: MessageModulus,
+    carry_modulus: CarryModulus,
+    pbs_type: PBSType,
+    input_num_blocks: u32,
+    counter_num_blocks: u32,
+    num_bits_in_ciphertext: u32,
+    noise_reduction_key: Option<&CudaModulusSwitchNoiseReductionKey>,
+) {
+    assert_eq!(streams.gpu_indexes[0], output.d_blocks.0.d_vec.gpu_index(0));
+    assert_eq!(streams.gpu_indexes[0], input.d_blocks.0.d_vec.gpu_index(0));
+    assert_eq!(
+        streams.gpu_indexes[0],
+        trivial_ct_neg_n.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        trivial_ct_2.d_blocks.0.d_vec.gpu_index(0)
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        trivial_ct_m_minus_1_block.d_blocks.0.d_vec.gpu_index(0)
+    );
+
+    let ct_modulus = input.d_blocks.ciphertext_modulus().raw_modulus_float();
+    let ms_noise_reduction_key_ffi =
+        prepare_cuda_ms_noise_reduction_key_ffi(noise_reduction_key, ct_modulus);
+    let allocate_ms_array = noise_reduction_key.is_some();
+
+    let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut output_degrees = output.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut output_noise_levels = output.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let mut cuda_ffi_output =
+        prepare_cuda_radix_ffi(output, &mut output_degrees, &mut output_noise_levels);
+
+    let mut input_degrees = input.info.blocks.iter().map(|b| b.degree.0).collect();
+    let mut input_noise_levels = input.info.blocks.iter().map(|b| b.noise_level.0).collect();
+    let cuda_ffi_input = prepare_cuda_radix_ffi(input, &mut input_degrees, &mut input_noise_levels);
+
+    let mut trivial_ct_neg_n_degrees = trivial_ct_neg_n
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut trivial_ct_neg_n_noise_levels = trivial_ct_neg_n
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_trivial_ct_neg_n = prepare_cuda_radix_ffi(
+        trivial_ct_neg_n,
+        &mut trivial_ct_neg_n_degrees,
+        &mut trivial_ct_neg_n_noise_levels,
+    );
+
+    let mut trivial_ct_2_degrees = trivial_ct_2
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut trivial_ct_2_noise_levels = trivial_ct_2
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_trivial_ct_2 = prepare_cuda_radix_ffi(
+        trivial_ct_2,
+        &mut trivial_ct_2_degrees,
+        &mut trivial_ct_2_noise_levels,
+    );
+
+    let mut trivial_all_ones_block_degrees = trivial_ct_m_minus_1_block
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.degree.0)
+        .collect();
+    let mut trivial_all_ones_block_noise_levels = trivial_ct_m_minus_1_block
+        .info
+        .blocks
+        .iter()
+        .map(|b| b.noise_level.0)
+        .collect();
+    let cuda_ffi_trivial_all_ones_block = prepare_cuda_radix_ffi(
+        trivial_ct_m_minus_1_block,
+        &mut trivial_all_ones_block_degrees,
+        &mut trivial_all_ones_block_noise_levels,
+    );
+
+    scratch_integer_ilog2_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+        glwe_dimension.0 as u32,
+        polynomial_size.0 as u32,
+        lwe_dimension.0 as u32,
+        ks_level.0 as u32,
+        ks_base_log.0 as u32,
+        pbs_level.0 as u32,
+        pbs_base_log.0 as u32,
+        grouping_factor.0 as u32,
+        message_modulus.0 as u32,
+        carry_modulus.0 as u32,
+        pbs_type as u32,
+        input_num_blocks,
+        counter_num_blocks,
+        num_bits_in_ciphertext,
+        true,
+        allocate_ms_array,
+    );
+
+    cuda_integer_ilog2_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        &raw mut cuda_ffi_output,
+        &raw const cuda_ffi_input,
+        &raw const cuda_ffi_trivial_ct_neg_n,
+        &raw const cuda_ffi_trivial_ct_2,
+        &raw const cuda_ffi_trivial_all_ones_block,
+        mem_ptr,
+        bootstrapping_key.ptr.as_ptr(),
+        keyswitch_key.ptr.as_ptr(),
+        &raw const ms_noise_reduction_key_ffi,
+    );
+
+    cleanup_cuda_integer_ilog2_kb_64(
+        streams.ptr.as_ptr(),
+        streams.gpu_indexes_ptr(),
+        streams.len() as u32,
+        std::ptr::addr_of_mut!(mem_ptr),
+    );
+
+    update_noise_degree(output, &cuda_ffi_output);
+}
+
+#[allow(clippy::too_many_arguments)]
+/// # Safety
+///
 /// - [CudaStreams::synchronize] __must__ be called after this function as soon as synchronization
 ///   is required
 pub unsafe fn compute_prefix_sum_hillis_steele_async<T: UnsignedInteger, B: Numeric>(
