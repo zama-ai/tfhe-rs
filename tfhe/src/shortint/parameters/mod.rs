@@ -333,6 +333,13 @@ impl PBSParameters {
         }
     }
 
+    pub const fn log2_p_fail(&self) -> f64 {
+        match self {
+            Self::PBS(params) => params.log2_p_fail,
+            Self::MultiBitPBS(params) => params.log2_p_fail,
+        }
+    }
+
     pub const fn is_pbs(&self) -> bool {
         matches!(self, Self::PBS(_))
     }
@@ -621,6 +628,15 @@ impl ShortintParameterSet {
                 .glwe_dimension()
                 .to_equivalent_lwe_dimension(self.polynomial_size()),
             EncryptionKeyChoice::Small => self.lwe_dimension(),
+        }
+    }
+
+    pub const fn log2_p_fail(&self) -> Option<f64> {
+        match self.inner {
+            ShortintParameterSetInner::PBSOnly(params) => Some(params.log2_p_fail()),
+            ShortintParameterSetInner::WopbsOnly(_) => None,
+            ShortintParameterSetInner::PBSAndWopbs(params, _) => Some(params.log2_p_fail()),
+            ShortintParameterSetInner::KS32PBS(params) => Some(params.log2_p_fail()),
         }
     }
 

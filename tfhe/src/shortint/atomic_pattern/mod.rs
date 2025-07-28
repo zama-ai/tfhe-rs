@@ -538,6 +538,13 @@ impl AtomicPatternParameters {
             Self::KeySwitch32(parameters) => parameters.ks_level(),
         }
     }
+
+    pub const fn log2_p_fail(&self) -> f64 {
+        match self {
+            Self::Standard(parameters) => parameters.log2_p_fail(),
+            Self::KeySwitch32(parameters) => parameters.log2_p_fail(),
+        }
+    }
 }
 
 impl ParameterSetConformant for AtomicPatternServerKey {
