@@ -1,4 +1,5 @@
 use super::fourier_lwe_multi_bit_bootstrap_key_size;
+use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::backward_compatibility::entities::lwe_multi_bit_bootstrap_key::Fourier128MultiBitLweBootstrapKeyVersions;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweBskGroupingFactor, LweDimension,
@@ -7,6 +8,7 @@ use crate::core_crypto::commons::parameters::{
 use crate::core_crypto::commons::traits::{Container, Split};
 use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::fft_impl::fft128::crypto::ggsw::Fourier128GgswCiphertext;
+use crate::core_crypto::prelude::MultiBitBootstrapKeyConformanceParams;
 
 use aligned_vec::{avec, ABox};
 use tfhe_versionable::Versionize;
@@ -202,5 +204,54 @@ impl Fourier128LweMultiBitBootstrapKey<ABox<[f64]>> {
             decomposition_level_count,
             grouping_factor,
         )
+    }
+}
+
+impl<C: Container<Element = f64>> ParameterSetConformant for Fourier128LweMultiBitBootstrapKey<C> {
+    type ParameterSet = MultiBitBootstrapKeyConformanceParams<u128>;
+
+    fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
+        let Self {
+            data_re0,
+            data_re1,
+            data_im0,
+            data_im1,
+            glwe_size,
+            polynomial_size,
+            input_lwe_dimension,
+            decomposition_base_log,
+            decomposition_level_count,
+            grouping_factor,
+        } = self;
+
+        let MultiBitBootstrapKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            grouping_factor: expected_grouping_factor,
+            ciphertext_modulus: _expected_ciphertext_modulus,
+        } = parameter_set;
+
+        let container_len = fourier_lwe_multi_bit_bootstrap_key_size(
+            *expected_input_lwe_dimension,
+            *expected_output_glwe_size,
+            *expected_polynomial_size,
+            *expected_decomp_level_count,
+            *expected_grouping_factor,
+        )
+        .unwrap();
+
+        data_re0.container_len() == container_len
+            && data_re1.container_len() == container_len
+            && data_im0.container_len() == container_len
+            && data_im1.container_len() == container_len
+            && glwe_size == expected_output_glwe_size
+            && polynomial_size == expected_polynomial_size
+            && input_lwe_dimension == expected_input_lwe_dimension
+            && decomposition_base_log == expected_decomp_base_log
+            && decomposition_level_count == expected_decomp_level_count
+            && grouping_factor == expected_grouping_factor
     }
 }
