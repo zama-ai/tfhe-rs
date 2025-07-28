@@ -210,6 +210,12 @@ pub const COMPARISON_TYPE_LE: COMPARISON_TYPE = 5;
 pub const COMPARISON_TYPE_MAX: COMPARISON_TYPE = 6;
 pub const COMPARISON_TYPE_MIN: COMPARISON_TYPE = 7;
 pub type COMPARISON_TYPE = ffi::c_uint;
+pub const Direction_Trailing: Direction = 0;
+pub const Direction_Leading: Direction = 1;
+pub type Direction = ffi::c_uint;
+pub const BitValue_Zero: BitValue = 0;
+pub const BitValue_One: BitValue = 1;
+pub type BitValue = ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct CudaRadixCiphertextFFI {
@@ -1738,6 +1744,96 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_signed_scalar_div_rem_radix_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_integer_prepare_count_of_consecutive_bits_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        direction: Direction,
+        bit_value: BitValue,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_prepare_count_of_consecutive_bits_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        ciphertext: *mut CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_prepare_count_of_consecutive_bits_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_integer_count_of_consecutive_bits_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        num_blocks: u32,
+        counter_num_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        direction: Direction,
+        bit_value: BitValue,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_count_of_consecutive_bits_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_ct: *mut CudaRadixCiphertextFFI,
+        input_ct: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_count_of_consecutive_bits_kb_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
