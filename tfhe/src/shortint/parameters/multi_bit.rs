@@ -89,7 +89,7 @@ impl MultiBitPBSParameters {
     }
 }
 
-impl TryFrom<&PBSConformanceParams> for MultiBitBootstrapKeyConformanceParams {
+impl TryFrom<&PBSConformanceParams> for MultiBitBootstrapKeyConformanceParams<u64> {
     type Error = ();
 
     fn try_from(value: &PBSConformanceParams) -> Result<Self, ()> {

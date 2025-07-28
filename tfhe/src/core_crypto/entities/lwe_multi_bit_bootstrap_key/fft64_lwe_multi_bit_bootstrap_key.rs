@@ -218,7 +218,7 @@ impl FourierLweMultiBitBootstrapKeyOwned {
 }
 
 impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitBootstrapKey<C> {
-    type ParameterSet = MultiBitBootstrapKeyConformanceParams;
+    type ParameterSet = MultiBitBootstrapKeyConformanceParams<u64>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
