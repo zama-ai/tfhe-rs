@@ -1,10 +1,13 @@
 use crate::core_crypto::gpu::CudaStreams;
+use crate::core_crypto::prelude::LweBskGroupingFactor;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
-use crate::integer::gpu::reverse_blocks_inplace_async;
-use crate::integer::gpu::server_key::CudaServerKey;
+use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
+use crate::integer::gpu::{
+    count_of_consecutive_bits_async, prepare_count_of_consecutive_bits_async, PBSType,
+};
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
 use crate::shortint::ciphertext::Degree;
 
@@ -25,83 +28,56 @@ impl CudaServerKey {
         bit_value: BitValue,
         streams: &CudaStreams,
     ) -> T {
-        assert!(
-            self.carry_modulus.0 >= self.message_modulus.0,
-            "A carry modulus as least as big as the message modulus is required"
-        );
+        let mut ciphertext = ct.duplicate_async(streams);
 
-        let num_ct_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
-
-        // Allocate the necessary amount of memory
-        let mut tmp_radix = ct.duplicate_async(streams);
-
-        let lut = match direction {
-            Direction::Trailing => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0;
-
-                let mut count = 0;
-                for i in 0..self.message_modulus.0.ilog2() {
-                    if (x >> i) & 1 == bit_value.opposite() as u64 {
-                        break;
-                    }
-                    count += 1;
-                }
-                count
-            }),
-            Direction::Leading => self.generate_lookup_table(|x| {
-                let x = x % self.message_modulus.0;
-
-                let mut count = 0;
-                for i in (0..self.message_modulus.0.ilog2()).rev() {
-                    if (x >> i) & 1 == bit_value.opposite() as u64 {
-                        break;
-                    }
-                    count += 1;
-                }
-                count
-            }),
-        };
-
-        self.apply_lookup_table_async(
-            tmp_radix.as_mut(),
-            ct.as_ref(),
-            &lut,
-            0..num_ct_blocks,
-            streams,
-        );
-
-        if direction == Direction::Leading {
-            // Our blocks are from lsb to msb
-            // `leading` means starting from the msb, so we reverse block
-            // for the cum sum process done later
-            reverse_blocks_inplace_async(streams, tmp_radix.as_mut());
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                prepare_count_of_consecutive_bits_async(
+                    streams,
+                    ciphertext.as_mut(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    direction as u32,
+                    bit_value as u32,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                prepare_count_of_consecutive_bits_async(
+                    streams,
+                    ciphertext.as_mut(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    direction as u32,
+                    bit_value as u32,
+                    None,
+                );
+            }
         }
 
-        // Use hillis-steele cumulative-sum algorithm
-        // Here, each block either keeps his value (the number of leading zeros)
-        // or becomes 0 if the preceding block
-        // had a bit set to one in it (leading_zeros != num bits in message)
-        let num_bits_in_message = self.message_modulus.0.ilog2() as u64;
-        let sum_lut = self.generate_lookup_table_bivariate(
-            |block_num_bit_count, more_significant_block_bit_count| {
-                if more_significant_block_bit_count == num_bits_in_message {
-                    block_num_bit_count
-                } else {
-                    0
-                }
-            },
-        );
-
-        let mut output_cts: T = self.create_trivial_zero_radix_async(num_ct_blocks, streams);
-
-        self.compute_prefix_sum_hillis_steele_async(
-            output_cts.as_mut(),
-            tmp_radix.as_mut(),
-            &sum_lut,
-            0..num_ct_blocks,
-            streams,
-        );
-        output_cts
+        ciphertext
     }
 
     /// Counts how many consecutive bits there are
@@ -120,10 +96,6 @@ impl CudaServerKey {
         bit_value: BitValue,
         streams: &CudaStreams,
     ) -> CudaUnsignedRadixCiphertext {
-        if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self.create_trivial_zero_radix_async(0, streams);
-        }
-
         let num_bits_in_message = self.message_modulus.0.ilog2();
         let original_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
@@ -131,58 +103,62 @@ impl CudaServerKey {
             .checked_mul(original_num_blocks as u32)
             .expect("Number of bits encrypted exceeds u32::MAX");
 
-        let mut leading_count_per_blocks =
-            self.prepare_count_of_consecutive_bits_async(ct, direction, bit_value, streams);
-
-        // `num_bits_in_ciphertext` is the max value we want to represent
-        // its ilog2 + 1 gives use how many bits we need to be able to represent it.
         let counter_num_blocks =
             (num_bits_in_ciphertext.ilog2() + 1).div_ceil(self.message_modulus.0.ilog2()) as usize;
 
-        let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
 
-        let lwe_size = lwe_dimension.to_lwe_size().0;
-        let mut cts = Vec::<CudaUnsignedRadixCiphertext>::with_capacity(
-            ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-        );
-        for i in 0..ct.as_ref().d_blocks.lwe_ciphertext_count().0 {
-            let mut new_item: CudaUnsignedRadixCiphertext =
-                self.create_trivial_zero_radix_async(counter_num_blocks, streams);
-            let mut dest_slice = new_item
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice(0..lwe_size, 0)
-                .unwrap();
-
-            let src_slice = leading_count_per_blocks
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
-                .unwrap();
-            dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-            let b = new_item.ciphertext.info.blocks.first_mut().unwrap();
-            b.degree = leading_count_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .degree;
-            b.noise_level = leading_count_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .noise_level;
-            cts.push(new_item);
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                count_of_consecutive_bits_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    LweBskGroupingFactor(0),
+                    direction as u32,
+                    bit_value as u32,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                count_of_consecutive_bits_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    d_multibit_bsk.grouping_factor,
+                    direction as u32,
+                    bit_value as u32,
+                    None,
+                );
+            }
         }
 
-        self.unchecked_sum_ciphertexts_async(&cts, streams)
+        result
     }
 
     //==============================================================================================
