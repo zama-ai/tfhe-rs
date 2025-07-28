@@ -357,12 +357,13 @@ impl<Scalar: UnsignedInteger> LweMultiBitBootstrapKeyOwned<Scalar> {
     }
 }
 
-pub struct MultiBitBootstrapKeyConformanceParams {
+#[derive(Copy, Clone)]
+pub struct MultiBitBootstrapKeyConformanceParams<Scalar: UnsignedInteger> {
     pub decomp_base_log: DecompositionBaseLog,
     pub decomp_level_count: DecompositionLevelCount,
     pub input_lwe_dimension: LweDimension,
     pub output_glwe_size: GlweSize,
     pub polynomial_size: PolynomialSize,
     pub grouping_factor: LweBskGroupingFactor,
-    pub ciphertext_modulus: CiphertextModulus<u64>,
+    pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
