@@ -257,7 +257,7 @@ jobs:
         env:
           SLAB_URL: ${{ secrets.SLAB_URL }}
         run: |
-          python3 "slab/scripts/data_sender.py fhevm/${RESULTS_FILENAME}" "${SLAB_SECRET}" \
+          python3 slab/scripts/data_sender.py fhevm/"${RESULTS_FILENAME}" "${SLAB_SECRET}" \
           --slab-url "${SLAB_URL}"
 
   teardown-instance:
