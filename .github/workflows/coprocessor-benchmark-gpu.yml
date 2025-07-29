@@ -2,6 +2,7 @@
 name: coprocessor-benchmark-gpu
 
 on:
+  pull_request:
   workflow_dispatch:
   schedule:
     # Nightly tests @ 1AM after each work day
