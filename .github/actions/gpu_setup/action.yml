@@ -33,20 +33,20 @@ runs:
     - name: Install CUDA
       if: inputs.github-instance == 'true'
       shell: bash
+      env:
+        CUDA_VERSION: ${{ inputs.cuda-version }}
+        CUDA_KEYRING_PACKAGE: cuda-keyring_1.1-1_all.deb
+        CUDA_KEYRING_SHA: "d93190d50b98ad4699ff40f4f7af50f16a76dac3bb8da1eaaf366d47898ff8df"
       run: |
         # Use Sed to extract a value from a string, this cannot be done with the ${variable//search/replace} pattern.
         # shellcheck disable=SC2001
         TOOLKIT_VERSION="$(echo "${CUDA_VERSION}" | sed 's/\(.*\)\.\(.*\)/\1-\2/')"
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${env.CUDA_KEYRING_PACKAGE}
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/${CUDA_KEYRING_PACKAGE}
         echo "${CUDA_KEYRING_SHA} ${CUDA_KEYRING_PACKAGE}" > checksum
         sha256sum -c checksum
         sudo dpkg -i "${CUDA_KEYRING_PACKAGE}"
         sudo apt update
         sudo apt -y install cuda-toolkit-"${TOOLKIT_VERSION}"
-      env:
-        CUDA_VERSION: ${{ inputs.cuda-version }}
-        CUDA_KEYRING_PACKAGE: cuda-keyring_1.1-1_all.deb
-        CUDA_KEYRING_SHA: "d93190d50b98ad4699ff40f4f7af50f16a76dac3bb8da1eaaf366d47898ff8df"
 
     - name: Export CUDA variables
       shell: bash
