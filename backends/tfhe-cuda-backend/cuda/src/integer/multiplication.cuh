@@ -399,6 +399,19 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
                                       total_ciphertexts, total_messages,
                                       needs_processing);
 
+    luts_message_carry->set_lwe_indexes(streams[0], gpu_indexes[0],
+                                        luts_message_carry->h_lwe_indexes_in,
+                                        luts_message_carry->h_lwe_indexes_out);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        luts_message_carry->get_lut_indexes(0, 0),
+        luts_message_carry->h_lut_indexes,
+        luts_message_carry->num_blocks * sizeof(Torus), streams[0],
+        gpu_indexes[0], true);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes);
+    printf("total_ciphertexts: %d\n", total_ciphertexts);
+    printf("luts_message_carry->num_blocks: %d\n",
+           luts_message_carry->num_blocks);
+
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
     if (active_gpu_count == 1) {
       execute_keyswitch_async<Torus>(
@@ -440,6 +453,9 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     auto luts_message_carry = mem_ptr->luts_message_carry;
     auto d_pbs_indexes_in = mem_ptr->luts_message_carry->lwe_indexes_in;
     auto d_pbs_indexes_out = mem_ptr->luts_message_carry->lwe_indexes_out;
+    auto h_pbs_indexes_in = mem_ptr->luts_message_carry->h_lwe_indexes_in;
+    auto h_pbs_indexes_out = mem_ptr->luts_message_carry->h_lwe_indexes_out;
+    auto h_lut_indexes = mem_ptr->luts_message_carry->h_lut_indexes;
     prepare_final_pbs_indexes<Torus>
         <<<1, 2 * num_radix_blocks, 0, streams[0]>>>(
             d_pbs_indexes_in, d_pbs_indexes_out,
@@ -452,6 +468,14 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
     current_columns.final_calculation(luts_message_carry->h_lwe_indexes_in,
                                       luts_message_carry->h_lwe_indexes_out,
                                       luts_message_carry->h_lut_indexes);
+
+    mem_ptr->luts_message_carry->set_lwe_indexes(
+        streams[0], gpu_indexes[0], h_pbs_indexes_in, h_pbs_indexes_out);
+    cuda_memcpy_with_size_tracking_async_to_gpu(
+        luts_message_carry->get_lut_indexes(0, 0), h_lut_indexes,
+        2 * num_radix_blocks * sizeof(Torus), streams[0], gpu_indexes[0], true);
+    luts_message_carry->broadcast_lut(streams, gpu_indexes);
+
     auto active_gpu_count =
         get_active_gpu_count(2 * num_radix_blocks, gpu_count);
 

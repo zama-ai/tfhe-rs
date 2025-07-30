@@ -1593,14 +1593,14 @@ template <typename Torus> struct int_sum_ciphertexts_vec_memory {
     radix_columns<Torus> current_columns(degrees, num_blocks_in_radix,
                                          num_radix_in_vec, chunk_size,
                                          _needs_processing);
-    uint32_t total_ciphertexts = 0;
-    uint32_t total_messages = 0;
+    size_t total_ciphertexts = 0;
+    size_t total_messages = 0;
     current_columns.next_accumulation(nullptr, nullptr, nullptr,
                                       total_ciphertexts, total_messages,
                                       _needs_processing);
 
     if (!mem_reuse) {
-      uint32_t pbs_count = std::max(total_ciphertexts, 2 * num_blocks_in_radix);
+      uint32_t pbs_count = std::max((uint32_t)total_ciphertexts, 2 * num_blocks_in_radix);
       if (total_ciphertexts > 0 ||
           reduce_degrees_for_single_carry_propagation) {
         uint64_t size_tracker = 0;
