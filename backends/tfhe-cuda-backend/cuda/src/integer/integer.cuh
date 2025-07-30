@@ -2329,11 +2329,12 @@ __host__ void integer_radix_apply_noise_squashing_kb(
         pbs_level, lwe_array_out->num_radix_blocks);
 
     /// Copy data back to GPU 0 and release vecs
+    /// In apply noise squashing we always use trivial indexes
     multi_gpu_gather_lwe_async<__uint128_t>(
         streams, gpu_indexes, active_gpu_count,
-        (__uint128_t *)lwe_array_out->ptr, lwe_after_pbs_vec,
-        (__uint128_t *)lut->h_lwe_indexes_out, lut->using_trivial_lwe_indexes,
-        lwe_array_out->num_radix_blocks, big_lwe_dimension + 1);
+        (__uint128_t *)lwe_array_out->ptr, lwe_after_pbs_vec, nullptr,
+        lut->using_trivial_lwe_indexes, lwe_array_out->num_radix_blocks,
+        big_lwe_dimension + 1);
 
     /// Synchronize all GPUs
     for (uint i = 0; i < active_gpu_count; i++) {

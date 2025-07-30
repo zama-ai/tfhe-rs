@@ -821,7 +821,6 @@ template <typename InputTorus> struct int_noise_squashing_lut {
   InputTorus *lwe_indexes_in;
 
   InputTorus *h_lwe_indexes_in;
-  InputTorus *h_lwe_indexes_out;
   InputTorus *lwe_trivial_indexes;
 
   /// For multi GPU execution we create vectors of pointers for inputs and
