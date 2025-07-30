@@ -5,11 +5,6 @@
 
 template <typename Torus> struct int_compression {
   int_radix_params compression_params;
-  uint32_t storage_log_modulus;
-  uint32_t lwe_per_glwe;
-
-  uint32_t body_count;
-
   // Compression
   int8_t *fp_ks_buffer;
   Torus *tmp_lwe;
@@ -19,13 +14,9 @@ template <typename Torus> struct int_compression {
   int_compression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                   uint32_t gpu_count, int_radix_params compression_params,
                   uint32_t num_radix_blocks, uint32_t lwe_per_glwe,
-                  uint32_t storage_log_modulus, bool allocate_gpu_memory,
-                  uint64_t &size_tracker) {
+                  bool allocate_gpu_memory, uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->compression_params = compression_params;
-    this->lwe_per_glwe = lwe_per_glwe;
-    this->storage_log_modulus = storage_log_modulus;
-    this->body_count = num_radix_blocks;
 
     uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                      compression_params.polynomial_size;
@@ -58,11 +49,7 @@ template <typename Torus> struct int_compression {
 template <typename Torus> struct int_decompression {
   int_radix_params encryption_params;
   int_radix_params compression_params;
-
-  uint32_t storage_log_modulus;
-
-  uint32_t num_radix_blocks;
-  uint32_t body_count;
+  uint32_t num_blocks_to_decompress;
 
   Torus *tmp_extracted_glwe;
   Torus *tmp_extracted_lwe;
@@ -74,15 +61,12 @@ template <typename Torus> struct int_decompression {
   int_decompression(cudaStream_t const *streams, uint32_t const *gpu_indexes,
                     uint32_t gpu_count, int_radix_params encryption_params,
                     int_radix_params compression_params,
-                    uint32_t num_radix_blocks, uint32_t body_count,
-                    uint32_t storage_log_modulus, bool allocate_gpu_memory,
+                    uint32_t num_blocks_to_decompress, bool allocate_gpu_memory,
                     uint64_t &size_tracker) {
     gpu_memory_allocated = allocate_gpu_memory;
     this->encryption_params = encryption_params;
     this->compression_params = compression_params;
-    this->storage_log_modulus = storage_log_modulus;
-    this->num_radix_blocks = num_radix_blocks;
-    this->body_count = body_count;
+    this->num_blocks_to_decompress = num_blocks_to_decompress;
 
     uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
                                      compression_params.polynomial_size;
@@ -90,18 +74,18 @@ template <typename Torus> struct int_decompression {
                                          compression_params.polynomial_size +
                                      1);
     decompression_rescale_lut = new int_radix_lut<Torus>(
-        streams, gpu_indexes, gpu_count, encryption_params, 1, num_radix_blocks,
-        allocate_gpu_memory, size_tracker);
+        streams, gpu_indexes, gpu_count, encryption_params, 1,
+        num_blocks_to_decompress, allocate_gpu_memory, size_tracker);
 
     tmp_extracted_glwe = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * glwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        num_blocks_to_decompress * glwe_accumulator_size * sizeof(Torus),
+        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
     tmp_indexes_array = (uint32_t *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * sizeof(uint32_t), streams[0], gpu_indexes[0],
+        num_blocks_to_decompress * sizeof(uint32_t), streams[0], gpu_indexes[0],
         size_tracker, allocate_gpu_memory);
     tmp_extracted_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
-        num_radix_blocks * lwe_accumulator_size * sizeof(Torus), streams[0],
-        gpu_indexes[0], size_tracker, allocate_gpu_memory);
+        num_blocks_to_decompress * lwe_accumulator_size * sizeof(Torus),
+        streams[0], gpu_indexes[0], size_tracker, allocate_gpu_memory);
 
     // Rescale is done using an identity LUT
     // Here we do not divide by message_modulus

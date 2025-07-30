@@ -105,6 +105,55 @@ const _: () = {
         ms_input_variance
     ) - 32usize];
 };
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaLweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub num_radix_blocks: u32,
+    pub lwe_dimension: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaLweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaLweCiphertextListFFI>() - 16usize];
+    ["Alignment of CudaLweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaLweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaLweCiphertextListFFI::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, num_radix_blocks) - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, lwe_dimension) - 12usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaPackedGlweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub storage_log_modulus: u32,
+    pub lwe_per_glwe: u32,
+    pub total_lwe_bodies_count: u32,
+    pub glwe_dimension: u32,
+    pub polynomial_size: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaPackedGlweCiphertextListFFI>() - 32usize];
+    ["Alignment of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaPackedGlweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
+};
 unsafe extern "C" {
     pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
         streams: *const *mut ffi::c_void,
@@ -121,7 +170,6 @@ unsafe extern "C" {
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
         lwe_per_glwe: u32,
-        storage_log_modulus: u32,
         allocate_gpu_memory: bool,
     ) -> u64;
 }
@@ -138,12 +186,10 @@ unsafe extern "C" {
         lwe_dimension: u32,
         pbs_level: u32,
         pbs_base_log: u32,
-        num_radix_blocks: u32,
+        num_blocks_to_decompress: u32,
         message_modulus: u32,
         carry_modulus: u32,
         pbs_type: PBS_TYPE,
-        storage_log_modulus: u32,
-        body_count: u32,
         allocate_gpu_memory: bool,
         allocate_ms_array: bool,
     ) -> u64;
@@ -153,10 +199,9 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        glwe_array_out: *mut ffi::c_void,
-        lwe_array_in: *const ffi::c_void,
+        glwe_array_out: *mut CudaPackedGlweCiphertextListFFI,
+        lwe_array_in: *const CudaLweCiphertextListFFI,
         fp_ksk: *const *mut ffi::c_void,
-        num_nths: u32,
         mem_ptr: *mut i8,
     );
 }
@@ -165,10 +210,9 @@ unsafe extern "C" {
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
-        lwe_array_out: *mut ffi::c_void,
-        glwe_in: *const ffi::c_void,
+        lwe_array_out: *mut CudaLweCiphertextListFFI,
+        glwe_in: *const CudaPackedGlweCiphertextListFFI,
         indexes_array: *const u32,
-        indexes_array_size: u32,
         bsks: *const *mut ffi::c_void,
         mem_ptr: *mut i8,
     );
