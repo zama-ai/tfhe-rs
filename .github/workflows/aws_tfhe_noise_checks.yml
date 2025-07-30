@@ -68,6 +68,7 @@ jobs:
           toolchain: stable
 
       - name: Run noise checks
+        timeout-minutes: 1440
         run: |
           make test_noise_check
 
