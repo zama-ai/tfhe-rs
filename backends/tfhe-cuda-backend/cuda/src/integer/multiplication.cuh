@@ -408,9 +408,6 @@ __host__ void host_integer_partial_sum_ciphertexts_vec_kb(
         luts_message_carry->num_blocks * sizeof(Torus), streams[0],
         gpu_indexes[0], true);
     luts_message_carry->broadcast_lut(streams, gpu_indexes);
-    printf("total_ciphertexts: %d\n", total_ciphertexts);
-    printf("luts_message_carry->num_blocks: %d\n",
-           luts_message_carry->num_blocks);
 
     auto active_gpu_count = get_active_gpu_count(total_ciphertexts, gpu_count);
     if (active_gpu_count == 1) {
