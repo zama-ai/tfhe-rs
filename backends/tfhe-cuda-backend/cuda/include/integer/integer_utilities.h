@@ -325,8 +325,8 @@ template <typename Torus> struct int_radix_lut {
     this->num_blocks = num_radix_blocks;
     this->num_luts = num_luts;
     gpu_memory_allocated = allocate_gpu_memory;
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus lut_buffer_size =
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
     gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
@@ -448,8 +448,8 @@ template <typename Torus> struct int_radix_lut {
     this->num_blocks = num_radix_blocks;
     this->num_luts = num_luts;
     gpu_memory_allocated = allocate_gpu_memory;
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus lut_buffer_size =
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
     gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
@@ -541,8 +541,8 @@ template <typename Torus> struct int_radix_lut {
     this->num_blocks = num_radix_blocks;
     this->num_luts = num_luts;
     gpu_memory_allocated = allocate_gpu_memory;
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
-    Torus lut_buffer_size =
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_buffer_size =
         (params.glwe_dimension + 1) * params.polynomial_size * sizeof(Torus);
 
     gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
@@ -703,7 +703,7 @@ template <typename Torus> struct int_radix_lut {
   void broadcast_lut(cudaStream_t const *streams, uint32_t const *gpu_indexes) {
     int active_device = cuda_get_device();
 
-    Torus lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
+    uint64_t lut_size = (params.glwe_dimension + 1) * params.polynomial_size;
 
     auto src_lut = lut_vec[0];
     auto src_lut_indexes = lut_indexes_vec[0];
@@ -852,7 +852,7 @@ template <typename InputTorus> struct int_noise_squashing_lut {
         input_glwe_dimension * input_polynomial_size;
     this->input_big_lwe_dimension = input_big_lwe_dimension;
 
-    uint32_t lut_buffer_size = (params.glwe_dimension + 1) *
+    uint64_t lut_buffer_size = (params.glwe_dimension + 1) *
                                params.polynomial_size * sizeof(__uint128_t);
 
     gpu_indexes = (uint32_t *)malloc(gpu_count * sizeof(uint32_t));
@@ -1294,7 +1294,7 @@ template <typename Torus> struct int_fullprop_buffer {
         params.message_modulus, params.carry_modulus, lut_f_carry,
         gpu_memory_allocated);
 
-    Torus lwe_indexes_size = 2 * sizeof(Torus);
+    uint64_t lwe_indexes_size = 2 * sizeof(Torus);
     Torus *h_lwe_indexes = (Torus *)malloc(lwe_indexes_size);
     for (int i = 0; i < 2; i++)
       h_lwe_indexes[i] = i;
@@ -1942,7 +1942,7 @@ template <typename Torus> struct int_shifted_blocks_and_states_memory {
         gpu_memory_allocated);
 
     // Generate the indexes to switch between luts within the pbs
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
 
     Torus *h_lut_indexes = luts_array_first_step->h_lut_indexes;
     for (int index = 0; index < num_radix_blocks; index++) {
@@ -2059,7 +2059,7 @@ template <typename Torus> struct int_prop_simu_group_carries_memory {
     h_scalar_array_cum_sum = new Torus[num_radix_blocks]();
 
     // create lut objects for step 2
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
     uint32_t num_carry_to_resolve = num_groups - 1;
     uint32_t saturated_sub =
         ((num_carry_to_resolve > 1) ? num_carry_to_resolve - 1 : 0);
@@ -2663,7 +2663,7 @@ template <typename Torus> struct int_shifted_blocks_and_borrow_states_memory {
         gpu_memory_allocated);
 
     // Generate the indexes to switch between luts within the pbs
-    Torus lut_indexes_size = num_radix_blocks * sizeof(Torus);
+    uint64_t lut_indexes_size = num_radix_blocks * sizeof(Torus);
     Torus *h_lut_indexes = luts_array_first_step->h_lut_indexes;
 
     for (int index = 0; index < num_radix_blocks; index++) {
@@ -3767,7 +3767,7 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
 
-    Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
+    uint64_t big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
     block_selector_f = [](Torus msb, Torus lsb) -> Torus {
       if (msb == IS_EQUAL) // EQUAL
@@ -3864,7 +3864,7 @@ template <typename Torus> struct int_comparison_diff_buffer {
       }
     };
 
-    Torus big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
+    uint64_t big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
     tmp_packed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
