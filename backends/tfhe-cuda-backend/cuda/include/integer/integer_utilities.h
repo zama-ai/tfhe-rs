@@ -133,19 +133,19 @@ template <typename Torus> struct radix_columns {
     new_columns.resize(num_blocks);
     new_columns_counter.resize(num_blocks, 0);
     for (size_t i = 0; i < num_blocks; ++i) {
-      columns[i].resize(num_radix_in_vec);
-      new_columns[i].resize(num_radix_in_vec);
+      columns[i].resize(num_radix_in_vec, 0);
+      new_columns[i].resize(num_radix_in_vec, 0);
     }
-    for (size_t i = 0; i < num_radix_in_vec; ++i) {
-      uint32_t cnt = 0;
-      for (size_t j = 0; j < num_blocks; ++j) {
-        if (input_degrees[i * num_blocks + j]) {
-          columns[j][cnt] = i * num_blocks + j;
-          columns_counter[j]++;
-          cnt++;
-        }
+      for (uint32_t i = 0; i < num_blocks; ++i) {
+          uint32_t cnt = 0;
+          for (uint32_t j = 0; j < num_radix_in_vec; ++j) {
+              if (input_degrees[j * num_blocks + i] != 0) {
+                  columns[i][cnt] = j * num_blocks + i;
+                  ++columns_counter[i];
+                  ++cnt;
+              }
+          }
       }
-    }
     for (size_t i = 0; i < num_blocks; ++i) {
       if (columns_counter[i] > chunk_size) {
         needs_processing = true;
