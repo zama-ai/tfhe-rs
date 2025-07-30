@@ -261,7 +261,7 @@ impl CudaCompressedCiphertextList {
             v
         };
 
-        let mut num_bodies_left = gpu_meta.bodies_count;
+        let mut num_bodies_left = gpu_meta.total_lwe_bodies_count;
         let mut chunk_start = 0;
         while num_bodies_left != 0 {
             let bodies_count = LweCiphertextCount(num_bodies_left.min(lwe_per_glwe.0));
@@ -427,7 +427,7 @@ impl CompressedCiphertextList {
                     ciphertext_modulus: cpu_meta.ciphertext_modulus,
                     storage_log_modulus: first_ct.packed_integers().log_modulus(),
                     lwe_per_glwe,
-                    bodies_count: self.packed_list.len(),
+                    total_lwe_bodies_count: self.packed_list.len(),
                     initial_len,
                 })
         });
