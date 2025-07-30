@@ -21,6 +21,7 @@ use crate::core_crypto::prelude::{
 use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::integer::gpu::ciphertext::{CudaRadixCiphertext, KsType};
+use crate::integer::gpu::list_compression::server_keys::CudaPackedGlweCiphertextList;
 use crate::integer::server_key::radix_parallel::scalar_div_mod::{
     choose_multiplier, SignedReciprocable,
 };
@@ -97,6 +98,29 @@ pub fn prepare_default_scalar_divisor() -> CudaScalarDivisorFFI {
         chosen_multiplier_has_more_bits_than_numerator: false,
         divisor_has_more_bits_than_numerator: false,
         is_chosen_multiplier_geq_two_pow_numerator: false,
+    }
+}
+
+fn prepare_cuda_lwe_ct_ffi<T: UnsignedInteger>(
+    input: &CudaLweCiphertextList<T>,
+) -> CudaLweCiphertextListFFI {
+    CudaLweCiphertextListFFI {
+        ptr: input.0.d_vec.get_mut_c_ptr(0),
+        num_radix_blocks: input.0.lwe_ciphertext_count.0 as u32,
+        lwe_dimension: input.0.lwe_dimension.0 as u32,
+    }
+}
+
+fn prepare_cuda_packed_glwe_ct_ffi(
+    input: &CudaPackedGlweCiphertextList,
+) -> CudaPackedGlweCiphertextListFFI {
+    CudaPackedGlweCiphertextListFFI {
+        ptr: input.data.get_mut_c_ptr(0),
+        storage_log_modulus: input.meta.unwrap().storage_log_modulus.0 as u32,
+        lwe_per_glwe: input.meta.unwrap().lwe_per_glwe.0 as u32,
+        total_lwe_bodies_count: input.meta.unwrap().lwe_bodies_count as u32,
+        glwe_dimension: input.meta.unwrap().glwe_dimension.0 as u32,
+        polynomial_size: input.meta.unwrap().polynomial_size.0 as u32,
     }
 }
 
@@ -711,8 +735,8 @@ where
 ///   is required
 pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     streams: &CudaStreams,
-    glwe_array_out: &mut CudaVec<T>,
-    lwe_array_in: &CudaVec<T>,
+    glwe_array_out: &mut CudaPackedGlweCiphertextList,
+    lwe_array_in: &CudaLweCiphertextList<T>,
     fp_keyswitch_key: &CudaVec<u64>,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
@@ -722,23 +746,8 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
     ks_base_log: DecompositionBaseLog,
     ks_level: DecompositionLevelCount,
     lwe_per_glwe: u32,
-    storage_log_modulus: u32,
     num_blocks: u32,
 ) {
-    assert_eq!(
-        streams.gpu_indexes[0],
-        glwe_array_out.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first glwe output pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        glwe_array_out.gpu_index(0).get(),
-    );
-    assert_eq!(
-        streams.gpu_indexes[0],
-        lwe_array_in.gpu_index(0),
-        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
-        streams.gpu_indexes[0].get(),
-        lwe_array_in.gpu_index(0).get(),
-    );
     assert_eq!(
         streams.gpu_indexes[0],
         fp_keyswitch_key.gpu_index(0),
@@ -746,7 +755,25 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
         streams.gpu_indexes[0].get(),
         fp_keyswitch_key.gpu_index(0).get(),
     );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        lwe_array_in.0.d_vec.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        lwe_array_in.0.d_vec.gpu_index(0).get(),
+    );
+    assert_eq!(
+        streams.gpu_indexes[0],
+        glwe_array_out.data.gpu_index(0),
+        "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
+        streams.gpu_indexes[0].get(),
+        glwe_array_out.data.gpu_index(0).get(),
+    );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let array_in_ffi = prepare_cuda_lwe_ct_ffi(lwe_array_in);
+    let mut glwe_array_out_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_array_out);
+
     scratch_cuda_integer_compress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -762,7 +789,6 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
         carry_modulus.0 as u32,
         PBSType::Classical as u32,
         lwe_per_glwe,
-        storage_log_modulus,
         true,
     );
 
@@ -770,10 +796,9 @@ pub unsafe fn compress_integer_radix_async<T: UnsignedInteger>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        glwe_array_out.as_mut_c_ptr(0),
-        lwe_array_in.as_c_ptr(0),
+        &raw mut glwe_array_out_ffi,
+        &raw const array_in_ffi,
         fp_keyswitch_key.ptr.as_ptr(),
-        num_blocks,
         mem_ptr,
     );
 
@@ -796,7 +821,6 @@ pub fn get_compression_size_on_gpu(
     ks_base_log: DecompositionBaseLog,
     ks_level: DecompositionLevelCount,
     lwe_per_glwe: u32,
-    storage_log_modulus: u32,
     num_blocks: u32,
 ) -> u64 {
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
@@ -816,7 +840,6 @@ pub fn get_compression_size_on_gpu(
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
             lwe_per_glwe,
-            storage_log_modulus,
             false,
         )
     };
@@ -839,10 +862,9 @@ pub fn get_compression_size_on_gpu(
 ///   is required
 pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     streams: &CudaStreams,
-    lwe_array_out: &mut CudaVec<T>,
-    glwe_in: &CudaVec<T>,
+    lwe_array_out: &mut CudaLweCiphertextList<T>,
+    glwe_in: &CudaPackedGlweCiphertextList,
     bootstrapping_key: &CudaVec<B>,
-    bodies_count: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     encryption_glwe_dimension: GlweDimension,
@@ -852,23 +874,22 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
     lwe_dimension: LweDimension,
     pbs_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
-    storage_log_modulus: u32,
     vec_indexes: &[u32],
-    num_lwes: u32,
+    num_blocks_to_decompress: u32,
 ) {
     assert_eq!(
         streams.gpu_indexes[0],
-        lwe_array_out.gpu_index(0),
+        lwe_array_out.0.d_vec.gpu_index(0),
         "GPU error: first stream is on GPU {}, first output pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        lwe_array_out.gpu_index(0).get(),
+        lwe_array_out.0.d_vec.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
-        glwe_in.gpu_index(0),
+        glwe_in.data.gpu_index(0),
         "GPU error: first stream is on GPU {}, first input pointer is on GPU {}",
         streams.gpu_indexes[0].get(),
-        glwe_in.gpu_index(0).get(),
+        glwe_in.data.gpu_index(0).get(),
     );
     assert_eq!(
         streams.gpu_indexes[0],
@@ -878,6 +899,10 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         bootstrapping_key.gpu_index(0).get(),
     );
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
+
+    let mut lwe_array_out_ffi = prepare_cuda_lwe_ct_ffi(lwe_array_out);
+    let glwe_array_in_ffi = prepare_cuda_packed_glwe_ct_ffi(glwe_in);
+
     scratch_cuda_integer_decompress_radix_ciphertext_64(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
@@ -890,12 +915,10 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         lwe_dimension.0 as u32,
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
-        num_lwes,
+        num_blocks_to_decompress,
         message_modulus.0 as u32,
         carry_modulus.0 as u32,
         PBSType::Classical as u32,
-        storage_log_modulus,
-        bodies_count,
         true,
         false,
     );
@@ -904,10 +927,9 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
         streams.ptr.as_ptr(),
         streams.gpu_indexes_ptr(),
         streams.len() as u32,
-        lwe_array_out.as_mut_c_ptr(0),
-        glwe_in.as_c_ptr(0),
+        &raw mut lwe_array_out_ffi,
+        &raw const glwe_array_in_ffi,
         vec_indexes.as_ptr(),
-        vec_indexes.len() as u32,
         bootstrapping_key.ptr.as_ptr(),
         mem_ptr,
     );
@@ -923,7 +945,6 @@ pub unsafe fn decompress_integer_radix_async<T: UnsignedInteger, B: Numeric>(
 #[allow(clippy::too_many_arguments)]
 pub fn get_decompression_size_on_gpu(
     streams: &CudaStreams,
-    bodies_count: u32,
     message_modulus: MessageModulus,
     carry_modulus: CarryModulus,
     encryption_glwe_dimension: GlweDimension,
@@ -933,8 +954,7 @@ pub fn get_decompression_size_on_gpu(
     lwe_dimension: LweDimension,
     pbs_base_log: DecompositionBaseLog,
     pbs_level: DecompositionLevelCount,
-    storage_log_modulus: u32,
-    num_lwes: u32,
+    num_blocks_to_decompress: u32,
 ) -> u64 {
     let mut mem_ptr: *mut i8 = std::ptr::null_mut();
     let size_tracker = unsafe {
@@ -950,12 +970,10 @@ pub fn get_decompression_size_on_gpu(
             lwe_dimension.0 as u32,
             pbs_level.0 as u32,
             pbs_base_log.0 as u32,
-            num_lwes,
+            num_blocks_to_decompress,
             message_modulus.0 as u32,
             carry_modulus.0 as u32,
             PBSType::Classical as u32,
-            storage_log_modulus,
-            bodies_count,
             false,
             false,
         )
