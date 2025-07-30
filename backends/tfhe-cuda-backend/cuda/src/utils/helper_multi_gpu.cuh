@@ -120,6 +120,8 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
           gpu_indexes[i], true);
 
     } else {
+      if (h_src_indexes == nullptr)
+        PANIC("Cuda error: source indexes should be initialized!");
       auto src_indexes = h_src_indexes + gpu_offset;
 
       for (uint j = 0; j < inputs_on_gpu; j++) {
@@ -159,6 +161,9 @@ void multi_gpu_gather_lwe_async(cudaStream_t const *streams,
           d_dest, d_src, inputs_on_gpu * lwe_size * sizeof(Torus), streams[i],
           gpu_indexes[i], true);
     } else {
+      if (h_dest_indexes == nullptr)
+        PANIC("Cuda error: destination indexes should be initialized!");
+
       auto dest_indexes = h_dest_indexes + gpu_offset;
 
       for (uint j = 0; j < inputs_on_gpu; j++) {
