@@ -49,7 +49,7 @@ pub struct CudaPackedGlweCiphertextListMeta {
     pub storage_log_modulus: CiphertextModulusLog,
     pub lwe_per_glwe: LweCiphertextCount,
     // Number of lwe bodies that are compressed in this list
-    pub bodies_count: usize,
+    pub lwe_bodies_count: usize,
     // Number of elements (u64) the uncompressed GLWE list had
     // keep in mind the last GLWE may not be full
     pub initial_len: usize,
@@ -69,7 +69,9 @@ impl CudaPackedGlweCiphertextList {
 
     pub fn bodies_count(&self) -> usize {
         // If there is no metadata, the list is empty
-        self.meta.map(|meta| meta.bodies_count).unwrap_or_default()
+        self.meta
+            .map(|meta| meta.lwe_bodies_count)
+            .unwrap_or_default()
     }
 
     pub fn glwe_ciphertext_count(&self) -> GlweCiphertextCount {
@@ -180,7 +182,7 @@ impl CudaCompressionKey {
         let uncompressed_len = num_glwes * glwe_mask_size + num_lwes;
         let number_bits_to_pack = uncompressed_len * self.storage_log_modulus.0;
         let compressed_len = number_bits_to_pack.div_ceil(u64::BITS as usize);
-        let mut packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
+        let packed_glwe_list = CudaVec::new(compressed_len, streams, 0);
 
         if ciphertexts.is_empty() {
             return CudaPackedGlweCiphertextList {
@@ -194,16 +196,30 @@ impl CudaCompressionKey {
         let first_ct_info = first_ct.info.blocks.first().unwrap();
         let message_modulus = first_ct_info.message_modulus;
         let carry_modulus = first_ct_info.carry_modulus;
-
         let lwe_dimension = first_ct.d_blocks.lwe_dimension();
+
+        let mut glwe_array_out = CudaPackedGlweCiphertextList {
+            data: packed_glwe_list,
+            meta: Some(CudaPackedGlweCiphertextListMeta {
+                glwe_dimension: compressed_glwe_size.to_glwe_dimension(),
+                polynomial_size: compressed_polynomial_size,
+                message_modulus,
+                carry_modulus,
+                ciphertext_modulus,
+                storage_log_modulus: self.storage_log_modulus,
+                lwe_per_glwe: LweCiphertextCount(compressed_polynomial_size.0),
+                lwe_bodies_count: num_lwes,
+                initial_len: uncompressed_len,
+            }),
+        };
 
         unsafe {
             let input_lwes = Self::flatten_async(ciphertexts, streams);
 
             compress_integer_radix_async(
                 streams,
-                &mut packed_glwe_list,
-                &input_lwes.0.d_vec,
+                &mut glwe_array_out,
+                &input_lwes,
                 &self.packing_key_switching_key.d_vec,
                 message_modulus,
                 carry_modulus,
@@ -213,29 +229,13 @@ impl CudaCompressionKey {
                 lwe_pksk.decomposition_base_log(),
                 lwe_pksk.decomposition_level_count(),
                 self.lwe_per_glwe.0 as u32,
-                self.storage_log_modulus.0 as u32,
                 num_lwes as u32,
             );
 
             streams.synchronize();
         };
 
-        let meta = Some(CudaPackedGlweCiphertextListMeta {
-            glwe_dimension: compressed_glwe_size.to_glwe_dimension(),
-            polynomial_size: compressed_polynomial_size,
-            message_modulus,
-            carry_modulus,
-            ciphertext_modulus,
-            storage_log_modulus: self.storage_log_modulus,
-            lwe_per_glwe: LweCiphertextCount(compressed_polynomial_size.0),
-            bodies_count: num_lwes,
-            initial_len: uncompressed_len,
-        });
-
-        CudaPackedGlweCiphertextList {
-            data: packed_glwe_list,
-            meta,
-        }
+        glwe_array_out
     }
     pub fn get_compression_size_on_gpu(
         &self,
@@ -259,7 +259,6 @@ impl CudaCompressionKey {
             lwe_pksk.decomposition_base_log(),
             lwe_pksk.decomposition_level_count(),
             self.lwe_per_glwe.0 as u32,
-            self.storage_log_modulus.0 as u32,
             num_lwes,
         )
     }
@@ -308,7 +307,6 @@ impl CudaDecompressionKey {
         let message_modulus = self.message_modulus;
         let carry_modulus = self.carry_modulus;
         let ciphertext_modulus = self.ciphertext_modulus;
-        let storage_log_modulus = meta.storage_log_modulus;
 
         match &self.blind_rotate_key {
             CudaBootstrappingKey::Classic(bsk) => {
@@ -328,10 +326,9 @@ impl CudaDecompressionKey {
                 unsafe {
                     decompress_integer_radix_async(
                         streams,
-                        &mut output_lwe.0.d_vec,
-                        &packed_list.data,
+                        &mut output_lwe,
+                        packed_list,
                         &bsk.d_vec,
-                        meta.bodies_count as u32,
                         message_modulus,
                         carry_modulus,
                         encryption_glwe_dimension,
@@ -341,7 +338,6 @@ impl CudaDecompressionKey {
                         lwe_dimension,
                         bsk.decomp_base_log(),
                         bsk.decomp_level_count(),
-                        storage_log_modulus.0 as u32,
                         indexes_array.as_slice(),
                         indexes_array_len.0 as u32,
                     );
@@ -403,7 +399,6 @@ impl CudaDecompressionKey {
 
         let message_modulus = self.message_modulus;
         let carry_modulus = self.carry_modulus;
-        let storage_log_modulus = meta.storage_log_modulus;
 
         match &self.blind_rotate_key {
             CudaBootstrappingKey::Classic(bsk) => {
@@ -415,7 +410,6 @@ impl CudaDecompressionKey {
 
                 get_decompression_size_on_gpu(
                     streams,
-                    packed_list.bodies_count() as u32,
                     message_modulus,
                     carry_modulus,
                     encryption_glwe_dimension,
@@ -425,7 +419,6 @@ impl CudaDecompressionKey {
                     lwe_dimension,
                     bsk.decomp_base_log(),
                     bsk.decomp_level_count(),
-                    storage_log_modulus.0 as u32,
                     indexes_array_len.0 as u32,
                 )
             }
