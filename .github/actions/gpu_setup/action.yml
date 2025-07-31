@@ -40,6 +40,13 @@ runs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
 
+    - name: Check GCC
+      shell: bash
+      env:
+        GCC_VERSION: ${{ inputs.gcc-version }}
+      run: |
+        which gcc-"{GCC_VERSION}"
+
     - name: Install CUDA
       if: inputs.github-instance == 'true'
       shell: bash
