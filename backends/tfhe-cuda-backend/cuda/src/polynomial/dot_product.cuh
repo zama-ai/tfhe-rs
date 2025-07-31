@@ -100,7 +100,6 @@ __host__ void host_glwe_wrapping_polynomial_mul_one_to_many(
     cudaStream_t stream, uint32_t gpu_index, Torus *result,
     const Torus *glwe_lhs, int8_t *circulant, const Torus *poly_rhs,
     uint32_t polynomial_size, uint32_t glwe_dimension, uint32_t n_rhs) {
-  uint64_t const *glwe_lhs_t = static_cast<uint64_t const *>(glwe_lhs);
 
   for (unsigned i = 0; i < glwe_dimension + 1; ++i) {
     host_wrapping_polynomial_mul_one_to_many<uint64_t, ulonglong4>(

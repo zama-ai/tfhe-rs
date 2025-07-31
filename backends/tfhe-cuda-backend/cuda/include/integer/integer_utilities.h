@@ -3767,8 +3767,6 @@ template <typename Torus> struct int_tree_sign_reduction_buffer {
     gpu_memory_allocated = allocate_gpu_memory;
     this->params = params;
 
-    uint64_t big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
-
     block_selector_f = [](Torus msb, Torus lsb) -> Torus {
       if (msb == IS_EQUAL) // EQUAL
         return lsb;
@@ -3863,8 +3861,6 @@ template <typename Torus> struct int_comparison_diff_buffer {
         return 42;
       }
     };
-
-    uint64_t big_size = (params.big_lwe_dimension + 1) * sizeof(Torus);
 
     tmp_packed = new CudaRadixCiphertextFFI;
     create_zero_radix_ciphertext_async<Torus>(
