@@ -733,7 +733,7 @@ void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
                                          int8_t **buffer) {
   auto x = (pbs_buffer<uint64_t, CLASSICAL> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
-    delete x;
+  delete x;
 }
 
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(

@@ -42,6 +42,8 @@ void cleanup_cuda_full_propagation(void *const *streams,
       (int_fullprop_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
 
 uint64_t scratch_cuda_propagate_single_carry_kb_64_inplace(
@@ -160,6 +162,8 @@ void cleanup_cuda_propagate_single_carry(void *const *streams,
   int_sc_prop_memory<uint64_t> *mem_ptr =
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 
@@ -252,6 +256,8 @@ void cleanup_cuda_apply_univariate_lut_kb_64(void *const *streams,
   PUSH_RANGE("cleanup univar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 
@@ -315,6 +321,8 @@ void cleanup_cuda_apply_bivariate_lut_kb_64(void *const *streams,
   PUSH_RANGE("cleanup bivar lut")
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 
