@@ -83,6 +83,8 @@ void cleanup_cuda_integer_radix_logical_scalar_shift(
       (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
 
 void cleanup_cuda_integer_radix_arithmetic_scalar_shift(
@@ -93,4 +95,6 @@ void cleanup_cuda_integer_radix_arithmetic_scalar_shift(
       (int_arithmetic_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }

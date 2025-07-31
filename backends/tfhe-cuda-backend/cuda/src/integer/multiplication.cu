@@ -198,6 +198,8 @@ void cleanup_cuda_integer_mult(void *const *streams,
       (int_mul_memory<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 
@@ -248,4 +250,6 @@ void cleanup_cuda_integer_radix_partial_sum_ciphertexts_vec(
       (int_sum_ciphertexts_vec_memory<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }

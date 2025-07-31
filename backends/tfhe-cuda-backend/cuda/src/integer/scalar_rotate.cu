@@ -41,4 +41,6 @@ void cleanup_cuda_integer_radix_scalar_rotate(void *const *streams,
       (int_logical_scalar_shift_buffer<uint64_t> *)(*mem_ptr_void);
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }

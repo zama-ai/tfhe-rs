@@ -440,6 +440,8 @@ void cleanup_cuda_multi_bit_programmable_bootstrap(void *stream,
                                                    int8_t **buffer) {
   auto x = (pbs_buffer<uint64_t, MULTI_BIT> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
+  delete x;
+  *buffer = nullptr;
 }
 
 /**
