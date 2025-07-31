@@ -37,8 +37,8 @@ runs:
         GCC_VERSION: ${{ inputs.gcc-version }}
       run: |
         sudo apt-get install gcc-"{GCC_VERSION}" g++-"{GCC_VERSION}"
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-"{GCC_VERSION}" 20
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-"{GCC_VERSION}" 20
 
     - name: Check GCC
       shell: bash
