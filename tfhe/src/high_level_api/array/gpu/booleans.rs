@@ -9,7 +9,7 @@ use crate::high_level_api::array::{ArrayBackend, BackendDataContainer, BackendDa
 use crate::high_level_api::global_state;
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 use crate::prelude::{FheDecrypt, FheTryEncrypt};
-use crate::{ClientKey, FheBoolId};
+use crate::{ClientKey, FheBool, FheBoolId, Tag};
 use rayon::prelude::*;
 use std::ops::RangeBounds;
 
@@ -69,6 +69,31 @@ impl<'a> TensorSlice<'a, GpuBooleanSliceMut<'a>> {
 impl From<Vec<CudaBooleanBlock>> for GpuBooleanOwned {
     fn from(value: Vec<CudaBooleanBlock>) -> Self {
         Self(value)
+    }
+}
+
+impl From<Vec<FheBool>> for GpuFheBoolArray {
+    fn from(value: Vec<FheBool>) -> Self {
+        let container = with_cuda_internal_keys(|cuda_keys| {
+            value
+                .into_iter()
+                .map(|val| val.ciphertext.into_gpu(&cuda_keys.streams))
+                .collect::<Vec<_>>()
+        });
+
+        let shape = vec![container.len()];
+        Self::new(container, shape)
+    }
+}
+
+impl From<GpuFheBoolArray> for Vec<FheBool> {
+    fn from(value: GpuFheBoolArray) -> Self {
+        value
+            .into_container()
+            .0
+            .into_iter()
+            .map(|cuda_bool_block| FheBool::new(cuda_bool_block, Tag::default()))
+            .collect()
     }
 }
 
