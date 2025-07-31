@@ -254,14 +254,26 @@ impl EncryptionAtomicPattern for StandardAtomicPatternClientKey {
     }
 
     fn encryption_key(&self) -> LweSecretKeyView<'_, u64> {
-        match self.parameters.encryption_key_choice() {
+        match self.encryption_key_choice() {
             EncryptionKeyChoice::Big => self.large_lwe_secret_key(),
             EncryptionKeyChoice::Small => self.small_lwe_secret_key(),
         }
     }
 
+    fn intermediate_encryption_key(&self) -> LweSecretKeyView<'_, u64> {
+        // Use the opposite key as the one used for encryption
+        match self.encryption_key_choice() {
+            EncryptionKeyChoice::Big => self.small_lwe_secret_key(),
+            EncryptionKeyChoice::Small => self.large_lwe_secret_key(),
+        }
+    }
+
+    fn encryption_key_choice(&self) -> EncryptionKeyChoice {
+        self.parameters.encryption_key_choice()
+    }
+
     fn encryption_noise(&self) -> DynamicDistribution<u64> {
-        match self.parameters.encryption_key_choice() {
+        match self.encryption_key_choice() {
             EncryptionKeyChoice::Big => self.parameters.glwe_noise_distribution(),
             EncryptionKeyChoice::Small => self.parameters.lwe_noise_distribution(),
         }
