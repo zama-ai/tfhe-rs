@@ -697,8 +697,9 @@ test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
 test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build \
 		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p $(TFHE_SPEC) &> /tmp/gpu_compile_output
-	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning:" | grep "\[tfhe-cuda-backend" | grep -v "inline function" || true) && \
+	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning #" | grep "\[tfhe-cuda-backend" | grep -v "inline qualifier" || true) && \
 	if [[ "$${WARNINGS}" != "" ]]; then \
+	    echo "FAILING BECAUSE CUDA COMPILATION WARNINGS WERE DETECTED: " && \
 		echo "$${WARNINGS}" && exit 1; \
 	fi
 
