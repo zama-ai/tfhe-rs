@@ -691,12 +691,19 @@ test_integer_gpu_debug: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile release_lto_off \
 		--features=integer,gpu-debug -p $(TFHE_SPEC) -- integer::gpu::server_key::
 
-.PHONY: test_high_level_api_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
-test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
-	export RUSTFLAGS="$(RUSTFLAGS)" && \
+.PHONY: test_high_level_api_gpu_valgrind # Run the tests of the integer module with Debug flags for CUDA
+test_high_level_api_gpu_valgrind: install_rs_build_toolchain install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
 	export TFHE_SPEC="$(TFHE_SPEC)" && \
-	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh
+	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --cpu
+
+.PHONY: test_high_level_api_gpu_sanitizer # Run the tests of the integer module with Debug flags for CUDA
+test_high_level_api_gpu_sanitizer: install_rs_build_toolchain install_cargo_nextest
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
+	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
+	export TFHE_SPEC="$(TFHE_SPEC)" && \
+	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh --gpu
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
 test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain

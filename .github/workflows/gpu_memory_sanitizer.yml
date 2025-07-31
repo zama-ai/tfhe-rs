@@ -1,5 +1,5 @@
 # Compile and test tfhe-cuda-backend on an AWS instance
-name: Cuda - Fast tests
+name: Cuda - GPU Memory Checks
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,55 +21,19 @@ env:
 
 on:
   # Allows you to run this workflow manually from the Actions tab as an alternative.
-  workflow_dispatch:
   pull_request:
+    types: [ labeled ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  should-run:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      gpu_test: ${{ env.IS_PULL_REQUEST == 'false' || steps.changed-files.outputs.gpu_any_changed }}
-    steps:
-      - name: Checkout tfhe-rs
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          fetch-depth: 0
-          persist-credentials: 'false'
-          token: ${{ env.CHECKOUT_TOKEN }}
-
-      - name: Check for file changes
-        id: changed-files
-        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46.0.5
-        with:
-          files_yaml: |
-            gpu:
-              - tfhe/Cargo.toml
-              - tfhe/build.rs
-              - backends/tfhe-cuda-backend/**
-              - tfhe/src/core_crypto/gpu/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_unsigned/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_signed/**
-              - tfhe/src/integer/server_key/radix_parallel/tests_cases_unsigned.rs
-              - tfhe/src/integer/gpu/**
-              - tfhe/src/shortint/parameters/**
-              - tfhe/src/high_level_api/**
-              - tfhe/src/c_api/**
-              - 'tfhe/docs/**/**.md'
-              - '.github/workflows/gpu_fast_tests.yml'
-              - scripts/integer-tests.sh
-              - ci/slab.toml
-
   setup-instance:
     name: Setup instance (cuda-tests)
-    needs: should-run
-    if: github.event_name == 'workflow_dispatch' ||
-      needs.should-run.outputs.gpu_test == 'true'
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'approved')
     outputs:
       runner-name: ${{ steps.start-remote-instance.outputs.label || steps.start-github-instance.outputs.runner_group }}
     steps:
@@ -93,25 +57,26 @@ jobs:
           echo "runner_group=${EXTERNAL_CONTRIBUTION_RUNNER}" >> "$GITHUB_OUTPUT"
 
   cuda-tests-linux:
-    name: CUDA tests
-    needs: [ should-run, setup-instance ]
+    name: CUDA Memory Checks tests
+    needs: [ setup-instance ]
     if: github.event_name != 'pull_request' ||
       (github.event_name == 'pull_request' && needs.setup-instance.result != 'skipped')
     concurrency:
       group: ${{ github.workflow_ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       # explicit include-based build matrix, of known valid options
       matrix:
         include:
           - os: ubuntu-22.04
-            cuda: "12.2"
+            cuda: "12.8"
             gcc: 11 
     steps:
       - name: Checkout tfhe-rs
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: 'false'
           token: ${{ env.CHECKOUT_TOKEN }}
@@ -123,32 +88,18 @@ jobs:
           gcc-version: ${{ matrix.gcc }}
           github-instance: ${{ env.SECRETS_AVAILABLE == 'false' }}
 
+      - name: Find tools
+        run: |
+          find /usr -executable -name "compute-sanitizer"
+
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases
         with:
           toolchain: stable
 
-      - name: Enable nvidia multi-process service
+      - name: Run memory sanitizer
         run: |
-          nvidia-cuda-mps-control -d
-
-      - name: Run core crypto and internal CUDA backend tests
-        run: |
-          make test_core_crypto_gpu
-          make test_integer_compression_gpu
-          make test_cuda_backend
-
-      - name: Run user docs tests
-        run: |
-          make test_user_doc_gpu
-
-      - name: Test C API
-        run: |
-          make test_c_api_gpu
-
-      - name: Run High Level API Tests
-        run: |
-          make test_high_level_api_gpu
+          make test_high_level_api_gpu_sanitizer
 
   slack-notify:
     name: Slack Notification
@@ -170,7 +121,7 @@ jobs:
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
           SLACK_COLOR: ${{ needs.cuda-tests-linux.result }}
-          SLACK_MESSAGE: "Base GPU tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
+          SLACK_MESSAGE: "GPU Memory Checks tests finished with status: ${{ needs.cuda-tests-linux.result }}. (${{ env.PULL_REQUEST_MD_LINK }}[action run](${{ env.ACTION_RUN_URL }}))"
 
   teardown-instance:
     name: Teardown instance (cuda-tests)
