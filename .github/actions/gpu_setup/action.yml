@@ -30,6 +30,16 @@ runs:
         CMAKE_VERSION: 3.29.6
         CMAKE_SCRIPT_SHA: "6e4fada5cba3472ae503a11232b6580786802f0879cead2741672bf65d97488a"
 
+    - name: Install GCC
+      if: inputs.github-instance == 'true'
+      shell: bash
+      env:
+        GCC_VERSION: ${{ inputs.gcc-version }}
+      run: |
+        sudo apt-get install gcc-"{GCC_VERSION}" g++-"{GCC_VERSION}"
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
+
     - name: Install CUDA
       if: inputs.github-instance == 'true'
       shell: bash
