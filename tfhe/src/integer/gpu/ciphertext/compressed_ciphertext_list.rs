@@ -125,7 +125,6 @@ impl CudaCompressedCiphertextList {
     }
 
     #[allow(clippy::unnecessary_wraps)]
-    #[cfg(feature = "gpu")]
     fn get_blocks_of_size_on_gpu(
         &self,
         index: usize,
@@ -166,7 +165,6 @@ impl CudaCompressedCiphertextList {
             .transpose()
     }
 
-    #[cfg(feature = "gpu")]
     pub fn get_decompression_size_on_gpu(
         &self,
         index: usize,

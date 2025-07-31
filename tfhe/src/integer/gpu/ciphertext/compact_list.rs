@@ -112,7 +112,6 @@ impl CudaCompactCiphertextListExpander {
         };
         Some((blocks, current_info.data_kind))
     }
-    #[cfg(feature = "gpu")]
     fn get_blocks_of_size_on_gpu(&self, index: usize, streams: &CudaStreams) -> Option<u64> {
         let preceding_infos = self.blocks_info.get(..index)?;
         let current_info = self.blocks_info.get(index)?;
@@ -142,7 +141,6 @@ impl CudaCompactCiphertextListExpander {
             .transpose()
     }
 
-    #[cfg(feature = "gpu")]
     pub fn get_decompression_size_on_gpu(
         &self,
         index: usize,
