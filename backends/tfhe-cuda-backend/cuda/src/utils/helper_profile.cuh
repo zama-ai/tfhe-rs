@@ -2,7 +2,7 @@
 #define HELPER_PROFILE
 
 #ifdef USE_NVTOOLS
-#include <nvToolsExt.h>
+#include <nvtx3/nvToolsExt.h>
 #endif
 
 void cuda_nvtx_label_with_color(const char *name);
