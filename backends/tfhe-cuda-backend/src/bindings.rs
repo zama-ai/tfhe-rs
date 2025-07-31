@@ -1778,6 +1778,7 @@ unsafe extern "C" {
         pbs_level: u32,
         pbs_base_log: u32,
         grouping_factor: u32,
+        flattened_lwe_compact_lists: *mut u64,
         num_lwes_per_compact_list: *const u32,
         is_boolean_array: *const bool,
         num_compact_lists: u32,

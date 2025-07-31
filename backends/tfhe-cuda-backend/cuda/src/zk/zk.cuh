@@ -32,10 +32,16 @@ __host__ void host_expand_without_verification(
   auto d_lwe_compact_input_indexes = mem_ptr->d_lwe_compact_input_indexes;
   auto d_body_id_per_compact_list = mem_ptr->d_body_id_per_compact_list;
   if (sizeof(Torus) == 8) {
-    cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
-                       lwe_flattened_compact_array_in, lwe_dimension, num_lwes,
-                       d_lwe_compact_input_indexes, d_body_id_per_compact_list);
-
+    if (false) {
+      cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
+                         lwe_flattened_compact_array_in, lwe_dimension,
+                         num_lwes, d_lwe_compact_input_indexes,
+                         d_body_id_per_compact_list);
+    } else {
+      alternate_cuda_lwe_expand_64(streams[0], gpu_indexes[0], expanded_lwes,
+                                   lwe_dimension, num_lwes,
+                                   mem_ptr->d_expand_jobs);
+    }
   } else
     PANIC("Cuda error: expand is only supported on 64 bits")
 
@@ -85,6 +91,8 @@ template <typename Torus>
 __host__ uint64_t scratch_cuda_expand_without_verification(
     cudaStream_t const *streams, uint32_t const *gpu_indexes,
     uint32_t gpu_count, zk_expand_mem<Torus> **mem_ptr,
+    Torus *flattened_lwe_compact_lists,
+    const uint32_t flattened_lwe_compact_list_lwe_dimension,
     const uint32_t *num_lwes_per_compact_list, const bool *is_boolean_array,
     uint32_t num_compact_lists, int_radix_params computing_params,
     int_radix_params casting_params, KS_TYPE casting_key_type,
@@ -93,8 +101,9 @@ __host__ uint64_t scratch_cuda_expand_without_verification(
   uint64_t size_tracker = 0;
   *mem_ptr = new zk_expand_mem<Torus>(
       streams, gpu_indexes, gpu_count, computing_params, casting_params,
-      casting_key_type, num_lwes_per_compact_list, is_boolean_array,
-      num_compact_lists, allocate_gpu_memory, size_tracker);
+      casting_key_type, flattened_lwe_compact_lists,
+      flattened_lwe_compact_list_lwe_dimension, num_lwes_per_compact_list,
+      is_boolean_array, num_compact_lists, allocate_gpu_memory, size_tracker);
   return size_tracker;
 }
 
