@@ -27,8 +27,8 @@ template <typename Torus> struct int_compression {
     this->storage_log_modulus = storage_log_modulus;
     this->body_count = num_radix_blocks;
 
-    Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
-                                  compression_params.polynomial_size;
+    uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
+                                     compression_params.polynomial_size;
 
     tmp_lwe = (Torus *)cuda_malloc_with_size_tracking_async(
         num_radix_blocks * (compression_params.small_lwe_dimension + 1) *
@@ -84,11 +84,11 @@ template <typename Torus> struct int_decompression {
     this->num_radix_blocks = num_radix_blocks;
     this->body_count = body_count;
 
-    Torus glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
-                                  compression_params.polynomial_size;
-    Torus lwe_accumulator_size = (compression_params.glwe_dimension *
-                                      compression_params.polynomial_size +
-                                  1);
+    uint64_t glwe_accumulator_size = (compression_params.glwe_dimension + 1) *
+                                     compression_params.polynomial_size;
+    uint64_t lwe_accumulator_size = (compression_params.glwe_dimension *
+                                         compression_params.polynomial_size +
+                                     1);
     decompression_rescale_lut = new int_radix_lut<Torus>(
         streams, gpu_indexes, gpu_count, encryption_params, 1, num_radix_blocks,
         allocate_gpu_memory, size_tracker);
