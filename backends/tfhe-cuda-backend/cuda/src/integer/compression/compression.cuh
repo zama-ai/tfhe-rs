@@ -331,7 +331,8 @@ __host__ void host_integer_decompress(
     /// gather data to GPU 0 we can copy back to the original indexing
     multi_gpu_scatter_lwe_async<Torus>(
         streams, gpu_indexes, active_gpu_count, lwe_array_in_vec, extracted_lwe,
-        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes, num_radix_blocks,
+        lut->h_lwe_indexes_in, lut->using_trivial_lwe_indexes,
+        lut->active_gpu_count, num_radix_blocks,
         compression_params.small_lwe_dimension + 1);
 
     /// Apply PBS
