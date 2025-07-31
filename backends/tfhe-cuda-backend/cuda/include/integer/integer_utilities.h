@@ -12,6 +12,8 @@
 #include <functional>
 #include <queue>
 
+#include <stdio.h>
+
 class NoiseLevel {
 public:
   // Constants equivalent to the Rust code
@@ -749,6 +751,7 @@ template <typename Torus> struct int_radix_lut {
     free(h_lwe_indexes_in);
     free(h_lwe_indexes_out);
 
+      printf("HEEERE\n");
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      tmp_lwe_before_ks, gpu_memory_allocated);

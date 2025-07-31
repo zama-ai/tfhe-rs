@@ -41,6 +41,7 @@ void cleanup_cuda_integer_bitop(void *const *streams,
   int_bitop_buffer<uint64_t> *mem_ptr =
       (int_bitop_buffer<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
 }
 
 void update_degrees_after_bitand(uint64_t *output_degrees,

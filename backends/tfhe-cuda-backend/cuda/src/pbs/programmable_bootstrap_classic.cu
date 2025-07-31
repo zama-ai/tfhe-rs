@@ -5,6 +5,8 @@
 #endif
 #include "ciphertext.h"
 
+#include <stdio.h>
+
 template <typename Torus>
 bool has_support_to_cuda_programmable_bootstrap_cg(uint32_t glwe_dimension,
                                                    uint32_t polynomial_size,
@@ -731,6 +733,8 @@ void cleanup_cuda_programmable_bootstrap(void *stream, uint32_t gpu_index,
                                          int8_t **buffer) {
   auto x = (pbs_buffer<uint64_t, CLASSICAL> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
+    printf("RELEASE CUDA PBS CLASSICAL\n");
+    delete x;
 }
 
 template bool has_support_to_cuda_programmable_bootstrap_cg<uint64_t>(
