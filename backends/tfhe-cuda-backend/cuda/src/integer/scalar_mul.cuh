@@ -103,12 +103,7 @@ __host__ void host_integer_scalar_mul_radix(
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
 
   if (mem->anticipated_buffers_drop) {
-    release_radix_ciphertext_async(streams[0], gpu_indexes[0],
-                                   preshifted_buffer,
-                                   mem->gpu_memory_allocated);
-    delete preshifted_buffer;
-    mem->logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
-    delete (mem->logical_scalar_shift_buffer);
+    mem->release_buffers(streams, gpu_indexes, gpu_count);
   }
 
   if (j == 0) {

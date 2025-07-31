@@ -45,4 +45,6 @@ void cleanup_cuda_sub_and_propagate_single_carry(void *const *streams,
 
   mem_ptr->release((cudaStream_t *)streams, gpu_indexes, gpu_count);
   POP_RANGE()
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }

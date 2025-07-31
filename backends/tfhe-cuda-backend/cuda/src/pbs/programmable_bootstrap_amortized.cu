@@ -372,4 +372,5 @@ void cleanup_cuda_programmable_bootstrap_amortized(void *stream,
 
   // Free memory
   cuda_drop_async(*pbs_buffer, static_cast<cudaStream_t>(stream), gpu_index);
+  *pbs_buffer = nullptr;
 }

@@ -75,6 +75,8 @@ void cleanup_cuda_integer_compress_radix_ciphertext_64(
   int_compression<uint64_t> *mem_ptr =
       (int_compression<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
 
 void cleanup_cuda_integer_decompress_radix_ciphertext_64(
@@ -84,4 +86,6 @@ void cleanup_cuda_integer_decompress_radix_ciphertext_64(
   int_decompression<uint64_t> *mem_ptr =
       (int_decompression<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
