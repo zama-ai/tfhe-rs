@@ -1,5 +1,5 @@
 #ifndef CNCRT_CRYPTO_CUH
-#define CNCRT_CRPYTO_CUH
+#define CNCRT_CRYPTO_CUH
 
 #include "crypto/torus.cuh"
 #include "device.h"
@@ -148,4 +148,4 @@ __device__ Torus decompose_one(Torus &state, Torus mask_mod_b, int base_log) {
   return res;
 }
 
-#endif // CNCRT_CRPYTO_H
+#endif // CNCRT_CRYPTO_CUH
