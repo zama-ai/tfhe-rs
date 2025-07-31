@@ -89,7 +89,7 @@ jobs:
 
       - name: Find tools
         run: |
-          apt update && apt install -y valgrind 
+          sudo apt update && sudo apt install -y valgrind 
           find /usr -executable -name "compute-sanitizer"
           which valgrind
 
