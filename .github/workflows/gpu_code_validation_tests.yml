@@ -89,7 +89,9 @@ jobs:
 
       - name: Find tools
         run: |
+          apt update && apt install -y valgrind 
           find /usr -executable -name "compute-sanitizer"
+          which valgrind
 
       - name: Install latest stable
         uses: dtolnay/rust-toolchain@b3b07ba8b418998c39fb20f53e8b695cdcc8de1b # zizmor: ignore[stale-action-refs] this action doesn't create releases

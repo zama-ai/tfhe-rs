@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Build the tests but don't run them
 RUSTFLAGS="$RUSTFLAGS" cargo "${CARGO_RS_BUILD_TOOLCHAIN}" test --no-run --profile "${CARGO_PROFILE}" \
-  --features=integer,internal-keycache,gpu,zk-pok -p "${TFHE_SPEC}"
+  --features=integer,internal-keycache,gpu-debug,zk-pok -p "${TFHE_SPEC}"
 
 # Find the test executable -> last one to have been modified
 EXECUTABLE=target/release/deps/$(find target/release/deps/ -type f -executable -name "tfhe-*" -printf "%T@ %f\n" |sort -nr|sed 's/^.* //; q;')
 
 # List the tests into a temporary file
 RUSTFLAGS="$RUSTFLAGS" cargo "${CARGO_RS_BUILD_TOOLCHAIN}" nextest list --cargo-profile "${CARGO_PROFILE}" \
-          --features=integer,internal-keycache,gpu,zk-pok -p "${TFHE_SPEC}" &> /tmp/test_list.txt
+          --features=integer,internal-keycache,gpu-debug,zk-pok -p "${TFHE_SPEC}" &> /tmp/test_list.txt
 
 # Filter the tests to get only the HL ones
 TESTS_HL=$(sed -e $'s/\x1b\[[0-9;]*m//g' <  /tmp/test_list.txt | grep 'high_level_api::.*gpu.*')
