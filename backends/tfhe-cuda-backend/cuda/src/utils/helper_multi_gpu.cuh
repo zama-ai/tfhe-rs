@@ -100,9 +100,13 @@ void multi_gpu_scatter_lwe_async(cudaStream_t const *streams,
                                  uint32_t const *gpu_indexes,
                                  uint32_t gpu_count, std::vector<Torus *> &dest,
                                  Torus const *src, Torus const *h_src_indexes,
-                                 bool is_trivial_index, uint32_t num_inputs,
-                                 uint32_t lwe_size) {
+                                 bool is_trivial_index,
+                                 uint32_t max_active_gpu_count,
+                                 uint32_t num_inputs, uint32_t lwe_size) {
 
+  if (max_active_gpu_count < gpu_count)
+    PANIC("Cuda error: number of gpus in scatter should be <= number of gpus "
+          "used to create the lut")
   cuda_synchronize_stream(streams[0], gpu_indexes[0]);
   dest.resize(gpu_count);
   for (uint i = 0; i < gpu_count; i++) {
