@@ -63,7 +63,7 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
   }
 
   Index twiddle_shift = 1;
-  for (Index l = LOG2_DEGREE - 1; l >= 1; --l) {
+  for (Index l = LOG2_DEGREE - 1; l >= 5; --l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     twiddle_shift <<= 1;
@@ -96,8 +96,43 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
       tid = tid + STRIDE;
     }
   }
-  __syncthreads();
 
+  for (Index l = 4; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncwarp();
+    double2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      w = negtwiddles[tid / lane_mask + twiddle_shift];
+
+      w *= v[i];
+
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+      tid = tid + STRIDE;
+    }
+  }
+
+  __syncthreads();
   // store registers in SM
   tid = threadIdx.x;
 #pragma unroll
@@ -107,6 +142,121 @@ template <class params> __device__ void NSMFFT_direct(double2 *A) {
     tid = tid + STRIDE;
   }
   __syncthreads();
+}
+
+/*
+ * negacyclic fft optimized for 2_2 params
+   it uses the twiddles from shared memory for extra performance
+   this is possible cause we know for 2_2 params will have memory available
+   the fft is returned in registers to avoid extra synchronizations
+ */
+template <class params>
+__device__ void NSMFFT_direct_2_2_params(double2 *A, double2 *fft_out,
+                                         double2 *shared_twiddles) {
+
+  /* We don't make bit reverse here, since twiddles are already reversed
+   *  Each thread is always in charge of "opt/2" pairs of coefficients,
+   *  which is why we always loop through N/2 by N/opt strides
+   *  The pragma unroll instruction tells the compiler to unroll the
+   *  full loop, which should increase performance
+   */
+
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  Index tid = threadIdx.x;
+  double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // load into registers
+  // #pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    u[i] = fft_out[i];
+    v[i] = fft_out[i + params::opt / 2];
+  }
+
+  // level 1
+  // we don't make actual complex multiplication on level1 since we have only
+  // one twiddle, it's real and image parts are equal, so we can multiply
+  // it with simpler operations
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = v[i] * (double2){0.707106781186547461715008466854,
+                         0.707106781186547461715008466854};
+    v[i] = u[i] - w;
+    u[i] = u[i] + w;
+  }
+
+  Index twiddle_shift = 1;
+  for (Index l = LOG2_DEGREE - 1; l >= 5; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = A[tid ^ lane_mask];
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      w = shared_twiddles[tid / lane_mask + twiddle_shift];
+
+      w *= v[i];
+
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+      tid = tid + STRIDE;
+    }
+  }
+
+  for (Index l = 4; l >= 1; --l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    twiddle_shift <<= 1;
+
+    tid = threadIdx.x;
+    double2 reg_A[BUTTERFLY_DEPTH];
+
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
+      w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+      w = shared_twiddles[tid / lane_mask + twiddle_shift];
+
+      w *= v[i];
+
+      v[i] = u[i] - w;
+      u[i] = u[i] + w;
+      tid = tid + STRIDE;
+    }
+  }
+
+  // Return result in registers, no need to synchronize here
+  // only with we need to use the same shared memory afterwards
+  // #pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; i++) {
+    fft_out[i] = u[i];
+    fft_out[i + params::opt / 2] = v[i];
+  }
 }
 
 /*
@@ -144,7 +294,46 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
   }
 
   Index twiddle_shift = DEGREE;
-  for (Index l = 1; l <= LOG2_DEGREE - 1; ++l) {
+  for (Index l = 1; l <= 4; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncwarp();
+    double2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * conjugate(negtwiddles[tid / lane_mask + twiddle_shift]);
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
+
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  for (Index l = 5; l <= LOG2_DEGREE - 1; ++l) {
     Index lane_mask = 1 << (l - 1);
     Index thread_mask = (1 << l) - 1;
     tid = threadIdx.x;
@@ -199,6 +388,127 @@ template <class params> __device__ void NSMFFT_inverse(double2 *A) {
     tid = tid + STRIDE;
   }
   __syncthreads();
+}
+
+/*
+ * negacyclic inverse fft optimized for 2_2 params
+ * it uses the twiddles from shared memory for extra performance
+ * this is possible cause we know for 2_2 params will have memory available
+ * the input comes from registers to avoid some synchronizations and shared mem
+ * usage
+ */
+template <class params>
+__device__ void NSMFFT_inverse_2_2_params(double2 *A, double2 *buffer_regs,
+                                          double2 *shared_twiddles) {
+
+  /* We don't make bit reverse here, since twiddles are already reversed
+   *  Each thread is always in charge of "opt/2" pairs of coefficients,
+   *  which is why we always loop through N/2 by N/opt strides
+   *  The pragma unroll instruction tells the compiler to unroll the
+   *  full loop, which should increase performance
+   */
+
+  constexpr Index BUTTERFLY_DEPTH = params::opt >> 1;
+  constexpr Index LOG2_DEGREE = params::log2_degree;
+  constexpr Index DEGREE = params::degree;
+  constexpr Index HALF_DEGREE = params::degree >> 1;
+  constexpr Index STRIDE = params::degree / params::opt;
+
+  size_t tid = threadIdx.x;
+  double2 u[BUTTERFLY_DEPTH], v[BUTTERFLY_DEPTH], w;
+
+  // load into registers and divide by compressed polynomial size
+  // #pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    u[i] = buffer_regs[i];
+    v[i] = buffer_regs[i + params::opt / 2];
+
+    u[i] /= DEGREE;
+    v[i] /= DEGREE;
+  }
+
+  Index twiddle_shift = DEGREE;
+  for (Index l = 1; l <= 4; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    double2 reg_A[BUTTERFLY_DEPTH];
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * conjugate(shared_twiddles[tid / lane_mask + twiddle_shift]);
+
+      tid = tid + STRIDE;
+    }
+    __syncwarp();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      reg_A[i] = (u_stays_in_register) ? v[i] : u[i];
+      w = shfl_xor_double2(reg_A[i], 1 << (l - 1), 0xFFFFFFFF);
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+
+      tid = tid + STRIDE;
+    }
+  }
+
+  for (Index l = 5; l <= LOG2_DEGREE - 1; ++l) {
+    Index lane_mask = 1 << (l - 1);
+    Index thread_mask = (1 << l) - 1;
+    tid = threadIdx.x;
+    twiddle_shift >>= 1;
+
+    // at this point registers are ready for the  butterfly
+    tid = threadIdx.x;
+    __syncthreads();
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      w = (u[i] - v[i]);
+      u[i] += v[i];
+      v[i] = w * conjugate(shared_twiddles[tid / lane_mask + twiddle_shift]);
+
+      // keep one of the register for next iteration and store another one in sm
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      A[tid] = (u_stays_in_register) ? v[i] : u[i];
+
+      tid = tid + STRIDE;
+    }
+    __syncthreads();
+
+    // prepare registers for next butterfly iteration
+    tid = threadIdx.x;
+#pragma unroll
+    for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+      Index rank = tid & thread_mask;
+      bool u_stays_in_register = rank < lane_mask;
+      w = A[tid ^ lane_mask];
+      u[i] = (u_stays_in_register) ? u[i] : w;
+      v[i] = (u_stays_in_register) ? w : v[i];
+
+      tid = tid + STRIDE;
+    }
+  }
+
+// last iteration
+#pragma unroll
+  for (Index i = 0; i < BUTTERFLY_DEPTH; ++i) {
+    w = (u[i] - v[i]);
+    buffer_regs[i] = u[i] + v[i];
+    buffer_regs[i + params::opt / 2] =
+        w * (double2){0.707106781186547461715008466854,
+                      -0.707106781186547461715008466854};
+  }
 }
 
 /*
