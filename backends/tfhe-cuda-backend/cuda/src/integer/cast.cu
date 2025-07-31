@@ -61,4 +61,6 @@ void cleanup_cuda_extend_radix_with_sign_msb_64(void *const *streams,
 
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
   POP_RANGE()
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
