@@ -50,5 +50,7 @@ void cleanup_cuda_integer_radix_cmux(void *const *streams,
   int_cmux_buffer<uint64_t> *mem_ptr =
       (int_cmux_buffer<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
