@@ -688,7 +688,7 @@ test_integer_gpu_debug: install_rs_build_toolchain
 
 .PHONY: test_high_level_api_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
-	export RUSTFLAGS="$(RUSTFLAGS)" && \
+	export RUSTFLAGS="-C target-cpu=x86-64" && \
 	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
 	export TFHE_SPEC="$(TFHE_SPEC)" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh

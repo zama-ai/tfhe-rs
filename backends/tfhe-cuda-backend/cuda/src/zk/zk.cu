@@ -64,4 +64,6 @@ void cleanup_expand_without_verification_64(void *const *streams,
   zk_expand_mem<uint64_t> *mem_ptr =
       reinterpret_cast<zk_expand_mem<uint64_t> *>(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
