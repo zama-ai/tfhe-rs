@@ -2,7 +2,7 @@
 #define CUDA_INTEGER_UTILITIES_H
 
 #include "integer.h"
-#include "integer/radix_ciphertext.cuh"
+#include "../../src/integer/radix_ciphertext.cuh"
 #include "integer/radix_ciphertext.h"
 #include "keyswitch/keyswitch.h"
 #include "pbs/programmable_bootstrap.cuh"

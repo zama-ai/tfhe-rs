@@ -1,7 +1,7 @@
 #ifndef CUDA_INTEGER_RADIX_CIPHERTEXT_CUH
 #define CUDA_INTEGER_RADIX_CIPHERTEXT_CUH
 
-#include "device.h"
+#include "../../include/device.h"
 #include "integer/integer.h"
 #include "integer/radix_ciphertext.h"
 #include "utils/helper_profile.cuh"
