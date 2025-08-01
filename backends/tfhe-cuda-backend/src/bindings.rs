@@ -105,134 +105,6 @@ const _: () = {
         ms_input_variance
     ) - 32usize];
 };
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaLweCiphertextListFFI {
-    pub ptr: *mut ffi::c_void,
-    pub num_radix_blocks: u32,
-    pub lwe_dimension: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaLweCiphertextListFFI"]
-        [::std::mem::size_of::<CudaLweCiphertextListFFI>() - 16usize];
-    ["Alignment of CudaLweCiphertextListFFI"]
-        [::std::mem::align_of::<CudaLweCiphertextListFFI>() - 8usize];
-    ["Offset of field: CudaLweCiphertextListFFI::ptr"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, ptr) - 0usize];
-    ["Offset of field: CudaLweCiphertextListFFI::num_radix_blocks"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, num_radix_blocks) - 8usize];
-    ["Offset of field: CudaLweCiphertextListFFI::lwe_dimension"]
-        [::std::mem::offset_of!(CudaLweCiphertextListFFI, lwe_dimension) - 12usize];
-};
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct CudaPackedGlweCiphertextListFFI {
-    pub ptr: *mut ffi::c_void,
-    pub storage_log_modulus: u32,
-    pub lwe_per_glwe: u32,
-    pub total_lwe_bodies_count: u32,
-    pub glwe_dimension: u32,
-    pub polynomial_size: u32,
-}
-#[allow(clippy::unnecessary_operation, clippy::identity_op)]
-const _: () = {
-    ["Size of CudaPackedGlweCiphertextListFFI"]
-        [::std::mem::size_of::<CudaPackedGlweCiphertextListFFI>() - 32usize];
-    ["Alignment of CudaPackedGlweCiphertextListFFI"]
-        [::std::mem::align_of::<CudaPackedGlweCiphertextListFFI>() - 8usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::ptr"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
-    ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
-        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
-};
-unsafe extern "C" {
-    pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        compression_glwe_dimension: u32,
-        compression_polynomial_size: u32,
-        lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        num_radix_blocks: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        lwe_per_glwe: u32,
-        allocate_gpu_memory: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn scratch_cuda_integer_decompress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        encryption_glwe_dimension: u32,
-        encryption_polynomial_size: u32,
-        compression_glwe_dimension: u32,
-        compression_polynomial_size: u32,
-        lwe_dimension: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        num_blocks_to_decompress: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_integer_compress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        glwe_array_out: *mut CudaPackedGlweCiphertextListFFI,
-        lwe_array_in: *const CudaLweCiphertextListFFI,
-        fp_ksk: *const *mut ffi::c_void,
-        mem_ptr: *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cuda_integer_decompress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        lwe_array_out: *mut CudaLweCiphertextListFFI,
-        glwe_in: *const CudaPackedGlweCiphertextListFFI,
-        indexes_array: *const u32,
-        bsks: *const *mut ffi::c_void,
-        mem_ptr: *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_integer_compress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_integer_decompress_radix_ciphertext_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_SHIFT: SHIFT_OR_ROTATE_TYPE = 0;
 pub const SHIFT_OR_ROTATE_TYPE_RIGHT_SHIFT: SHIFT_OR_ROTATE_TYPE = 1;
 pub const SHIFT_OR_ROTATE_TYPE_LEFT_ROTATE: SHIFT_OR_ROTATE_TYPE = 2;
@@ -366,6 +238,55 @@ const _: () = {
         CudaScalarDivisorFFI,
         divisor_has_more_bits_than_numerator
     ) - 60usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaLweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub num_radix_blocks: u32,
+    pub lwe_dimension: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaLweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaLweCiphertextListFFI>() - 16usize];
+    ["Alignment of CudaLweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaLweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaLweCiphertextListFFI::num_radix_blocks"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, num_radix_blocks) - 8usize];
+    ["Offset of field: CudaLweCiphertextListFFI::lwe_dimension"]
+        [::std::mem::offset_of!(CudaLweCiphertextListFFI, lwe_dimension) - 12usize];
+};
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct CudaPackedGlweCiphertextListFFI {
+    pub ptr: *mut ffi::c_void,
+    pub storage_log_modulus: u32,
+    pub lwe_per_glwe: u32,
+    pub total_lwe_bodies_count: u32,
+    pub glwe_dimension: u32,
+    pub polynomial_size: u32,
+}
+#[allow(clippy::unnecessary_operation, clippy::identity_op)]
+const _: () = {
+    ["Size of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::size_of::<CudaPackedGlweCiphertextListFFI>() - 32usize];
+    ["Alignment of CudaPackedGlweCiphertextListFFI"]
+        [::std::mem::align_of::<CudaPackedGlweCiphertextListFFI>() - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::ptr"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, ptr) - 0usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::storage_log_modulus"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, storage_log_modulus) - 8usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::lwe_per_glwe"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, lwe_per_glwe) - 12usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::total_lwe_bodies_count"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, total_lwe_bodies_count) - 16usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::glwe_dimension"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, glwe_dimension) - 20usize];
+    ["Offset of field: CudaPackedGlweCiphertextListFFI::polynomial_size"]
+        [::std::mem::offset_of!(CudaPackedGlweCiphertextListFFI, polynomial_size) - 24usize];
 };
 unsafe extern "C" {
     pub fn scratch_cuda_apply_univariate_lut_kb_64(
@@ -1928,6 +1849,85 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_ilog2_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        num_radix_blocks: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        lwe_per_glwe: u32,
+        allocate_gpu_memory: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn scratch_cuda_integer_decompress_radix_ciphertext_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        encryption_glwe_dimension: u32,
+        encryption_polynomial_size: u32,
+        compression_glwe_dimension: u32,
+        compression_polynomial_size: u32,
+        lwe_dimension: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        num_blocks_to_decompress: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        glwe_array_out: *mut CudaPackedGlweCiphertextListFFI,
+        lwe_array_in: *const CudaLweCiphertextListFFI,
+        fp_ksk: *const *mut ffi::c_void,
+        mem_ptr: *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cuda_integer_decompress_radix_ciphertext_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        lwe_array_out: *mut CudaLweCiphertextListFFI,
+        glwe_in: *const CudaPackedGlweCiphertextListFFI,
+        indexes_array: *const u32,
+        bsks: *const *mut ffi::c_void,
+        mem_ptr: *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_compress_radix_ciphertext_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_decompress_radix_ciphertext_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
