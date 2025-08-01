@@ -45,7 +45,7 @@ commit d29dbeaccf09adfe0ee13e326f4633e14726b020 (HEAD -> baroux/dev/hpu_v80_2024
 Author: pgardratzama <pierre.gardrat@zama.ai>
 Date:   Tue Feb 11 16:12:10 2025 +0100
 
-    adds script to synthetize HPU 1 part PSI32
+    adds script to synthesize HPU 1 part PSI32
 ```
 Mainly the that commit as above with flow modification from Pierre Gardrat to support Vivado 2024.2.
 NB: Based on unofficial branch and thus not tagged
