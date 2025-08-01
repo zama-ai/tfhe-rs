@@ -174,7 +174,29 @@ impl ServerKey {
             let low2 = RadixCiphertext::from(d2.blocks[..num_blocks - block_index].to_vec());
             let low3 = RadixCiphertext::from(d3.blocks[..num_blocks - block_index].to_vec());
             let mut rem = RadixCiphertext::from(remainder.blocks[block_index..].to_vec());
+            println!("low1");
+            for block in &low1.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
 
+            println!("low2");
+            for block in &low2.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
+
+            println!("low3");
+            for block in &low3.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
+
+            println!("rem");
+            for block in &rem.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
             let (mut sub_results, cmps) = rayon::join(
                 || {
                     [&low3, &low2, &low1]
@@ -201,6 +223,32 @@ impl ServerKey {
             let (mut r1, mut o1) = sub_results.pop().unwrap();
             let (mut r2, mut o2) = sub_results.pop().unwrap();
             let (mut r3, mut o3) = sub_results.pop().unwrap();
+
+            println!("r1");
+            for block in &r1.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
+
+            println!("r2");
+            for block in &r2.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
+
+            println!("r3");
+            for block in &r3.blocks {
+                println!("{:?}", block.ct.get_body().data);
+            }
+            println!();
+
+            println!("o1: {:?}", o1.0.ct.get_body().data);
+            println!("o2: {:?}", o2.0.ct.get_body().data);
+            println!("o3: {:?}", o3.0.ct.get_body().data);
+
+            println!("cmp1: {:?}", cmps[0].0.ct.get_body().data);
+            println!("cmp2: {:?}", cmps[1].0.ct.get_body().data);
+            println!("cmp3: {:?}", cmps[2].0.ct.get_body().data);
 
             [&mut o3, &mut o2, &mut o1]
                 .into_par_iter()
