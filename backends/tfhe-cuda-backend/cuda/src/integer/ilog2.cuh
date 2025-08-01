@@ -1,0 +1,139 @@
+#ifndef ILOG2_CUH
+#define ILOG2_CUH
+
+#include "integer.cuh"
+#include "integer/integer_utilities.h"
+#include "multiplication.cuh"
+
+template <typename Torus>
+__host__ uint64_t scratch_integer_prepare_count_of_consecutive_bits(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, const int_radix_params params,
+    int_prepare_count_of_consecutive_bits_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, Direction direction, BitValue bit_value,
+    const bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_prepare_count_of_consecutive_bits_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks, direction,
+      bit_value, allocate_gpu_memory, size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_integer_prepare_count_of_consecutive_bits(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *ciphertext,
+    int_prepare_count_of_consecutive_bits_buffer<Torus> *mem_ptr,
+    void *const *bsks, Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
+  auto tmp = mem_ptr->tmp_ct;
+
+  host_apply_univariate_lut_kb<Torus>(streams, gpu_indexes, gpu_count, tmp,
+                                      ciphertext, mem_ptr->univ_lut_mem, ksks,
+                                      ms_noise_reduction_key, bsks);
+
+  if (mem_ptr->direction == Leading) {
+    host_radix_blocks_reverse_inplace<Torus>(streams, gpu_indexes, tmp);
+  }
+
+  host_compute_prefix_sum_hillis_steele<uint64_t>(
+      streams, gpu_indexes, gpu_count, ciphertext, tmp, mem_ptr->biv_lut_mem,
+      bsks, ksks, ms_noise_reduction_key, ciphertext->num_radix_blocks);
+}
+
+template <typename Torus>
+__host__ void host_sum_ciphertexts(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *output_ct,
+    CudaRadixCiphertextFFI const *input_ct, uint32_t counter_num_blocks,
+    int_sum_and_propagate_ciphertexts_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
+  if (input_ct->num_radix_blocks == 1) {
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             output_ct, 0, 1, input_ct, 0, 1);
+    return;
+  }
+
+  if (input_ct->num_radix_blocks == 2) {
+    CudaRadixCiphertextFFI prepared_1st_index;
+    as_radix_ciphertext_slice<Torus>(&prepared_1st_index, input_ct, 1, 2);
+
+    copy_radix_ciphertext_slice_async<Torus>(streams[0], gpu_indexes[0],
+                                             output_ct, 0, 1, input_ct, 0, 1);
+
+    host_add_and_propagate_single_carry<Torus>(
+        streams, gpu_indexes, gpu_count, output_ct, &prepared_1st_index,
+        nullptr, nullptr, mem_ptr->propagate_mem, bsks, ksks,
+        ms_noise_reduction_key, 0, 0);
+    return;
+  }
+
+  auto cts = mem_ptr->cts;
+
+  for (uint32_t i = 0; i < input_ct->num_radix_blocks; ++i) {
+    uint32_t output_start_index = i * counter_num_blocks;
+    copy_radix_ciphertext_slice_async<Torus>(
+        streams[0], gpu_indexes[0], cts, output_start_index,
+        output_start_index + 1, input_ct, i, i + 1);
+  }
+
+  host_integer_partial_sum_ciphertexts_vec_kb<Torus>(
+      streams, gpu_indexes, gpu_count, output_ct, cts, bsks, ksks,
+      ms_noise_reduction_key, mem_ptr->sum_mem, counter_num_blocks,
+      input_ct->num_radix_blocks);
+
+  host_propagate_single_carry<Torus>(streams, gpu_indexes, gpu_count, output_ct,
+                                     nullptr, nullptr, mem_ptr->propagate_mem,
+                                     bsks, ksks, ms_noise_reduction_key, 0, 0);
+}
+
+template <typename Torus>
+__host__ uint64_t scratch_integer_count_of_consecutive_bits(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, const int_radix_params params,
+    int_count_of_consecutive_bits_buffer<Torus> **mem_ptr,
+    uint32_t num_radix_blocks, uint32_t counter_num_blocks, Direction direction,
+    BitValue bit_value, const bool allocate_gpu_memory) {
+
+  uint64_t size_tracker = 0;
+
+  *mem_ptr = new int_count_of_consecutive_bits_buffer<Torus>(
+      streams, gpu_indexes, gpu_count, params, num_radix_blocks,
+      counter_num_blocks, direction, bit_value, allocate_gpu_memory,
+      size_tracker);
+
+  return size_tracker;
+}
+
+template <typename Torus>
+__host__ void host_integer_count_of_consecutive_bits(
+    cudaStream_t const *streams, uint32_t const *gpu_indexes,
+    uint32_t gpu_count, CudaRadixCiphertextFFI *output_ct,
+    CudaRadixCiphertextFFI const *input_ct,
+    int_count_of_consecutive_bits_buffer<Torus> *mem_ptr, void *const *bsks,
+    Torus *const *ksks,
+    CudaModulusSwitchNoiseReductionKeyFFI const *ms_noise_reduction_key) {
+
+  auto params = mem_ptr->params;
+  auto ct_prepared = mem_ptr->ct_prepared;
+  auto counter_num_blocks = mem_ptr->counter_num_blocks;
+
+  copy_radix_ciphertext_async<Torus>(streams[0], gpu_indexes[0], ct_prepared,
+                                     input_ct);
+
+  host_integer_prepare_count_of_consecutive_bits(
+      streams, gpu_indexes, gpu_count, ct_prepared, mem_ptr->prepare_mem, bsks,
+      ksks, ms_noise_reduction_key);
+
+  host_sum_ciphertexts(streams, gpu_indexes, gpu_count, output_ct, ct_prepared,
+                       counter_num_blocks, mem_ptr->sum_and_propagate_mem, bsks,
+                       ksks, ms_noise_reduction_key);
+}
+
+#endif
