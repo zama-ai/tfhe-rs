@@ -13,6 +13,8 @@
 #include <iostream>
 #include <vector>
 
+#include "integer/compression/compression.h"
+
 template <typename T>
 __global__ void cleartext_vec_multiplication(T *output, T const *lwe_input,
                                              T const *cleartext_input,
@@ -51,9 +53,9 @@ __host__ void host_cleartext_vec_multiplication(
 }
 
 template <typename T>
-__global__ void
-cleartext_multiplication(T *output, T const *lwe_input, T cleartext_input,
-                         uint32_t input_lwe_dimension, uint32_t num_entries) {
+__global__ void cleartext_multiplication(T *output, T const *lwe_input,
+                                         T cleartext_input,
+                                         const uint32_t num_entries) {
 
   int tid = threadIdx.x;
   int index = blockIdx.x * blockDim.x + tid;
@@ -64,25 +66,21 @@ cleartext_multiplication(T *output, T const *lwe_input, T cleartext_input,
 }
 
 template <typename T>
-__host__ void
-host_cleartext_multiplication(cudaStream_t stream, uint32_t gpu_index,
-                              T *output, T const *lwe_input, T cleartext_input,
-                              uint32_t input_lwe_dimension,
-                              uint32_t input_lwe_ciphertext_count) {
+__host__ void host_cleartext_multiplication(
+    cudaStream_t stream, uint32_t gpu_index, T *output,
+    CudaLweCiphertextListFFI const *lwe_input, T cleartext_input) {
 
   cuda_set_device(gpu_index);
-  // lwe_size includes the presence of the body
-  // whereas lwe_dimension is the number of elements in the mask
-  int lwe_size = input_lwe_dimension + 1;
   // Create a 1-dimensional grid of threads
   int num_blocks = 0, num_threads = 0;
-  int num_entries = input_lwe_ciphertext_count * lwe_size;
+  uint32_t num_entries =
+      lwe_input->num_radix_blocks * (lwe_input->lwe_dimension + 1);
   getNumBlocksAndThreads(num_entries, 512, num_blocks, num_threads);
   dim3 grid(num_blocks, 1, 1);
   dim3 thds(num_threads, 1, 1);
 
   cleartext_multiplication<T><<<grid, thds, 0, stream>>>(
-      output, lwe_input, cleartext_input, input_lwe_dimension, num_entries);
+      output, (T *)lwe_input->ptr, cleartext_input, num_entries);
   check_cuda_error(cudaGetLastError());
 }
 

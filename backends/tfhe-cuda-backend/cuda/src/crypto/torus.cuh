@@ -123,7 +123,6 @@ __host__ void host_modulus_switch_inplace(cudaStream_t stream,
 
   int num_threads = 0, num_blocks = 0;
   getNumBlocksAndThreads(size, 1024, num_blocks, num_threads);
-
   modulus_switch_inplace<Torus>
       <<<num_blocks, num_threads, 0, stream>>>(array, size, log_modulus);
   check_cuda_error(cudaGetLastError());
