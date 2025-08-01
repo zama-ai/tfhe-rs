@@ -6,7 +6,9 @@ use crate::shortint::ciphertext::SquashedNoiseCiphertext;
 use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
-use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
+use crate::shortint::parameters::noise_squashing::{
+    NoiseSquashingClassicParameters, NoiseSquashingParameters,
+};
 use crate::shortint::parameters::ModulusSwitchType;
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
@@ -22,8 +24,8 @@ impl NoiseSquashingPrivateKey {
     pub fn new(params: NoiseSquashingParameters) -> Self {
         let post_noise_squashing_secret_key = ShortintEngine::with_thread_local_mut(|engine| {
             allocate_and_generate_new_binary_glwe_secret_key(
-                params.glwe_dimension,
-                params.polynomial_size,
+                params.glwe_dimension(),
+                params.polynomial_size(),
                 &mut engine.secret_generator,
             )
         });
@@ -56,11 +58,11 @@ impl NoiseSquashingPrivateKey {
     ) -> Self {
         assert_eq!(
             post_noise_squashing_secret_key.polynomial_size(),
-            params.polynomial_size
+            params.polynomial_size()
         );
         assert_eq!(
             post_noise_squashing_secret_key.glwe_dimension(),
-            params.glwe_dimension
+            params.glwe_dimension()
         );
         Self {
             post_noise_squashing_secret_key,
@@ -98,7 +100,7 @@ impl<'a> From<&'a NoiseSquashingCompressionPrivateKey> for NoiseSquashingPrivate
     fn from(value: &'a NoiseSquashingCompressionPrivateKey) -> Self {
         Self {
             post_noise_squashing_secret_key: &value.post_packing_ks_key,
-            params: NoiseSquashingParameters {
+            params: NoiseSquashingParameters::Classic(NoiseSquashingClassicParameters {
                 glwe_dimension: value.params.packing_ks_glwe_dimension,
                 polynomial_size: value.params.packing_ks_polynomial_size,
                 glwe_noise_distribution: value.params.packing_ks_key_noise_distribution,
@@ -109,7 +111,7 @@ impl<'a> From<&'a NoiseSquashingCompressionPrivateKey> for NoiseSquashingPrivate
                 message_modulus: value.params.message_modulus,
                 carry_modulus: value.params.carry_modulus,
                 ciphertext_modulus: value.params.ciphertext_modulus,
-            },
+            }),
         }
     }
 }
@@ -125,7 +127,7 @@ impl NoiseSquashingPrivateKeyView<'_> {
         );
 
         let encoding = ShortintEncoding {
-            ciphertext_modulus: self.params.ciphertext_modulus,
+            ciphertext_modulus: self.params.ciphertext_modulus(),
             message_modulus: ciphertext.message_modulus(),
             carry_modulus: ciphertext.carry_modulus(),
             padding_bit: PaddingBit::Yes,

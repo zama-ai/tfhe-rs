@@ -481,10 +481,12 @@ pub struct GgswCiphertextListConformanceParams<Scalar: UnsignedInteger> {
     pub ciphertext_modulus: CiphertextModulus<Scalar>,
 }
 
-impl TryFrom<&MultiBitBootstrapKeyConformanceParams> for GgswCiphertextListConformanceParams<u64> {
+impl<Scalar: UnsignedInteger> TryFrom<&MultiBitBootstrapKeyConformanceParams<Scalar>>
+    for GgswCiphertextListConformanceParams<Scalar>
+{
     type Error = ();
 
-    fn try_from(value: &MultiBitBootstrapKeyConformanceParams) -> Result<Self, ()> {
+    fn try_from(value: &MultiBitBootstrapKeyConformanceParams<Scalar>) -> Result<Self, ()> {
         if value.input_lwe_dimension.0 % value.grouping_factor.0 != 0 {
             return Err(());
         }

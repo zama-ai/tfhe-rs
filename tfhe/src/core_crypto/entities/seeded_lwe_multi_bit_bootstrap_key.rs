@@ -446,8 +446,10 @@ impl<Scalar: UnsignedInteger> SeededLweMultiBitBootstrapKeyOwned<Scalar> {
     }
 }
 
-impl<C: Container<Element = u64>> ParameterSetConformant for SeededLweMultiBitBootstrapKey<C> {
-    type ParameterSet = MultiBitBootstrapKeyConformanceParams;
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ParameterSetConformant
+    for SeededLweMultiBitBootstrapKey<C>
+{
+    type ParameterSet = MultiBitBootstrapKeyConformanceParams<Scalar>;
 
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self {
