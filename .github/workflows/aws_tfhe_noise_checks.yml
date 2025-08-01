@@ -55,6 +55,7 @@ jobs:
     name: CPU noise checks
     needs: setup-instance
     runs-on: ${{ needs.setup-instance.outputs.runner-name }}
+    timeout-minutes: 1440
     steps:
       - name: Checkout tfhe-rs
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -73,7 +74,7 @@ jobs:
           make test_noise_check
 
       - name: Set pull-request URL
-        if: ${{ failure() && github.event_name == 'pull_request' }}
+        if: ${{ !success() }}
         run: |
           echo "PULL_REQUEST_MD_LINK=[pull-request](${PR_BASE_URL}${PR_NUMBER}), "  >> "${GITHUB_ENV}"
         env:
@@ -81,7 +82,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Slack Notification
-        if: ${{ failure() && env.SECRETS_AVAILABLE == 'true' }}
+        if: ${{ !success() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
@@ -106,7 +107,7 @@ jobs:
           label: ${{ needs.setup-instance.outputs.runner-name }}
 
       - name: Slack Notification
-        if: ${{ failure() || (cancelled() && github.event_name != 'pull_request') }}
+        if: ${{ !success() }}
         continue-on-error: true
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661
         env:
