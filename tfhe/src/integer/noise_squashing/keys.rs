@@ -306,7 +306,9 @@ impl NoiseSquashingKey {
             .blocks
             .par_chunks(2)
             .map(|two_values| {
-                let packed = src_server_key.pack_block_chunk(two_values);
+                let packed = src_server_key
+                    .can_pack_block_chunk(two_values)
+                    .map(|two_values| src_server_key.pack_block_chunk(two_values))?;
 
                 self.key
                     .checked_squash_ciphertext_noise(&packed, &src_server_key.key)
