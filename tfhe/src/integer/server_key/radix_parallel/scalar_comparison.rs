@@ -98,6 +98,43 @@ impl ServerKey {
         std::cmp::Ordering::Equal
     }
 
+    /// If two blocks can be packed by calling [`Self::pack_block_chunk`] this will return the
+    /// [`Ok`] variant containing the chunk that can be packed to be able to chain map operators,
+    /// otherwise it returns the error that occurred.
+    pub(crate) fn can_pack_block_chunk<'data>(
+        &self,
+        chunk: &'data [crate::shortint::Ciphertext],
+    ) -> crate::Result<&'data [crate::shortint::Ciphertext]> {
+        match chunk.len() {
+            0 | 1 => Ok(chunk),
+            2 => {
+                if self.carry_modulus().0 < self.message_modulus().0 {
+                    return Err(crate::error!(
+                        "Cannot pack if carry modulus is smaller than message modulus"
+                    ));
+                }
+
+                let low = &chunk[0];
+                let high = &chunk[1];
+
+                let carries_ok = low.carry_is_empty() && high.carry_is_empty();
+                if !carries_ok {
+                    return Err(crate::error!(
+                        "Cannot pack blocks: need both carries to be empty."
+                    ));
+                }
+
+                let final_noise = high.noise_level() * self.message_modulus().0 + low.noise_level();
+                self.key
+                    .max_noise_level
+                    .validate(final_noise)
+                    .map_err(|e| crate::error!("{}", e))
+                    .map(|_| chunk)
+            }
+            _ => Err(crate::error!("Cannot pack chunk with len > 2")),
+        }
+    }
+
     /// Takes a chunk of 2 ciphertexts and packs them together in a new ciphertext
     ///
     /// The first element of the chunk are the low bits, the second are the high bits
