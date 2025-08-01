@@ -181,7 +181,7 @@ pub fn slice_wrapping_add_assign_custom_mod<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_add_custom_mod(rhs, custom_modulus));
 }
 
-/// Add a slice containing unsigned integers to another one mutiplied by a scalar.
+/// Add a slice containing unsigned integers to another one multiplied by a scalar.
 ///
 /// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a+bc*
 ///
@@ -336,7 +336,7 @@ pub fn slice_wrapping_sub_assign_custom_mod<Scalar>(
         .for_each(|(lhs, &rhs)| *lhs = (*lhs).wrapping_sub_custom_mod(rhs, custom_modulus));
 }
 
-/// Subtract a slice containing unsigned integers to another one mutiplied by a scalar,
+/// Subtract a slice containing unsigned integers to another one multiplied by a scalar,
 /// element-wise and in place.
 ///
 /// Let *a*,*b* be two slices, let *c* be a scalar, this computes: *a <- a-bc*
