@@ -76,7 +76,7 @@ jobs:
         id: hash-lfs-data
         run: |
           SHA=$(git lfs ls-files -l -I utils/tfhe-backward-compat-data | sha256sum | cut -d' ' -f1)
-          echo "sha=${SHA}" >> "${GITHUB_OUTPUT}"
+          echo "sha=v2-${SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Retrieve data from cache
         id: retrieve-data-cache
