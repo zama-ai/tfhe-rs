@@ -175,6 +175,8 @@ void cleanup_cuda_add_and_propagate_single_carry(void *const *streams,
   int_sc_prop_memory<uint64_t> *mem_ptr =
       (int_sc_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 void cleanup_cuda_integer_overflowing_sub(void *const *streams,
@@ -185,6 +187,8 @@ void cleanup_cuda_integer_overflowing_sub(void *const *streams,
   int_borrow_prop_memory<uint64_t> *mem_ptr =
       (int_borrow_prop_memory<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }
 
@@ -367,6 +371,8 @@ void cleanup_cuda_integer_compute_prefix_sum_hillis_steele_64(
     int8_t **mem_ptr_void) {
   int_radix_lut<uint64_t> *mem_ptr = (int_radix_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
 }
 
 void cuda_integer_reverse_blocks_64_inplace(void *const *streams,
@@ -458,5 +464,7 @@ void cleanup_cuda_apply_noise_squashing_kb(void *const *streams,
   int_noise_squashing_lut<uint64_t> *mem_ptr =
       (int_noise_squashing_lut<uint64_t> *)(*mem_ptr_void);
   mem_ptr->release((cudaStream_t *)(streams), gpu_indexes, gpu_count);
+  delete mem_ptr;
+  *mem_ptr_void = nullptr;
   POP_RANGE()
 }

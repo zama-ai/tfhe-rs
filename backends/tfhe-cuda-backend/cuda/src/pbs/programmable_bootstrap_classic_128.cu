@@ -259,4 +259,5 @@ void cleanup_cuda_programmable_bootstrap_128(void *stream, uint32_t gpu_index,
   auto x = (pbs_buffer_128<__uint128_t, PBS_TYPE::CLASSICAL> *)(*buffer);
   x->release(static_cast<cudaStream_t>(stream), gpu_index);
   delete x;
+  *buffer = nullptr;
 }
