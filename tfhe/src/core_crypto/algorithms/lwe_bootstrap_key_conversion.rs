@@ -344,7 +344,7 @@ pub fn convert_standard_lwe_bootstrap_key_to_ntt64<InputCont, OutputCont>(
     // Extract modswitch_requirement
     let modswitch_requirement = ntt.modswitch_requirement(input_bsk.ciphertext_modulus());
 
-    // Allocate a buffer for bitshifth and modswitch
+    // Allocate a buffer for bitshift and modswitch
     for (input_poly, mut output_poly) in input_bsk
         .as_polynomial_list()
         .iter()
