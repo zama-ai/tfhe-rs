@@ -1,8 +1,8 @@
-pub trait AllocatePackingKeyswitchResult {
+pub trait AllocateLwePackingKeyswitchResult {
     type Output;
     type SideResources;
 
-    fn allocate_packing_keyswitch_result(
+    fn allocate_lwe_packing_keyswitch_result(
         &self,
         side_resources: &mut Self::SideResources,
     ) -> Self::Output;

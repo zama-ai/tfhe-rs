@@ -758,17 +758,17 @@ pub fn par_keyswitch_lwe_ciphertext_list_and_pack_in_glwe_ciphertext_with_thread
 
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::traits::{
-    AllocatePackingKeyswitchResult, LwePackingKeyswitch,
+    AllocateLwePackingKeyswitchResult, LwePackingKeyswitch,
 };
 use crate::core_crypto::entities::glwe_ciphertext::GlweCiphertextOwned;
 
-impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocatePackingKeyswitchResult
-    for LwePackingKeyswitchKey<KeyCont>
+impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>>
+    AllocateLwePackingKeyswitchResult for LwePackingKeyswitchKey<KeyCont>
 {
     type Output = GlweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocate_packing_keyswitch_result(
+    fn allocate_lwe_packing_keyswitch_result(
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {

@@ -1,6 +1,6 @@
 use crate::core_crypto::commons::parameters::CiphertextModulusLog;
 
-pub trait AllocateStandardPBSModSwitchResult {
+pub trait AllocateStandardModSwitchResult {
     type Output;
     type SideResources;
 
@@ -10,7 +10,7 @@ pub trait AllocateStandardPBSModSwitchResult {
     ) -> Self::Output;
 }
 
-pub trait StandardPBSModSwitch<Output> {
+pub trait StandardModSwitch<Output> {
     type SideResources;
 
     fn standard_mod_switch(
