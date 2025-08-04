@@ -75,7 +75,7 @@ where
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::AllocateLweBootstrapResult;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::AllocateLweBootstrapResult;
 
 impl<Scalar: UnsignedInteger, AccCont: Container<Element = Scalar>> AllocateLweBootstrapResult
     for GlweCiphertext<AccCont>

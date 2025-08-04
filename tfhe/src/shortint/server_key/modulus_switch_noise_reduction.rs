@@ -395,7 +395,7 @@ impl<'a, Scalar: UnsignedInteger> ModulusSwitchConfiguration<Scalar> {
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::{
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardModSwitchResult,
     DriftTechniqueStandardModSwitch, StandardModSwitch,
 };
