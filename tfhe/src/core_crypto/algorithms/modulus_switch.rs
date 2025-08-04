@@ -99,7 +99,7 @@ where
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::{
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateStandardModSwitchResult, StandardModSwitch,
 };
 

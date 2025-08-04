@@ -1,5 +1,5 @@
-pub use crate::core_crypto::commons::noise_formulas::traits;
 pub mod noise_simulation;
+pub use noise_simulation::traits;
 
 use crate::core_crypto::algorithms::glwe_encryption::decrypt_glwe_ciphertext;
 use crate::core_crypto::algorithms::lwe_encryption::{
