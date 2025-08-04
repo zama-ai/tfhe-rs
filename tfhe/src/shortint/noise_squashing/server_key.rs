@@ -442,6 +442,14 @@ impl NoiseSquashingKey {
     pub fn output_ciphertext_modulus(&self) -> CoreCiphertextModulus<u128> {
         self.output_ciphertext_modulus
     }
+
+    pub(crate) fn bootstrapping_key(&self) -> &Fourier128LweBootstrapKeyOwned {
+        &self.bootstrapping_key
+    }
+
+    pub(crate) fn modulus_switch_noise_configuration(&self) -> &ModulusSwitchConfiguration<u64> {
+        &self.modulus_switch_noise_reduction_key
+    }
 }
 
 #[derive(Clone, Copy)]
