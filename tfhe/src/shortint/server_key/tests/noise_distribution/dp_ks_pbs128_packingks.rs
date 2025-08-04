@@ -66,7 +66,7 @@ where
             AfterDriftOutput = DriftTechniqueResult,
             AfterMsOutput = MsResult,
             SideResources = Resources,
-        > + DrifTechniqueStandardModSwitch<
+        > + DriftTechniqueStandardModSwitch<
             KsResult,
             DriftTechniqueResult,
             MsResult,
@@ -153,7 +153,7 @@ where
             AfterDriftOutput = DriftTechniqueResult,
             AfterMsOutput = MsResult,
             SideResources = Resources,
-        > + DrifTechniqueStandardModSwitch<
+        > + DriftTechniqueStandardModSwitch<
             KsResult,
             DriftTechniqueResult,
             MsResult,
