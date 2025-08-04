@@ -817,7 +817,9 @@ pub fn lwe_ciphertext_sub<Scalar, OutputCont, LhsCont, RhsCont>(
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::{ScalarMul, ScalarMulAssign};
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
+    ScalarMul, ScalarMulAssign,
+};
 
 impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> ScalarMul<Scalar>
     for LweCiphertext<C>
