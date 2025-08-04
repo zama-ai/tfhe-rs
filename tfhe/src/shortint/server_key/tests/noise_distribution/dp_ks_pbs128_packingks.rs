@@ -656,7 +656,8 @@ fn noise_check_encrypt_dp_ks_standard_pbs128_packing_ks_noise<P>(
         &noise_squashing_compression_private_key,
     );
 
-    let noise_simulation_ksk = NoiseSimulationLweKsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_ksk =
+        NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk128 =

@@ -1144,7 +1144,7 @@ pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Out
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::LweStandardFftBootstrap;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweStandardFftBootstrap;
 
 impl<
         InputScalar: UnsignedTorus + CastInto<usize>,

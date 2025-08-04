@@ -1,7 +1,7 @@
 use super::dp_ks_ms::dp_ks_ms;
 use super::utils::noise_simulation::{
     NoiseSimulationDriftTechniqueKey, NoiseSimulationGlwe, NoiseSimulationLwe,
-    NoiseSimulationLweFourierBsk, NoiseSimulationLweKsk,
+    NoiseSimulationLweFourierBsk, NoiseSimulationLweKeyswitchKey,
 };
 use super::utils::traits::*;
 use super::utils::{
@@ -511,7 +511,8 @@ where
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
-    let noise_simulation_ksk = NoiseSimulationLweKsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_ksk =
+        NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_bsk =

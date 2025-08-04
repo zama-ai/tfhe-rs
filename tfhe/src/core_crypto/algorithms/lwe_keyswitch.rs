@@ -983,7 +983,7 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count_other_mod<
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::{
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateLweKeyswitchResult, LweKeyswitch,
 };
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
