@@ -1142,3 +1142,33 @@ pub fn batch_programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement<Out
 ) -> Result<StackReq, SizeOverflow> {
     batch_bootstrap_scratch::<OutputScalar>(glwe_size, polynomial_size, ciphertext_count, fft)
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::traits::StandardFftBootstrap;
+
+impl<
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        KeyCont: Container<Element = c64>,
+        InputCont: Container<Element = InputScalar>,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+    >
+    StandardFftBootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for FourierLweBootstrapKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn standard_fft_pbs(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        programmable_bootstrap_lwe_ciphertext(input, output, accumulator, self);
+    }
+}

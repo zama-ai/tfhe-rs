@@ -981,3 +981,63 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count_other_mod<
     *output_lwe_ciphertext.get_mut_body().data = (*output_lwe_ciphertext.get_mut_body().data)
         .wrapping_add_custom_mod(reduced_ksed_body, ciphertext_modulus_as_scalar);
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::traits::{AllocateKeyswtichResult, Keyswitch};
+use crate::core_crypto::fft_impl::fft64::math::fft::id;
+use std::any::TypeId;
+
+impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocateKeyswtichResult
+    for LweKeyswitchKey<KeyCont>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_keyswitch_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
+        Self::Output::new(
+            Scalar::ZERO,
+            self.output_lwe_size(),
+            self.ciphertext_modulus(),
+        )
+    }
+}
+
+impl<
+        InputScalar: UnsignedInteger,
+        OutputScalar: UnsignedInteger + CastFrom<InputScalar>,
+        KeyCont: Container<Element = OutputScalar>,
+        InputCont: Container<Element = InputScalar>,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+    > Keyswitch<LweCiphertext<InputCont>, LweCiphertext<OutputCont>> for LweKeyswitchKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn keyswitch(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        // We are forced to do this because rust complains of conflicting trait implementations
+        // even though generics are different, it's not enough to rule that actual
+        // concrete types are different, but in our case they would be mutually
+        // exclusive
+        if TypeId::of::<InputScalar>() == TypeId::of::<OutputScalar>() {
+            // Cannot use Any as Any requires a type to be 'static (lifetime information is not
+            // available at runtime, it's lost during compilation and only used for the rust
+            // borrock "proofs", so types need to be 'static to use the dynamic
+            // runtime Any facilities) Let's operate on views, we know types are
+            // supposed to be the same, so convert the slice (as we already have
+            // the primitive) and cast the modulus which will be a no-op
+            // in practice
+            let input_content = input.as_ref();
+            let input_as_output_scalar = LweCiphertext::from_container(
+                id(input_content),
+                input.ciphertext_modulus().try_to().unwrap(),
+            );
+            keyswitch_lwe_ciphertext(self, &input_as_output_scalar, output);
+        } else {
+            keyswitch_lwe_ciphertext_with_scalar_change(self, input, output);
+        }
+    }
+}
