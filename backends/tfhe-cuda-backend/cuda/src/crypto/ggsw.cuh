@@ -54,9 +54,11 @@ void batch_fft_ggsw_vector(cudaStream_t *streams, uint32_t *gpu_indexes,
                            int8_t *d_mem, uint32_t r, uint32_t glwe_dim,
                            uint32_t polynomial_size, uint32_t level_count,
                            uint32_t max_shared_memory) {
-  if (gpu_count != 1)
-    PANIC("GPU error (batch_fft_ggsw_vector): multi-GPU execution is not "
-          "supported yet.")
+  PANIC_IF_FALSE(gpu_count == 1,
+                 "GPU error (batch_fft_ggsw_vector): multi-GPU execution on %d "
+                 "gpus is not supported yet.",
+                 gpu_count);
+
   cuda_set_device(gpu_indexes[0]);
 
   int shared_memory_size = sizeof(double) * polynomial_size;
