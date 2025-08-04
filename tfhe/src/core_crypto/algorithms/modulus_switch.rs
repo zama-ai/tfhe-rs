@@ -98,6 +98,57 @@ where
     sum_half_mask_round_errors.wrapping_sub(half_case)
 }
 
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::traits::{
+    AllocateStandardPBSModSwitchResult, StandardPBSModSwitch,
+};
+
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardPBSModSwitchResult
+    for LweCiphertext<C>
+{
+    type Output = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_standard_mod_switch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
+        // We will mod switch but we keep the current modulus as the noise is interesting in the
+        // context of the input modulus
+        Self::Output::new(Scalar::ZERO, self.lwe_size(), self.ciphertext_modulus())
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        OutputCont: ContainerMut<Element = Scalar>,
+    > StandardPBSModSwitch<LweCiphertext<OutputCont>> for LweCiphertext<InputCont>
+{
+    type SideResources = ();
+
+    fn standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        output: &mut LweCiphertext<OutputCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        assert!(self
+            .ciphertext_modulus()
+            .is_compatible_with_native_modulus());
+        assert_eq!(self.lwe_size(), output.lwe_size());
+        // Mod switched but the noise is to be interpreted with respect to the input modulus, as
+        // strictly the operation adding the noise is the rounding under the original rounding
+        assert_eq!(self.ciphertext_modulus(), output.ciphertext_modulus());
+
+        for (inp, out) in self.as_ref().iter().zip(output.as_mut().iter_mut()) {
+            let msed = modulus_switch(*inp, output_modulus_log);
+            // Shift in MSBs to match the power of 2 encoding in core
+            *out = msed << (Scalar::BITS - output_modulus_log.0);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
