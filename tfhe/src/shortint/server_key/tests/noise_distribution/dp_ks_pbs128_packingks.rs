@@ -61,8 +61,8 @@ where
     // InputCt needs to be multipliable by the given scalar
     InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -76,13 +76,13 @@ where
         >,
     // The accumulator has the information about the output size and modulus, therefore it is the
     // one to allocate the blind rotation result
-    Accumulator: AllocateBootstrapResult<Output = PbsResult, SideResources = Resources>,
+    Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: StandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweStandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
-    let mut ks_result = ksk.allocate_keyswitch_result(side_resources);
-    ksk.keyswitch(&after_dp, &mut ks_result, side_resources);
+    let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
+    ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
     let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key_128
         .allocate_drift_technique_standard_mod_switch_result(side_resources);
     mod_switch_noise_reduction_key_128.drift_technique_and_standard_mod_switch(
@@ -93,8 +93,8 @@ where
         side_resources,
     );
 
-    let mut pbs_result = accumulator.allocate_bootstrap_result(side_resources);
-    bsk_128.standard_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
+    bsk_128.lwe_standard_fft_128_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
@@ -147,8 +147,8 @@ where
     // InputCt needs to be multipliable by the given scalar
     InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources> + Send,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>
         + Sync,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
@@ -163,11 +163,11 @@ where
         > + Sync,
     // The accumulator has the information about the output size and modulus, therefore it is the
     // one to allocate the blind rotation result
-    Accumulator: AllocateBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
+    Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources> + Sync,
     // We need to be able to apply the PBS
-    Bsk:
-        StandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources> + Sync,
-    PackingKey: AllocatePackingKeyswitchResult<Output = PackingResult, SideResources = Resources>
+    Bsk: LweStandardFft128Bootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>
+        + Sync,
+    PackingKey: AllocateLwePackingKeyswitchResult<Output = PackingResult, SideResources = Resources>
         + for<'a> LwePackingKeyswitch<[&'a PbsResult], PackingResult, SideResources = Resources>,
     Resources: Send,
     ScalarMulResult: Send,
@@ -213,7 +213,8 @@ where
         )
         .collect();
 
-    let mut packing_result = packing_ksk.allocate_packing_keyswitch_result(&mut side_resources[0]);
+    let mut packing_result =
+        packing_ksk.allocate_lwe_packing_keyswitch_result(&mut side_resources[0]);
     packing_ksk.keyswitch_lwes_and_pack_in_glwe(
         pbs_results.as_slice(),
         &mut packing_result,

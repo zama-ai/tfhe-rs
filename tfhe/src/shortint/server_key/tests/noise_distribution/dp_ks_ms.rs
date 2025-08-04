@@ -48,8 +48,8 @@ where
     // InputCt needs to be multipliable by the given scalar
     InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -63,8 +63,8 @@ where
         >,
 {
     let after_dp = input.scalar_mul(scalar, side_resources);
-    let mut ks_result = ksk.allocate_keyswitch_result(side_resources);
-    ksk.keyswitch(&after_dp, &mut ks_result, side_resources);
+    let mut ks_result = ksk.allocate_lwe_keyswitch_result(side_resources);
+    ksk.lwe_keyswitch(&after_dp, &mut ks_result, side_resources);
     let (mut drift_technique_result, mut ms_result) = mod_switch_noise_reduction_key
         .allocate_drift_technique_standard_mod_switch_result(side_resources);
     mod_switch_noise_reduction_key.drift_technique_and_standard_mod_switch(
@@ -119,8 +119,8 @@ where
     // InputCt needs to be multipliable by the given scalar
     InputCt: ScalarMul<DPScalar, Output = ScalarMulResult, SideResources = Resources>,
     // We need to be able to allocate the result and keyswitch the result of the ScalarMul
-    KsKey: AllocateKeyswtichResult<Output = KsResult, SideResources = Resources>
-        + Keyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
+    KsKey: AllocateLweKeyswitchResult<Output = KsResult, SideResources = Resources>
+        + LweKeyswitch<ScalarMulResult, KsResult, SideResources = Resources>,
     // We need to be able to allocate the result and apply drift technique + mod switch it
     DriftKey: AllocateDriftTechniqueStandardModSwitchResult<
             AfterDriftOutput = DriftTechniqueResult,
@@ -134,9 +134,9 @@ where
         >,
     // The accumulator has the information about the output size and modulus, therefore it is the
     // one to allocate the blind rotation result
-    Accumulator: AllocateBootstrapResult<Output = PbsResult, SideResources = Resources>,
+    Accumulator: AllocateLweBootstrapResult<Output = PbsResult, SideResources = Resources>,
     // We need to be able to apply the PBS
-    Bsk: StandardFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
+    Bsk: LweStandardFftBootstrap<MsResult, PbsResult, Accumulator, SideResources = Resources>,
 {
     let (input, after_dp, ks_result, drift_technique_result, ms_result) = dp_ks_ms(
         input,
@@ -147,8 +147,8 @@ where
         side_resources,
     );
 
-    let mut pbs_result = accumulator.allocate_bootstrap_result(side_resources);
-    bsk.standard_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
+    let mut pbs_result = accumulator.allocate_lwe_bootstrap_result(side_resources);
+    bsk.lwe_standard_fft_pbs(&ms_result, &mut pbs_result, accumulator, side_resources);
     (
         input,
         after_dp,
