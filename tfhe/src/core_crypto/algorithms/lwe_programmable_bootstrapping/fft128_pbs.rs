@@ -471,3 +471,33 @@ pub fn blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 ) -> Result<StackReq, SizeOverflow> {
     bootstrap_scratch_f128::<Scalar>(glwe_size, polynomial_size, fft)
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::traits::StandardFft128Bootstrap;
+
+impl<
+        InputScalar: UnsignedTorus + CastInto<usize>,
+        OutputScalar: UnsignedTorus,
+        KeyCont: Container<Element = f64>,
+        InputCont: Container<Element = InputScalar>,
+        OutputCont: ContainerMut<Element = OutputScalar>,
+        AccCont: Container<Element = OutputScalar>,
+    >
+    StandardFft128Bootstrap<
+        LweCiphertext<InputCont>,
+        LweCiphertext<OutputCont>,
+        GlweCiphertext<AccCont>,
+    > for Fourier128LweBootstrapKey<KeyCont>
+{
+    type SideResources = ();
+
+    fn standard_fft_128_pbs(
+        &self,
+        input: &LweCiphertext<InputCont>,
+        output: &mut LweCiphertext<OutputCont>,
+        accumulator: &GlweCiphertext<AccCont>,
+        _side_resources: &mut Self::SideResources,
+    ) {
+        programmable_bootstrap_f128_lwe_ciphertext(input, output, accumulator, self);
+    }
+}
