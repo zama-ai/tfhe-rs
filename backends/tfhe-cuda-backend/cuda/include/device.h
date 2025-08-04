@@ -19,12 +19,41 @@ inline void cuda_error(cudaError_t code, const char *file, int line) {
     std::abort();
   }
 }
+
+// The PANIC macro should be used to validate user-inputs to GPU functions
+// it will execute in all targets, including production settings
+// e.g., cudaMemCopy to the device should check that the destination pointer is
+// a device pointer
 #define PANIC(format, ...)                                                     \
   {                                                                            \
     std::fprintf(stderr, "%s::%d::%s: panic.\n" format "\n", __FILE__,         \
                  __LINE__, __func__, ##__VA_ARGS__);                           \
     std::abort();                                                              \
   }
+
+// This is a generic assertion checking macro with user defined printf-style
+// message
+#define PANIC_IF_FALSE(cond, format, ...)                                      \
+  do {                                                                         \
+    if (!(cond)) {                                                             \
+      PANIC(format "\n\n %s\n", ##__VA_ARGS__, #cond);                         \
+    }                                                                          \
+  } while (0)
+
+#ifndef GPU_ASSERTS_DISABLE
+// The GPU assert should be used to validate assumptions in algorithms,
+// for example, checking that two user-provided quantities have a certain
+// relationship or that the size of the buffer  provided to a function is
+// sufficient when it is filled with some algorithm that depends on
+// user-provided inputs e.g., OPRF corrections buffer should not have a size
+// higher than the number of blocks in the datatype that is generated
+#define GPU_ASSERT(cond, format, ...)                                          \
+  PANIC_IF_FALSE(cond, format, ##__VA_ARGS__)
+#else
+#define GPU_ASSERT(cond)                                                       \
+  do {                                                                         \
+  } while (0)
+#endif
 
 uint32_t cuda_get_device();
 void cuda_set_device(uint32_t gpu_index);
