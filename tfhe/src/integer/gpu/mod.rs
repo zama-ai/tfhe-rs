@@ -7463,6 +7463,7 @@ pub unsafe fn expand_async<T: UnsignedInteger, B: Numeric>(
         pbs_level.0 as u32,
         pbs_base_log.0 as u32,
         grouping_factor.0 as u32,
+        lwe_flattened_compact_array_in.as_c_ptr(0),
         num_lwes_per_compact_list.as_ptr(),
         is_boolean.as_ptr(),
         num_compact_lists as u32,
