@@ -392,7 +392,8 @@ where
     let cks = ClientKey::new(params);
     let sks = ServerKey::new(&cks);
 
-    let noise_simulation_ksk = NoiseSimulationLweKsk::new_from_atomic_pattern_parameters(params);
+    let noise_simulation_ksk =
+        NoiseSimulationLweKeyswitchKey::new_from_atomic_pattern_parameters(params);
     let noise_simulation_drift_key =
         NoiseSimulationDriftTechniqueKey::new_from_atomic_pattern_parameters(params);
 

@@ -9,4 +9,3 @@ pub mod modulus_switch;
 pub mod multi_bit_modulus_switch;
 pub mod noise_simulation;
 pub mod secure_noise;
-pub mod traits;
