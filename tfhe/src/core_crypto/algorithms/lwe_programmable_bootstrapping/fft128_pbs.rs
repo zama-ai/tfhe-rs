@@ -473,7 +473,7 @@ pub fn blind_rotate_f128_lwe_ciphertext_mem_optimized_requirement<Scalar>(
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::LweStandardFft128Bootstrap;
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::LweStandardFft128Bootstrap;
 
 impl<
         InputScalar: UnsignedTorus + CastInto<usize>,

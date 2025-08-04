@@ -2,7 +2,7 @@ pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::generalized_modulus_switch_additive_variance;
-use crate::core_crypto::commons::noise_formulas::traits::{
+use crate::core_crypto::commons::noise_formulas::noise_simulation::traits::{
     AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardModSwitchResult,
     DriftTechniqueStandardModSwitch,
 };
@@ -34,7 +34,7 @@ impl NoiseSimulationLwe {
     }
 }
 
-impl NoiseSimulationLweKsk {
+impl NoiseSimulationLweKeyswitchKey {
     // We can't really build a key from an already generated key as we need to know what the noise
     // distribution is.
     pub fn new_from_atomic_pattern_parameters(params: AtomicPatternParameters) -> Self {
