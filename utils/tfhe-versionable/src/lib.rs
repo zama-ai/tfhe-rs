@@ -13,7 +13,7 @@ pub mod upgrade;
 use aligned_vec::{ABox, AVec};
 use deprecation::DeprecatedVersionError;
 use num_complex::Complex;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt::Display;
@@ -992,6 +992,34 @@ impl<T: Unversionize + std::hash::Hash + Eq> Unversionize for HashSet<T> {
     }
 }
 
+impl<T: Versionize> Versionize for BTreeSet<T> {
+    type Versioned<'vers>
+        = Vec<T::Versioned<'vers>>
+    where
+        T: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.iter().map(|val| val.versionize()).collect()
+    }
+}
+
+impl<T: VersionizeOwned> VersionizeOwned for BTreeSet<T> {
+    type VersionedOwned = Vec<T::VersionedOwned>;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.into_iter().map(|val| val.versionize_owned()).collect()
+    }
+}
+
+impl<T: Unversionize + Ord> Unversionize for BTreeSet<T> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(|val| T::unversionize(val))
+            .collect()
+    }
+}
+
 // converts to `Vec<(K::Versioned, V::Versioned)>` for the versioned type, so we don't have to
 // derive Eq/Hash on it.
 impl<K: Versionize, V: Versionize> Versionize for HashMap<K, V> {
@@ -1019,6 +1047,39 @@ impl<K: VersionizeOwned, V: VersionizeOwned> VersionizeOwned for HashMap<K, V> {
 }
 
 impl<K: Unversionize + std::hash::Hash + Eq, V: Unversionize> Unversionize for HashMap<K, V> {
+    fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
+        versioned
+            .into_iter()
+            .map(|(key, val)| Ok((K::unversionize(key)?, V::unversionize(val)?)))
+            .collect()
+    }
+}
+
+impl<K: Versionize, V: Versionize> Versionize for BTreeMap<K, V> {
+    type Versioned<'vers>
+        = Vec<(K::Versioned<'vers>, V::Versioned<'vers>)>
+    where
+        K: 'vers,
+        V: 'vers;
+
+    fn versionize(&self) -> Self::Versioned<'_> {
+        self.iter()
+            .map(|(key, val)| (key.versionize(), val.versionize()))
+            .collect()
+    }
+}
+
+impl<K: VersionizeOwned, V: VersionizeOwned> VersionizeOwned for BTreeMap<K, V> {
+    type VersionedOwned = Vec<(K::VersionedOwned, V::VersionedOwned)>;
+
+    fn versionize_owned(self) -> Self::VersionedOwned {
+        self.into_iter()
+            .map(|(key, val)| (key.versionize_owned(), val.versionize_owned()))
+            .collect()
+    }
+}
+
+impl<K: Unversionize + Ord, V: Unversionize> Unversionize for BTreeMap<K, V> {
     fn unversionize(versioned: Self::VersionedOwned) -> Result<Self, UnversionizeError> {
         versioned
             .into_iter()
