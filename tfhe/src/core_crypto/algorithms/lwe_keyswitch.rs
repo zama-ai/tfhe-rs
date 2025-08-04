@@ -983,17 +983,22 @@ pub fn par_keyswitch_lwe_ciphertext_with_thread_count_other_mod<
 }
 
 // ============== Noise measurement trait implementations ============== //
-use crate::core_crypto::commons::noise_formulas::traits::{AllocateKeyswtichResult, Keyswitch};
+use crate::core_crypto::commons::noise_formulas::traits::{
+    AllocateLweKeyswitchResult, LweKeyswitch,
+};
 use crate::core_crypto::fft_impl::fft64::math::fft::id;
 use std::any::TypeId;
 
-impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocateKeyswtichResult
+impl<Scalar: UnsignedInteger, KeyCont: Container<Element = Scalar>> AllocateLweKeyswitchResult
     for LweKeyswitchKey<KeyCont>
 {
     type Output = LweCiphertextOwned<Scalar>;
     type SideResources = ();
 
-    fn allocate_keyswitch_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
         Self::Output::new(
             Scalar::ZERO,
             self.output_lwe_size(),
@@ -1008,11 +1013,12 @@ impl<
         KeyCont: Container<Element = OutputScalar>,
         InputCont: Container<Element = InputScalar>,
         OutputCont: ContainerMut<Element = OutputScalar>,
-    > Keyswitch<LweCiphertext<InputCont>, LweCiphertext<OutputCont>> for LweKeyswitchKey<KeyCont>
+    > LweKeyswitch<LweCiphertext<InputCont>, LweCiphertext<OutputCont>>
+    for LweKeyswitchKey<KeyCont>
 {
     type SideResources = ();
 
-    fn keyswitch(
+    fn lwe_keyswitch(
         &self,
         input: &LweCiphertext<InputCont>,
         output: &mut LweCiphertext<OutputCont>,

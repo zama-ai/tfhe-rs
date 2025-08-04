@@ -189,11 +189,14 @@ impl NoiseSimulationLweKsk {
     }
 }
 
-impl AllocateKeyswtichResult for NoiseSimulationLweKsk {
+impl AllocateLweKeyswitchResult for NoiseSimulationLweKsk {
     type Output = NoiseSimulationLwe;
     type SideResources = ();
 
-    fn allocate_keyswitch_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
+    fn allocate_lwe_keyswitch_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
         Self::Output {
             lwe_dimension: self.output_lwe_dimension,
             variance: Variance(-2.0f64.powi(128)),
@@ -202,10 +205,10 @@ impl AllocateKeyswtichResult for NoiseSimulationLweKsk {
     }
 }
 
-impl Keyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLweKsk {
+impl LweKeyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLweKsk {
     type SideResources = ();
 
-    fn keyswitch(
+    fn lwe_keyswitch(
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
@@ -242,7 +245,7 @@ impl Keyswitch<NoiseSimulationLwe, NoiseSimulationLwe> for NoiseSimulationLweKsk
     }
 }
 
-impl AllocateStandardPBSModSwitchResult for NoiseSimulationLwe {
+impl AllocateStandardModSwitchResult for NoiseSimulationLwe {
     type Output = Self;
     type SideResources = ();
 
@@ -258,7 +261,7 @@ impl AllocateStandardPBSModSwitchResult for NoiseSimulationLwe {
     }
 }
 
-impl StandardPBSModSwitch<Self> for NoiseSimulationLwe {
+impl StandardModSwitch<Self> for NoiseSimulationLwe {
     type SideResources = ();
 
     fn standard_mod_switch(
@@ -340,11 +343,14 @@ impl NoiseSimulationGlwe {
     }
 }
 
-impl AllocateBootstrapResult for NoiseSimulationGlwe {
+impl AllocateLweBootstrapResult for NoiseSimulationGlwe {
     type Output = NoiseSimulationLwe;
     type SideResources = ();
 
-    fn allocate_bootstrap_result(&self, _side_resources: &mut Self::SideResources) -> Self::Output {
+    fn allocate_lwe_bootstrap_result(
+        &self,
+        _side_resources: &mut Self::SideResources,
+    ) -> Self::Output {
         let lwe_dimension = self
             .glwe_dimension()
             .to_equivalent_lwe_dimension(self.polynomial_size());
@@ -445,12 +451,12 @@ impl NoiseSimulationLweFourier128Bsk {
     }
 }
 
-impl StandardFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+impl LweStandardFft128Bootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
     for NoiseSimulationLweFourier128Bsk
 {
     type SideResources = ();
 
-    fn standard_fft_128_pbs(
+    fn lwe_standard_fft_128_pbs(
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
@@ -592,12 +598,12 @@ impl NoiseSimulationLweFourierBsk {
     }
 }
 
-impl StandardFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
+impl LweStandardFftBootstrap<NoiseSimulationLwe, NoiseSimulationLwe, NoiseSimulationGlwe>
     for NoiseSimulationLweFourierBsk
 {
     type SideResources = ();
 
-    fn standard_fft_pbs(
+    fn lwe_standard_fft_pbs(
         &self,
         input: &NoiseSimulationLwe,
         output: &mut NoiseSimulationLwe,
@@ -734,11 +740,11 @@ impl NoiseSimulationLwePackingKeyswitchKey {
     }
 }
 
-impl AllocatePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey {
+impl AllocateLwePackingKeyswitchResult for NoiseSimulationLwePackingKeyswitchKey {
     type Output = NoiseSimulationGlwe;
     type SideResources = ();
 
-    fn allocate_packing_keyswitch_result(
+    fn allocate_lwe_packing_keyswitch_result(
         &self,
         _side_resources: &mut Self::SideResources,
     ) -> Self::Output {

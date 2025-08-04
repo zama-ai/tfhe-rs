@@ -1,14 +1,17 @@
-pub trait AllocateKeyswtichResult {
+pub trait AllocateLweKeyswitchResult {
     type Output;
     type SideResources;
 
-    fn allocate_keyswitch_result(&self, side_resources: &mut Self::SideResources) -> Self::Output;
+    fn allocate_lwe_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
 }
 
-pub trait Keyswitch<Input, Output> {
+pub trait LweKeyswitch<Input, Output> {
     type SideResources;
 
-    fn keyswitch(
+    fn lwe_keyswitch(
         &self,
         input: &Input,
         output: &mut Output,
