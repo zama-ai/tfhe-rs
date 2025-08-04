@@ -11,6 +11,7 @@ use crate::core_crypto::commons::parameters::*;
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
 use rayon::prelude::*;
+use tfhe_csprng::seeders::Seed;
 
 /// Fill an [`LWE bootstrap key`](`LweBootstrapKey`) with an actual bootstrapping key constructed
 /// from an input key [`LWE secret key`](`LweSecretKey`) and an output key
@@ -391,6 +392,41 @@ pub fn generate_seeded_lwe_bootstrap_key<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    generate_seeded_lwe_bootstrap_key_with_existing_generator(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        output,
+        noise_distribution,
+        &mut generator,
+    )
+}
+
+pub fn generate_seeded_lwe_bootstrap_key_with_existing_generator<
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    OutputCont,
+    ByteGen,
+>(
+    input_lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output_glwe_secret_key: &GlweSecretKey<OutputKeyCont>,
+    output: &mut SeededLweBootstrapKey<OutputCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<ByteGen>,
+) where
+    NoiseDistribution: Distribution,
+    InputKeyCont: Container,
+    OutputKeyCont: Container,
+    OutputCont: ContainerMut<Element = OutputKeyCont::Element>,
+    InputKeyCont::Element: Copy + CastInto<OutputKeyCont::Element>,
+    OutputKeyCont::Element: Encryptable<Uniform, NoiseDistribution>,
+    ByteGen: ByteRandomGenerator,
+{
     assert!(
         output.input_lwe_dimension() == input_lwe_secret_key.lwe_dimension(),
         "Mismatched LweDimension between input LWE secret key and LWE bootstrap key. \
@@ -413,11 +449,6 @@ pub fn generate_seeded_lwe_bootstrap_key<
         Output GLWE secret key PolynomialSize: {:?}, LWE bootstrap key PolynomialSize {:?}.",
         output_glwe_secret_key.polynomial_size(),
         output.polynomial_size()
-    );
-
-    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
-        noise_seeder,
     );
 
     let gen_iter = generator
@@ -490,6 +521,44 @@ where
     );
 
     bsk
+}
+
+pub fn allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator<LweCont, GlweCont>(
+    input_lwe_secret_key: &LweSecretKey<LweCont>,
+    output_glwe_secret_key: &GlweSecretKey<GlweCont>,
+    decomp_base_log: DecompositionBaseLog,
+    decomp_level_count: DecompositionLevelCount,
+    noise_distribution: DynamicDistribution<GlweCont::Element>,
+    ciphertext_modulus: CiphertextModulus<GlweCont::Element>,
+    noise_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+) -> SeededLweBootstrapKeyOwned<GlweCont::Element>
+where
+    LweCont: Container,
+    GlweCont: Container,
+    LweCont::Element: Copy + CastInto<GlweCont::Element>,
+    GlweCont::Element:
+        UnsignedInteger + Encryptable<Uniform, DynamicDistribution<GlweCont::Element>>,
+{
+    let mut lwe_bootstrapping_key = SeededLweBootstrapKeyOwned::new(
+        GlweCont::Element::ZERO,
+        output_glwe_secret_key.glwe_dimension().to_glwe_size(),
+        output_glwe_secret_key.polynomial_size(),
+        decomp_base_log,
+        decomp_level_count,
+        input_lwe_secret_key.lwe_dimension(),
+        CompressionSeed::from(Seed(0)),
+        ciphertext_modulus,
+    );
+
+    generate_seeded_lwe_bootstrap_key_with_existing_generator(
+        input_lwe_secret_key,
+        output_glwe_secret_key,
+        &mut lwe_bootstrapping_key,
+        noise_distribution,
+        noise_generator,
+    );
+
+    lwe_bootstrapping_key
 }
 
 /// Parallel variant of [`generate_seeded_lwe_bootstrap_key`], it is recommended to use this

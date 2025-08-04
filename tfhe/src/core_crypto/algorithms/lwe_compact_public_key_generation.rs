@@ -111,6 +111,39 @@ pub fn generate_seeded_lwe_compact_public_key<
     // Maybe Sized allows to pass Box<dyn Seeder>.
     NoiseSeeder: Seeder + ?Sized,
 {
+    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
+        output.compression_seed().seed,
+        noise_seeder,
+    );
+
+    generate_seeded_lwe_compact_public_key_with_pre_seeded_generator(
+        lwe_secret_key,
+        output,
+        noise_distribution,
+        &mut generator,
+    );
+}
+
+/// Fill a [`seeded LWE compact public key`](`LweCompactPublicKey`) with an actual public key
+/// constructed from a private [`LWE secret key`](`LweSecretKey`).
+pub fn generate_seeded_lwe_compact_public_key_with_pre_seeded_generator<
+    Scalar,
+    NoiseDistribution,
+    InputKeyCont,
+    OutputKeyCont,
+    ByteGen,
+>(
+    lwe_secret_key: &LweSecretKey<InputKeyCont>,
+    output: &mut SeededLweCompactPublicKey<OutputKeyCont>,
+    noise_distribution: NoiseDistribution,
+    generator: &mut EncryptionRandomGenerator<ByteGen>,
+) where
+    Scalar: Encryptable<Uniform, NoiseDistribution>,
+    NoiseDistribution: Distribution,
+    InputKeyCont: Container<Element = Scalar>,
+    OutputKeyCont: ContainerMut<Element = Scalar>,
+    ByteGen: ByteRandomGenerator,
+{
     assert!(
         output.ciphertext_modulus().is_native_modulus(),
         "This operation only supports native moduli"
@@ -122,11 +155,6 @@ pub fn generate_seeded_lwe_compact_public_key<
     and output LweCompactPublicKey {:?}",
         lwe_secret_key.lwe_dimension(),
         output.lwe_dimension()
-    );
-
-    let mut generator = EncryptionRandomGenerator::<DefaultRandomGenerator>::new(
-        output.compression_seed().seed,
-        noise_seeder,
     );
 
     let mut tmp_mask = vec![Scalar::ZERO; output.lwe_dimension().0];
