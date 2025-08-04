@@ -229,8 +229,9 @@ void cuda_multi_bit_programmable_bootstrap_lwe_ciphertext_vector_64(
     uint32_t level_count, uint32_t num_samples, uint32_t num_many_lut,
     uint32_t lut_stride) {
 
-  if (base_log > 64)
-    PANIC("Cuda error (multi-bit PBS): base log should be <= 64")
+  PANIC_IF_FALSE(base_log <= 64,
+                 "Cuda error (multi-bit PBS): base log (%d) should be <= 64",
+                 base_log);
 
   pbs_buffer<uint64_t, MULTI_BIT> *buffer =
       (pbs_buffer<uint64_t, MULTI_BIT> *)mem_ptr;

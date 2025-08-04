@@ -282,15 +282,14 @@ __host__ void host_improve_noise_modulus_switch(
     const double input_variance, const double r_sigma, const double bound,
     uint32_t log_modulus) {
 
-  if (lwe_size < 512) {
-    PANIC("The lwe_size is less than 512, this is not supported\n");
-    return;
-  }
+  PANIC_IF_FALSE(lwe_size >= 512,
+                 "The lwe_size (%d) is less than 512, this is not supported\n",
+                 lwe_size);
+  PANIC_IF_FALSE(
+      lwe_size <= 1024,
+      "The lwe_size (%d) is greater than 1024, this is not supported\n",
+      lwe_size);
 
-  if (lwe_size > 1024) {
-    PANIC("The lwe_size is greater than 1024, this is not supported\n");
-    return;
-  }
   cuda_set_device(gpu_index);
 
   // This reduction requires a power of two num of threads
