@@ -393,3 +393,65 @@ impl<'a, Scalar: UnsignedInteger> ModulusSwitchConfiguration<Scalar> {
         }
     }
 }
+
+// ============== Noise measurement trait implementations ============== //
+use crate::core_crypto::commons::noise_formulas::traits::{
+    AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardPBSModSwitchResult,
+    DriftTechniqueStandardModSwitch, StandardPBSModSwitch,
+};
+
+impl<Scalar: UnsignedInteger> AllocateDriftTechniqueStandardModSwitchResult
+    for ModulusSwitchNoiseReductionKey<Scalar>
+{
+    type AfterDriftOutput = LweCiphertextOwned<Scalar>;
+    type AfterMsOutput = LweCiphertextOwned<Scalar>;
+    type SideResources = ();
+
+    fn allocate_drift_technique_standard_mod_switch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> (Self::AfterDriftOutput, Self::AfterMsOutput) {
+        let after_drift = Self::AfterDriftOutput::new(
+            Scalar::ZERO,
+            self.modulus_switch_zeros.lwe_size(),
+            self.modulus_switch_zeros.ciphertext_modulus(),
+        );
+        let after_ms = after_drift.allocate_standard_mod_switch_result(side_resources);
+        (after_drift, after_ms)
+    }
+}
+
+impl<
+        Scalar: UnsignedInteger,
+        InputCont: Container<Element = Scalar>,
+        AfterDriftCont: ContainerMut<Element = Scalar>,
+        AfterMsCont: ContainerMut<Element = Scalar>,
+    >
+    DriftTechniqueStandardModSwitch<
+        LweCiphertext<InputCont>,
+        LweCiphertext<AfterDriftCont>,
+        LweCiphertext<AfterMsCont>,
+    > for ModulusSwitchNoiseReductionKey<Scalar>
+{
+    type SideResources = ();
+
+    fn drift_technique_and_standard_mod_switch(
+        &self,
+        output_modulus_log: CiphertextModulusLog,
+        input: &LweCiphertext<InputCont>,
+        after_drift_technique: &mut LweCiphertext<AfterDriftCont>,
+        after_mod_switch: &mut LweCiphertext<AfterMsCont>,
+        side_resources: &mut Self::SideResources,
+    ) {
+        after_drift_technique
+            .as_mut()
+            .copy_from_slice(input.as_ref());
+        self.improve_modulus_switch_noise(after_drift_technique, output_modulus_log);
+
+        after_drift_technique.standard_mod_switch(
+            output_modulus_log,
+            after_mod_switch,
+            side_resources,
+        );
+    }
+}
