@@ -49,6 +49,12 @@ impl Named for NoiseSquashingPrivateKey {
     const NAME: &'static str = "integer::NoiseSquashingPrivateKey";
 }
 
+impl NoiseSquashingPrivateKey {
+    pub fn noise_squashing_parameters(&self) -> NoiseSquashingParameters {
+        self.key.noise_squashing_parameters()
+    }
+}
+
 impl CompressedNoiseSquashingKey {
     pub fn decompress(&self) -> NoiseSquashingKey {
         NoiseSquashingKey {

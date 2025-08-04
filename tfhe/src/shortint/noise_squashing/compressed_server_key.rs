@@ -243,6 +243,14 @@ impl CompressedNoiseSquashingKey {
         )
     }
 
+    pub fn bootstrapping_key(&self) -> &SeededLweBootstrapKeyOwned<u128> {
+        &self.bootstrapping_key
+    }
+
+    pub fn modulus_switch_noise_reduction_key(&self) -> &CompressedModulusSwitchConfiguration<u64> {
+        &self.modulus_switch_noise_reduction_key
+    }
+
     pub fn message_modulus(&self) -> MessageModulus {
         self.message_modulus
     }
