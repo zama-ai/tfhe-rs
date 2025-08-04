@@ -1,14 +1,17 @@
-pub trait AllocateBootstrapResult {
+pub trait AllocateLweBootstrapResult {
     type Output;
     type SideResources;
 
-    fn allocate_bootstrap_result(&self, side_resources: &mut Self::SideResources) -> Self::Output;
+    fn allocate_lwe_bootstrap_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
 }
 
-pub trait StandardFftBootstrap<Input, Output, Accumulator> {
+pub trait LweStandardFftBootstrap<Input, Output, Accumulator> {
     type SideResources;
 
-    fn standard_fft_pbs(
+    fn lwe_standard_fft_pbs(
         &self,
         input: &Input,
         output: &mut Output,
@@ -17,10 +20,10 @@ pub trait StandardFftBootstrap<Input, Output, Accumulator> {
     );
 }
 
-pub trait StandardFft128Bootstrap<Input, Output, Accumulator> {
+pub trait LweStandardFft128Bootstrap<Input, Output, Accumulator> {
     type SideResources;
 
-    fn standard_fft_128_pbs(
+    fn lwe_standard_fft_128_pbs(
         &self,
         input: &Input,
         output: &mut Output,

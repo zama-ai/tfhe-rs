@@ -3,7 +3,7 @@ pub use crate::core_crypto::commons::noise_formulas::noise_simulation::*;
 use crate::core_crypto::commons::dispersion::{DispersionParameter, Variance};
 use crate::core_crypto::commons::noise_formulas::generalized_modulus_switch::generalized_modulus_switch_additive_variance;
 use crate::core_crypto::commons::noise_formulas::traits::{
-    AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardPBSModSwitchResult,
+    AllocateDriftTechniqueStandardModSwitchResult, AllocateStandardModSwitchResult,
     DriftTechniqueStandardModSwitch,
 };
 use crate::core_crypto::commons::numeric::UnsignedInteger;

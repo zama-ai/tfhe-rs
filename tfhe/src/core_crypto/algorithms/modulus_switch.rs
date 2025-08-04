@@ -100,10 +100,10 @@ where
 
 // ============== Noise measurement trait implementations ============== //
 use crate::core_crypto::commons::noise_formulas::traits::{
-    AllocateStandardPBSModSwitchResult, StandardPBSModSwitch,
+    AllocateStandardModSwitchResult, StandardModSwitch,
 };
 
-impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardPBSModSwitchResult
+impl<Scalar: UnsignedInteger, C: Container<Element = Scalar>> AllocateStandardModSwitchResult
     for LweCiphertext<C>
 {
     type Output = LweCiphertextOwned<Scalar>;
@@ -123,7 +123,7 @@ impl<
         Scalar: UnsignedInteger,
         InputCont: Container<Element = Scalar>,
         OutputCont: ContainerMut<Element = Scalar>,
-    > StandardPBSModSwitch<LweCiphertext<OutputCont>> for LweCiphertext<InputCont>
+    > StandardModSwitch<LweCiphertext<OutputCont>> for LweCiphertext<InputCont>
 {
     type SideResources = ();
 
