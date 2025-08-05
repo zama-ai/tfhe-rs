@@ -165,6 +165,7 @@ features = [
     "software-prng",
     "strings",
     "hpu",
+    "extended-types",
 ]
 rustdoc-args = ["--html-in-header", "katex-header.html"]
 
