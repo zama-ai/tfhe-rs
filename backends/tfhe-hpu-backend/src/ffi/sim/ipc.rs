@@ -155,7 +155,7 @@ impl IpcFfi {
         };
         tracing::debug!("Will bind through {oneshot_name}");
 
-        // Connet to the oneshot channel
+        // Connect to the oneshot channel
         let bind_tx = IpcSender::connect(oneshot_name).unwrap();
 
         // Generate ipc channel and send Sim side through oneshot
