@@ -97,6 +97,12 @@ install_rs_build_toolchain:
 	( echo "Unable to install $(RS_BUILD_TOOLCHAIN) toolchain, check your rustup installation. \
 	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
 
+.PHONY: install_rs_msrv_toolchain # Install the msrv toolchain
+install_rs_msrv_toolchain:
+	@rustup toolchain install --profile default "$(MIN_RUST_VERSION)" || \
+	( echo "Unable to install $(MIN_RUST_VERSION) toolchain, check your rustup installation. \
+	Rustup can be downloaded at https://rustup.rs/" && exit 1 )
+
 .PHONY: install_build_wasm32_target # Install the wasm32 toolchain used for builds
 install_build_wasm32_target: install_rs_build_toolchain
 	rustup +$(RS_BUILD_TOOLCHAIN) target add wasm32-unknown-unknown || \
@@ -576,6 +582,15 @@ build_tfhe_full: install_rs_build_toolchain
 build_tfhe_coverage: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) --tests
+
+# As of 05/08/2025 this is the set of features that can be easily compiled without additional
+# toolkits
+.PHONY: build_tfhe_msrv # Build with msrv compiler
+build_tfhe_msrv: install_rs_build_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo +$(MIN_RUST_VERSION) build --profile dev \
+		--features=boolean,extended-types,hpu,hpu-debug \
+		--features=hpu-v80,integer,noise-asserts \
+		--features=pbs-stats,shortint,strings,zk-pok -p tfhe
 
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
