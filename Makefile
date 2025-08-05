@@ -966,6 +966,11 @@ test_high_level_api: install_rs_build_toolchain
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p $(TFHE_SPEC) \
 		-- high_level_api::
 
+test_high_level_api_gpu_one: install_rs_build_toolchain install_cargo_nextest
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test  \
+		--features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
+		-- --nocapture high_level_api::array::tests::booleans::test_gpu_only_bitand
+
 test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
 		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
