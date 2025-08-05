@@ -23,7 +23,6 @@ BENCH_PARAM_TYPE?=classical
 BENCH_PARAMS_SET?=default
 NODE_VERSION=22.6
 BACKWARD_COMPAT_DATA_DIR=utils/tfhe-backward-compat-data
-TFHE_SPEC:=tfhe
 WASM_PACK_VERSION="0.13.1"
 # We are kind of hacking the cut here, the version cannot contain a quote '"'
 WASM_BINDGEN_VERSION:=$(shell grep '^wasm-bindgen[[:space:]]*=' Cargo.toml | cut -d '"' -f 2 | xargs)
@@ -303,28 +302,28 @@ clippy_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: check_gpu # Run check on tfhe with "gpu" enabled
 check_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" check \
 		--features=boolean,shortint,integer,internal-keycache,gpu,pbs-stats \
 		--all-targets \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: clippy_hpu # Run clippy lints on tfhe with "hpu" enabled
 clippy_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean,shortint,integer,internal-keycache,hpu,pbs-stats,extended-types \
 		--all-targets \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_gpu_hpu # Run clippy lints on tfhe with "gpu" and "hpu" enabled
 clippy_gpu_hpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean,shortint,integer,internal-keycache,gpu,hpu,pbs-stats,extended-types,zk-pok \
 		--all-targets \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: fix_newline # Fix newline at end of file issues to be UNIX compliant
 fix_newline: check_linelint_installed
@@ -345,55 +344,55 @@ check_workflow_security: install_zizmor
 .PHONY: clippy_core # Run clippy lints on core_crypto with and without experimental features
 clippy_core: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=experimental \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=nightly-avx512 \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=experimental,nightly-avx512 \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=zk-pok \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_boolean # Run clippy lints enabling the boolean features
 clippy_boolean: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_shortint # Run clippy lints enabling the shortint features
 clippy_shortint: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=shortint \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=shortint,experimental \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=zk-pok,shortint \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_integer # Run clippy lints enabling the integer features
 clippy_integer: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer,experimental \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=integer,experimental,extended-types \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy # Run clippy lints enabling the boolean, shortint, integer
 clippy: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=boolean,shortint,integer \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_rustdoc # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
 clippy_rustdoc: install_rs_check_toolchain
@@ -404,7 +403,7 @@ clippy_rustdoc: install_rs_check_toolchain
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
 		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: clippy_rustdoc_gpu # Run clippy lints on doctests enabling the boolean, shortint, integer and zk-pok
 clippy_rustdoc_gpu: install_rs_check_toolchain
@@ -415,22 +414,22 @@ clippy_rustdoc_gpu: install_rs_check_toolchain
 	CARGO_TERM_QUIET=true CLIPPYFLAGS="-D warnings" RUSTDOCFLAGS="--no-run --nocapture --test-builder ./scripts/clippy_driver.sh -Z unstable-options" \
 		cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" test --doc \
 		--features=boolean,shortint,integer,zk-pok,pbs-stats,strings,experimental,gpu \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: clippy_c_api # Run clippy lints enabling the boolean, shortint and the C API
 clippy_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,extended-types \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_js_wasm_api # Run clippy lints enabling the boolean, shortint, integer and the js wasm API
 clippy_js_wasm_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,zk-pok,extended-types \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \
 		--features=boolean-client-js-wasm-api,shortint-client-js-wasm-api,integer-client-js-wasm-api,high-level-client-js-wasm-api,extended-types \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tasks # Run clippy lints on helper tasks crate.
 clippy_tasks: install_rs_check_toolchain
@@ -451,10 +450,10 @@ clippy_ws_tests: install_rs_check_toolchain
 clippy_all_targets: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \
 		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings,pbs-stats,extended-types,experimental \
-		-p $(TFHE_SPEC) -- --no-deps -D warnings
+		-p tfhe -- --no-deps -D warnings
 
 .PHONY: clippy_tfhe_csprng # Run clippy lints on tfhe-csprng
 clippy_tfhe_csprng: install_rs_check_toolchain
@@ -542,63 +541,63 @@ tfhe_lints: install_cargo_dylint
 .PHONY: build_core # Build core_crypto without experimental features
 build_core: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		-p $(TFHE_SPEC)
+		-p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=nightly-avx512 -p $(TFHE_SPEC); \
+			--features=nightly-avx512 -p tfhe; \
 	fi
 
 .PHONY: build_core_experimental # Build core_crypto with experimental features
 build_core_experimental: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=experimental -p $(TFHE_SPEC)
+		--features=experimental -p tfhe
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-			--features=experimental,nightly-avx512 -p $(TFHE_SPEC); \
+			--features=experimental,nightly-avx512 -p tfhe; \
 	fi
 
 .PHONY: build_boolean # Build with boolean enabled
 build_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean -p $(TFHE_SPEC) --all-targets
+		--features=boolean -p tfhe --all-targets
 
 .PHONY: build_shortint # Build with shortint enabled
 build_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=shortint -p $(TFHE_SPEC) --all-targets
+		--features=shortint -p tfhe --all-targets
 
 .PHONY: build_integer # Build with integer enabled
 build_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=integer -p $(TFHE_SPEC) --all-targets
+		--features=integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_full # Build with boolean, shortint and integer enabled
 build_tfhe_full: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer -p $(TFHE_SPEC) --all-targets
+		--features=boolean,shortint,integer -p tfhe --all-targets
 
 .PHONY: build_tfhe_coverage # Build with test coverage enabled
 build_tfhe_coverage: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) --tests
+		--features=boolean,shortint,integer,internal-keycache -p tfhe --tests
 
 .PHONY: build_c_api # Build the C API for boolean, shortint and integer
 build_c_api: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: build_c_api_gpu # Build the C API for boolean, shortint and integer
 build_c_api_gpu: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,extended-types,gpu \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: build_c_api_experimental_deterministic_fft # Build the C API for boolean, shortint and integer with experimental deterministic FFT
 build_c_api_experimental_deterministic_fft: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api,zk-pok,experimental-force_fft_algo_dif4 \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 .PHONY: build_web_js_api # Build the js API targeting the web browser
 build_web_js_api: install_rs_build_toolchain install_wasm_pack
@@ -633,10 +632,10 @@ build_tfhe_csprng: install_rs_build_toolchain
 .PHONY: test_core_crypto # Run the tests of the core_crypto module including experimental ones
 test_core_crypto: install_rs_build_toolchain install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=experimental,zk-pok -p $(TFHE_SPEC) -- core_crypto::
+		--features=experimental,zk-pok -p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-			--features=experimental,zk-pok,nightly-avx512 -p $(TFHE_SPEC) -- core_crypto::; \
+			--features=experimental,zk-pok,nightly-avx512 -p tfhe -- core_crypto::; \
 	fi
 
 .PHONY: test_core_crypto_cov # Run the tests of the core_crypto module with code coverage
@@ -645,13 +644,13 @@ test_core_crypto_cov: install_rs_build_toolchain install_rs_check_toolchain inst
 		--out xml --output-dir coverage/core_crypto --line --engine llvm --timeout 500 \
 		--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 		--features=experimental,internal-keycache \
-		-p $(TFHE_SPEC) -- core_crypto::
+		-p tfhe -- core_crypto::
 	@if [[ "$(AVX512_SUPPORT)" == "ON" ]]; then \
 		RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \
 			--out xml --output-dir coverage/core_crypto_avx512 --line --engine llvm --timeout 500 \
 			--implicit-test-threads $(COVERAGE_EXCLUDED_FILES) \
 			--features=experimental,internal-keycache,nightly-avx512 \
-			-p $(TFHE_SPEC) -- -Z unstable-options --report-time core_crypto::; \
+			-p tfhe -- -Z unstable-options --report-time core_crypto::; \
 	fi
 
 .PHONY: test_cuda_backend # Run the internal tests of the CUDA backend
@@ -668,35 +667,35 @@ test_gpu: test_core_crypto_gpu test_integer_gpu test_cuda_backend
 .PHONY: test_core_crypto_gpu # Run the tests of the core_crypto module including experimental on the gpu backend
 test_core_crypto_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=gpu -p tfhe -- core_crypto::gpu::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=gpu -p $(TFHE_SPEC) -- core_crypto::gpu::
+		--features=gpu -p tfhe -- core_crypto::gpu::
 
 .PHONY: test_integer_gpu # Run the tests of the integer module including experimental on the gpu backend
 test_integer_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=4
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key:: --test-threads=4
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key::
 
 .PHONY: test_integer_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_integer_gpu_debug: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile release_lto_off \
-		--features=integer,gpu-debug -vv -p $(TFHE_SPEC) -- integer::gpu::server_key:: --test-threads=1 --nocapture
+		--features=integer,gpu-debug -vv -p tfhe -- integer::gpu::server_key:: --test-threads=1 --nocapture
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile release_lto_off \
-		--features=integer,gpu-debug -p $(TFHE_SPEC) -- integer::gpu::server_key::
+		--features=integer,gpu-debug -p tfhe -- integer::gpu::server_key::
 
 .PHONY: test_high_level_api_gpu_debug # Run the tests of the integer module with Debug flags for CUDA
 test_high_level_api_gpu_debug: install_rs_build_toolchain install_cargo_nextest
 	export RUSTFLAGS="$(RUSTFLAGS)" && \
 	export CARGO_RS_BUILD_TOOLCHAIN="$(CARGO_RS_BUILD_TOOLCHAIN)" && \
-	export TFHE_SPEC="$(TFHE_SPEC)" && \
+	export TFHE_SPEC="tfhe" && \
 	export CARGO_PROFILE="$(CARGO_PROFILE)" &&	scripts/check_memory_errors.sh
 
 .PHONY: test_integer_hl_test_gpu_check_warnings
 test_integer_hl_test_gpu_check_warnings: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build \
-		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p $(TFHE_SPEC) &> /tmp/gpu_compile_output
+		--features=integer,internal-keycache,gpu-debug,zk-pok -vv -p tfhe &> /tmp/gpu_compile_output
 	WARNINGS=$$(cat /tmp/gpu_compile_output | grep ": warning #" | grep "\[tfhe-cuda-backend" | grep -v "inline qualifier" || true) && \
 	if [[ "$${WARNINGS}" != "" ]]; then \
 	    echo "FAILING BECAUSE CUDA COMPILATION WARNINGS WERE DETECTED: " && \
@@ -710,27 +709,27 @@ test_integer_long_run_gpu: install_rs_check_toolchain install_cargo_nextest
 	LONG_TESTS=TRUE \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--tfhe-package "$(TFHE_SPEC)" --backend "gpu"
+		--tfhe-package "tfhe" --backend "gpu"
 
 .PHONY: test_integer_short_run_gpu # Run the long run integer tests on the gpu backend
 test_integer_short_run_gpu: install_rs_check_toolchain install_cargo_nextest
 	TFHE_RS_TEST_LONG_TESTS_MINIMAL=TRUE \
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
+		--features=integer,gpu -p tfhe -- integer::gpu::server_key::radix::tests_long_run::test_random_op_sequence integer::gpu::server_key::radix::tests_long_run::test_signed_random_op_sequence --test-threads=1 --nocapture
 
 .PHONY: test_integer_compression
 test_integer_compression: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer -p $(TFHE_SPEC) -- integer::ciphertext::compressed_ciphertext_list::tests::
+		--features=integer -p tfhe -- integer::ciphertext::compressed_ciphertext_list::tests::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=integer -p $(TFHE_SPEC) -- integer::ciphertext::compress
+		--features=integer -p tfhe -- integer::ciphertext::compress
 
 .PHONY: test_integer_compression_gpu
 test_integer_compression_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::
+		--features=integer,gpu -p tfhe -- integer::gpu::ciphertext::compressed_ciphertext_list::tests::
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --doc --profile $(CARGO_PROFILE) \
-		--features=integer,gpu -p $(TFHE_SPEC) -- integer::gpu::ciphertext::compress
+		--features=integer,gpu -p tfhe -- integer::gpu::ciphertext::compress
 
 .PHONY: test_integer_gpu_ci # Run the tests for integer ci on gpu backend
 test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -739,7 +738,7 @@ test_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
-		--tfhe-package "$(TFHE_SPEC)"
+		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_gpu_ci # Run the tests for unsigned integer ci on gpu backend
 test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -748,7 +747,7 @@ test_unsigned_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
-		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_gpu_ci # Run the tests for signed integer ci on gpu backend
 test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -757,7 +756,7 @@ test_signed_integer_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --backend "gpu" \
-		--signed-only --tfhe-package "$(TFHE_SPEC)"
+		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_multi_bit_gpu_ci # Run the tests for integer ci on gpu backend running only multibit tests
 test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -766,7 +765,7 @@ test_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
-		--tfhe-package "$(TFHE_SPEC)"
+		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_multi_bit_gpu_ci # Run the tests for unsigned integer ci on gpu backend running only multibit tests
 test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -775,7 +774,7 @@ test_unsigned_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
-		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_multi_bit_gpu_ci # Run the tests for signed integer ci on gpu backend running only multibit tests
 test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_nextest
@@ -784,11 +783,11 @@ test_signed_integer_multi_bit_gpu_ci: install_rs_check_toolchain install_cargo_n
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --backend "gpu" \
-		--signed-only --tfhe-package "$(TFHE_SPEC)"
+		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_hpu_ci # Run the tests for integer ci on hpu backend
 test_integer_hpu_ci: install_rs_check_toolchain install_cargo_nextest
-	cargo test --release -p $(TFHE_SPEC) --features hpu-v80 --test hpu
+	cargo test --release -p tfhe --features hpu-v80 --test hpu
 
 .PHONY: test_integer_hpu_mockup_ci # Run the tests for integer ci on hpu backend and mockup
 test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
@@ -796,7 +795,7 @@ test_integer_hpu_mockup_ci: install_rs_check_toolchain install_cargo_nextest
 	cargo build --release --bin hpu_mockup; \
     coproc target/release/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_pfail64_psi64.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
 	kill %1
 
 .PHONY: test_integer_hpu_mockup_ci_fast # Run the quick tests for integer ci on hpu backend and mockup.
@@ -805,13 +804,13 @@ test_integer_hpu_mockup_ci_fast: install_rs_check_toolchain install_cargo_nextes
 	cargo build --profile devo --bin hpu_mockup; \
     coproc target/devo/hpu_mockup --params mockups/tfhe-hpu-mockup/params/tuniform_64b_fast.toml > mockup.log; \
 	HPU_TEST_ITER=1 \
-	cargo test --profile devo -p $(TFHE_SPEC) --features hpu --test hpu -- u32 && \
+	cargo test --profile devo -p tfhe --features hpu --test hpu -- u32 && \
 	kill %1
 
 .PHONY: test_boolean # Run the tests of the boolean module
 test_boolean: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean -p $(TFHE_SPEC) -- boolean::
+		--features=boolean -p tfhe -- boolean::
 
 .PHONY: test_boolean_cov # Run the tests of the boolean module with code coverage
 test_boolean_cov: install_rs_check_toolchain install_tarpaulin
@@ -819,13 +818,13 @@ test_boolean_cov: install_rs_check_toolchain install_tarpaulin
 		--out xml --output-dir coverage/boolean --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=boolean,internal-keycache \
-		-p $(TFHE_SPEC) -- -Z unstable-options --report-time boolean::
+		-p tfhe -- -Z unstable-options --report-time boolean::
 
 .PHONY: test_c_api_rs # Run the rust tests for the C API
 test_c_api_rs: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
 		--features=boolean-c-api,shortint-c-api,high-level-c-api \
-		-p $(TFHE_SPEC) \
+		-p tfhe \
 		c_api
 
 .PHONY: test_c_api_c # Run the C tests for the C API
@@ -844,19 +843,19 @@ test_shortint_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "$(TFHE_SPEC)"
+		--cargo-profile "$(CARGO_PROFILE)" --tfhe-package "tfhe"
 
 .PHONY: test_shortint_multi_bit_ci # Run the tests for shortint ci running only multibit tests
 test_shortint_multi_bit_ci: install_rs_build_toolchain install_cargo_nextest
 	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \
 	FAST_TESTS="$(FAST_TESTS)" \
 		./scripts/shortint-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
-		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "$(TFHE_SPEC)"
+		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --tfhe-package "tfhe"
 
 .PHONY: test_shortint # Run all the tests for shortint
 test_shortint: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=shortint,internal-keycache -p $(TFHE_SPEC) -- shortint::
+		--features=shortint,internal-keycache -p tfhe -- shortint::
 
 .PHONY: test_shortint_cov # Run the tests of the shortint module with code coverage
 test_shortint_cov: install_rs_check_toolchain install_tarpaulin
@@ -864,7 +863,7 @@ test_shortint_cov: install_rs_check_toolchain install_tarpaulin
 		--out xml --output-dir coverage/shortint --line --engine llvm --timeout 500 \
 		$(COVERAGE_EXCLUDED_FILES) \
 		--features=shortint,internal-keycache \
-		-p $(TFHE_SPEC) -- -Z unstable-options --report-time shortint::
+		-p tfhe -- -Z unstable-options --report-time shortint::
 
 .PHONY: test_integer_ci # Run the tests for integer ci
 test_integer_ci: install_rs_check_toolchain install_cargo_nextest
@@ -873,7 +872,7 @@ test_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--tfhe-package "$(TFHE_SPEC)"
+		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_ci # Run the tests for unsigned integer ci
 test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
@@ -882,7 +881,7 @@ test_unsigned_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_ci # Run the tests for signed integer ci
 test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
@@ -891,7 +890,7 @@ test_signed_integer_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--signed-only --tfhe-package "$(TFHE_SPEC)"
+		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_multi_bit_ci # Run the tests for integer ci running only multibit tests
 test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
@@ -900,7 +899,7 @@ test_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--tfhe-package "$(TFHE_SPEC)"
+		--tfhe-package "tfhe"
 
 .PHONY: test_unsigned_integer_multi_bit_ci # Run the tests for unsigned integer ci running only multibit tests
 test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
@@ -909,7 +908,7 @@ test_unsigned_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nex
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--unsigned-only --tfhe-package "$(TFHE_SPEC)"
+		--unsigned-only --tfhe-package "tfhe"
 
 .PHONY: test_signed_integer_multi_bit_ci # Run the tests for signed integer ci running only multibit tests
 test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nextest
@@ -918,7 +917,7 @@ test_signed_integer_multi_bit_ci: install_rs_check_toolchain install_cargo_nexte
 	NIGHTLY_TESTS="$(NIGHTLY_TESTS)" \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_CHECK_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --multi-bit --avx512-support "$(AVX512_SUPPORT)" \
-		--signed-only --tfhe-package "$(TFHE_SPEC)"
+		--signed-only --tfhe-package "tfhe"
 
 .PHONY: test_integer_long_run # Run the long run integer tests
 test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
@@ -926,31 +925,31 @@ test_integer_long_run: install_rs_check_toolchain install_cargo_nextest
 	LONG_TESTS=TRUE \
 		./scripts/integer-tests.sh --rust-toolchain $(CARGO_RS_BUILD_TOOLCHAIN) \
 		--cargo-profile "$(CARGO_PROFILE)" --avx512-support "$(AVX512_SUPPORT)" \
-		--tfhe-package "$(TFHE_SPEC)"
+		--tfhe-package "tfhe"
 
 .PHONY: test_noise_check # Run dedicated noise and pfail check tests
 test_noise_check: install_rs_check_toolchain
 	@# First run the sanity checks to make sure the atomic patterns are correct
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,nightly-avx512 -p $(TFHE_SPEC) -- sanity_check
+		--features=boolean,shortint,integer,nightly-avx512 -p tfhe -- sanity_check
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,nightly-avx512 -p $(TFHE_SPEC) -- noise_check \
+		--features=boolean,shortint,integer,nightly-avx512 -p tfhe -- noise_check \
 		--test-threads=1 --nocapture
 
 .PHONY: test_safe_serialization # Run the tests for safe serialization
 test_safe_serialization: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache -p $(TFHE_SPEC) -- safe_serialization::
+		--features=boolean,shortint,integer,internal-keycache -p tfhe -- safe_serialization::
 
 .PHONY: test_zk # Run the tests for the zk module of the TFHE-rs crate
 test_zk: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=shortint,zk-pok -p $(TFHE_SPEC) -- zk::
+		--features=shortint,zk-pok -p tfhe -- zk::
 
 .PHONY: test_integer # Run all the tests for integer
 test_integer: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=integer,internal-keycache -p $(TFHE_SPEC) -- integer::
+		--features=integer,internal-keycache -p tfhe -- integer::
 
 .PHONY: test_integer_cov # Run the tests of the integer module with code coverage
 test_integer_cov: install_rs_check_toolchain install_tarpaulin
@@ -959,17 +958,17 @@ test_integer_cov: install_rs_check_toolchain install_tarpaulin
 		--implicit-test-threads \
 		--exclude-files $(COVERAGE_EXCLUDED_FILES) \
 		--features=integer,internal-keycache \
-		-p $(TFHE_SPEC) -- -Z unstable-options --report-time integer::
+		-p tfhe -- -Z unstable-options --report-time integer::
 
 .PHONY: test_high_level_api # Run all the tests for high_level_api
 test_high_level_api: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p $(TFHE_SPEC) \
+		--features=boolean,shortint,integer,internal-keycache,zk-pok,strings -p tfhe \
 		-- high_level_api::
 
 test_high_level_api_gpu: install_rs_build_toolchain install_cargo_nextest
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
-		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p $(TFHE_SPEC) \
+		--test-threads=4 --features=integer,internal-keycache,gpu,zk-pok -p tfhe \
 		-E "test(/high_level_api::.*gpu.*/)"
 
 test_high_level_api_hpu: install_rs_build_toolchain install_cargo_nextest
@@ -977,13 +976,13 @@ ifeq ($(HPU_CONFIG), v80)
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
-		--features=integer,internal-keycache,hpu,hpu-v80 -p $(TFHE_SPEC) \
+		--features=integer,internal-keycache,hpu,hpu-v80 -p tfhe \
 		-E "test(/high_level_api::.*hpu.*/)"
 else
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) nextest run --cargo-profile $(CARGO_PROFILE) \
 		--build-jobs=$(CARGO_BUILD_JOBS) \
 		--test-threads=1 \
-		--features=integer,internal-keycache,hpu -p $(TFHE_SPEC) \
+		--features=integer,internal-keycache,hpu -p tfhe \
 		-E "test(/high_level_api::.*hpu.*/)"
 endif
 
@@ -991,7 +990,7 @@ endif
 .PHONY: test_strings # Run the tests for strings ci
 test_strings: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \
-		--features=shortint,integer,strings -p $(TFHE_SPEC) \
+		--features=shortint,integer,strings -p tfhe \
 		-- strings::
 
 
@@ -999,24 +998,24 @@ test_strings: install_rs_build_toolchain
 test_user_doc: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
 		--features=boolean,shortint,integer,internal-keycache,pbs-stats,zk-pok,strings \
-		-p $(TFHE_SPEC) \
+		-p tfhe \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_gpu # Run tests for GPU from the .md documentation
 test_user_doc_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=internal-keycache,integer,zk-pok,gpu -p $(TFHE_SPEC) \
+		--features=internal-keycache,integer,zk-pok,gpu -p tfhe \
 		-- test_user_docs::
 
 .PHONY: test_user_doc_hpu # Run tests for HPU from the .md documentation
 test_user_doc_hpu: install_rs_build_toolchain
 ifeq ($(HPU_CONFIG), v80)
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=internal-keycache,integer,hpu,hpu-v80 -p $(TFHE_SPEC) \
+		--features=internal-keycache,integer,hpu,hpu-v80 -p tfhe \
 		-- test_user_docs::
 else
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \
-		--features=internal-keycache,integer,hpu -p $(TFHE_SPEC) \
+		--features=internal-keycache,integer,hpu -p tfhe \
 		-- test_user_docs::
 endif
 
@@ -1101,7 +1100,7 @@ doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p $(TFHE_SPEC)
+		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok --no-deps -p tfhe
 
 .PHONY: docs # Build rust doc alias for doc
 docs: doc
@@ -1112,7 +1111,7 @@ lint_doc: install_rs_check_toolchain
 	DOCS_RS=1 \
 	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \
 	cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" doc \
-		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok -p $(TFHE_SPEC) --no-deps
+		--features=boolean,shortint,integer,strings,gpu,internal-keycache,experimental,zk-pok -p tfhe --no-deps
 
 .PHONY: lint_docs # Build rust doc with linting enabled alias for lint_doc
 lint_docs: lint_doc
@@ -1150,7 +1149,7 @@ check_parameter_export_ok:
 check_compile_tests: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=experimental,boolean,shortint,integer,internal-keycache \
-		-p $(TFHE_SPEC)
+		-p tfhe
 
 	@if [[ "$(OS)" == "Linux" || "$(OS)" == "Darwin" ]]; then \
 		"$(MAKE)" build_c_api && \
@@ -1161,7 +1160,7 @@ check_compile_tests: install_rs_build_toolchain
 check_compile_tests_benches_gpu: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --no-run \
 		--features=experimental,boolean,shortint,integer,internal-keycache,gpu,zk-pok \
-		-p $(TFHE_SPEC)
+		-p tfhe
 	mkdir -p "$(TFHECUDA_BUILD)" && \
 		cd "$(TFHECUDA_BUILD)" && \
 		cmake .. -DCMAKE_BUILD_TYPE=Debug -DTFHE_CUDA_BACKEND_BUILD_TESTS=ON -DTFHE_CUDA_BACKEND_BUILD_BENCHMARKS=ON && \
@@ -1521,13 +1520,13 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 gen_key_cache: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS) --cfg tarpaulin" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
 		--example generates_test_keys \
-		--features=boolean,shortint,experimental,internal-keycache -p $(TFHE_SPEC) \
+		--features=boolean,shortint,experimental,internal-keycache -p tfhe \
 		-- $(MULTI_BIT_ONLY) $(COVERAGE_ONLY)
 
 .PHONY: gen_key_cache_core_crypto # Run function to generate keys and cache them for core_crypto tests
 gen_key_cache_core_crypto: install_rs_build_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --tests --profile $(CARGO_PROFILE) \
-		--features=experimental,internal-keycache -p $(TFHE_SPEC) -- --nocapture \
+		--features=experimental,internal-keycache -p tfhe -- --nocapture \
 		core_crypto::keycache::generate_keys
 
 .PHONY: measure_hlapi_compact_pk_ct_sizes # Measure sizes of public keys and ciphertext for high-level API
