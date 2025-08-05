@@ -441,6 +441,50 @@ mod tests {
         }
     }
 
+    // Regression tests for Barrett reduction double-subtraction bug
+    #[test]
+    fn test_barrett_regression_scalar() {
+        // Test case that would trigger the double-subtraction bug
+        let p = 0x7fffffff; // 2^31 - 1
+        let a = 0x7ffffffe; // p - 1
+        let b = 0x7ffffffe; // p - 1
+        
+        // This multiplication should not cause double subtraction
+        let result = mul(p, a, b);
+        assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[test]
+    fn test_barrett_regression_avx2() {
+        if let Some(simd) = crate::V3::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x7fffffff; // 2^31 - 1
+            let a = 0x7ffffffe; // p - 1
+            let b = 0x7ffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+        }
+    }
+
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    #[cfg(feature = "nightly")]
+    #[test]
+    fn test_barrett_regression_avx512() {
+        if let Some(simd) = crate::V4::try_new() {
+            // Test case that would trigger the double-subtraction bug
+            let p = 0x7fffffff; // 2^31 - 1
+            let a = 0x7ffffffe; // p - 1
+            let b = 0x7ffffffe; // p - 1
+            
+            // This multiplication should not cause double subtraction
+            let result = mul(p, a, b);
+            assert_eq!(result, 1); // (p-1) * (p-1) mod p = 1
+        }
+    }
+
     #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     #[test]
     fn test_product_avx2() {
