@@ -234,6 +234,16 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
             grouping_factor,
         } = self;
 
+        let MultiBitBootstrapKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            grouping_factor: expected_grouping_factor,
+            ciphertext_modulus: _expected_ciphertext_modulus,
+        } = parameter_set;
+
         if input_lwe_dimension.0 % grouping_factor.0 != 0 {
             return false;
         }
@@ -247,11 +257,11 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweMultiBitB
                 *grouping_factor,
             )
             .unwrap()
-            && *grouping_factor == parameter_set.grouping_factor
-            && *decomposition_base_log == parameter_set.decomp_base_log
-            && *decomposition_level_count == parameter_set.decomp_level_count
-            && *input_lwe_dimension == parameter_set.input_lwe_dimension
-            && *glwe_size == parameter_set.output_glwe_size
-            && *polynomial_size == parameter_set.polynomial_size
+            && grouping_factor == expected_grouping_factor
+            && decomposition_base_log == expected_decomp_base_log
+            && decomposition_level_count == expected_decomp_level_count
+            && input_lwe_dimension == expected_input_lwe_dimension
+            && glwe_size == expected_output_glwe_size
+            && polynomial_size == expected_polynomial_size
     }
 }
