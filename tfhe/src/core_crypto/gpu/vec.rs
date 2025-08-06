@@ -7,8 +7,8 @@ use std::ffi::c_void;
 use std::marker::PhantomData;
 use tfhe_cuda_backend::cuda_bind::{
     cuda_ext_drop, cuda_ext_malloc, cuda_ext_malloc_async, cuda_ext_memcpy_async_gpu_to_gpu,
-    cuda_ext_memcpy_async_to_cpu, cuda_ext_memcpy_async_to_gpu, cuda_ext_memcpy_gpu_to_gpu, cuda_ext_memset_async,
-    cuda_synchronize_device,
+    cuda_ext_memcpy_async_to_cpu, cuda_ext_memcpy_async_to_gpu, cuda_ext_memcpy_gpu_to_gpu,
+    cuda_ext_memset_async, cuda_synchronize_device,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

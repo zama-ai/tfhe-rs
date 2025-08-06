@@ -3,7 +3,9 @@ use crate::core_crypto::gpu::CudaStreams;
 use crate::core_crypto::prelude::Numeric;
 use std::ffi::c_void;
 use std::marker::PhantomData;
-use tfhe_cuda_backend::cuda_bind::{cuda_ext_memcpy_async_gpu_to_gpu, cuda_ext_memcpy_async_to_cpu};
+use tfhe_cuda_backend::cuda_bind::{
+    cuda_ext_memcpy_async_gpu_to_gpu, cuda_ext_memcpy_async_to_cpu,
+};
 
 #[derive(Debug, Clone)]
 pub struct CudaSlice<'a, T: Numeric> {
