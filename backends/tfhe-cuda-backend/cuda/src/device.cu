@@ -10,6 +10,44 @@ uint32_t cuda_get_device() {
 
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
+  static bool SETUP_MEM_AND_WARMUP = 1;
+  if (SETUP_MEM_AND_WARMUP){
+    const size_t warmup_size = 20L * 1024 * 1024 * 1024;  // 20 GB just for testing
+    // Get default memory pool
+    cudaMemPool_t default_pool;
+    check_cuda_error(cudaDeviceGetDefaultMemPool(&default_pool, gpu_index));
+
+    // Enable opportunistic reuse (may be on by default, but explicitly setting it is good practice)
+    int reuse = 1;
+    check_cuda_error(cudaMemPoolSetAttribute(
+        default_pool,
+        cudaMemPoolReuseAllowOpportunistic,
+        &reuse));
+
+    //Prevent memory from being released back to the OS too soon
+    size_t threshold = warmup_size;
+    check_cuda_error(cudaMemPoolSetAttribute(
+        default_pool,
+        cudaMemPoolAttrReleaseThreshold,
+        &threshold));
+
+    // Warm up the pool by allocating and freeing a large block
+    cudaStream_t stream;
+    check_cuda_error(cudaStreamCreate(&stream));
+
+    void* warmup_ptr = nullptr;
+    check_cuda_error(cudaMallocAsync(&warmup_ptr, warmup_size, stream));
+    check_cuda_error(cudaFreeAsync(warmup_ptr, stream));
+
+    // Sync to ensure pool is grown
+    check_cuda_error(cudaStreamSynchronize(stream));
+
+    printf("Default CUDA memory pool warmed up with 10 GB and opportunistic reuse enabled.\n");
+
+    // Clean up
+    check_cuda_error(cudaStreamDestroy(stream));
+    SETUP_MEM_AND_WARMUP = 0;
+  }
 }
 
 cudaEvent_t cuda_create_event(uint32_t gpu_index) {
