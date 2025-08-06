@@ -660,6 +660,15 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrap
             decomposition_level_count,
         } = self;
 
+        let LweBootstrapKeyConformanceParams {
+            decomp_base_log: expected_decomp_base_log,
+            decomp_level_count: expected_decomp_level_count,
+            input_lwe_dimension: expected_input_lwe_dimension,
+            output_glwe_size: expected_output_glwe_size,
+            polynomial_size: expected_polynomial_size,
+            ciphertext_modulus: _expected_ciphertext_modulus,
+        } = parameter_set;
+
         data.container_len()
             == input_lwe_dimension.0
                 * fourier_ggsw_ciphertext_size(
@@ -667,10 +676,10 @@ impl<C: Container<Element = c64>> ParameterSetConformant for FourierLweBootstrap
                     polynomial_size.to_fourier_polynomial_size(),
                     *decomposition_level_count,
                 )
-            && *decomposition_base_log == parameter_set.decomp_base_log
-            && *decomposition_level_count == parameter_set.decomp_level_count
-            && *input_lwe_dimension == parameter_set.input_lwe_dimension
-            && *glwe_size == parameter_set.output_glwe_size
-            && *polynomial_size == parameter_set.polynomial_size
+            && decomposition_base_log == expected_decomp_base_log
+            && decomposition_level_count == expected_decomp_level_count
+            && input_lwe_dimension == expected_input_lwe_dimension
+            && glwe_size == expected_output_glwe_size
+            && polynomial_size == expected_polynomial_size
     }
 }
