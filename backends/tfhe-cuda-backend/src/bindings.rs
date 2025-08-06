@@ -1751,50 +1751,6 @@ unsafe extern "C" {
     );
 }
 unsafe extern "C" {
-    pub fn scratch_integer_prepare_count_of_consecutive_bits_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr: *mut *mut i8,
-        glwe_dimension: u32,
-        polynomial_size: u32,
-        lwe_dimension: u32,
-        ks_level: u32,
-        ks_base_log: u32,
-        pbs_level: u32,
-        pbs_base_log: u32,
-        grouping_factor: u32,
-        num_blocks: u32,
-        message_modulus: u32,
-        carry_modulus: u32,
-        pbs_type: PBS_TYPE,
-        direction: Direction,
-        bit_value: BitValue,
-        allocate_gpu_memory: bool,
-        allocate_ms_array: bool,
-    ) -> u64;
-}
-unsafe extern "C" {
-    pub fn cuda_integer_prepare_count_of_consecutive_bits_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        ciphertext: *mut CudaRadixCiphertextFFI,
-        mem_ptr: *mut i8,
-        bsks: *const *mut ffi::c_void,
-        ksks: *const *mut ffi::c_void,
-        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
-    );
-}
-unsafe extern "C" {
-    pub fn cleanup_cuda_integer_prepare_count_of_consecutive_bits_kb_64(
-        streams: *const *mut ffi::c_void,
-        gpu_indexes: *const u32,
-        gpu_count: u32,
-        mem_ptr_void: *mut *mut i8,
-    );
-}
-unsafe extern "C" {
     pub fn scratch_integer_count_of_consecutive_bits_kb_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
@@ -1880,6 +1836,54 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn cleanup_cuda_integer_grouped_oprf_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr_void: *mut *mut i8,
+    );
+}
+unsafe extern "C" {
+    pub fn scratch_integer_ilog2_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        mem_ptr: *mut *mut i8,
+        glwe_dimension: u32,
+        polynomial_size: u32,
+        lwe_dimension: u32,
+        ks_level: u32,
+        ks_base_log: u32,
+        pbs_level: u32,
+        pbs_base_log: u32,
+        grouping_factor: u32,
+        message_modulus: u32,
+        carry_modulus: u32,
+        pbs_type: PBS_TYPE,
+        input_num_blocks: u32,
+        counter_num_blocks: u32,
+        num_bits_in_ciphertext: u32,
+        allocate_gpu_memory: bool,
+        allocate_ms_array: bool,
+    ) -> u64;
+}
+unsafe extern "C" {
+    pub fn cuda_integer_ilog2_kb_64(
+        streams: *const *mut ffi::c_void,
+        gpu_indexes: *const u32,
+        gpu_count: u32,
+        output_ct: *mut CudaRadixCiphertextFFI,
+        input_ct: *const CudaRadixCiphertextFFI,
+        trivial_ct_neg_n: *const CudaRadixCiphertextFFI,
+        trivial_ct_2: *const CudaRadixCiphertextFFI,
+        trivial_ct_m_minus_1_block: *const CudaRadixCiphertextFFI,
+        mem_ptr: *mut i8,
+        bsks: *const *mut ffi::c_void,
+        ksks: *const *mut ffi::c_void,
+        ms_noise_reduction_key: *const CudaModulusSwitchNoiseReductionKeyFFI,
+    );
+}
+unsafe extern "C" {
+    pub fn cleanup_cuda_integer_ilog2_kb_64(
         streams: *const *mut ffi::c_void,
         gpu_indexes: *const u32,
         gpu_count: u32,
