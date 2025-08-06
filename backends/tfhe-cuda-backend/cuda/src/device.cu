@@ -1,6 +1,14 @@
 #include "device.h"
 #include <cstdint>
 #include <cuda_runtime.h>
+#include <list>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
+
+#include <bits/this_thread_sleep.h>
+#include <unordered_map>
 
 uint32_t cuda_get_device() {
   int device;
@@ -11,6 +19,186 @@ uint32_t cuda_get_device() {
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
 }
+
+enum CudaMemBlockUsageType { ALLOC = 0, MEMSET, MEMCPY_SRC, MEMCPY_DEST, FREE };
+
+struct CudaMemBlockUsage {
+  std::string location;
+  uint64_t timestamp;
+  CudaMemBlockUsageType type;
+};
+
+struct CudaMemBlock {
+  int8_t *ptr;
+  uint64_t size;
+  cudaStream_t stream;
+  uint32_t gpu_index;
+  size_t thread_id;
+  std::vector<CudaMemBlockUsage> usages;
+};
+
+class CudaMemoryManager {
+  std::list<CudaMemBlock> cuda_allocs;
+  std::list<CudaMemBlock> cuda_freed;
+
+  std::mutex allocs_mutex;
+
+  std::string make_location(const char *file, int line) {
+    std::stringstream sstr;
+    sstr << file << ":" << line;
+    return sstr.str();
+  }
+  uint64_t make_timestamp() {
+    const std::chrono::time_point<std::chrono::system_clock> now =
+        std::chrono::system_clock::now();
+
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+                  now.time_since_epoch())
+                  .count() %
+              1000000;
+    return us;
+  }
+
+  void check_range_is_valid(CudaMemBlockUsageType usage_type, int8_t *dest,
+                            uint64_t size, cudaStream_t stream,
+                            const char *file, int line) {
+    CudaMemBlockUsage usage = {make_location(file, line), make_timestamp(),
+                               usage_type};
+
+    const char *info = NULL;
+    switch (usage_type) {
+    case MEMSET:
+      info = "memset";
+      break;
+    case MEMCPY_SRC:
+      info = "memcpy source";
+      break;
+    case MEMCPY_DEST:
+      info = "memcpy dest";
+      break;
+    default:
+      info = "unknown";
+    }
+
+    auto device_id = cuda_get_device();
+
+    bool found = false;
+    for (auto it = cuda_allocs.begin(); it != cuda_allocs.end(); it++) {
+      if (it->ptr == dest && it->gpu_index == device_id) {
+        printf("%s with size tracking: found ptr %p\n", info, dest);
+        if (size > it->size) {
+          PANIC("%s OF %lu bytes TOO BIG TO %p OF SIZE %ld\n", info, size, dest,
+                it->size);
+        }
+        it->usages.push_back(usage);
+        found = true;
+      } else {
+        if (dest > it->ptr && dest < it->ptr + it->size &&
+            it->gpu_index == device_id) {
+          printf("%s with size tracking: indirect ptr %p in buffer %p\n", info,
+                 dest, it->ptr);
+          if (dest + size > it->ptr + it->size) {
+            auto remain_bytes = it->ptr + it->size - dest;
+            PANIC("%s OF %lu bytes TOO BIG TO %p WHICH HAS ROOM ONLY FOR %d\n",
+                  info, size, dest, remain_bytes);
+          }
+          it->usages.push_back(usage);
+          found = true;
+        }
+      }
+    }
+    if (!found) {
+      PANIC("Cuda %s to %p of size %lu, unknown pointer", info, dest, size);
+    }
+  }
+
+public:
+  void alloc(int8_t *ptr, uint64_t size, cudaStream_t stream, const char *file,
+             int line) {
+    std::lock_guard<std::mutex> guard(allocs_mutex);
+
+    if (ptr == nullptr) {
+      if (size > 0) {
+        PANIC("Allocation failed for %lu bytes, allocator returned %p", size,
+              ptr);
+      }
+      return;
+    }
+
+    auto device_id = cuda_get_device();
+    CudaMemBlockUsage usage = {make_location(file, line), make_timestamp(),
+                               ALLOC};
+    auto thread_id = std::hash<std::thread::id>{}(std::this_thread::get_id());
+    CudaMemBlock block = {ptr,       size,
+                          stream,    device_id,
+                          thread_id, std::vector<CudaMemBlockUsage>()};
+    block.usages.push_back(usage);
+
+    printf("Cuda Allocated %p of size %lu on gpu %d in %s\n", ptr, size,
+           device_id, usage.location.c_str());
+
+    cuda_allocs.push_back(block);
+  }
+  void memset(int8_t *dest, uint64_t size, cudaStream_t stream,
+              const char *file, int line) {
+    std::lock_guard<std::mutex> guard(allocs_mutex);
+
+    check_range_is_valid(MEMSET, dest, size, stream, file, line);
+  }
+
+  void memcpy(int8_t *dest, int8_t *src, uint64_t size, cudaStream_t stream,
+              const char *file, int line) {
+    std::lock_guard<std::mutex> guard(allocs_mutex);
+
+    check_range_is_valid(MEMCPY_SRC, src, size, stream, file, line);
+    check_range_is_valid(MEMCPY_DEST, src, size, stream, file, line);
+  }
+
+  void free(int8_t *ptr, const char *file, int line) {
+    std::lock_guard<std::mutex> guard(allocs_mutex);
+
+    if (ptr == nullptr)
+      return;
+
+    auto device_id = cuda_get_device();
+
+    bool found = false;
+    for (auto it = cuda_allocs.begin(); it != cuda_allocs.end(); it++) {
+      if (it->ptr == ptr && it->gpu_index == device_id) {
+        found = true;
+        cuda_freed.push_back(*it);
+        cuda_allocs.erase(it++);
+        printf("cuda dropped buffer %p of size %lu on gpu %d\n", ptr, it->size,
+               device_id);
+      }
+    }
+
+    if (!found) {
+      for (auto it = cuda_freed.begin(); it != cuda_freed.end(); it++) {
+        if (it->ptr == ptr && it->gpu_index == device_id) {
+          found = true;
+          printf("Drop in %s: %d\n", file, line);
+          printf("Alloc in %s\n", it->usages[0].location.c_str());
+          PANIC("cuda drop already dropped buffer %p of size %lu on gpu %d\n",
+                ptr, it->size, device_id);
+        }
+      }
+    }
+
+    if (!found) {
+      PANIC("cuda drop unknown buffer %p\n", ptr);
+    }
+  }
+  ~CudaMemoryManager() {
+    printf("%lu ALLOCATIONS AT PROGRAM EXIT\n", cuda_allocs.size());
+    for (auto &cuda_alloc : cuda_allocs) {
+      printf("%p of size %lu allocated at %s\n", cuda_alloc.ptr,
+             cuda_alloc.size, cuda_alloc.usages[0].location.c_str());
+    }
+  }
+};
+
+CudaMemoryManager gCudaMemoryManager;
 
 cudaEvent_t cuda_create_event(uint32_t gpu_index) {
   cuda_set_device(gpu_index);
@@ -72,16 +260,22 @@ void *cuda_malloc(uint64_t size, uint32_t gpu_index) {
   cuda_set_device(gpu_index);
   void *ptr;
   check_cuda_error(cudaMalloc((void **)&ptr, size));
-
+  gCudaMemoryManager.alloc((int8_t *)ptr, size, 0, "rust_code", 0);
   return ptr;
+}
+
+void *cuda_ext_malloc(uint64_t size, uint32_t gpu_index) {
+  return cuda_malloc(size, gpu_index);
 }
 
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
-void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
-                                           uint32_t gpu_index,
-                                           uint64_t &size_tracker,
-                                           bool allocate_gpu_memory) {
+void *cuda_intern_malloc_with_size_tracking_async(uint64_t size,
+                                                  cudaStream_t stream,
+                                                  uint32_t gpu_index,
+                                                  uint64_t &size_tracker,
+                                                  bool allocate_gpu_memory,
+                                                  const char *file, int line) {
   size_tracker += size;
   void *ptr = nullptr;
   if (!allocate_gpu_memory)
@@ -104,16 +298,22 @@ void *cuda_malloc_with_size_tracking_async(uint64_t size, cudaStream_t stream,
 #else
   check_cuda_error(cudaMalloc((void **)&ptr, size));
 #endif
+  gCudaMemoryManager.alloc((int8_t *)ptr, size, stream, file, line);
   return ptr;
 }
 
 /// Allocates a size-byte array at the device memory. Tries to do it
 /// asynchronously.
-void *cuda_malloc_async(uint64_t size, cudaStream_t stream,
-                        uint32_t gpu_index) {
+void *cuda_int_malloc_async(uint64_t size, cudaStream_t stream,
+                            uint32_t gpu_index, const char *file, int line) {
   uint64_t size_tracker = 0;
-  return cuda_malloc_with_size_tracking_async(size, stream, gpu_index,
-                                              size_tracker, true);
+  return cuda_intern_malloc_with_size_tracking_async(
+      size, stream, gpu_index, size_tracker, true, file, line);
+}
+
+void *cuda_ext_malloc_async(uint64_t size, cudaStream_t stream,
+                            uint32_t gpu_index) {
+  return cuda_malloc_async(size, stream, gpu_index);
 }
 
 /// Check that allocation is valid
@@ -188,6 +388,11 @@ void cuda_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
                                               gpu_index, true);
 }
 
+void cuda_ext_memcpy_async_to_gpu(void *dest, const void *src, uint64_t size,
+                                  cudaStream_t stream, uint32_t gpu_index) {
+  cuda_memcpy_async_to_gpu(dest, src, size, stream, gpu_index);
+}
+
 /// Copy memory within a GPU asynchronously
 void cuda_memcpy_with_size_tracking_async_gpu_to_gpu(
     void *dest, void const *src, uint64_t size, cudaStream_t stream,
@@ -220,6 +425,12 @@ void cuda_memcpy_async_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                                                   gpu_index, true);
 }
 
+void cuda_ext_memcpy_async_gpu_to_gpu(void *dest, void const *src,
+                                      uint64_t size, cudaStream_t stream,
+                                      uint32_t gpu_index) {
+  cuda_memcpy_async_gpu_to_gpu(dest, src, size, stream, gpu_index);
+}
+
 /// Copy memory within a GPU
 void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
                             uint32_t gpu_index) {
@@ -244,6 +455,11 @@ void cuda_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
   }
 }
 
+void cuda_ext_memcpy_gpu_to_gpu(void *dest, void const *src, uint64_t size,
+                                uint32_t gpu_index) {
+  cuda_memcpy_gpu_to_gpu(dest, src, size, gpu_index);
+}
+
 /// Synchronizes device
 void cuda_synchronize_device(uint32_t gpu_index) {
   cuda_set_device(gpu_index);
@@ -263,12 +479,18 @@ void cuda_memset_with_size_tracking_async(void *dest, uint64_t val,
   }
   cuda_set_device(gpu_index);
   check_cuda_error(cudaMemsetAsync(dest, val, size, stream));
+  gCudaMemoryManager.memset((int8_t *)dest, size, stream, "", 0);
 }
 
 void cuda_memset_async(void *dest, uint64_t val, uint64_t size,
                        cudaStream_t stream, uint32_t gpu_index) {
   cuda_memset_with_size_tracking_async(dest, val, size, stream, gpu_index,
                                        true);
+}
+
+void cuda_ext_memset_async(void *dest, uint64_t val, uint64_t size,
+                           cudaStream_t stream, uint32_t gpu_index) {
+  cuda_memset_async(dest, val, size, stream, gpu_index);
 }
 
 template <typename Torus>
@@ -322,6 +544,11 @@ void cuda_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
       cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost, stream));
 }
 
+void cuda_ext_memcpy_async_to_cpu(void *dest, const void *src, uint64_t size,
+                                  cudaStream_t stream, uint32_t gpu_index) {
+  cuda_memcpy_async_to_cpu(dest, src, size, stream, gpu_index);
+}
+
 /// Return number of GPUs available
 int cuda_get_number_of_gpus() {
   int num_gpus;
@@ -330,16 +557,20 @@ int cuda_get_number_of_gpus() {
 }
 
 /// Drop a cuda array
-void cuda_drop(void *ptr, uint32_t gpu_index) {
+void cuda_int_drop(void *ptr, uint32_t gpu_index, const char *file, int line) {
   cuda_set_device(gpu_index);
   check_cuda_error(cudaFree(ptr));
+  gCudaMemoryManager.free((int8_t *)ptr, file, line);
 }
+
+void cuda_ext_drop(void *ptr, uint32_t gpu_index) { cuda_drop(ptr, gpu_index); }
 
 /// Drop a cuda array asynchronously, if the data was allocated & it's supported
 /// on the device
-void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
-                                        uint32_t gpu_index,
-                                        bool gpu_memory_allocated) {
+void cuda_int_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
+                                            uint32_t gpu_index,
+                                            bool gpu_memory_allocated,
+                                            const char *file, int line) {
 
   if (!gpu_memory_allocated)
     return;
@@ -359,11 +590,14 @@ void cuda_drop_with_size_tracking_async(void *ptr, cudaStream_t stream,
 #else
   check_cuda_error(cudaFree(ptr));
 #endif
+  gCudaMemoryManager.free((int8_t *)ptr, file, line);
 }
 
 /// Drop a cuda array asynchronously, if supported on the device
-void cuda_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index) {
-  cuda_drop_with_size_tracking_async(ptr, stream, gpu_index, true);
+void cuda_int_drop_async(void *ptr, cudaStream_t stream, uint32_t gpu_index,
+                         const char *file, int line) {
+  cuda_int_drop_with_size_tracking_async(ptr, stream, gpu_index, true, file,
+                                         line);
 }
 
 /// Get the maximum size for the shared memory per streaming multiprocessors

@@ -13,7 +13,7 @@ use crate::integer::gpu::ciphertext::info::{CudaBlockInfo, CudaRadixCiphertextIn
 use crate::integer::gpu::ciphertext::CudaRadixCiphertext;
 use crate::integer::gpu::server_key::CudaBootstrappingKey;
 use crate::integer::gpu::{
-    compress_integer_radix_async, cuda_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
+    compress_integer_radix_async, cuda_ext_memcpy_async_gpu_to_gpu, decompress_integer_radix_async,
     get_compression_size_on_gpu, get_decompression_size_on_gpu,
 };
 use crate::shortint::ciphertext::{Degree, NoiseLevel};
@@ -141,7 +141,7 @@ impl CudaCompressionKey {
                 .as_mut_c_ptr(0)
                 .add(offset * std::mem::size_of::<u64>());
             let size = ciphertext.d_blocks.0.d_vec.len * std::mem::size_of::<u64>();
-            cuda_memcpy_async_gpu_to_gpu(
+            cuda_ext_memcpy_async_gpu_to_gpu(
                 dest_ptr,
                 ciphertext.d_blocks.0.d_vec.as_c_ptr(0),
                 size as u64,
