@@ -5,81 +5,10 @@ use crate::integer::gpu::ciphertext::{
     CudaIntegerRadixCiphertext, CudaSignedRadixCiphertext, CudaUnsignedRadixCiphertext,
 };
 use crate::integer::gpu::server_key::{CudaBootstrappingKey, CudaServerKey};
-use crate::integer::gpu::{
-    count_of_consecutive_bits_async, prepare_count_of_consecutive_bits_async, PBSType,
-};
+use crate::integer::gpu::{count_of_consecutive_bits_async, ilog2_async, PBSType};
 use crate::integer::server_key::radix_parallel::ilog2::{BitValue, Direction};
-use crate::shortint::ciphertext::Degree;
 
 impl CudaServerKey {
-    /// This function takes a ciphertext in radix representation
-    /// and returns a vec of blocks, where each blocks holds the number of leading_zeros/ones
-    ///
-    /// This contains the logic of making a block have 0 leading_ones/zeros if its preceding
-    /// block was not full of ones/zeros
-    /// # Safety
-    ///
-    /// - `streams` __must__ be synchronized to guarantee computation has finished, and inputs must
-    ///   not be dropped until streams is synchronised
-    pub(crate) unsafe fn prepare_count_of_consecutive_bits_async<T: CudaIntegerRadixCiphertext>(
-        &self,
-        ct: &T,
-        direction: Direction,
-        bit_value: BitValue,
-        streams: &CudaStreams,
-    ) -> T {
-        let mut ciphertext = ct.duplicate_async(streams);
-
-        match &self.bootstrapping_key {
-            CudaBootstrappingKey::Classic(d_bsk) => {
-                prepare_count_of_consecutive_bits_async(
-                    streams,
-                    ciphertext.as_mut(),
-                    &d_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_bsk.input_lwe_dimension(),
-                    d_bsk.glwe_dimension(),
-                    d_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_bsk.decomp_level_count(),
-                    d_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::Classical,
-                    LweBskGroupingFactor(0),
-                    direction as u32,
-                    bit_value as u32,
-                    d_bsk.d_ms_noise_reduction_key.as_ref(),
-                );
-            }
-            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
-                prepare_count_of_consecutive_bits_async(
-                    streams,
-                    ciphertext.as_mut(),
-                    &d_multibit_bsk.d_vec,
-                    &self.key_switching_key.d_vec,
-                    d_multibit_bsk.input_lwe_dimension(),
-                    d_multibit_bsk.glwe_dimension(),
-                    d_multibit_bsk.polynomial_size(),
-                    self.key_switching_key.decomposition_level_count(),
-                    self.key_switching_key.decomposition_base_log(),
-                    d_multibit_bsk.decomp_level_count(),
-                    d_multibit_bsk.decomp_base_log(),
-                    self.message_modulus,
-                    self.carry_modulus,
-                    PBSType::MultiBit,
-                    d_multibit_bsk.grouping_factor,
-                    direction as u32,
-                    bit_value as u32,
-                    None,
-                );
-            }
-        }
-
-        ciphertext
-    }
-
     /// Counts how many consecutive bits there are
     ///
     /// The returned Ciphertexts has a variable size
@@ -316,214 +245,95 @@ impl CudaServerKey {
         T: CudaIntegerRadixCiphertext,
     {
         if ct.as_ref().d_blocks.0.d_vec.is_empty() {
-            return self.create_trivial_zero_radix_async(
-                ct.as_ref().d_blocks.lwe_ciphertext_count().0,
-                streams,
-            );
+            return self.create_trivial_zero_radix_async(0, streams);
         }
 
         let num_bits_in_message = self.message_modulus.0.ilog2();
-        let original_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
+        let input_num_blocks = ct.as_ref().d_blocks.lwe_ciphertext_count().0;
 
         let num_bits_in_ciphertext = num_bits_in_message
-            .checked_mul(original_num_blocks as u32)
+            .checked_mul(input_num_blocks as u32)
             .expect("Number of bits encrypted exceeds u32::MAX");
 
-        // `num_bits_in_ciphertext-1` is the max value we want to represent
-        // its ilog2 + 1 gives use how many bits we need to be able to represent it.
-        // We add `1` to this number as we are going to use signed numbers later
-        //
-        // The ilog2 of a number that is on n bits, is in range 1..=n-1
+        if num_bits_in_ciphertext == 0 {
+            return self.create_trivial_zero_radix_async(1, streams);
+        }
+
         let counter_num_blocks = ((num_bits_in_ciphertext - 1).ilog2() + 1 + 1)
             .div_ceil(self.message_modulus.0.ilog2()) as usize;
 
-        // 11111000
-        // x.ilog2() = (x.num_bit() - 1) - x.leading_zeros()
-        // - (x.num_bit() - 1) is trivially known
-        // - we can get leading zeros via a sum
-        //
-        // However, the sum include a full propagation, thus the subtraction
-        // will add another full propagation which is costly.
-        //
-        // However, we can do better:
-        // let N = (x.num_bit() - 1)
-        // let L0 = x.leading_zeros()
-        // ```
-        // x.ilog2() = N - L0
-        // x.ilog2() = -(-(N - L0))
-        // x.ilog2() = -(-N + L0)
-        // ```
-        // Since N is a clear number, getting -N is free,
-        // meaning -N + L0 where L0 is actually `sum(L0[b0], .., L0[num_blocks-1])`
-        // can be done with `sum(-N, L0[b0], .., L0[num_blocks-1]), by switching to signed
-        // numbers.
-        //
-        // Also, to do -(-N + L0) aka -sum(-N, L0[b0], .., L0[num_blocks-1])
-        // we can make the sum not return a fully propagated result,
-        // and extract message/carry blocks while negating them at the same time
-        // using the fact that in twos complement -X = bitnot(X) + 1
-        // so given a non propagated `C`, we can compute the fully propagated `PC`
-        // PC = bitnot(message(C)) + bitnot(blockshift(carry(C), 1)) + 2
-
-        let mut leading_zeros_per_blocks = self.prepare_count_of_consecutive_bits_async(
-            ct,
-            Direction::Leading,
-            BitValue::Zero,
-            streams,
-        );
-        let lwe_dimension = ct.as_ref().d_blocks.lwe_dimension();
-
-        let lwe_size = lwe_dimension.to_lwe_size().0;
-        let capacity = leading_zeros_per_blocks
-            .as_ref()
-            .d_blocks
-            .lwe_ciphertext_count()
-            .0
-            + 1;
-        let mut cts = Vec::<CudaSignedRadixCiphertext>::with_capacity(capacity);
-
-        for i in 0..(capacity - 1) {
-            let mut new_item: CudaSignedRadixCiphertext =
-                self.create_trivial_zero_radix_async(counter_num_blocks, streams);
-
-            let mut dest_slice = new_item
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice(0..lwe_size, 0)
-                .unwrap();
-
-            let src_slice = leading_zeros_per_blocks
-                .as_mut()
-                .d_blocks
-                .0
-                .d_vec
-                .as_mut_slice((i * lwe_size)..((i + 1) * lwe_size), 0)
-                .unwrap();
-            dest_slice.copy_from_gpu_async(&src_slice, streams, 0);
-            let b = new_item.ciphertext.info.blocks.first_mut().unwrap();
-            b.degree = leading_zeros_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .degree;
-            b.noise_level = leading_zeros_per_blocks
-                .as_ref()
-                .info
-                .blocks
-                .get(i)
-                .unwrap()
-                .noise_level;
-            cts.push(new_item);
-        }
-
-        let new_trivial: CudaSignedRadixCiphertext = self.create_trivial_radix_async(
+        let trivial_ct_neg_n: CudaSignedRadixCiphertext = self.create_trivial_radix_async(
             -(num_bits_in_ciphertext as i32 - 1i32),
             counter_num_blocks,
             streams,
         );
 
-        cts.push(new_trivial);
-
-        let result = self
-            .unchecked_partial_sum_ciphertexts_async(&cts, false, streams)
-            .expect("internal error, empty ciphertext count");
-
-        // This is the part where we extract message and carry blocks
-        // while inverting their bits
-        let lut_a = self.generate_lookup_table(|x| {
-            // extract message
-            let x = x % self.message_modulus.0;
-            // bitnot the message
-            (!x) % self.message_modulus.0
-        });
-
-        let mut message_blocks: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix(counter_num_blocks, streams);
-        self.apply_lookup_table_async(
-            message_blocks.as_mut(),
-            result.as_ref(),
-            &lut_a,
-            0..counter_num_blocks,
-            streams,
-        );
-
-        let lut_b = self.generate_lookup_table(|x| {
-            // extract carry
-            let x = x / self.message_modulus.0;
-            // bitnot the carry
-            (!x) % self.message_modulus.0
-        });
-
-        let mut carry_blocks: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix(counter_num_blocks, streams);
-
-        let mut trivial_last_block: CudaSignedRadixCiphertext =
-            self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
-        let trivial_last_block_slice = trivial_last_block
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..lwe_size, 0)
-            .unwrap();
-
-        self.apply_lookup_table_async(
-            carry_blocks.as_mut(),
-            result.as_ref(),
-            &lut_b,
-            0..counter_num_blocks - 1,
-            streams,
-        );
-
-        let mut rotated_carry_blocks: CudaSignedRadixCiphertext =
-            self.create_trivial_zero_radix(counter_num_blocks, streams);
-
-        let mut rotated_slice = rotated_carry_blocks
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..(counter_num_blocks) * lwe_size, 0)
-            .unwrap();
-
-        let first_block;
-        let last_blocks;
-        (first_block, last_blocks) = rotated_slice.split_at_mut(lwe_size, 0);
-
-        let mut tmp_carry_blocks3 = carry_blocks.duplicate(streams);
-        let carry_slice = tmp_carry_blocks3
-            .as_mut()
-            .d_blocks
-            .0
-            .d_vec
-            .as_mut_slice(0..(counter_num_blocks - 1) * lwe_size, 0)
-            .unwrap();
-
-        last_blocks
-            .unwrap()
-            .copy_from_gpu_async(&carry_slice, streams, 0);
-        first_block
-            .unwrap()
-            .copy_from_gpu_async(&trivial_last_block_slice, streams, 0);
-        let mut ciphertexts = Vec::<CudaSignedRadixCiphertext>::with_capacity(3);
-
-        for info in &mut rotated_carry_blocks.ciphertext.info.blocks {
-            info.degree = Degree(self.message_modulus.0 - 1);
-        }
-        ciphertexts.push(message_blocks);
-        ciphertexts.push(rotated_carry_blocks);
-
-        let trivial_ct: CudaSignedRadixCiphertext =
+        let trivial_ct_2: CudaSignedRadixCiphertext =
             self.create_trivial_radix_async(2u32, counter_num_blocks, streams);
-        ciphertexts.push(trivial_ct);
 
-        let result = self.sum_ciphertexts_async(ciphertexts, streams).unwrap();
+        let trivial_ct_m_minus_1_block: CudaSignedRadixCiphertext =
+            self.create_trivial_radix_async(self.message_modulus.0 - 1, 1, streams);
 
-        self.cast_to_unsigned_async(result, counter_num_blocks, streams)
+        let mut result: CudaUnsignedRadixCiphertext =
+            self.create_trivial_zero_radix_async(counter_num_blocks, streams);
+
+        match &self.bootstrapping_key {
+            CudaBootstrappingKey::Classic(d_bsk) => {
+                ilog2_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    trivial_ct_neg_n.as_ref(),
+                    trivial_ct_2.as_ref(),
+                    trivial_ct_m_minus_1_block.as_ref(),
+                    &d_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_bsk.input_lwe_dimension(),
+                    d_bsk.glwe_dimension(),
+                    d_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_bsk.decomp_level_count(),
+                    d_bsk.decomp_base_log(),
+                    LweBskGroupingFactor(0),
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::Classical,
+                    input_num_blocks as u32,
+                    counter_num_blocks as u32,
+                    num_bits_in_ciphertext,
+                    d_bsk.d_ms_noise_reduction_key.as_ref(),
+                );
+            }
+            CudaBootstrappingKey::MultiBit(d_multibit_bsk) => {
+                ilog2_async(
+                    streams,
+                    result.as_mut(),
+                    ct.as_ref(),
+                    trivial_ct_neg_n.as_ref(),
+                    trivial_ct_2.as_ref(),
+                    trivial_ct_m_minus_1_block.as_ref(),
+                    &d_multibit_bsk.d_vec,
+                    &self.key_switching_key.d_vec,
+                    d_multibit_bsk.input_lwe_dimension(),
+                    d_multibit_bsk.glwe_dimension(),
+                    d_multibit_bsk.polynomial_size(),
+                    self.key_switching_key.decomposition_level_count(),
+                    self.key_switching_key.decomposition_base_log(),
+                    d_multibit_bsk.decomp_level_count(),
+                    d_multibit_bsk.decomp_base_log(),
+                    d_multibit_bsk.grouping_factor,
+                    self.message_modulus,
+                    self.carry_modulus,
+                    PBSType::MultiBit,
+                    input_num_blocks as u32,
+                    counter_num_blocks as u32,
+                    num_bits_in_ciphertext,
+                    None,
+                );
+            }
+        }
+        result
     }
 
     /// Returns the number of trailing zeros in the binary representation of `ct`
