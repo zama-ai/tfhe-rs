@@ -12,6 +12,8 @@
 #include <functional>
 #include <queue>
 
+#include <stdio.h>
+
 class NoiseLevel {
 public:
   // Constants equivalent to the Rust code
@@ -355,6 +357,8 @@ template <typename Torus> struct int_radix_lut {
           params.small_lwe_dimension, params.polynomial_size, params.pbs_level,
           params.grouping_factor, num_blocks_on_gpu, params.pbs_type,
           allocate_gpu_memory, params.allocate_ms_array, size);
+//      printf("int_radix_lut 0x%p 1 SCRATCH PBS buffer 0x%p\n", this,
+//             gpu_pbs_buffer);
       if (i == 0) {
         size_tracker += size;
       }
@@ -566,6 +570,9 @@ template <typename Torus> struct int_radix_lut {
           THRESHOLD_MULTI_GPU,
           get_num_inputs_on_gpu(num_radix_blocks, i, active_gpu_count));
 
+//      printf("int_radix_lut 0x%p 2 SCRATCH PBS buffer 0x%p\n", this,
+//             gpu_pbs_buffer);
+
       uint64_t size = 0;
       execute_scratch_pbs<Torus>(
           streams[i], gpu_indexes[i], &gpu_pbs_buffer, params.glwe_dimension,
@@ -761,22 +768,22 @@ template <typename Torus> struct int_radix_lut {
     if (!mem_reuse) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      tmp_lwe_before_ks, gpu_memory_allocated);
-      if (gpu_memory_allocated) {
-        for (int i = 0; i < buffer.size(); i++) {
-          switch (params.pbs_type) {
-          case MULTI_BIT:
-            cleanup_cuda_multi_bit_programmable_bootstrap(
-                streams[i], gpu_indexes[i], &buffer[i]);
-            break;
-          case CLASSICAL:
-            cleanup_cuda_programmable_bootstrap(streams[i], gpu_indexes[i],
-                                                &buffer[i]);
-            break;
-          default:
-            PANIC("Cuda error (PBS): unknown PBS type. ")
-          }
-          cuda_synchronize_stream(streams[i], gpu_indexes[i]);
+      for (int i = 0; i < buffer.size(); i++) {
+//        printf("int_radix_lut 0x%p RELEASE SCRATCH PBS buffer 0x%p\n", this,
+//               buffer[i]);
+        switch (params.pbs_type) {
+        case MULTI_BIT:
+          cleanup_cuda_multi_bit_programmable_bootstrap(
+              streams[i], gpu_indexes[i], &buffer[i]);
+          break;
+        case CLASSICAL:
+          cleanup_cuda_programmable_bootstrap(streams[i], gpu_indexes[i],
+                                              &buffer[i]);
+          break;
+        default:
+          PANIC("Cuda error (PBS): unknown PBS type. ")
         }
+        cuda_synchronize_stream(streams[i], gpu_indexes[i]);
       }
       delete tmp_lwe_before_ks;
       buffer.clear();
@@ -1275,6 +1282,9 @@ template <typename Torus> struct int_fullprop_buffer {
     lut = new int_radix_lut<Torus>(streams, gpu_indexes, 1, params, 2, 2,
                                    allocate_gpu_memory, size_tracker);
 
+//    printf("int_fullprop_buffer 0x%p CONSTRUCT int_radix_lut 0x%p\n", this,
+//           lut);
+
     // LUTs
     auto lut_f_message = [params](Torus x) -> Torus {
       return x % params.message_modulus;
@@ -1337,6 +1347,8 @@ template <typename Torus> struct int_fullprop_buffer {
     delete tmp_small_lwe_vector;
     delete tmp_big_lwe_vector;
     delete lut;
+//    printf("int_fullprop_buffer 0x%p RELEASE & DELETE int_radix_lut 0x%p\n",
+//           this, lut);
   }
 };
 
@@ -4913,12 +4925,22 @@ template <typename Torus> struct int_scalar_mul_buffer {
     sc_prop_mem->release(streams, gpu_indexes, gpu_count);
     delete sc_prop_mem;
     delete all_shifted_buffer;
-    if (!anticipated_buffers_drop) {
+    release_buffers(streams, gpu_indexes, gpu_count);
+  }
+
+  void release_buffers(cudaStream_t const *streams, uint32_t const *gpu_indexes,
+                       uint32_t gpu_count) {
+    if (preshifted_buffer) {
       release_radix_ciphertext_async(streams[0], gpu_indexes[0],
                                      preshifted_buffer, gpu_memory_allocated);
+      delete preshifted_buffer;
+      preshifted_buffer = nullptr;
+    }
+
+    if (logical_scalar_shift_buffer) {
       logical_scalar_shift_buffer->release(streams, gpu_indexes, gpu_count);
       delete logical_scalar_shift_buffer;
-      delete preshifted_buffer;
+      logical_scalar_shift_buffer = nullptr;
     }
   }
 };
@@ -5200,6 +5222,7 @@ template <typename Torus> struct int_scalar_mul_high_buffer {
 
     scalar_mul_mem->release(streams, gpu_indexes, gpu_count);
     delete scalar_mul_mem;
+    scalar_mul_mem = nullptr;
 
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], tmp,
                                    allocate_gpu_memory);
@@ -5721,23 +5744,29 @@ template <typename Torus> struct int_signed_scalar_div_rem_buffer {
     release_radix_ciphertext_async(streams[0], gpu_indexes[0], numerator_ct,
                                    allocate_gpu_memory);
     delete numerator_ct;
+    numerator_ct = nullptr;
 
     signed_div_mem->release(streams, gpu_indexes, gpu_count);
     delete signed_div_mem;
+    signed_div_mem = nullptr;
 
     scp_mem->release(streams, gpu_indexes, gpu_count);
     delete scp_mem;
+    scp_mem = nullptr;
 
     if (logical_scalar_shift_mem != nullptr) {
       logical_scalar_shift_mem->release(streams, gpu_indexes, gpu_count);
       delete logical_scalar_shift_mem;
+      logical_scalar_shift_mem = nullptr;
     }
     if (scalar_mul_mem != nullptr) {
       scalar_mul_mem->release(streams, gpu_indexes, gpu_count);
       delete scalar_mul_mem;
+      scalar_mul_mem = nullptr;
     }
     sub_and_propagate_mem->release(streams, gpu_indexes, gpu_count);
     delete sub_and_propagate_mem;
+    sub_and_propagate_mem = nullptr;
   }
 };
 
