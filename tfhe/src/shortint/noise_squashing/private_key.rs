@@ -3,11 +3,11 @@ use crate::core_crypto::algorithms::lwe_encryption::decrypt_lwe_ciphertext;
 use crate::core_crypto::entities::glwe_secret_key::GlweSecretKeyOwned;
 use crate::shortint::backward_compatibility::noise_squashing::NoiseSquashingPrivateKeyVersions;
 use crate::shortint::ciphertext::SquashedNoiseCiphertext;
-use crate::shortint::encoding::{PaddingBit, ShortintEncoding};
+use crate::shortint::encoding::ShortintEncoding;
 use crate::shortint::engine::ShortintEngine;
 use crate::shortint::list_compression::NoiseSquashingCompressionPrivateKey;
 use crate::shortint::parameters::noise_squashing::NoiseSquashingParameters;
-use crate::shortint::parameters::ModulusSwitchType;
+use crate::shortint::{CarryModulus, MessageModulus, PaddingBit};
 use serde::{Deserialize, Serialize};
 use tfhe_versionable::Versionize;
 
@@ -75,21 +75,19 @@ impl NoiseSquashingPrivateKey {
 
 pub(crate) struct NoiseSquashingPrivateKeyView<'a> {
     post_noise_squashing_secret_key: &'a GlweSecretKeyOwned<u128>,
-    params: NoiseSquashingParameters,
-}
-
-impl NoiseSquashingPrivateKeyView<'_> {
-    #[allow(unused, reason = "It's only used in integer module")]
-    pub fn noise_squashing_parameters(&self) -> NoiseSquashingParameters {
-        self.params
-    }
+    encoding: ShortintEncoding<u128>,
 }
 
 impl<'a> From<&'a NoiseSquashingPrivateKey> for NoiseSquashingPrivateKeyView<'a> {
     fn from(value: &'a NoiseSquashingPrivateKey) -> Self {
         Self {
             post_noise_squashing_secret_key: &value.post_noise_squashing_secret_key,
-            params: value.params,
+            encoding: ShortintEncoding {
+                ciphertext_modulus: value.params.ciphertext_modulus,
+                message_modulus: value.params.message_modulus,
+                carry_modulus: value.params.carry_modulus,
+                padding_bit: PaddingBit::Yes,
+            },
         }
     }
 }
@@ -98,23 +96,27 @@ impl<'a> From<&'a NoiseSquashingCompressionPrivateKey> for NoiseSquashingPrivate
     fn from(value: &'a NoiseSquashingCompressionPrivateKey) -> Self {
         Self {
             post_noise_squashing_secret_key: &value.post_packing_ks_key,
-            params: NoiseSquashingParameters {
-                glwe_dimension: value.params.packing_ks_glwe_dimension,
-                polynomial_size: value.params.packing_ks_polynomial_size,
-                glwe_noise_distribution: value.params.packing_ks_key_noise_distribution,
-                decomp_base_log: value.params.packing_ks_base_log,
-                decomp_level_count: value.params.packing_ks_level,
-                // Dummy value
-                modulus_switch_noise_reduction_params: ModulusSwitchType::Standard,
+            encoding: ShortintEncoding {
+                ciphertext_modulus: value.params.ciphertext_modulus,
                 message_modulus: value.params.message_modulus,
                 carry_modulus: value.params.carry_modulus,
-                ciphertext_modulus: value.params.ciphertext_modulus,
+                padding_bit: PaddingBit::Yes,
             },
         }
     }
 }
 
 impl NoiseSquashingPrivateKeyView<'_> {
+    #[allow(unused)]
+    pub fn message_modulus(&self) -> MessageModulus {
+        self.encoding.message_modulus
+    }
+
+    #[allow(unused)]
+    pub fn carry_modulus(&self) -> CarryModulus {
+        self.encoding.carry_modulus
+    }
+
     pub(crate) fn decrypt_squashed_noise_ciphertext(
         &self,
         ciphertext: &SquashedNoiseCiphertext,
@@ -124,13 +126,6 @@ impl NoiseSquashingPrivateKeyView<'_> {
             ciphertext.lwe_ciphertext(),
         );
 
-        let encoding = ShortintEncoding {
-            ciphertext_modulus: self.params.ciphertext_modulus,
-            message_modulus: ciphertext.message_modulus(),
-            carry_modulus: ciphertext.carry_modulus(),
-            padding_bit: PaddingBit::Yes,
-        };
-
-        encoding.decode(plaintext).0
+        self.encoding.decode(plaintext).0
     }
 }
