@@ -12,7 +12,7 @@ void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
   static bool SETUP_MEM_AND_WARMUP = 1;
   if (SETUP_MEM_AND_WARMUP){
-    const size_t warmup_size = 20L * 1024 * 1024 * 1024;  // 20 GB just for testing
+    const size_t warmup_size = 10L * 1024 * 1024 * 1024;  // 10 GB just for testing
     // Get default memory pool
     cudaMemPool_t default_pool;
     check_cuda_error(cudaDeviceGetDefaultMemPool(&default_pool, gpu_index));
