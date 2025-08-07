@@ -8,8 +8,56 @@ uint32_t cuda_get_device() {
   return static_cast<uint32_t>(device);
 }
 
+void cuda_setup_mempool(uint32_t caller_gpu_index) {
+  static bool SETUP_MEMPOOLS_AND_WARMUP = 1;
+  if (SETUP_MEMPOOLS_AND_WARMUP) {
+    // We do it only once for all GPUs
+    SETUP_MEMPOOLS_AND_WARMUP = 0;
+    uint32_t num_gpus = cuda_get_number_of_gpus();
+    for (uint32_t gpu_index = 0; gpu_index < num_gpus; gpu_index++) {
+      cuda_set_device(gpu_index);
+      size_t free_mem = 0;
+      size_t total_mem = 0;
+      check_cuda_error(cudaMemGetInfo(&free_mem, &total_mem));
+      const size_t warmup_size =
+          free_mem * 0.25 - (size_t)(free_mem * 0.25) % 64;
+      // Get default memory pool
+      cudaMemPool_t default_pool;
+      check_cuda_error(cudaDeviceGetDefaultMemPool(&default_pool, gpu_index));
+
+      // Enable opportunistic reuse
+      int reuse = 1;
+      check_cuda_error(cudaMemPoolSetAttribute(
+          default_pool, cudaMemPoolReuseAllowOpportunistic, &reuse));
+
+      // Prevent memory from being released back to the OS too soon
+      size_t threshold = warmup_size;
+      check_cuda_error(cudaMemPoolSetAttribute(
+          default_pool, cudaMemPoolAttrReleaseThreshold, &threshold));
+
+      // Warm up the pool by allocating and freeing a large block
+      cudaStream_t stream;
+      check_cuda_error(cudaStreamCreate(&stream));
+
+      void *warmup_ptr = nullptr;
+      check_cuda_error(cudaMallocAsync(&warmup_ptr, warmup_size, stream));
+      check_cuda_error(cudaFreeAsync(warmup_ptr, stream));
+
+      // Sync to ensure pool is grown
+      check_cuda_error(cudaStreamSynchronize(stream));
+
+      // Clean up
+      check_cuda_error(cudaStreamDestroy(stream));
+    }
+    // We return to the original gpu_index
+    cuda_set_device(caller_gpu_index);
+  }
+}
+
 void cuda_set_device(uint32_t gpu_index) {
   check_cuda_error(cudaSetDevice(gpu_index));
+  // Mempools are initialized only once in all the GPUS available
+  cuda_setup_mempool(gpu_index);
 }
 
 cudaEvent_t cuda_create_event(uint32_t gpu_index) {
