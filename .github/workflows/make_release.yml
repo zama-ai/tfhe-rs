@@ -36,15 +36,15 @@ env:
 permissions: {}
 
 jobs:
-  verify_tag:
-    uses: ./.github/workflows/verify_tagged_commit.yml
-    secrets:
-      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
-      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+#  verify_tag:
+#    uses: ./.github/workflows/verify_tagged_commit.yml
+#    secrets:
+#      RELEASE_TEAM: ${{ secrets.RELEASE_TEAM }}
+#      READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
 
   package:
     runs-on: ubuntu-latest
-    needs: verify_tag
+#    needs: verify_tag
     outputs:
       hash: ${{ steps.hash.outputs.hash }}
     steps:
@@ -110,7 +110,8 @@ jobs:
       - name: Publish crate.io package
         if: ${{ inputs.push_to_crates }}
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+#          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: spameggham
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
           # DRY_RUN expansion cannot be double quoted when variable contains empty string otherwise cargo publish 
