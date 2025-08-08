@@ -208,8 +208,7 @@ where
 {
     let mut new_balance = old_balance.clone();
     if total_dex_other_token_in != 0 {
-        let (_, new_balance_tmp) =
-            transfer_whitepaper(current_dex_balance, old_balance, amount_out);
+        let (_, new_balance_tmp) = transfer_no_cmux(current_dex_balance, old_balance, amount_out);
         new_balance = new_balance_tmp;
     }
     new_balance
