@@ -228,4 +228,8 @@ impl CompactCiphertextList {
     pub fn size_bytes(&self) -> usize {
         self.ct_list.size_bytes()
     }
+
+    pub fn is_packed(&self) -> bool {
+        self.degree.get() > self.message_modulus.corresponding_max_degree().get()
+    }
 }

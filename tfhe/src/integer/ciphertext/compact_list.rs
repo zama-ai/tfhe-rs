@@ -741,12 +741,7 @@ fn expansion_helper<ListType>(
 
 impl CompactCiphertextList {
     pub fn is_packed(&self) -> bool {
-        self.ct_list.degree.get()
-            > self
-                .ct_list
-                .message_modulus
-                .corresponding_max_degree()
-                .get()
+        self.ct_list.is_packed()
     }
 
     pub fn needs_casting(&self) -> bool {
@@ -758,7 +753,7 @@ impl CompactCiphertextList {
     }
 
     pub fn len(&self) -> usize {
-        self.info.len()
+        self.filtered_info().count()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -892,7 +887,7 @@ impl CompactCiphertextList {
     }
 
     pub fn ciphertext_count(&self) -> usize {
-        self.info.len()
+        self.len()
     }
 
     pub fn expand(
@@ -912,7 +907,7 @@ impl CompactCiphertextList {
 
         Ok(CompactCiphertextListExpander::new(
             expanded_blocks,
-            self.info.clone(),
+            self.filtered_info().copied().collect(),
         ))
     }
 
@@ -949,6 +944,10 @@ impl CompactCiphertextList {
             .to_ct_list_conformance_parameters(ListSizeConstraint::exact_size(num_blocks));
         ct_list.is_conformant(&shortint_list_params)
     }
+
+    fn filtered_info(&self) -> impl Iterator<Item = &DataKind> {
+        self.info.iter().filter(|kind| !kind.is_empty())
+    }
 }
 
 #[cfg(feature = "zk-pok")]
@@ -983,6 +982,13 @@ impl ProvenCompactCiphertextList {
         metadata: &[u8],
         expansion_mode: IntegerCompactCiphertextListExpansionMode<'_>,
     ) -> crate::Result<CompactCiphertextListExpander> {
+        if self.is_empty() {
+            if self.verify(crs, public_key, metadata) == ZkVerificationOutcome::Invalid {
+                return Err(crate::ErrorKind::InvalidZkProof.into());
+            }
+            return Ok(CompactCiphertextListExpander::new(vec![], vec![]));
+        }
+
         let is_packed = self.is_packed();
 
         // Type annotation needed rust is not able to coerce the type on its own, also forces us to
@@ -1008,7 +1014,7 @@ impl ProvenCompactCiphertextList {
 
         Ok(CompactCiphertextListExpander::new(
             expanded_blocks,
-            self.info.clone(),
+            self.filtered_info().copied().collect(),
         ))
     }
 
@@ -1033,17 +1039,16 @@ impl ProvenCompactCiphertextList {
 
         Ok(CompactCiphertextListExpander::new(
             expanded_blocks,
-            self.info.clone(),
+            self.filtered_info().copied().collect(),
         ))
     }
 
     pub fn is_packed(&self) -> bool {
-        self.ct_list.proved_lists[0].0.degree.get()
-            > self.ct_list.proved_lists[0]
-                .0
-                .message_modulus
-                .corresponding_max_degree()
-                .get()
+        if self.is_empty() {
+            return false;
+        }
+
+        self.ct_list.proved_lists[0].0.is_packed()
     }
 
     pub fn needs_casting(&self) -> bool {
@@ -1059,7 +1064,7 @@ impl ProvenCompactCiphertextList {
     }
 
     pub fn len(&self) -> usize {
-        self.info.len()
+        self.filtered_info().count()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -1068,6 +1073,10 @@ impl ProvenCompactCiphertextList {
 
     pub fn get_kind_of(&self, index: usize) -> Option<DataKind> {
         self.info.get(index).copied()
+    }
+
+    fn filtered_info(&self) -> impl Iterator<Item = &DataKind> {
+        self.info.iter().filter(|kind| !kind.is_empty())
     }
 }
 
@@ -1136,10 +1145,24 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
     fn is_conformant(&self, parameter_set: &Self::ParameterSet) -> bool {
         let Self { ct_list, info } = self;
 
+        let is_packed = self.is_packed();
+
+        let all_have_same_packing = ct_list
+            .proved_lists
+            .iter()
+            .all(|(list, _)| list.is_packed() == is_packed);
+
+        if !all_have_same_packing {
+            return false;
+        }
+
         let total_expected_num_blocks: usize = info
             .iter()
             .map(|a| a.num_blocks(self.message_modulus()))
             .sum();
+
+        let total_expected_lwe_count =
+            total_expected_num_blocks.div_ceil(if is_packed { 2 } else { 1 });
 
         let a = ProvenCompactCiphertextListConformanceParams {
             expansion_kind: parameter_set.expansion_kind,
@@ -1149,7 +1172,7 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
             ciphertext_modulus: parameter_set.ciphertext_modulus,
             max_lwe_count_per_compact_list: parameter_set.max_elements_per_compact_list,
             // packing by 2
-            total_expected_lwe_count: total_expected_num_blocks.div_ceil(2),
+            total_expected_lwe_count,
             zk_conformance_params: parameter_set.zk_conformance_params,
         };
 
@@ -1157,9 +1180,107 @@ impl ParameterSetConformant for ProvenCompactCiphertextList {
     }
 }
 
-#[cfg(feature = "zk-pok")]
 #[cfg(test)]
 mod tests {
+    use crate::integer::ciphertext::{
+        CompactCiphertextList, DataKind, IntegerCompactCiphertextListExpansionMode,
+    };
+    use crate::integer::key_switching_key::KeySwitchingKey;
+    use crate::integer::{
+        ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
+        SignedRadixCiphertext,
+    };
+    use crate::shortint::parameters::{
+        PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    };
+
+    /// Here we test when a user sneaks DataKinds that describe empty radix
+    #[test]
+    fn test_with_0_blocks_data_kind() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        {
+            let mut list = CompactCiphertextList::builder(&pk)
+                .push_with_num_blocks(1u8, 4)
+                .push_with_num_blocks(-1i8, 4)
+                .build_packed()
+                .unwrap();
+
+            assert_eq!(list.len(), 2);
+            assert!(!list.is_empty());
+            assert_eq!(list.info, vec![DataKind::Unsigned(4), DataKind::Signed(4)]);
+            assert!(list.is_packed());
+
+            // The info metadata is different from what it was originally
+            // as we injected empty kinds.
+            // They are ignored
+            list.info = vec![
+                DataKind::Unsigned(0),
+                DataKind::Unsigned(4),
+                DataKind::Signed(0),
+                DataKind::Signed(4),
+            ];
+
+            let expander = list.expand(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            );
+            assert!(expander.is_ok());
+            let expander = expander.unwrap();
+            assert_eq!(expander.len(), 2);
+            let a = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+            assert_eq!(cks.decrypt_radix::<u8>(&a), 1u8);
+            let b = expander.get::<SignedRadixCiphertext>(1).unwrap().unwrap();
+            assert_eq!(cks.decrypt_signed_radix::<i8>(&b), -1i8);
+        }
+
+        {
+            let mut list = CompactCiphertextList::builder(&pk)
+                .push_with_num_blocks(1u8, 4)
+                .push_with_num_blocks(-1i8, 4)
+                .build();
+
+            assert_eq!(list.len(), 2);
+            assert!(!list.is_empty());
+            assert_eq!(list.info, vec![DataKind::Unsigned(4), DataKind::Signed(4)]);
+            assert!(!list.is_packed());
+
+            // The info metadata is different from what it was originally
+            // as we injected empty kinds.
+            // They are ignored
+            list.info = vec![
+                DataKind::Unsigned(0),
+                DataKind::Unsigned(4),
+                DataKind::Signed(0),
+                DataKind::Signed(4),
+            ];
+
+            let expander = list.expand(
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+            );
+            assert!(expander.is_ok());
+            let expander = expander.unwrap();
+            assert_eq!(expander.len(), 2);
+            let a = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+            assert_eq!(cks.decrypt_radix::<u8>(&a), 1u8);
+            let b = expander.get::<SignedRadixCiphertext>(1).unwrap().unwrap();
+            assert_eq!(cks.decrypt_signed_radix::<i8>(&b), -1i8);
+        }
+    }
+}
+
+#[cfg(feature = "zk-pok")]
+#[cfg(test)]
+mod zk_pok_tests {
     // Test utils for tests here
     impl ProvenCompactCiphertextList {
         /// For testing and creating potentially invalid lists
@@ -1169,13 +1290,18 @@ mod tests {
     }
 
     use super::{DataKind, ProvenCompactCiphertextList};
+    use crate::conformance::ParameterSetConformant;
     use crate::core_crypto::prelude::LweCiphertextCount;
-    use crate::integer::ciphertext::CompactCiphertextList;
+    use crate::integer::ciphertext::{
+        CompactCiphertextList, IntegerProvenCompactCiphertextListConformanceParams,
+    };
     use crate::integer::key_switching_key::KeySwitchingKey;
     use crate::integer::parameters::IntegerCompactCiphertextListExpansionMode;
     use crate::integer::{
         BooleanBlock, ClientKey, CompactPrivateKey, CompactPublicKey, RadixCiphertext, ServerKey,
+        SignedRadixCiphertext,
     };
+    use crate::shortint::ciphertext::Degree;
     use crate::shortint::parameters::test_params::{
         TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
         TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV1,
@@ -1185,7 +1311,7 @@ mod tests {
         PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     };
-    use crate::zk::{CompactPkeCrs, ZkComputeLoad};
+    use crate::zk::{CompactPkeCrs, ZkComputeLoad, ZkVerificationOutcome};
     use rand::random;
 
     #[test]
@@ -1248,6 +1374,286 @@ mod tests {
             let decrypted = cks.decrypt_radix::<u64>(&expanded);
             assert_eq!(msg, decrypted);
         }
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(512)).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        // Test by pushing with zero blocks
+        {
+            let proven_ct = CompactCiphertextList::builder(&pk)
+                .push_with_num_blocks(1u8, 0)
+                .push_with_num_blocks(-1i8, 0)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            assert!(proven_ct.is_empty());
+            assert_eq!(proven_ct.len(), 0);
+            assert_eq!(
+                proven_ct.verify(&crs, &pk, &metadata),
+                ZkVerificationOutcome::Valid
+            );
+            assert!(matches!(
+                proven_ct.verify_and_expand(
+                    &crs,
+                    &pk,
+                    &metadata,
+                    IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+                ),
+                Ok(vec) if vec.is_empty()
+            ));
+        }
+
+        // Test by pushing with nothing
+        {
+            let proven_ct = CompactCiphertextList::builder(&pk)
+                .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+                .unwrap();
+
+            assert!(proven_ct.is_empty());
+            assert_eq!(proven_ct.len(), 0);
+            assert_eq!(
+                proven_ct.verify(&crs, &pk, &metadata),
+                ZkVerificationOutcome::Valid
+            );
+            assert!(matches!(
+                proven_ct.verify_and_expand(
+                    &crs,
+                    &pk,
+                    &metadata,
+                    IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+                ),
+                Ok(vec) if vec.is_empty()
+            ));
+        }
+    }
+
+    /// In this test we check the behavior of the proven list when the info vec
+    /// is modified
+    #[test]
+    fn test_attack_list_info() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(2)).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                pke_params, &crs,
+            );
+
+        let mut proven_ct = CompactCiphertextList::builder(&pk)
+            .push_with_num_blocks(1u8, 4)
+            .push_with_num_blocks(-1i8, 4)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        assert_eq!(proven_ct.len(), 2);
+        assert!(!proven_ct.is_empty());
+        assert_eq!(
+            proven_ct.info,
+            vec![DataKind::Unsigned(4), DataKind::Signed(4)]
+        );
+        assert_eq!(proven_ct.ct_list.proved_lists.len(), 2);
+        assert!(proven_ct.is_conformant(&conformance_params));
+
+        // Change the info vec, conformance should no longer work
+        let saved_info = std::mem::take(&mut proven_ct.info);
+        assert!(!proven_ct.is_conformant(&conformance_params));
+        assert!(proven_ct.is_empty());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        assert!(matches!(
+            proven_ct.verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.
+                    as_view()),
+            ),
+            Ok(vec) if vec.is_empty()
+        ));
+
+        // Even though the info contains some kinds, they describe empty data
+        // So we consider the list empty
+        proven_ct.info = vec![DataKind::Signed(0), DataKind::Unsigned(0)];
+        assert!(!proven_ct.is_conformant(&conformance_params));
+        assert!(proven_ct.is_empty());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        assert!(matches!(
+            proven_ct.verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.
+                    as_view()),
+            ),
+            Ok(vec) if vec.is_empty()
+        ));
+
+        // The info vec will still not be coherent (block number wise)
+        // so conformance fails, we still test verify_and_expand to know its
+        // behavior
+        proven_ct.info = vec![DataKind::Signed(4)];
+        assert!(!proven_ct.is_conformant(&conformance_params));
+        assert!(!proven_ct.is_empty());
+        assert!(proven_ct.is_packed());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        assert!(proven_ct
+            .verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
+            )
+            .is_err());
+
+        // The info vec will be coherent (block number wise)
+        // so conformance passes. However, the info metadata is different from
+        // what it was originally
+        proven_ct.info.push(DataKind::Unsigned(4));
+        assert_ne!(proven_ct.info, saved_info);
+        assert!(proven_ct.is_conformant(&conformance_params));
+        assert!(!proven_ct.is_empty());
+        assert!(proven_ct.is_packed());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        assert!(proven_ct
+            .verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
+            )
+            .is_ok());
+
+        // The info vec will has now more entry than there are blocks
+        // so conformance fails.
+        proven_ct.info.push(DataKind::Boolean);
+        assert!(!proven_ct.is_conformant(&conformance_params));
+        assert!(!proven_ct.is_empty());
+        assert!(proven_ct.is_packed());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        assert!(proven_ct
+            .verify_and_expand(
+                &crs,
+                &pk,
+                &metadata,
+                IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view())
+            )
+            .is_err());
+
+        // The info metadata is different from what it was originally
+        // as we injected empty kinds.
+        // They are ignored
+        proven_ct.info = vec![
+            DataKind::Unsigned(0),
+            DataKind::Unsigned(4),
+            DataKind::Signed(0),
+            DataKind::Signed(4),
+        ];
+        assert_ne!(proven_ct.info, saved_info);
+        assert!(proven_ct.is_conformant(&conformance_params));
+        assert!(!proven_ct.is_empty());
+        assert!(proven_ct.is_packed());
+        assert_eq!(
+            proven_ct.verify(&crs, &pk, &metadata),
+            ZkVerificationOutcome::Valid
+        );
+        let expander = proven_ct.verify_and_expand(
+            &crs,
+            &pk,
+            &metadata,
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+        );
+        assert!(expander.is_ok());
+        let expander = expander.unwrap();
+        assert_eq!(expander.len(), 2);
+        let a = expander.get::<RadixCiphertext>(0).unwrap().unwrap();
+        assert_eq!(cks.decrypt_radix::<u8>(&a), 1u8);
+        let b = expander.get::<SignedRadixCiphertext>(1).unwrap().unwrap();
+        assert_eq!(cks.decrypt_signed_radix::<i8>(&b), -1i8);
+    }
+
+    #[test]
+    fn test_attack_proven_list_metadata() {
+        let pke_params = PARAM_PKE_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let ksk_params = PARAM_KEYSWITCH_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let fhe_params = PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let metadata = [b'i', b'n', b't', b'e', b'g', b'e', b'r'];
+
+        let crs = CompactPkeCrs::from_shortint_params(pke_params, LweCiphertextCount(2)).unwrap();
+        let cks = ClientKey::new(fhe_params);
+        let sk = ServerKey::new_radix_server_key(&cks);
+        let compact_private_key = CompactPrivateKey::new(pke_params);
+        let ksk = KeySwitchingKey::new((&compact_private_key, None), (&cks, &sk), ksk_params);
+        let pk = CompactPublicKey::new(&compact_private_key);
+
+        let conformance_params =
+            IntegerProvenCompactCiphertextListConformanceParams::from_crs_and_parameters(
+                pke_params, &crs,
+            );
+
+        let mut proven_ct = CompactCiphertextList::builder(&pk)
+            .push_with_num_blocks(1u8, 4)
+            .push_with_num_blocks(-1i8, 4)
+            .build_with_proof_packed(&crs, &metadata, ZkComputeLoad::Proof)
+            .unwrap();
+
+        assert!(proven_ct.is_conformant(&conformance_params));
+        assert_eq!(proven_ct.len(), 2);
+        assert!(proven_ct.is_packed());
+        assert_eq!(proven_ct.ct_list.proved_lists.len(), 2);
+        assert!(proven_ct.ct_list.proved_lists[0].0.is_packed());
+        assert!(proven_ct.ct_list.proved_lists[1].0.is_packed());
+
+        proven_ct.ct_list.proved_lists[0].0.degree = Degree::new(0);
+        assert!(!proven_ct.is_packed());
+        assert_eq!(proven_ct.ct_list.proved_lists.len(), 2);
+        assert!(!proven_ct.ct_list.proved_lists[0].0.is_packed());
+        assert!(proven_ct.ct_list.proved_lists[1].0.is_packed());
+        assert!(!proven_ct.is_conformant(&conformance_params));
+        let expander = proven_ct.verify_and_expand(
+            &crs,
+            &pk,
+            &metadata,
+            IntegerCompactCiphertextListExpansionMode::CastAndUnpackIfNecessary(ksk.as_view()),
+        );
+        assert!(expander.is_err());
     }
 
     /// Test a compact list encryption proven with the v1 zk scheme
