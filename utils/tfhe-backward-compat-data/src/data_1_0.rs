@@ -3,9 +3,9 @@ use crate::generate::{
     PRNG_SEED, VALID_TEST_PARAMS_TUNIFORM,
 };
 use crate::{
-    HlClientKeyTest, HlServerKeyTest, TestDistribution, TestMetadata,
-    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestParameterSet,
-    ZkPkePublicParamsTest, HL_MODULE_NAME,
+    HlClientKeyTest, HlServerKeyTest, TestClassicParameterSet, TestDistribution, TestMetadata,
+    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestMultiBitParameterSet,
+    TestParameterSet, ZkPkePublicParamsTest, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -18,9 +18,10 @@ use tfhe_1_0::core_crypto::prelude::{
 use tfhe_1_0::shortint::engine::ShortintEngine;
 use tfhe_1_0::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, DecompositionBaseLog,
-    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension, LweDimension,
-    MaxNoiseLevel, MessageModulus, ModulusSwitchNoiseReductionParams, PBSParameters,
-    PolynomialSize, StandardDev,
+    DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice, GlweDimension,
+    LweBskGroupingFactor, LweDimension, MaxNoiseLevel, MessageModulus,
+    ModulusSwitchNoiseReductionParams, MultiBitPBSParameters, PBSParameters, PolynomialSize,
+    StandardDev,
 };
 use tfhe_1_0::zk::{CompactPkeCrs, ZkMSBZeroPaddingBitCount};
 use tfhe_1_0::Seed;
@@ -62,8 +63,8 @@ impl From<TestModulusSwitchNoiseReductionParams> for ModulusSwitchNoiseReduction
     }
 }
 
-impl From<TestParameterSet> for ClassicPBSParameters {
-    fn from(value: TestParameterSet) -> Self {
+impl From<TestClassicParameterSet> for ClassicPBSParameters {
+    fn from(value: TestClassicParameterSet) -> Self {
         let modulus_switch_noise_reduction_params =
             match value.modulus_switch_noise_reduction_params {
                 TestModulusSwitchType::Standard => None,
@@ -100,10 +101,65 @@ impl From<TestParameterSet> for ClassicPBSParameters {
     }
 }
 
+impl From<TestMultiBitParameterSet> for MultiBitPBSParameters {
+    fn from(value: TestMultiBitParameterSet) -> Self {
+        let TestMultiBitParameterSet {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            ciphertext_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            encryption_key_choice,
+            grouping_factor,
+        } = value;
+
+        MultiBitPBSParameters {
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.into(),
+            glwe_noise_distribution: glwe_noise_distribution.into(),
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            message_modulus: MessageModulus(message_modulus as u64),
+            carry_modulus: CarryModulus(carry_modulus as u64),
+            max_noise_level: MaxNoiseLevel::new(max_noise_level as u64),
+            log2_p_fail,
+            ciphertext_modulus: CiphertextModulus::try_new(ciphertext_modulus).unwrap(),
+            encryption_key_choice: {
+                match &*encryption_key_choice {
+                    "big" => EncryptionKeyChoice::Big,
+                    "small" => EncryptionKeyChoice::Small,
+                    _ => panic!("Invalid encryption key choice"),
+                }
+            },
+            grouping_factor: LweBskGroupingFactor(grouping_factor),
+            deterministic_execution: false,
+        }
+    }
+}
+
 impl From<TestParameterSet> for PBSParameters {
     fn from(value: TestParameterSet) -> Self {
-        let tmp: ClassicPBSParameters = value.into();
-        tmp.into()
+        match value {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                PBSParameters::PBS(test_classic_parameter_set.into())
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_parameter_set_multi_bit) => {
+                PBSParameters::MultiBitPBS(test_parameter_set_multi_bit.into())
+            }
+        }
     }
 }
 
@@ -120,16 +176,16 @@ const HL_SERVERKEY_MS_NOISE_REDUCTION_TEST: HlServerKeyTest = HlServerKeyTest {
 
 const ZK_PKEV2_CRS_TEST: ZkPkePublicParamsTest = ZkPkePublicParamsTest {
     test_filename: Cow::Borrowed("zk_pkev2_crs"),
-    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size
-        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension, // Lwe dimension of the "big" key is glwe dimension * polynomial size
+    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size()
+        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension(), // Lwe dimension of the "big" key is glwe dimension * polynomial size
     max_num_cleartext: 16,
-    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution {
+    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution() {
         TestDistribution::Gaussian { .. } => unreachable!(),
         TestDistribution::TUniform { bound_log2 } => bound_log2 as usize,
     },
-    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus,
-    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus
-        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus
+    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus(),
+    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus()
+        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus()
         * 2, // *2 for padding bit
     padding_bit_count: 1,
 };
