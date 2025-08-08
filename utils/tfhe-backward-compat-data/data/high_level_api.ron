@@ -4,7 +4,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "batch_1_client_key",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 887,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -25,7 +25,7 @@
                 log2_p_fail: -64.138,
                 encryption_key_choice: "big",
                 modulus_switch_noise_reduction_params: Standard,
-            ),
+            )),
         )),
     ),
     (
@@ -298,7 +298,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "client_key_with_compression",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 887,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -319,7 +319,7 @@
                 log2_p_fail: -64.138,
                 encryption_key_choice: "big",
                 modulus_switch_noise_reduction_params: Standard,
-            ),
+            )),
         )),
     ),
     (
@@ -327,7 +327,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "client_key",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 887,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -348,7 +348,7 @@
                 log2_p_fail: -64.138,
                 encryption_key_choice: "big",
                 modulus_switch_noise_reduction_params: Standard,
-            ),
+            )),
         )),
     ),
     (
@@ -413,7 +413,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "client_key_ms_noise_reduction",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 2,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -439,7 +439,7 @@
                     ms_r_sigma_factor: 13.179852282053789,
                     ms_input_variance: 0.000000263039184094559,
                 )),
-            ),
+            )),
         )),
     ),
     (
@@ -469,7 +469,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "client_key_with_noise_squashing",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 2,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -495,7 +495,7 @@
                     ms_r_sigma_factor: 13.179852282053789,
                     ms_input_variance: 0.000000263039184094559,
                 )),
-            ),
+            )),
         )),
     ),
     (
@@ -583,7 +583,7 @@
         tfhe_module: "high_level_api",
         metadata: HlClientKey((
             test_filename: "client_key_ms_mean_compensation",
-            parameters: (
+            parameters: TestClassicParameterSet((
                 lwe_dimension: 2,
                 glwe_dimension: 1,
                 polynomial_size: 2048,
@@ -604,7 +604,7 @@
                 log2_p_fail: -129.15284804376165,
                 encryption_key_choice: "big",
                 modulus_switch_noise_reduction_params: CenteredMeanNoiseReduction,
-            ),
+            )),
         )),
     ),
     (
