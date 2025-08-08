@@ -597,6 +597,34 @@ fn mul_accumulate_scalar(
     }
 }
 
+// TODO
+struct BarrettInit32 {
+    big_q: u32,
+    p_barrett: u32,
+}
+
+impl BarrettInit32 {
+    pub fn try_new(modulus: u32) -> Option<Self> {
+        let big_q = modulus.ilog2() + 1;
+        let big_l = big_q + 31;
+        let m_as_u64: u64 = modulus.into();
+        let two_to_the_l = 1u64 << big_l; // Equivalent to 2^{2k} from the zk security blog
+        let (p_barrett, beta) = ((two_to_the_l / m_as_u64) as u32, (two_to_the_l % m_as_u64));
+
+        // Check that the chosen prime will only trigger a single barrett reduction step with
+        // our implementation. If two reductions are needed there can be cases where it is not
+        // possible to decide whether a reduction is required yielding wrong results.
+        // Formula derived with https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
+        let single_reduction_threshold = m_as_u64 - (1 << (big_q - 1));
+
+        if beta <= single_reduction_threshold {
+            Some(Self { big_q, p_barrett })
+        } else {
+            Some(Self { big_q, p_barrett })
+        }
+    }
+}
+
 /// Negacyclic NTT plan for 32bit primes.
 #[derive(Clone)]
 pub struct Plan {
@@ -606,6 +634,8 @@ pub struct Plan {
     inv_twid_shoup: ABox<[u32]>,
     p: u32,
     p_div: Div32,
+    /// If true can use non generic code and optimized reduction algorithms.
+    // can_use_fast_code: bool,
 
     // used for elementwise product
     p_barrett: u32,
@@ -669,6 +699,54 @@ impl Plan {
             let big_q = modulus.ilog2() + 1;
             let big_l = big_q + 31;
             let p_barrett = ((1u64 << big_l) / modulus as u64) as u32;
+
+            // The mul_accumulate_scalar code (and derived SIMD code) can have an overflow issue due
+            // to how Barrett reduction works. It can also overflow during the following
+            // accumulations. We'll derive the requirements for the mul_accumulate_scalar code to be
+            // correct and use that to determine whether a given prime is a "fast" prime for our
+            // code. Currently results are "just" wrong.
+            //
+            // You can check https://blog.zksecurity.xyz/posts/barrett-tighter-bound/ for a readable
+            // Barrett reduction analysis/breakdown.
+            //
+            // Barrett reduction gives an approximate value q_approx of the quotient q we are
+            // looking to compute the reduction
+            // which can differ from q by at most 2: q_approx € [q - 2, q - 1, q], given we subtract
+            // q * p from our result to start the reduction we have:
+            // prod = to_reduce - q * p
+            // prod = true_prod + c * p with c € {0, 1, 2}
+            // We need to make sure that prod does not overflow 32 bits
+            // We have true_prod which is reduced mod p, so true_prod <= p - 1
+            // prod <= 2^32 - 1 <=>
+            // true_prod + 2 * p <= 2^32 - 1 <=>
+            // 3 * p - 1 <= 2^32 - 1 <=>
+            // p <= 2^32 / 3 <= 1431655765.3333333 < 1431655766
+            //
+            // After the computation of prod a first reduction step is performed, meaning we now
+            // have:
+            // prod = true_prod + c * p with c € {0, 1}
+            // We are accumulating in acc which is already reduced, so acc <= p - 1
+            // The accumulation yields:
+            // We need acc + prod <= 2^32 - 1 <=>
+            // (p - 1) + (p - 1) + p  <= 2^32 - 1 <=>
+            // 3p - 2 <= 2^32 - 1 <=>
+            // 3p <= 2^32 + 1 <=>
+            // p <= (2^32 + 1) / 3 <= 1431655765.6666667 < 1431655766
+            //
+            // It is the same criterion.
+            // Now for cases where moduli are known to yield a Barrett reduction with a single step
+            // of reduction required (see blog post again) the conditions become:
+            // true_prod + p <= 2^32 - 1 <=>
+            // 2p - 1 <= 2^32 - 1 <=>
+            // p <= 2^31
+
+            let can_use_fast_code = {
+                if modulus < 1431655766 {
+                    true
+                } else {
+                    false
+                }
+            };
 
             Some(Self {
                 twid,
@@ -1643,6 +1721,60 @@ mod x86_tests {
 
             normalize_avx2(simd, &mut val, p, n_inv_mod_p, n_inv_mod_p_shoup);
             assert_eq!(val, val_target);
+        }
+    }
+
+    #[test]
+    fn test_barrett_invalid_reduction_sequence_regression_test() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let mut fails = 0u64;
+
+        let p: u32 = 0x7fe0_1001;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        // let value = 0x6e63593a;
+
+        for value in 0..p {
+            let mut acc = [0u32; POLYNOMIAL_SIZE];
+            // Essentially = [value, 0, 0, ...]
+            let input: [u32; POLYNOMIAL_SIZE] =
+                core::array::from_fn(|i| if i == 0 { value } else { 0 });
+
+            plan.mul_accumulate(&mut acc, &input, &input);
+
+            let expected = (u64::from(value) * u64::from(value) % u64::from(p)) as u32;
+            // assert_eq!(acc[0], expected);
+            if acc[0] != expected {
+                fails += 1;
+                // println!("{value} failed multiplication")
+            }
+        }
+        println!("{fails} fails vs {p} possible values")
+    }
+
+    #[test]
+    fn test_barrett_invalid_reduction_normalize_regression_test() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let mut fails = 0u64;
+
+        let p: u32 = 0x7fe0_1001;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        let value = 0x6e63593a;
+
+        for _ in 0..1 {
+            // Essentially = [value, 0, 0, ...]
+            let input: [u32; POLYNOMIAL_SIZE] =
+                core::array::from_fn(|i| if i == 0 { value } else { 0 });
+            let mut acc = input;
+
+            plan.mul_assign_normalize(&mut acc, &input);
+
+            let expected = (u128::from(value) * u128::from(value) * u128::from(plan.n_inv_mod_p)
+                % u128::from(p)) as u32;
+            assert_eq!(acc[0], expected);
         }
     }
 }
