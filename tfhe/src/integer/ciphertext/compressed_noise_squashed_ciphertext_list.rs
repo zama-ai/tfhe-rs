@@ -82,7 +82,7 @@ impl CompressedNoiseSquashingCompressionKey {
         Self { key }
     }
 
-    pub fn into_raw_pars(self) -> ShortintCompressedNoiseSquashingCompressionKey {
+    pub fn into_raw_parts(self) -> ShortintCompressedNoiseSquashingCompressionKey {
         self.key
     }
 }
@@ -102,7 +102,7 @@ impl NoiseSquashingCompressionKey {
         Self { key }
     }
 
-    pub fn into_raw_pars(self) -> ShortintNoiseSquashingCompressionKey {
+    pub fn into_raw_parts(self) -> ShortintNoiseSquashingCompressionKey {
         self.key
     }
 }
