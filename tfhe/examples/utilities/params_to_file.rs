@@ -193,7 +193,7 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
     }
 
     fn glwe_dimension(&self) -> GlweDimension {
-        self.glwe_dimension
+        self.glwe_dimension()
     }
 
     fn lwe_noise_distribution(&self) -> DynamicDistribution<u128> {
@@ -201,11 +201,11 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
     }
 
     fn glwe_noise_distribution(&self) -> DynamicDistribution<u128> {
-        self.glwe_noise_distribution
+        self.glwe_noise_distribution()
     }
 
     fn polynomial_size(&self) -> PolynomialSize {
-        self.polynomial_size
+        self.polynomial_size()
     }
 
     fn lwe_ciphertext_modulus(&self) -> ParamModulus {
@@ -213,7 +213,7 @@ impl ParamDetails<u128> for NoiseSquashingParameters {
     }
 
     fn glwe_ciphertext_modulus(&self) -> ParamModulus {
-        ParamModulus::from_ciphertext_modulus(self.ciphertext_modulus)
+        ParamModulus::from_ciphertext_modulus(self.ciphertext_modulus())
     }
 }
 

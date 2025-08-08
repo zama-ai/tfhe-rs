@@ -7,12 +7,28 @@ use rand::prelude::*;
 use rand::thread_rng;
 
 #[test]
-fn test_noise_squashing_ci_run_filter() {
-    let keycache_entry = KEY_CACHE.get_from_param(PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128);
-    let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
-    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(
+fn test_classic_noise_squashing_ci_run_filter() {
+    test_noise_squashing(
+        PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
         NOISE_SQUASHING_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
     );
+}
+
+#[test]
+fn test_multi_bit_noise_squashing_ci_run_filter() {
+    test_noise_squashing(
+        PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        NOISE_SQUASHING_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+    );
+}
+
+fn test_noise_squashing(
+    classic_params: impl Into<AtomicPatternParameters>,
+    noise_squashing_params: NoiseSquashingParameters,
+) {
+    let keycache_entry = KEY_CACHE.get_from_param(classic_params);
+    let (cks, sks) = (keycache_entry.client_key(), keycache_entry.server_key());
+    let noise_squashing_private_key = NoiseSquashingPrivateKey::new(noise_squashing_params);
     let decompressed_noise_squashing_key = {
         let compressed_noise_squashing_key =
             CompressedNoiseSquashingKey::new(cks, &noise_squashing_private_key);
