@@ -11,126 +11,131 @@ use tfhe_1_3_versionable::Versionize as VersionizeTfhe_1_3;
 use tfhe_versionable::{Versionize as VersionizeTfhe_0_10, Versionize as VersionizeTfhe_0_8};
 
 use crate::{
-    data_dir, dir_for_version, TestCompressionParameterSet, TestDistribution, TestMetadata,
-    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
+    data_dir, dir_for_version, TestClassicParameterSet, TestCompressionParameterSet,
+    TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
     TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams, TestParameterSet,
 };
 
 pub const PRNG_SEED: u128 = 0xdeadbeef;
 
 /// Valid parameter set that can be used in tfhe operations
-pub const VALID_TEST_PARAMS: TestParameterSet = TestParameterSet {
-    lwe_dimension: 761,
-    glwe_dimension: 1,
-    polynomial_size: 2048,
-    lwe_noise_distribution: TestDistribution::Gaussian {
-        stddev: 6.36835566258815e-06,
-    },
-    glwe_noise_distribution: TestDistribution::Gaussian {
-        stddev: 3.1529322391500584e-16,
-    },
-    pbs_base_log: 23,
-    pbs_level: 1,
-    ks_base_log: 3,
-    ks_level: 5,
-    message_modulus: 4,
-    carry_modulus: 4,
-    max_noise_level: 5,
-    log2_p_fail: -40.05,
-    ciphertext_modulus: 1 << 64,
-    encryption_key_choice: Cow::Borrowed("big"),
-    modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
-};
-
-pub const VALID_TEST_PARAMS_TUNIFORM: TestParameterSet = TestParameterSet {
-    lwe_dimension: 887,
-    glwe_dimension: 1,
-    polynomial_size: 2048,
-    lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 46 },
-    glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
-    pbs_base_log: 22,
-    pbs_level: 1,
-    ks_base_log: 3,
-    ks_level: 5,
-    message_modulus: 4,
-    carry_modulus: 4,
-    max_noise_level: 5,
-    log2_p_fail: -64.138,
-    ciphertext_modulus: 1 << 64,
-    encryption_key_choice: Cow::Borrowed("big"),
-    modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
-};
-
-/// Those parameters are insecure and are used to generate small legacy public keys
-pub const INSECURE_SMALL_PK_TEST_PARAMS: TestParameterSet = TestParameterSet {
-    lwe_dimension: 10,
-    glwe_dimension: 4,
-    polynomial_size: 512,
-    lwe_noise_distribution: TestDistribution::Gaussian {
-        stddev: 1.499_900_593_439_687_3e-6,
-    },
-    glwe_noise_distribution: TestDistribution::Gaussian {
-        stddev: 2.845267479601915e-15,
-    },
-    pbs_base_log: 23,
-    pbs_level: 1,
-    ks_base_log: 5,
-    ks_level: 3,
-    message_modulus: 2,
-    carry_modulus: 2,
-    max_noise_level: 3,
-    log2_p_fail: -64.05,
-    ciphertext_modulus: 1 << 64,
-    encryption_key_choice: Cow::Borrowed("small"),
-    modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
-};
-
-/// Those parameters are insecure and are used to generate small legacy public keys
-pub const INSECURE_SMALL_TEST_PARAMS_MS_NOISE_REDUCTION: TestParameterSet = TestParameterSet {
-    lwe_dimension: 2,
-    glwe_dimension: 1,
-    polynomial_size: 2048,
-    lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 45 },
-    glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
-    pbs_base_log: 23,
-    pbs_level: 1,
-    ks_base_log: 4,
-    ks_level: 4,
-    message_modulus: 4,
-    carry_modulus: 4,
-    max_noise_level: 5,
-    log2_p_fail: -129.15284804376165,
-    ciphertext_modulus: 1 << 64,
-    encryption_key_choice: Cow::Borrowed("big"),
-    modulus_switch_noise_reduction_params: TestModulusSwitchType::DriftTechniqueNoiseReduction(
-        TestModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: 2,
-            ms_bound: 288230376151711744f64,
-            ms_r_sigma_factor: 13.179852282053789f64,
-            ms_input_variance: 2.63039184094559e-7f64,
+pub const VALID_TEST_PARAMS: TestParameterSet =
+    TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+        lwe_dimension: 761,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::Gaussian {
+            stddev: 6.36835566258815e-06,
         },
-    ),
-};
+        glwe_noise_distribution: TestDistribution::Gaussian {
+            stddev: 3.1529322391500584e-16,
+        },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 3,
+        ks_level: 5,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -40.05,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("big"),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
+    });
+
+pub const VALID_TEST_PARAMS_TUNIFORM: TestParameterSet =
+    TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+        lwe_dimension: 887,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 46 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 22,
+        pbs_level: 1,
+        ks_base_log: 3,
+        ks_level: 5,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -64.138,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("big"),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
+    });
 
 /// Those parameters are insecure and are used to generate small legacy public keys
-pub const INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION: TestParameterSet = TestParameterSet {
-    lwe_dimension: 2,
-    glwe_dimension: 1,
-    polynomial_size: 2048,
-    lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 45 },
-    glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
-    pbs_base_log: 23,
-    pbs_level: 1,
-    ks_base_log: 4,
-    ks_level: 4,
-    message_modulus: 4,
-    carry_modulus: 4,
-    max_noise_level: 5,
-    log2_p_fail: -129.15284804376165,
-    ciphertext_modulus: 1 << 64,
-    encryption_key_choice: Cow::Borrowed("big"),
-    modulus_switch_noise_reduction_params: TestModulusSwitchType::CenteredMeanNoiseReduction,
-};
+pub const INSECURE_SMALL_PK_TEST_PARAMS: TestParameterSet =
+    TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+        lwe_dimension: 10,
+        glwe_dimension: 4,
+        polynomial_size: 512,
+        lwe_noise_distribution: TestDistribution::Gaussian {
+            stddev: 1.499_900_593_439_687_3e-6,
+        },
+        glwe_noise_distribution: TestDistribution::Gaussian {
+            stddev: 2.845267479601915e-15,
+        },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 5,
+        ks_level: 3,
+        message_modulus: 2,
+        carry_modulus: 2,
+        max_noise_level: 3,
+        log2_p_fail: -64.05,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("small"),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::Standard,
+    });
+
+/// Those parameters are insecure and are used to generate small legacy public keys
+pub const INSECURE_SMALL_TEST_PARAMS_MS_NOISE_REDUCTION: TestParameterSet =
+    TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+        lwe_dimension: 2,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 45 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 4,
+        ks_level: 4,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -129.15284804376165,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("big"),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::DriftTechniqueNoiseReduction(
+            TestModulusSwitchNoiseReductionParams {
+                modulus_switch_zeros_count: 2,
+                ms_bound: 288230376151711744f64,
+                ms_r_sigma_factor: 13.179852282053789f64,
+                ms_input_variance: 2.63039184094559e-7f64,
+            },
+        ),
+    });
+
+/// Those parameters are insecure and are used to generate small legacy public keys
+pub const INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION: TestParameterSet =
+    TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+        lwe_dimension: 2,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 45 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 23,
+        pbs_level: 1,
+        ks_base_log: 4,
+        ks_level: 4,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -129.15284804376165,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("big"),
+        modulus_switch_noise_reduction_params: TestModulusSwitchType::CenteredMeanNoiseReduction,
+    });
 
 /// Those parameters are insecure and are used to generate small legacy public keys
 /// Got with the above parameters for noise squashing
@@ -181,7 +186,7 @@ pub const VALID_TEST_PARAMS_TUNIFORM_COMPRESSION: TestCompressionParameterSet =
     };
 
 /// Invalid parameter set to test the limits
-pub const INVALID_TEST_PARAMS: TestParameterSet = TestParameterSet {
+pub const INVALID_TEST_PARAMS: TestClassicParameterSet = TestClassicParameterSet {
     lwe_dimension: usize::MAX,
     glwe_dimension: usize::MAX,
     polynomial_size: usize::MAX,
