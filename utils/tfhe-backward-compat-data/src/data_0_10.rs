@@ -3,8 +3,8 @@ use crate::generate::{
     VALID_TEST_PARAMS_TUNIFORM_COMPRESSION,
 };
 use crate::{
-    HlClientKeyTest, HlServerKeyTest, TestCompressionParameterSet, TestDistribution, TestMetadata,
-    TestParameterSet, HL_MODULE_NAME,
+    HlClientKeyTest, HlServerKeyTest, TestClassicParameterSet, TestCompressionParameterSet,
+    TestDistribution, TestMetadata, TestParameterSet, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -40,8 +40,8 @@ impl From<TestDistribution> for DynamicDistribution<u64> {
     }
 }
 
-impl From<TestParameterSet> for ClassicPBSParameters {
-    fn from(value: TestParameterSet) -> Self {
+impl From<TestClassicParameterSet> for ClassicPBSParameters {
+    fn from(value: TestClassicParameterSet) -> Self {
         ClassicPBSParameters {
             lwe_dimension: LweDimension(value.lwe_dimension),
             glwe_dimension: GlweDimension(value.glwe_dimension),
@@ -70,8 +70,14 @@ impl From<TestParameterSet> for ClassicPBSParameters {
 
 impl From<TestParameterSet> for PBSParameters {
     fn from(value: TestParameterSet) -> Self {
-        let tmp: ClassicPBSParameters = value.into();
-        tmp.into()
+        match value {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                PBSParameters::PBS(test_classic_parameter_set.into())
+            }
+            TestParameterSet::TestMultiBitParameterSet(_) => {
+                unreachable!()
+            }
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use crate::generate::{
     PRNG_SEED, VALID_TEST_PARAMS_TUNIFORM,
 };
 use crate::{
-    HlClientKeyTest, HlServerKeyTest, TestDistribution, TestMetadata,
+    HlClientKeyTest, HlServerKeyTest, TestClassicParameterSet, TestDistribution, TestMetadata,
     TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestParameterSet,
     ZkPkePublicParamsTest, HL_MODULE_NAME,
 };
@@ -62,8 +62,8 @@ impl From<TestModulusSwitchNoiseReductionParams> for ModulusSwitchNoiseReduction
     }
 }
 
-impl From<TestParameterSet> for ClassicPBSParameters {
-    fn from(value: TestParameterSet) -> Self {
+impl From<TestClassicParameterSet> for ClassicPBSParameters {
+    fn from(value: TestClassicParameterSet) -> Self {
         let modulus_switch_noise_reduction_params =
             match value.modulus_switch_noise_reduction_params {
                 TestModulusSwitchType::Standard => None,
@@ -102,8 +102,14 @@ impl From<TestParameterSet> for ClassicPBSParameters {
 
 impl From<TestParameterSet> for PBSParameters {
     fn from(value: TestParameterSet) -> Self {
-        let tmp: ClassicPBSParameters = value.into();
-        tmp.into()
+        match value {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                PBSParameters::PBS(test_classic_parameter_set.into())
+            }
+            TestParameterSet::TestMultiBitParameterSet(_) => {
+                unreachable!()
+            }
+        }
     }
 }
 
@@ -120,16 +126,16 @@ const HL_SERVERKEY_MS_NOISE_REDUCTION_TEST: HlServerKeyTest = HlServerKeyTest {
 
 const ZK_PKEV2_CRS_TEST: ZkPkePublicParamsTest = ZkPkePublicParamsTest {
     test_filename: Cow::Borrowed("zk_pkev2_crs"),
-    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size
-        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension, // Lwe dimension of the "big" key is glwe dimension * polynomial size
+    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size()
+        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension(), // Lwe dimension of the "big" key is glwe dimension * polynomial size
     max_num_cleartext: 16,
-    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution {
+    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution() {
         TestDistribution::Gaussian { .. } => unreachable!(),
         TestDistribution::TUniform { bound_log2 } => bound_log2 as usize,
     },
-    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus,
-    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus
-        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus
+    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus(),
+    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus()
+        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus()
         * 2, // *2 for padding bit
     padding_bit_count: 1,
 };

@@ -7,9 +7,9 @@ use tfhe_backward_compat_data::load::{
     load_versioned_auxiliary, DataFormat, TestFailure, TestResult, TestSuccess,
 };
 use tfhe_backward_compat_data::{
-    ShortintCiphertextTest, ShortintClientKeyTest, TestDistribution, TestMetadata,
-    TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestParameterSet, TestType,
-    Testcase,
+    ShortintCiphertextTest, ShortintClientKeyTest, TestClassicParameterSet, TestDistribution,
+    TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType, TestParameterSet,
+    TestType, Testcase,
 };
 
 use tfhe::shortint::parameters::{
@@ -26,69 +26,76 @@ use crate::{load_and_unversionize, TestedModule};
 
 /// Converts test parameters metadata that are independent of any tfhe-rs version and use only
 /// built-in types into parameters suitable for the currently tested version.
-pub fn load_params(test_params: &TestParameterSet) -> ClassicPBSParameters {
-    let TestParameterSet {
-        lwe_dimension,
-        glwe_dimension,
-        polynomial_size,
-        lwe_noise_distribution,
-        glwe_noise_distribution,
-        pbs_base_log,
-        pbs_level,
-        ks_base_log,
-        ks_level,
-        message_modulus,
-        ciphertext_modulus,
-        carry_modulus,
-        max_noise_level,
-        log2_p_fail,
-        encryption_key_choice,
-        modulus_switch_noise_reduction_params,
-    } = test_params;
+pub fn load_params(test_params: &TestParameterSet) -> PBSParameters {
+    match test_params {
+        TestParameterSet::TestClassicParameterSet(TestClassicParameterSet {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            ciphertext_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            encryption_key_choice,
+            modulus_switch_noise_reduction_params,
+        }) => {
+            let modulus_switch_noise_reduction_params = match modulus_switch_noise_reduction_params
+            {
+                TestModulusSwitchType::Standard => ModulusSwitchType::Standard,
+                TestModulusSwitchType::DriftTechniqueNoiseReduction(
+                    TestModulusSwitchNoiseReductionParams {
+                        modulus_switch_zeros_count,
+                        ms_bound,
+                        ms_r_sigma_factor,
+                        ms_input_variance,
+                    },
+                ) => ModulusSwitchType::DriftTechniqueNoiseReduction(
+                    ModulusSwitchNoiseReductionParams {
+                        modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
+                        ms_bound: NoiseEstimationMeasureBound(*ms_bound),
+                        ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
+                        ms_input_variance: Variance(*ms_input_variance),
+                    },
+                ),
+                TestModulusSwitchType::CenteredMeanNoiseReduction => {
+                    ModulusSwitchType::CenteredMeanNoiseReduction
+                }
+            };
 
-    let modulus_switch_noise_reduction_params = match modulus_switch_noise_reduction_params {
-        TestModulusSwitchType::Standard => ModulusSwitchType::Standard,
-        TestModulusSwitchType::DriftTechniqueNoiseReduction(
-            TestModulusSwitchNoiseReductionParams {
-                modulus_switch_zeros_count,
-                ms_bound,
-                ms_r_sigma_factor,
-                ms_input_variance,
-            },
-        ) => ModulusSwitchType::DriftTechniqueNoiseReduction(ModulusSwitchNoiseReductionParams {
-            modulus_switch_zeros_count: LweCiphertextCount(*modulus_switch_zeros_count),
-            ms_bound: NoiseEstimationMeasureBound(*ms_bound),
-            ms_r_sigma_factor: RSigmaFactor(*ms_r_sigma_factor),
-            ms_input_variance: Variance(*ms_input_variance),
-        }),
-        TestModulusSwitchType::CenteredMeanNoiseReduction => {
-            ModulusSwitchType::CenteredMeanNoiseReduction
-        }
-    };
-
-    ClassicPBSParameters {
-        lwe_dimension: LweDimension(*lwe_dimension),
-        glwe_dimension: GlweDimension(*glwe_dimension),
-        polynomial_size: PolynomialSize(*polynomial_size),
-        lwe_noise_distribution: convert_distribution(lwe_noise_distribution),
-        glwe_noise_distribution: convert_distribution(glwe_noise_distribution),
-        pbs_base_log: DecompositionBaseLog(*pbs_base_log),
-        pbs_level: DecompositionLevelCount(*pbs_level),
-        ks_base_log: DecompositionBaseLog(*ks_base_log),
-        ks_level: DecompositionLevelCount(*ks_level),
-        message_modulus: MessageModulus(*message_modulus as u64),
-        carry_modulus: CarryModulus(*carry_modulus as u64),
-        max_noise_level: MaxNoiseLevel::new(*max_noise_level as u64),
-        log2_p_fail: *log2_p_fail,
-        ciphertext_modulus: CiphertextModulus::try_new(*ciphertext_modulus).unwrap(),
-        encryption_key_choice: {
-            match encryption_key_choice.as_ref() {
-                "big" => EncryptionKeyChoice::Big,
-                "small" => EncryptionKeyChoice::Small,
-                _ => panic!("Invalid encryption key choice"),
+            ClassicPBSParameters {
+                lwe_dimension: LweDimension(*lwe_dimension),
+                glwe_dimension: GlweDimension(*glwe_dimension),
+                polynomial_size: PolynomialSize(*polynomial_size),
+                lwe_noise_distribution: convert_distribution(lwe_noise_distribution),
+                glwe_noise_distribution: convert_distribution(glwe_noise_distribution),
+                pbs_base_log: DecompositionBaseLog(*pbs_base_log),
+                pbs_level: DecompositionLevelCount(*pbs_level),
+                ks_base_log: DecompositionBaseLog(*ks_base_log),
+                ks_level: DecompositionLevelCount(*ks_level),
+                message_modulus: MessageModulus(*message_modulus as u64),
+                carry_modulus: CarryModulus(*carry_modulus as u64),
+                max_noise_level: MaxNoiseLevel::new(*max_noise_level as u64),
+                log2_p_fail: *log2_p_fail,
+                ciphertext_modulus: CiphertextModulus::try_new(*ciphertext_modulus).unwrap(),
+                encryption_key_choice: {
+                    match encryption_key_choice.as_ref() {
+                        "big" => EncryptionKeyChoice::Big,
+                        "small" => EncryptionKeyChoice::Small,
+                        _ => panic!("Invalid encryption key choice"),
+                    }
+                },
+                modulus_switch_noise_reduction_params,
             }
-        },
-        modulus_switch_noise_reduction_params,
+            .into()
+        }
+        TestParameterSet::TestMultiBitParameterSet(_) => todo!(),
     }
 }
 
@@ -104,7 +111,7 @@ fn convert_distribution(value: &TestDistribution) -> DynamicDistribution<u64> {
 }
 
 fn load_shortint_params(test_params: &TestParameterSet) -> ShortintParameterSet {
-    ShortintParameterSet::new_pbs_param_set(PBSParameters::PBS(load_params(test_params)))
+    ShortintParameterSet::new_pbs_param_set(load_params(test_params))
 }
 
 pub fn test_shortint_ciphertext(

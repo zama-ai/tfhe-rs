@@ -5,9 +5,9 @@ use crate::generate::{
 };
 use crate::{
     HlClientKeyTest, HlServerKeyTest, HlSquashedNoiseBoolCiphertextTest,
-    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest, TestDistribution,
-    TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
-    TestNoiseSquashingParams, TestParameterSet, HL_MODULE_NAME,
+    HlSquashedNoiseSignedCiphertextTest, HlSquashedNoiseUnsignedCiphertextTest,
+    TestClassicParameterSet, TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams,
+    TestModulusSwitchType, TestNoiseSquashingParams, TestParameterSet, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -64,8 +64,8 @@ impl From<TestModulusSwitchNoiseReductionParams> for ModulusSwitchNoiseReduction
     }
 }
 
-impl From<TestParameterSet> for ClassicPBSParameters {
-    fn from(value: TestParameterSet) -> Self {
+impl From<TestClassicParameterSet> for ClassicPBSParameters {
+    fn from(value: TestClassicParameterSet) -> Self {
         let modulus_switch_noise_reduction_params =
             match value.modulus_switch_noise_reduction_params {
                 TestModulusSwitchType::Standard => None,
@@ -104,8 +104,14 @@ impl From<TestParameterSet> for ClassicPBSParameters {
 
 impl From<TestParameterSet> for PBSParameters {
     fn from(value: TestParameterSet) -> Self {
-        let tmp: ClassicPBSParameters = value.into();
-        tmp.into()
+        match value {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                PBSParameters::PBS(test_classic_parameter_set.into())
+            }
+            TestParameterSet::TestMultiBitParameterSet(_) => {
+                unreachable!()
+            }
+        }
     }
 }
 
