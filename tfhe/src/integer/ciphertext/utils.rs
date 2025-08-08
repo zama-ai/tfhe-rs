@@ -29,6 +29,15 @@ impl DataKind {
             }
         }
     }
+
+    pub fn is_empty(self) -> bool {
+        match self {
+            Self::Unsigned(n) => n == 0,
+            Self::Signed(n) => n == 0,
+            Self::Boolean => false,
+            Self::String { n_chars, .. } => n_chars == 0,
+        }
+    }
 }
 
 pub trait Expandable: Sized {
