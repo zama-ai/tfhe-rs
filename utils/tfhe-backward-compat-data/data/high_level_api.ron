@@ -638,4 +638,51 @@
             ],
         )),
     ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlClientKey((
+            test_filename: "client_key_with_noise_squashing",
+            parameters: TestMultiBitParameterSet((
+                lwe_dimension: 4,
+                glwe_dimension: 1,
+                polynomial_size: 2048,
+                lwe_noise_distribution: TUniform(
+                    bound_log2: 45,
+                ),
+                glwe_noise_distribution: TUniform(
+                    bound_log2: 17,
+                ),
+                pbs_base_log: 22,
+                pbs_level: 1,
+                ks_base_log: 3,
+                ks_level: 5,
+                message_modulus: 4,
+                ciphertext_modulus: 18446744073709551616,
+                carry_modulus: 4,
+                max_noise_level: 5,
+                log2_p_fail: -134.345,
+                encryption_key_choice: "big",
+                grouping_factor: 4,
+            )),
+        )),
+    ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlServerKey((
+            test_filename: "server_key_with_noise_squashing",
+            client_key_filename: "client_key_with_noise_squashing",
+            compressed: false,
+        )),
+    ),
+    (
+        tfhe_version_min: "1.4",
+        tfhe_module: "high_level_api",
+        metadata: HlSquashedNoiseUnsignedCiphertext((
+            test_filename: "squashed_noise_unsigned_ciphertext",
+            key_filename: "client_key_with_noise_squashing",
+            clear_value: 42,
+        )),
+    ),
 ]
