@@ -10,9 +10,7 @@ use tfhe::shortint::parameters::{
 };
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::prelude::LweDimension;
-use tfhe::shortint::{
-    AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus, PBSParameters,
-};
+use tfhe::shortint::{AtomicPatternParameters, CarryModulus, CiphertextModulus, MessageModulus};
 #[cfg(feature = "zk-pok")]
 use tfhe::zk::{CompactPkeCrs, CompactPkeCrsConformanceParams};
 use tfhe::{
@@ -38,7 +36,7 @@ use tfhe_versionable::Unversionize;
 fn load_hl_params(test_params: &TestParameterSet) -> AtomicPatternParameters {
     let pbs_params = load_params(test_params);
 
-    PBSParameters::PBS(pbs_params).into()
+    pbs_params.into()
 }
 
 /// Test HL ciphertext: loads the ciphertext and compare the decrypted value to the one in the

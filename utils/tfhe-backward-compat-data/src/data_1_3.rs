@@ -4,10 +4,10 @@ use crate::generate::{
 };
 use crate::{
     DataKind, HlClientKeyTest, HlCompressedSquashedNoiseCiphertextListTest,
-    HlHeterogeneousCiphertextListTest, HlServerKeyTest, PkeZkProofAuxiliaryInfo, TestDistribution,
-    TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
-    TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams, TestParameterSet,
-    ZkPkePublicParamsTest, HL_MODULE_NAME,
+    HlHeterogeneousCiphertextListTest, HlServerKeyTest, PkeZkProofAuxiliaryInfo,
+    TestClassicParameterSet, TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams,
+    TestModulusSwitchType, TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters,
+    TestNoiseSquashingParams, TestParameterSet, ZkPkePublicParamsTest, HL_MODULE_NAME,
 };
 use std::borrow::Cow;
 use std::fs::create_dir_all;
@@ -26,10 +26,10 @@ use tfhe_1_3::shortint::engine::ShortintEngine;
 use tfhe_1_3::shortint::parameters::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, CoreCiphertextModulus,
     DecompositionBaseLog, DecompositionLevelCount, DynamicDistribution, EncryptionKeyChoice,
-    GlweDimension, LweCiphertextCount, LweDimension, MaxNoiseLevel, MessageModulus,
-    ModulusSwitchNoiseReductionParams, NoiseEstimationMeasureBound,
-    NoiseSquashingCompressionParameters, NoiseSquashingParameters, PolynomialSize, RSigmaFactor,
-    StandardDev, Variance,
+    GlweDimension, LweBskGroupingFactor, LweCiphertextCount, LweDimension, MaxNoiseLevel,
+    MessageModulus, ModulusSwitchNoiseReductionParams, MultiBitPBSParameters,
+    NoiseEstimationMeasureBound, NoiseSquashingCompressionParameters, NoiseSquashingParameters,
+    PolynomialSize, RSigmaFactor, StandardDev, Variance,
 };
 use tfhe_1_3::shortint::prelude::ModulusSwitchType;
 use tfhe_1_3::shortint::AtomicPatternParameters;
@@ -111,8 +111,8 @@ impl From<TestModulusSwitchType> for ModulusSwitchType {
     }
 }
 
-impl From<TestParameterSet> for ClassicPBSParameters {
-    fn from(value: TestParameterSet) -> Self {
+impl From<TestClassicParameterSet> for ClassicPBSParameters {
+    fn from(value: TestClassicParameterSet) -> Self {
         ClassicPBSParameters {
             lwe_dimension: LweDimension(value.lwe_dimension),
             glwe_dimension: GlweDimension(value.glwe_dimension),
@@ -142,11 +142,69 @@ impl From<TestParameterSet> for ClassicPBSParameters {
     }
 }
 
+impl From<TestMultiBitParameterSet> for MultiBitPBSParameters {
+    fn from(value: TestMultiBitParameterSet) -> Self {
+        let TestMultiBitParameterSet {
+            lwe_dimension,
+            glwe_dimension,
+            polynomial_size,
+            lwe_noise_distribution,
+            glwe_noise_distribution,
+            pbs_base_log,
+            pbs_level,
+            ks_base_log,
+            ks_level,
+            message_modulus,
+            ciphertext_modulus,
+            carry_modulus,
+            max_noise_level,
+            log2_p_fail,
+            encryption_key_choice,
+            grouping_factor,
+        } = value;
+
+        MultiBitPBSParameters {
+            lwe_dimension: LweDimension(lwe_dimension),
+            glwe_dimension: GlweDimension(glwe_dimension),
+            polynomial_size: PolynomialSize(polynomial_size),
+            lwe_noise_distribution: lwe_noise_distribution.into(),
+            glwe_noise_distribution: glwe_noise_distribution.into(),
+            pbs_base_log: DecompositionBaseLog(pbs_base_log),
+            pbs_level: DecompositionLevelCount(pbs_level),
+            ks_base_log: DecompositionBaseLog(ks_base_log),
+            ks_level: DecompositionLevelCount(ks_level),
+            message_modulus: MessageModulus(message_modulus as u64),
+            carry_modulus: CarryModulus(carry_modulus as u64),
+            max_noise_level: MaxNoiseLevel::new(max_noise_level as u64),
+            log2_p_fail,
+            ciphertext_modulus: CiphertextModulus::try_new(ciphertext_modulus).unwrap(),
+            encryption_key_choice: {
+                match &*encryption_key_choice {
+                    "big" => EncryptionKeyChoice::Big,
+                    "small" => EncryptionKeyChoice::Small,
+                    _ => panic!("Invalid encryption key choice"),
+                }
+            },
+            grouping_factor: LweBskGroupingFactor(grouping_factor),
+            deterministic_execution: false,
+        }
+    }
+}
+
 impl From<TestParameterSet> for AtomicPatternParameters {
     fn from(value: TestParameterSet) -> Self {
-        let classic = ClassicPBSParameters::from(value);
+        match value {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                let classic = ClassicPBSParameters::from(test_classic_parameter_set);
 
-        classic.into()
+                classic.into()
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_parameter_set_multi_bit) => {
+                let multibit = MultiBitPBSParameters::from(test_parameter_set_multi_bit);
+
+                multibit.into()
+            }
+        }
     }
 }
 
@@ -211,16 +269,16 @@ impl From<TestNoiseSquashingCompressionParameters> for NoiseSquashingCompression
 
 const ZK_PKE_CRS_TEST: ZkPkePublicParamsTest = ZkPkePublicParamsTest {
     test_filename: Cow::Borrowed("zk_pke_crs"),
-    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size
-        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension, // Lwe dimension of the "big" key is glwe dimension * polynomial size
+    lwe_dimension: VALID_TEST_PARAMS_TUNIFORM.polynomial_size()
+        * VALID_TEST_PARAMS_TUNIFORM.glwe_dimension(), // Lwe dimension of the "big" key is glwe dimension * polynomial size
     max_num_cleartext: 16,
-    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution {
+    noise_bound: match VALID_TEST_PARAMS_TUNIFORM.lwe_noise_distribution() {
         TestDistribution::Gaussian { .. } => unreachable!(),
         TestDistribution::TUniform { bound_log2 } => bound_log2 as usize,
     },
-    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus,
-    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus
-        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus
+    ciphertext_modulus: VALID_TEST_PARAMS_TUNIFORM.ciphertext_modulus(),
+    plaintext_modulus: VALID_TEST_PARAMS_TUNIFORM.message_modulus()
+        * VALID_TEST_PARAMS_TUNIFORM.carry_modulus()
         * 2, // *2 for padding bit
     padding_bit_count: 1,
 };
