@@ -1024,7 +1024,7 @@ pub(super) struct ZHash<'a> {
     z_bytes: Box<[u8]>,
 }
 
-impl<'a> ZHash<'a> {
+impl ZHash<'_> {
     fn chi_hash_input<'b>(
         &'b self,
         p_h1: &'b [u8],
