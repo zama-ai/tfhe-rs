@@ -846,6 +846,28 @@ impl CompressedKeySwitchingKeyMaterial {
             destination_key: self.destination_key,
         }
     }
+
+    pub fn from_raw_parts(
+        key_switching_key: SeededLweKeyswitchKeyOwned<u64>,
+        cast_rshift: i8,
+        destination_key: EncryptionKeyChoice,
+    ) -> Self {
+        Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+        }
+    }
+
+    pub fn into_raw_parts(self) -> (SeededLweKeyswitchKeyOwned<u64>, i8, EncryptionKeyChoice) {
+        let Self {
+            key_switching_key,
+            cast_rshift,
+            destination_key,
+        } = self;
+
+        (key_switching_key, cast_rshift, destination_key)
+    }
 }
 
 // This is used to have the ability to build a keyswitching key without owning the ServerKey
