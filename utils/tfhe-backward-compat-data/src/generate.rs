@@ -8,12 +8,14 @@ use tfhe_0_11_versionable::Versionize as VersionizeTfhe_0_11;
 use tfhe_1_0_versionable::Versionize as VersionizeTfhe_1_0;
 use tfhe_1_1_versionable::Versionize as VersionizeTfhe_1_1;
 use tfhe_1_3_versionable::Versionize as VersionizeTfhe_1_3;
+use tfhe_1_4_versionable::Versionize as VersionizeTfhe_1_4;
 use tfhe_versionable::{Versionize as VersionizeTfhe_0_10, Versionize as VersionizeTfhe_0_8};
 
 use crate::{
     data_dir, dir_for_version, TestClassicParameterSet, TestCompressionParameterSet,
     TestDistribution, TestMetadata, TestModulusSwitchNoiseReductionParams, TestModulusSwitchType,
-    TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams, TestParameterSet,
+    TestMultiBitParameterSet, TestNoiseSquashingCompressionParameters, TestNoiseSquashingParams,
+    TestNoiseSquashingParamsMultiBit, TestParameterSet,
 };
 
 pub const PRNG_SEED: u128 = 0xdeadbeef;
@@ -138,6 +140,27 @@ pub const INSECURE_SMALL_TEST_PARAMS_MS_MEAN_COMPENSATION: TestParameterSet =
     });
 
 /// Those parameters are insecure and are used to generate small legacy public keys
+pub const INSECURE_SMALL_TEST_PARAMS_MULTI_BIT: TestParameterSet =
+    TestParameterSet::from_multi(TestMultiBitParameterSet {
+        lwe_dimension: 4,
+        glwe_dimension: 1,
+        polynomial_size: 2048,
+        lwe_noise_distribution: TestDistribution::TUniform { bound_log2: 45 },
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 17 },
+        pbs_base_log: 22,
+        pbs_level: 1,
+        ks_base_log: 3,
+        ks_level: 5,
+        message_modulus: 4,
+        carry_modulus: 4,
+        max_noise_level: 5,
+        log2_p_fail: -134.345,
+        ciphertext_modulus: 1 << 64,
+        encryption_key_choice: Cow::Borrowed("big"),
+        grouping_factor: 4,
+    });
+
+/// Those parameters are insecure and are used to generate small legacy public keys
 /// Got with the above parameters for noise squashing
 pub const INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MS_NOISE_REDUCTION: TestNoiseSquashingParams =
     TestNoiseSquashingParams {
@@ -169,6 +192,20 @@ pub const TEST_PRAMS_NOISE_SQUASHING_COMPRESSION: TestNoiseSquashingCompressionP
         message_modulus: 4,
         carry_modulus: 4,
         ciphertext_modulus: 0, // native modulus for u128
+    };
+
+pub const INSECURE_SMALL_TEST_NOISE_SQUASHING_PARAMS_MULTI_BIT: TestNoiseSquashingParamsMultiBit =
+    TestNoiseSquashingParamsMultiBit {
+        glwe_dimension: 2,
+        polynomial_size: 2048,
+        glwe_noise_distribution: TestDistribution::TUniform { bound_log2: 30 },
+        decomp_base_log: 23,
+        decomp_level_count: 3,
+        grouping_factor: 4,
+        message_modulus: 4,
+        carry_modulus: 4,
+        // 0 interpreted as native modulus for u128
+        ciphertext_modulus: 0,
     };
 
 // Compression parameters for 2_2 TUniform
@@ -260,6 +297,7 @@ define_store_versioned_test_fn!(store_versioned_test_tfhe_0_11, VersionizeTfhe_0
 define_store_versioned_test_fn!(store_versioned_test_tfhe_1_0, VersionizeTfhe_1_0);
 define_store_versioned_test_fn!(store_versioned_test_tfhe_1_1, VersionizeTfhe_1_1);
 define_store_versioned_test_fn!(store_versioned_test_tfhe_1_3, VersionizeTfhe_1_3);
+define_store_versioned_test_fn!(store_versioned_test_tfhe_1_4, VersionizeTfhe_1_4);
 
 /// Stores the auxiliary data in `dir`, encoded in cbor, using the right tfhe-versionable version
 macro_rules! define_store_versioned_auxiliary_fn {
@@ -281,6 +319,7 @@ define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_8, Version
 define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_10, VersionizeTfhe_0_10);
 define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_0_11, VersionizeTfhe_0_11);
 define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_1_3, VersionizeTfhe_1_3);
+define_store_versioned_auxiliary_fn!(store_versioned_auxiliary_tfhe_1_4, VersionizeTfhe_1_4);
 
 pub fn store_metadata<Meta: Serialize, P: AsRef<Path>>(value: &Meta, path: P) {
     let serialized = ron::ser::to_string_pretty(value, ron::ser::PrettyConfig::default()).unwrap();
