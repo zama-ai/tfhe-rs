@@ -606,6 +606,8 @@ pub struct Plan {
     inv_twid_shoup: ABox<[u32]>,
     p: u32,
     p_div: Div32,
+    /// If true can use non generic code and optimized reduction algorithms.
+    // can_use_fast_code: bool,
 
     // used for elementwise product
     p_barrett: u32,
@@ -669,6 +671,36 @@ impl Plan {
             let big_q = modulus.ilog2() + 1;
             let big_l = big_q + 31;
             let p_barrett = ((1u64 << big_l) / modulus as u64) as u32;
+
+            // TODO manage the raw result being able to overflow
+            // Accumulation algorithm has 1 condition to make sure there are no overflows.
+            //
+            // Follow along in the scalar variant fn mul_accumulate_scalar
+            //
+            // The accumulation in the output buffer, which is a plain addition, needs to stay under
+            // 32 bits, otherwise the result would overflow and be false. The accumulator is assumed
+            // to be properly reduced and be under the modulus p.
+            // So acc < p <=> acc <= p - 1
+            //
+            // https://blog.zksecurity.xyz/posts/barrett-tighter-bound/
+            // The Barrett modular reduction raw result is wrong by at most 2p.
+            // After the first round of corrective subtractions can be wrong by at most p.
+            // So prod = true_result + b * p, b €{0, 1} => prod <= p - 1 + p <= 2p -1
+            // During accumulation we have transiently acc = acc + prod <= p - 1 + 2p - 1 = 3p - 2
+            // To avoid overflows and be able to select the correct value we need to have:
+            // 3p - 2 < 2^32 <=> 3p < 2^32 + 2 <=> p < (2^32 + 2)/3 = 1431655766 (exact division)
+            // which gives us the first arm of our checks
+            //
+            // The ZK security blog post indicates a condition to verify that a single reduction is
+            // guaranteed for a given prime.
+
+            let can_use_fast_code = {
+                if modulus < 1431655766 {
+                    true
+                } else {
+                    false
+                }
+            };
 
             Some(Self {
                 twid,
@@ -1643,6 +1675,60 @@ mod x86_tests {
 
             normalize_avx2(simd, &mut val, p, n_inv_mod_p, n_inv_mod_p_shoup);
             assert_eq!(val, val_target);
+        }
+    }
+
+    #[test]
+    fn test_barrett_invalid_reduction_sequence_regression_test() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let mut fails = 0u64;
+
+        let p: u32 = 0x7fe0_1001;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        // let value = 0x6e63593a;
+
+        for value in 0..p {
+            let mut acc = [0u32; POLYNOMIAL_SIZE];
+            // Essentially = [value, 0, 0, ...]
+            let input: [u32; POLYNOMIAL_SIZE] =
+                core::array::from_fn(|i| if i == 0 { value } else { 0 });
+
+            plan.mul_accumulate(&mut acc, &input, &input);
+
+            let expected = (u64::from(value) * u64::from(value) % u64::from(p)) as u32;
+            // assert_eq!(acc[0], expected);
+            if acc[0] != expected {
+                fails += 1;
+                // println!("{value} failed multiplication")
+            }
+        }
+        println!("{fails} fails vs {p} possible values")
+    }
+
+    #[test]
+    fn test_barrett_invalid_reduction_normalize_regression_test() {
+        const POLYNOMIAL_SIZE: usize = 32;
+
+        let mut fails = 0u64;
+
+        let p: u32 = 0x7fe0_1001;
+        let plan = Plan::try_new(POLYNOMIAL_SIZE, p).unwrap();
+
+        let value = 0x6e63593a;
+
+        for _ in 0..1 {
+            // Essentially = [value, 0, 0, ...]
+            let input: [u32; POLYNOMIAL_SIZE] =
+                core::array::from_fn(|i| if i == 0 { value } else { 0 });
+            let mut acc = input;
+
+            plan.mul_assign_normalize(&mut acc, &input);
+
+            let expected = (u128::from(value) * u128::from(value) * u128::from(plan.n_inv_mod_p)
+                % u128::from(p)) as u32;
+            assert_eq!(acc[0], expected);
         }
     }
 }
