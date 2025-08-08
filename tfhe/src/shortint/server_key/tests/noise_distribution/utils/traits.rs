@@ -97,3 +97,36 @@ pub trait StandardFftBootstrap<Input, Output, Accumulator> {
         side_resources: &mut Self::SideResources,
     );
 }
+
+pub trait StandardFft128Bootstrap<Input, Output, Accumulator> {
+    type SideResources;
+
+    fn standard_fft_128_pbs(
+        &self,
+        input: &Input,
+        output: &mut Output,
+        accumulator: &Accumulator,
+        side_resources: &mut Self::SideResources,
+    );
+}
+
+pub trait AllocatePackingKeyswitchResult {
+    type Output;
+    type SideResources;
+
+    fn allocate_packing_keyswitch_result(
+        &self,
+        side_resources: &mut Self::SideResources,
+    ) -> Self::Output;
+}
+
+pub trait LwePackingKeyswitch<Input: ?Sized, Output> {
+    type SideResources;
+
+    fn keyswitch_lwes_and_pack_in_glwe(
+        &self,
+        input: &Input,
+        output: &mut Output,
+        side_resources: &mut Self::SideResources,
+    );
+}

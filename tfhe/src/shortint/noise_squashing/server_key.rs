@@ -292,8 +292,6 @@ impl NoiseSquashingKey {
         .try_unaligned_bytes_required()
         .unwrap();
 
-        // CarryModulus set to 1, as the output ciphertext does not have a carry space, mod == 1,
-        // means carry max == 0
         let delta = compute_delta(
             output_ciphertext_modulus,
             output_message_modulus,
@@ -329,6 +327,14 @@ impl NoiseSquashingKey {
         res.set_degree(ciphertext.degree);
 
         res
+    }
+
+    pub fn bootstrapping_key(&self) -> &Fourier128LweBootstrapKeyOwned {
+        &self.bootstrapping_key
+    }
+
+    pub fn modulus_switch_noise_reduction_key(&self) -> &ModulusSwitchConfiguration<u64> {
+        &self.modulus_switch_noise_reduction_key
     }
 
     pub fn message_modulus(&self) -> MessageModulus {
