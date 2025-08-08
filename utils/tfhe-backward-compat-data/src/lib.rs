@@ -23,6 +23,8 @@ pub mod data_1_1;
 #[cfg(feature = "generate")]
 pub mod data_1_3;
 #[cfg(feature = "generate")]
+pub mod data_1_4;
+#[cfg(feature = "generate")]
 pub mod generate;
 #[cfg(feature = "load")]
 pub mod load;
