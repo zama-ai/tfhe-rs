@@ -223,6 +223,19 @@ impl CompressedKeySwitchingKeyMaterial {
             material: self.material.decompress(),
         }
     }
+
+    pub fn from_raw_parts(
+        material: crate::shortint::key_switching_key::CompressedKeySwitchingKeyMaterial,
+    ) -> Self {
+        Self { material }
+    }
+
+    pub fn into_raw_parts(
+        self,
+    ) -> crate::shortint::key_switching_key::CompressedKeySwitchingKeyMaterial {
+        let Self { material } = self;
+        material
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Versionize)]
