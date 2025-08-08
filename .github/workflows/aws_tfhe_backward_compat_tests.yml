@@ -40,7 +40,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
           job-secret: ${{ secrets.JOB_SECRET }}
           backend: aws
           profile: cpu-small
@@ -135,7 +135,7 @@ jobs:
         with:
           mode: stop
           github-token: ${{ secrets.SLAB_ACTION_TOKEN }}
-          slab-url: ${{ secrets.SLAB_BASE_URL }}
+          slab-url: ${{ secrets.SLAB_BASE_URL_PRE_PROD }}
           job-secret: ${{ secrets.JOB_SECRET }}
           label: ${{ needs.setup-instance.outputs.runner-name }}
 
