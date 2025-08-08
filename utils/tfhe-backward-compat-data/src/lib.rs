@@ -39,7 +39,7 @@ pub const ZK_MODULE_NAME: &str = "zk";
 /// The idea here is to define a type that is able to carry the information of the used parameters
 /// without using any tfhe-rs types.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct TestParameterSet {
+pub struct TestClassicParameterSet {
     pub lwe_dimension: usize,
     pub glwe_dimension: usize,
     pub polynomial_size: usize,
@@ -56,6 +56,26 @@ pub struct TestParameterSet {
     pub log2_p_fail: f64,
     pub encryption_key_choice: Cow<'static, str>,
     pub modulus_switch_noise_reduction_params: TestModulusSwitchType,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestMultiBitParameterSet {
+    pub lwe_dimension: usize,
+    pub glwe_dimension: usize,
+    pub polynomial_size: usize,
+    pub lwe_noise_distribution: TestDistribution,
+    pub glwe_noise_distribution: TestDistribution,
+    pub pbs_base_log: usize,
+    pub pbs_level: usize,
+    pub ks_base_log: usize,
+    pub ks_level: usize,
+    pub message_modulus: usize,
+    pub ciphertext_modulus: u128,
+    pub carry_modulus: usize,
+    pub max_noise_level: usize,
+    pub log2_p_fail: f64,
+    pub encryption_key_choice: Cow<'static, str>,
+    pub grouping_factor: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -81,6 +101,19 @@ pub struct TestNoiseSquashingParams {
     pub decomp_base_log: usize,
     pub decomp_level_count: usize,
     pub modulus_switch_noise_reduction_params: Option<TestModulusSwitchNoiseReductionParams>,
+    pub message_modulus: usize,
+    pub carry_modulus: usize,
+    pub ciphertext_modulus: u128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct TestNoiseSquashingParamsMultiBit {
+    pub glwe_dimension: usize,
+    pub polynomial_size: usize,
+    pub glwe_noise_distribution: TestDistribution,
+    pub decomp_base_log: usize,
+    pub decomp_level_count: usize,
+    pub grouping_factor: usize,
     pub message_modulus: usize,
     pub carry_modulus: usize,
     pub ciphertext_modulus: u128,
@@ -118,7 +151,7 @@ pub struct TestCompressionParameterSet {
 }
 
 /// Representation of a random distribution that is independent from any tfhe-rs version
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 pub enum TestDistribution {
     Gaussian { stddev: f64 },
     TUniform { bound_log2: u32 },
@@ -216,6 +249,84 @@ impl TestType for ShortintCiphertextTest {
 pub struct HlClientKeyTest {
     pub test_filename: Cow<'static, str>,
     pub parameters: TestParameterSet,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum TestParameterSet {
+    TestClassicParameterSet(TestClassicParameterSet),
+    TestMultiBitParameterSet(TestMultiBitParameterSet),
+}
+
+#[allow(dead_code)]
+impl TestParameterSet {
+    pub const fn from_classic(value: TestClassicParameterSet) -> Self {
+        Self::TestClassicParameterSet(value)
+    }
+    pub const fn from_multi(value: TestMultiBitParameterSet) -> Self {
+        Self::TestMultiBitParameterSet(value)
+    }
+
+    const fn polynomial_size(&self) -> usize {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.polynomial_size
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.polynomial_size
+            }
+        }
+    }
+
+    const fn glwe_dimension(&self) -> usize {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.glwe_dimension
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.glwe_dimension
+            }
+        }
+    }
+    const fn lwe_noise_distribution(&self) -> TestDistribution {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.lwe_noise_distribution
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.lwe_noise_distribution
+            }
+        }
+    }
+    const fn ciphertext_modulus(&self) -> u128 {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.ciphertext_modulus
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.ciphertext_modulus
+            }
+        }
+    }
+    const fn message_modulus(&self) -> usize {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.message_modulus
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.message_modulus
+            }
+        }
+    }
+    const fn carry_modulus(&self) -> usize {
+        match self {
+            TestParameterSet::TestClassicParameterSet(test_classic_parameter_set) => {
+                test_classic_parameter_set.carry_modulus
+            }
+            TestParameterSet::TestMultiBitParameterSet(test_multi_bit_parameter_set) => {
+                test_multi_bit_parameter_set.carry_modulus
+            }
+        }
+    }
 }
 
 impl TestType for HlClientKeyTest {
