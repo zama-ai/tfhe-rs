@@ -23,7 +23,7 @@ sha3 = "0.10.8"
 serde = { workspace = true, features = ["default", "derive"] }
 zeroize = "1.7.0"
 num-bigint = "0.4.5"
-tfhe-versionable = { version = "0.6.0", path = "../utils/tfhe-versionable" }
+tfhe-versionable = { version = "0.6.1", path = "../utils/tfhe-versionable" }
 
 [features]
 experimental = []
