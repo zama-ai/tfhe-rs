@@ -5,7 +5,7 @@ mod test_cpu_doc {
     // README
     doctest!("../../README.md", readme);
 
-    // CONGFIGURATION
+    // CONFIGURATION
     doctest!(
         "../docs/configuration/parallelized-pbs.md",
         configuration_parallelized_pbs
