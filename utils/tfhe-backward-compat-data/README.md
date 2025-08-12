@@ -5,14 +5,23 @@ The goal is to detect in TFHE-rs CI when the version of a type should be updated
 The messages are serialized using cbor and bincode because they both support large arrays and are vulnerable to different sets of breaking changes. Each message is stored with a set of metadata to verify that the values are loaded correctly.
 
 # Usage
+## Pulling the data with git-lfs
+Backward data are stored with LFS and are not pulled by default. To pull them, simply run
+```
+make pull_backward_compat_data
+```
+You need to have `git-lfs` installed on your system.
+
 ## Backward compatibility test
 From TFHE-rs root folder, run the following command
 ```
 make test_backward_compatibility
 ```
-This test will load the data stored in this folder, try to convert them to the latest version and check their correctness.
+This test will load the data stored in this folder, try to convert them to the latest version and check their correctness. This will automatically pull LFS data if needed.
 
 ## Data generation
+First you need to make sure that you have pulled the LFS data (see above).
+
 To re-generate the data, run the binary target for this project: `cargo run --release`. The prng is seeded with a fixed seed, so the data should be identical.
 
 ## Adding a test for an existing type
