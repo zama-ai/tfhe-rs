@@ -11,7 +11,9 @@ use crate::shortint::atomic_pattern::compressed::{
 use crate::shortint::atomic_pattern::AtomicPatternServerKey;
 use crate::shortint::ciphertext::MaxDegree;
 use crate::shortint::client_key::atomic_pattern::AtomicPatternClientKey;
-use crate::shortint::parameters::{ModulusSwitchNoiseReductionParams, ModulusSwitchType};
+use crate::shortint::parameters::{
+    ModulusSwitchNoiseReductionParams, ModulusSwitchType, NoiseSquashingParameters,
+};
 use crate::shortint::server_key::{
     CompressedModulusSwitchConfiguration, CompressedModulusSwitchNoiseReductionKey,
     ModulusSwitchConfiguration, ModulusSwitchNoiseReductionKey, ShortintBootstrappingKey,
@@ -30,6 +32,9 @@ use tfhe_fft::c64;
 
 use crate::integer::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
+};
+use crate::shortint::noise_squashing::{
+    CompressedShortint128BootstrappingKey, Shortint128BootstrappingKey,
 };
 use rayon::prelude::*;
 // Generation order:
@@ -259,31 +264,44 @@ impl CompressedXofKeySet {
                     let noise_squashing_parameters =
                         noise_squashing_key.noise_squashing_parameters();
 
-                    let core_bsk =
-                        allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
-                            lwe_secret_key,
-                            noise_squashing_key.key.post_noise_squashing_secret_key(),
-                            noise_squashing_parameters.decomp_base_log,
-                            noise_squashing_parameters.decomp_level_count,
-                            noise_squashing_parameters.glwe_noise_distribution,
-                            noise_squashing_parameters.ciphertext_modulus,
-                            &mut encryption_rand_gen,
-                        );
+                    let shortint_key = match noise_squashing_parameters {
+                        NoiseSquashingParameters::Classic(ns_params) => {
+                            let core_bsk =
+                            allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+                                lwe_secret_key,
+                                noise_squashing_key.key.post_noise_squashing_secret_key(),
+                                ns_params.decomp_base_log,
+                                ns_params.decomp_level_count,
+                                ns_params.glwe_noise_distribution,
+                                ns_params.ciphertext_modulus,
+                                &mut encryption_rand_gen,
+                            );
 
-                    let compressed_mod_switch_config = generate_compressed_mod_switch_config(
-                        &noise_squashing_parameters.modulus_switch_noise_reduction_params,
-                        computation_parameters,
-                        lwe_secret_key,
-                        &mut encryption_rand_gen,
-                    );
+                            let compressed_mod_switch_config =
+                                generate_compressed_mod_switch_config(
+                                    &ns_params.modulus_switch_noise_reduction_params,
+                                    computation_parameters,
+                                    lwe_secret_key,
+                                    &mut encryption_rand_gen,
+                                );
+
+                            CompressedShortint128BootstrappingKey::Classic {
+                                bsk: core_bsk,
+                                modulus_switch_noise_reduction_key: compressed_mod_switch_config,
+                            }
+                        }
+                        NoiseSquashingParameters::MultiBit(_) => {
+                            // return Err("Multibit NoiseSquashing is not supported");
+                            panic!("Multibit NoiseSquashing is not supported");
+                        }
+                    };
 
                     CompressedNoiseSquashingKey::from_raw_parts(
                         shortint::noise_squashing::CompressedNoiseSquashingKey::from_raw_parts(
-                            core_bsk,
-                            compressed_mod_switch_config,
-                            noise_squashing_parameters.message_modulus,
-                            noise_squashing_parameters.carry_modulus,
-                            noise_squashing_parameters.ciphertext_modulus,
+                            shortint_key,
+                            noise_squashing_parameters.message_modulus(),
+                            noise_squashing_parameters.carry_modulus(),
+                            noise_squashing_parameters.ciphertext_modulus(),
                         ),
                     )
                 });
@@ -551,25 +569,27 @@ impl CompressedXofKeySet {
                 .noise_squashing_key
                 .as_ref()
                 .map(|compressed_nsk| {
+                    let CompressedShortint128BootstrappingKey::Classic {
+                        bsk: compressed_bsk,
+                        modulus_switch_noise_reduction_key,
+                    } = compressed_nsk.key.bootstrapping_key()
+                    else {
+                        panic!("Noise squashing key is not a classic key")
+                    };
+
                     let mut core_bsk = LweBootstrapKeyOwned::new(
                         0u128,
-                        compressed_nsk.key.bootstrapping_key().glwe_size(),
-                        compressed_nsk.key.bootstrapping_key().polynomial_size(),
-                        compressed_nsk
-                            .key
-                            .bootstrapping_key()
-                            .decomposition_base_log(),
-                        compressed_nsk
-                            .key
-                            .bootstrapping_key()
-                            .decomposition_level_count(),
-                        compressed_nsk.key.bootstrapping_key().input_lwe_dimension(),
-                        compressed_nsk.key.bootstrapping_key().ciphertext_modulus(),
+                        compressed_bsk.glwe_size(),
+                        compressed_bsk.polynomial_size(),
+                        compressed_bsk.decomposition_base_log(),
+                        compressed_bsk.decomposition_level_count(),
+                        compressed_bsk.input_lwe_dimension(),
+                        compressed_bsk.ciphertext_modulus(),
                     );
 
                     decompress_seeded_lwe_bootstrap_key_with_pre_seeded_generator(
                         &mut core_bsk,
-                        compressed_nsk.key.bootstrapping_key(),
+                        compressed_bsk,
                         &mut mask_generator,
                     );
 
@@ -587,14 +607,18 @@ impl CompressedXofKeySet {
                     );
 
                     let ms_nrk = decompress_compressed_mod_switch_config(
-                        compressed_nsk.key.modulus_switch_noise_reduction_key(),
+                        modulus_switch_noise_reduction_key,
                         &mut mask_generator,
                     );
 
+                    let decompressed = Shortint128BootstrappingKey::Classic {
+                        bsk: core_fourier_bsk,
+                        modulus_switch_noise_reduction_key: ms_nrk,
+                    };
+
                     integer::noise_squashing::NoiseSquashingKey::from_raw_parts(
                         shortint::noise_squashing::NoiseSquashingKey::from_raw_parts(
-                            core_fourier_bsk,
-                            ms_nrk,
+                            decompressed,
                             compressed_nsk.key.message_modulus(),
                             compressed_nsk.key.carry_modulus(),
                             compressed_nsk.key.output_ciphertext_modulus(),
@@ -1714,11 +1738,23 @@ impl KeySwitchingKeyMaterial {
 
 impl integer::noise_squashing::NoiseSquashingKey {
     fn compress(&self) -> CompressedNoiseSquashingKey {
-        let fourier_bsk_128 = self.key.bootstrapping_key();
+        let Shortint128BootstrappingKey::Classic {
+            bsk,
+            modulus_switch_noise_reduction_key,
+        } = self.key.bootstrapping_key()
+        else {
+            panic!("Compression for multibit key not supported")
+        };
+
+        let compressed_bsk = compress_fourier_128_lwe_bootstrap_key(bsk);
+        let compressed_mod_switch = compress_mod_switch_config(modulus_switch_noise_reduction_key);
+
         CompressedNoiseSquashingKey::from_raw_parts(
             shortint::noise_squashing::CompressedNoiseSquashingKey::from_raw_parts(
-                compress_fourier_128_lwe_bootstrap_key(fourier_bsk_128),
-                compress_mod_switch_config(self.key.modulus_switch_noise_configuration()),
+                CompressedShortint128BootstrappingKey::Classic {
+                    bsk: compressed_bsk,
+                    modulus_switch_noise_reduction_key: compressed_mod_switch,
+                },
                 self.key.message_modulus(),
                 self.key.carry_modulus(),
                 self.key.output_ciphertext_modulus(),
