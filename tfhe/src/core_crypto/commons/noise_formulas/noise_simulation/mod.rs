@@ -37,14 +37,14 @@ impl NoiseSimulationModulus {
             "Unsupported bit width: {modulus_scalar_bits}",
         );
 
-        if modulus_scalar_bits == 128 {
-            if modulus.is_native_modulus() {
+        if modulus.is_native_modulus() {
+            if modulus_scalar_bits == 128 {
                 Self::NativeU128
             } else {
-                Self::Other(modulus.get_custom_modulus())
+                Self::Other(1 << modulus_scalar_bits)
             }
         } else {
-            Self::Other(1u128 << modulus_scalar_bits)
+            Self::Other(modulus.get_custom_modulus())
         }
     }
 
