@@ -1476,6 +1476,24 @@ bench_web_js_api_parallel_firefox_ci: setup_venv
 	nvm use $(NODE_VERSION) && \
 	$(MAKE) bench_web_js_api_parallel_firefox
 
+.PHONY: bench_hlapi # Run benchmarks for integer operations
+bench_hlapi: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,internal-keycache,nightly-avx512 -p tfhe-benchmark --
+
+.PHONY: bench_hlapi_gpu # Run benchmarks for integer operations on GPU
+bench_hlapi: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,gpu,internal-keycache,nightly-avx512 -p tfhe-benchmark --
+
+.PHONY: bench_hlapi_hpu # Run benchmarks for integer operations on HPU
+bench_hlapi: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi \
+	--features=integer,hpu,hpu-v80,internal-keycache,nightly-avx512 -p tfhe-benchmark --
+
 .PHONY: bench_hlapi_erc20 # Run benchmarks for ERC20 operations
 bench_hlapi_erc20: install_rs_check_toolchain
 	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
