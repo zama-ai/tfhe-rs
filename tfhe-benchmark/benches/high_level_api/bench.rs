@@ -1,15 +1,20 @@
+use benchmark::utilities::{write_to_json, OperatorType};
 use criterion::{black_box, Criterion};
 use rand::prelude::*;
-use std::fmt::Write;
 use std::ops::*;
+use tfhe::keycache::NamedParam;
 use tfhe::prelude::*;
 use tfhe::{
     ClientKey, CompressedServerKey, FheUint10, FheUint12, FheUint128, FheUint14, FheUint16,
     FheUint2, FheUint32, FheUint4, FheUint6, FheUint64, FheUint8,
 };
 
-fn bench_fhe_type<FheType>(c: &mut Criterion, client_key: &ClientKey, type_name: &str)
-where
+fn bench_fhe_type<FheType>(
+    c: &mut Criterion,
+    client_key: &ClientKey,
+    type_name: &str,
+    bit_size: usize,
+) where
     FheType: FheEncrypt<u128, ClientKey>,
     FheType: FheWait,
     for<'a> &'a FheType: Add<&'a FheType, Output = FheType>
@@ -26,141 +31,158 @@ where
         + OverflowingSub<&'a FheType, Output = FheType>,
 {
     let mut bench_group = c.benchmark_group(type_name);
+    let bench_prefix = "hlapi::ops";
 
     let mut rng = thread_rng();
+
+    let param = client_key.computation_parameters();
+    let param_name = param.name();
+    let bit_size = bit_size as u32;
+
+    let write_record = |bench_id: String, display_name| {
+        write_to_json::<u64, _>(
+            &bench_id,
+            param,
+            &param_name,
+            display_name,
+            &OperatorType::Atomic,
+            bit_size,
+            vec![],
+        );
+    };
 
     let lhs = FheType::encrypt(rng.gen(), client_key);
     let rhs = FheType::encrypt(rng.gen(), client_key);
 
-    let mut name = String::with_capacity(255);
+    let mut bench_id;
 
-    write!(name, "add({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::add::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs + &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "add");
 
     #[cfg(not(feature = "hpu"))]
     {
-        write!(name, "overflowing_add({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::overflowing_add::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let (res, flag) = lhs.overflowing_add(&rhs);
                 res.wait();
                 black_box((res, flag))
             })
         });
-        name.clear();
+        write_record(bench_id, "overflowing_add");
     }
 
     #[cfg(not(feature = "hpu"))]
     {
-        write!(name, "overflowing_sub({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::overflowing_sub::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let (res, flag) = lhs.overflowing_sub(&rhs);
                 res.wait();
                 black_box((res, flag))
             })
         });
-        name.clear();
+        write_record(bench_id, "overflowing_sub");
     }
 
-    write!(name, "sub({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::sub::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs - &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "sub");
 
-    write!(name, "mul({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::mul::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs * &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "mul");
 
-    write!(name, "bitand({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::bitand::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs & &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "bitand");
 
-    write!(name, "bitor({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::bitor::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs | &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "bitor");
 
-    write!(name, "bitxor({type_name}, {type_name})").unwrap();
-    bench_group.bench_function(&name, |b| {
+    bench_id = format!("{bench_prefix}::bitxor::{param_name}::{bit_size}_bits");
+    bench_group.bench_function(&bench_id, |b| {
         b.iter(|| {
             let res = &lhs ^ &rhs;
             res.wait();
             black_box(res)
         })
     });
-    name.clear();
+    write_record(bench_id, "bitxor");
 
     #[cfg(not(feature = "hpu"))]
     {
-        write!(name, "shl({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::left_shift::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let res = &lhs << &rhs;
                 res.wait();
                 black_box(res)
             })
         });
-        name.clear();
+        write_record(bench_id, "left_shift");
 
-        write!(name, "shr({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::right_shift::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let res = &lhs >> &rhs;
                 res.wait();
                 black_box(res)
             })
         });
-        name.clear();
+        write_record(bench_id, "right_shift");
 
-        write!(name, "rotl({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::left_rotate::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let res = (&lhs).rotate_left(&rhs);
                 res.wait();
                 black_box(res)
             })
         });
-        name.clear();
+        write_record(bench_id, "left_rotate");
 
-        write!(name, "rotr({type_name}, {type_name})").unwrap();
-        bench_group.bench_function(&name, |b| {
+        bench_id = format!("{bench_prefix}::right_rotate::{param_name}::{bit_size}_bits");
+        bench_group.bench_function(&bench_id, |b| {
             b.iter(|| {
                 let res = (&lhs).rotate_right(&rhs);
                 res.wait();
                 black_box(res)
             })
         });
-        name.clear();
+        write_record(bench_id, "right_rotate");
     }
 }
 
@@ -168,7 +190,7 @@ macro_rules! bench_type {
     ($fhe_type:ident) => {
         ::paste::paste! {
             fn [<bench_ $fhe_type:snake>](c: &mut Criterion, cks: &ClientKey) {
-                bench_fhe_type::<$fhe_type>(c, cks, stringify!($fhe_type));
+                bench_fhe_type::<$fhe_type>(c, cks, stringify!($fhe_type), $fhe_type::num_bits());
             }
         }
     };
