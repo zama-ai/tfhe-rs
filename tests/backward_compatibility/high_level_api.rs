@@ -3,7 +3,7 @@ use crate::{load_and_unversionize, TestedModule};
 use std::path::Path;
 #[cfg(feature = "zk-pok")]
 use tfhe::integer::parameters::DynamicDistribution;
-use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant};
+use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt, ParameterSetConformant, SquashNoise};
 #[cfg(feature = "zk-pok")]
 use tfhe::shortint::parameters::{
     CompactCiphertextListExpansionKind, CompactPublicKeyEncryptionParameters,
@@ -385,23 +385,40 @@ pub fn test_hl_serverkey(
     } else {
         load_and_unversionize(dir, test, format)?
     };
+
+    let has_noise_squashing = key.noise_squashing_key().is_some();
     set_server_key(key);
+
+    if has_noise_squashing {
+        let ns = ct1.squash_noise().unwrap();
+        let res: u8 = ns.decrypt(&client_key);
+        if res != v1 {
+            return Err(test.failure(
+                format!(
+                    "Invalid result for noise squashing using loaded server key, expected {} got {}",
+                    v1,
+                    res,
+                ),
+                format,
+            ));
+        }
+    }
 
     let ct_sum = ct1 + ct2;
     let sum: u8 = ct_sum.decrypt(&client_key);
 
     if sum != v1 + v2 {
-        Err(test.failure(
+        return Err(test.failure(
             format!(
                 "Invalid result for addition using loaded server key, expected {} got {}",
                 v1 + v2,
                 sum,
             ),
             format,
-        ))
-    } else {
-        Ok(test.success(format))
+        ));
     }
+
+    Ok(test.success(format))
 }
 
 /// Test HL ciphertext: loads the ciphertext and compare the decrypted value to the one in the
