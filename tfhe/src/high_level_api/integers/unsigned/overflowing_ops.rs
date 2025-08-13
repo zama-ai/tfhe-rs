@@ -2,6 +2,7 @@ use crate::core_crypto::prelude::UnsignedNumeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheUintId;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::prelude::{CastInto, OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheUint};
@@ -51,8 +52,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -64,8 +73,16 @@ where
                     streams,
                 );
                 (
-                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
-                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
+                    FheUint::<Id>::new(
+                        inner_result.0,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        inner_result.1,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -90,8 +107,16 @@ where
                 let overflow = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_ADD must return 2 value");
                 (
-                    FheUint::new(result, device.tag.clone()),
-                    FheBool::new(overflow, device.tag.clone()),
+                    FheUint::new(
+                        result,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
         })
@@ -174,8 +199,16 @@ where
                     .pbs_key()
                     .unsigned_overflowing_scalar_add_parallelized(&self.ciphertext.on_cpu(), other);
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -187,8 +220,16 @@ where
                     streams,
                 );
                 (
-                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
-                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
+                    FheUint::<Id>::new(
+                        inner_result.0,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        inner_result.1,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -215,8 +256,16 @@ where
                 let overflow = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_ADDS must return 2 value");
                 (
-                    FheUint::new(result, device.tag.clone()),
-                    FheBool::new(overflow, device.tag.clone()),
+                    FheUint::new(
+                        result,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
         })
@@ -339,8 +388,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -352,8 +409,16 @@ where
                     streams,
                 );
                 (
-                    FheUint::<Id>::new(inner_result.0, cuda_key.tag.clone()),
-                    FheBool::new(inner_result.1, cuda_key.tag.clone()),
+                    FheUint::<Id>::new(
+                        inner_result.0,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        inner_result.1,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -378,8 +443,16 @@ where
                 let overflow = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_SUB must return 2 value");
                 (
-                    FheUint::new(result, device.tag.clone()),
-                    FheBool::new(overflow, device.tag.clone()),
+                    FheUint::new(
+                        result,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
         })
@@ -462,8 +535,16 @@ where
                     .pbs_key()
                     .unsigned_overflowing_scalar_sub_parallelized(&self.ciphertext.on_cpu(), other);
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -494,8 +575,16 @@ where
                 let overflow = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_SUBS must return 2 value");
                 (
-                    FheUint::new(result, device.tag.clone()),
-                    FheBool::new(overflow, device.tag.clone()),
+                    FheUint::new(
+                        result,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
         })
@@ -577,8 +666,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -607,8 +704,16 @@ where
                 let overflow = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");
                 let result = hpu_result.pop().expect("IOP_OVF_MUL must return 2 value");
                 (
-                    FheUint::new(result, device.tag.clone()),
-                    FheBool::new(overflow, device.tag.clone()),
+                    FheUint::new(
+                        result,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        device.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
         })
@@ -663,8 +768,16 @@ where
                     .pbs_key()
                     .overflowing_neg_parallelized(&*self.ciphertext.on_cpu());
                 (
-                    FheUint::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -674,8 +787,16 @@ where
                     &cuda_key.streams,
                 );
                 (
-                    FheUint::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheUint::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]

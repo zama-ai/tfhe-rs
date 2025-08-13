@@ -5,6 +5,7 @@ use crate::high_level_api::booleans::{
     InnerBoolean, InnerBooleanVersionOwned, InnerCompressedFheBool, InnerSquashedNoiseBoolean,
     InnerSquashedNoiseBooleanVersionOwned, SquashedNoiseFheBool,
 };
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::SquashedNoiseCiphertextState;
 use crate::{CompressedFheBool, FheBool, Tag};
 use std::convert::Infallible;
@@ -20,21 +21,42 @@ pub struct FheBoolV0 {
     pub(in crate::high_level_api) ciphertext: InnerBoolean,
 }
 
-impl Upgrade<FheBool> for FheBoolV0 {
+impl Upgrade<FheBoolV1> for FheBoolV0 {
     type Error = Infallible;
 
-    fn upgrade(self) -> Result<FheBool, Self::Error> {
-        Ok(FheBool {
+    fn upgrade(self) -> Result<FheBoolV1, Self::Error> {
+        Ok(FheBoolV1 {
             ciphertext: self.ciphertext,
             tag: Tag::default(),
         })
     }
 }
 
+#[derive(Version)]
+pub struct FheBoolV1 {
+    pub(in crate::high_level_api) ciphertext: InnerBoolean,
+    pub(crate) tag: Tag,
+}
+
+impl Upgrade<FheBool> for FheBoolV1 {
+    type Error = Infallible;
+
+    fn upgrade(self) -> Result<FheBool, Self::Error> {
+        let Self { ciphertext, tag } = self;
+
+        Ok(FheBool::new(
+            ciphertext,
+            tag,
+            ReRandomizationMetadata::default(),
+        ))
+    }
+}
+
 #[derive(VersionsDispatch)]
 pub enum FheBoolVersions {
     V0(FheBoolV0),
-    V1(FheBool),
+    V1(FheBoolV1),
+    V2(FheBool),
 }
 
 #[derive(VersionsDispatch)]

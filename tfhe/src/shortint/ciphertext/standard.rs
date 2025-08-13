@@ -5,7 +5,10 @@ use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::entities::*;
 use crate::core_crypto::prelude::{allocate_and_trivially_encrypt_new_lwe_ciphertext, LweSize};
 use crate::shortint::backward_compatibility::ciphertext::CiphertextVersions;
+use crate::shortint::ciphertext::ReRandomizationSeed;
+use crate::shortint::key_switching_key::KeySwitchingKeyMaterialView;
 use crate::shortint::parameters::{AtomicPatternKind, CarryModulus, MessageModulus};
+use crate::shortint::public_key::compact::CompactPublicKey;
 use crate::shortint::{CiphertextModulus, PaddingBit, ShortintEncoding};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -249,6 +252,30 @@ impl Ciphertext {
             Err(NotTrivialCiphertextError)
         }
     }
+
+    /// This function can be called after decompressing a [`Ciphertext`] from a
+    /// [`CompressedCiphertextList`](super::compressed_ciphertext_list::CompressedCiphertextList) to
+    /// re-randomize it before any computations.
+    ///
+    /// This function only supports [`PBSOrder::KeyswitchBootstrap`] ordered
+    /// [`Ciphertext`]/[`ServerKey`](crate::shortint::ServerKey).
+    ///
+    /// It uses a [`CompactPublicKey`] to generate a new encryption of 0, a
+    /// [`KeySwitchingKeyMaterialView`] is required to keyswitch between the secret key used to
+    /// generate the [`CompactPublicKey`] to the "big"/post PBS/GLWE secret key from the
+    /// [`ServerKey`](crate::shortint::ServerKey).
+    pub fn re_randomize_with_compact_public_key_encryption(
+        &mut self,
+        compact_public_key: &CompactPublicKey,
+        key_switching_key_material: &KeySwitchingKeyMaterialView<'_>,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<()> {
+        compact_public_key.re_randomize_ciphertexts(
+            std::slice::from_mut(self),
+            key_switching_key_material,
+            seed,
+        )
+    }
 }
 
 pub(crate) fn unchecked_create_trivial_with_lwe_size(
@@ -285,6 +312,16 @@ pub(crate) fn unchecked_create_trivial_with_lwe_size(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::shortint::ciphertext::ReRandomizationContext;
+    use crate::shortint::key_switching_key::KeySwitchingKeyBuildHelper;
+    use crate::shortint::keycache::KEY_CACHE;
+    use crate::shortint::parameters::test_params::{
+        TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128,
+        TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2,
+    };
+    use crate::shortint::public_key::compact::CompactPrivateKey;
     use crate::shortint::CiphertextModulus;
 
     #[test]
@@ -381,5 +418,57 @@ mod tests {
 
         c1.clone_from(&c2);
         assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn test_re_randomize_ciphertext_ci_run_filter() {
+        let params = TEST_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let comp_params = TEST_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+        let cpk_params = TEST_PARAM_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128_ZKV2;
+        let ks_params = TEST_PARAM_KEYSWITCH_PKE_TO_BIG_MESSAGE_2_CARRY_2_KS_PBS_TUNIFORM_2M128;
+
+        let key_entry = KEY_CACHE.get_from_param(params);
+        // Generate the client key and the server key:
+        let (cks, sks) = (key_entry.client_key(), key_entry.server_key());
+        let cpk_private_key = CompactPrivateKey::new(cpk_params);
+        let cpk = CompactPublicKey::new(&cpk_private_key);
+        let ksk_material =
+            KeySwitchingKeyBuildHelper::new((&cpk_private_key, None), (cks, sks), ks_params)
+                .key_switching_key_material;
+        let ksk_material = ksk_material.as_view();
+
+        let private_compression_key = cks.new_compression_private_key(comp_params);
+        let (compression_key, decompression_key) =
+            cks.new_compression_decompression_keys(&private_compression_key);
+
+        let msg = cks.parameters().message_modulus().0 - 1;
+
+        for _ in 0..10 {
+            let ct = cks.encrypt(msg);
+
+            let compressed = compression_key.compress_ciphertexts_into_list(&[ct]);
+
+            let decompressed = decompression_key.unpack(&compressed, 0).unwrap();
+
+            let mut re_randomizer_context = ReRandomizationContext::new(*b"TFHE_Rrd", *b"TFHE_Enc");
+            re_randomizer_context.add_ciphertext(&decompressed);
+
+            let mut seed_gen = re_randomizer_context.finalize();
+
+            let seed = seed_gen.next_seed();
+
+            let mut re_randomized = decompressed.clone();
+            re_randomized
+                .re_randomize_with_compact_public_key_encryption(&cpk, &ksk_material, seed)
+                .unwrap();
+
+            assert_ne!(decompressed, re_randomized);
+
+            let pbsed = sks.bitand(&re_randomized, &re_randomized);
+
+            let dec = cks.decrypt_message_and_carry(&pbsed);
+
+            assert_eq!(dec, msg);
+        }
     }
 }

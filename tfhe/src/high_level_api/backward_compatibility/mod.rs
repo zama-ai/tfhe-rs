@@ -6,6 +6,7 @@ pub mod booleans;
 pub mod compact_list;
 pub mod compressed_ciphertext_list;
 pub mod config;
+pub mod cpk_re_randomization;
 pub mod integers;
 pub mod keys;
 #[cfg(feature = "strings")]

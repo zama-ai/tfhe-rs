@@ -2,6 +2,7 @@ use crate::core_crypto::prelude::SignedNumeric;
 use crate::high_level_api::global_state;
 use crate::high_level_api::integers::FheIntId;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::prelude::{OverflowingAdd, OverflowingMul, OverflowingNeg, OverflowingSub};
 use crate::{FheBool, FheInt};
@@ -46,8 +47,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -59,8 +68,16 @@ where
                     streams,
                 );
                 (
-                    FheInt::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -147,8 +164,16 @@ where
                     .pbs_key()
                     .signed_overflowing_scalar_add_parallelized(&self.ciphertext.on_cpu(), other);
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -160,8 +185,16 @@ where
                     streams,
                 );
                 (
-                    FheInt::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -286,8 +319,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -299,8 +340,16 @@ where
                     streams,
                 );
                 (
-                    FheInt::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -386,8 +435,16 @@ where
                     .pbs_key()
                     .signed_overflowing_scalar_sub_parallelized(&self.ciphertext.on_cpu(), other);
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -399,8 +456,16 @@ where
                     streams,
                 );
                 (
-                    FheInt::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -487,8 +552,16 @@ where
                     &other.ciphertext.on_cpu(),
                 );
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -574,8 +647,16 @@ where
                     .pbs_key()
                     .overflowing_neg_parallelized(&*self.ciphertext.on_cpu());
                 (
-                    FheInt::new(result, cpu_key.tag.clone()),
-                    FheBool::new(overflow, cpu_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -585,8 +666,16 @@ where
                     &cuda_key.streams,
                 );
                 (
-                    FheInt::new(result, cuda_key.tag.clone()),
-                    FheBool::new(overflow, cuda_key.tag.clone()),
+                    FheInt::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        overflow,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]

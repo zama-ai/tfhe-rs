@@ -70,8 +70,10 @@ aligned-vec = { workspace = true, features = ["default", "serde"] }
 dyn-stack = { workspace = true, features = ["default"] }
 paste = "1.0.7"
 fs2 = { version = "0.4.3", optional = true }
-# Used for OPRF in shortint
+# Used for OPRF in shortint and rerand
 sha3 = { version = "0.10", optional = true }
+blake3 = { version = "1.8", optional = true }
+
 itertools = { workspace = true }
 rand_core = { version = "0.6.4", features = ["std"] }
 strum = { version = "0.27", features = ["derive"], optional = true }
@@ -93,7 +95,7 @@ tfhe-hpu-backend = { version = "0.2", path = "../backends/tfhe-hpu-backend", opt
 
 [features]
 boolean = []
-shortint = ["dep:sha3"]
+shortint = ["dep:sha3", "dep:blake3"]
 integer = ["shortint", "dep:strum"]
 strings = ["integer"]
 internal-keycache = ["dep:fs2"]
