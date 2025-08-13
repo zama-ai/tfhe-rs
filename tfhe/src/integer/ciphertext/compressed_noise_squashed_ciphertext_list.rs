@@ -22,6 +22,7 @@ use crate::shortint::list_compression::{
 };
 use crate::shortint::parameters::NoiseSquashingCompressionParameters;
 use crate::Versionize;
+use std::num::NonZero;
 
 use crate::integer::backward_compatibility::list_compression::NoiseSquashingCompressionKeyVersions;
 
@@ -228,27 +229,27 @@ mod sealed {
 }
 
 pub trait SquashedNoiseCompressible: sealed::Sealed {
-    fn compress_into(self, messages: &mut Vec<SquashedNoiseCiphertext>) -> DataKind;
+    fn compress_into(self, messages: &mut Vec<SquashedNoiseCiphertext>) -> Option<DataKind>;
 }
 
 impl SquashedNoiseCompressible for SquashedNoiseRadixCiphertext {
-    fn compress_into(mut self, messages: &mut Vec<SquashedNoiseCiphertext>) -> DataKind {
+    fn compress_into(mut self, messages: &mut Vec<SquashedNoiseCiphertext>) -> Option<DataKind> {
         messages.append(&mut self.packed_blocks);
-        DataKind::Unsigned(self.original_block_count)
+        NonZero::new(self.original_block_count).map(DataKind::Unsigned)
     }
 }
 
 impl SquashedNoiseCompressible for SquashedNoiseSignedRadixCiphertext {
-    fn compress_into(mut self, messages: &mut Vec<SquashedNoiseCiphertext>) -> DataKind {
+    fn compress_into(mut self, messages: &mut Vec<SquashedNoiseCiphertext>) -> Option<DataKind> {
         messages.append(&mut self.packed_blocks);
-        DataKind::Signed(self.original_block_count)
+        NonZero::new(self.original_block_count).map(DataKind::Signed)
     }
 }
 
 impl SquashedNoiseCompressible for SquashedNoiseBooleanBlock {
-    fn compress_into(self, messages: &mut Vec<SquashedNoiseCiphertext>) -> DataKind {
+    fn compress_into(self, messages: &mut Vec<SquashedNoiseCiphertext>) -> Option<DataKind> {
         messages.push(self.ciphertext);
-        DataKind::Boolean
+        Some(DataKind::Boolean)
     }
 }
 
@@ -283,10 +284,13 @@ impl SquashedNoiseExpandable for SquashedNoiseRadixCiphertext {
         if let DataKind::Unsigned(block_count) = kind {
             Ok(Self {
                 packed_blocks: blocks,
-                original_block_count: block_count,
+                original_block_count: block_count.get(),
             })
         } else {
-            Err(create_error_message(DataKind::Unsigned(0), kind))
+            Err(create_error_message(
+                DataKind::Unsigned(1.try_into().unwrap()),
+                kind,
+            ))
         }
     }
 }
@@ -299,10 +303,13 @@ impl SquashedNoiseExpandable for SquashedNoiseSignedRadixCiphertext {
         if let DataKind::Signed(block_count) = kind {
             Ok(Self {
                 packed_blocks: blocks,
-                original_block_count: block_count,
+                original_block_count: block_count.get(),
             })
         } else {
-            Err(create_error_message(DataKind::Signed(0), kind))
+            Err(create_error_message(
+                DataKind::Signed(1.try_into().unwrap()),
+                kind,
+            ))
         }
     }
 }
@@ -344,15 +351,29 @@ impl CompressedSquashedNoiseCiphertextListBuilder {
 
     pub fn push(&mut self, value: impl SquashedNoiseCompressible) -> &mut Self {
         let n = self.list.len();
-        let kind = value.compress_into(&mut self.list);
+        let maybe_kind = value.compress_into(&mut self.list);
+
+        let Some(modulus) = self.list.last().map(|ct| ct.message_modulus()) else {
+            assert!(
+                maybe_kind.is_none(),
+                "Internal error: Incoherent block count with regard to kind"
+            );
+            return self;
+        };
+
+        let Some(kind) = maybe_kind else {
+            assert_eq!(
+                n,
+                self.list.len(),
+                "Internal error: Incoherent block count with regard to kind"
+            );
+            return self;
+        };
+
+        let num_blocks = kind.num_blocks(modulus).div_ceil(2); // Because blocks are packed when noise squashed
 
         // Check that the number of blocks that were added matches the
         // number of blocks advertised by the DataKind
-        let num_blocks = self
-            .list
-            .last()
-            .map_or(0, |ct| kind.num_blocks(ct.message_modulus()))
-            .div_ceil(2); // Because blocks are packed when noise squashed
         assert_eq!(n + num_blocks, self.list.len());
 
         self.info.push(kind);

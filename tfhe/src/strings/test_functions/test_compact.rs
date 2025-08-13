@@ -5,6 +5,7 @@ use crate::integer::key_switching_key::KeySwitchingKey;
 use crate::integer::{ClientKey, CompactPrivateKey, CompactPublicKey, ServerKey};
 use crate::shortint::parameters::*;
 use crate::strings::ciphertext::{ClearString, FheString};
+use std::num::NonZero;
 
 #[test]
 fn test_compact_list_with_string_casting() {
@@ -153,7 +154,7 @@ fn test_compact_list_with_malicious_string_casting() {
         builder.push(alter | string_byte);
     }
     builder.info = vec![DataKind::String {
-        n_chars: string.len() as u32,
+        n_chars: NonZero::new(string.len() as u32).unwrap(),
         padded: false,
     }];
 
@@ -200,7 +201,7 @@ fn test_compact_list_with_malicious_string_no_casting() {
         builder.push(alter | string_byte);
     }
     builder.info = vec![DataKind::String {
-        n_chars: string.len() as u32,
+        n_chars: NonZero::new(string.len() as u32).unwrap(),
         padded: false,
     }];
 

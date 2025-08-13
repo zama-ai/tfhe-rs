@@ -248,8 +248,8 @@ impl CudaFlattenedVecCompactCiphertextList {
             .flat_map(|data_kind| {
                 let repetitions = match data_kind {
                     DataKind::Boolean => 1,
-                    DataKind::Signed(x) => *x,
-                    DataKind::Unsigned(x) => *x,
+                    DataKind::Signed(x) => x.get(),
+                    DataKind::Unsigned(x) => x.get(),
                     DataKind::String { .. } => panic!("DataKind not supported on GPUs"),
                 };
                 std::iter::repeat_n(matches!(data_kind, DataKind::Boolean), repetitions)
