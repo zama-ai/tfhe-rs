@@ -4,12 +4,15 @@ use super::inner::RadixCiphertext;
 use crate::backward_compatibility::integers::FheUintVersions;
 use crate::conformance::ParameterSetConformant;
 use crate::core_crypto::prelude::{CastFrom, UnsignedInteger, UnsignedNumeric};
+use crate::high_level_api::errors::UninitializedReRandKey;
 use crate::high_level_api::integers::signed::{FheInt, FheIntId};
 use crate::high_level_api::integers::IntegerId;
-use crate::high_level_api::keys::InternalServerKey;
-use crate::high_level_api::traits::{FheWait, Tagged};
+use crate::high_level_api::keys::{CompactPublicKey, InternalServerKey};
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
+use crate::high_level_api::traits::{FheWait, ReRandomize, Tagged};
 use crate::high_level_api::{global_state, Device};
 use crate::integer::block_decomposition::{DecomposableInto, RecomposableFrom};
+use crate::integer::ciphertext::ReRandomizationSeed;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::CudaIntegerRadixCiphertext;
 #[cfg(feature = "hpu")]
@@ -88,6 +91,7 @@ pub struct FheUint<Id: FheUintId> {
     pub(in crate::high_level_api) ciphertext: RadixCiphertext,
     pub(in crate::high_level_api) id: Id,
     pub(crate) tag: Tag,
+    pub(crate) re_randomization_metadata: ReRandomizationMetadata,
 }
 
 #[derive(Copy, Clone)]
@@ -129,6 +133,7 @@ impl<Id: FheUintId> ParameterSetConformant for FheUint<Id> {
             ciphertext,
             id: _,
             tag: _,
+            re_randomization_metadata: _,
         } = self;
 
         ciphertext.on_cpu().is_conformant(&params.params)
@@ -189,12 +194,24 @@ where
                 native: hpu_res
                     .iter()
                     .filter(|x| !x.0.is_boolean())
-                    .map(|x| Self::new(x.clone(), device.tag.clone()))
+                    .map(|x| {
+                        Self::new(
+                            x.clone(),
+                            device.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        )
+                    })
                     .collect::<Vec<_>>(),
                 boolean: hpu_res
                     .iter()
                     .filter(|x| x.0.is_boolean())
-                    .map(|x| FheBool::new(x.clone(), device.tag.clone()))
+                    .map(|x| {
+                        FheBool::new(
+                            x.clone(),
+                            device.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        )
+                    })
                     .collect::<Vec<_>>(),
                 imm: Vec::new(),
             }
@@ -206,7 +223,11 @@ impl<Id> FheUint<Id>
 where
     Id: FheUintId,
 {
-    pub(in crate::high_level_api) fn new<T>(ciphertext: T, tag: Tag) -> Self
+    pub(in crate::high_level_api) fn new<T>(
+        ciphertext: T,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self
     where
         T: Into<RadixCiphertext>,
     {
@@ -214,26 +235,41 @@ where
             ciphertext: ciphertext.into(),
             id: Id::default(),
             tag,
+            re_randomization_metadata,
         }
     }
 
-    pub fn into_raw_parts(self) -> (crate::integer::RadixCiphertext, Id, Tag) {
+    pub fn into_raw_parts(
+        self,
+    ) -> (
+        crate::integer::RadixCiphertext,
+        Id,
+        Tag,
+        ReRandomizationMetadata,
+    ) {
         let Self {
             ciphertext,
             id,
             tag,
+            re_randomization_metadata,
         } = self;
 
         let ciphertext = ciphertext.into_cpu();
 
-        (ciphertext, id, tag)
+        (ciphertext, id, tag, re_randomization_metadata)
     }
 
-    pub fn from_raw_parts(ciphertext: crate::integer::RadixCiphertext, id: Id, tag: Tag) -> Self {
+    pub fn from_raw_parts(
+        ciphertext: crate::integer::RadixCiphertext,
+        id: Id,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
         Self {
             ciphertext: RadixCiphertext::Cpu(ciphertext),
             id,
             tag,
+            re_randomization_metadata,
         }
     }
 
@@ -301,7 +337,11 @@ where
                 let result = cpu_key
                     .pbs_key()
                     .is_even_parallelized(&*self.ciphertext.on_cpu());
-                FheBool::new(result, cpu_key.tag.clone())
+                FheBool::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -310,7 +350,11 @@ where
                     .key
                     .key
                     .is_even(&*self.ciphertext.on_gpu(streams), streams);
-                FheBool::new(result, cuda_key.tag.clone())
+                FheBool::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -342,7 +386,11 @@ where
                 let result = cpu_key
                     .pbs_key()
                     .is_odd_parallelized(&*self.ciphertext.on_cpu());
-                FheBool::new(result, cpu_key.tag.clone())
+                FheBool::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -351,7 +399,11 @@ where
                     .key
                     .key
                     .is_odd(&*self.ciphertext.on_gpu(streams), streams);
-                FheBool::new(result, cuda_key.tag.clone())
+                FheBool::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -480,7 +532,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -494,7 +550,11 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result, cuda_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -511,7 +571,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_LEAD0 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -543,7 +607,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -557,7 +625,11 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result, cuda_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -574,7 +646,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_LEAD1 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -606,7 +682,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -620,7 +700,11 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result, cuda_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -637,7 +721,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_TRAIL0 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -669,7 +757,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -683,7 +775,11 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result, cuda_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -700,7 +796,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_TRAIL1 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -733,7 +833,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -754,7 +858,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_COUNT0 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -787,7 +895,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -808,7 +920,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_COUNT1 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -842,7 +958,11 @@ where
                     result,
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
-                super::FheUint32::new(result, cpu_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -856,7 +976,11 @@ where
                     super::FheUint32Id::num_blocks(cuda_key.key.key.message_modulus),
                     streams,
                 );
-                super::FheUint32::new(result, cuda_key.tag.clone())
+                super::FheUint32::new(
+                    result,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(device) => {
@@ -873,7 +997,11 @@ where
                     HpuRadixCiphertext::exec(proto, opcode, std::slice::from_ref(&hpu_self), &[])
                         .pop()
                         .expect("IOP_ILOG2 must return 1 value");
-                super::FheUint32::new(hpu_result, device.tag.clone())
+                super::FheUint32::new(
+                    hpu_result,
+                    device.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
         })
     }
@@ -912,8 +1040,16 @@ where
                     super::FheUint32Id::num_blocks(cpu_key.pbs_key().message_modulus()),
                 );
                 (
-                    super::FheUint32::new(result, cpu_key.tag.clone()),
-                    FheBool::new(is_ok, cpu_key.tag.clone()),
+                    super::FheUint32::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        is_ok,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -929,8 +1065,16 @@ where
                     streams,
                 );
                 (
-                    super::FheUint32::new(result, cuda_key.tag.clone()),
-                    FheBool::new(is_ok, cuda_key.tag.clone()),
+                    super::FheUint32::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        is_ok,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "hpu")]
@@ -996,8 +1140,16 @@ where
                         .pbs_key()
                         .cast_to_unsigned(result, target_num_blocks);
                     Ok((
-                        FheUint::new(result, cpu_key.tag.clone()),
-                        FheBool::new(matched, cpu_key.tag.clone()),
+                        FheUint::new(
+                            result,
+                            cpu_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ),
+                        FheBool::new(
+                            matched,
+                            cpu_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ),
                     ))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
@@ -1014,8 +1166,16 @@ where
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
                 if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
                     Ok((
-                        FheUint::new(result, cuda_key.tag.clone()),
-                        FheBool::new(matched, cuda_key.tag.clone()),
+                        FheUint::new(
+                            result,
+                            cuda_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ),
+                        FheBool::new(
+                            matched,
+                            cuda_key.tag.clone(),
+                            ReRandomizationMetadata::default(),
+                        ),
                     ))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
@@ -1081,7 +1241,11 @@ where
                     let result = cpu_key
                         .pbs_key()
                         .cast_to_unsigned(result, target_num_blocks);
-                    Ok(FheUint::new(result, cpu_key.tag.clone()))
+                    Ok(FheUint::new(
+                        result,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
@@ -1097,7 +1261,11 @@ where
                 );
                 let target_num_blocks = OutId::num_blocks(cuda_key.key.key.message_modulus);
                 if target_num_blocks >= result.ciphertext.d_blocks.lwe_ciphertext_count().0 {
-                    Ok(FheUint::new(result, cuda_key.tag.clone()))
+                    Ok(FheUint::new(
+                        result,
+                        cuda_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ))
                 } else {
                     Err(crate::Error::new("Output type does not have enough bits to represent all possible output values".to_string()))
                 }
@@ -1136,7 +1304,11 @@ where
 
                 let ct = self.ciphertext.on_cpu();
 
-                Self::new(sk.reverse_bits_parallelized(&*ct), cpu_key.tag.clone())
+                Self::new(
+                    sk.reverse_bits_parallelized(&*ct),
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -1186,7 +1358,11 @@ where
                     Id::num_blocks(sk.message_modulus()),
                 );
 
-                Self::new(result, cpu_key.tag.clone())
+                Self::new(
+                    result,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(_) => {
@@ -1213,6 +1389,14 @@ where
         Clear: UnsignedNumeric + DecomposableInto<u64>,
     {
         Self::if_then_else(condition, true_value, false_value)
+    }
+
+    pub fn re_randomization_metadata(&self) -> &ReRandomizationMetadata {
+        &self.re_randomization_metadata
+    }
+
+    pub fn re_randomization_metadata_mut(&mut self) -> &mut ReRandomizationMetadata {
+        &mut self.re_randomization_metadata
     }
 }
 
@@ -1267,7 +1451,7 @@ where
             }
         }
 
-        let mut ciphertext = Self::new(other, Tag::default());
+        let mut ciphertext = Self::new(other, Tag::default(), ReRandomizationMetadata::default());
         ciphertext.move_to_device_of_server_key_if_set();
         Ok(ciphertext)
     }
@@ -1314,7 +1498,11 @@ where
                     input.ciphertext.into_cpu(),
                     IntoId::num_blocks(cpu_key.message_modulus()),
                 );
-                Self::new(casted, cpu_key.tag.clone())
+                Self::new(
+                    casted,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -1324,7 +1512,11 @@ where
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(casted, cuda_key.tag.clone())
+                Self::new(
+                    casted,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1363,7 +1555,11 @@ where
                     input.ciphertext.on_cpu().to_owned(),
                     IntoId::num_blocks(cpu_key.message_modulus()),
                 );
-                Self::new(casted, cpu_key.tag.clone())
+                Self::new(
+                    casted,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -1373,7 +1569,11 @@ where
                     IntoId::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(casted, cuda_key.tag.clone())
+                Self::new(
+                    casted,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
@@ -1412,7 +1612,11 @@ where
                     .on_cpu()
                     .into_owned()
                     .into_radix(Id::num_blocks(cpu_key.message_modulus()), cpu_key.pbs_key());
-                Self::new(ciphertext, cpu_key.tag.clone())
+                Self::new(
+                    ciphertext,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "gpu")]
             InternalServerKey::Cuda(cuda_key) => {
@@ -1422,11 +1626,63 @@ where
                     Id::num_blocks(cuda_key.message_modulus()),
                     streams,
                 );
-                Self::new(inner, cuda_key.tag.clone())
+                Self::new(
+                    inner,
+                    cuda_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                )
             }
             #[cfg(feature = "hpu")]
             InternalServerKey::Hpu(_device) => {
                 panic!("Hpu does not support this operation yet.")
+            }
+        })
+    }
+}
+
+impl<Id> ReRandomize for FheUint<Id>
+where
+    Id: FheUintId,
+{
+    fn add_to_re_randomization_context(
+        &self,
+        context: &mut crate::high_level_api::re_randomization::ReRandomizationContext,
+    ) {
+        let on_cpu = self.ciphertext.on_cpu();
+        context.inner.add_ciphertext(&*on_cpu);
+        context
+            .inner
+            .add_bytes(self.re_randomization_metadata.data());
+    }
+
+    fn re_randomize(
+        &self,
+        compact_public_key: &CompactPublicKey,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<Self> {
+        global_state::with_internal_keys(|key| match key {
+            InternalServerKey::Cpu(key) => {
+                let Some(re_randomization_key) = key.re_randomization_cpk_casting_key() else {
+                    return Err(UninitializedReRandKey.into());
+                };
+
+                let inner = self.ciphertext.on_cpu().re_randomize(
+                    &compact_public_key.key.key,
+                    &re_randomization_key,
+                    seed,
+                )?;
+
+                Ok(Self::new(
+                    inner,
+                    key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
+            }
+            #[cfg(feature = "gpu")]
+            InternalServerKey::Cuda(_cuda_key) => panic!("GPU does not support CPKReRandomize."),
+            #[cfg(feature = "hpu")]
+            InternalServerKey::Hpu(_device) => {
+                panic!("HPU does not support CPKReRandomize.")
             }
         })
     }

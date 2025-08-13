@@ -24,7 +24,7 @@ pub struct XofSeed {
 }
 
 impl XofSeed {
-    const DOMAIN_SEP_LEN: usize = 8;
+    pub const DOMAIN_SEP_LEN: usize = 8;
 
     // Creates a new seed of 128 bits
     pub fn new_u128(seed: u128, domain_separator: [u8; Self::DOMAIN_SEP_LEN]) -> Self {

@@ -63,7 +63,8 @@ pub use integers::{
 pub use keys::CudaServerKey;
 pub use keys::{
     generate_keys, ClientKey, CompactPublicKey, CompressedCompactPublicKey, CompressedPublicKey,
-    CompressedServerKey, KeySwitchingKey, PublicKey, ServerKey,
+    CompressedReRandomizationKeySwitchingKey, CompressedServerKey, KeySwitchingKey, PublicKey,
+    ReRandomizationKeySwitchingKey, ServerKey,
 };
 use strum::FromRepr;
 
@@ -129,6 +130,9 @@ pub use compressed_noise_squashed_ciphertext_list::{
     CompressedSquashedNoiseCiphertextList, CompressedSquashedNoiseCiphertextListBuilder,
     HlSquashedNoiseCompressible, HlSquashedNoiseExpandable,
 };
+pub use re_randomization::{
+    ReRandomizationContext, ReRandomizationMetadata, ReRandomizationSeedGen,
+};
 #[cfg(feature = "strings")]
 pub use strings::ascii::{EncryptableString, FheAsciiString, FheStringIsEmpty, FheStringLen};
 pub use tag::Tag;
@@ -141,6 +145,7 @@ mod errors;
 mod global_state;
 mod integers;
 mod keys;
+mod re_randomization;
 #[cfg(feature = "strings")]
 mod strings;
 mod traits;

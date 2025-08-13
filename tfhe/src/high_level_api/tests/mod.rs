@@ -1,3 +1,4 @@
+mod cpk_re_randomization;
 #[cfg(feature = "gpu")]
 mod gpu_selection;
 mod noise_distribution;
@@ -197,8 +198,15 @@ fn test_try_from_single_lwe_encryption_key() {
 
     let shortint_key =
         crate::shortint::ClientKey::try_from_lwe_encryption_key(lwe_sk, parameters).unwrap();
-    let client_key =
-        ClientKey::from_raw_parts(shortint_key.into(), None, None, None, None, Tag::default());
+    let client_key = ClientKey::from_raw_parts(
+        shortint_key.into(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Tag::default(),
+    );
     let sks = ServerKey::new(&client_key);
 
     let clear_a = 1344u32;

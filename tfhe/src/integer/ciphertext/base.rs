@@ -7,6 +7,9 @@ use crate::integer::backward_compatibility::ciphertext::{
 use crate::integer::block_decomposition::{
     BlockRecomposer, RecomposableFrom, RecomposableSignedInteger,
 };
+use crate::integer::ciphertext::{re_randomize_ciphertext_blocks, ReRandomizationSeed};
+use crate::integer::key_switching_key::KeySwitchingKeyMaterialView;
+use crate::integer::CompactPublicKey;
 use crate::shortint::ciphertext::NotTrivialCiphertextError;
 use crate::shortint::parameters::CiphertextConformanceParams;
 use crate::shortint::Ciphertext;
@@ -119,6 +122,22 @@ impl RadixCiphertext {
             bits_in_block,
         ))
     }
+
+    pub fn re_randomize(
+        &self,
+        compact_public_key: &CompactPublicKey,
+        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<Self> {
+        let blocks = re_randomize_ciphertext_blocks(
+            &self.blocks,
+            compact_public_key,
+            key_switching_key_material,
+            seed,
+        )?;
+
+        Ok(Self { blocks })
+    }
 }
 
 /// Structure containing a ciphertext in radix decomposition
@@ -226,6 +245,22 @@ impl SignedRadixCiphertext {
             decrypted_block_iter,
             bits_in_block,
         ))
+    }
+
+    pub fn re_randomize(
+        &self,
+        compact_public_key: &CompactPublicKey,
+        key_switching_key_material: &KeySwitchingKeyMaterialView,
+        seed: ReRandomizationSeed,
+    ) -> crate::Result<Self> {
+        let blocks = re_randomize_ciphertext_blocks(
+            &self.blocks,
+            compact_public_key,
+            key_switching_key_material,
+            seed,
+        )?;
+
+        Ok(Self { blocks })
     }
 }
 

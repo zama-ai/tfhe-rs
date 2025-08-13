@@ -7,10 +7,12 @@ mod strip;
 mod trim;
 
 pub use crate::high_level_api::backward_compatibility::strings::FheAsciiStringVersions;
+use crate::high_level_api::compressed_ciphertext_list::ToBeCompressed;
 use crate::high_level_api::details::MaybeCloned;
 use crate::high_level_api::errors::UninitializedServerKey;
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::integer::ciphertext::{Compressible, DataKind, Expandable};
 use crate::named::Named;
 use crate::prelude::{FheDecrypt, FheTryEncrypt, FheTryTrivialEncrypt, Tagged};
@@ -128,6 +130,7 @@ impl Unversionize for AsciiDevice {
 pub struct FheAsciiString {
     pub(crate) inner: AsciiDevice,
     pub(crate) tag: Tag,
+    pub(crate) re_randomization_metadata: ReRandomizationMetadata,
 }
 
 impl Named for FheAsciiString {
@@ -145,10 +148,15 @@ impl Tagged for FheAsciiString {
 }
 
 impl FheAsciiString {
-    pub(crate) fn new(inner: impl Into<AsciiDevice>, tag: Tag) -> Self {
+    pub(crate) fn new(
+        inner: impl Into<AsciiDevice>,
+        tag: Tag,
+        re_randomization_metadata: ReRandomizationMetadata,
+    ) -> Self {
         Self {
             inner: inner.into(),
             tag,
+            re_randomization_metadata,
         }
     }
 
@@ -308,6 +316,14 @@ impl FheAsciiString {
     pub fn is_trivial(&self) -> bool {
         self.inner.on_cpu().is_trivial()
     }
+
+    pub fn re_randomization_metadata(&self) -> &ReRandomizationMetadata {
+        &self.re_randomization_metadata
+    }
+
+    pub fn re_randomization_metadata_mut(&mut self) -> &mut ReRandomizationMetadata {
+        &mut self.re_randomization_metadata
+    }
 }
 
 impl<'a> FheTryEncrypt<EncryptableString<'a>, ClientKey> for FheAsciiString {
@@ -325,6 +341,7 @@ impl<'a> FheTryEncrypt<EncryptableString<'a>, ClientKey> for FheAsciiString {
         Ok(Self {
             inner: inner.into(),
             tag: key.tag.clone(),
+            re_randomization_metadata: ReRandomizationMetadata::default(),
         })
     }
 }
@@ -360,7 +377,11 @@ impl<'a> FheTryTrivialEncrypt<EncryptableString<'a>> for FheAsciiString {
         global_state::try_with_internal_keys(|keys| match keys {
             Some(InternalServerKey::Cpu(cpu_key)) => {
                 let inner = cpu_key.string_key().trivial_encrypt_ascii(str, padding);
-                Ok(Self::new(inner, cpu_key.tag.clone()))
+                Ok(Self::new(
+                    inner,
+                    cpu_key.tag.clone(),
+                    ReRandomizationMetadata::default(),
+                ))
             }
             #[cfg(feature = "gpu")]
             Some(InternalServerKey::Cuda(_)) => Err(crate::error!("CUDA does not support string")),
@@ -398,8 +419,13 @@ impl Expandable for FheAsciiString {
         blocks: Vec<crate::shortint::Ciphertext>,
         kind: DataKind,
     ) -> crate::Result<Self> {
-        FheString::from_expanded_blocks(blocks, kind)
-            .map(|cpu_string| Self::new(cpu_string, Tag::default()))
+        FheString::from_expanded_blocks(blocks, kind).map(|cpu_string| {
+            Self::new(
+                cpu_string,
+                Tag::default(),
+                ReRandomizationMetadata::default(),
+            )
+        })
     }
 }
 
@@ -418,29 +444,26 @@ impl crate::integer::gpu::ciphertext::compressed_ciphertext_list::CudaExpandable
     }
 }
 
-impl HlExpandable for FheAsciiString {}
-
 impl crate::HlCompressible for FheAsciiString {
-    fn compress_into(
-        self,
-        messages: &mut Vec<(
-            crate::high_level_api::compressed_ciphertext_list::ToBeCompressed,
-            DataKind,
-        )>,
-    ) {
+    fn compress_into(self, messages: &mut Vec<(ToBeCompressed, DataKind)>) {
         match self.inner {
             AsciiDevice::Cpu(fhe_string) => {
                 let mut blocks = vec![];
                 let data_kind = fhe_string.compress_into(&mut blocks);
                 if let Some(data_kind) = data_kind {
-                    messages.push((
-                        crate::high_level_api::compressed_ciphertext_list::ToBeCompressed::Cpu(
-                            blocks,
-                        ),
-                        data_kind,
-                    ));
+                    messages.push((ToBeCompressed::Cpu(blocks), data_kind));
                 }
             }
         }
+    }
+
+    fn get_re_randomization_metadata(&self) -> ReRandomizationMetadata {
+        self.re_randomization_metadata.clone()
+    }
+}
+
+impl HlExpandable for FheAsciiString {
+    fn set_re_randomization_metadata(&mut self, meta: ReRandomizationMetadata) {
+        self.re_randomization_metadata = meta;
     }
 }

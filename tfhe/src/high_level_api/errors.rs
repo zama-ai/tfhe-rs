@@ -66,3 +66,25 @@ impl From<UninitializedNoiseSquashing> for Error {
         Self::new(format!("{value}"))
     }
 }
+
+#[derive(Debug)]
+pub struct UninitializedReRandKey;
+
+impl Display for UninitializedReRandKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "No keyswitching key available to perform \
+              CompactPublicKey re-randomization. Did you forget to call \
+              enable_ciphertext_re_randomization on your Config?"
+        )
+    }
+}
+
+impl std::error::Error for UninitializedReRandKey {}
+
+impl From<UninitializedReRandKey> for Error {
+    fn from(value: UninitializedReRandKey) -> Self {
+        Self::new(format!("{value}"))
+    }
+}
