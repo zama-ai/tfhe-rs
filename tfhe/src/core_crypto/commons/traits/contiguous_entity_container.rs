@@ -257,7 +257,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let entity_view_pod_size = self.get_entity_view_pod_size();
         self.as_ref()
             .par_chunks_exact(entity_view_pod_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityView::<'this>::create_from(elt, meta))
     }
 
@@ -278,7 +278,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
             .par_chunks(pod_chunk_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 
@@ -304,7 +304,7 @@ pub trait ContiguousEntityContainer: AsRef<[Self::Element]> {
         let meta = self.get_self_view_creation_metadata();
         self.as_ref()
             .par_chunks_exact(pod_chunk_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfView::<'_>::create_from(elt, meta))
     }
 }
@@ -471,7 +471,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let entity_view_pod_size = self.get_entity_view_pod_size();
         self.as_mut()
             .par_chunks_exact_mut(entity_view_pod_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::EntityMutView::<'this>::create_from(elt, meta))
     }
 
@@ -492,7 +492,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
             .par_chunks_mut(pod_chunk_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 
@@ -518,7 +518,7 @@ pub trait ContiguousEntityContainerMut: ContiguousEntityContainer + AsMut<[Self:
         let meta = self.get_self_view_creation_metadata();
         self.as_mut()
             .par_chunks_exact_mut(pod_chunk_size)
-            .zip(rayon::iter::repeatn(meta, entity_count))
+            .zip(rayon::iter::repeat_n(meta, entity_count))
             .map(|(elt, meta)| Self::SelfMutView::<'_>::create_from(elt, meta))
     }
 }
