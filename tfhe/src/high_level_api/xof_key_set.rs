@@ -4,6 +4,7 @@ use crate::core_crypto::commons::utils::izip;
 use crate::core_crypto::entities::{LweCompactPublicKey, LweKeyswitchKey};
 use crate::core_crypto::fft_impl::fft64::math::fft::FftView;
 use crate::core_crypto::prelude::*;
+use crate::high_level_api::keys::CompactPrivateKey;
 use crate::integer::noise_squashing::CompressedNoiseSquashingKey;
 use crate::shortint::atomic_pattern::compressed::{
     CompressedAtomicPatternServerKey, CompressedStandardAtomicPatternServerKey,
@@ -30,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use tfhe_csprng::seeders::{Seed, XofSeed};
 use tfhe_fft::c64;
 
-use crate::integer::compression_keys::CompressionKey;
+use crate::integer::compression_keys::{CompressionKey, CompressionPrivateKeys};
 use crate::integer::key_switching_key::{
     CompressedKeySwitchingKeyMaterial, KeySwitchingKeyMaterial,
 };
@@ -40,6 +41,40 @@ use crate::shortint::noise_squashing::{
 use rayon::prelude::*;
 
 impl CompressedCompactPublicKey {
+    fn generate_with_existing_generator<Gen>(
+        private_key: &CompactPrivateKey,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let public_key_parameters = private_key.0.key.parameters();
+
+        let mut core_pk = SeededLweCompactPublicKeyOwned::new(
+            0u64,
+            public_key_parameters.encryption_lwe_dimension,
+            CompressionSeed::from(Seed(0)), // This is not the seed that is actually used
+            public_key_parameters.ciphertext_modulus,
+        );
+
+        generate_seeded_lwe_compact_public_key_with_pre_seeded_generator(
+            &private_key.0.key.key(),
+            &mut core_pk,
+            public_key_parameters.encryption_noise_distribution,
+            generator,
+        );
+
+        CompressedCompactPublicKey::from_raw_parts(
+            integer::CompressedCompactPublicKey::from_raw_parts(
+                shortint::CompressedCompactPublicKey::from_raw_parts(
+                    core_pk,
+                    private_key.0.key.parameters(),
+                ),
+            ),
+            Tag::default(),
+        )
+    }
+
     fn decompress_with_with_existing_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
@@ -68,6 +103,44 @@ impl CompressedCompactPublicKey {
 }
 
 impl integer::compression_keys::CompressedCompressionKey {
+    fn generate_with_existing_generator<Gen>(
+        private_compression_key: &CompressionPrivateKeys,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        ciphertext_modulus: CiphertextModulus<u64>,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let compression_params = private_compression_key.key.params;
+        let mut packing_key_switching_key = SeededLwePackingKeyswitchKey::new(
+            0u64,
+            compression_params.packing_ks_base_log,
+            compression_params.packing_ks_level,
+            glwe_secret_key.as_lwe_secret_key().lwe_dimension(),
+            compression_params.packing_ks_glwe_dimension,
+            compression_params.packing_ks_polynomial_size,
+            CompressionSeed::from(Seed(0)),
+            ciphertext_modulus,
+        );
+
+        generate_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
+            &glwe_secret_key.as_lwe_secret_key(),
+            &private_compression_key.key.post_packing_ks_key,
+            &mut packing_key_switching_key,
+            compression_params.packing_ks_key_noise_distribution,
+            generator,
+        );
+
+        integer::compression_keys::CompressedCompressionKey {
+            key: shortint::list_compression::CompressedCompressionKey {
+                packing_key_switching_key,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+                storage_log_modulus: compression_params.storage_log_modulus,
+            },
+        }
+    }
+
     fn decompress_with_existing_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
@@ -91,6 +164,38 @@ impl integer::compression_keys::CompressedCompressionKey {
 }
 
 impl integer::compression_keys::CompressedDecompressionKey {
+    fn generate_with_existing_generator<Gen>(
+        private_compression_key: &CompressionPrivateKeys,
+        glwe_secret_key: &GlweSecretKey<Vec<u64>>,
+        computation_parameters: ShortintParameterSet,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let compression_params = private_compression_key.key.params;
+
+        let core_bsk = allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+            &private_compression_key
+                .key
+                .post_packing_ks_key
+                .as_lwe_secret_key(),
+            glwe_secret_key,
+            compression_params.br_base_log,
+            compression_params.br_level,
+            computation_parameters.glwe_noise_distribution(),
+            computation_parameters.ciphertext_modulus(),
+            generator,
+        );
+
+        integer::compression_keys::CompressedDecompressionKey {
+            key: shortint::list_compression::CompressedDecompressionKey {
+                blind_rotate_key: core_bsk,
+                lwe_per_glwe: compression_params.lwe_per_glwe,
+            },
+        }
+    }
+
     fn decompress_with_existing_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
@@ -115,6 +220,60 @@ impl integer::compression_keys::CompressedDecompressionKey {
 }
 
 impl CompressedNoiseSquashingKey {
+    fn generate_with_existing_generator<Gen>(
+        private_noise_squashing_key: &integer::noise_squashing::NoiseSquashingPrivateKey,
+        lwe_secret_key: &LweSecretKey<Vec<u64>>,
+        computation_parameters: ShortintParameterSet,
+        generator: &mut EncryptionRandomGenerator<Gen>,
+    ) -> Self
+    where
+        Gen: ByteRandomGenerator,
+    {
+        let noise_squashing_parameters = private_noise_squashing_key.noise_squashing_parameters();
+
+        let shortint_key = match noise_squashing_parameters {
+            NoiseSquashingParameters::Classic(ns_params) => {
+                let core_bsk =
+                    allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
+                        lwe_secret_key,
+                        private_noise_squashing_key
+                            .key
+                            .post_noise_squashing_secret_key(),
+                        ns_params.decomp_base_log,
+                        ns_params.decomp_level_count,
+                        ns_params.glwe_noise_distribution,
+                        ns_params.ciphertext_modulus,
+                        generator,
+                    );
+
+                let compressed_mod_switch_config = generate_compressed_mod_switch_config(
+                    &ns_params.modulus_switch_noise_reduction_params,
+                    computation_parameters,
+                    lwe_secret_key,
+                    generator,
+                );
+
+                CompressedShortint128BootstrappingKey::Classic {
+                    bsk: core_bsk,
+                    modulus_switch_noise_reduction_key: compressed_mod_switch_config,
+                }
+            }
+            NoiseSquashingParameters::MultiBit(_) => {
+                // return Err("Multibit NoiseSquashing is not supported");
+                panic!("Multibit NoiseSquashing is not supported");
+            }
+        };
+
+        CompressedNoiseSquashingKey::from_raw_parts(
+            shortint::noise_squashing::CompressedNoiseSquashingKey::from_raw_parts(
+                shortint_key,
+                noise_squashing_parameters.message_modulus(),
+                noise_squashing_parameters.carry_modulus(),
+                noise_squashing_parameters.ciphertext_modulus(),
+            ),
+        )
+    }
+
     fn decompress_with_existing_generator<Gen>(
         &self,
         generator: &mut MaskRandomGenerator<Gen>,
@@ -251,67 +410,22 @@ impl CompressedXofKeySet {
 
         // First, the public key used to encrypt
         // It uses separate parameters from the computation ones
-        let compressed_public_key = {
-            let public_key_parameters = dedicated_pk_key.0.key.parameters();
+        let compressed_public_key = CompressedCompactPublicKey::generate_with_existing_generator(
+            dedicated_pk_key,
+            &mut encryption_rand_gen,
+        );
 
-            let mut core_pk = SeededLweCompactPublicKeyOwned::new(
-                0u64,
-                public_key_parameters.encryption_lwe_dimension,
-                CompressionSeed::from(Seed(0)), // This is not the seed that is actually used
-                public_key_parameters.ciphertext_modulus,
-            );
-
-            generate_seeded_lwe_compact_public_key_with_pre_seeded_generator(
-                &dedicated_pk_key.0.key.key(),
-                &mut core_pk,
-                public_key_parameters.encryption_noise_distribution,
-                &mut encryption_rand_gen,
-            );
-
-            CompressedCompactPublicKey::from_raw_parts(
-                integer::CompressedCompactPublicKey::from_raw_parts(
-                    shortint::CompressedCompactPublicKey::from_raw_parts(
-                        core_pk,
-                        dedicated_pk_key.0.key.parameters(),
-                    ),
-                ),
-                Tag::default(),
-            )
-        };
-
-        // Compression Key
         let compression_key = ck
             .key
             .compression_key
             .as_ref()
             .map(|private_compression_key| {
-                let compression_params = private_compression_key.key.params;
-                let mut packing_key_switching_key = SeededLwePackingKeyswitchKey::new(
-                    0u64,
-                    compression_params.packing_ks_base_log,
-                    compression_params.packing_ks_level,
-                    glwe_secret_key.as_lwe_secret_key().lwe_dimension(),
-                    compression_params.packing_ks_glwe_dimension,
-                    compression_params.packing_ks_polynomial_size,
-                    CompressionSeed::from(Seed(0)),
+                integer::compression_keys::CompressedCompressionKey::generate_with_existing_generator(
+                    private_compression_key,
+                    glwe_secret_key,
                     computation_parameters.ciphertext_modulus(),
-                );
-
-                generate_seeded_lwe_packing_keyswitch_key_with_pre_seeded_generator(
-                    &glwe_secret_key.as_lwe_secret_key(),
-                    &private_compression_key.key.post_packing_ks_key,
-                    &mut packing_key_switching_key,
-                    compression_params.packing_ks_key_noise_distribution,
                     &mut encryption_rand_gen,
-                );
-
-                integer::compression_keys::CompressedCompressionKey {
-                    key: shortint::list_compression::CompressedCompressionKey {
-                        packing_key_switching_key,
-                        lwe_per_glwe: compression_params.lwe_per_glwe,
-                        storage_log_modulus: compression_params.storage_log_modulus,
-                    },
-                }
+                )
             });
 
         let decompression_key = ck
@@ -319,28 +433,12 @@ impl CompressedXofKeySet {
             .compression_key
             .as_ref()
             .map(|private_compression_key| {
-                let compression_params = private_compression_key.key.params;
-
-                let core_bsk =
-                    allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
-                        &private_compression_key
-                            .key
-                            .post_packing_ks_key
-                            .as_lwe_secret_key(),
-                        glwe_secret_key,
-                        compression_params.br_base_log,
-                        compression_params.br_level,
-                        computation_parameters.glwe_noise_distribution(),
-                        computation_parameters.ciphertext_modulus(),
-                        &mut encryption_rand_gen,
-                    );
-
-                integer::compression_keys::CompressedDecompressionKey {
-                    key: shortint::list_compression::CompressedDecompressionKey {
-                        blind_rotate_key: core_bsk,
-                        lwe_per_glwe: compression_params.lwe_per_glwe,
-                    },
-                }
+                  integer::compression_keys::CompressedDecompressionKey::generate_with_existing_generator(
+                    private_compression_key,
+                    glwe_secret_key,
+                    computation_parameters,
+                    &mut encryption_rand_gen,
+                )
             });
 
         // Now, we generate the server key (ksk, then bsk)
@@ -431,48 +529,11 @@ impl CompressedXofKeySet {
                 .noise_squashing_private_key
                 .as_ref()
                 .map(|noise_squashing_key| {
-                    let noise_squashing_parameters =
-                        noise_squashing_key.noise_squashing_parameters();
-
-                    let shortint_key = match noise_squashing_parameters {
-                        NoiseSquashingParameters::Classic(ns_params) => {
-                            let core_bsk =
-                            allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator(
-                                lwe_secret_key,
-                                noise_squashing_key.key.post_noise_squashing_secret_key(),
-                                ns_params.decomp_base_log,
-                                ns_params.decomp_level_count,
-                                ns_params.glwe_noise_distribution,
-                                ns_params.ciphertext_modulus,
-                                &mut encryption_rand_gen,
-                            );
-
-                            let compressed_mod_switch_config =
-                                generate_compressed_mod_switch_config(
-                                    &ns_params.modulus_switch_noise_reduction_params,
-                                    computation_parameters,
-                                    lwe_secret_key,
-                                    &mut encryption_rand_gen,
-                                );
-
-                            CompressedShortint128BootstrappingKey::Classic {
-                                bsk: core_bsk,
-                                modulus_switch_noise_reduction_key: compressed_mod_switch_config,
-                            }
-                        }
-                        NoiseSquashingParameters::MultiBit(_) => {
-                            // return Err("Multibit NoiseSquashing is not supported");
-                            panic!("Multibit NoiseSquashing is not supported");
-                        }
-                    };
-
-                    CompressedNoiseSquashingKey::from_raw_parts(
-                        shortint::noise_squashing::CompressedNoiseSquashingKey::from_raw_parts(
-                            shortint_key,
-                            noise_squashing_parameters.message_modulus(),
-                            noise_squashing_parameters.carry_modulus(),
-                            noise_squashing_parameters.ciphertext_modulus(),
-                        ),
+                    CompressedNoiseSquashingKey::generate_with_existing_generator(
+                        noise_squashing_key,
+                        lwe_secret_key,
+                        computation_parameters,
+                        &mut encryption_rand_gen,
                     )
                 });
 
@@ -779,15 +840,17 @@ impl XofKeySet {
 
 fn allocate_and_generate_compressed_modulus_switch_noise_reduction_key_with_pre_seeded_generator<
     LweCont,
+    Gen,
 >(
     lwe_secret_key: &LweSecretKey<LweCont>,
     params: &ModulusSwitchNoiseReductionParams,
     lwe_noise_distribution: DynamicDistribution<u64>,
     ciphertext_modulus: CiphertextModulus<u64>,
-    noise_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    noise_generator: &mut EncryptionRandomGenerator<Gen>,
 ) -> CompressedModulusSwitchNoiseReductionKey<u64>
 where
     LweCont: Container<Element = u64>,
+    Gen: ByteRandomGenerator,
 {
     let mut modulus_switch_zeros = SeededLweCiphertextList::new(
         0,
@@ -939,12 +1002,15 @@ where
     core_fourier_bsk
 }
 
-fn generate_compressed_mod_switch_config(
+fn generate_compressed_mod_switch_config<Gen>(
     modulus_switch_noise_reduction_params: &ModulusSwitchType,
     computation_parameters: ShortintParameterSet,
     lwe_secret_key: &LweSecretKeyOwned<u64>,
-    encryption_rand_gen: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
-) -> CompressedModulusSwitchConfiguration<u64> {
+    encryption_rand_gen: &mut EncryptionRandomGenerator<Gen>,
+) -> CompressedModulusSwitchConfiguration<u64>
+where
+    Gen: ByteRandomGenerator,
+{
     match modulus_switch_noise_reduction_params {
         ModulusSwitchType::Standard => {
             CompressedModulusSwitchConfiguration::Standard

@@ -523,14 +523,18 @@ where
     bsk
 }
 
-pub fn allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator<LweCont, GlweCont>(
+pub fn allocate_and_generate_lwe_bootstrapping_key_with_pre_seeded_generator<
+    LweCont,
+    GlweCont,
+    ByteGen,
+>(
     input_lwe_secret_key: &LweSecretKey<LweCont>,
     output_glwe_secret_key: &GlweSecretKey<GlweCont>,
     decomp_base_log: DecompositionBaseLog,
     decomp_level_count: DecompositionLevelCount,
     noise_distribution: DynamicDistribution<GlweCont::Element>,
     ciphertext_modulus: CiphertextModulus<GlweCont::Element>,
-    noise_generator: &mut EncryptionRandomGenerator<DefaultRandomGenerator>,
+    noise_generator: &mut EncryptionRandomGenerator<ByteGen>,
 ) -> SeededLweBootstrapKeyOwned<GlweCont::Element>
 where
     LweCont: Container,
@@ -538,6 +542,7 @@ where
     LweCont::Element: Copy + CastInto<GlweCont::Element>,
     GlweCont::Element:
         UnsignedInteger + Encryptable<Uniform, DynamicDistribution<GlweCont::Element>>,
+    ByteGen: ByteRandomGenerator,
 {
     let mut lwe_bootstrapping_key = SeededLweBootstrapKeyOwned::new(
         GlweCont::Element::ZERO,
