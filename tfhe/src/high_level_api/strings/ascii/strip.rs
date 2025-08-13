@@ -1,5 +1,6 @@
 use crate::high_level_api::global_state::with_internal_keys;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 use crate::high_level_api::strings::ascii::FheAsciiString;
 use crate::high_level_api::strings::traits::FheStringStrip;
 use crate::high_level_api::FheBool;
@@ -38,8 +39,16 @@ impl FheStringStrip<&Self> for FheAsciiString {
                     .string_key()
                     .strip_prefix(&self.inner.on_cpu(), (&*pat.inner.on_cpu()).into());
                 (
-                    Self::new(inner, cpu_key.tag.clone()),
-                    FheBool::new(block, cpu_key.tag.clone()),
+                    Self::new(
+                        inner,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        block,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -85,8 +94,16 @@ impl FheStringStrip<&Self> for FheAsciiString {
                     .string_key()
                     .strip_suffix(&self.inner.on_cpu(), (&*pat.inner.on_cpu()).into());
                 (
-                    Self::new(inner, cpu_key.tag.clone()),
-                    FheBool::new(block, cpu_key.tag.clone()),
+                    Self::new(
+                        inner,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        block,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -134,8 +151,16 @@ impl FheStringStrip<&ClearString> for FheAsciiString {
                     .string_key()
                     .strip_prefix(&self.inner.on_cpu(), pat.into());
                 (
-                    Self::new(inner, cpu_key.tag.clone()),
-                    FheBool::new(block, cpu_key.tag.clone()),
+                    Self::new(
+                        inner,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        block,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]
@@ -181,8 +206,16 @@ impl FheStringStrip<&ClearString> for FheAsciiString {
                     .string_key()
                     .strip_suffix(&self.inner.on_cpu(), pat.into());
                 (
-                    Self::new(inner, cpu_key.tag.clone()),
-                    FheBool::new(block, cpu_key.tag.clone()),
+                    Self::new(
+                        inner,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
+                    FheBool::new(
+                        block,
+                        cpu_key.tag.clone(),
+                        ReRandomizationMetadata::default(),
+                    ),
                 )
             }
             #[cfg(feature = "gpu")]

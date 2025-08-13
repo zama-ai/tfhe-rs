@@ -1,6 +1,7 @@
 use super::{FheBool, InnerBoolean};
 use crate::high_level_api::global_state;
 use crate::high_level_api::keys::InternalServerKey;
+use crate::high_level_api::re_randomization::ReRandomizationMetadata;
 #[cfg(feature = "gpu")]
 use crate::integer::gpu::ciphertext::boolean_value::CudaBooleanBlock;
 #[cfg(feature = "gpu")]
@@ -57,6 +58,6 @@ impl FheBool {
                 panic!("Hpu does not support random bool generation")
             }
         });
-        Self::new(ciphertext, tag)
+        Self::new(ciphertext, tag, ReRandomizationMetadata::default())
     }
 }
