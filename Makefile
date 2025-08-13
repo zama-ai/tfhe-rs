@@ -1527,6 +1527,27 @@ bench_hlapi_noise_squash_gpu: install_rs_check_toolchain
 	--bench hlapi-noise-squash \
 	--features=integer,gpu,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
 
+
+bench_zk_sns: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-pke-bench \
+	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
+	-p tfhe-benchmark --
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench zk-pke-bench \
+	--features=integer,internal-keycache,zk-pok,nightly-avx512,pbs-stats \
+	-p tfhe-benchmark --
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=latency \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-noise-squash \
+	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=throughput \
+	cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \
+	--bench hlapi-noise-squash \
+	--features=integer,internal-keycache,pbs-stats,nightly-avx512 -p tfhe-benchmark --
+
 #
 # Utility tools
 #
